@@ -690,8 +690,8 @@ checkArgumentsE'
               tel <- runMaybeT $ safeTelViewUpTo' sArgsLen visible sFunType
               case tel of
                 Nothing             -> do
-                  -- Telescope has substituted @rewrite arguments in it, so we have
-                  -- to delay checking the target type
+                  -- Telescope has invalidated @rewrite arguments in it, so we
+                  -- have to delay checking the target type
                   -- We could make this a bit more efficient by counting the
                   -- number of @rewrite arguments and skipping exactly that many
                   -- args

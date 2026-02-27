@@ -1501,6 +1501,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Invalid relevance annotations, automatically corrected.
 
+.. option:: MisplacedRewrite
+
+     Invalid local rewrite annotations, automatically ignored.
+
 .. option:: FixityInRenamingModule
 
      Fixity annotations in ``renaming`` directives for a ``module``.
@@ -1980,10 +1984,6 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 .. option:: RewriteNonConfluent
 
      Failed confluence checks while joining critical pairs.
-
-.. option:: LetBoundLocalRewrite
-
-     Let-binding annotated with '@rewrite'.
 
 .. option:: LocalRewriteOutsideTelescope
 

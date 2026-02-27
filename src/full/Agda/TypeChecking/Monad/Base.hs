@@ -4703,6 +4703,8 @@ data Warning
     -- ^ Auto-correcting cohesion pertaining to 'String' /from/ /to/.
   | FixingPolarity String PolarityModality PolarityModality
     -- ^ Auto-correcting polarity pertaining to 'String' /from/ /to/.
+  | IgnoringRew String RewriteAnn
+    -- ^ Auto-correcting rewrite pertaining to 'String' by ignoring it
   | IllformedAsClause String
     -- ^ If the user wrote something other than an unqualified name
     --   in the @as@ clause of an @import@ statement.
@@ -4929,6 +4931,7 @@ warningName = \case
   FixingRelevance{}            -> FixingRelevance_
   FixingCohesion{}             -> FixingCohesion_
   FixingPolarity{}             -> FixingPolarity_
+  IgnoringRew{}                -> MisplacedRewrite_
   IllformedAsClause{}          -> IllformedAsClause_
   WrongInstanceDeclaration{}   -> WrongInstanceDeclaration_
   InstanceWithExplicitArg{}    -> InstanceWithExplicitArg_
@@ -5050,7 +5053,6 @@ illegalRewriteWarningName = \case
   BeforeFunctionDefinition             -> RewriteBeforeFunctionDefinition_
   BeforeMutualFunctionDefinition{}     -> RewriteBeforeMutualFunctionDefinition_
   DuplicateRewriteRule                 -> DuplicateRewriteRule_
-  LetBoundLocalRewrite                 -> LetBoundLocalRewrite_
   LocalRewriteOutsideTelescope         -> LocalRewriteOutsideTelescope_
 
 -- | Should warnings of that type be serialized?
@@ -5700,7 +5702,6 @@ data IllegalRewriteRuleReason
   | BeforeFunctionDefinition
   | BeforeMutualFunctionDefinition QName
   | DuplicateRewriteRule
-  | LetBoundLocalRewrite
   | LocalRewriteOutsideTelescope
     deriving (Show, Generic)
 

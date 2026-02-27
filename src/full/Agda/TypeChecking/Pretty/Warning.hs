@@ -242,21 +242,24 @@ prettyWarning = \case
 
     FixingRelevance s r r' -> fsep $ concat
       [ pwords "Replacing illegal relevance", [ p r ]
-      , pwords s, [ "by", p r' ]
+      , ["of", text s], [ "by", p r' ]
       ]
       where p r = text $ "`" ++ verbalize r ++ "'"
 
     FixingCohesion s c c' -> fsep $ concat
       [ pwords "Replacing illegal cohesion", [ p c ]
-      , pwords s, [ "by", p c' ]
+      , ["of", text s], [ "by", p c' ]
       ]
       where p c = text $ "`" ++ verbalize c ++ "'"
 
     FixingPolarity s q q' ->  fsep $ concat
       [ pwords "Replacing illegal polarity", [ p q ]
-      , pwords s, [ "by", p q' ]
+      , ["of", text s], [ "by", p q' ]
       ]
       where p q = text $ "`" ++ verbalize q ++ "'"
+
+    IgnoringRew s r -> fsep $ concat
+      [pwords "Ignoring illegal local rewrite attribute on", pwords s]
 
     IllformedAsClause s -> fsep . pwords $
       "`as' must be followed by an identifier" ++ s
@@ -530,11 +533,6 @@ prettyWarning = \case
           [ pwords "Rewrite rule"
           , [ "", prettyTCM q, ""]
           , pwords "has already been added"
-          ]
-
-        LetBoundLocalRewrite -> (fsep . concat)
-          [ illegalSince q
-          , pwords "local rewrite rules cannot be bound in let-expressions"
           ]
 
         LocalRewriteOutsideTelescope -> (fsep . concat)

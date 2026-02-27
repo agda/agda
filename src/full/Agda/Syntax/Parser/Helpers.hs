@@ -560,7 +560,7 @@ patternSynArgs = mapM \ x -> do
           ArgInfo _ _ _ _ (Annotation (IsLock _) _) ->
             abort $ noAnn "Lock"
 
-          ArgInfo _ _ _ _ (Annotation _ IsRewrite) ->
+          ArgInfo _ _ _ _ (Annotation _ (IsRewrite _)) ->
             abort $ noAnn "Rewrite"
 
           ArgInfo _ (Modality r q c p) _ _ _
@@ -632,6 +632,9 @@ funClauseOrTypeSigs attrs lhs' with mrhs wh = do
       whenJust (haveTacticAttr attrs) \ re ->
         parseWarning $ MisplacedAttributes (getRange re) $
           "Ignoring tactic attribute, illegal in function clauses"
+      whenJust (haveRewAttr attrs) \ re ->
+        parseWarning $ MisplacedAttributes (getRange re) $
+          "Ignoring local rewrite attribute, illegal in function clauses"
       -- Andreas, 2025-07-09, issue #7989: extract irrelevance info from lhs pattern
       let (Arg info p) = patternToArgPattern $ lhsOriginalPattern lhs
       -- Andreas, 2025-07-10, issue #7988: allow attributes in function clause
@@ -695,7 +698,7 @@ toAttribute r e = do
 -- | Updates 'parseAttributes' and returns an @rewrite attribute
 rewAttribute :: Range -> Parser (Maybe Attr)
 rewAttribute r = fmap Just $ theAttribute $
-  Attr r "rewrite" (RewriteAttribute IsRewrite)
+  Attr r "rewrite" (RewriteAttribute $ IsRewrite r)
 
 -- | Updates 'parseAttributes' and returns the attribute
 theAttribute :: Attr -> Parser Attr
@@ -760,6 +763,13 @@ haveTacticAttr as =
     [CA.TacticAttribute e] -> Just e
     [] -> Nothing
     _  -> __IMPOSSIBLE__
+
+haveRewAttr :: [Attr] -> Maybe RewriteAnn
+haveRewAttr as =
+  case rewAttributes $ theAttr <$> as of
+    [CA.RewriteAttribute r] -> Just r
+    []                      -> Nothing
+    _                       -> __IMPOSSIBLE__
 
 -- | Report a parse error if two attributes in the list are of the same kind,
 --   thus, present conflicting information.

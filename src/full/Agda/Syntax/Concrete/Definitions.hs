@@ -289,6 +289,7 @@ niceDeclarations fixs ds = do
 
         TypeSig info tac x t -> do
           dropTactic tac
+          info <- dropRew info
           termCheck <- use terminationCheckPragma
           covCheck  <- use coverageCheckPragma
           -- Andreas, 2020-09-28, issue #4950: take only range of identifier,
@@ -310,6 +311,8 @@ niceDeclarations fixs ds = do
               -- Warn about @variable {x} : A@ which is equivalent to @variable x : A@.
               when (getHiding info == Hidden) $
                 declarationWarning $ HiddenGeneralize $ getRange x
+              -- Generalised variables cannot be local rewrite rules
+              info <- dropRew info
               return $ NiceGeneralize (getRange sig) PublicAccess info tac x t
             _ -> __IMPOSSIBLE__
           return (gs, ds)
@@ -727,6 +730,7 @@ niceDeclarations fixs ds = do
         niceAxiom = \case
           d@(TypeSig rel tac x t) -> do
             dropTactic tac
+            rel <- dropRew rel
             return [ Axiom (getRange d) PublicAccess ConcreteDef NotInstanceDef rel x t ]
           -- @instance@ and @private@ blocks mix well with other blocks.
           InstanceB r ds -> instanceBlock r =<< niceAxioms b ds
@@ -1646,6 +1650,10 @@ dropTactic :: TacticAttribute -> Nice ()
 dropTactic = \case
   TacticAttribute Nothing   -> return ()
   TacticAttribute (Just re) -> declarationWarning $ InvalidTacticAttribute $ getRange re
+
+-- | Ensure there is no local rewrite attribute
+dropRew :: LensRewriteAnn a => a -> Nice a
+dropRew = ignoreRew $ declarationWarning . InvalidRewriteAttribute . getRange
 
 -- The following function is (at the time of writing) only used three
 -- times: for building Lets, and for printing error messages.

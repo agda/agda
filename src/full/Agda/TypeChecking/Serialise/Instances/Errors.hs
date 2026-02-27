@@ -149,6 +149,7 @@ instance EmbPrj Warning where
     UnusedImports a b                           -> icodeN 75 UnusedImports a b
     DefinitionBeforeDeclaration x               -> icodeN 76 DefinitionBeforeDeclaration x
     RecursiveRecordNeedsInductivity{}           -> __IMPOSSIBLE__  -- Error warning
+    IgnoringRew a b                             -> icodeN 77 IgnoringRew a b
 
   value = vcase $ \ case
     N3 0 a b      -> valuN UnreachableClauses a b
@@ -229,6 +230,7 @@ instance EmbPrj Warning where
     N1 74         -> valuN RewritesNothing
     N3 75 a b     -> valuN UnusedImports a b
     N2 76 a       -> valuN DefinitionBeforeDeclaration a
+    N3 77 a b     -> valuN IgnoringRew a b
     _ -> malformed
 
 instance EmbPrj UselessPublicReason
@@ -275,8 +277,7 @@ instance EmbPrj IllegalRewriteRuleReason where
     BeforeFunctionDefinition                    -> icodeN 13 BeforeFunctionDefinition
     BeforeMutualFunctionDefinition a            -> icodeN 14 BeforeMutualFunctionDefinition a
     DuplicateRewriteRule                        -> icodeN 15 DuplicateRewriteRule
-    LetBoundLocalRewrite                        -> icodeN 16 LetBoundLocalRewrite
-    LocalRewriteOutsideTelescope                -> icodeN 18 LocalRewriteOutsideTelescope
+    LocalRewriteOutsideTelescope                -> icodeN 16 LocalRewriteOutsideTelescope
 
   value = vcase $ \case
     N1 0     -> valuN LHSNotDefinitionOrConstructor
@@ -295,8 +296,7 @@ instance EmbPrj IllegalRewriteRuleReason where
     N1 13    -> valuN BeforeFunctionDefinition
     N2 14 a  -> valuN BeforeMutualFunctionDefinition a
     N1 15    -> valuN DuplicateRewriteRule
-    N1 16    -> valuN LetBoundLocalRewrite
-    N1 18    -> valuN LocalRewriteOutsideTelescope
+    N1 16    -> valuN LocalRewriteOutsideTelescope
     _        -> malformed
 
 instance EmbPrj OptionWarning where
@@ -422,6 +422,7 @@ instance EmbPrj DeclarationWarning' where
     EmptyPolarityPragma r             -> icodeN 35 EmptyPolarityPragma r
     UselessImport r                   -> icodeN 36 UselessImport r
     InvalidDataOrRecDefParameter r a b c -> icodeN 37 InvalidDataOrRecDefParameter r a b c
+    InvalidRewriteAttribute r            -> icodeN 38 InvalidTacticAttribute r
 
   value = vcase $ \case
     N2 0  a            -> valuN UnknownNamesInFixityDecl a
@@ -462,6 +463,7 @@ instance EmbPrj DeclarationWarning' where
     N2 35 r            -> valuN EmptyPolarityPragma r
     N2 36 r            -> valuN UselessImport r
     N5 37 r a b c      -> valuN InvalidDataOrRecDefParameter r a b c
+    N2 38 r            -> valuN InvalidRewriteAttribute r
     _ -> malformed
 
 instance EmbPrj OpenOrImport

@@ -465,6 +465,8 @@ warningHighlighting' b w = case tcWarning w of
     where r = getRange q
   FixingPolarity _ q _       -> if null r then cosmeticProblemHighlighting w else deadcodeHighlighting r
     where r = getRange q
+  IgnoringRew _ q            -> if null r then cosmeticProblemHighlighting w else deadcodeHighlighting r
+    where r = getRange q
   IllformedAsClause{}        -> deadcodeHighlighting w
   UnusedImports m Nothing    -> deadcodeHighlighting w
   UnusedImports m xs         -> cosmeticProblemHighlighting w <> foldMap deadcodeHighlighting xs
@@ -593,6 +595,7 @@ warningHighlighting' b w = case tcWarning w of
     InvalidConstructorBlock{}        -> deadcodeHighlighting w
     InvalidDataOrRecDefParameter{}   -> deadcodeHighlighting w
     InvalidTacticAttribute{}         -> deadcodeHighlighting w
+    InvalidRewriteAttribute{}        -> deadcodeHighlighting w
     OpenImportAbstract{}             -> cosmeticProblemHighlighting w
     OpenImportPrivate{}              -> cosmeticProblemHighlighting w
     SafeFlagEta                   {} -> errorWarningHighlighting w

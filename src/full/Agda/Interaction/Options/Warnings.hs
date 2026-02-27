@@ -200,7 +200,6 @@ errorWarnings = Set.fromList
   , RewriteMaybeNonConfluent_
   , RewriteAmbiguousRules_
   , RewriteMissingRule_
-  , LetBoundLocalRewrite_
   , LocalRewriteOutsideTelescope_
   , TopLevelPolarity_
 
@@ -317,6 +316,7 @@ data WarningName
   | FixingCohesion_
   | FixingPolarity_
   | FixingRelevance_
+  | MisplacedRewrite_
   -- TODO: linearity
   -- -- | FixingQuantity_
   | FixityInRenamingModule_
@@ -374,7 +374,6 @@ data WarningName
   | RewriteAmbiguousRules_
   | RewriteMissingRule_
   | DuplicateRewriteRule_
-  | LetBoundLocalRewrite_
   | LocalRewriteOutsideTelescope_
   | SafeFlagEta_
   | SafeFlagInjective_
@@ -577,6 +576,7 @@ warningNameDescription = \case
   FixingRelevance_                 -> "Correcting invalid user-written relevance attribute."
   FixingCohesion_                  -> "Correcting invalid user-written cohesion attribute."
   FixingPolarity_                  -> "Correcting invalid user-written polarity attribute."
+  MisplacedRewrite_                -> "Ignoring invalid user-written local rewrite attribute."
   InvalidCharacterLiteral_         -> "Illegal character literals."
   UselessPragma_                   -> "Pragmas that get ignored."
   IllegalDeclarationInDataDefinition_ -> "Declarations not allowed in `data' definitions."
@@ -630,7 +630,6 @@ warningNameDescription = \case
   RewriteAmbiguousRules_           -> "Failed global confluence checks because of overlapping rules."
   RewriteMissingRule_              -> "Failed global confluence checks because of missing rule."
   DuplicateRewriteRule_            -> "Duplicate rewrite rules."
-  LetBoundLocalRewrite_            -> "Let-binding annotated with '@rewrite'."
   LocalRewriteOutsideTelescope_    -> "'@rewrite' arguments are (currently) only allowed in module telescopes."
   SafeFlagEta_                     -> "`ETA' pragmas with the safe flag."
   SafeFlagInjective_               -> "`INJECTIVE' pragmas with the safe flag."

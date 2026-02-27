@@ -609,29 +609,16 @@ illegalRule s reason = do
   unsafeRule s reason
   mzero
 
-warnIfRew :: (MonadWarning m) => RewriteSource -> RewriteAnn -> m ()
-warnIfRew s rewAnn = when (isRewrite rewAnn) $ void $ runMaybeT $
-  illegalRule s LetBoundLocalRewrite
-
 -- | Add a let bound variable.
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
 addLetBinding :: (MonadWarning m) => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
-addLetBinding info o x v t0 ret = do
-  -- For now, we disallow @rewrite in let bindings.
-  -- I think one could justify some implementation where @rewrite merely
-  -- constrains the type of the let (i.e. the equation must already hold
-  -- definitionally in the context we create the let binding) but this is not
-  -- really useful.
-  cxt <- getContext
-  warnIfRew (LocalRewrite cxt (Just x) t0) $ getRewriteAnn info
-  addLetBinding' NoAxiom o x v (defaultArgDom info t0) ret
+addLetBinding info o x v t0 =
+  addLetBinding' NoAxiom o x v (defaultArgDom info t0)
 
 -- | Add a let bound variable without a definition.
 {-# SPECIALIZE addLetAxiom :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
 addLetAxiom :: (MonadWarning m) => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
-addLetAxiom info o x v t0 ret = do
-  cxt <- getContext
-  warnIfRew (LocalRewrite cxt (Just x) t0) $ getRewriteAnn info
+addLetAxiom info o x v t0 ret =
   addLetBinding' YesAxiom o x v (defaultArgDom info t0) ret
 
 {-# SPECIALIZE removeLetBinding :: Name -> TCM a -> TCM a #-}

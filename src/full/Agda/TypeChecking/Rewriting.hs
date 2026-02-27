@@ -178,9 +178,9 @@ rewriteRelationDom rel = do
 
 checkEquationValid ::
   RewriteSource -> RewriteAnn -> Type -> TCM (Maybe LocalEquation)
-checkEquationValid s rewAnn t = if isRewrite rewAnn
-  then runMaybeT $ checkIsRewriteRelation s t
-  else pure Nothing
+checkEquationValid s rewAnn t
+  | isRewrite rewAnn = runMaybeT $ checkIsRewriteRelation s t
+  | otherwise        = pure Nothing
 
 checkIsRewriteRelation ::
   RewriteSource -> Type -> MaybeT TCM LocalEquation

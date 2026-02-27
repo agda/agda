@@ -140,6 +140,8 @@ data DeclarationWarning'
       --   that does not apply to any function.
   | InvalidTacticAttribute Range
       -- ^ A misplaced @tactic@ attribute.
+  | InvalidRewriteAttribute Range
+      -- ^ A misplaced @rewrite@ attribute.
   | MissingDataDeclaration Name
       -- ^ A @data@ definition without a @data@ signature.
   | MissingDefinitions (List1 (Name, Range))
@@ -218,6 +220,7 @@ declarationWarningName' = \case
   InvalidTerminationCheckPragma   {} -> InvalidTerminationCheckPragma_
   InvalidCoverageCheckPragma      {} -> InvalidCoverageCheckPragma_
   InvalidTacticAttribute          {} -> InvalidTacticAttribute_
+  InvalidRewriteAttribute         {} -> MisplacedRewrite_
   MissingDataDeclaration          {} -> MissingDataDeclaration_
   MissingDefinitions              {} -> MissingDefinitions_
   NotAllowedInMutual              {} -> NotAllowedInMutual_
@@ -272,6 +275,7 @@ unsafeDeclarationWarning' = \case
   InvalidTerminationCheckPragma{}   -> False
   InvalidCoverageCheckPragma{}      -> False
   InvalidTacticAttribute{}          -> False
+  InvalidRewriteAttribute{}         -> False
   MissingDataDeclaration{}          -> True  -- not safe
   MissingDefinitions{}              -> False -- not safe but deferred until after typechecking
   NotAllowedInMutual{}              -> False -- really safe?
@@ -386,6 +390,7 @@ instance HasRange DeclarationWarning' where
     InvalidNoUniverseCheckPragma r     -> r
     InvalidTerminationCheckPragma r    -> r
     InvalidTacticAttribute r           -> r
+    InvalidRewriteAttribute r          -> r
     MissingDataDeclaration x           -> getRange x
     MissingDefinitions xs              -> getRange xs
     NotAllowedInMutual r _x            -> r
@@ -561,6 +566,9 @@ instance Pretty DeclarationWarning' where
 
     InvalidTacticAttribute _ -> fsep $
       pwords "Ignoring misplaced tactic attribute."
+
+    InvalidRewriteAttribute _ -> fsep $
+      pwords "Ignoring misplaced local rewrite attribute."
 
     InvalidTerminationCheckPragma _ -> fsep $
       pwords "Termination checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."

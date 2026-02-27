@@ -1,6 +1,0 @@
-LocalRewriteLet.agda:10.24-11.20: error: [LetBoundLocalRewrite]
-q : 0 ≡ x  is not a legal rewrite rule, since local rewrite rules
-cannot be bound in let-expressions
-when checking the let binding
-q : 0 ≡ x
-q = p
