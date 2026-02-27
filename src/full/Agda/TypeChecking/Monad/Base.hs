@@ -2901,6 +2901,8 @@ data DatatypeData = DatatypeData
       --   Does include this data type.
       --   Empty if not recursive.
       --   @Nothing@ if not yet computed (by positivity checker).
+  , _dataPositivityCheck:: PositivityCheck
+      -- ^ Should positivity errors be reported for this data type?
   , _dataAbstr          :: IsAbstract
   , _dataPathCons       :: [QName]
       -- ^ Path constructor names (subset of @dataCons@).
@@ -2917,6 +2919,7 @@ pattern Datatype
   -> [QName]
   -> Sort
   -> Maybe [QName]
+  -> PositivityCheck
   -> IsAbstract
   -> [QName]
   -> Maybe QName
@@ -2930,6 +2933,7 @@ pattern Datatype
   , dataCons
   , dataSort
   , dataMutual
+  , dataPositivityCheck
   , dataAbstr
   , dataPathCons
   , dataTranspIx
@@ -2941,6 +2945,7 @@ pattern Datatype
     dataCons
     dataSort
     dataMutual
+    dataPositivityCheck
     dataAbstr
     dataPathCons
     dataTranspIx
@@ -2968,6 +2973,8 @@ data RecordData = RecordData
       --   Does include this record.
       --   Empty if not recursive.
       --   @Nothing@ if not yet computed (by positivity checker).
+  , _recPositivityCheck :: PositivityCheck
+      -- ^ Should positivity errors be reported for this record type?
   , _recEtaEquality'    :: EtaEquality
       -- ^ Eta-expand at this record type?
       --   @False@ for unguarded recursive records and coinductive records
@@ -2997,6 +3004,7 @@ pattern Record
   -> [Dom QName]
   -> Telescope
   -> Maybe [QName]
+  -> PositivityCheck
   -> EtaEquality
   -> PatternOrCopattern
   -> Maybe Induction
@@ -3013,6 +3021,7 @@ pattern Record
   , recFields
   , recTel
   , recMutual
+  , recPositivityCheck
   , recEtaEquality'
   , recPatternMatching
   , recInduction
@@ -3027,6 +3036,7 @@ pattern Record
     recFields
     recTel
     recMutual
+    recPositivityCheck
     recEtaEquality'
     recPatternMatching
     recInduction
@@ -3267,6 +3277,7 @@ instance Pretty DatatypeData where
       dataCons
       dataSort
       dataMutual
+      _dataPositivityCheck
       _dataAbstr
       _dataPathCons
       _dataTranspIx
@@ -3291,6 +3302,7 @@ instance Pretty RecordData where
       recFields
       recTel
       recMutual
+      _recPositivityCheck
       recEtaEquality'
       _recPatternMatching
       recInduction
@@ -6764,8 +6776,8 @@ instance KillRange Defn where
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function a b c d e f g h i j k l m n ->
         killRangeN Function a b c d e f g h i j k l m n
-      Datatype a b c d e f g h i j   -> killRangeN Datatype a b c d e f g h i j
-      Record a b c d e f g h i j k l m -> killRangeN Record a b c d e f g h i j k l m
+      Datatype a b c d e f g h i j k -> killRangeN Datatype a b c d e f g h i j k
+      Record a b c d e f g h i j k l m n -> killRangeN Record a b c d e f g h i j k l m n
       Constructor a b c d e f g h i j k -> killRangeN Constructor a b c d e f g h i j k
       Primitive a b c d e f          -> killRangeN Primitive a b c d e f
       PrimitiveSort a b              -> killRangeN PrimitiveSort a b

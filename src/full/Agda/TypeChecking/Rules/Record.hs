@@ -71,6 +71,7 @@ import qualified Agda.Utils.List1 as List1
 checkRecDef
   :: A.DefInfo                 -- ^ Position and other info.
   -> QName                     -- ^ Record type identifier.
+  -> PositivityCheck           -- ^ Report positivity errors for this record type?
   -> UniverseCheck             -- ^ Check universes?
   -> A.RecordDirectives        -- ^ (Co)Inductive, (No)Eta, (Co)Pattern, Constructor?
   -> A.DataDefParams           -- ^ Record parameters.
@@ -78,7 +79,7 @@ checkRecDef
                                --   Does not include record parameters.
   -> [A.Field]                 -- ^ Field signatures.
   -> TCM ()
-checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars ps) contel0 fields = do
+checkRecDef i name pc uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars ps) contel0 fields = do
 
   -- Andreas, 2022-10-06, issue #6165:
   -- The target type of the constructor is a meaningless dummy expression which does not type-check.
@@ -222,13 +223,14 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
               , recNamedCon       = hasNamedCon
               , recFields         = fs
               , recTel            = telh `abstract` ftel
+              , recPositivityCheck= pc
               , recAbstr          = Info.defAbstract i
               , recEtaEquality'   = haveEta
               , recPatternMatching= patCopat
               , recInduction      = indCo
                   -- We retain the original user declaration [(co)inductive]
                   -- in case the record turns out to be recursive.
-              -- Determined by positivity checker:
+              -- Determined by positivity checker (analysis running always, independently of recPositivityCheck):
               , recMutual         = Nothing
               -- Determined by the termination checker:
               , recTerminates     = Nothing

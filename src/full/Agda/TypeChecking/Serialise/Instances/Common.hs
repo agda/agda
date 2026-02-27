@@ -705,6 +705,8 @@ instance EmbPrj RecordDirective where
     (N2 3 a)   -> valuN PatternOrCopattern a
     _ -> malformed
 
+instance EmbPrj PositivityCheck
+
 instance EmbPrj Catchall where
   icod_ NoCatchall  = icodeN' NoCatchall
   icod_ (YesCatchall x) = icodeN' YesCatchall x

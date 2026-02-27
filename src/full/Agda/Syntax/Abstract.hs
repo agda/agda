@@ -211,9 +211,9 @@ data Declaration
   | Open       ModuleInfo ModuleName ImportDirective
   | FunDef     DefInfo QName (List1 Clause) -- ^ sequence of function clauses
   | DataSig    DefInfo Erased QName GeneralizeTelescope Type -- ^ lone data signature
-  | DataDef    DefInfo QName UniverseCheck DataDefParams [Constructor]
+  | DataDef    DefInfo QName PositivityCheck UniverseCheck DataDefParams [Constructor]
   | RecSig     DefInfo Erased QName GeneralizeTelescope Type -- ^ lone record signature
-  | RecDef     DefInfo QName UniverseCheck RecordDirectives DataDefParams Type [Declaration]
+  | RecDef     DefInfo QName PositivityCheck UniverseCheck RecordDirectives DataDefParams Type [Declaration]
       -- ^ The 'Type' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Dummy@,
       --   and the optional name is the constructor's name.
       --   The optional 'Range' is for the @pattern@ attribute.
@@ -644,9 +644,9 @@ instance Eq Declaration where
   Open a1 b1 c1                  == Open a2 b2 c2                  = (a1, b1, c1) == (a2, b2, c2)
   FunDef a1 b1 c1                == FunDef a2 b2 c2                = (a1, b1, c1) == (a2, b2, c2)
   DataSig a1 b1 c1 d1 e1         == DataSig a2 b2 c2 d2 e2         = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
-  DataDef a1 b1 c1 d1 e1         == DataDef a2 b2 c2 d2 e2         = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
+  DataDef a1 b1 c1 d1 e1 f1      == DataDef a2 b2 c2 d2 e2 f2      = (a1, b1, c1, d1, e1, f1) == (a2, b2, c2, d2, e2, f2)
   RecSig a1 b1 c1 d1 e1          == RecSig a2 b2 c2 d2 e2          = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
-  RecDef a1 b1 c1 d1 e1 f1 g1    == RecDef a2 b2 c2 d2 e2 f2 g2    = (a1, b1, c1, d1, e1, f1, g1) == (a2, b2, c2, d2, e2, f2, g2)
+  RecDef a1 b1 c1 d1 e1 f1 g1 h1 == RecDef a2 b2 c2 d2 e2 f2 g2 h2 = (a1, b1, c1, d1, e1, f1, g1, h1) == (a2, b2, c2, d2, e2, f2, g2, h2)
   PatternSynDef a1 b1 c1         == PatternSynDef a2 b2 c2         = (a1, b1, c1) == (a2, b2, c2)
   UnquoteDecl a1 b1 c1 d1        == UnquoteDecl a2 b2 c2 d2        = (a1, b1, c1, d1) == (a2, b2, c2, d2)
   UnquoteDef a1 b1 c1            == UnquoteDef a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
@@ -729,9 +729,9 @@ instance HasRange Declaration where
     getRange (ScopedDecl _ d        )  = getRange d
     getRange (FunDef     i _ _      )  = getRange i
     getRange (DataSig    i _ _ _ _  )  = getRange i
-    getRange (DataDef    i _ _ _ _  )  = getRange i
+    getRange (DataDef    i _ _ _ _ _)  = getRange i
     getRange (RecSig     i _ _ _ _  )  = getRange i
-    getRange (RecDef i _ _ _ _ _ _)    = getRange i
+    getRange (RecDef i _ _ _ _ _ _ _)  = getRange i
     getRange (PatternSynDef x _ _   )  = getRange x
     getRange (UnquoteDecl _ i _ _)     = getRange i
     getRange (UnquoteDef i _ _)        = getRange i
@@ -869,9 +869,9 @@ instance KillRange Declaration where
   killRange (ScopedDecl a d           ) = killRangeN (ScopedDecl a) d
   killRange (FunDef  i a b            ) = killRangeN FunDef  i a b
   killRange (DataSig i a b c d        ) = killRangeN DataSig i a b c d
-  killRange (DataDef i a b c d        ) = killRangeN DataDef i a b c d
+  killRange (DataDef i a b c d e      ) = killRangeN DataDef i a b c d e
   killRange (RecSig  i a b c d        ) = killRangeN RecSig  i a b c d
-  killRange (RecDef  i a b c d e f    ) = killRangeN RecDef  i a b c d e f
+  killRange (RecDef  i a b c d e f g  ) = killRangeN RecDef  i a b c d e f g
   killRange (PatternSynDef x xs p     ) = killRangeN PatternSynDef x xs p
   killRange (UnquoteDecl mi i x e     ) = killRangeN UnquoteDecl mi i x e
   killRange (UnquoteDef i x e         ) = killRangeN UnquoteDef i x e
@@ -994,8 +994,8 @@ instance AnyAbstract Declaration where
   anyAbstract (ScopedDecl _ ds)      = anyAbstract ds
   anyAbstract (Section _ _ _ _ ds)   = anyAbstract ds
   anyAbstract (FunDef i _ _)         = defAbstract i == AbstractDef
-  anyAbstract (DataDef i _ _ _ _)    = defAbstract i == AbstractDef
-  anyAbstract (RecDef i _ _ _ _ _ _) = defAbstract i == AbstractDef
+  anyAbstract (DataDef i _ _ _ _ _)  = defAbstract i == AbstractDef
+  anyAbstract (RecDef i _ _ _ _ _ _ _) = defAbstract i == AbstractDef
   anyAbstract (DataSig i _ _ _ _)    = defAbstract i == AbstractDef
   anyAbstract (RecSig i _ _ _ _)     = defAbstract i == AbstractDef
   anyAbstract _                      = __IMPOSSIBLE__
@@ -1245,9 +1245,9 @@ declarationSpine = \case
   Open _ _ _              -> OpenS
   FunDef _ _ cs           -> FunDefS (fmap clauseSpine cs)
   DataSig _ _ _ _ _       -> DataSigS
-  DataDef _ _ _ _ _       -> DataDefS
+  DataDef _ _ _ _ _ _     -> DataDefS
   RecSig _ _ _ _ _        -> RecSigS
-  RecDef _ _ _ _ _ _ ds   -> RecDefS (map declarationSpine ds)
+  RecDef _ _ _ _ _ _ _ ds -> RecDefS (map declarationSpine ds)
   PatternSynDef _ _ _     -> PatternSynDefS
   UnquoteDecl _ _ _ _     -> UnquoteDeclS
   UnquoteDef _ _ _        -> UnquoteDefS

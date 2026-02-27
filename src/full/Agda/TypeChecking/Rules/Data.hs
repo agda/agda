@@ -66,8 +66,8 @@ import Agda.Utils.Impossible
 
 -- | Type check a datatype definition. Assumes that the type has already been
 --   checked.
-checkDataDef :: A.DefInfo -> QName -> UniverseCheck -> A.DataDefParams -> [A.Constructor] -> TCM ()
-checkDataDef i name uc (A.DataDefParams gpars ps) cs =
+checkDataDef :: A.DefInfo -> QName -> PositivityCheck -> UniverseCheck -> A.DataDefParams -> [A.Constructor] -> TCM ()
+checkDataDef i name pc uc (A.DataDefParams gpars ps) cs =
     traceCall (CheckDataDef (getRange name) name ps cs) $ do
 
         -- Add the datatype module
@@ -151,6 +151,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   , _dataSort       = s
                   , _dataAbstr      = Info.defAbstract i
                   , _dataMutual     = Nothing
+                  , _dataPositivityCheck = pc
                   , _dataPathCons   = []     -- Path constructors are added later
                   , _dataTranspIx   = Nothing -- Generated later if nofIxs > 0.
                   , _dataTransp     = Nothing -- Added later

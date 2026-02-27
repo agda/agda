@@ -2022,15 +2022,15 @@ instance ToAbstract NiceDeclaration where
       reportSLn "scope.data.sig" 40 ("checking DataSig for " ++ prettyShow x)
       singleton <$> scopeCheckDataOrRecSig IsData r er p a pc uc x ls t
 
-    C.NiceDataDef r o a _ uc x pars cons -> singleton <$>
-      scopeCheckDataDef r o a uc x pars cons
+    C.NiceDataDef r o a pc uc x pars cons -> singleton <$>
+      scopeCheckDataDef r o a pc uc x pars cons
 
   -- Record definitions (mucho interesting)
     C.NiceRecSig r er p a pc uc x ls t -> do
       singleton <$> scopeCheckDataOrRecSig IsRecord_ r er p a pc uc x ls t
 
-    C.NiceRecDef r o a _ uc x directives pars fields -> singleton <$>
-      scopeCheckRecDef r o a uc x directives pars fields
+    C.NiceRecDef r o a pc uc x directives pars fields -> singleton <$>
+      scopeCheckRecDef r o a pc uc x directives pars fields
 
     NiceModule r p a e x@(C.QName name) tel ds -> notAffectedByOpaque $ do
       reportSDoc "scope.decl" 70 $ vcat $
@@ -2352,6 +2352,8 @@ scopeCheckDataDef ::
        --   'Inserted' when there was no separate signature.
   -> IsAbstract
        -- ^ Whether the data definition is abstract.
+  -> PositivityCheck
+       -- ^ Whether to report positivity errors for this data type.
   -> UniverseCheck
        -- ^ Whether to check constructors' types for universe consistency.
   -> C.Name
@@ -2361,7 +2363,7 @@ scopeCheckDataDef ::
   -> [NiceDeclaration]
        -- ^ The constructors of the data type.
   -> ScopeM A.Declaration
-scopeCheckDataDef r o a uc x pars cons =
+scopeCheckDataDef r o a pc uc x pars cons =
   notAffectedByOpaque do
     reportSLn "scope.data.def" 40 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
     (p, ax) <- retrieveDataOrRecName IsData x
@@ -2382,7 +2384,7 @@ scopeCheckDataDef r o a uc x pars cons =
       cons <- toAbstract (map (DataConstrDecl m a p) cons)
       printScope "data" 40 $ "Checked data " ++ prettyShow x
       f <- getConcreteFixity x
-      return $ A.DataDef (mkDefInfo x f PublicAccess a r) x' uc (DataDefParams gvars pars) cons
+      return $ A.DataDef (mkDefInfo x f PublicAccess a r) x' pc uc (DataDefParams gvars pars) cons
   where
     -- Filter out non-type signatures and error out on duplicate constructors.
     checkConstructors cons = do
@@ -2410,6 +2412,8 @@ scopeCheckRecDef ::
        --   'Inserted' when there was no separate signature.
   -> IsAbstract
        -- ^ Whether the record definition is abstract.
+  -> PositivityCheck
+       -- ^ Whether to report positivity errors for this record type.
   -> UniverseCheck
        -- ^ Whether to check field types for universe consistency.
   -> C.Name
@@ -2421,7 +2425,7 @@ scopeCheckRecDef ::
   -> [C.Declaration]
        -- ^ The fields of the record type and other declarations in the record module.
   -> ScopeM A.Declaration
-scopeCheckRecDef r o a uc x directives pars fields =
+scopeCheckRecDef r o a pc uc x directives pars fields =
   notAffectedByOpaque do
     reportSLn "scope.rec.def" 40 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
 
@@ -2509,7 +2513,7 @@ scopeCheckRecDef r o a uc x directives pars fields =
       f <- getConcreteFixity x
       let params = DataDefParams gvars pars
       let dir' = RecordDirectives ind eta pat cm'
-      return $ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc dir' params contel afields
+      return $ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' pc uc dir' params contel afields
 
 -- | Retrieve the abstract name of a data or record type
 --   that was created by scope checking the data or record signature.
@@ -3401,7 +3405,7 @@ checkNoTerminationPragma b ds =
     isTerminationPragma :: C.Pragma -> [(TerminationOrPositivity, Range)]
     isTerminationPragma = \case
       C.TerminationCheckPragma r _  -> [(Termination, r)]
-      C.NoPositivityCheckPragma r   -> [(Positivity, r)]
+      C.NoPositivityCheckPragma r   -> []
       C.OptionsPragma _ _           -> []
       C.BuiltinPragma _ _ _         -> []
       C.RewritePragma _ _ _         -> []

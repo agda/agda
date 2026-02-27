@@ -428,8 +428,8 @@ instance EmbPrj BuiltinSort where
 instance EmbPrj Defn where
   icod_ (Axiom       a)                                 = icodeN 0 Axiom a
   icod_ (Function    a b s t u c d e f g h i j k)       = icodeN 1 (\ a b s -> Function a b s t) a b s u c d e f g h i j k
-  icod_ (Datatype    a b c d e f g h i j)               = icodeN 2 Datatype a b c d e f g h i j
-  icod_ (Record      a b c d e f g h i j k l m)         = icodeN 3 Record a b c d e f g h i j k l m
+  icod_ (Datatype    a b c d e f g h i j k)             = icodeN 2 Datatype a b c d e f g h i j k
+  icod_ (Record      a b c d e f g h i j k l m n)       = icodeN 3 Record a b c d e f g h i j k l m n
   icod_ (Constructor a b c d e f g h i j k)             = icodeN 4 Constructor a b c d e f g h i j k
   icod_ (Primitive   a b c d e f)                       = icodeN 5 Primitive a b c d e f
   icod_ (PrimitiveSort a b)                             = icodeN 6 PrimitiveSort a b
@@ -443,8 +443,8 @@ instance EmbPrj Defn where
     N2 0 a                                   -> valuN Axiom a
     N6 1 a b s u c (N6 d e f g h i (N2 j k)) -> valuN (\ a b s -> Function a b s Nothing)
                                                       a b s u c d e f g h i j k
-    N6 2 a b c d e (N5 f g h i j)            -> valuN Datatype a b c d e f g h i j
-    N6 3 a b c d e (N6 f g h i j k (N2 l m)) -> valuN Record a b c d e f g h i j k l m
+    N6 2 a b c d e (N6 f g h i j k N0)       -> valuN Datatype a b c d e f g h i j k
+    N6 3 a b c d e (N6 f g h i j k (N3 l m n)) -> valuN Record a b c d e f g h i j k l m n
     N6 4 a b c d e (N6 f g h i j k N0)       -> valuN Constructor a b c d e f g h i j k
     N6 5 a b c d e (N1 f)                    -> valuN Primitive a b c d e f
     N3 6 a b                                 -> valuN PrimitiveSort a b

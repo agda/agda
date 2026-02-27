@@ -1011,6 +1011,7 @@ bindBuiltinNoDef b q = inTopContext $ do
               , dataSort       = getSort t
               , dataAbstr      = ConcreteDef
               , dataMutual     = Nothing
+              , dataPositivityCheck = NoPositivityCheck
               , dataPathCons   = []
               , dataTranspIx   = Nothing -- Id has custom transp def.
               , dataTransp     = Nothing
