@@ -46,6 +46,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size
+import Agda.Utils.POMonoid (hasLeftAdjoint)
 
 import Agda.Utils.Impossible
 import qualified Agda.Utils.List1 as List1
@@ -447,20 +448,17 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
           , "coh   =" <+> (text . show) (getCohesion ai)
           ]
 
-      unless (getCohesion ai == Continuous) __IMPOSSIBLE__
-      -- Andreas, 2025-05-03, moved check to ConcreteToAbstract.checkFieldArgInfo.
-      -- -- Cohesion check:
-      -- -- For a field `@c π : A` we would create a projection `π : .., (@(c^-1) r : R as) -> A`
-      -- -- So we want to check that `@.., (c^-1 . c) x : A |- x : A` is allowed by the modalities.
-      -- --
-      -- -- Alternatively we could create a projection `.. |- π r :c A`
-      -- -- but that would require support for a `t :c A` judgment.
-      -- if hasLeftAdjoint (UnderComposition (getCohesion ai))
-      --   then unless (getCohesion ai == Continuous)
-      --               -- Atm, only Continuous has a left adjoint.
-      --               -- Andrea TODO: properly update the context/type of the projection when we add Sharp
-      --               __IMPOSSIBLE__
-      --   else typeError $ InvalidFieldModality (getCohesion ai)
+      -- Cohesion check:
+      -- For a field `@c π : A`, if c has a left adjoint, we create a projection
+      -- `@(c^-1) π : .., (@(c^-1 . c) r : R as) -> A`
+      -- So we want to check that `@.., (c^-1 . c) x : A |- x : A` is allowed by the modalities.
+      --
+      -- Currently only sharp and continuous have left adjoints under composition.
+      -- This check happens at scope checking time, so we should only be left
+      -- with annotations with left adjoints here
+      tel <- if hasLeftAdjoint (UnderComposition (getCohesion ai))
+          then pure $ over listTel (map (inverseApplyCohesion (getCohesion ai))) tel
+          else __IMPOSSIBLE__
 
       -- For now, we forbid any polarity annotations on record fields (we would need to do as above,
       -- and eta-equality or projection existence would be in danger).

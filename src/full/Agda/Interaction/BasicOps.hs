@@ -267,11 +267,15 @@ refine force ii e = do
     tryRefine nrOfMetas range scope = try nrOfMetas Nothing
       where
         try :: Int -> Maybe TCErr -> Expr -> TCM Expr
-        try 0 err e = interactionError $ CannotRefine $ case err of
-           Just (TypeError _ _ cl) | ConversionError_ (ConversionError _ _ I.Pi{} _ _) <- clValue cl ->
-             "functions with 10 or more arguments"
-           _ -> ""
-        try n _ e = give force ii e `catchError` \err -> try (n - 1) (Just err) =<< appMeta e
+        try 0 err e = do
+          reportSDoc "interaction.refine" 30 $ "final error:" TP.$$ prettyTCM err
+          interactionError $ CannotRefine $ case err of
+            Just (TypeError _ _ cl) | ConversionError_ (ConversionError _ _ I.Pi{} _ _) <- clValue cl ->
+              "functions with 10 or more arguments"
+            _ -> ""
+        try n _ e = give force ii e `catchError` \err -> do
+          reportSDoc "interaction.refine" 30 $ "retrying because of error:" TP.$$ prettyTCM err
+          try (n - 1) (Just err) =<< appMeta e
 
         -- Apply A.Expr to a new meta
         appMeta :: Expr -> TCM Expr

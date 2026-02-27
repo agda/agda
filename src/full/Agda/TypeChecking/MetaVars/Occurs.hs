@@ -30,6 +30,7 @@ import qualified Data.IntMap as IntMap
 
 import qualified Agda.Benchmarking as Bench
 
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
@@ -108,25 +109,25 @@ modifyOccursCheckDefs f = stOccursCheckDefs `modifyTCLens` f
 
 -- | Set the names of definitions to be looked at
 --   to the defs in the current mutual block.
-initOccursCheck :: MetaVariable -> TCM ()
-initOccursCheck mv = modifyOccursCheckDefs . const =<<
+initOccursCheck :: MetaId -> MetaVariable -> TCM ()
+initOccursCheck m mv = modifyOccursCheckDefs . const =<<
   if (miMetaOccursCheck (mvInfo mv) == DontRunMetaOccursCheck)
    then do
      reportSLn "tc.meta.occurs" 20 $
        "initOccursCheck: we do not look into definitions"
      return Set.empty
    else do
-     reportSLn "tc.meta.occurs" 20 $
-       "initOccursCheck: we look into the following definitions:"
-     mb <- asksTC envMutualBlock
-     case mb of
-       Nothing -> do
-         reportSLn "tc.meta.occurs" 20 $ "(none)"
-         return Set.empty
-       Just b  -> do
-         ds <- mutualNames <$> lookupMutualBlock b
-         reportSDoc "tc.meta.occurs" 20 $ sep $ map prettyTCM $ Set.toList ds
-         return ds
+    mb <- asksTC envMutualBlock >>= \case
+      Nothing -> return Set.empty
+      Just b  -> do
+        ds <- mutualNames <$> lookupMutualBlock b
+        return ds
+    reportSDoc "tc.meta.occurs" 20 $ vcat
+      [ "initOccursCheck for metavariable" <+> pretty m
+      , nest 2 $ "definitions:" <+> prettyTCM mb
+      , nest 2 $ "modality:   " <+> pretty (getModality mv)
+      ]
+    pure mb
 
 
 -- | Is a def in the list of stuff to be checked?
@@ -142,11 +143,11 @@ tallyDef d = modifyOccursCheckDefs $ Set.delete d
 
 -- | Extra environment for the occurs check.  (Complements 'FreeEnv'.)
 data OccursExtra = OccursExtra
-  { occUnfold  :: UnfoldStrategy
-  , occMeta    :: MetaId          -- ^ The meta @m@ we want to solve.
-  , occVars    :: VarMap          -- ^ The allowed variables @xs@ with their variance.
-  , occRHS     :: Term            -- ^ The proposed solution @v@ for the meta (@m xs := v@).
-  , occCxtSize :: Nat             -- ^ The size of the typing context upon invocation.
+  { occUnfold   :: UnfoldStrategy
+  , occMeta     :: MetaId  -- ^ The meta @m@ we want to solve.
+  , occVars     :: VarMap  -- ^ The allowed variables @xs@ with their variance.
+  , occRHS      :: Term    -- ^ The proposed solution @v@ for the meta (@m xs := v@).
+  , occCxtSize  :: Nat     -- ^ The size of the typing context upon invocation.
   }
 
 type OccursCtx  = FreeEnv' () OccursExtra AllowedVar
@@ -162,12 +163,12 @@ instance IsVarSet () AllowedVar where
 
 -- | Check whether a free variable is allowed in the context as
 --   specified by the modality.
-variableCheck :: VarMap -> Maybe Int -> AllowedVar
+variableCheck :: OccursExtra -> Maybe Int -> AllowedVar
 variableCheck xs mi q = All $
   -- Bound variables are always allowed to occur:
   caseMaybe mi True $ \ i ->
     -- Free variables not listed in @xs@ are forbidden:
-    caseMaybe (lookupVarMap i xs) False $ \ o ->
+    caseMaybe (lookupVarMap i (occVars xs)) False $ \ o ->
       -- For listed variables it holds:
       -- The ascribed modality @o@ must be submodality of the
       -- modality @q@ of the current context.
@@ -330,7 +331,7 @@ unfold v = asks (occUnfold . feExtra) >>= \case
   NoUnfold  -> instantiate v
   YesUnfold -> reduce v
 
--- ** Managing rigidiy during occurs check.
+-- ** Managing rigidity during occurs check.
 
 -- | Leave the strongly rigid position.
 weakly :: OccursM a -> OccursM a
@@ -344,6 +345,26 @@ strongly = local $ over lensFlexRig $ \case
 
 flexibly :: OccursM a -> OccursM a
 flexibly = local $ set lensFlexRig $ Flexible ()
+
+-- ** Managing modality during occurs check.
+
+-- | Updates both the 'feModality' and the modalities of each variable
+-- in the 'occVars'.
+occUnderModality :: Modality -> OccursM a -> OccursM a
+occUnderModality mod = local \e -> e
+  { feModality = composeModality mod (feModality e)
+  , feExtra = if mod == unitModality
+      then feExtra e
+      else (feExtra e) { occVars = mapVarMap (fmap (inverseApplyModalityButNotQuantity mod)) (occVars (feExtra e)) }
+  }
+
+debugModalities :: OccursM ()
+debugModalities = do
+  env <- ask
+  reportSDoc "tc.meta.occurs.modal" 60 $ nest 2 (vcat
+    [ "ctx:" <+> prettyTCM (getModality env)
+    , "var:" <+> prettyTCM (occVars (feExtra env))
+    ])
 
 -- ** Error throwing during occurs check.
 
@@ -398,7 +419,8 @@ handleVariable n = do
   o <- asks feFlexRig
   r <- asks feModality
   s <- asks feSingleton
-  return $ withVarOcc (VarOcc o r) (s $ Just n)
+  e <- asks feExtra
+  return $ withVarOcc (VarOcc o r) (s e $ Just n)
 
 -- | Going under a binder.
 underBinder :: MonadReader (FreeEnv' a b c) m => m z -> m z
@@ -406,7 +428,7 @@ underBinder = underBinders 1
 
 -- | Going under @n@ binders.
 underBinders :: MonadReader (FreeEnv' a b c) m => Nat -> m z -> m z
-underBinders n = local $ \ e -> e { feSingleton = feSingleton e . subVar n }
+underBinders n = local $ \ e -> e { feSingleton = \b -> feSingleton e b . subVar n }
 
 -- | Changing the 'Modality'.
 underModality :: (MonadReader r m, LensModality r, LensModality o) => o -> m z -> m z
@@ -428,20 +450,20 @@ occursCheck
 occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
   mv <- lookupLocalMeta m
   n  <- getContextSize
-  reportSDoc "tc.meta.occurs" 65 $ "occursCheck" <+> pretty m <+> text (show xs)
+  reportSDoc "tc.meta.occurs" 65 $ "occursCheck" <+> pretty m <+> prettyTCM xs
   let initEnv unf = FreeEnv
         { feExtra = OccursExtra
-          { occUnfold  = unf
-          , occMeta    = m
-          , occVars    = xs
-          , occRHS     = v
-          , occCxtSize = n
+          { occUnfold   = unf
+          , occMeta     = m
+          , occVars     = xs
+          , occRHS      = v
+          , occCxtSize  = n
           }
         , feFlexRig   = StronglyRigid -- ? Unguarded
         , feModality  = getModality mv
-        , feSingleton = variableCheck xs
+        , feSingleton = variableCheck
         }
-  initOccursCheck mv
+  initOccursCheck m mv
   do
     -- First try without normalising the term
     (occurs v `runReaderT` initEnv NoUnfold) `catchError` \err -> do
@@ -450,7 +472,7 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
       -- constraint will anyway be dropped)
       case err of
         PatternErr{} | not (isIrrelevant $ getModality mv) -> do
-          initOccursCheck mv
+          initOccursCheck m mv
           occurs v `runReaderT` initEnv YesUnfold
         _ -> throwError err
 
@@ -480,6 +502,14 @@ instance Occurs Term where
         case v of
           Var i es   -> do
             allowed <- getAll . ($ unitModality) <$> (handleVariable i)
+
+            mod <- asks feModality
+            reportSDoc "tc.meta.occurs.modal" 60 $ vcat
+              [ "checking variable" <+> prettyTCM (var i) <+> parens (pretty (var i))
+              , nest 2 "allowed:" <+> pretty allowed
+              ]
+            debugModalities
+
             if allowed then Var i <$> weakly (occurs es) else do
               -- if the offending variable is of singleton type,
               -- eta-expand it away
@@ -711,8 +741,11 @@ instance Occurs (Abs Type) where
 
 instance Occurs a => Occurs (Arg a) where
   occurs (Arg info v) = Arg info <$> do
-    applyWhen (isIrrelevant info) onlyReduceTypes $
-      underModality info $ occurs v
+    debugModalities
+    verboseBracket "tc.meta.occurs.arg" 70 ("going under arg " <> show (P.pretty (getModality info)))
+      $ applyWhen (isIrrelevant info) onlyReduceTypes
+      $ occUnderModality (getModality info)
+      $ debugModalities *> occurs v
   metaOccurs m = metaOccurs m . unArg
 
 instance Occurs a => Occurs (Dom a) where

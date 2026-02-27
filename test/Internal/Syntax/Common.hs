@@ -166,6 +166,18 @@ prop_monoid_Relevance_add = isMonoid
 prop_monotone_comp_Relevance_add :: Property3 (UnderAddition Relevance)
 prop_monotone_comp_Relevance_add = isMonotoneComposition
 
+-- Cohesion is a LeftClosedPOMonoid
+
+prop_monoid_Cohesion_comp :: Property3 (UnderComposition Cohesion)
+prop_monoid_Cohesion_comp = isMonoid
+
+prop_monotone_comp_Cohesion_comp :: Property3 (UnderComposition Cohesion)
+prop_monotone_comp_Cohesion_comp = isMonotoneComposition
+
+prop_Galois_Cohesion_comp :: Prop3 (UnderComposition Cohesion)
+prop_Galois_Cohesion_comp = isGaloisConnection
+
+
 -- Modality is a POMonoid
 
 prop_monoid_Modality_comp :: Property3 (UnderComposition Modality)

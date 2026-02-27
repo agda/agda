@@ -1,0 +1,3 @@
+cohesion-sharp.agda:9.15-16: error: [VariableIsOfUnusableCohesion]
+Variable a is declared Sharp so it cannot be used here
+when checking that the expression a has type A

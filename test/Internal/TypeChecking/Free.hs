@@ -133,8 +133,9 @@ prop_topVarOcc0 = isZero topVarOcc mappend
 prop_composeVarOcc0_associative :: Prop3 VarOcc0
 prop_composeVarOcc0_associative = isAssociative composeVarOcc
 
-prop_composeVarOcc0_commutative :: Prop2 VarOcc0
-prop_composeVarOcc0_commutative = isCommutative composeVarOcc
+-- This is not true anymore, composition of modalities is not necessarily commutative
+-- prop_composeVarOcc0_commutative :: Prop2 VarOcc0
+-- prop_composeVarOcc0_commutative = isCommutative composeVarOcc
 
 -- This is not true anymore, now that we have non-idempotent modalities
 -- prop_composeVarOcc0_idempotent :: Prop1 VarOcc0
@@ -173,8 +174,9 @@ prop_topVarOcc = isZero topVarOcc mappend
 prop_composeVarOcc_associative :: Prop3 VarOcc
 prop_composeVarOcc_associative = isAssociative composeVarOcc
 
-prop_composeVarOcc_commutative :: Prop2 VarOcc
-prop_composeVarOcc_commutative = isCommutative composeVarOcc
+-- This is not true anymore, composition of modalities is not necessarily commutative
+-- prop_composeVarOcc_commutative :: Prop2 VarOcc
+-- prop_composeVarOcc_commutative = isCommutative composeVarOcc
 
 -- This is not true anymore, now that we have non-idempotent modalities
 -- prop_composeVarOcc_idempotent :: Prop1 VarOcc
