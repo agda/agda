@@ -4901,6 +4901,9 @@ data Warning
     }
     -- ^ The with-clause uses projection in a different fixity style
     --   than the parent clause.
+  | RecursiveRecordNeedsInductivity QName
+      -- ^ A record type inferred as recursive needs a manual declaration
+      --   whether it should be inductively or coinductively.
 
   -- Polarity warnings
   | TooManyPolarities QName PragmaPolarities
@@ -5036,6 +5039,7 @@ warningName = \case
 
   -- Type checking
   TooManyArgumentsToSort{}             -> TooManyArgumentsToSort_
+  RecursiveRecordNeedsInductivity{}    -> RecursiveRecordNeedsInductivity_
   RewritesNothing{}                    -> RewritesNothing_
   WithClauseProjectionFixityMismatch{} -> WithClauseProjectionFixityMismatch_
 
@@ -5421,9 +5425,6 @@ data TypeError
     -- Positivity and polarity errors
         | DatatypeIndexPolarity
             -- ^ An index of a data type has a polarity different from 'Mixed'.
-        | RecursiveRecordNeedsInductivity QName
-            -- ^ A record type inferred as recursive needs a manual declaration
-            --   whether it should be inductively or coinductively.
 
     -- Sized type errors
         | CannotSolveSizeConstraints (List1 (ProblemConstraint, HypSizeConstraint)) Doc

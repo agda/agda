@@ -760,6 +760,12 @@ prettyWarning = \case
         prettyProjOrigin ProjPostfix = "a postfix projection"
         prettyProjOrigin ProjSystem  = __IMPOSSIBLE__
 
+    RecursiveRecordNeedsInductivity q -> fsep $ concat
+      [ pwords "Recursive record"
+      , [ prettyTCM q ]
+      , pwords "needs to be declared as either inductive or coinductive"
+      ]
+
     FaceConstraintCannotBeHidden ai -> fsep $
       pwords "Face constraint patterns cannot be" ++ [ pretty (getHiding ai), "arguments"]
 

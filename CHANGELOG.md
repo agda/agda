@@ -193,6 +193,8 @@ Warnings
   when `data` definition contains declarations other than type signatures of
   constructors.
 
+* Error `RecursiveRecordNeedsInductivity` turned into a error warning.
+
 * New warning `DivergentModalityInClause` when modality of a clause diverges
   from that of the function.  Example:
   ```agda

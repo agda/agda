@@ -1940,6 +1940,10 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
      :ref:`COMPILE<foreign-function-interface>` pragmas not allowed in safe mode.
 
+.. option:: RecursiveRecordNeedsInductivity
+
+     Recursive records that are neither declared ``inductive`` nor ``coinductive``.
+
 .. option:: RewriteAmbiguousRules
 
      Failed global confluence checks because of overlapping rules.

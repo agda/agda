@@ -245,7 +245,6 @@ data ErrorName
   | QualifiedLocalModule_
   | QuantityMismatch_
   | RecordIsErased_
-  | RecursiveRecordNeedsInductivity_
   | ReferencesFutureVariables_
   | RelevanceMismatch_
   | RepeatedNamesInImportDirective_
