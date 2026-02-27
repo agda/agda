@@ -52,6 +52,7 @@ pattern CxExtend    :: ContextEntry -> Context -> Context
 pattern CxEmpty = Context []
 pattern CxExtend x g <- Context (x : (Context -> g)) where
   CxExtend x (Context g) = Context (x : g)
+{-# INLINE CxExtend #-}
 pattern CxExtendVar x a g = CxExtend (CtxVar x a) g
 
 {-# COMPLETE CxEmpty, CxExtend #-}

@@ -1,65 +1,68 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds -ddump-to-file #-}
 
 module Agda.TypeChecking.Monad.Signature where
 
 import Prelude hiding (null)
 
 import Control.Monad.Except          ( ExceptT )
-import Control.Monad.State           ( StateT  )
 import Control.Monad.Reader          ( ReaderT )
-import Control.Monad.Writer          ( WriterT )
-import Control.Monad.Trans.Maybe     ( MaybeT  )
-import Control.Monad.Trans.Identity  ( IdentityT )
+import Control.Monad.State           ( StateT  )
 import Control.Monad.Trans           ( MonadTrans, lift )
+import Control.Monad.Trans.Identity  ( IdentityT )
+import Control.Monad.Trans.Maybe     ( MaybeT  )
+import Control.Monad.Writer          ( WriterT )
 
 import Data.Either
 import Data.Foldable                 ( for_ )
+import Data.HashMap.Strict           qualified as HMap
 import Data.List                     qualified as List
+import Data.Map                      qualified as Map
+import Data.Maybe
 import Data.Set                      ( Set )
 import Data.Set                      qualified as Set
-import Data.Map                      qualified as Map
-import Data.HashMap.Strict           qualified as HMap
-import Data.Maybe
 
 import Agda.Interaction.Options
 
-import Agda.Syntax.Scope.Base (LiveNames(..), isModuleAlive, isNameAlive)
-import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract (Ren, renamingSize, ScopeCopyInfo(..))
+import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty (Doc, prettyShow)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Names
 import Agda.Syntax.Position
+import Agda.Syntax.Scope.Base (LiveNames(..), isModuleAlive, isNameAlive)
 import Agda.Syntax.Treeless (Compiled(..), TTerm, ArgUsage)
 
+import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Coverage.SplitTree
+import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Constraints
+import Agda.TypeChecking.Monad.Context
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.State
-import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Statistics
-import Agda.TypeChecking.DropArgs
-import Agda.TypeChecking.Warnings
+import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Coverage.SplitTree
-import {-# SOURCE #-} Agda.TypeChecking.InstanceArguments
+import Agda.TypeChecking.Warnings
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
+import {-# SOURCE #-} Agda.TypeChecking.InstanceArguments
+import {-# SOURCE #-} Agda.TypeChecking.Opacity
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 import {-# SOURCE #-} Agda.TypeChecking.Reduce
-import {-# SOURCE #-} Agda.TypeChecking.Opacity
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
 import qualified Agda.Interaction.Options.ProfileOptions as Profile
+
 import Agda.Utils.CallStack.Base
 import Agda.Utils.Either
 import Agda.Utils.Function ( applyWhen )
@@ -72,9 +75,10 @@ import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty (Doc, prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictState qualified as Strict
 import Agda.Utils.Tuple ( first, second )
 import Agda.Utils.Update
 
@@ -1058,18 +1062,21 @@ instance HasConstInfo TCM where
       Left SigAbstract          -> notInScopeError $ qnameToConcrete q
       Left SigCubicalNotErasure -> typeError $ CubicalNotErasure q
 
+{-# SPECIALIZE defaultGetConstInfo :: TCState -> TCEnv -> QName -> TCM (Either SigError Definition) #-}
 defaultGetConstInfo
   :: (HasCallStack, HasOptions m, MonadDebug m)
   => TCState -> TCEnv -> QName -> m (Either SigError Definition)
 defaultGetConstInfo st env q = do
     let defs  = st ^. stSignature . sigDefinitions
         idefs = st ^. stImports   . sigDefinitions
-    case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
-        []  -> return $ Left $ SigUnknown $ "Unbound name: " ++ prettyShow q ++ showQNameId q
-        [d] -> checkErasureFixQuantity d >>= \case
-                 Left err -> return (Left err)
-                 Right d  -> mkAbs env d
-        ds  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
+        unambiguous d = checkErasureFixQuantity d >>= \case
+          Left !err -> return $! Left err
+          Right d   -> mkAbs env d
+    case (HMap.lookup q defs, HMap.lookup q idefs) of
+      (Nothing, Nothing) -> return $ Left $ SigUnknown $ "Unbound name: " ++ prettyShow q ++ showQNameId q
+      (Just d, Nothing)  -> unambiguous d
+      (Nothing, Just d)  -> unambiguous d
+      _                  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
     where
       mkAbs env d
         -- Apply the reducibility rules (abstract, opaque) to check
@@ -1077,7 +1084,7 @@ defaultGetConstInfo st env q = do
         -- 'AbstractDef'.
         | not (isAccessibleDef env st d{defName = q'}) =
           case alwaysMakeAbstract d of
-            Just d      -> return $ Right d
+            Just !d     -> return $ Right d
             Nothing     -> return $ Left SigAbstract
               -- the above can happen since the scope checker is a bit sloppy with 'abstract'
         | otherwise = return $ Right d
@@ -1097,7 +1104,7 @@ defaultGetConstInfo st env q = do
       -- Names defined in Cubical Agda may only be used in Erased
       -- Cubical Agda if --erasure is used. In that case they are (to
       -- a large degree) treated as erased.
-      checkErasureFixQuantity d = do
+      checkErasureFixQuantity !d = do
         current <- getLanguage
         if defLanguage d == Cubical CFull &&
            current == Cubical CErased
@@ -1105,7 +1112,7 @@ defaultGetConstInfo st env q = do
           erasure <- optErasure <$> pragmaOptions
           return $
             if erasure
-            then Right $ setQuantity zeroQuantity d
+            then Right $! setQuantity zeroQuantity d
             else Left SigCubicalNotErasure
         else return $ Right d
 
@@ -1119,6 +1126,8 @@ instance HasConstInfo m => HasConstInfo (ListT m)
 instance HasConstInfo m => HasConstInfo (MaybeT m)
 instance HasConstInfo m => HasConstInfo (ReaderT r m)
 instance HasConstInfo m => HasConstInfo (StateT s m)
+instance HasConstInfo m => HasConstInfo (Strict.ReaderT r m)
+instance HasConstInfo m => HasConstInfo (Strict.StateT s m)
 instance (Monoid w, HasConstInfo m) => HasConstInfo (WriterT w m)
 instance HasConstInfo m => HasConstInfo (BlockT m)
 
@@ -1148,7 +1157,7 @@ setPolarity q pol = do
 getForcedArgs :: HasConstInfo m => QName -> m [IsForced]
 getForcedArgs q = defForced <$> getConstInfo q
 
--- | Returns the occurences given explicitely as polarity annotations in the function type
+-- | Returns the occurences given explicitly as polarity annotations in the function type
 getOccurrencesFromType :: Type -> TCM [Occurrence]
 getOccurrencesFromType t = do
   polarityEnabled <- optPolarity <$> pragmaOptions
@@ -1454,44 +1463,47 @@ alwaysMakeAbstract d =
     makeAbs AbstractDefn{} = __IMPOSSIBLE__
 
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
-{-# SPECIALIZE inAbstractMode :: TCM a -> TCM a #-}
+{-# INLINE inAbstractMode #-}
 inAbstractMode :: MonadTCEnv m => m a -> m a
 inAbstractMode = localTC $ \e -> e { envAbstractMode = AbstractMode }
 
 -- | Not in abstract mode. All abstract definitions are opaque.
-{-# SPECIALIZE inConcreteMode :: TCM a -> TCM a #-}
+{-# INLINE inConcreteMode #-}
 inConcreteMode :: MonadTCEnv m => m a -> m a
 inConcreteMode = localTC $ \e -> e { envAbstractMode = ConcreteMode }
 
+{-# INLINE ignoreAbstractMode#-}
 -- | Ignore abstract mode. All abstract definitions are transparent.
 ignoreAbstractMode :: MonadTCEnv m => m a -> m a
 ignoreAbstractMode = localTC $ \e -> e { envAbstractMode = IgnoreAbstractMode }
 
 -- | Go under the given opaque block. The unfolding set will turn opaque
 -- definitions transparent.
-{-# SPECIALIZE underOpaqueId :: OpaqueId -> TCM a -> TCM a #-}
+{-# INLINE underOpaqueId #-}
 underOpaqueId :: MonadTCEnv m => OpaqueId -> m a -> m a
 underOpaqueId i = localTC $ \e -> e { envCurrentOpaqueId = Just i }
 
 -- | Outside of any opaque blocks.
-{-# SPECIALIZE notUnderOpaque :: TCM a -> TCM a #-}
+{-# INLINE notUnderOpaque #-}
 notUnderOpaque :: MonadTCEnv m => m a -> m a
 notUnderOpaque = localTC $ \e -> e { envCurrentOpaqueId = Nothing }
 
 -- | Enter the reducibility environment associated with a definition:
 -- The environment will have the same concreteness as the name, and we
 -- will be in the opaque block enclosing the name, if any.
-{-# SPECIALIZE inConcreteOrAbstractMode :: QName -> (Definition -> TCM a) -> TCM a #-}
+{-# INLINE inConcreteOrAbstractMode #-}
 inConcreteOrAbstractMode :: (HasConstInfo m) => QName -> (Definition -> m a) -> m a
 inConcreteOrAbstractMode q cont = do
   -- Andreas, 2015-07-01: If we do not ignoreAbstractMode here,
   -- we will get ConcreteDef for abstract things, as they are turned into axioms.
   def <- ignoreAbstractMode $ getConstInfo q
   let
+    {-# INLINE k1 #-}
     k1 = case defAbstract def of
       AbstractDef -> inAbstractMode
       ConcreteDef -> inConcreteMode
 
+    {-# INLINE k2 #-}
     k2 = case defOpaque def of
       OpaqueDef i    -> underOpaqueId i
       TransparentDef -> notUnderOpaque

@@ -47,6 +47,7 @@ import Agda.Utils.Impossible
 snoc :: [a] -> a -> [a]
 snoc xs x = xs ++ [x]
 
+{-# INLINE caseList #-}
 -- | Case distinction for lists, with list first.
 --   O(1).
 --
@@ -54,6 +55,7 @@ snoc xs x = xs ++ [x]
 caseList :: [a] -> b -> (a -> [a] -> b) -> b
 caseList xs n c = listCase n c xs
 
+{-# INLINE caseListM #-}
 -- | Case distinction for lists, with list first.
 --   O(1).
 --
@@ -61,12 +63,14 @@ caseList xs n c = listCase n c xs
 caseListM :: Monad m => m [a] -> m b -> (a -> [a] -> m b) -> m b
 caseListM mxs n c = listCase n c =<< mxs
 
+{-# INLINE listCase #-}
 -- | Case distinction for lists, with list last.
 --   O(1).
 --
 listCase :: b -> (a -> [a] -> b) -> [a] -> b
-listCase n c []     = n
-listCase n c (x:xs) = c x xs
+listCase n c = \case
+  []   -> n
+  x:xs -> c x xs
 
 -- | Head function (safe). Returns a default value on empty lists.
 --   O(1).
@@ -244,9 +248,11 @@ downFrom n | n <= 0     = []
 {-# INLINE map' #-}
 -- | Strict map.
 map' :: (a -> b) -> [a] -> [b]
-map' f [] = []
-map' f (a:as) = let !b = f a; !bs = map' f as in b:bs
+map' f = goMap' where
+  goMap' []     = []
+  goMap' (a:as) = let !b = f a; !bs = goMap' as in b:bs
 
+{-# INLINE updateHead #-}
 -- | Update the first element of a list, if it exists.
 --   O(1).
 updateHead :: (a -> a) -> [a] -> [a]

@@ -228,6 +228,7 @@ class PatternLike a b where
          -- ^ Combine a pattern and the value computed from its subpatterns.
     -> b -> m
 
+  {-# INLINE foldrPattern #-}
   default foldrPattern
     :: (Monoid m, Foldable f, PatternLike a p, f p ~ b)
     => (Pattern' a -> m -> m) -> b -> m

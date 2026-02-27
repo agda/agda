@@ -153,6 +153,10 @@ import Agda.Utils.Update
 import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.VarSet qualified as VarSet
 import Agda.Utils.Atomic
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictState qualified as Strict
+import Agda.Utils.ExpandCase
+
 
 import Agda.Utils.Impossible
 
@@ -188,6 +192,7 @@ class Monad m => ReadTCState m where
   -- hold onto the result of this function for very long.
   getSessionState :: m SessionState
 
+  {-# INLINE withTCState #-}
   withTCState :: (TCState -> TCState) -> m a -> m a
   withTCState = locallyTCState id
 
@@ -5917,6 +5922,13 @@ bindReduce :: ReduceM a -> (a -> ReduceM b) -> ReduceM b
 bindReduce (ReduceM m) f = ReduceM $ \ e -> unReduceM (f $! m e) e
 {-# INLINE bindReduce #-}
 
+instance ExpandCase a => ExpandCase (ReduceM a) where
+  type Result (ReduceM a) = Result a
+  {-# INLINE expand #-}
+  expand k =
+   ReduceM (oneShot \ ~e ->
+     expand @a (oneShot \ret -> let !e' = e in k (oneShot \act -> ret (unReduceM act e'))))
+
 instance Functor ReduceM where
   fmap = fmapReduce
 
@@ -5938,6 +5950,7 @@ instance ReadTCState ReduceM where
   getTCState = ReduceM redSt
   getSessionState = ReduceM redSess
 
+  {-# INLINE locallyTCState #-}
   locallyTCState l f = onReduceEnv $ mapRedSt $ over l f
 
 runReduceM :: ReduceM a -> TCM a
@@ -6017,9 +6030,11 @@ class Monad m => MonadTCEnv m where
   askTC   :: m TCEnv
   localTC :: (TCEnv -> TCEnv) -> m a -> m a
 
+  {-# INLINE askTC #-}
   default askTC :: (MonadTrans t, MonadTCEnv n, t n ~ m) => m TCEnv
   askTC = lift askTC
 
+  {-# INLINE localTC #-}
   default localTC
     :: (MonadTransControl t, MonadTCEnv n, t n ~ m)
     =>  (TCEnv -> TCEnv) -> m a -> m a
@@ -6031,6 +6046,8 @@ instance MonadTCEnv m => MonadTCEnv (IdentityT m)
 instance MonadTCEnv m => MonadTCEnv (MaybeT m)
 instance MonadTCEnv m => MonadTCEnv (ReaderT r m)
 instance MonadTCEnv m => MonadTCEnv (StateT s m)
+instance MonadTCEnv m => MonadTCEnv (Strict.ReaderT r m)
+instance MonadTCEnv m => MonadTCEnv (Strict.StateT s m)
 instance (Monoid w, MonadTCEnv m) => MonadTCEnv (WriterT w m)
 
 instance MonadTCEnv m => MonadTCEnv (ListT m) where
@@ -6060,12 +6077,15 @@ class Monad m => MonadTCState m where
   putTC :: TCState -> m ()
   modifyTC :: (TCState -> TCState) -> m ()
 
+  {-# INLINE getTC #-}
   default getTC :: (MonadTrans t, MonadTCState n, t n ~ m) => m TCState
   getTC = lift getTC
 
+  {-# INLINE putTC #-}
   default putTC :: (MonadTrans t, MonadTCState n, t n ~ m) => TCState -> m ()
   putTC = lift . putTC
 
+  {-# INLINE modifyTC #-}
   default modifyTC :: (MonadTrans t, MonadTCState n, t n ~ m) => (TCState -> TCState) -> m ()
   modifyTC = lift . modifyTC
 
@@ -6074,6 +6094,8 @@ instance MonadTCState m => MonadTCState (ListT m)
 instance MonadTCState m => MonadTCState (ExceptT err m)
 instance MonadTCState m => MonadTCState (ReaderT r m)
 instance MonadTCState m => MonadTCState (StateT s m)
+instance MonadTCState m => MonadTCState (Strict.ReaderT r m)
+instance MonadTCState m => MonadTCState (Strict.StateT s m)
 instance MonadTCState m => MonadTCState (ChangeT m)
 instance MonadTCState m => MonadTCState (IdentityT m)
 instance (Monoid w, MonadTCState m) => MonadTCState (WriterT w m)
@@ -6330,6 +6352,13 @@ fmapTCMT :: Functor m => (a -> b) -> TCMT m a -> TCMT m b
 fmapTCMT = \f (TCM m) -> TCM $ \r e -> fmap f (m r e)
 {-# INLINE fmapTCMT #-}
 
+instance ExpandCase (m a) => ExpandCase (TCMT m a) where
+  type Result (TCMT m a) = Result (m a)
+  {-# INLINE expand #-}
+  expand k =
+   TCM (oneShot \ ~st -> oneShot \ ~e ->
+     expand @(m a) (oneShot \ret -> let !st' = st; !e' = e in k (oneShot \act -> ret (unTCM act st' e'))))
+
 instance Applicative m => Applicative (TCMT m) where
   pure  = returnTCMT; {-# INLINE pure #-}
   (<*>) = apTCMT; {-# INLINE (<*>) #-}
@@ -6486,6 +6515,8 @@ instance MonadTCM tcm => MonadTCM (ListT tcm)
 instance MonadTCM tcm => MonadTCM (MaybeT tcm)
 instance MonadTCM tcm => MonadTCM (ReaderT r tcm)
 instance MonadTCM tcm => MonadTCM (StateT s tcm)
+instance MonadTCM tcm => MonadTCM (Strict.ReaderT r tcm)
+instance MonadTCM tcm => MonadTCM (Strict.StateT s tcm)
 instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm)
 
 -- | We store benchmark statistics in an IORef.

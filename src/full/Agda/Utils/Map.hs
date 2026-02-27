@@ -18,15 +18,17 @@ import Agda.Utils.Impossible
 ---------------------------------------------------------------------------
 
 {-# INLINE insertWithGood #-}
--- | Version of `insertWith` that's willing to be properly inlined.
-insertWithGood :: forall k a. Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
-insertWithGood f k !a = go k a where
-  go :: k -> a -> Map k a -> Map k a
-  go !kx x Tip               = singleton kx x
-  go  kx x (Bin sy ky y l r) = case compare kx ky of
-    LT -> balanceL ky y (go kx x l) r
-    GT -> balanceR ky y l (go kx x r)
-    EQ -> let !y' = f x y in Bin sy kx y' l r
+-- | Version of `insertWith` that's willing to be properly inlined. The extra @c@ argument
+--   is passed down to the insertions unchanged. It can be used to avoid closure creation
+--   for the loop.
+insertWithGood :: forall k a c. Ord k => (c -> a -> a -> a) -> c -> k -> a -> Map k a -> Map k a
+insertWithGood f c k !a = go c k a where
+  go :: c -> k -> a -> Map k a -> Map k a
+  go !c !kx x Tip               = singleton kx x
+  go  c  kx x (Bin sy ky y l r) = case compare kx ky of
+    LT -> balanceL ky y (go c kx x l) r
+    GT -> balanceR ky y l (go c kx x r)
+    EQ -> let !y' = f c x y in Bin sy kx y' l r
 
 {-# INLINE forGood_ #-}
 -- | Version of `forM_` that deigns to be properly lambda-lifted for State, Reader, etc.
