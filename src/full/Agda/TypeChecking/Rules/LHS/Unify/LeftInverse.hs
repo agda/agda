@@ -415,7 +415,7 @@ buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = 
             fmap absBody $ bind "i" $ \ i' -> do
               let (+++) m = liftM2 (++) m
                   i = cl (lift primINeg) <@> i'
-              do
+              fmap (permute (invertP __IMPOSSIBLE__ permw)) $
                 gamma1_args +++ (take 1 `fmap` csingl i +++ ((lazyAbsApp <$> xi0f <*> i) +++ (drop 1 `fmap` csingl i +++ (lazyAbsApp <$> xi1f <*> i))))
           return (tau,leftInv,phi)
         iz <- lift $ primIZero
