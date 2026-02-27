@@ -201,16 +201,11 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
 
     checkInduction :: QName -> TCM ()
     checkInduction q =
-      -- ASR (01 January 2016). We don't raise this error if the
-      -- NO_POSITIVITY_CHECK pragma was set on in the record. See
-      -- Issue 1760.
-      when (Info.mutualPositivityCheck mi == YesPositivityCheck) $
-        whenM positivityCheckEnabled $ do
         -- Check whether the recursive record has been declared as
         -- 'Inductive' or 'Coinductive'.  Otherwise, error.
         unlessM (isJust . recInduction . theDef <$> getConstInfo q) $
           setCurrentRange (nameBindingSite $ qnameName q) $
-            typeError $ RecursiveRecordNeedsInductivity q
+            warning $ RecursiveRecordNeedsInductivity q
 
     occ (Edge o _) = o
 

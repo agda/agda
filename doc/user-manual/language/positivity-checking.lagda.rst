@@ -117,6 +117,7 @@ Examples:
 
       {-# NO_POSITIVITY_CHECK #-}
       record U : Set where
+        inductive
         field ap : U → U
 
 ..
@@ -132,6 +133,7 @@ Examples:
 
         {-# NO_POSITIVITY_CHECK #-}
         record U : Set where
+          inductive
           field ap : U → U
 
 ..
@@ -146,6 +148,7 @@ Examples:
           lam : (D → D) → D
 
         record U : Set where
+          inductive
           field ap : U → U
 
 ..
@@ -159,6 +162,7 @@ Examples:
       data D   : Set
 
       record U where
+        inductive
         field ap : U → U
 
       {-# NO_POSITIVITY_CHECK #-}

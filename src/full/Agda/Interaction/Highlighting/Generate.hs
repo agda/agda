@@ -494,6 +494,7 @@ warningHighlighting' b w = case tcWarning w of
   UnusedVariablesInDisplayForm xs       -> foldMap deadcodeHighlighting xs
   TooManyArgumentsToSort _ args         -> errorWarningHighlighting args
   RewritesNothing                       -> cosmeticProblemHighlighting w
+  RecursiveRecordNeedsInductivity _x    -> errorWarningHighlighting w
   WithClauseProjectionFixityMismatch p _ _ _ -> cosmeticProblemHighlighting p
   WithoutKFlagPrimEraseEquality -> mempty
   ConflictingPragmaOptions{} -> mempty

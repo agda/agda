@@ -1284,12 +1284,6 @@ instance PrettyTCM TypeError where
     DatatypeIndexPolarity -> fsep $
       pwords "Cannot annotate datatype indices with polarity other than @mixed"
 
-    RecursiveRecordNeedsInductivity q -> fsep $ concat
-      [ pwords "Recursive record"
-      , [ prettyTCM q ]
-      , pwords "needs to be declared as either inductive or coinductive"
-      ]
-
     InstanceNoCandidate t errs -> vcat $
       [ fsep $ pwords "No instance of type" ++ [prettyTCM t] ++ pwords "was found in scope."
       , vcat $ map prCand errs ]
