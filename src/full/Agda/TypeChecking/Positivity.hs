@@ -107,6 +107,9 @@ fixupNewGraph (Graph.Graph m) = Graph.Graph $ foldl' go mempty assocs where
     Map.insertWith (\_ tgts -> tgts) tgt mempty $
     m
 
+buildOccurrenceGraph' :: Set QName -> TCM (Graph Node (Edge OccursWhere))
+buildOccurrenceGraph' qs = fixupNewGraph . Graph.Graph <$!> Bench.billTo [Bench.Positivity] (New.buildOccurrenceGraph qs)
+
 -- | Check that the datatypes in the mutual block containing the given
 --   declarations are strictly positive.
 --
@@ -121,26 +124,25 @@ checkStrictlyPositive mi qset = do
   let qs = Set.toList qset
   reportSDoc "tc.pos.tick" 100 $ "positivity of" <+> prettyTCM qs
 
-  -- compute the occurrence graph
-  --------------------------------------------------------------------------------
-  !g@(Graph.Graph gmap) <- buildOccurrenceGraph qset
-
-  reportSDoc "tc.pos.tick" 100 $ "constructed graph"
-  reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
-                               " E=" ++ show (length $ Graph.edges g)
-  reportSDoc "tc.pos.graph" 10 $ vcat
-    [ "positivity graph for" <+> fsep (map prettyTCM qs)
-    , nest 2 $ prettyTCM g
-    ]
-
-  -- positivity checks
-  --------------------------------------------------------------------------------
   preprocessBlock qs >>= \case
-    Nothing        -> pure ()
+    Nothing -> do
+      reportSDoc "" 1 $ "NOTHING TO DO: " <+> fsep (map prettyTCM qs)
     Just blockInfo -> do
 
+      -- compute the occurrence graph
+      --------------------------------------------------------------------------------
+      !g <- (buildOccurrenceGraph' qset)
+
+      reportSDoc "tc.pos.tick" 100 $ "constructed graph"
+      reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
+                                   " E=" ++ show (length $ Graph.edges g)
+      reportSDoc "tc.pos.graph" 10 $ vcat
+        [ "positivity graph for" <+> fsep (map prettyTCM qs)
+        , nest 2 $ prettyTCM g
+        ]
+
       let occ (Edge o _) = o
-      let (!gstar, _) = Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
+      let (!gstar, !sccs) = Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
       reportSLn "tc.pos.graph" 5 $
         "Positivity graph (completed): E=" ++ show (length $ Graph.edges gstar)
       reportSDoc "tc.pos.graph" 50 $ vcat
@@ -149,7 +151,42 @@ checkStrictlyPositive mi qset = do
         , nest 2 $ prettyTCM gstar
         ]
 
-      forMGood_ blockInfo \(q, arity, dataTypeOrRec) -> inConcreteOrAbstractMode q \_ -> do
+      -- set mutual blocks
+      --------------------------------------------------------------------------------
+      reportSDoc "tc.pos.graph.sccs" 10 $ do
+        let (triv, others) = partitionEithers $ for sccs $ \case
+              AcyclicSCC v -> Left v
+              CyclicSCC vs -> Right vs
+        sep [ text $ show (length triv) ++ " trivial sccs"
+            , text $ show (length others) ++ " non-trivial sccs with lengths " ++
+                show (map length others)
+            ]
+      reportSLn "tc.pos.graph.sccs" 15 $
+        "  sccs = " ++ prettyShow [ scc | CyclicSCC scc <- sccs ]
+
+      -- #7133: Note that the graph doesn't necessarily contain all of qs in the case where there are no
+      -- occurrences of a name, but we still need to setMutual for them.
+      let sccMap = Map.unions [ case scc of
+                                  AcyclicSCC (DefNode q) -> Map.singleton q []
+                                  AcyclicSCC ArgNode{}   -> mempty
+                                  CyclicSCC scc          -> Map.fromList [ (q, qs) | q <- qs ]
+                                    where qs = [ q | DefNode q <- scc ]
+                              | scc <- sccs ]
+      inAbstractMode $ forMGood_ qs \q -> do
+
+        -- what if this is Nothing??? then we don't have to do occ analysis after all
+        -- test how often we get Nothing
+        whenM (isNothing <$> getMutual q) do
+          let qs = fromMaybe [] $ Map.lookup q sccMap
+          reportSLn "tc.pos.mutual" 10 $ "setting " ++ prettyShow q ++ " to " ++
+                                         if | null qs        -> "non-recursive"
+                                            | length qs == 1 -> "recursive"
+                                            | otherwise      -> "mutually recursive"
+          setMutual q qs
+
+
+
+      forMGood_ blockInfo \(q, arity, dataTypeOrRec, _) -> inConcreteOrAbstractMode q \_ -> do
 
         -- set argument occurrences
         --------------------------------------------------------------------------------
@@ -267,42 +304,6 @@ checkStrictlyPositive mi qset = do
                   nonRecursiveRecord q
                 _ -> return ()
 
-
-  -- set mutual blocks
-  --------------------------------------------------------------------------------
-  let sccs = Graph.sccs' g
-
-  reportSDoc "tc.pos.graph.sccs" 10 $ do
-    let (triv, others) = partitionEithers $ for sccs $ \case
-          AcyclicSCC v -> Left v
-          CyclicSCC vs -> Right vs
-    sep [ text $ show (length triv) ++ " trivial sccs"
-        , text $ show (length others) ++ " non-trivial sccs with lengths " ++
-            show (map length others)
-        ]
-  reportSLn "tc.pos.graph.sccs" 15 $
-    "  sccs = " ++ prettyShow [ scc | CyclicSCC scc <- sccs ]
-
-  -- #7133: Note that the graph doesn't necessarily contain all of qs in the case where there are no
-  -- occurrences of a name, but we still need to setMutual for them.
-  let sccMap = Map.unions [ case scc of
-                              AcyclicSCC (DefNode q) -> Map.singleton q []
-                              AcyclicSCC ArgNode{}   -> mempty
-                              CyclicSCC scc          -> Map.fromList [ (q, qs) | q <- qs ]
-                                where qs = [ q | DefNode q <- scc ]
-                          | scc <- sccs ]
-  inAbstractMode $ forMGood_ qs $ \ q ->
-
-    -- what if this is Nothing??? then we don't have to do occ analysis after all
-    -- test how often we get Nothing
-    whenM (isNothing <$> getMutual q) $ do
-      let qs = fromMaybe [] $ Map.lookup q sccMap
-      reportSLn "tc.pos.mutual" 10 $ "setting " ++ prettyShow q ++ " to " ++
-                                     if | null qs        -> "non-recursive"
-                                        | length qs == 1 -> "recursive"
-                                        | otherwise      -> "mutually recursive"
-      setMutual q qs
-
   reportSDoc "tc.pos.tick" 100 $ "checked positivity"
 
 
@@ -344,19 +345,21 @@ isDatatype def = do
     Record  {recClause  = Nothing, recPatternMatching } -> Just $ IsRecord recPatternMatching
     _ -> Nothing
 
--- Result: [(name, arity, DataOrRecord)] or Nothing if we don't need any positivity checking.
-preprocessBlock :: [QName] -> TCM (Maybe ([(QName, Int, Maybe DataOrRecord)]))
+-- Result: [(name, arity, data or record, do we need to setMutual)] or Nothing if we don't need any
+-- occurrence analysis.
+preprocessBlock :: [QName] -> TCM (Maybe ([(QName, Int, Maybe DataOrRecord, Bool)]))
 preprocessBlock qs = do
   info <- forMGood qs \q -> inConcreteOrAbstractMode q \def -> do
     !arity <- case hasDefinition (theDef def) of
       True  -> getDefArity' def
       False -> pure 0
     let !dr = isDatatype def
-    pure (q, arity, dr)
-  pure $ Just info
-  -- case any (\(_, arity, dr) -> arity /= 0 || isJust dr) info of
-  --   True -> pure $ Just info
-  --   _    -> pure Nothing
+    let !needToSetMutual = isJust (getMutual_ (theDef def))
+    pure (q, arity, dr, needToSetMutual)
+  -- pure $ Just info
+  case any (\(_, arity, dr, setMut) -> arity /= 0 || isJust dr || setMut) info of
+    True -> pure $ Just info
+    _    -> pure Nothing
 
 ----------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------
