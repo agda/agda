@@ -168,7 +168,8 @@ data OccEnv = OccEnv {
 
 data Edge        = Edge Occurrence Path deriving (Eq, Show)
 type Targets     = HT.Dictionary (PrimState IO) VM.MVector Node VM.MVector Edge
-data SourceEntry = SourceEntry QName Targets (Array.IOArray Targets)
+type Args'       = HT.Dictionary (PrimState IO) UM.MVector Int VM.MVector Targets
+data SourceEntry = SourceEntry QName Targets Args'
 type OccGraph    = Array.IOArray SourceEntry
 type Mutuals     = HT.Dictionary (PrimState IO) VM.MVector QName UM.MVector Int
 type OccM        = ReaderT OccEnv TCM
@@ -242,24 +243,49 @@ lookupTargets = HT.lookup
 insertTargets :: Targets -> Node -> Edge -> IO ()
 insertTargets = HT.insert
 
+{-# NOINLINE lookupArgs #-}
+lookupArgs :: Args' -> Int -> IO (Maybe Targets)
+lookupArgs = HT.lookup
+
+{-# NOINLINE insertArgs #-}
+insertArgs :: Args' -> Int -> Targets -> IO ()
+insertArgs = HT.insert
+
 {-# NOINLINE addToTargets #-}
 addToTargets :: Targets -> Node -> Edge -> IO ()
 addToTargets tgts tgt e = lookupTargets tgts tgt >>= \case
   Nothing -> insertTargets tgts tgt e
   Just e' -> insertTargets tgts tgt $! mergeEdges e e'
 
+{-# NOINLINE addToArgs #-}
+addToArgs :: Args' -> Int -> Node -> Edge -> IO ()
+addToArgs args i tgt e = lookupArgs args i >>= \case
+  Just tgts ->
+    addToTargets tgts tgt e
+  Nothing -> do
+    tgts <- HT.initialize 1
+    insertTargets tgts tgt e
+    insertArgs args i tgts
+
+argsRead :: Array.IOArray a -> Int -> IO a
+argsRead arr i | i < Array.size arr = Array.read arr i
+               | True = error $ "ARGSREAD: " ++ show i ++ " " ++ show (Array.size arr)
+
+srcRead :: Array.IOArray a -> Int -> IO a
+srcRead arr i | i < Array.size arr = Array.read arr i
+              | True = error "SRCREAD"
+
 {-# NOINLINE addEdgeToGraph #-}
 addEdgeToGraph :: Mutuals -> OccGraph -> Node -> Node -> Edge -> ()
 addEdgeToGraph mutuals graph src target e = unsafeDupablePerformIO $ case src of
   DefNode q -> do
     src <- lookupMutuals mutuals q
-    SourceEntry _ tgts _ <- Array.read graph src
+    SourceEntry _ tgts _ <- srcRead graph src
     addToTargets tgts target e
   ArgNode q i -> do
     src <- lookupMutuals mutuals q
-    SourceEntry _ _ args <- Array.read graph src
-    tgts <- Array.read args i
-    addToTargets tgts target e
+    SourceEntry _ _ args <- srcRead graph src
+    addToArgs args i target e
 
 addEdge :: Node -> OccM ()
 addEdge src = do
@@ -656,27 +682,21 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
 --   assocs = [(i, j, e) | (i, m) <- Map.toList m, (j, e) <- Map.toList m]
 --   ins acc (i, j, e) = addEdgeToGraph j i e acc
 
-initOccurrences :: [(QName, Int, a, b)] -> IO (OccGraph, Mutuals)
+initOccurrences :: [QName] -> IO (OccGraph, Mutuals)
 initOccurrences qs = do
   mutuals :: Mutuals <- HT.initialize 1
-  forMGood_ qs \(q, arity, _, _) -> do
+  forMGood_ qs \q -> do
     id <- HT.size mutuals
     HT.insert mutuals q id
 
   s <- HT.size mutuals
   graph <- Array.new s undefined
-  let go :: Int -> [(QName, Int, a, b)] -> IO ()
+  let go :: Int -> [QName] -> IO ()
       go i [] =
         pure ()
-      go i ((q, arity, _, _):qs) = do
+      go i (q:qs) = do
         tgts <- HT.initialize 1
-        args <- Array.new arity undefined
-        let init i | i == arity = pure ()
-            init i = do
-              tgts <- HT.initialize 1
-              Array.write args i tgts
-              init (i + 1)
-        init 0
+        args <- HT.initialize 1
         Array.write graph i $! SourceEntry q tgts args
         go (i + 1) qs
 
@@ -684,11 +704,11 @@ initOccurrences qs = do
   pure (graph, mutuals)
 
 
-buildOccurrenceGraph :: [(QName,Int, a, b)] -> TCM OccGraph
+buildOccurrenceGraph :: [QName] -> TCM OccGraph
 buildOccurrenceGraph qs = do
   inf <- maybe Nothing (\x -> Just $! nameOfInf x) <$> coinductionKit
   (graph, mutuals) <- liftIO $ initOccurrences qs
-  forMGood_ qs \(q, _, _, _) -> do
+  forMGood_ qs \q -> do
     let env = OccEnv q [] inf 0 mutuals (DefNode q) Root StrictPos graph
     runReaderT (computeDefOccurrences q) env
   pure graph

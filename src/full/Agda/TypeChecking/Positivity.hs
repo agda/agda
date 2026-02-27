@@ -90,6 +90,10 @@ trimGraphs (Graph.Graph m) (Graph.Graph m') =
 erasePaths :: Graph Node (Edge OccursWhere) -> Graph Node (Edge ())
 erasePaths = (fmap . fmap) (const ())
 
+deriving instance (NFData n, NFData e) => NFData (Graph n e)
+instance NFData Node where
+  rnf a = seq a ()
+
 -- fixupNewGraph :: Graph New.Node New.Edge -> Graph Node (Edge OccursWhere)
 -- fixupNewGraph (Graph.Graph m) = Graph.Graph $ foldl' go mempty assocs where
 
@@ -133,7 +137,7 @@ checkStrictlyPositive mi qset = do
       --------------------------------------------------------------------------------
       !g <- (buildOccurrenceGraph qset)
 
-      _ <- Bench.billTo [Bench.Positivity] (New.buildOccurrenceGraph blockInfo)
+      _ <-  (New.buildOccurrenceGraph qs)
 
       -- master 3.9
       -- new    3.3
@@ -148,7 +152,14 @@ checkStrictlyPositive mi qset = do
         ]
 
       let occ (Edge o _) = o
-      let (!gstar, !sccs) = Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
+
+      let tcl g = do
+            let (!gstar, !sccs) = Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
+            deepseq gstar $ deepseq sccs $ pure (gstar, sccs)
+          {-# NOINLINE tcl #-}
+
+      (gstar, sccs) <- Bench.billTo [Bench.Positivity] (tcl g)
+
       reportSLn "tc.pos.graph" 5 $
         "Positivity graph (completed): E=" ++ show (length $ Graph.edges gstar)
       reportSDoc "tc.pos.graph" 50 $ vcat
