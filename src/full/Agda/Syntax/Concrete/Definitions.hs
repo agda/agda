@@ -389,11 +389,13 @@ niceDeclarations fixs ds = do
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
-          mt <- retrieveTypeSig (DataName pc uc) x
+          (pc, uc) <- retrieveTypeSig (DataName pc uc) x >>= \case
+             DataName pc uc -> pure (pc, uc)
+             _ -> __IMPOSSIBLE__
           defpars <- niceDefParameters IsData tel
           (,ds) <$> dataOrRec pc uc NiceDataDef
                       (flip NiceDataSig defaultErased) (niceAxioms DataBlock) r
-                      x ((tel,) <$> mt) (Just (defpars, cs))
+                      x Nothing (Just (defpars, cs))
 
         RecordSig r erased x tel t -> do
           pc <- use positivityCheckPragma
@@ -426,13 +428,15 @@ niceDeclarations fixs ds = do
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
-          mt <- retrieveTypeSig (RecName pc uc) x
+          (pc, uc) <- retrieveTypeSig (RecName pc uc) x >>= \case
+            RecName pc uc -> pure (pc, uc)
+            _ -> __IMPOSSIBLE__
           defpars <- niceDefParameters (IsRecord ()) tel
           (,ds) <$> dataOrRec pc uc
                       (\r o a pc uc x tel cs ->
                         NiceRecDef r o a pc uc x dir tel cs)
                       (flip NiceRecSig defaultErased) return r x
-                      ((tel,) <$> mt) (Just (defpars, cs))
+                      Nothing (Just (defpars, cs))
 
         Mutual r ds' -> do
           -- The lone signatures encountered so far are not in scope
@@ -676,12 +680,16 @@ niceDeclarations fixs ds = do
       NoUniverseCheckPragma{}   -> True
       _                         -> False
 
-    -- Get the data or record type signature.
-    retrieveTypeSig :: DataRecOrFun -> Name -> Nice (Maybe Expr)
+    -- Remove the data or record type signature,
+    -- using its positivity check / universe check information
+    -- to refine the given one.
+    retrieveTypeSig :: DataRecOrFun -> Name -> Nice DataRecOrFun
     retrieveTypeSig k x = do
-      caseMaybeM (getSig x) (return Nothing) $ \ k' -> do
-        unless (sameKind k k') $ declarationException $ WrongDefinition x k' k
-        Nothing <$ removeLoneSig x
+      caseMaybeM (getSig x) (return k) $ \ k' -> do
+        removeLoneSig x
+        case mergeDataRecOrFun k k' of
+          Just k  -> return k
+          Nothing -> declarationException $ WrongDefinition x k' k
 
     dataOrRec :: forall a decl.
          PositivityCheck

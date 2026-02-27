@@ -1319,7 +1319,7 @@ instance ToConcrete A.Declaration where
       return [ C.DataSig (getRange i) erased x'
                  (map C.DomainFull $ catMaybes tel') t' ]
 
-  toConcrete (A.DataDef i x uc bs cs) =
+  toConcrete (A.DataDef i x _pc _uc bs cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree $ dataDefParams bs) $ \ tel' -> do
       (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
@@ -1333,7 +1333,7 @@ instance ToConcrete A.Declaration where
       return [ C.RecordSig (getRange i) erased x'
                  (map C.DomainFull $ catMaybes tel') t' ]
 
-  toConcrete (A.RecDef  i x uc dir bs t cs) =
+  toConcrete (A.RecDef  i x _pc _uc dir bs t cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree $ dataDefParams bs) $ \ tel' -> do
       dirs <- toConcrete dir

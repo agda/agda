@@ -137,7 +137,7 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
                 QName -> TCM ()
     checkPos g gstar q = inConcreteOrAbstractMode q $ \ def -> do
       -- we check positivity only for data or record definitions
-      whenJust (isDatatype def) $ \ dr -> do
+      whenJust (isDatatype_ def) \ (pc, dr) -> do
         reportSDoc "tc.pos.check" 10 $ "Checking positivity of" <+> prettyTCM q
 
         let loop :: Maybe Occurrence
@@ -166,9 +166,11 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
         -- if we have a negative loop, raise error
 
         -- ASR (23 December 2015). We don't raise a strictly positive
-        -- error if the NO_POSITIVITY_CHECK pragma was set on in the
-        -- mutual block. See Issue 1614.
-        when (Info.mutualPositivityCheck mi == YesPositivityCheck) $
+        -- error if the NO_POSITIVITY_CHECK pragma was set. See Issue 1614.
+        -- Andreas, 2026-02-27:
+        -- This information now comes either with the mututal block
+        -- or with the data/record type, see issue #3355.
+        unless (Info.mutualPositivityCheck mi == NoPositivityCheck || pc == NoPositivityCheck) $
           whenM positivityCheckEnabled $
             case loop of
             Just o | o <= JustPos ->
@@ -212,11 +214,13 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
 
     occ (Edge o _) = o
 
-    isDatatype :: Definition -> Maybe DataOrRecord
-    isDatatype def = do
+    isDatatype_ :: Definition -> Maybe (PositivityCheck, DataOrRecord)
+    isDatatype_ def = do
       case theDef def of
-        Datatype{dataClause = Nothing} -> Just IsData
-        Record  {recClause  = Nothing, recPatternMatching } -> Just $ IsRecord recPatternMatching
+        Datatype{dataClause = Nothing, dataPositivityCheck} ->
+          Just (dataPositivityCheck, IsData)
+        Record  {recClause  = Nothing, recPositivityCheck, recPatternMatching } ->
+          Just (recPositivityCheck, IsRecord recPatternMatching)
         _ -> Nothing
 
     -- Set the polarity of the arguments to a couple of definitions

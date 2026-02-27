@@ -87,6 +87,7 @@ bindBuiltinSharp x =
                   , recNamedCon       = True
                   , recFields         = []  -- flat is added later
                   , recTel            = fieldTel
+                  , recPositivityCheck = NoPositivityCheck
                   , recEtaEquality'   = Inferred $ NoEta CopatternMatching
                   , recPatternMatching= CopatternMatching
                   , recMutual         = Just []

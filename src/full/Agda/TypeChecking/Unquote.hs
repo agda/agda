@@ -1077,7 +1077,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
           [ "checking datatype: " <+> prettyTCM x <+> " with constructors:"
           , nest 2 (vcat (map prettyTCM conNames))
           ]
-        liftTCM $ checkDataDef i x YesUniverseCheck (A.DataDefParams Set.empty lams) as
+        liftTCM $ checkDataDef i x YesPositivityCheck YesUniverseCheck (A.DataDefParams Set.empty lams) as
         liftTCM primUnitUnit
       where
         addDummy :: Int -> R.Type -> R.Type

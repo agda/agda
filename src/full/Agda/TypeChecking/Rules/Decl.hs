@@ -171,9 +171,9 @@ checkDecl d = setCurrentRange d $ do
       A.Pragma i p             -> none $ checkPragma i p
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
       A.FunDef i x cs          -> impossible $ check x i $ checkFunDef i x $ List1.toList cs
-      A.DataDef i x uc ps cs   -> impossible $ check x i $ checkDataDef i x uc ps cs
-      A.RecDef i x uc dir ps tel cs -> impossible $ check x i $ do
-                                    checkRecDef i x uc dir ps tel cs
+      A.DataDef i x pc uc ps cs -> impossible $ check x i $ checkDataDef i x pc uc ps cs
+      A.RecDef i x pc uc dir ps tel cs -> impossible $ check x i $ do
+                                    checkRecDef i x pc uc dir ps tel cs
                                     blockId <- defMutual <$> getConstInfo x
 
                                     -- Andreas, 2016-10-01 testing whether
@@ -441,8 +441,8 @@ highlight_ hlmod d = do
       highlight (A.Section i er x tel [])
       when (hlmod == DoHighlightModuleContents) $ mapM_ (highlight_ hlmod) (deepUnscopeDecls ds)
     A.RecSig{}               -> highlight d
-    A.RecDef i x uc dir ps tel cs ->
-      highlight (A.RecDef i x uc dir ps dummy cs)
+    A.RecDef i x pc uc dir ps tel cs ->
+      highlight (A.RecDef i x pc uc dir ps dummy cs)
       -- The telescope has already been highlighted.
       where
       -- Andreas, 2016-01-22, issue 1790

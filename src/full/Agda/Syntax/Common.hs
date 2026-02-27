@@ -3876,9 +3876,11 @@ instance Semigroup PositivityCheck where
   _ <> NoPositivityCheck = NoPositivityCheck
   _ <> _ = YesPositivityCheck
 
+instance Null PositivityCheck where
+  empty = YesPositivityCheck
+
 instance Monoid PositivityCheck where
-  mempty  = YesPositivityCheck
-  mappend = (<>)
+  mempty  = empty
 
 instance NFData PositivityCheck
 
@@ -3894,6 +3896,16 @@ instance KillRange UniverseCheck where
   killRange = id
 
 instance NFData UniverseCheck
+
+instance Null UniverseCheck where
+  empty = YesUniverseCheck
+
+instance Semigroup UniverseCheck where
+  NoUniverseCheck  <> _  = NoUniverseCheck
+  YesUniverseCheck <> uc = uc
+
+instance Monoid UniverseCheck where
+  mempty = empty
 
 -----------------------------------------------------------------------------
 -- * Coverage
