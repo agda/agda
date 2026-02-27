@@ -109,9 +109,9 @@ import Agda.Utils.StrictReader
 import Agda.Utils.StrictFlipEndo
 import Agda.Utils.StrictEndo qualified as NonFlip
 import Agda.Utils.ExpandCase
+import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Maybe (fromMaybe)
 import Agda.Utils.Size (size)
-import Agda.Utils.Impossible (__IMPOSSIBLE__)
 
 -- ** All free variables together with information about their occurrence.
 --------------------------------------------------------------------------------

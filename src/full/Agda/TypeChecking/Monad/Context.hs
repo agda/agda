@@ -14,6 +14,8 @@ import Control.Monad.Trans.Maybe
 import Control.Monad.Writer         ( WriterT )
 
 import Data.Foldable
+import qualified Data.HashMap.Strict as HMap
+import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -33,9 +35,11 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.State
+import Agda.TypeChecking.Warnings (warning, MonadWarning)
 
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Impossible
 import Agda.Utils.Lens
 import Agda.Utils.List ((!!!), downFrom)
 import Agda.Utils.ListT
@@ -43,16 +47,11 @@ import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Maybe
+import Agda.Utils.Monad (mzero, void)
+import Agda.Utils.Null (empty)
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Update
-
-import Agda.Utils.Impossible
-import Agda.TypeChecking.Warnings (warning, MonadWarning)
-import Agda.Utils.Monad (mzero, void)
-import qualified Data.HashMap.Strict as HMap
-import qualified Data.IntMap as IntMap
-import Agda.Utils.Null (empty)
 
 -- * Modifying the context
 

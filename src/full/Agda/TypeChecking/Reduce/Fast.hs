@@ -45,6 +45,7 @@ import qualified Data.HashMap.Strict as HMap
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Map.Strict as MapS
+import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Text (Text)
@@ -85,7 +86,6 @@ import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Impossible
 
 import Debug.Trace
-import qualified Data.IntMap as IntMap
 
 -- * Compact definitions
 

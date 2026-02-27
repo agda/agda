@@ -25,15 +25,15 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Constraints (MonadConstraint, solveConstraint)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Env
 
 import Agda.Utils.Function
 import Agda.Utils.Lens
-import Agda.Utils.Monad
 import Agda.Utils.Maybe (whenJust)
-import Agda.TypeChecking.Monad.Constraints (MonadConstraint, solveConstraint)
+import Agda.Utils.Monad
 
 -- | data 'Relevance'
 --   see "Agda.Syntax.Common".

@@ -14,6 +14,7 @@ import Control.Monad.Trans           ( MonadTrans, lift )
 
 import Data.Either
 import Data.Foldable                 ( for_ )
+import Data.IntMap                   qualified as IntMap
 import Data.List                     qualified as List
 import Data.Set                      ( Set )
 import Data.Set                      qualified as Set
@@ -79,7 +80,6 @@ import Agda.Utils.Tuple ( first, second )
 import Agda.Utils.Update
 
 import Agda.Utils.Impossible
-import qualified Data.IntMap as IntMap
 
 -- | If the first argument is @'Erased' something@, then hard
 -- compile-time mode is enabled when the continuation is run.

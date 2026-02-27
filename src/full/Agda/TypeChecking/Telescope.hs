@@ -5,6 +5,7 @@ module Agda.TypeChecking.Telescope where
 import Prelude hiding (null)
 
 import Control.Monad
+import Control.Monad.Trans.Maybe (MaybeT)
 
 import Data.Foldable (find)
 import Data.IntSet (IntSet)
@@ -38,7 +39,6 @@ import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
-import Control.Monad.Trans.Maybe (MaybeT)
 
 -- | Flatten telescope: @(Γ : Tel) -> [Type Γ]@.
 --

@@ -5,6 +5,7 @@ module Agda.TypeChecking.Rules.Term where
 import Prelude hiding ( null )
 
 import Control.Monad.Except ( MonadError(..) )
+import Control.Monad.Trans.Maybe ( runMaybeT )
 
 import Data.Maybe
 import qualified Data.DList as DL
@@ -58,6 +59,7 @@ import Agda.TypeChecking.Quote
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Rewriting (checkEquationValid, checkLocalRewriteRule)
 import Agda.TypeChecking.Rules.LHS
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.SizedTypes.Solve
@@ -88,8 +90,6 @@ import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 import Agda.Utils.Boolean (implies)
-import Agda.TypeChecking.Rewriting (checkEquationValid, checkLocalRewriteRule)
-import Control.Monad.Trans.Maybe (runMaybeT)
 
 ---------------------------------------------------------------------------
 -- * Types

@@ -48,6 +48,7 @@ import Agda.Utils.Either
 import Agda.Utils.Empty
 import Agda.Utils.Function (applyWhen, applyUnless)
 import Agda.Utils.Functor
+import Agda.Utils.Impossible
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -58,14 +59,9 @@ import Agda.Utils.Permutation
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
-import Agda.Utils.Zip
-
-import Agda.Utils.Impossible
-import Data.Void (Void)
-import Unsafe.Coerce (unsafeCoerce)
-import Control.Applicative (Const (..))
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.Zip
 
 
 -- | Apply @Elims@ while using the given function to report ill-typed

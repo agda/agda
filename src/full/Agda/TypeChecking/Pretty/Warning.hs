@@ -37,6 +37,7 @@ import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Constraints
+import Agda.TypeChecking.Monad.Context ( addContext )
 import Agda.TypeChecking.Monad.State ( getScope )
 import Agda.TypeChecking.Monad ( localTCState, enterClosure )
 import Agda.TypeChecking.Positivity () --instance only
@@ -80,7 +81,6 @@ import Agda.Utils.WithDefault  ( pattern Value )
 import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
-import Agda.TypeChecking.Monad.Context (addContext)
 
 instance PrettyTCM TCWarning where
   prettyTCM w@(TCWarning loc _ _ doc _ _) = doc <$ do
