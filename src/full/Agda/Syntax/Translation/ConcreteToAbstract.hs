@@ -3383,17 +3383,14 @@ whereToAbstract1 r e whname whds inner = do
       defaultImportDir { publicOpen = Just empty }
   return (x, A.WhereDecls (Just am) (isNothing whname) $ singleton d)
 
-data TerminationOrPositivity = Termination | Positivity
-  deriving (Show)
-
 data WhereOrRecord = InWhereBlock | InRecordDef
 
 checkNoTerminationPragma :: FoldDecl a => WhereOrRecord -> a -> ScopeM ()
 checkNoTerminationPragma b ds =
   -- foldDecl traverses into all sub-declarations.
-  forM_ (foldDecl (isPragma >=> isTerminationPragma) ds) \ (p, r) ->
+  forM_ (foldDecl (isPragma >=> isTerminationPragma) ds) \ r ->
     setCurrentRange r $ warning $ UselessPragma r $ P.vcat
-      [ P.text $ show p ++ " pragmas are ignored in " ++ what b
+      [ P.fwords $ "Termination pragmas are ignored in " ++ what b
       , "(see " <> issue b <> ")"
       ]
   where
@@ -3402,10 +3399,10 @@ checkNoTerminationPragma b ds =
     issue InWhereBlock = P.githubIssue 3355
     issue InRecordDef  = P.githubIssue 3008
 
-    isTerminationPragma :: C.Pragma -> [(TerminationOrPositivity, Range)]
+    isTerminationPragma :: C.Pragma -> [Range]
     isTerminationPragma = \case
-      C.TerminationCheckPragma r _  -> [(Termination, r)]
-      C.NoPositivityCheckPragma r   -> []
+      C.TerminationCheckPragma r _  -> [r]
+      C.NoPositivityCheckPragma _   -> []
       C.OptionsPragma _ _           -> []
       C.BuiltinPragma _ _ _         -> []
       C.RewritePragma _ _ _         -> []
