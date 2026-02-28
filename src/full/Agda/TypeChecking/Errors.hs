@@ -1633,6 +1633,10 @@ instance PrettyTCM TypeError where
         , "because its type does not end in a sort, but in "
           <+> do inTopContext $ addContext tel $ prettyTCM core
         ]
+      RelationNotDataOrPostulate -> sep
+        [ prettyTCM v <+> " is not a valid name for a rewriting relation"
+        , "because it is not a postulate or a data/record type."
+        ]
 
     UnexpectedParameter par -> do
       text "Unexpected parameter" <+> prettyA par

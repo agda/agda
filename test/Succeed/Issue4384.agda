@@ -10,5 +10,5 @@ data A : Set where
 ok : ∀ i → eq i ≡ a
 ok i j = eq (primIMin i (primINeg j))
 
-{-# BUILTIN REWRITE _≡_ #-}
+{-# BUILTIN REWRITE PathP #-}
 {-# REWRITE ok #-}

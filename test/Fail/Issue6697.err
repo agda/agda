@@ -1,0 +1,4 @@
+Issue6697.agda:10.1-28: error: [IncorrectTypeForRewriteRelation]
+_≡_  is not a valid name for a rewriting relation
+because it is not a postulate or a data/record type.
+when checking the pragma BUILTIN REWRITE _≡_
