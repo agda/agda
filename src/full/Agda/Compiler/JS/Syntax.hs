@@ -1,6 +1,9 @@
 
 module Agda.Compiler.JS.Syntax where
 
+import Control.DeepSeq (NFData)
+import GHC.Generics (Generic)
+
 import Data.Map (Map)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -24,6 +27,7 @@ data Exp =
   String Text |
   Char Char |
   Integer Integer |
+  Int Int |        -- ^ Regular JavaScript number (not BigInt)
   Double Double |
   Lambda Nat Exp |
   Object (Map MemberId Exp) |
@@ -34,26 +38,44 @@ data Exp =
   BinOp Exp String Exp |
   PreOp String Exp |
   Const String |
-  PlainJS String -- ^ Arbitrary JS code.
-  deriving (Show, Eq)
+  PlainJS String | -- ^ Arbitrary JS code.
+  IIFE Stmt       -- ^ Immediately Invoked Function Expression: (() => { stmt })()
+  deriving (Show, Eq, Generic)
+
+-- | Statements for imperative JS code generation (switch, return, etc.)
+data Stmt
+  = Return Exp                              -- ^ return e;
+  | Switch Exp [(Int, Stmt)] (Maybe Stmt)  -- ^ switch(e) { case n: stmt; ... default: stmt }
+  | VarDecl Int [Exp] Stmt                  -- ^ let v0=e0, v1=e1, ...; stmt
+  | Block [Stmt]                            -- ^ { stmt1; stmt2; ... }
+  | ExprStmt Exp                            -- ^ e;  (expression as statement)
+  deriving (Show, Eq, Generic)
+
+instance NFData Exp
+instance NFData Stmt
 
 -- Local identifiers are named by De Bruijn indices.
 -- Global identifiers are named by string lists.
 -- Object members are named by strings.
 
 newtype LocalId = LocalId Nat
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic)
 
 newtype GlobalId = GlobalId [String]
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic)
 
 data MemberId
     = MemberId String
     | MemberIndex Int Comment
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic)
 
 newtype Comment = Comment String
-  deriving (Show, Semigroup, Monoid)
+  deriving (Show, Semigroup, Monoid, Generic)
+
+instance NFData LocalId
+instance NFData GlobalId
+instance NFData MemberId
+instance NFData Comment
 
 instance Eq Comment where _ == _ = True
 instance Ord Comment where compare _ _ = EQ
@@ -110,7 +132,15 @@ instance Uses Exp where
   uses (If e f g)     = uses (e, f, g)
   uses (BinOp e op f) = uses (e, f)
   uses (PreOp op e)   = uses e
+  uses (IIFE s)       = uses s
   uses e              = Set.empty
+
+instance Uses Stmt where
+  uses (Return e) = uses e
+  uses (Switch e alts def) = uses e <> foldMap (uses . snd) alts <> foldMap uses def
+  uses (VarDecl _ es s) = foldMap uses es <> uses s
+  uses (Block ss) = foldMap uses ss
+  uses (ExprStmt e) = uses e
 
 instance Uses Export where
   uses (Export _ e) = uses e
@@ -146,7 +176,15 @@ instance Globals Exp where
   globals (If e f g) = globals (e, f, g)
   globals (BinOp e op f) = globals (e, f)
   globals (PreOp op e) = globals e
+  globals (IIFE s) = globals s
   globals _ = Set.empty
+
+instance Globals Stmt where
+  globals (Return e) = globals e
+  globals (Switch e alts def) = globals e <> foldMap (globals . snd) alts <> foldMap globals def
+  globals (VarDecl _ es s) = foldMap globals es <> globals s
+  globals (Block ss) = foldMap globals ss
+  globals (ExprStmt e) = globals e
 
 instance Globals Export where
   globals (Export _ e) = globals e

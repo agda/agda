@@ -8,7 +8,8 @@ import qualified Data.List as List
 
 import Agda.Syntax.Common ( Nat )
 import Agda.Compiler.JS.Syntax
-  ( Exp(Self,Undefined,Local,Lambda,Object,Array,Apply,Lookup,If,BinOp,PreOp),
+  ( Exp(Self,Undefined,Local,Lambda,Object,Array,Apply,Lookup,If,BinOp,PreOp,IIFE),
+    Stmt(Return, Switch, VarDecl, Block, ExprStmt),
     MemberId, LocalId(LocalId) )
 import Agda.Utils.Function ( iterate' )
 import Agda.Utils.List ( (!!!) )
@@ -25,7 +26,15 @@ map m f (Lookup e l)    = Lookup (map m f e) l
 map m f (If e e' e'')   = If (map m f e) (map m f e') (map m f e'')
 map m f (PreOp op e)    = PreOp op (map m f e)
 map m f (BinOp e op e') = BinOp (map m f e) op (map m f e')
+map m f (IIFE s)        = IIFE (mapStmt m f s)
 map m f e               = e
+
+mapStmt :: Nat -> (Nat -> LocalId -> Exp) -> Stmt -> Stmt
+mapStmt m f (Return e)        = Return (map m f e)
+mapStmt m f (Switch e alts d) = Switch (map m f e) [(t, mapStmt m f s) | (t, s) <- alts] (fmap (mapStmt m f) d)
+mapStmt m f (VarDecl n es s)  = VarDecl n (List.map (map m f) es) (mapStmt (m + n) f s)
+mapStmt m f (Block ss)        = Block (List.map (mapStmt m f) ss)
+mapStmt m f (ExprStmt e)      = ExprStmt (map m f e)
 
 -- Shifting
 
@@ -66,7 +75,15 @@ map' m f (Lookup e l)    = lookup (map' m f e) l
 map' m f (If e e' e'')   = If (map' m f e) (map' m f e') (map' m f e'')
 map' m f (PreOp op e)    = PreOp op (map' m f e)
 map' m f (BinOp e op e') = BinOp (map' m f e) op (map' m f e')
+map' m f (IIFE s)        = IIFE (mapStmt' m f s)
 map' m f e               = e
+
+mapStmt' :: Nat -> (Nat -> LocalId -> Exp) -> Stmt -> Stmt
+mapStmt' m f (Return e)        = Return (map' m f e)
+mapStmt' m f (Switch e alts d) = Switch (map' m f e) [(t, mapStmt' m f s) | (t, s) <- alts] (fmap (mapStmt' m f) d)
+mapStmt' m f (VarDecl n es s)  = VarDecl n (List.map (map' m f) es) (mapStmt' (m + n) f s)
+mapStmt' m f (Block ss)        = Block (List.map (mapStmt' m f) ss)
+mapStmt' m f (ExprStmt e)      = ExprStmt (map' m f e)
 
 subst' :: Nat -> [Exp] -> Exp -> Exp
 subst' 0 es e = e
@@ -99,7 +116,15 @@ self e (Lookup f l)   = lookup (self e f) l
 self e (If f g h)     = If (self e f) (self e g) (self e h)
 self e (BinOp f op g) = BinOp (self e f) op (self e g)
 self e (PreOp op f)   = PreOp op (self e f)
+self e (IIFE s)       = IIFE (selfStmt e s)
 self e f              = f
+
+selfStmt :: Exp -> Stmt -> Stmt
+selfStmt e (Return x)        = Return (self e x)
+selfStmt e (Switch x alts d) = Switch (self e x) [(t, selfStmt e s) | (t, s) <- alts] (fmap (selfStmt e) d)
+selfStmt e (VarDecl n es s)  = VarDecl n (List.map (self e) es) (selfStmt e s)
+selfStmt e (Block ss)        = Block (List.map (selfStmt e) ss)
+selfStmt e (ExprStmt x)      = ExprStmt (self e x)
 
 -- Find the fixed point of an expression, with no top-level occurrences
 -- of self.
