@@ -1,0 +1,116 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="annot"><span class="hs-comment">{- |
+This module is intended for high-performance programming. Concretely, the 'ExpandCase' class can be
+used to force GHC to avoid compiling 'Reader', 'Endo' or 'State'-based code to unnecessary closures.
+You can observe its usage in 'Agda.TypeChecking.Free.Generic'. For a smaller example and some
+explanation, consider the following.
+
+@
+f :: Bool -&gt; Endo Int
+f b = case b of
+  True  -&gt; mempty
+  False -&gt; Endo (+ 10)
+@
+
+The desired @-O1@ output should be the following (ignoring newtype casts):
+
+@
+f = \b n -&gt; case b of
+  True  -&gt; n
+  False -&gt; n + 10
+@
+
+A typical undesired output would be
+
+@
+f = \b -&gt; case b of
+  True  -&gt; \n -&gt; n
+  False -&gt; \n -&gt; n + 10
+@
+
+Returning closures can be better or worse, depending on the program context. However, in
+high-performance situations we almost never want to return closures, and GHC is not nearly reliable
+enough at getting rid of the closures.
+
+Using 'ExpandCase', we can write code as follows.
+
+@
+f :: Bool -&gt; Endo Int
+f b = expand \ret -&gt; case b of
+  True  -&gt; ret mempty
+  False -&gt; ret $ Endo (+10)
+@
+
+Here, 'expand' immediately introduces a lambda abstraction, and the @ret@ continuation applies the
+&quot;body&quot; of the definition to the freshly abstracted variable. Hence, we get something like the
+following as an intermediate piece of Core:
+
+@
+f :: Bool -&gt; Endo Int
+f b = Endo \n -&gt; case b of
+  True  -&gt; appEndo mempty n
+  False -&gt; appEndo (Endo (+10)) n
+@
+
+which is then reliably optimized to
+
+@
+f :: Bool -&gt; Endo Int
+f b = Endo \n -&gt; case b of
+  True  -&gt; n
+  False -&gt; n + 10
+@
+
+NOTE: if you want to use this module, it is very strongly recommended that you check the Core of
+your code!
+-}</span></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.ExpandCase.html"><span class="hs-identifier">Agda.Utils.ExpandCase</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Exts</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">oneShot</span></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Strict.Tuple</span></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-keyword">class</span><span> </span><span id="ExpandCase"><span class="annot"><a href="Agda.Utils.ExpandCase.html#ExpandCase"><span class="hs-identifier hs-var">ExpandCase</span></a></span></span><span> </span><span id="local-6989586621681700686"><span class="annot"><a href="#local-6989586621681700686"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Result"><span class="annot"><a href="Agda.Utils.ExpandCase.html#Result"><span class="hs-identifier hs-var">Result</span></a></span></span><span> </span><span id="local-6989586621681700686"><span class="annot"><a href="#local-6989586621681700686"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-76"></span><span>  </span><span id="expand"><span class="annot"><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-type">expand</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681700686"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ExpandCase.html#Result"><span class="hs-identifier hs-type">Result</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681700686"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ExpandCase.html#Result"><span class="hs-identifier hs-type">Result</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681700686"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681700686"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-pragma hs-type">expand</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-keyword">default</span><span> </span><span id="expand"><span class="annot"><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-type">expand</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ExpandCase.html#Result"><span class="hs-identifier hs-type">Result</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681700686"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">~</span></span><span> </span><span class="annot"><a href="#local-6989586621681700686"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681700686"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ExpandCase.html#Result"><span class="hs-identifier hs-type">Result</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681700686"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ExpandCase.html#Result"><span class="hs-identifier hs-type">Result</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681700686"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681700686"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-80"></span><span>  </span><span id="local-6989586621681700716"><span class="annot"><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-var hs-var">expand</span></a></span><span> </span><span id="local-6989586621681700719"><span class="annot"><span class="annottext">(a -&gt; Result a) -&gt; Result a
+</span><a href="#local-6989586621681700719"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; Result a) -&gt; Result a
+</span><a href="#local-6989586621681700719"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+a -&gt; Result a
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span></span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681700722"><span class="annot"><a href="Agda.Utils.ExpandCase.html#ExpandCase"><span class="hs-identifier hs-type">ExpandCase</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Any</span></span></span><span>        </span><span class="hs-keyword">where</span><span> </span><span class="hs-keyword">type</span><span> </span><span id="Result"><span class="annot"><a href="Agda.Utils.ExpandCase.html#Result"><span class="hs-identifier hs-var">Result</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Any</span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Any</span></span><span>
+</span><span id="line-83"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681700729"><span class="annot"><a href="Agda.Utils.ExpandCase.html#ExpandCase"><span class="hs-identifier hs-type">ExpandCase</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">All</span></span></span><span>        </span><span class="hs-keyword">where</span><span> </span><span class="hs-keyword">type</span><span> </span><span id="Result"><span class="annot"><a href="Agda.Utils.ExpandCase.html#Result"><span class="hs-identifier hs-var">Result</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">All</span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">All</span></span><span>
+</span><span id="line-84"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681700735"><span class="annot"><a href="Agda.Utils.ExpandCase.html#ExpandCase"><span class="hs-identifier hs-type">ExpandCase</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>         </span><span class="hs-keyword">where</span><span> </span><span class="hs-keyword">type</span><span> </span><span id="Result"><span class="annot"><a href="Agda.Utils.ExpandCase.html#Result"><span class="hs-identifier hs-var">Result</span></a></span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-85"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681700698"><span id="local-6989586621681700699"><span id="local-6989586621681700741"><span class="annot"><a href="Agda.Utils.ExpandCase.html#ExpandCase"><span class="hs-identifier hs-type">ExpandCase</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Pair</span></span><span> </span><span class="annot"><a href="#local-6989586621681700698"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681700699"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span> </span><span class="hs-keyword">type</span><span> </span><span id="Result"><span class="annot"><a href="Agda.Utils.ExpandCase.html#Result"><span class="hs-identifier hs-var">Result</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Pair</span></span><span> </span><span class="annot"><a href="#local-6989586621681700698"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681700699"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Pair</span></span><span> </span><span class="annot"><a href="#local-6989586621681700698"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681700699"><span class="hs-identifier hs-type">b</span></a></span><span>
+</span><span id="line-86"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681700701"><span id="local-6989586621681700747"><span class="annot"><a href="Agda.Utils.ExpandCase.html#ExpandCase"><span class="hs-identifier hs-type">ExpandCase</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621681700701"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>     </span><span class="hs-keyword">where</span><span> </span><span class="hs-keyword">type</span><span> </span><span id="Result"><span class="annot"><a href="Agda.Utils.ExpandCase.html#Result"><span class="hs-identifier hs-var">Result</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621681700701"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621681700701"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-87"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681700703"><span id="local-6989586621681700753"><span class="annot"><a href="Agda.Utils.ExpandCase.html#ExpandCase"><span class="hs-identifier hs-type">ExpandCase</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681700703"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>        </span><span class="hs-keyword">where</span><span> </span><span class="hs-keyword">type</span><span> </span><span id="Result"><span class="annot"><a href="Agda.Utils.ExpandCase.html#Result"><span class="hs-identifier hs-var">Result</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681700703"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681700703"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-88"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681700705"><span id="local-6989586621681700759"><span class="annot"><a href="Agda.Utils.ExpandCase.html#ExpandCase"><span class="hs-identifier hs-type">ExpandCase</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681700705"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>  </span><span class="hs-keyword">where</span><span> </span><span class="hs-keyword">type</span><span> </span><span id="Result"><span class="annot"><a href="Agda.Utils.ExpandCase.html#Result"><span class="hs-identifier hs-var">Result</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681700705"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681700705"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-89"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681700765"><span class="annot"><a href="Agda.Utils.ExpandCase.html#ExpandCase"><span class="hs-identifier hs-type">ExpandCase</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span></span><span>        </span><span class="hs-keyword">where</span><span> </span><span class="hs-keyword">type</span><span> </span><span id="Result"><span class="annot"><a href="Agda.Utils.ExpandCase.html#Result"><span class="hs-identifier hs-var">Result</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-90"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681700771"><span class="annot"><a href="Agda.Utils.ExpandCase.html#ExpandCase"><span class="hs-identifier hs-type">ExpandCase</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>       </span><span class="hs-keyword">where</span><span> </span><span class="hs-keyword">type</span><span> </span><span id="Result"><span class="annot"><a href="Agda.Utils.ExpandCase.html#Result"><span class="hs-identifier hs-var">Result</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681700708"><span class="annot"><a href="Agda.Utils.ExpandCase.html#ExpandCase"><span class="hs-identifier hs-type">ExpandCase</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Endo</span></span><span> </span><span class="annot"><a href="#local-6989586621681700708"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-93"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Result"><span class="annot"><a href="Agda.Utils.ExpandCase.html#Result"><span class="hs-identifier hs-var">Result</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Endo</span></span><span> </span><span class="annot"><a href="#local-6989586621681700708"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681700708"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-94"></span><span>  </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-pragma hs-type">expand</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-95"></span><span>  </span><span id="local-6989586621681700778"><span class="annot"><span class="annottext">expand :: ((Endo a -&gt; Result (Endo a)) -&gt; Result (Endo a)) -&gt; Endo a
+</span><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-var hs-var hs-var">expand</span></a></span></span><span> </span><span id="local-6989586621681700779"><span class="annot"><span class="annottext">(Endo a -&gt; Result (Endo a)) -&gt; Result (Endo a)
+</span><a href="#local-6989586621681700779"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; a) -&gt; Endo a
+forall a. (a -&gt; a) -&gt; Endo a
+</span><span class="hs-identifier hs-var">Endo</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; a) -&gt; a -&gt; a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">oneShot</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681700780"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681700780"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Endo a -&gt; Result (Endo a)) -&gt; Result (Endo a)
+</span><a href="#local-6989586621681700779"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Endo a -&gt; a) -&gt; Endo a -&gt; a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">oneShot</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681700781"><span class="annot"><span class="annottext">Endo a
+</span><a href="#local-6989586621681700781"><span class="hs-identifier hs-var">act</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Endo a -&gt; a -&gt; a
+forall a. Endo a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">appEndo</span></span><span> </span><span class="annot"><span class="annottext">Endo a
+</span><a href="#local-6989586621681700781"><span class="hs-identifier hs-var">act</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681700780"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-96"></span></pre></body></html>

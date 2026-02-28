@@ -1,0 +1,156 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="annot"><span class="hs-comment">-- | Wrappers around 'MVar's which provides an atomic modification operation.</span></span><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.Atomic.html"><span class="hs-identifier">Agda.Utils.Atomic</span></a></span><span>
+</span><span id="line-3"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Atomic.html#Atomic"><span class="hs-identifier">Atomic</span></a></span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Atomic.html#newAtomic"><span class="hs-identifier">newAtomic</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Atomic.html#readAtomic"><span class="hs-identifier">readAtomic</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Atomic.html#modifyAtomic"><span class="hs-identifier">modifyAtomic</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Atomic.html#withAtomic"><span class="hs-identifier">withAtomic</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.IO.Class</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Catch</span></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Concurrent</span></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Exception</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">evaluate</span></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- | A mutable variable which can be read from and *modified*.</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- This provides a 'modifyAtomic' combinator with atomic semantics for</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- modification, unlike 'modifyMVar'.</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">newtype</span><span> </span><span id="Atomic"><span class="annot"><a href="Agda.Utils.Atomic.html#Atomic"><span class="hs-identifier hs-var">Atomic</span></a></span></span><span> </span><span id="local-6989586621681699644"><span class="annot"><a href="#local-6989586621681699644"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Atomic"><span class="annot"><a href="Agda.Utils.Atomic.html#Atomic"><span class="hs-identifier hs-var">Atomic</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="unAtomic"><span class="annot"><span class="annottext">forall a. Atomic a -&gt; MVar a
+</span><a href="Agda.Utils.Atomic.html#unAtomic"><span class="hs-identifier hs-var hs-var">unAtomic</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MVar</span></span><span> </span><span class="annot"><a href="#local-6989586621681699644"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681699725"><span id="local-6989586621681699730"><span class="annot"><span class="annottext">Atomic a -&gt; Atomic a -&gt; Bool
+(Atomic a -&gt; Atomic a -&gt; Bool)
+-&gt; (Atomic a -&gt; Atomic a -&gt; Bool) -&gt; Eq (Atomic a)
+forall a. Atomic a -&gt; Atomic a -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: forall a. Atomic a -&gt; Atomic a -&gt; Bool
+== :: Atomic a -&gt; Atomic a -&gt; Bool
+$c/= :: forall a. Atomic a -&gt; Atomic a -&gt; Bool
+/= :: Atomic a -&gt; Atomic a -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681699737"><span class="annot"><span class="annottext">Atomic a -&gt; ()
+(Atomic a -&gt; ()) -&gt; NFData (Atomic a)
+forall a. Atomic a -&gt; ()
+forall a. (a -&gt; ()) -&gt; NFData a
+$crnf :: forall a. Atomic a -&gt; ()
+rnf :: Atomic a -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">NFData</span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- Implementation note: the caveat to modifyMVar's atomicity is that it</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- is possible for another thread to have a *different* value of 'a',</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- which they can 'putMVar', while the continuation to 'modifyMVar' is</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- executing (since the variable is left in the empty state for its</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- duration). This would block the call to 'modifyMVar' after the end of</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- the continuation.</span><span>
+</span><span id="line-30"></span><span class="hs-comment">--</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- By contrast, we simply do not export a &quot;put&quot; variant of writing to an</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- atomic. This should, hopefully, be enough to ensure atomicity.</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="annot"><span class="hs-comment">-- | Create a new atomic variable with the given initial value.</span></span><span>
+</span><span id="line-35"></span><span id="local-6989586621681699660"><span id="local-6989586621681699662"><span class="annot"><a href="Agda.Utils.Atomic.html#newAtomic"><span class="hs-identifier hs-type">newAtomic</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621681699660"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681699662"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681699660"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Atomic.html#Atomic"><span class="hs-identifier hs-type">Atomic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681699662"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-36"></span><span id="newAtomic"><span class="annot"><span class="annottext">newAtomic :: forall (m :: * -&gt; *) a. MonadIO m =&gt; a -&gt; m (Atomic a)
+</span><a href="Agda.Utils.Atomic.html#newAtomic"><span class="hs-identifier hs-var hs-var">newAtomic</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO (Atomic a) -&gt; m (Atomic a)
+forall a. IO a -&gt; m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO (Atomic a) -&gt; m (Atomic a))
+-&gt; (a -&gt; IO (Atomic a)) -&gt; a -&gt; m (Atomic a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(MVar a -&gt; Atomic a) -&gt; IO (MVar a) -&gt; IO (Atomic a)
+forall a b. (a -&gt; b) -&gt; IO a -&gt; IO b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">MVar a -&gt; Atomic a
+forall a. MVar a -&gt; Atomic a
+</span><a href="Agda.Utils.Atomic.html#Atomic"><span class="hs-identifier hs-var">Atomic</span></a></span><span> </span><span class="annot"><span class="annottext">(IO (MVar a) -&gt; IO (Atomic a))
+-&gt; (a -&gt; IO (MVar a)) -&gt; a -&gt; IO (Atomic a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; IO (MVar a)
+forall a. a -&gt; IO (MVar a)
+</span><span class="hs-identifier hs-var">newMVar</span></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- | Read the current state of the atomic variable, waiting if any other</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- thread is modifying it.</span><span>
+</span><span id="line-40"></span><span class="hs-comment">--</span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- Like 'readMVar', 'readAtomic' is multiple-wakeup, which means that</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- all threads waiting on a modification will be woken up when it</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- finishes.</span><span>
+</span><span id="line-44"></span><span id="local-6989586621681699674"><span id="local-6989586621681699675"><span class="annot"><a href="Agda.Utils.Atomic.html#readAtomic"><span class="hs-identifier hs-type">readAtomic</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621681699674"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Atomic.html#Atomic"><span class="hs-identifier hs-type">Atomic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681699675"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681699674"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681699675"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-45"></span><span id="readAtomic"><span class="annot"><span class="annottext">readAtomic :: forall (m :: * -&gt; *) a. MonadIO m =&gt; Atomic a -&gt; m a
+</span><a href="Agda.Utils.Atomic.html#readAtomic"><span class="hs-identifier hs-var hs-var">readAtomic</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO a -&gt; m a
+forall a. IO a -&gt; m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO a -&gt; m a) -&gt; (Atomic a -&gt; IO a) -&gt; Atomic a -&gt; m a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">MVar a -&gt; IO a
+forall a. MVar a -&gt; IO a
+</span><span class="hs-identifier hs-var">readMVar</span></span><span> </span><span class="annot"><span class="annottext">(MVar a -&gt; IO a) -&gt; (Atomic a -&gt; MVar a) -&gt; Atomic a -&gt; IO a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Atomic a -&gt; MVar a
+forall a. Atomic a -&gt; MVar a
+</span><a href="Agda.Utils.Atomic.html#unAtomic"><span class="hs-identifier hs-var">unAtomic</span></a></span><span>
+</span><span id="line-46"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Utils.Atomic.html#readAtomic"><span class="hs-pragma hs-type">readAtomic</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- | Modify the contents of an atomic variable. If the continuation</span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- fails, or receives an asynchronous exception, the variable is</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- returned to its old state.</span><span>
+</span><span id="line-51"></span><span class="hs-comment">--</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- No thread, *including the calling thread*, can access the contents of</span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- the same 'Atomic' while this function is executing, for reading *or*</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- writing. This means that *any* nested use of the variable, as in</span><span>
+</span><span id="line-55"></span><span class="hs-comment">--</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- f var = modifyAtomic var \old -&gt;</span><span>
+</span><span id="line-58"></span><span class="hs-comment">--   -- ...</span><span>
+</span><span id="line-59"></span><span class="hs-comment">--   modifyAtomic var \old' -&gt; ... -- (!)</span><span>
+</span><span id="line-60"></span><span class="hs-comment">--   readAtomic var                -- (!)</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-62"></span><span class="hs-comment">--</span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- will result in a deadlock. The new state of the variable is evaluated</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- (to WHNF).</span><span>
+</span><span id="line-65"></span><span id="local-6989586621681699679"><span id="local-6989586621681699681"><span id="local-6989586621681699682"><span class="annot"><a href="Agda.Utils.Atomic.html#modifyAtomic"><span class="hs-identifier hs-type">modifyAtomic</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621681699679"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadMask</span></span><span> </span><span class="annot"><a href="#local-6989586621681699679"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Atomic.html#Atomic"><span class="hs-identifier hs-type">Atomic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681699681"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681699681"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681699679"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681699681"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621681699682"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681699679"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681699682"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-66"></span><span id="modifyAtomic"><span class="annot"><span class="annottext">modifyAtomic :: forall (m :: * -&gt; *) a b.
+(MonadIO m, MonadMask m) =&gt;
+Atomic a -&gt; (a -&gt; m (a, b)) -&gt; m b
+</span><a href="Agda.Utils.Atomic.html#modifyAtomic"><span class="hs-identifier hs-var hs-var">modifyAtomic</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Atomic.html#Atomic"><span class="hs-identifier hs-type">Atomic</span></a></span><span> </span><span id="local-6989586621681699778"><span class="annot"><span class="annottext">MVar a
+</span><a href="#local-6989586621681699778"><span class="hs-identifier hs-var">var</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621681699779"><span class="annot"><span class="annottext">a -&gt; m (a, b)
+</span><a href="#local-6989586621681699779"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((forall a. m a -&gt; m a) -&gt; m b) -&gt; m b
+forall b. HasCallStack =&gt; ((forall a. m a -&gt; m a) -&gt; m b) -&gt; m b
+forall (m :: * -&gt; *) b.
+(MonadMask m, HasCallStack) =&gt;
+((forall a. m a -&gt; m a) -&gt; m b) -&gt; m b
+</span><span class="hs-identifier hs-var">mask</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681699781"><span class="annot"><span class="annottext">forall a. m a -&gt; m a
+</span><a href="#local-6989586621681699781"><span class="hs-identifier hs-var">restore</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-67"></span><span>  </span><span id="local-6989586621681699782"><span class="annot"><a href="#local-6989586621681699782"><span class="hs-identifier hs-var">old</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO a -&gt; m a
+forall a. IO a -&gt; m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO a -&gt; m a) -&gt; IO a -&gt; m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">MVar a -&gt; IO a
+forall a. MVar a -&gt; IO a
+</span><span class="hs-identifier hs-var">takeMVar</span></span><span> </span><span class="annot"><span class="annottext">MVar a
+</span><a href="#local-6989586621681699778"><span class="hs-identifier hs-var">var</span></a></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621681699784"><span class="annot"><a href="#local-6989586621681699784"><span class="hs-identifier hs-var">new</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681699785"><span class="annot"><a href="#local-6989586621681699785"><span class="hs-identifier hs-var">ret</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="#local-6989586621681699781"><span class="hs-identifier hs-type">restore</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681699779"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681699782"><span class="hs-identifier hs-type">old</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&gt;&gt;=</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">liftIO</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">evaluate</span></span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><span class="hs-operator hs-type">`onException`</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">putMVar</span></span><span> </span><span class="annot"><a href="#local-6989586621681699778"><span class="hs-identifier hs-type">var</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681699782"><span class="hs-identifier hs-type">old</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>  </span><span class="annot"><a href="#local-6989586621681699785"><span class="hs-identifier hs-type">ret</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&lt;$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">liftIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">putMVar</span></span><span> </span><span class="annot"><a href="#local-6989586621681699778"><span class="hs-identifier hs-type">var</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$!</span></span><span> </span><span class="annot"><a href="#local-6989586621681699784"><span class="hs-identifier hs-type">new</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="hs-pragma">{-# SPECIALISE</span><span> </span><span class="annot"><a href="Agda.Utils.Atomic.html#modifyAtomic"><span class="hs-pragma hs-type">modifyAtomic</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span id="local-6989586621681699790"><span id="local-6989586621681699791"><span class="annot"><a href="Agda.Utils.Atomic.html#Atomic"><span class="hs-pragma hs-type">Atomic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681699790"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="hs-pragma">(</span><span class="annot"><a href="#local-6989586621681699790"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><span class="hs-pragma hs-type">IO</span></span><span> </span><span class="hs-pragma">(</span><span class="annot"><a href="#local-6989586621681699790"><span class="hs-pragma hs-type">a</span></a></span><span class="hs-pragma">,</span><span> </span><span class="annot"><a href="#local-6989586621681699791"><span class="hs-pragma hs-type">b</span></a></span><span class="hs-pragma">)</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><span class="hs-pragma hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621681699791"><span class="hs-pragma hs-type">b</span></a></span></span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span id="local-6989586621681699709"><span id="local-6989586621681699710"><span class="annot"><a href="Agda.Utils.Atomic.html#withAtomic"><span class="hs-identifier hs-type">withAtomic</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621681699709"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadMask</span></span><span> </span><span class="annot"><a href="#local-6989586621681699709"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Atomic.html#Atomic"><span class="hs-identifier hs-type">Atomic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681699710"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681699710"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681699709"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681699709"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-75"></span><span id="withAtomic"><span class="annot"><span class="annottext">withAtomic :: forall (m :: * -&gt; *) a.
+(MonadIO m, MonadMask m) =&gt;
+Atomic a -&gt; (a -&gt; m ()) -&gt; m ()
+</span><a href="Agda.Utils.Atomic.html#withAtomic"><span class="hs-identifier hs-var hs-var">withAtomic</span></a></span></span><span> </span><span id="local-6989586621681699800"><span class="annot"><span class="annottext">Atomic a
+</span><a href="#local-6989586621681699800"><span class="hs-identifier hs-var">var</span></a></span></span><span> </span><span id="local-6989586621681699801"><span class="annot"><span class="annottext">a -&gt; m ()
+</span><a href="#local-6989586621681699801"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Atomic a -&gt; (a -&gt; m (a, ())) -&gt; m ()
+forall (m :: * -&gt; *) a b.
+(MonadIO m, MonadMask m) =&gt;
+Atomic a -&gt; (a -&gt; m (a, b)) -&gt; m b
+</span><a href="Agda.Utils.Atomic.html#modifyAtomic"><span class="hs-identifier hs-var">modifyAtomic</span></a></span><span> </span><span class="annot"><span class="annottext">Atomic a
+</span><a href="#local-6989586621681699800"><span class="hs-identifier hs-var">var</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681699802"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681699802"><span class="hs-identifier hs-var">val</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681699802"><span class="hs-identifier hs-var">val</span></a></span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(() -&gt; (a, ())) -&gt; m () -&gt; m (a, ())
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m ()
+</span><a href="#local-6989586621681699801"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681699802"><span class="hs-identifier hs-var">val</span></a></span><span>
+</span><span id="line-76"></span></pre></body></html>
