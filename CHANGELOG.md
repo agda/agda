@@ -227,6 +227,11 @@ Warnings
 
 * `UnknownNamesInFixityDecl` and `UnknownNamesInPolarityPragmas` are now error warnings.
 
+* The new warning `DefinitionBeforeDeclaration` is emitted if in a classic
+  `mutual` block a data/record signature appears *after* the respective
+  definition.  This can happen since the nicifier bubbles signatures up.
+  (See [issue #8435](https://github.com/agda/agda/issues/8435).)
+
 Syntax
 ------
 

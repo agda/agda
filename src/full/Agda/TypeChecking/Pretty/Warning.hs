@@ -54,6 +54,7 @@ import Agda.Syntax.Common
   )
 import Agda.Syntax.Common.Pretty ( Pretty, prettyShow, singPlural )
 import qualified Agda.Syntax.Common.Pretty as P
+import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
@@ -741,6 +742,11 @@ prettyWarning = \case
     TooManyArgumentsToSort q args -> fsep $ concat
       [ pwords "Too many arguments given to sort"
       , [ prettyTCM q ]
+      ]
+
+    DefinitionBeforeDeclaration x -> fsep $ concat
+      [ [ prettyTCM x ]
+      , pwords "defined before its declaration"
       ]
 
     RewritesNothing -> fsep $ pwords "`rewrite' did not apply"

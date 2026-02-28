@@ -147,6 +147,7 @@ instance EmbPrj Warning where
     RewritesNothing                             -> icodeN 74 RewritesNothing
     IllegalDeclarationInDataDefinition ds       -> __IMPOSSIBLE__  -- We don't serialize concrete definitions (yet)
     UnusedImports a b                           -> icodeN 75 UnusedImports a b
+    DefinitionBeforeDeclaration x               -> icodeN 76 DefinitionBeforeDeclaration x
     RecursiveRecordNeedsInductivity{}           -> __IMPOSSIBLE__  -- Error warning
 
   value = vcase $ \ case
@@ -227,6 +228,7 @@ instance EmbPrj Warning where
     N4 73 a b c   -> valuN FixingPolarity a b c
     N1 74         -> valuN RewritesNothing
     N3 75 a b     -> valuN UnusedImports a b
+    N2 76 a       -> valuN DefinitionBeforeDeclaration a
     _ -> malformed
 
 instance EmbPrj UselessPublicReason

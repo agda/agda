@@ -4891,6 +4891,8 @@ data Warning
   -- Type checker warnings
   | TooManyArgumentsToSort QName (List1 (NamedArg A.Expr))
       -- ^ Extra arguments to sort (will be ignored).
+  | DefinitionBeforeDeclaration A.AbstractName
+      -- ^ A definition appears before its declaration in a @mutual@ block.
   | RewritesNothing
       -- ^ A @rewrite@ expression that does not fire.
   | WithClauseProjectionFixityMismatch
@@ -5039,6 +5041,7 @@ warningName = \case
 
   -- Type checking
   TooManyArgumentsToSort{}             -> TooManyArgumentsToSort_
+  DefinitionBeforeDeclaration{}        -> DefinitionBeforeDeclaration_
   RecursiveRecordNeedsInductivity{}    -> RecursiveRecordNeedsInductivity_
   RewritesNothing{}                    -> RewritesNothing_
   WithClauseProjectionFixityMismatch{} -> WithClauseProjectionFixityMismatch_

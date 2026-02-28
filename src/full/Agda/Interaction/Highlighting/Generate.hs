@@ -554,6 +554,7 @@ warningHighlighting' b w = case tcWarning w of
   MacroInLetBindings{}            -> errorWarningHighlighting w
   AbstractInLetBindings{}         -> errorWarningHighlighting w
   IllegalDeclarationInDataDefinition{} -> errorWarningHighlighting w
+  DefinitionBeforeDeclaration x   -> cosmeticProblemHighlighting w <> cosmeticProblemHighlighting (nameBindingSite x)
 
   NicifierIssue (DeclarationWarning _ w) -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of

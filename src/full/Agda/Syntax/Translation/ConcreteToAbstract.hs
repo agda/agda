@@ -2537,6 +2537,16 @@ retrieveDataOrRecName dataOrRec x = do
     livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
     clashIfModuleAlreadyDefinedInCurrentModule x ax  -- Andreas, 2019-07-07, issue #2576
 
+    -- Andreas, 2026-02-28, issue #8435
+    -- The nicifier bubbles signatures up, even beyond their matching definition.
+    -- So, check that signature appeared before definition in the file.
+    reportSDoc "scope.data.range" 40 $ vcat
+      [ "ax  = " <+> pure (pretty (PrintRange ax))
+      , "defined at " <+> pure (pretty (PrintRange (nameBindingSite ax)))
+      ]
+    unless (getRange (nameBindingSite ax) <= getRange ax) do
+      warning $ DefinitionBeforeDeclaration ax
+
     -- Check that the generated module doesn't clash with a previously
     -- defined module
     checkForModuleClash x

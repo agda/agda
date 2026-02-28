@@ -258,6 +258,7 @@ data WarningName
   -- Library Warnings
   | LibUnknownField_
   -- Nicifer Warnings
+  | DefinitionBeforeDeclaration_
   | DivergentModalityInClause_
   | EmptyAbstract_
   | EmptyConstructor_
@@ -564,6 +565,7 @@ warningNameDescription = \case
   CoverageNoExactSplit_            -> "Failed exact split checks."
   InlineNoExactSplit_              -> "Failed exact split checks after inlining record constructors."
   DeprecationWarning_              -> "Deprecated features."
+  DefinitionBeforeDeclaration_     -> "Definitions that occur before their declarations."
   -- TODO: linearity
   -- FixingQuantity_                  -> "Correcting invalid user-written quantity."
   FixingRelevance_                 -> "Correcting invalid user-written relevance attribute."
