@@ -487,6 +487,10 @@ Interaction and emacs mode
 
 [Xref]: https://www.gnu.org/software/emacs/manual/html_node/emacs/Xref.html
 
+* Added key binding that switches to the associated mode for a
+  literate Agda file, with the option to automatically add a key
+  binding to switch back.
+
 Backends
 --------
 

@@ -230,6 +230,7 @@ constituents.")
     (agda2-remove-annotations                "\C-c\C-x\C-d"       (global)       "Remove goals and highlighting (\"deactivate\")")
     (agda2-display-implicit-arguments        "\C-c\C-x\C-h"       (global)       "Toggle display of hidden arguments")
     (agda2-display-irrelevant-arguments      "\C-c\C-x\C-i"       (global)       "Toggle display of irrelevant arguments")
+    (agda2-switch-literate-mode              "\C-c\C-x\C-x"       (global)       "Switch to literate companion mode")
     (agda2-show-constraints                  ,(kbd "C-c C-=")     (global)       "Show constraints")
     (agda2-solve-maybe-all                   ,(kbd "C-c C-s")     (local global) "Solve constraints")
     (agda2-show-goals                        ,(kbd "C-c C-?")     (global)       "Show goals")
@@ -2229,6 +2230,33 @@ the argument is a positive number, otherwise turn it off."
    ((and (numberp arg) (> arg 0))
       (agda2-go nil t 'not-so-busy t "ShowIrrelevantArgs" "True"))
    (t (agda2-go nil t 'not-so-busy t "ShowIrrelevantArgs" "False"))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Switch to literate mode
+
+(defvar agda2-literate-modes '(("lagda" latex-mode latex-mode-map "\C-c\C-x\C-x"))
+  "Literate Agda modes.
+Used to enable switching from and to an alternative mode for editing.
+The first element in an entry should be the file extension, next the
+mode to switch to, and finally (optionally) the key key map and binding
+that should be assigned to switch back to Agda mode.")
+
+(defun agda2-literate-modes-watcher (symbol newval operation where)
+  "Update keybindings of associated modes."
+  (dolist (x newval)
+    (let ((binding (cddr x)))
+      (if (eq (length binding) 2)
+          (define-key (symbol-value (car binding)) (cadr binding) 'agda2-mode)))))
+
+(add-variable-watcher 'agda2-literate-modes 'agda2-literate-modes-watcher)
+
+(defun agda2-switch-literate-mode ()
+  "Switch to the mode associated with a literate Agda file."
+  (interactive)
+  (let* ((ext (file-name-extension (buffer-file-name)))
+         (match (seq-find (lambda (x) (string= ext (car x))) agda2-literate-modes)))
+    (if match (funcall (cadr match))
+      (message (concat "\"" ext "\" is not an extension configured in 'agda2-literate-modes'!")))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
