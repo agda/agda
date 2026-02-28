@@ -42,6 +42,7 @@ import Control.Monad.IO.Class      ( MonadIO(..) )
 import Control.Monad.State         ( MonadState(..), execStateT )
 import Control.Monad.Trans.Maybe
 import Control.Concurrent
+import Control.DeepSeq
 
 import Data.Either
 import Data.Monoid
@@ -491,6 +492,8 @@ data TCWorkers = Workers
     -- worker to signal completion (or failure).
   , workerModules    :: !(IORef DecodedModules)
     -- ^ The shared 'DecodedModules' where workers can put their results.
+  , workerStarted    :: !(IORef Int)
+    -- ^ How many threads have actually started their work. Used for progress reporting.
   }
 
 -- | If the user has asked for it, prepare the type checker for loading
@@ -513,10 +516,29 @@ wantsParallelChecking = fmap optParallelChecking commandLineOptions >>= \case
 
     threads <- liftIO $ newMVar mempty
     results <- liftIO . newIORef =<< getDecodedModules
+    started <- liftIO $ newIORef 0
     pure Workers
       { workerThreads    = threads
       , workerModules    = results
+      , workerStarted    = started
       }
+
+-- | Gets the prefix string to use for reporting the progress message
+-- (Checking, Loading, etc.) for the module this worker is responsible
+-- for.
+-- As a side-effect, updates the 'workerStarted' count.
+thisWorkerPrefix :: TCWorkers -> TCM String
+thisWorkerPrefix workers = do
+  -- In general, we don't know ahead-of-time how many modules we will
+  -- end up checking (e.g. with --build-library, this fluctuates), but
+  -- the number of modules for which we have a result slot is a pretty
+  -- good estimate.
+  sz <- show . HMap.size <$> liftIO (readMVar (workerThreads workers))
+  me <- liftIO $ atomicModifyIORef (workerStarted workers) \n -> (n + 1, show (n + 1))
+  let
+    pad = replicate (length sz - length me) ' '
+    out = "(" <> pad <> me <> "/" <> sz <> ") "
+  out `deepseq` pure out
 
 -- | Type-check the given module, using a 'TCWorkers' instance to check
 -- its imports in parallel.
@@ -639,7 +661,9 @@ chaseModule workers mod main msrc = do
         -- around to actually scope checking the import.
         sequence_ (appEndo imports [])
 
-        mi <- getInterface mod main (Just src)
+        prefix <- thisWorkerPrefix workers
+        mi <- locallyTC eChasePrefix (const (Just prefix)) $
+          getInterface mod main (Just src)
 
         -- After we're done, update the shared DecodedModules map and
         -- signal our completion.
@@ -1156,6 +1180,7 @@ createInterfaceIsolated x file msrc = do
       cleanCachedLog
 
       ms          <- asksTC envImportStack
+      pref        <- asksTC envChasePrefix
       range       <- asksTC envRange
       call        <- asksTC envCall
       vs          <- getVisitedModules
@@ -1187,6 +1212,7 @@ createInterfaceIsolated x file msrc = do
                             { envRange              = range
                             , envCall               = call
                             , envImportStack        = ms
+                            , envChasePrefix        = pref
                             }) $ do
                setDecodedModules ds
                setCommandLineOptions opts
@@ -1226,7 +1252,9 @@ chaseMsg
   -> Maybe String         -- ^ Optionally: the file name.
   -> TCM ()
 chaseMsg kind x file = do
-  indentation <- (`replicate` ' ') <$> asksTC (pred . length . envImportStack)
+  indentation <- asksTC envChasePrefix >>= \case
+    Just pref -> pure pref
+    Nothing   -> (`replicate` ' ') <$> asksTC (pred . length . envImportStack)
   traceImports <- optTraceImports <$> commandLineOptions
   let maybeFile = caseMaybe file "." $ \ f -> " (" ++ f ++ ")."
       vLvl | kind == "Checking"
