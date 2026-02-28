@@ -167,6 +167,27 @@ declKind NiceUnquoteDecl{}                   = OtherDecl
 declKind NiceLoneConstructor{}               = OtherDecl
 declKind NiceOpaque{}                        = OtherDecl
 
+
+-- | Ensure that every signature got its definition.
+-- Signatures ('FunSig', 'NiceDataSig', 'NiceRecSig'), that are /lone/,
+-- i.e., did not get a definition,
+-- are replaced by 'Axiom's so that the scope checker will not
+-- look for accompanying definitions ('FunDef', 'NiceDataDef', 'NiceRecDef').
+-- Throws also a 'MissingDefinitions' warning for the lone names.
+turnLoneSignaturesIntoAxioms ::
+     [NiceDeclaration]
+       -- ^ Containing @(Data/Rec/Fun)Sigs@ for the lone signatures.
+  -> LoneSigs
+       -- ^ The signatures that are not accompanied by a definition.
+  -> Nice [NiceDeclaration]
+       -- ^ The indicated lone signatures have been replaced by @Axiom@s.
+       --   Length and ordering of the declaration list are not affected.
+turnLoneSignaturesIntoAxioms ds ps = do
+  -- Clear the lone sigs in the state, throw a warning for @ps@.
+  checkLoneSigs ps
+  -- Replace in @ds@ as indicated by @ps@.
+  return $ replaceSigs ps ds
+
 -- | Replace @(Data/Rec/Fun)Sigs@ with @Axiom@s for postulated names.
 --   The first argument is a list of axioms only.
 replaceSigs
@@ -218,10 +239,12 @@ niceDeclarations fixs ds = do
   nds <- nice ds
 
   -- Check that every signature got its definition.
-  ps <- use loneSigs
-  checkLoneSigs ps
-  -- We postulate the missing ones and insert them in place of the corresponding @FunSig@
-  let ds = replaceSigs ps nds
+  -- We postulate the missing ones and insert them as @Axiom@s
+  -- in place of the corresponding @FunSig@, @NiceDataSig@ or @NiceRecSig@.
+  -- This ensures that their names will be in scope but the scope checker
+  -- will not search for a corresponding definition (@FunDef@, @NiceDataDef@, @NiceRecDef@).
+  -- We also throw a @MissingDefinitions@ warning.
+  ds <- turnLoneSignaturesIntoAxioms nds =<< use loneSigs
 
   -- Note that loneSigs is ensured to be empty.
   -- (Important, since inferMutualBlocks also uses loneSigs state).
@@ -244,10 +267,9 @@ niceDeclarations fixs ds = do
           _ <- addLoneSig r x k
           InferredMutual checks nds0 ds1 <- untilAllDefined (mutualChecks k) ds
           -- If we still have lone signatures without any accompanying definition,
-          -- we postulate the definition and substitute the axiom for the lone signature
-          ps <- use loneSigs
-          checkLoneSigs ps
-          let ds0 = List1.fromListSafe __IMPOSSIBLE__ $ replaceSigs ps (d : nds0)
+          -- we postulate the definition and substitute the axiom for the lone signature.
+          ds0 <- List1.fromListSafe __IMPOSSIBLE__ <$> do
+            turnLoneSignaturesIntoAxioms (d : nds0) =<< use loneSigs
             -- NB: don't forget the LoneSig that the block started with!
           -- We then keep processing the rest of the block
           tc <- combineTerminationChecks (getRange d) (mutualTermination checks)
@@ -534,9 +556,7 @@ niceDeclarations fixs ds = do
           -- recursion by interleaving type signatures and definitions,
           -- just like the body of a module.
           decls0 <- nice body
-          ps <- use loneSigs
-          checkLoneSigs ps
-          let decls = replaceSigs ps decls0
+          decls <- turnLoneSignaturesIntoAxioms decls0 =<< use loneSigs
           body <- inferMutualBlocks decls
           pure ([NiceOpaque r (concat unfoldings) body], ds)
 
@@ -934,9 +954,7 @@ niceDeclarations fixs ds = do
       (other, ISt m checks _) <- runStateT (groupByBlocks kwr ds') $ ISt empty mempty 0
       idecls <- (other ++) . concat <$> mapM (uncurry interleavedDecl) (Map.toList m)
       let decls0 = map snd $ List.sortBy (compare `on` fst) idecls
-      ps <- use loneSigs
-      checkLoneSigs ps
-      let decls = replaceSigs ps decls0
+      decls <- turnLoneSignaturesIntoAxioms decls0 =<< use loneSigs
       -- process the checks
       let r = fuseRange kwr ds'
       tc <- combineTerminationChecks r (mutualTermination checks)
@@ -1105,10 +1123,8 @@ niceDeclarations fixs ds = do
       -> Nice (Maybe NiceDeclaration)
            -- Returns a 'NiceMutual' unless empty.
     mkOldMutual kwr ds' = do
-        -- Postulate the missing definitions
-        let ps = loneSigsFromLoneNames loneNames
-        checkLoneSigs ps
-        let ds = replaceSigs ps ds'
+        -- Turn the missing definitions into postulates.
+        ds <- turnLoneSignaturesIntoAxioms ds' $ loneSigsFromLoneNames loneNames
 
         -- -- Remove the declarations that aren't allowed in old style mutual blocks
         -- ds <- fmap catMaybes $ forM ds $ \ d -> let success = pure (Just d) in case d of
