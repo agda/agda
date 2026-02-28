@@ -1,0 +1,5 @@
+Issue4150b.agda:5.3-6.28: error: [MissingTypeSignature.Data]
+Missing type signature for data definition D
+when scope checking the declaration
+  data D where
+    c : (A : Set) → F A → D

@@ -66,6 +66,7 @@ import Data.List             qualified as List
 import Data.Map              qualified as Map
 import Data.Maybe
 import Data.Semigroup        ( sconcat )
+import Data.Set              qualified as Set
 import Data.Text             ( Text )
 
 import Agda.Syntax.Common hiding (TerminationCheck())
@@ -1124,7 +1125,7 @@ niceDeclarations fixs ds = do
            -- Returns a 'NiceMutual' unless empty.
     mkOldMutual kwr ds' = do
         -- Turn the missing definitions into postulates.
-        ds <- turnLoneSignaturesIntoAxioms ds' $ loneSigsFromLoneNames loneNames
+        ds <- turnLoneSignaturesIntoAxioms ds' $ loneSigsFromLoneNames loneSigNames
 
         -- -- Remove the declarations that aren't allowed in old style mutual blocks
         -- ds <- fmap catMaybes $ forM ds $ \ d -> let success = pure (Just d) in case d of
@@ -1166,13 +1167,18 @@ niceDeclarations fixs ds = do
             NiceImport{}        -> top
             NiceRecSig{}        -> top
             NiceDataSig{}       -> top
-            -- Andreas, 2017-10-09, issue #2576, raise error about missing type signature
+            -- Andreas, 2017-10-09, issue #2576, keep NiceFunClause in
+            -- to raise error about missing type signature
             -- in ConcreteToAbstract rather than here.
-            NiceFunClause{}     -> bottom
+            -- Andreas, 2026-02-28, issue #4150: sort it up to give the
+            -- MissingTypeSignature error priority over potential NotInScope errors.
+            NiceFunClause{}     -> top
             FunSig{}            -> top
             FunDef{}            -> bottom
-            NiceDataDef{}       -> bottom
-            NiceRecDef{}        -> bottom
+            -- Andreas, 2026-02-28, issue #4150:
+            -- Sort lone defs up to prioritise MissingTypeSignature error.
+            NiceDataDef _ _ _ _ _ x _ _   -> if x `Set.member` loneDefNames then top else bottom
+            NiceRecDef _ _ _ _ _ x _ _ _  -> if x `Set.member` loneDefNames then top else bottom
             -- Andreas, 2018-05-11, issue #3051, allow pat.syn.s in mutual blocks
             -- Andreas, 2018-10-29: We shift pattern synonyms to the bottom
             -- since they might refer to constructors defined in a data types
@@ -1263,7 +1269,9 @@ niceDeclarations fixs ds = do
         sigNames  = [ (r, x, k) | LoneSigDecl r k x <- map declKind ds' ]
         defNames  = [ (x, k) | LoneDefs k xs <- map declKind ds', x <- xs ]
         -- compute the set difference with equality just on names
-        loneNames = [ (r, x, k) | (r, x, k) <- sigNames, List.all ((x /=) . fst) defNames ]
+        loneSigNames = [ (r, x, k) | (r, x, k) <- sigNames, List.all ((x /=) . fst) defNames ]
+        loneDefNames = Set.fromList [ x | (x, _) <- defNames, x `Set.notMember` sigNameSet ]
+        sigNameSet   = Set.fromList [ x | (_, x, _) <- sigNames ]
 
         termCheck :: NiceDeclaration -> TerminationCheck
         -- Andreas, 2013-02-28 (issue 804):
