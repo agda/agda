@@ -70,22 +70,22 @@ type Graph n e = Graph.Graph n e
 data TrimNode = ArgN String Int | DefN String deriving (Eq, Ord, Show)
 type TrimGraph = Map TrimNode (Map TrimNode Occurrence)
 
--- | Bring old and new graphs to same representation, ignoring paths
---   Also filter out useless nodes (with no associated edges)
-trimGraphs :: Graph Node (Edge OccursWhere)
-              -> Graph New.Node New.Edge
-              -> (TrimGraph, TrimGraph)
-trimGraphs (Graph.Graph m) (Graph.Graph m') =
-  let convnode = Map.mapKeys \case ArgNode x i -> ArgN (prettyShow x) i
-                                   DefNode x   -> DefN (prettyShow x)
-      convnode' = Map.mapKeys \case New.ArgNode x i -> ArgN (prettyShow x) i
-                                    New.DefNode x   -> DefN (prettyShow x)
-      convedge  = fmap \(Edge p _) -> p
-      convedge' = fmap \(New.Edge p _) -> p
-  in
-  ( fmap (convedge . convnode) (convnode (Map.filter (not . null) m))
-  , fmap (convedge' . convnode') (convnode' m')
-  )
+-- -- | Bring old and new graphs to same representation, ignoring paths
+-- --   Also filter out useless nodes (with no associated edges)
+-- trimGraphs :: Graph Node (Edge OccursWhere)
+--               -> Graph New.Node New.Edge
+--               -> (TrimGraph, TrimGraph)
+-- trimGraphs (Graph.Graph m) (Graph.Graph m') =
+--   let convnode = Map.mapKeys \case ArgNode x i -> ArgN (prettyShow x) i
+--                                    DefNode x   -> DefN (prettyShow x)
+--       convnode' = Map.mapKeys \case New.ArgNode x i -> ArgN (prettyShow x) i
+--                                     New.DefNode x   -> DefN (prettyShow x)
+--       convedge  = fmap \(Edge p _) -> p
+--       convedge' = fmap \(New.Edge p _) -> p
+--   in
+--   ( fmap (convedge . convnode) (convnode (Map.filter (not . null) m))
+--   , fmap (convedge' . convnode') (convnode' m')
+--   )
 
 erasePaths :: Graph Node (Edge OccursWhere) -> Graph Node (Edge ())
 erasePaths = (fmap . fmap) (const ())
@@ -135,9 +135,9 @@ checkStrictlyPositive mi qset = do
 
       -- compute the occurrence graph
       --------------------------------------------------------------------------------
-      !g <- (buildOccurrenceGraph qset)
+      !g <- Bench.billTo [Bench.Positivity] (buildOccurrenceGraph qset)
 
-      _ <-  (New.buildOccurrenceGraph qs)
+      -- _ <- Bench.billTo [Bench.Positivity] (New.buildOccurrenceGraph qs)
 
       -- master 3.9
       -- new    3.3
@@ -323,14 +323,8 @@ checkStrictlyPositive mi qset = do
 
   reportSDoc "tc.pos.tick" 100 $ "checked positivity"
 
-
 getDefArity :: Definition -> TCM Int
 getDefArity def = do
-  TelV tel _ <- telView (defType def)
-  return $ size tel - projectionArgs def
-
-getDefArity' :: Definition -> TCM Int
-getDefArity' def = do
   let go :: Type -> Int -> ReduceM Int
       go !a !n = (unEl <$> reduce a) >>= \case
         Pi a b -> underAbsReduceM a b \b -> go b (n + 1)
@@ -368,7 +362,7 @@ preprocessBlock :: [QName] -> TCM (Maybe ([(QName, Int, Maybe DataOrRecord, Bool
 preprocessBlock qs = do
   info <- forMGood qs \q -> inConcreteOrAbstractMode q \def -> do
     !arity <- case hasDefinition (theDef def) of
-      True  -> getDefArity' def
+      True  -> getDefArity def
       False -> pure 0
     let !dr = isDatatype def
     let !needToSetMutual = isJust (getMutual_ (theDef def))

@@ -6,9 +6,10 @@
 ------------------------------------------------------------------------
 
 module Agda.Utils.HashTable
-  ( HashTable
+  ( HashTable(..)
   , HashTableLU
   , HashTableLL
+  , HashTableUL
   , Agda.Utils.HashTable.empty
   , Agda.Utils.HashTable.insert
   , Agda.Utils.HashTable.lookup
@@ -58,6 +59,9 @@ type HashTableLU k v = HashTable VM.MVector k VUM.MVector v
 
 -- | Hashtable with lifted keys and lifted values.
 type HashTableLL k v = HashTable VM.MVector k VM.MVector v
+
+-- | Hashtable with unboxed keys and lifted values.
+type HashTableUL k v = HashTable VM.MVector k VM.MVector v
 
 -- | An empty hash table.
 
