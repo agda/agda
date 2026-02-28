@@ -702,10 +702,14 @@ checkArgumentsE'
                   let skip k   = s{ sSkipCheck =
                                     SkipNext $ visiblePis - 1 - k
                                   }
-                      dontSkip = s
                   in return $ case reason of
-                    Permanent   -> skip 0
-                    Unspecified -> dontSkip
+                    Permanent   -> s{ sSkipCheck = Skip }
+                    Unspecified -> skip 0
+                      -- OR: dontSkip, (let dontSkip = s)
+                      -- but there is no evidence that the next argument
+                      -- will refine the target enough to make it rigid,
+                      -- and doing this analysis at every argument is expensive
+                      -- (Issue6097-5).
                     AVar x      ->
                       if x `VarSet.member` freeInTgt
                       then skip x
@@ -715,7 +719,11 @@ checkArgumentsE'
                   -- We need to check that the arity of the function type
                   -- is sufficient before checking the target,
                   -- otherwise the target is non-sensical.
-                  if visiblePis < sArgsLen then return s else do
+                  -- With Ulf, 2024-03-06:
+                  -- If the target is rigid, type checking will eventually fail,
+                  -- but we can skip the target check henceforth
+                  -- because the target will stay rigid.
+                  if visiblePis < sArgsLen then return s{ sSkipCheck = Skip } else do
 
                       -- Is any free variable in tgt less than
                       -- visiblePis?
@@ -849,12 +857,32 @@ data IsPermanent
     -- ^ Maybe, maybe not.
 
 -- | Is the type \"rigid\"?
+--
+-- Interpretation of results:
+--
+--   - @IsRigid@: Makes sense to check target now.
+--
+--   - @IsNotRigid Permanent@:
+--     don't try checking the target early, don't retry @isRigid@.
+--     Possible reasons:
+--       - not a type, type checking will fail
+--       - a sort, does not provide useful information
+--       - hidden Pi, needs argument insertion
+--
+--   - @IsNotRigid Unspecified@:
+--     target type could refine e.g. by solving a meta
+--     or providing one more function argument.
+--
+--   - @IsNotRigid (AVar x)@:
+--     target type can only refine by giving the specified function argument.
 
 isRigid :: CheckArgumentsE'State -> Type -> TCM IsRigid
 isRigid s t | PathType{} <- sPathView s t =
   -- Path is not rigid.
   return $ IsNotRigid Permanent
-isRigid _ (El _ t) = case t of
+isRigid _ (El _ t) = reduce t >>= \case
+    -- Note: reduce, because target out of telViewUpTo' could be non-reduced
+    -- if the requested number of domains could be split off.
   Var x _    -> return $ IsNotRigid (AVar x)
   Lam{}      -> return $ IsNotRigid Permanent
   Lit{}      -> return $ IsNotRigid Permanent
