@@ -136,6 +136,8 @@ Pragmas and options
 * `{-# NO_POSITIVITY_CHECK #-}` pragmas are now recognized in `record` declarations and `where` blocks,
   and pertain to the following `data` or `record` declaration or mutual block.
 
+* New option `--local-rewriting` which enables parameterising over computation rules by annotating module parameters with `@rewrite` attributes. See the [local rewriting documentation](https://agda.readthedocs.io/en/v2.9.0/language/local-rewriting.html) for more info.
+
 Errors
 ------
 

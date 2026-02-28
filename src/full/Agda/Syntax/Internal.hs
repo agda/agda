@@ -56,6 +56,19 @@ import Agda.Utils.Impossible
 -- * Function type domain
 ---------------------------------------------------------------------------
 
+data RewDom' t = RewDom
+  { rewDomEq  :: LocalEquation' t
+    -- ^ Elaborated "@rewrite" equation
+  , rewDomRew :: Maybe RewriteRule
+    -- ^ "@rewrite" equation transformed into a directed rewrite rule.
+    --
+    -- @Nothing@ iff invalidated by a substitution. If we are checking
+    -- against an "@rewrite" domain, this is fine, but if we are inside an "@rewrite"
+    -- context, this is probably an internal error.
+  } deriving (Show, Generic)
+
+type RewDom = RewDom' Term
+
 -- | Similar to 'Arg', but we need to distinguish
 --   an irrelevance annotation in a function domain
 --   (the domain itself is not irrelevant!)
@@ -76,23 +89,40 @@ data Dom' t e = Dom
   , domIsFinite :: Bool
     -- ^ Is this a Π-type (False), or a partial type (True)?
   , domTactic :: Maybe t        -- ^ "@tactic e".
+  , rewDom    :: Maybe (RewDom' t)
+    -- ^ Elaborated "@rewrite" equation
+    --
+    -- Will only be present if domain annotated with "@rewrite" (@annRewrite@
+    -- is @IsRewrite@) AND the type successfully elaborated into a rewrite rule.
   , unDom     :: e
   } deriving (Show, Functor, Foldable, Traversable)
 
 type Dom = Dom' Term
 
+domEq :: Dom' t e -> Maybe (LocalEquation' t)
+domEq = fmap rewDomEq . rewDom
+
+-- | Is this Dom annotated as a local rewrite rule and if so, has the rewrite
+--   been invalidated due to a substitution?
+invalidRew :: Dom' t e -> Bool
+invalidRew Dom { rewDom = Just (RewDom { rewDomRew = Nothing }) } = True
+invalidRew _                                                      = False
+
 instance Decoration (Dom' t) where
-  traverseF f (Dom ai x t b a) = Dom ai x t b <$> f a
+  traverseF f (Dom ai x t b r a) = Dom ai x t b r <$> f a
 
 instance HasRange a => HasRange (Dom' t a) where
   getRange = getRange . unDom
 
+instance KillRange t => KillRange (RewDom' t) where
+  killRange (RewDom eq rew) = killRangeN RewDom eq rew
+
 instance (KillRange t, KillRange a) => KillRange (Dom' t a) where
-  killRange (Dom info x t b a) = killRangeN Dom info x t b a
+  killRange (Dom info x t b r a) = killRangeN Dom info x t b r a
 
 -- | Ignores 'Origin' and 'FreeVariables' and tactic.
 instance Eq a => Eq (Dom' t a) where
-  Dom (ArgInfo h1 m1 _ _ a1) s1 f1 _ x1 == Dom (ArgInfo h2 m2 _ _ a2) s2 f2 _ x2 =
+  Dom (ArgInfo h1 m1 _ _ a1) s1 f1 _ _ x1 == Dom (ArgInfo h2 m2 _ _ a2) s2 f2 _ _ x2 =
     (h1, m1, a1, s1, f1, x1) == (h2, m2, a2, s2, f2, x2)
 
 instance LensNamed (Dom' t e) where
@@ -107,6 +137,13 @@ instance LensArgInfo (Dom' t e) where
 instance LensLock (Dom' t e) where
   getLock = getLock . getArgInfo
   setLock = mapArgInfo . setLock
+
+instance LensRewriteAnn (Dom' t e) where
+  getRewriteAnn = getRewriteAnn . getArgInfo
+  setRewriteAnn = mapRewriteAnn . setRewriteAnn
+
+instance LensLocalEquation (Dom e) where
+  getLocalEq = domEq
 
 -- The other lenses are defined through LensArgInfo
 
@@ -134,17 +171,23 @@ namedArgFromDom Dom{domInfo = i, domName = s, unDom = a} = Arg i $ Named s a
 -- However, this causes problems with instance resolution in several places.
 -- often for class AddContext.
 
+domFromArgRew :: Maybe RewDom -> Arg a -> Dom a
+domFromArgRew rew (Arg i a) = Dom i Nothing False Nothing rew a
+
 domFromArg :: Arg a -> Dom a
-domFromArg (Arg i a) = Dom i Nothing False Nothing a
+domFromArg = domFromArgRew Nothing
 
 domFromNamedArg :: NamedArg a -> Dom a
-domFromNamedArg (Arg i a) = Dom i (nameOf a) False Nothing (namedThing a)
+domFromNamedArg (Arg i a) = Dom i (nameOf a) False Nothing Nothing (namedThing a)
 
 defaultDom :: a -> Dom a
 defaultDom = defaultArgDom defaultArgInfo
 
+defaultArgDomRew :: ArgInfo -> Maybe RewDom -> a -> Dom a
+defaultArgDomRew info rew x = domFromArgRew rew (Arg info x)
+
 defaultArgDom :: ArgInfo -> a -> Dom a
-defaultArgDom info x = domFromArg (Arg info x)
+defaultArgDom info = defaultArgDomRew info Nothing
 
 defaultNamedArgDom :: ArgInfo -> String -> a -> Dom a
 defaultNamedArgDom info s x = (defaultArgDom info x) { domName = Just $ WithOrigin Inserted $ unranged s }
@@ -753,6 +796,7 @@ data Substitution' a
 
 type Substitution = Substitution' Term
 type PatternSubstitution = Substitution' DeBruijnPattern
+type Renaming = Substitution' Nat
 
 infixr 4 :#
 
@@ -1195,6 +1239,130 @@ type instance TypeOf [PlusLevel] = ()
 type instance TypeOf PlusLevel   = ()
 
 ---------------------------------------------------------------------------
+-- * (Local) rewrite rules
+---------------------------------------------------------------------------
+
+-- | NLPat might become definitionally singular (after a substitution)
+data DefSing
+  = NeverSing
+    -- ^ Never definitionally singular
+  | MaybeSing
+    -- ^ Might become definitionally singular after a substitution
+  | AlwaysSing
+    -- ^ Always definitionally singular (e.g. irrelevant or in |Prop|)
+  deriving (Show, Generic, Enum, Bounded)
+
+relToDefSing :: Relevance -> DefSing
+relToDefSing r = if isIrrelevant r then AlwaysSing else NeverSing
+
+-- Only approximate if both sides are |NotDefSingIfInj| with non-empty
+-- injective constraints
+minDefSing :: DefSing -> DefSing -> DefSing
+minDefSing s s' = toEnum $ fromEnum s `min` fromEnum s'
+
+maxDefSing :: DefSing -> DefSing -> DefSing
+maxDefSing s s' = toEnum $ fromEnum s `max` fromEnum s'
+
+isAlwaysSing :: DefSing -> Bool
+isAlwaysSing AlwaysSing = True
+isAlwaysSing _          = False
+
+-- | Non-linear (non-constructor) first-order pattern.
+data NLPat
+  = PVar DefSing !Int [Arg Int]
+    -- ^ Matches anything (modulo non-linearity) that only contains bound
+    --   variables that occur in the given arguments.
+    --   Tracks the definitional singularity of the surrounding pattern (not
+    --   the type of the variable itself)
+  | PDef QName PElims
+    -- ^ Matches @f es@
+  | PLam ArgInfo (Abs NLPat)
+    -- ^ Matches @λ x → t@
+  | PPi (Dom NLPType) (Abs NLPType)
+    -- ^ Matches @(x : A) → B@
+  | PSort NLPSort
+    -- ^ Matches a sort of the given shape.
+  | PBoundVar {-# UNPACK #-} !Int PElims
+    -- ^ Matches @x es@ where x is a lambda-bound variable
+  | PTerm Term
+    -- ^ Matches the term modulo β (ideally βη).
+  deriving (Show, Generic)
+type PElims = [Elim' NLPat]
+
+
+type instance TypeOf NLPat = Type
+type instance TypeOf [Elim' NLPat] = (Type, Elims -> Term)
+
+
+data NLPType = NLPType
+  { nlpTypeSort :: NLPSort
+  , nlpTypeUnEl :: NLPat
+  } deriving (Show, Generic)
+
+
+data NLPSort
+  = PUniv Univ NLPat
+  | PInf Univ Integer
+  | PSizeUniv
+  | PLockUniv
+  | PLevelUniv
+  | PIntervalUniv
+  deriving (Show, Generic)
+
+pattern PType, PProp, PSSet :: NLPat -> NLPSort
+pattern PType p = PUniv UType p
+pattern PProp p = PUniv UProp p
+pattern PSSet p = PUniv USSet p
+
+{-# COMPLETE
+  PType, PSSet, PProp, PInf,
+  PSizeUniv, PLockUniv, PLevelUniv, PIntervalUniv #-}
+
+data RewriteHead
+  = RewDefHead QName
+  | RewVarHead Nat
+    -- ^ de Bruijn index of head symbol (excluding lrewContext variables)
+  deriving (Show, Generic, Eq)
+
+headToPat :: Nat -> RewriteHead -> PElims -> NLPat
+headToPat _        (RewDefHead f) = PDef f
+headToPat telStart (RewVarHead x) = PBoundVar (x + telStart)
+
+headToTerm :: Nat -> RewriteHead -> Elims -> Term
+headToTerm _        (RewDefHead f) = Def f
+headToTerm telStart (RewVarHead x) = Var (x + telStart)
+
+-- | Undirected equational constraint ("the LHS and RHS
+--   must be convertible in the calling context").
+--   Admits arbitrary substitution.
+data LocalEquation' t = LocalEquation
+  { lEqContext :: Tele (Dom' t (Type'' t t))
+  , lEqLHS     :: t
+  , lEqRHS     :: t
+  , lEqType    :: Type'' t t
+  }
+  deriving (Show, Generic)
+
+type LocalEquation = LocalEquation' Term
+
+-- | Directed rewrite rules generic over the type of head symbol.
+--   Generally unstable under substitution.
+data RewriteRule = RewriteRule
+  { lrewContext :: Telescope
+  , lrewHead    :: RewriteHead
+  , lrewPats    :: PElims     -- patterns (including lrewContext variables)
+  , lrewRHS     :: Term
+  , lrewType    :: Type
+  }
+  deriving (Show, Generic)
+
+lrewHasProjectionPattern :: RewriteRule -> Bool
+lrewHasProjectionPattern rew = any (isJust . isProjElim) $ lrewPats rew
+
+class LensLocalEquation a where
+  getLocalEq :: a -> Maybe LocalEquation
+
+---------------------------------------------------------------------------
 -- * Null instances.
 ---------------------------------------------------------------------------
 
@@ -1334,16 +1502,16 @@ instance KillRange Term where
     DontCare mv -> killRangeN DontCare mv
     v@Dummy{}   -> v
 
-instance KillRange Level where
+instance KillRange a => KillRange (Level' a) where
   killRange (Max n as) = killRangeN (Max n) as
 
-instance KillRange PlusLevel where
+instance KillRange a => KillRange (PlusLevel' a) where
   killRange (Plus n l) = killRangeN (Plus n) l
 
-instance (KillRange a) => KillRange (Type' a) where
+instance (KillRange a, KillRange b) => KillRange (Type'' a b) where
   killRange (El s v) = killRangeN El s v
 
-instance KillRange Sort where
+instance KillRange a => KillRange (Sort' a) where
   killRange = \case
     Inf u n    -> Inf u n
     SizeUniv   -> SizeUniv
@@ -1405,6 +1573,41 @@ instance KillRange ClauseRecursive where
 instance KillRange Clause where
   killRange (Clause rl rf tel ps body t catchall recursive unreachable ell wm) =
     killRangeN Clause rl rf tel ps body t catchall recursive unreachable ell wm
+
+
+instance KillRange NLPat where
+  killRange (PVar s x y)    = killRangeN (PVar s) x y
+  killRange (PDef x y)      = killRangeN PDef x y
+  killRange (PLam x y)      = killRangeN PLam x y
+  killRange (PPi x y)       = killRangeN PPi x y
+  killRange (PSort x)       = killRangeN PSort x
+  killRange (PBoundVar x y) = killRangeN PBoundVar x y
+  killRange (PTerm x)       = killRangeN PTerm x
+
+instance KillRange NLPType where
+  killRange (NLPType s a) = killRangeN NLPType s a
+
+instance KillRange NLPSort where
+  killRange (PUniv u l) = killRangeN (PUniv u) l
+  killRange s@(PInf _f _n) = s
+  killRange PSizeUniv = PSizeUniv
+  killRange PLockUniv = PLockUniv
+  killRange PLevelUniv = PLevelUniv
+  killRange PIntervalUniv = PIntervalUniv
+
+instance KillRange RewriteHead where
+  killRange (RewVarHead a) =
+    killRangeN RewVarHead a
+  killRange (RewDefHead a) =
+    killRangeN RewDefHead a
+
+instance KillRange t => KillRange (LocalEquation' t) where
+  killRange (LocalEquation a b c d) =
+    killRangeN LocalEquation a b c d
+
+instance KillRange RewriteRule where
+  killRange (RewriteRule a b c d e) =
+    killRangeN RewriteRule a b c d e
 
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange
@@ -1625,7 +1828,7 @@ instance NFData PlusLevel where
   rnf (Plus n l) = rnf (n, l)
 
 instance NFData e => NFData (Dom e) where
-  rnf (Dom a c d e f) = rnf a `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
+  rnf (Dom a c d e f g) = rnf a `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f `seq` rnf g
 
 instance NFData a => NFData (DataOrRecord' a)
 instance NFData ConHead
@@ -1640,3 +1843,11 @@ instance NFData x => NFData (Pattern' x)
 instance NFData DBPatVar
 instance NFData ConPatternInfo
 instance NFData a => NFData (Substitution' a)
+instance NFData DefSing
+instance NFData NLPat
+instance NFData NLPType
+instance NFData NLPSort
+instance NFData RewriteHead
+instance NFData LocalEquation
+instance NFData RewriteRule
+instance NFData RewDom

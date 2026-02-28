@@ -1,0 +1,63 @@
+LocalRewriteMisplaced.agda:13.3-11: warning: -W[no]MisplacedRewrite
+Ignoring misplaced local rewrite attribute.
+
+LocalRewriteMisplaced.agda:15.1-9: warning: -W[no]MisplacedRewrite
+Ignoring misplaced local rewrite attribute.
+
+LocalRewriteMisplaced.agda:16.1-9: warning: -W[no]MisplacedAttributes
+Ignoring local rewrite attribute, illegal in function clauses
+
+LocalRewriteMisplaced.agda:19.3-11: warning: -W[no]MisplacedRewrite
+Ignoring misplaced local rewrite attribute.
+
+LocalRewriteMisplaced.agda:21.6-14: warning: -W[no]UnsupportedAttribute
+Rewrite attributes are not supported here.
+
+LocalRewriteMisplaced.agda:22.3-11: warning: -W[no]MisplacedRewrite
+Ignoring misplaced local rewrite attribute.
+
+LocalRewriteMisplaced.agda:24.8-16: warning: -W[no]UnsupportedAttribute
+Rewrite attributes are not supported here.
+
+LocalRewriteMisplaced.agda:26.14-24: warning: -W[no]MisplacedRewrite
+Ignoring illegal local rewrite attribute on field
+when scope checking the declaration
+  record Bar where
+    field proj : Foo
+
+LocalRewriteMisplaced.agda:29.25-33: warning: -W[no]MisplacedRewrite
+Ignoring misplaced local rewrite attribute.
+when scope checking let postulate p : x ≡ 0 in 42
+
+———— All done; warnings encountered ————————————————————————
+
+LocalRewriteMisplaced.agda:13.3-11: warning: -W[no]MisplacedRewrite
+Ignoring misplaced local rewrite attribute.
+
+LocalRewriteMisplaced.agda:15.1-9: warning: -W[no]MisplacedRewrite
+Ignoring misplaced local rewrite attribute.
+
+LocalRewriteMisplaced.agda:16.1-9: warning: -W[no]MisplacedAttributes
+Ignoring local rewrite attribute, illegal in function clauses
+
+LocalRewriteMisplaced.agda:19.3-11: warning: -W[no]MisplacedRewrite
+Ignoring misplaced local rewrite attribute.
+
+LocalRewriteMisplaced.agda:21.6-14: warning: -W[no]UnsupportedAttribute
+Rewrite attributes are not supported here.
+
+LocalRewriteMisplaced.agda:22.3-11: warning: -W[no]MisplacedRewrite
+Ignoring misplaced local rewrite attribute.
+
+LocalRewriteMisplaced.agda:24.8-16: warning: -W[no]UnsupportedAttribute
+Rewrite attributes are not supported here.
+
+LocalRewriteMisplaced.agda:26.14-24: warning: -W[no]MisplacedRewrite
+Ignoring illegal local rewrite attribute on field
+when scope checking the declaration
+  record Bar where
+    field proj : Foo
+
+LocalRewriteMisplaced.agda:29.25-33: warning: -W[no]MisplacedRewrite
+Ignoring misplaced local rewrite attribute.
+when scope checking let postulate p : x ≡ 0 in 42

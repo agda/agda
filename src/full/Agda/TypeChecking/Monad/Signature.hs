@@ -8,12 +8,13 @@ import Control.Monad.Except          ( ExceptT )
 import Control.Monad.State           ( StateT  )
 import Control.Monad.Reader          ( ReaderT )
 import Control.Monad.Writer          ( WriterT )
-import Control.Monad.Trans.Maybe     ( MaybeT  )
+import Control.Monad.Trans.Maybe     ( MaybeT (MaybeT), runMaybeT  )
 import Control.Monad.Trans.Identity  ( IdentityT )
 import Control.Monad.Trans           ( MonadTrans, lift )
 
 import Data.Either
 import Data.Foldable                 ( for_ )
+import Data.IntMap                   qualified as IntMap
 import Data.List                     qualified as List
 import Data.Set                      ( Set )
 import Data.Set                      qualified as Set
@@ -672,7 +673,7 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
                     , defMatchable      = Set.empty
                     , defNoCompilation  = defNoCompilation d
                     , defInjective      = False
-                    , defCopatternLHS   = isCopatternLHS [cl]
+                    , defCopatternLHS'  = isCopatternLHS [cl]
                     , defBlocked        = defBlocked d
                     , defLanguage       =
                       case defLanguage d of
@@ -811,7 +812,8 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
       reportSDoc "tc.mod.apply" 80 $ "  totalArgs    = " <+> text (show totalArgs)
       reportSDoc "tc.mod.apply" 80 $ "  tel          = " <+> text (unwords (map (fst . unDom) $ telToList tel))  -- only names
       reportSDoc "tc.mod.apply" 80 $ "  sectionTel   = " <+> text (unwords (map (fst . unDom) $ telToList ptel)) -- only names
-      addContext sectionTel $ addSection y
+      ctxTel <- getContextTelescope
+      addSection' y (ctxTel `abstract` sectionTel)
       reportSDoc "tc.mod.apply" 80 $
         "finished copySec" <+> pretty x <+> "->" <+> pretty y
 
@@ -974,12 +976,16 @@ class ( Functor m
   getConstInfo' :: HasCallStack => QName -> m (Either SigError Definition)
   -- getConstInfo' q = Right <$> getConstInfo q -- conflicts with default signature
 
-  -- | Return the rewrite rules for the given head symbol that could be tried.
-  --   Not categorically all rewrite rules are returned, in particular, none when
-  --   reduction of the head symbol is disabled.
-  --   Rewrite rules that only happen to be in the signature but are not in scope
-  --   are also not returned.
-  getRewriteRulesFor :: QName -> m RewriteRules
+  -- | Return the global rewrite rules for the given head symbol that could be
+  --   tried.
+  --   Not categorically all rewrite rules are returned, in particular, none
+  --   when reduction of the head symbol is disabled.
+  --   Rewrite rules that only happen to be in the signature but are not in
+  --   scope are also not returned.
+  getGlobalRewriteRulesFor :: QName -> m GlobalRewriteRules
+
+  -- | Return the local rewrite rules for the given head symbol.
+  getLocalRewriteRulesFor :: RewriteHead -> m RewriteRules
 
   -- Lifting HasConstInfo through monad transformers:
 
@@ -988,12 +994,48 @@ class ( Functor m
     => QName -> m (Either SigError Definition)
   getConstInfo' = lift . getConstInfo'
 
-  default getRewriteRulesFor
+  default getGlobalRewriteRulesFor
     :: (HasConstInfo n, MonadTrans t, m ~ t n)
-    => QName -> m RewriteRules
-  getRewriteRulesFor = lift . getRewriteRulesFor
+    => QName -> m GlobalRewriteRules
+  getGlobalRewriteRulesFor = lift . getGlobalRewriteRulesFor
+
+  default getLocalRewriteRulesFor
+    :: (HasConstInfo n, MonadTrans t, m ~ t n)
+    => RewriteHead -> m RewriteRules
+  getLocalRewriteRulesFor = lift . getLocalRewriteRulesFor
 
 {-# SPECIALIZE getConstInfo :: HasCallStack => QName -> TCM Definition #-}
+
+getAllRewriteRulesForDefHead :: (HasConstInfo m, ReadTCState m)
+  => QName -> m RewriteRules
+getAllRewriteRulesForDefHead f =
+  mappend <$> (catMaybes . fmap justTheRule <$>
+                (instantiateRewriteRules =<< getGlobalRewriteRulesFor f)) <*>
+              getLocalRewriteRulesFor (RewDefHead f)
+  where
+    justTheRule :: GlobalRewriteRule -> Maybe (RewriteRule)
+    justTheRule (GlobalRewriteRule _ g q ps rhs t isClause _)
+      | isClause  = Nothing
+      | otherwise = pure $ RewriteRule g (RewDefHead q)  ps rhs t
+
+-- | A local rewrite rule forces us to consider the definition as defined
+--   by copatterns
+--   This is necessary because binding local rewrite rules does not update
+--   defCopatternLHS'
+rewUsesCopatterns :: HasConstInfo m => RewriteHead -> m Bool
+rewUsesCopatterns h =
+  any lrewHasProjectionPattern <$> getLocalRewriteRulesFor h
+
+-- | Is this a function defined by copatterns?
+--   Accounts for local rewrite rules
+defCopatternLHS :: HasConstInfo m => QName -> Definition -> m Bool
+defCopatternLHS f d = do
+  rewForces <- rewUsesCopatterns $ RewDefHead f
+  pure $ defCopatternLHS' d || rewForces
+
+getAllRewriteRulesForVarHead :: HasConstInfo m
+  => Nat -> m RewriteRules
+getAllRewriteRulesForVarHead x = getLocalRewriteRulesFor $ RewVarHead x
 
 {-# SPECIALIZE getOriginalConstInfo :: HasCallStack => QName -> TCM Definition #-}
 -- | The computation 'getConstInfo' sometimes tweaks the returned
@@ -1018,20 +1060,41 @@ getOriginalConstInfo q = do
 --   reduction of the head symbol is disabled.
 --   Rewrite rules that only happen to be in the signature but are not in scope
 --   are also not returned.
-defaultGetRewriteRulesFor :: (ReadTCState m, MonadTCEnv m) => QName -> m RewriteRules
-defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
-  getFilteredRewriteRulesFor True q
+defaultGetGlobalRewriteRulesFor :: (ReadTCState m, MonadTCEnv m)
+  => QName -> m GlobalRewriteRules
+defaultGetGlobalRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
+  getFilteredGlobalRewriteRulesFor True q
+
+defaultGetLocalRewriteRulesFor ::
+  (ReadTCState m, MonadTCEnv m, MonadDebug m)
+  => RewriteHead -> m RewriteRules
+defaultGetLocalRewriteRulesFor h =
+  ifNotM (shouldReduceDef' h) (return []) $ do
+    m <- runMaybeT . lookup h =<< asksTC envLocalRewriteRules
+    pure $ fromMaybe [] m
+  where
+    shouldReduceDef' (RewDefHead f) = shouldReduceDef f
+    shouldReduceDef' (RewVarHead _) = pure True
+
+    lookup h m = do
+      rews  <- MaybeT $ pure $ lookup' h m
+      lift $ traverse (tryGetOpenRew fallback) rews
+
+    fallback = __IMPOSSIBLE_VERBOSE__ . show
+
+    lookup' (RewDefHead f) = HMap.lookup   f . defHeadedRews
+    lookup' (RewVarHead x) = IntMap.lookup x . varHeadedRews
 
 -- | If the 'Bool' parameter is 'True', get the rules in scope,
 --   otherwise, get *all* rules unfiltered.
-getFilteredRewriteRulesFor :: (ReadTCState m)
+getFilteredGlobalRewriteRulesFor :: (ReadTCState m)
   => Bool            -- ^ Only return rewrite rules that are in scope?
   -> QName           -- ^ Head symbol.
-  -> m RewriteRules  -- ^ Rules for the head symbol.
-getFilteredRewriteRulesFor filt q = do
+  -> m GlobalRewriteRules  -- ^ Rules for the head symbol.
+getFilteredGlobalRewriteRulesFor filt q = do
   st <- getTCState
   let
-    look :: Lens' TCState Signature -> Maybe RewriteRules
+    look :: Lens' TCState Signature -> Maybe GlobalRewriteRules
     look l = HMap.lookup q $ st ^. (l . sigRewriteRules)
 
   -- Restrict "imported" rewrite rules to those defined in modules we currently (transitively) import.
@@ -1047,7 +1110,8 @@ getOriginalProjection :: (HasCallStack, HasConstInfo m) => QName -> m QName
 getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
 instance HasConstInfo TCM where
-  getRewriteRulesFor = defaultGetRewriteRulesFor
+  getGlobalRewriteRulesFor      = defaultGetGlobalRewriteRulesFor
+  getLocalRewriteRulesFor = defaultGetLocalRewriteRulesFor
   getConstInfo' q = do
     st  <- getTC
     env <- askTC
@@ -1413,8 +1477,9 @@ instantiateDef d = do
       fsep (map pretty $ zipWith (<$) ctx vs)
   return $ d `apply` vs
 
+-- | Instantiate a global rewrite rule
 instantiateRewriteRule :: (HasConstInfo m, ReadTCState m)
-  => RewriteRule -> m RewriteRule
+  => GlobalRewriteRule -> m GlobalRewriteRule
 instantiateRewriteRule rew = do
   traceSDoc "rewriting" 95 ("instantiating rewrite rule" <+> pretty (rewName rew) <+> "to the local context.") $ do
   vs  <- freeVarsToApply $ rewName rew
@@ -1423,8 +1488,9 @@ instantiateRewriteRule rew = do
   traceSLn "rewriting" 95 (show rew') $ do
   return rew'
 
+-- | Instantiate global rewrite rules
 instantiateRewriteRules :: (HasConstInfo m, ReadTCState m)
-  => RewriteRules -> m RewriteRules
+  => GlobalRewriteRules -> m GlobalRewriteRules
 instantiateRewriteRules = mapM instantiateRewriteRule
 
 -- | Return the abstract view of a definition, /regardless/ of whether
@@ -1574,7 +1640,7 @@ projectionArgs = maybe 0 (max 0 . pred . projIndex) . isRelevantProjection_
 
 -- | Check whether a definition uses copatterns.
 usesCopatterns :: (HasConstInfo m) => QName -> m Bool
-usesCopatterns q = defCopatternLHS <$> getConstInfo q
+usesCopatterns q = defCopatternLHS q =<< getConstInfo q
 
 -- | Apply a function @f@ to its first argument, producing the proper
 --   postfix projection if @f@ is a projection which is not irrelevant.

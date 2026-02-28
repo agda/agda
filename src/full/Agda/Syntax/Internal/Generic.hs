@@ -56,7 +56,7 @@ instance TermLike QName where
 
 instance TermLike a => TermLike (Elim' a)      where
 instance TermLike a => TermLike (Arg a)        where
-instance TermLike a => TermLike (Dom a)        where
+instance (TermLike a, TermLike b) => TermLike (Dom' a b) where
 instance TermLike a => TermLike [a]            where
 instance TermLike a => TermLike (List1 a)      where
 instance TermLike a => TermLike (Maybe a)      where
@@ -117,7 +117,7 @@ instance TermLike PlusLevel where
   traverseTermM f (Plus n l) = Plus n <$> traverseTermM f l
   foldTerm f (Plus _ l)      = foldTerm f l
 
-instance TermLike Type where
+instance (TermLike b) => TermLike (Type'' a b) where
   traverseTermM f (El s t) = El s <$> traverseTermM f t
   foldTerm f (El s t) = foldTerm f t
 

@@ -37,6 +37,7 @@ import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Constraints
+import Agda.TypeChecking.Monad.Context ( addContext )
 import Agda.TypeChecking.Monad.State ( getScope )
 import Agda.TypeChecking.Monad ( localTCState, enterClosure )
 import Agda.TypeChecking.Positivity () --instance only
@@ -241,21 +242,24 @@ prettyWarning = \case
 
     FixingRelevance s r r' -> fsep $ concat
       [ pwords "Replacing illegal relevance", [ p r ]
-      , pwords s, [ "by", p r' ]
+      , ["of", text s], [ "by", p r' ]
       ]
       where p r = text $ "`" ++ verbalize r ++ "'"
 
     FixingCohesion s c c' -> fsep $ concat
       [ pwords "Replacing illegal cohesion", [ p c ]
-      , pwords s, [ "by", p c' ]
+      , ["of", text s], [ "by", p c' ]
       ]
       where p c = text $ "`" ++ verbalize c ++ "'"
 
     FixingPolarity s q q' ->  fsep $ concat
       [ pwords "Replacing illegal polarity", [ p q ]
-      , pwords s, [ "by", p q' ]
+      , ["of", text s], [ "by", p q' ]
       ]
       where p q = text $ "`" ++ verbalize q ++ "'"
+
+    IgnoringRew s r -> fsep $ concat
+      [pwords "Ignoring illegal local rewrite attribute on", pwords s]
 
     IllformedAsClause s -> fsep . pwords $
       "`as' must be followed by an identifier" ++ s
@@ -531,6 +535,11 @@ prettyWarning = \case
           , pwords "has already been added"
           ]
 
+        LocalRewriteOutsideTelescope -> (fsep . concat)
+          [ illegalSince q
+          , pwords "local rewrite rules are (currently) only allowed in module telescopes. Consider creating an anonymous module"
+          ]
+
     ConfluenceCheckingIncompleteBecauseOfMeta f -> (fsep . concat)
       [ pwords "Confluence checking incomplete because the definition of"
       , [ prettyTCM f ]
@@ -792,6 +801,12 @@ instance PrettyTCM DataOrRecord_ where
   prettyTCM = \case
     IsData{}   -> "data"
     IsRecord{} -> "record"
+
+instance PrettyTCM RewriteSource where
+  prettyTCM = \case
+    LocalRewrite g n t ->
+      maybe "_" prettyTCM n <+> ":" <+> addContext g (prettyTCM t)
+    GlobalRewrite q    -> prettyTCM (defName q)
 
 
 {-# SPECIALIZE prettyRecordFieldWarning :: RecordFieldWarning -> TCM Doc #-}

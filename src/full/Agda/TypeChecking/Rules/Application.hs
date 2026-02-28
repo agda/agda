@@ -687,89 +687,102 @@ checkArgumentsE'
             (NotCheckedTarget, False, Just sResultType) | sArgsVisible -> do
               -- How many visible Π's (up to at most sArgsLen) does
               -- sFunType start with?
-              TelV tel tgt <- telViewUpTo' sArgsLen visible sFunType
-              let visiblePis = size tel
+              tel <- runMaybeT $ safeTelViewUpTo' sArgsLen visible sFunType
+              case tel of
+                Nothing             -> do
+                  -- Telescope has invalidated @rewrite arguments in it, so we
+                  -- have to delay checking the target type
+                  -- We could make this a bit more efficient by counting the
+                  -- number of @rewrite arguments and skipping exactly that many
+                  -- args
+                  return s { sSkipCheck = Skip }
+                Just (TelV tel tgt) -> do
+                  let visiblePis = size tel
 
-                  -- The free variables less than visiblePis in tgt.
-                  freeInTgt =
-                    fst $ VarSet.split visiblePis $ freeVarSet tgt
+                      -- The free variables less than visiblePis in tgt.
+                      freeInTgt =
+                        fst $ VarSet.split visiblePis $ freeVarSet tgt
 
-              rigid <- isRigid s tgt
-              -- The target must be rigid.
-              case rigid of
-                IsNotRigid reason ->
-                      -- Skip the next visiblePis - 1 - k checks.
-                  let skip k   = s{ sSkipCheck =
-                                    SkipNext $ visiblePis - 1 - k
-                                  }
-                      dontSkip = s
-                  in return $ case reason of
-                    Permanent   -> skip 0
-                    Unspecified -> dontSkip
-                    AVar x      ->
-                      if x `VarSet.member` freeInTgt
-                      then skip x
-                      else skip 0
-                IsRigid -> do
-                  -- Andreas, 2024-03-01, issue #7158 reported by Amy.
-                  -- We need to check that the arity of the function type
-                  -- is sufficient before checking the target,
-                  -- otherwise the target is non-sensical.
-                  if visiblePis < sArgsLen then return s else do
+                  rigid <- isRigid s tgt
+                  -- The target must be rigid.
+                  case rigid of
+                    IsNotRigid reason ->
+                          -- Skip the next visiblePis - 1 - k checks.
+                      let skip k   = s{ sSkipCheck =
+                                        SkipNext $ visiblePis - 1 - k
+                                      }
+                          dontSkip = s
+                      in return $ case reason of
+                        Permanent   -> skip 0
+                        Unspecified -> dontSkip
+                        AVar x      ->
+                          if x `VarSet.member` freeInTgt
+                          then skip x
+                          else skip 0
+                    IsRigid -> do
+                      -- Andreas, 2024-03-01, issue #7158 reported by Amy.
+                      -- We need to check that the arity of the function type
+                      -- is sufficient before checking the target,
+                      -- otherwise the target is non-sensical.
+                      if visiblePis < sArgsLen then return s else do
 
-                      -- Is any free variable in tgt less than
-                      -- visiblePis?
-                  let dep = not (null freeInTgt)
-                  -- The target must be non-dependent.
-                  if dep then return s else do
+                          -- Is any free variable in tgt less than
+                          -- visiblePis?
+                      let dep = not (null freeInTgt)
+                      -- The target must be non-dependent.
+                      if dep then return s else do
 
-                  -- Andreas, 2019-03-28, issue #3248:
-                  -- If the target type is SIZELT, we need coerce, leqType is insufficient.
-                  -- For example, we have i : Size <= (Size< ↑ i), but not Size <= (Size< ↑ i).
-                  (isSizeLt, sResultType, s) <-
-                    if sSizeLtChecked
-                    then return (False, sResultType, s)
-                    else do
-                      sResultType <- reduce sResultType
-                      isSizeLt    <- isSizeType sResultType <&> \case
-                        Just (BoundedLt _) -> True
-                        _                  -> False
-                      return ( isSizeLt
-                             , sResultType
-                             , s{ sResultType    = Just sResultType
-                                , sSizeLtChecked = True
-                                , sSkipCheck     =
-                                    if isSizeLt then Skip else DontSkip
-                                }
-                             )
-                  if isSizeLt then return s else do
+                      -- Andreas, 2019-03-28, issue #3248:
+                      -- If the target type is SIZELT, we need coerce, leqType is insufficient.
+                      -- For example, we have i : Size <= (Size< ↑ i), but not Size <= (Size< ↑ i).
+                      (isSizeLt, sResultType, s) <-
+                        if sSizeLtChecked
+                        then return (False, sResultType, s)
+                        else do
+                          sResultType <- reduce sResultType
+                          isSizeLt    <- isSizeType sResultType <&> \case
+                            Just (BoundedLt _) -> True
+                            _                  -> False
+                          return ( isSizeLt
+                                , sResultType
+                                , s{ sResultType    = Just sResultType
+                                    , sSizeLtChecked = True
+                                    , sSkipCheck     =
+                                        if isSizeLt then Skip else DontSkip
+                                    }
+                                )
+                      if isSizeLt then return s else do
 
-                  let tgt1 = applySubst
-                               (strengthenS impossible visiblePis)
-                               tgt
-                  reportSDoc "tc.term.args.target" 30 $ vcat
-                    [ "Checking target types first"
-                    , nest 2 $ "inferred =" <+> prettyTCM tgt1
-                    , nest 2 $ "expected =" <+> prettyTCM sResultType ]
-                  chk <-
-                    traceCall
-                      (CheckTargetType
-                         (fuseRange sFun sArgs) tgt1 sResultType) $
-                      CheckedTarget <$>
-                        ifNoConstraints_ (compareType sComp tgt1 sResultType)
-                          (return Nothing) (return . Just)
-                  return s{ sChecked = chk }
+                      let tgt1 = applySubst
+                                  (strengthenS impossible visiblePis)
+                                  tgt
+                      reportSDoc "tc.term.args.target" 30 $ vcat
+                        [ "Checking target types first"
+                        , nest 2 $ "inferred =" <+> prettyTCM tgt1
+                        , nest 2 $ "expected =" <+> prettyTCM sResultType ]
+                      chk <-
+                        traceCall
+                          (CheckTargetType
+                            (fuseRange sFun sArgs) tgt1 sResultType) $
+                          CheckedTarget <$>
+                            ifNoConstraints_ (compareType sComp tgt1 sResultType)
+                              (return Nothing) (return . Just)
+                      return s{ sChecked = chk }
 
-            _ -> return s
+            _ -> do
+              return s
 
         -- sFunType <- lift $ forcePi (getHiding info)
         --                  (maybe "_" rangedThing $ nameOf e) sFunType
         case unEl sFunType of
-          Pi (Dom{domInfo = info', domName = dname, unDom = a}) b
+          Pi dom@(Dom{domInfo = info', domName = dname, unDom = a}) b
             | let name = bareNameWithDefault "_" dname,
               sameHiding info info'
               && (visible info || maybe True (name ==) mx) -> do
-                u <- lift $ applyModalityToContext info' $ do
+                whenJust (domEq dom) \eq ->
+                  reportSDoc "rewriting" 30 $
+                    "Applying equational constraint to context: " <+> prettyTCM eq
+                u <- lift $ applyDomToContext dom $ do
                  -- Andreas, 2014-05-30 experiment to check non-dependent arguments
                  -- after the spine has been processed.  Allows to propagate type info
                  -- from ascribed type into extended-lambdas.  Would solve issue 1159.

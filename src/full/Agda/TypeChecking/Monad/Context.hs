@@ -14,6 +14,8 @@ import Control.Monad.Trans.Maybe
 import Control.Monad.Writer         ( WriterT )
 
 import Data.Foldable
+import qualified Data.HashMap.Strict as HMap
+import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -33,9 +35,11 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.State
+import Agda.TypeChecking.Warnings (warning, MonadWarning)
 
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Impossible
 import Agda.Utils.Lens
 import Agda.Utils.List ((!!!), downFrom)
 import Agda.Utils.ListT
@@ -43,11 +47,11 @@ import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Maybe
+import Agda.Utils.Monad (mzero, void)
+import Agda.Utils.Null (empty)
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Update
-
-import Agda.Utils.Impossible
 
 -- * Modifying the context
 
@@ -72,6 +76,7 @@ inTopContext cont =
         $ locallyTC eCheckpoints (const $ Map.singleton 0 IdS)
         $ locallyScope scopeLocals (const [])
         $ locallyTC eLetBindings (const Map.empty)
+        $ locallyTC eLocalRewriteRules (const empty)
         $ withoutModuleCheckpoints
         $ cont
 
@@ -101,6 +106,7 @@ escapeContext err n = updateContext (strengthenS err n) $ cxDrop n
 
 {-# SPECIALIZE checkpoint :: Substitution -> TCM a -> TCM a #-}
 -- | Add a new checkpoint. Do not use directly!
+--   Also updates head symbols of local rewrite rules with variable heads
 checkpoint
   :: (MonadDebug tcm, MonadTCM tcm, MonadFresh CheckpointId tcm, ReadTCState tcm)
   => Substitution -> tcm a -> tcm a
@@ -127,6 +133,8 @@ checkpoint sub k = do
     { envCurrentCheckpoint = chkpt
     , envCheckpoints       = Map.insert chkpt IdS $
                               fmap (applySubst sub) (envCheckpoints env)
+    , envLocalRewriteRules = updateLocalRewriteHeads sub $
+                              envLocalRewriteRules env
     }
   unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
     newChkpts <- useTC stModuleCheckpoints
@@ -157,6 +165,13 @@ checkpoint sub k = do
 
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 "}"
   return x
+
+-- | Update heads of local rewrite rules for the new context
+updateLocalRewriteHeads ::
+  Substitution -> LocalRewriteRuleMap -> LocalRewriteRuleMap
+updateLocalRewriteHeads sub = over lrewsVarHeaded (IntMap.mapKeys subHead)
+  where
+    subHead x = fromMaybe __IMPOSSIBLE__ $ lookupSVar sub x
 
 -- | Add a module checkpoint for the provided @ModuleName@.
 {-# SPECIALIZE setModuleCheckpoint :: ModuleName -> CheckpointId -> TCM () #-}
@@ -250,6 +265,9 @@ class MonadTCEnv m => MonadAddContext m where
        IsAxiom   -- ^ Does this let binding come from a 'LetAxiom'?
     -> Origin -> Name -> Term -> Dom Type -> m a -> m a
 
+  -- | Adds a local rewrite rule to the context
+  addLocalRewrite :: RewriteRule -> m a -> m a
+
   -- | Update the context.
   --   Requires a substitution that transports things living in the old context
   --   to the new.
@@ -267,6 +285,11 @@ class MonadTCEnv m => MonadAddContext m where
     => IsAxiom -> Origin -> Name -> Term -> Dom Type -> m a -> m a
   addLetBinding' isAxiom o x u a = liftThrough $ addLetBinding' isAxiom o x u a
 
+  default addLocalRewrite
+    :: (MonadAddContext n, MonadTransControl t, t n ~ m)
+    => RewriteRule -> m a -> m a
+  addLocalRewrite r = liftThrough $ addLocalRewrite r
+
   default updateContext
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
     => Substitution -> (Context -> Context) -> m a -> m a
@@ -283,8 +306,13 @@ class MonadTCEnv m => MonadAddContext m where
 {-# INLINE defaultAddCtx #-}
 -- | Default implementation of addCtx in terms of updateContext
 defaultAddCtx :: MonadAddContext m => Name -> Dom Type -> m a -> m a
-defaultAddCtx x a ret =
+defaultAddCtx x a ret = applyWhenJust (rewDom a) addRewDom $
   updateContext (raiseS 1) (CxExtendVar x a) ret
+
+addRewDom :: MonadAddContext m => RewDom -> m a -> m a
+addRewDom rew = case rewDomRew rew of
+  Just r  -> addLocalRewrite r
+  Nothing -> __IMPOSSIBLE__
 
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
@@ -301,6 +329,7 @@ deriving instance MonadAddContext m => MonadAddContext (BlockT m)
 instance MonadAddContext m => MonadAddContext (ListT m) where
   addCtx x a             = liftListT $ addCtx x a
   addLetBinding' isAxiom o x u a = liftListT $ addLetBinding' isAxiom o x u a
+  addLocalRewrite r      = liftListT $ addLocalRewrite r
   updateContext sub f    = liftListT $ updateContext sub f
   withFreshName r x cont = ListT $ withFreshName r x $ runListT . cont
 
@@ -347,9 +376,22 @@ instance MonadAddContext TCM where
   addLetBinding' isAxiom o x u a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
     defaultAddLetBinding' isAxiom o x u a ret
 
+  addLocalRewrite = defaultAddLocalRewrite
+
   updateContext sub f = unsafeModifyContext f . checkpoint sub
 
   withFreshName r x m = freshName r x >>= m
+
+-- | Adds a rewrite rule to the local typechecking environment
+defaultAddLocalRewrite :: (MonadTCEnv m, ReadTCState m)
+  => RewriteRule -> m a -> m a
+defaultAddLocalRewrite rew ret = do
+  rew' <- makeOpen rew
+  case lrewHead rew of
+    RewVarHead x -> locallyTC (eLocalRewriteRules . lrewsVarHeaded)
+      (IntMap.insertWith mappend x [rew']) ret
+    RewDefHead f -> locallyTC (eLocalRewriteRules . lrewsDefHeaded)
+      (HMap.insertWith mappend f [rew']) ret
 
 addRecordNameContext
   :: (MonadAddContext m, MonadFresh NameId m)
@@ -411,14 +453,6 @@ instance AddContext (List1 (WithHiding Name), Dom Type) where
   addContext (WithHiding h x :| xs, dom) =
     addContext (x , mapHiding (mappend h) dom) .
     addContext (xs, raise 1 dom)
-  contextSize (xs, _) = length xs
-
-instance AddContext ([Arg Name], Type) where
-  addContext (xs, t) = addContext ((map . fmap) unnamed xs :: [NamedArg Name], t)
-  contextSize (xs, _) = length xs
-
-instance AddContext (List1 (Arg Name), Type) where
-  addContext (xs, t) = addContext ((fmap . fmap) unnamed xs :: List1 (NamedArg Name), t)
   contextSize (xs, _) = length xs
 
 instance AddContext ([NamedArg Name], Type) where
@@ -566,15 +600,25 @@ defaultAddLetBinding' isAxiom o x v t ret = do
     vt <- makeOpen $ LetBinding isAxiom o v t
     flip localTC ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
 
+unsafeRule :: (MonadWarning m) => RewriteSource -> IllegalRewriteRuleReason -> MaybeT m ()
+unsafeRule s reason = lift $ warning $ IllegalRewriteRule s reason
+
+illegalRule :: (MonadWarning m) => RewriteSource -> IllegalRewriteRuleReason -> MaybeT m a
+illegalRule s reason = do
+  unsafeRule s reason
+  mzero
+
 -- | Add a let bound variable.
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
-addLetBinding :: MonadAddContext m => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
-addLetBinding info o x v t0 ret = addLetBinding' NoAxiom o x v (defaultArgDom info t0) ret
+addLetBinding :: (MonadWarning m) => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
+addLetBinding info o x v t0 =
+  addLetBinding' NoAxiom o x v (defaultArgDom info t0)
 
 -- | Add a let bound variable without a definition.
 {-# SPECIALIZE addLetAxiom :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
-addLetAxiom :: MonadAddContext m => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
-addLetAxiom info o x v t0 ret = addLetBinding' YesAxiom o x v (defaultArgDom info t0) ret
+addLetAxiom :: (MonadWarning m) => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
+addLetAxiom info o x v t0 ret =
+  addLetBinding' YesAxiom o x v (defaultArgDom info t0) ret
 
 {-# SPECIALIZE removeLetBinding :: Name -> TCM a -> TCM a #-}
 -- | Remove a let bound variable.

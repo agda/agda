@@ -104,14 +104,14 @@ checkConfluenceOfClauses confChk f = do
   reportSDoc "rewriting.confluence" 30 $
     "Function" <+> prettyTCM f <+> "has matchable symbols" <+> prettyList_ (map prettyTCM matchables)
   modifySignature $ setMatchableSymbols f $ concat matchables
-  let hasRules g = not . null <$> getRewriteRulesFor g
+  let hasRules g = not . null <$> getGlobalRewriteRulesFor g
   forM_ (zip rews matchables) $ \(rew,ms) ->
     unlessNullM (filterM hasRules ms) $ \_ -> do
       checkConfluenceOfRules confChk [rew]
 
 -- | Check confluence of the given rewrite rules wrt all other rewrite
 --   rules (also amongst themselves).
-checkConfluenceOfRules :: ConfluenceCheck -> [RewriteRule] -> TCM ()
+checkConfluenceOfRules :: ConfluenceCheck -> [GlobalRewriteRule] -> TCM ()
 checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
 
   -- Global confluence: we need to check the triangle property for each rewrite
@@ -184,7 +184,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
 
     -- Check confluence of two rewrite rules that have the same head symbol,
     -- e.g. @f ps --> a@ and @f ps' --> b@.
-    checkConfluenceTop :: (Elims -> Term) -> RewriteRule -> RewriteRule -> TCM ()
+    checkConfluenceTop :: (Elims -> Term) -> GlobalRewriteRule -> GlobalRewriteRule -> TCM ()
     checkConfluenceTop hd rew1 rew2 =
       traceCall (CheckConfluence (rewName rew1) (rewName rew2)) $
       localTCStateSavingWarnings $ do
@@ -247,7 +247,9 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
 
     -- Check confluence between two rules that overlap at a subpattern,
     -- e.g. @f ps[g qs] --> a@ and @g qs' --> b@.
-    checkConfluenceSub :: (Elims -> Term) -> (Elims -> Term) -> RewriteRule -> RewriteRule -> OneHole Elims -> TCM ()
+    checkConfluenceSub ::
+         (Elims -> Term) -> (Elims -> Term)
+      -> GlobalRewriteRule -> GlobalRewriteRule -> OneHole Elims -> TCM ()
     checkConfluenceSub hdf hdg rew1 rew2 hole0 = do
       reportSDoc "rewriting.confluence" 100 $ "foo 2" <+> prettyTCM (rewName rew1) <+> prettyTCM (rewName rew2)
       traceCall (CheckConfluence (rewName rew1) (rewName rew2)) $ localTCStateSavingWarnings $ do
@@ -386,8 +388,8 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
         GlobalConfluenceCheck -> do
           (f, t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
 
-          let checkEqualLHS :: RewriteRule -> TCM Bool
-              checkEqualLHS (RewriteRule q delta _ ps _ _ _ _) = do
+          let checkEqualLHS :: GlobalRewriteRule -> TCM Bool
+              checkEqualLHS (GlobalRewriteRule q delta _ ps _ _ _ _) = do
                 onlyReduceTypes (nonLinMatch delta (t , hd) ps es) >>= \case
                   Left _    -> return False
                   Right sub -> do
@@ -413,8 +415,8 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
           unlessM (sameRHS `or2M` anyM checkEqualLHS rews) $ addContext gamma $
             warning $ RewriteAmbiguousRules (hd es) rhs1 rhs2
 
-    checkTrianglePropertyForRule :: RewriteRule -> TCM ()
-    checkTrianglePropertyForRule (RewriteRule q gamma f ps rhs b c _) = addContext gamma $ do
+    checkTrianglePropertyForRule :: GlobalRewriteRule -> TCM ()
+    checkTrianglePropertyForRule (GlobalRewriteRule q gamma f ps rhs b c _) = addContext gamma $ do
       u  <- nlPatToTerm $ PDef f ps
       -- First element in the list is the "best reduct" @ρ(u)@
       (rhou,vs) <- fromMaybe __IMPOSSIBLE__ . uncons <$> allParallelReductions u
@@ -449,10 +451,10 @@ sortRulesOfSymbol f = do
     -- we replicate the old (unhygienic) approach to rewrite rule scoping
     -- here to avoid a regression.
     -- See also #7969 for a reason why the code below is questionable.
-    rules <- sortRules =<< getFilteredRewriteRulesFor False f
+    rules <- sortRules =<< getFilteredGlobalRewriteRulesFor False f
     modifySignature $ over sigRewriteRules $ HMap.insert f rules
   where
-    sortRules :: PureTCM m => [RewriteRule] -> m [RewriteRule]
+    sortRules :: PureTCM m => [GlobalRewriteRule] -> m [GlobalRewriteRule]
     sortRules rs = do
       ordPairs <- deleteLoops . Set.fromList . map (rewName *** rewName) <$>
         filterM (uncurry $ flip moreGeneralLHS) [(r1,r2) | r1 <- rs, r2 <- rs]
@@ -462,7 +464,8 @@ sortRulesOfSymbol f = do
         prettyList_ (map (prettyTCM . rewName) $ permute perm rs)
       return $ permute perm rs
 
-    moreGeneralLHS :: PureTCM m => RewriteRule -> RewriteRule -> m Bool
+    moreGeneralLHS :: PureTCM m
+      => GlobalRewriteRule -> GlobalRewriteRule -> m Bool
     moreGeneralLHS r1 r2
       | sameRuleName r1 r2       = return False
       | rewHead r1 /= rewHead r2 = return False
@@ -499,12 +502,13 @@ makeHead def a = case theDef def of
     return (ftype , Def f)
   _ -> return (defType def , Def $ defName def)
 
-sameRuleName :: RewriteRule -> RewriteRule -> Bool
+sameRuleName :: GlobalRewriteRule -> GlobalRewriteRule -> Bool
 sameRuleName = (==) `on` rewName
 
 -- | Get both clauses and rewrite rules for the given symbol
-getAllRulesFor :: (HasConstInfo m, ReadTCState m, MonadFresh NameId m) => QName -> m [RewriteRule]
-getAllRulesFor f = (++) <$> getRewriteRulesFor f <*> getClausesAsRewriteRules f
+getAllRulesFor :: (HasConstInfo m, ReadTCState m, MonadFresh NameId m)
+  => QName -> m [GlobalRewriteRule]
+getAllRulesFor f = (++) <$> getGlobalRewriteRulesFor f <*> getClausesAsRewriteRules f
 
 -- | Build a substitution that replaces all variables in the given
 --   telescope by fresh metavariables.
@@ -567,7 +571,7 @@ topLevelReductions hd es = do
   -- Get type of head symbol
   (f , t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
   reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: head symbol" <+> prettyTCM (hd []) <+> ":" <+> prettyTCM t
-  RewriteRule q gamma _ ps rhs b c _ <- scatterMP (getAllRulesFor f)
+  GlobalRewriteRule q gamma _ ps rhs b c _ <- scatterMP (getAllRulesFor f)
   reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: trying rule" <+> prettyTCM q
   -- Don't reduce if underapplied
   guard $ length es >= length ps

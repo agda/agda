@@ -741,6 +741,19 @@ Experimental features
 
      Default, opposite of :option:`--rewriting`.
 
+.. option:: --local-rewriting
+
+     .. versionadded:: 2.9.0
+
+     Enable declaring local rewrite rules with the ``@rewrite`` attribute (see
+     :ref:`local-rewriting`).
+
+.. option:: --no-local-rewriting
+
+     .. versionadded:: 2.9.0
+
+     Default, opposite of :option:`--local-rewriting`.
+
 .. option:: --two-level
 
      .. versionadded:: 2.6.2
@@ -1488,6 +1501,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Invalid relevance annotations, automatically corrected.
 
+.. option:: MisplacedRewrite
+
+     Invalid local rewrite annotations, automatically ignored.
+
 .. option:: FixityInRenamingModule
 
      Fixity annotations in ``renaming`` directives for a ``module``.
@@ -1572,6 +1589,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 .. option:: LibUnknownField
 
      Unknown fields in library files.
+
+.. option:: LocalRewritingConfluenceCheck
+
+     Confluence checking (:option:`--confluence-check` or :option:`--local-confluence-check`) is not yet implemented for local rewrite rules (:option:`--local-rewriting`).
 
 .. option:: MisplacedAttributes
 
@@ -1964,6 +1985,10 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
      Failed confluence checks while joining critical pairs.
 
+.. option:: LocalRewriteOutsideTelescope
+
+     '@rewrite' arguments are (currently) only allowed in module telescopes.
+
 .. option:: SafeFlagEta
 
      :ref:`ETA <eta-pragma>` pragmas with the :option:`--safe` flag.
@@ -2101,6 +2126,7 @@ are infective:
 * :option:`--polarity`
 * :option:`--prop`
 * :option:`--rewriting`
+* :option:`--local-rewriting`
 * :option:`--two-level`
 
 Furthermore, the Cubical options are *jointly infective*
@@ -2194,6 +2220,7 @@ again, the source file is re-typechecked instead:
 * :option:`--qualified-instances`
 * :option:`--quote-metas`
 * :option:`--rewriting`
+* :option:`--local-rewriting`
 * :option:`--safe`
 * :option:`--save-metas`
 * :option:`--syntactic-equality`

@@ -1905,9 +1905,10 @@ scopeCheckLetDef wh d = setCurrentRange d do
 checkFieldArgInfo :: Bool -> ArgInfo -> ScopeM ArgInfo
 checkFieldArgInfo warn =
     ensureLeftAdjoint msg >=>
-    ensureMixedPolarity msg
+    ensureMixedPolarity msg >=>
+    ensureNotRew msg
   where
-    msg = if warn then Just "of field" else Nothing
+    msg = if warn then Just "field" else Nothing
 
 instance ToAbstract NiceDeclaration where
   type AbsOfCon NiceDeclaration = Maybe A.Declaration
@@ -3006,9 +3007,14 @@ checkConstructorArgInfo =
     ensureRelevant msg >=>
     ensureNotLinear msg >=>
     ensureLeftAdjoint msg >=>
-    ensureMixedPolarity msg
+    ensureMixedPolarity msg >=>
+    ensureNotRew msg
   where
-    msg = Just "of constructor"
+    msg = Just "constructor"
+
+ensureNotRew :: LensRewriteAnn a => Maybe String -> a -> ScopeM a
+ensureNotRew ms = ignoreRew $ \ r ->
+  whenJust ms \ s -> warning $ IgnoringRew s r
 
 ensureRelevant :: LensRelevance a => Maybe String -> a -> ScopeM a
 ensureRelevant ms info = do
@@ -3055,7 +3061,7 @@ instance ToAbstract C.Pragma where
   toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
 
   toAbstract (C.RewritePragma _ r xs) = do
-    (optRewriting <$> pragmaOptions) >>= \case
+    rewritingOption >>= \case
 
       -- If --rewriting is off, ignore the pragma.
       False -> [] <$ do
@@ -4105,6 +4111,10 @@ checkAttributes (Attr r s attr : attrs) =
     LockAttribute IsLock{}  -> do
       unlessM (optGuarded <$> pragmaOptions) $
         setCurrentRange r $ typeError $ AttributeKindNotEnabled "Lock" "--guarded" s
+      cont
+    RewriteAttribute rew -> do
+      when (isRewrite rew) $ unlessM localRewritingOption $
+        setCurrentRange r $ typeError $ AttributeKindNotEnabled "Rewrite" "--local-rewriting" s
       cont
     QuantityAttribute Quantityω{} -> cont
     QuantityAttribute Quantity1{} -> __IMPOSSIBLE__

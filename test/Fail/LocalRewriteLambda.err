@@ -1,0 +1,14 @@
+LocalRewriteLambda.agda:7.7-43: error: [LocalRewriteOutsideTelescope]
+p : 0 ≡ x  is not a legal rewrite rule, since local rewrite rules
+are (currently) only allowed in module telescopes. Consider
+creating an anonymous module
+when checking that the expression
+(x : Nat) (@rewrite p : 0 ≡ x) → Nat is a type
+
+LocalRewriteLambda.agda:12.69-70: error: [UnequalTerms]
+The terms
+  zero
+and
+  x
+are not equal at type Nat
+when checking that the expression b has type D x

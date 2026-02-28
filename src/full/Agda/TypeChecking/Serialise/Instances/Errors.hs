@@ -149,6 +149,7 @@ instance EmbPrj Warning where
     UnusedImports a b                           -> icodeN 75 UnusedImports a b
     DefinitionBeforeDeclaration x               -> icodeN 76 DefinitionBeforeDeclaration x
     RecursiveRecordNeedsInductivity{}           -> __IMPOSSIBLE__  -- Error warning
+    IgnoringRew a b                             -> icodeN 77 IgnoringRew a b
 
   value = vcase $ \ case
     N3 0 a b      -> valuN UnreachableClauses a b
@@ -229,9 +230,34 @@ instance EmbPrj Warning where
     N1 74         -> valuN RewritesNothing
     N3 75 a b     -> valuN UnusedImports a b
     N2 76 a       -> valuN DefinitionBeforeDeclaration a
+    N3 77 a b     -> valuN IgnoringRew a b
     _ -> malformed
 
 instance EmbPrj UselessPublicReason
+
+instance EmbPrj ContextEntry where
+  icod_ (CtxVar a b) = icodeN 0 CtxVar a b
+
+  value = vcase $ \case
+    N3 0 a b -> valuN CtxVar a b
+    _        -> malformed
+
+instance EmbPrj Context where
+  icod_ (Context a) = icodeN 0 Context a
+
+  value = vcase $ \case
+    N2 0 a -> valuN Context a
+    _      -> malformed
+
+instance EmbPrj RewriteSource where
+  icod_ = \case
+    LocalRewrite a b c -> icodeN 0 LocalRewrite a b c
+    GlobalRewrite a    -> icodeN 1 GlobalRewrite a
+
+  value = vcase $ \case
+    N4 0 a b c -> valuN LocalRewrite a b c
+    N2 1 a     -> valuN GlobalRewrite a
+    _          -> malformed
 
 instance EmbPrj IllegalRewriteRuleReason where
   icod_ = \case
@@ -251,6 +277,7 @@ instance EmbPrj IllegalRewriteRuleReason where
     BeforeFunctionDefinition                    -> icodeN 13 BeforeFunctionDefinition
     BeforeMutualFunctionDefinition a            -> icodeN 14 BeforeMutualFunctionDefinition a
     DuplicateRewriteRule                        -> icodeN 15 DuplicateRewriteRule
+    LocalRewriteOutsideTelescope                -> icodeN 16 LocalRewriteOutsideTelescope
 
   value = vcase $ \case
     N1 0     -> valuN LHSNotDefinitionOrConstructor
@@ -269,16 +296,19 @@ instance EmbPrj IllegalRewriteRuleReason where
     N1 13    -> valuN BeforeFunctionDefinition
     N2 14 a  -> valuN BeforeMutualFunctionDefinition a
     N1 15    -> valuN DuplicateRewriteRule
+    N1 16    -> valuN LocalRewriteOutsideTelescope
     _        -> malformed
 
 instance EmbPrj OptionWarning where
   icod_ = \case
-    OptionRenamed a b -> icodeN 0 OptionRenamed a b
-    WarningProblem a  -> icodeN 1 WarningProblem a
+    OptionRenamed a b             -> icodeN 0 OptionRenamed a b
+    WarningProblem a              -> icodeN 1 WarningProblem a
+    LocalRewritingConfluenceCheck -> icodeN 2 LocalRewritingConfluenceCheck
 
   value = vcase $ \case
     N3 0 a b -> valuN OptionRenamed a b
     N2 1 a   -> valuN WarningProblem a
+    N1 2     -> valuN LocalRewritingConfluenceCheck
     _        -> malformed
 
 instance EmbPrj WarningModeError where
@@ -392,6 +422,7 @@ instance EmbPrj DeclarationWarning' where
     EmptyPolarityPragma r             -> icodeN 35 EmptyPolarityPragma r
     UselessImport r                   -> icodeN 36 UselessImport r
     InvalidDataOrRecDefParameter r a b c -> icodeN 37 InvalidDataOrRecDefParameter r a b c
+    InvalidRewriteAttribute r            -> icodeN 38 InvalidTacticAttribute r
 
   value = vcase $ \case
     N2 0  a            -> valuN UnknownNamesInFixityDecl a
@@ -432,6 +463,7 @@ instance EmbPrj DeclarationWarning' where
     N2 35 r            -> valuN EmptyPolarityPragma r
     N2 36 r            -> valuN UselessImport r
     N5 37 r a b c      -> valuN InvalidDataOrRecDefParameter r a b c
+    N2 38 r            -> valuN InvalidRewriteAttribute r
     _ -> malformed
 
 instance EmbPrj OpenOrImport
@@ -485,8 +517,8 @@ instance EmbPrj InfectiveCoinfective where
     valu _      = malformed
 
 instance EmbPrj PragmaOptions where
-  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt uuu) =
-    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt uuu
+  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt uuu vvv) =
+    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt uuu vvv
 
   value = valueN PragmaOptions
 

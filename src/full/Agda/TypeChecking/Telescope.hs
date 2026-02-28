@@ -5,6 +5,7 @@ module Agda.TypeChecking.Telescope where
 import Prelude hiding (null)
 
 import Control.Monad
+import Control.Monad.Trans.Maybe (MaybeT)
 
 import Data.Foldable (find)
 import Data.IntSet (IntSet)
@@ -101,8 +102,7 @@ unflattenTel' !n xs tel = case (xs, tel) of
     where
     tel' = unflattenTel' (n - 1) xs tel
     a'   = applySubst rho a
-    rho  = parallelS $
-           replicate n (withCallerCallStack impossibleTerm)
+    rho  = strengthenS (withCallerCallStack Impossible) n
   ([],    _ : _) -> __IMPOSSIBLE__
   (_ : _, [])    -> __IMPOSSIBLE__
 
@@ -447,8 +447,22 @@ telViewUpTo' n p t = do
           -- Force the name to avoid retaining the rest of b.
       let !bn = absName b in
       absV a bn <$> do
-        underAbstractionAbs a b $ \b -> telViewUpTo' (n - 1) p b
+        underAbstractionAbs (dropInvalidRew a) b $
+          \b -> telViewUpTo' (n - 1) p b
     _ -> return $ TelV EmptyTel t
+  where
+    -- We drop invalidated local rewrite rules
+    -- Note that the returned telescope might still contain invalidated
+    -- rewrite rules so adding the telescope to the context might fail
+    dropInvalidRew a = if invalidRew a then a { rewDom = Nothing } else a
+
+-- | Returns Nothing if there are invalidated local rewrite rules present in
+--   the telescope
+safeTelViewUpTo' :: (MonadReduce m, MonadAddContext m)
+  => Int -> (Dom Type -> Bool) -> Type -> MaybeT m TelView
+safeTelViewUpTo' n p t = do
+  telv@(TelV tel _) <- telViewUpTo' n p t
+  if any invalidRew tel then mzero else pure telv
 
 {-# INLINE telViewPath #-}
 telViewPath :: PureTCM m => Type -> m TelView

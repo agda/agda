@@ -795,12 +795,7 @@ checkPragma r p = do
     traceCall (CheckPragma r p) $ case p of
         A.BuiltinPragma rb x
           | any isUntypedBuiltin b -> return ()
-          | Just b' <- b -> do
-              let go = bindBuiltin b' x
-              if b' /= builtinRewrite then go else do
-                ifM (optRewriting <$> pragmaOptions) {-then-} go {-else-} do
-                  warning $ UselessPragma r $
-                    "Ignoring BUILTIN REWRITE pragma since option --rewriting is off"
+          | Just b' <- b -> bindBuiltin b' x
           | otherwise -> typeError $ NoSuchBuiltinName ident
           where
             ident = rangedThing rb

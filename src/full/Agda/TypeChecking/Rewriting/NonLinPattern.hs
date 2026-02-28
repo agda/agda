@@ -16,7 +16,7 @@ import Agda.Syntax.Internal.Defs
 import Agda.Syntax.Internal.MetaVars ( AllMetas, unblockOnAllMetasIn )
 
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.Irrelevance ( isDefSing )
+import Agda.TypeChecking.Irrelevance ( isDefSing, isPatternVar )
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -43,56 +43,59 @@ import Data.Foldable (Foldable(fold))
 --   definitionally singular. Specifically, the first tracks the definitional
 --   singularity of the last |PDef|/|PBoundVar| match, while the second tracks
 --   the current definitional singularity.
---   The third argument is the number of bound variables (from pattern lambdas).
---   The fourth argument is the type of the term.
+--   The third argument and fourth arguments, k0 and k1, partition the context
+--   into three chunks: the local context, the telescope of
+--   of pattern variables associated with the rewrite and the pattern-lambda
+--   bound variables.
+--   The fifth argument is the type of the term.
 
 class PatternFrom a b where
-  patternFrom :: DefSing -> DefSing -> Int -> TypeOf a -> a -> TCM b
+  patternFrom :: DefSing -> DefSing -> Int -> Int -> TypeOf a -> a -> TCM b
 
 instance (PatternFrom a b) => PatternFrom (Arg a) (Arg b) where
-  patternFrom r0 r1 k t u
+  patternFrom r0 r1 k0 k1 t u
     = let r1' = r1 `maxDefSing` relToDefSing (getRelevance u)
-      in  traverse (patternFrom r0 r1' k $ unDom t) u
+      in  traverse (patternFrom r0 r1' k0 k1 $ unDom t) u
 
 instance PatternFrom Elims PElims where
-  patternFrom r0 r1 k (t,hd) = \case
+  patternFrom r0 r1 k0 k1 (t,hd) = \case
     [] -> return []
     (Apply u : es) -> do
       (a, b) <- assertPi t
-      p   <- patternFrom r0 r1 k a u
+      p   <- patternFrom r0 r1 k0 k1 a u
       let t'  = absApp b (unArg u)
       let hd' = hd . (Apply u:)
-      ps  <- patternFrom r0 r1 k (t',hd') es
+      ps  <- patternFrom r0 r1 k0 k1 (t',hd') es
       return $ Apply p : ps
     (IApply x y i : es) -> do
       (s, q, l, b, u, v) <- assertPath t
       let t' = El s $ unArg b `apply` [ defaultArg i ]
       let hd' = hd . (IApply x y i:)
       interval <- primIntervalType
-      p   <- patternFrom r0 r1 k interval i
-      ps  <- patternFrom r0 r1 k (t',hd') es
+      p   <- patternFrom r0 r1 k0 k1 interval i
+      ps  <- patternFrom r0 r1 k0 k1 (t',hd') es
       return $ IApply (PTerm x) (PTerm y) p : ps
     (Proj o f : es) -> do
       (a,b) <- assertProjOf f t
       let u = hd []
           t' = b `absApp` u
       hd' <- applyDef o f (argFromDom a $> u)
-      ps  <- patternFrom r0 r1 k (t',applyE hd') es
+      ps  <- patternFrom r0 r1 k0 k1 (t',applyE hd') es
       return $ Proj o f : ps
 
 instance (PatternFrom a b) => PatternFrom (Dom a) (Dom b) where
-  patternFrom r0 r1 k t = traverse $ patternFrom r0 r1 k t
+  patternFrom r0 r1 k0 k1 t = traverse $ patternFrom r0 r1 k0 k1 t
 
 instance PatternFrom Type NLPType where
-  patternFrom r0 r1 k _ a = workOnTypes $
-    NLPType <$> patternFrom r0 r1 k () (getSort a)
-            <*> patternFrom r0 r1 k (sort $ getSort a) (unEl a)
+  patternFrom r0 r1 k0 k1 _ a = workOnTypes $
+    NLPType <$> patternFrom r0 r1 k0 k1 () (getSort a)
+            <*> patternFrom r0 r1 k0 k1 (sort $ getSort a) (unEl a)
 
 instance PatternFrom Sort NLPSort where
-  patternFrom r0 r1 k _ s = do
+  patternFrom r0 r1 k0 k1 _ s = do
     s <- abortIfBlocked s
     case s of
-      Univ u l -> PUniv u <$> patternFrom r0 r1 k () l
+      Univ u l -> PUniv u <$> patternFrom r0 r1 k0 k1 () l
       Inf u n  -> return $ PInf u n
       SizeUniv -> return PSizeUniv
       LockUniv -> return PLockUniv
@@ -111,16 +114,16 @@ instance PatternFrom Sort NLPSort where
         __IMPOSSIBLE__
 
 instance PatternFrom Level NLPat where
-  patternFrom r0 r1 k _ l = do
+  patternFrom r0 r1 k0 k1 _ l = do
     t <- levelType
     v <- reallyUnLevelView l
-    patternFrom r0 r1 k t v
+    patternFrom r0 r1 k0 k1 t v
 
 instance PatternFrom Term NLPat where
-  patternFrom r0 r1 k t v = do
+  patternFrom r0 r1 k0 k1 t v = do
     t <- abortIfBlocked t
     etaRecord <- isEtaRecordType t
-    r1 <- maxDefSing r1 <$> isDefSing t
+    r1 <- maxDefSing r1 <$> isDefSing k0 k1 t
     v <- unLevel =<< abortIfBlocked v
     reportSDoc "rewriting.build" 60 $ sep
       [ "building a pattern from term v = " <+> prettyTCM v
@@ -131,16 +134,18 @@ instance PatternFrom Term NLPat where
     case (unEl t , stripDontCare v) of
       (Pi a b , _) -> do
         let body = raise 1 v `apply` [ Arg (domInfo a) $ var 0 ]
-        p <- addContext a (patternFrom r0 r1 (k + 1) (absBody b) body)
+        p <- addContext a (patternFrom r0 r1 (k0 + 1) (k1 + 1) (absBody b) body)
         return $ PLam (domInfo a) $ Abs (absName b) p
       _ | Left ((a,b),(x,y)) <- pview t -> do
         let body = raise 1 v `applyE` [ IApply (raise 1 $ x) (raise 1 $ y) $ var 0 ]
-        p <- addContext a (patternFrom r0 r1 (k + 1) (absBody b) body)
+        p <- addContext a (patternFrom r0 r1 (k0 + 1) (k1 + 1) (absBody b) body)
         return $ PLam (domInfo a) $ Abs (absName b) p
       (_ , Var i es)
-       | i < k     -> do
+       -- Variables before k0 are locally bound outside the rewrite telescope
+       -- Variables after k1 are bound in higher order patterns
+       | not $ isPatternVar k0 k1 i -> do
            t <- typeOfBV i
-           PBoundVar i <$> patternFrom r1 r1 k (t , Var i) es
+           PBoundVar i <$> patternFrom r1 r1 k0 k1 (t , Var i) es
        -- The arguments of `var i` should be distinct bound variables
        -- in order to build a Miller pattern
        | Just vs <- allApplyElims es -> do
@@ -150,11 +155,11 @@ instance PatternFrom Term NLPat where
            mbvs <- forM (zip ts vs) $ \(t , v) -> do
              blockOnMetasIn (v,t)
              isEtaVar (unArg v) t >>= \case
-               Just j | j < k -> return $ Just $ v $> j
-               _              -> return Nothing
+               Just j | k0 < j || j < k1 -> return $ Just $ v $> j
+               _                         -> return Nothing
            case sequence mbvs of
              Just bvs | fastDistinct bvs -> do
-               let allBoundVars = VarSet.full k
+               let allBoundVars = VarSet.full k1
                    ok = not (isAlwaysSing r1) ||
                         VarSet.fromList (map unArg bvs) == allBoundVars
                if ok then return (PVar r0 i bvs) else done
@@ -168,7 +173,7 @@ instance PatternFrom Term NLPat where
         RecordDefn def <- theDef <$> getConstInfo d
         (tel, c, ci, vs) <- etaExpandRecord_ d pars def v
         ct <- assertConOf c t
-        PDef (conName c) <$> patternFrom r1 r1 k (ct , Con c ci) (map Apply vs)
+        PDef (conName c) <$> patternFrom r1 r1 k0 k1 (ct , Con c ci) (map Apply vs)
       (_ , Lam{})   -> errNotPi t
       (_ , Lit{})   -> done
       (_ , Def f es) | isAlwaysSing r1 -> done
@@ -180,17 +185,17 @@ instance PatternFrom Term NLPat where
           [x , y] | f == lmax -> done
           _                   -> do
             ft <- defType <$> getConstInfo f
-            PDef f <$> patternFrom r1 r1 k (ft , Def f) es
+            PDef f <$> patternFrom r1 r1 k0 k1 (ft , Def f) es
       (_ , Con c ci vs) | isAlwaysSing r1 -> done
       (_ , Con c ci vs) -> do
         ct <- assertConOf c t
-        PDef (conName c) <$> patternFrom r1 r1 k (ct , Con c ci) vs
+        PDef (conName c) <$> patternFrom r1 r1 k0 k1 (ct , Con c ci) vs
       (_ , Pi a b) | isAlwaysSing r1 -> done
       (_ , Pi a b) -> do
-        pa <- patternFrom r0 r1 k () a
-        pb <- addContext a (patternFrom r0 r1 (k + 1) () $ absBody b)
+        pa <- patternFrom r0 r1 k0 k1 () a
+        pb <- addContext a (patternFrom r0 r1 (k0 + 1) (k1 + 1) () $ absBody b)
         return $ PPi pa (Abs (absName b) pb)
-      (_ , Sort s)     -> PSort <$> patternFrom r0 r1 k () s
+      (_ , Sort s)     -> PSort <$> patternFrom r0 r1 k0 k1 () s
       (_ , Level l)    -> __IMPOSSIBLE__
       (_ , DontCare{}) -> __IMPOSSIBLE__
       (_ , MetaV m _)  -> __IMPOSSIBLE__
@@ -354,7 +359,7 @@ instance GetMatchables NLPSort where
 instance GetMatchables Term where
   getMatchables = getDefs' __IMPOSSIBLE__ singleton
 
-instance GetMatchables RewriteRule where
+instance GetMatchables GlobalRewriteRule where
   getMatchables = getMatchables . rewPats
 
 -- Throws a pattern violation if the given term contains any

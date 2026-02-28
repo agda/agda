@@ -314,13 +314,19 @@ usableAtModality' ms why mod t =
 usableAtModality :: MonadConstraint TCM => WhyCheckModality -> Modality -> Term -> TCM ()
 usableAtModality = usableAtModality' Nothing
 
-{-# SPECIALIZE isDefSing :: Type -> TCM DefSing #-}
+-- | Given a partitioning of the context into the local context, telescope of
+--   of pattern variables and pattern-lambda bound variables, return whether
+--   the given variable is one of the pattern variables.
+isPatternVar :: Nat -> Nat -> Nat -> Bool
+isPatternVar k0 k1 x = k0 > x && x >= k1
+
+{-# SPECIALIZE isDefSing :: Nat -> Nat -> Type -> TCM DefSing #-}
 -- | Compute whether a type is a definitional singleton or might become one
 --   after a substitution or after the addition of some rewrite rules
 --   Assumes type passed in has been reduced (otherwise will be even more
 --   conservative than necessary).
-isDefSing :: (PureTCM m, MonadBlock m) => Type -> m DefSing
-isDefSing a = do
+isDefSing :: (PureTCM m, MonadBlock m) => Nat -> Nat -> Type -> m DefSing
+isDefSing k0 k1 a = do
   let s = getSort a
   p <- isProp <$> abortIfBlocked s
   -- Strict propositions are always definitional singletons
@@ -328,7 +334,10 @@ isDefSing a = do
   then pure MaybeSing
   else do
   case unEl a of
-    Var _ _           -> pure MaybeSing
+    Var x _           ->
+      -- Pattern variables might get substituted for definitional singletons
+      -- but bound variables cannot
+      if isPatternVar k0 k1 x then pure MaybeSing else pure NeverSing
     Lam _ _           -> __IMPOSSIBLE__
     Lit _             -> __IMPOSSIBLE__
     Def d es          -> do
@@ -338,7 +347,7 @@ isDefSing a = do
         Record{recTel=tel} -> case recEtaEquality def of
           YesEta  -> do
             let Just vs = allApplyElims es
-            sings <- traverse isDefSing' $ tel `apply` vs
+            sings <- traverse (isDefSing' k0 k1) $ tel `apply` vs
             pure $ foldr minDefSing AlwaysSing sings
           NoEta _ -> pure NeverSing
         Axiom{}            -> pure $ NeverSing
@@ -357,19 +366,19 @@ isDefSing a = do
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor{}      -> __IMPOSSIBLE__
     Con _ _ _         -> __IMPOSSIBLE__
-    Pi _ (unAbs -> b) -> isDefSing b
+    Pi _ (unAbs -> b) -> isDefSing k0 (k1 + 1) b
     Sort _            -> pure NeverSing
     Level _           -> __IMPOSSIBLE__
     MetaV _ _         -> __IMPOSSIBLE__
     DontCare a        -> __IMPOSSIBLE__
     Dummy _ _         -> __IMPOSSIBLE__
 
-{-# SPECIALIZE isDefSing' :: Dom Type -> TCM DefSing #-}
-isDefSing' :: (PureTCM m, MonadBlock m) => Dom Type -> m DefSing
-isDefSing' t =
+{-# SPECIALIZE isDefSing' :: Nat -> Nat -> Dom Type -> TCM DefSing #-}
+isDefSing' :: (PureTCM m, MonadBlock m) => Nat -> Nat -> Dom Type -> m DefSing
+isDefSing' k0 k1 t =
   if isIrrelevant $ getRelevance t
   then pure AlwaysSing
-  else isDefSing $ unDom t
+  else isDefSing k0 k1 $ unDom t
 
 -- * Propositions
 

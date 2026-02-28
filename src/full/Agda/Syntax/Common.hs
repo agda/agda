@@ -1792,6 +1792,7 @@ data Annotation = Annotation
   { annLock :: Lock
     -- ^ Fitch-style dependent right adjoints.
     --   See Modal Dependent Type Theory and Dependent Right Adjoints, arXiv:1804.05236.
+  , annRewrite :: RewriteAnn
   } deriving (Eq, Ord, Show, Generic)
 
 instance HasRange Annotation where
@@ -1801,14 +1802,14 @@ instance KillRange Annotation where
   killRange = id
 
 defaultAnnotation :: Annotation
-defaultAnnotation = Annotation defaultLock
+defaultAnnotation = Annotation defaultLock defaultRewrite
 
 instance Null Annotation where
   empty = defaultAnnotation
-  null (Annotation lock) = null lock
+  null (Annotation lock rew) = null lock && null rew
 
 instance NFData Annotation where
-  rnf (Annotation l) = rnf l
+  rnf (Annotation l r) = rnf (l, r)
 
 class LensAnnotation a where
 
@@ -1872,6 +1873,8 @@ class LensLock a where
   mapLock :: (Lock -> Lock) -> a -> a
   mapLock f a = setLock (f $ getLock a) a
 
+  {-# MINIMAL getLock , (setLock | mapLock) #-}
+
 instance LensLock Lock where
   getLock = id
   setLock = const
@@ -1893,6 +1896,89 @@ instance Pretty Lock where
 
 prettyLock :: LensLock a => a -> Doc -> Doc
 prettyLock a = (pretty (getLock a) <+>)
+
+---------------------------------------------------------------------------
+-- * Rewrite arguments
+---------------------------------------------------------------------------
+
+data RewriteAnn
+  = IsNotRewrite
+  | IsRewrite Range
+  deriving (Show, Generic)
+
+defaultRewrite :: RewriteAnn
+defaultRewrite = IsNotRewrite
+
+instance HasRange RewriteAnn where
+  getRange = \case
+    IsRewrite r  -> r
+    IsNotRewrite -> noRange
+
+instance SetRange RewriteAnn where
+  setRange r = \case
+    IsRewrite _  -> IsRewrite r
+    IsNotRewrite -> IsNotRewrite
+
+instance KillRange RewriteAnn where
+  killRange = setRange noRange
+
+instance Eq RewriteAnn where
+  (==) = (==) `on` isRewrite
+
+instance Ord RewriteAnn where
+  compare = compare `on` isRewrite
+
+instance Null RewriteAnn where
+  empty = defaultRewrite
+
+instance NFData RewriteAnn where
+  rnf IsNotRewrite  = ()
+  rnf (IsRewrite _) = ()
+
+instance Pretty RewriteAnn where
+  pretty = \case
+    (IsRewrite _) -> "@rewrite"
+    IsNotRewrite  -> empty
+
+class LensRewriteAnn a where
+
+  getRewriteAnn :: a -> RewriteAnn
+
+  setRewriteAnn :: RewriteAnn -> a -> a
+  setRewriteAnn = mapRewriteAnn . const
+
+  mapRewriteAnn :: (RewriteAnn -> RewriteAnn) -> a -> a
+  mapRewriteAnn f a = setRewriteAnn (f $ getRewriteAnn a) a
+
+  {-# MINIMAL getRewriteAnn , (setRewriteAnn | mapRewriteAnn) #-}
+
+instance LensRewriteAnn RewriteAnn where
+  getRewriteAnn = id
+  setRewriteAnn = const
+  mapRewriteAnn = id
+
+instance LensRewriteAnn ArgInfo where
+  getRewriteAnn = annRewrite . argInfoAnnotation
+  setRewriteAnn r info = info { argInfoAnnotation = (argInfoAnnotation info){ annRewrite = r } }
+
+instance LensRewriteAnn (Arg t) where
+  getRewriteAnn = getRewriteAnn . getArgInfo
+  setRewriteAnn = mapArgInfo . setRewriteAnn
+
+isRewrite :: LensRewriteAnn a => a -> Bool
+isRewrite a = case getRewriteAnn a of
+  IsRewrite _  -> True
+  IsNotRewrite -> False
+
+ignoreRew :: Monad m => LensRewriteAnn a => (RewriteAnn  -> m ()) -> a -> m a
+ignoreRew warn info
+  | isRewrite info = do
+    warn $ getRewriteAnn info
+    return $ setRewriteAnn IsNotRewrite info
+  | otherwise      = return info
+
+prettyRewriteAnn :: LensRewriteAnn a => a -> Doc -> Doc
+prettyRewriteAnn a = (pretty (getRewriteAnn a) <+>)
 
 ---------------------------------------------------------------------------
 -- * Cohesion

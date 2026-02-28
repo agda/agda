@@ -200,6 +200,7 @@ errorWarnings = Set.fromList
   , RewriteMaybeNonConfluent_
   , RewriteAmbiguousRules_
   , RewriteMissingRule_
+  , LocalRewriteOutsideTelescope_
   , TopLevelPolarity_
 
   -- Recoverable parse errors
@@ -247,6 +248,7 @@ data WarningName
   = OptionRenamed_
   | WarningProblem_
       -- ^ Some warning could not be set or unset.
+  | LocalRewritingConfluenceCheck_
   -- Parser Warnings
   | OverlappingTokensWarning_
   | MisplacedAttributes_
@@ -314,6 +316,7 @@ data WarningName
   | FixingCohesion_
   | FixingPolarity_
   | FixingRelevance_
+  | MisplacedRewrite_
   -- TODO: linearity
   -- -- | FixingQuantity_
   | FixityInRenamingModule_
@@ -371,6 +374,7 @@ data WarningName
   | RewriteAmbiguousRules_
   | RewriteMissingRule_
   | DuplicateRewriteRule_
+  | LocalRewriteOutsideTelescope_
   | SafeFlagEta_
   | SafeFlagInjective_
   | SafeFlagNoCoverageCheck_
@@ -498,6 +502,7 @@ warningNameDescription = \case
   -- Option Warnings
   OptionRenamed_                   -> "Renamed options."
   WarningProblem_                  -> "Problems with switching warnings."
+  LocalRewritingConfluenceCheck_   -> "Confluence checking local rewrite rules in not yet implemented."
   -- Parser Warnings
   OverlappingTokensWarning_        -> "Multi-line comments spanning one or more literate text blocks."
   MisplacedAttributes_             -> "Attributes where they are not supported."
@@ -571,6 +576,7 @@ warningNameDescription = \case
   FixingRelevance_                 -> "Correcting invalid user-written relevance attribute."
   FixingCohesion_                  -> "Correcting invalid user-written cohesion attribute."
   FixingPolarity_                  -> "Correcting invalid user-written polarity attribute."
+  MisplacedRewrite_                -> "Ignoring invalid user-written local rewrite attribute."
   InvalidCharacterLiteral_         -> "Illegal character literals."
   UselessPragma_                   -> "Pragmas that get ignored."
   IllegalDeclarationInDataDefinition_ -> "Declarations not allowed in `data' definitions."
@@ -624,6 +630,7 @@ warningNameDescription = \case
   RewriteAmbiguousRules_           -> "Failed global confluence checks because of overlapping rules."
   RewriteMissingRule_              -> "Failed global confluence checks because of missing rule."
   DuplicateRewriteRule_            -> "Duplicate rewrite rules."
+  LocalRewriteOutsideTelescope_    -> "'@rewrite' arguments are (currently) only allowed in module telescopes."
   SafeFlagEta_                     -> "`ETA' pragmas with the safe flag."
   SafeFlagInjective_               -> "`INJECTIVE' pragmas with the safe flag."
   SafeFlagNoCoverageCheck_         -> "`NON_COVERING` pragmas with the safe flag."

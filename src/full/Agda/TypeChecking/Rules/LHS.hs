@@ -390,7 +390,7 @@ noShadowingOfConstructors problem@(ProblemEq p _ (Dom{domInfo = info, unDom = El
 
 -- | Check that a dot pattern matches it's instantiation.
 checkDotPattern :: DotPattern -> TCM ()
-checkDotPattern (Dot e v (Dom{domInfo = info, unDom = a})) =
+checkDotPattern (Dot e v dom@(Dom{unDom = a})) =
   traceCall (CheckDotPattern e v) $ do
   reportSDoc "tc.lhs.dot" 15 $
     sep [ "checking dot pattern"
@@ -398,7 +398,7 @@ checkDotPattern (Dot e v (Dom{domInfo = info, unDom = a})) =
         , nest 2 $ "=" <+> prettyTCM v
         , nest 2 $ ":" <+> prettyTCM a
         ]
-  applyModalityToContext info $ do
+  applyDomToContext dom $ do
     u <- checkExpr e a
     reportSDoc "tc.lhs.dot" 50 $
       sep [ "equalTerm"

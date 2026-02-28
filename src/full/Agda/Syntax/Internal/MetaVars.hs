@@ -21,17 +21,26 @@ class AllMetas t where
 
 -- Default instances
 instance AllMetas Term
-instance AllMetas Type
+instance (TermLike a, TermLike b) => AllMetas (Type'' a b)
 instance TermLike a => AllMetas (Elim' a)
 instance TermLike a => AllMetas (Tele a)
 
-instance (AllMetas a, AllMetas b) => AllMetas (Dom' a b) where
-  allMetas f (Dom _ _ _ t e) = allMetas f t <> allMetas f e
+instance (TermLike a, AllMetas a, AllMetas b) => AllMetas (Dom' a b) where
+  allMetas f (Dom _ _ _ t r e) = allMetas f t <> allMetas f r <> allMetas f e
 
 -- These types need to be packed up as a Term to get the metas.
 instance AllMetas Sort      where allMetas f   = allMetas f . Sort
 instance AllMetas Level     where allMetas f   = allMetas f . Level
 instance AllMetas PlusLevel where allMetas f l = allMetas f (Max 0 [l])
+
+instance (TermLike a, AllMetas a) => AllMetas (RewDom' a) where
+  allMetas f (RewDom a b) = allMetas f (a, b)
+
+instance (TermLike a, AllMetas a) => AllMetas (LocalEquation' a) where
+  allMetas f (LocalEquation a b c d) = allMetas f (a, b, c, d)
+
+instance AllMetas RewriteRule where
+  allMetas f (RewriteRule g _ _ es b) = allMetas f (g, es, b)
 
 instance {-# OVERLAPPING #-} AllMetas String where
   allMetas f _ = mempty

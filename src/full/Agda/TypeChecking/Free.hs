@@ -86,6 +86,8 @@ module Agda.TypeChecking.Free
     , isBinderUsed
     , relevantInIgnoringSortAnn
     , setRelInIgnoring
+    , flexRigToBlocker
+    , inRewVars, theRewVars
     ) where
 
 import Prelude hiding (null)
@@ -107,6 +109,9 @@ import Agda.Utils.StrictReader
 import Agda.Utils.StrictFlipEndo
 import Agda.Utils.StrictEndo qualified as NonFlip
 import Agda.Utils.ExpandCase
+import Agda.Utils.Impossible (__IMPOSSIBLE__)
+import Agda.Utils.Maybe (fromMaybe)
+import Agda.Utils.Size (size)
 
 -- ** All free variables together with information about their occurrence.
 --------------------------------------------------------------------------------
@@ -507,3 +512,24 @@ flexibleVars (VarMap m) = flip IntMap.mapMaybe m $ \case
 
 allVars :: VarMap -> VarSet
 allVars = filterVarMap (\_ -> True)
+
+-- | Returns the variables that correspond to local rewrite rules.
+theRewVars :: Telescope -> VarSet
+theRewVars = fst . allRewVars
+
+-- | Returns all variables that occur in local rewrite rules.
+inRewVars :: Telescope -> VarSet
+inRewVars = snd . allRewVars
+
+-- | Returns two sets of variables: the first set contains all variables
+--   corresponding to local rewrite rules, and the second set includes all
+--   variables which occur in those rewrite rules.
+allRewVars :: Telescope -> (VarSet, VarSet)
+allRewVars EmptyTel        = (VarSet.empty, VarSet.empty)
+allRewVars (ExtendTel a b) =
+  fromMaybe (VarSet.empty, VarSet.empty)
+    (go . fromMaybe __IMPOSSIBLE__ . rewDomRew <$> rewDom a)
+  <> (allRewVars $ unAbs b)
+  where
+    go r =
+      (VarSet.singleton $ size b, VarSet.weaken (size b + 1) $ freeVarSet r)

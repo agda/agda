@@ -5,6 +5,7 @@ module Agda.TypeChecking.Rules.Term where
 import Prelude hiding ( null )
 
 import Control.Monad.Except ( MonadError(..) )
+import Control.Monad.Trans.Maybe ( runMaybeT )
 
 import Data.Maybe
 import qualified Data.DList as DL
@@ -17,7 +18,7 @@ import qualified Data.Set as Set
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate (disambiguateRecordFields)
 
-import Agda.Syntax.Abstract (Binder, TypedBindingInfo (tbTacticAttr))
+import Agda.Syntax.Abstract (Binder, TypedBindingInfo (tbTacticAttr), unBind, binderName)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
@@ -58,6 +59,7 @@ import Agda.TypeChecking.Quote
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Rewriting (checkEquationValid, checkLocalRewriteRule)
 import Agda.TypeChecking.Rules.LHS
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.SizedTypes.Solve
@@ -117,7 +119,8 @@ isType_ e = traceCall (IsType_ e) $ do
   SortKit{..} <- sortKit
   case unScope e of
     A.Fun i (Arg info t) b -> do
-      a <- setArgInfo info . defaultDom <$> checkPiDomain (info :| []) t
+      a <- uncurry (defaultArgDomRew info) <$>
+           checkPiDomain Nothing (info :| []) t
       b <- isType_ b
       s <- inferFunSort a b
       let t' = El s $ Pi a $ NoAbs underscore b
@@ -313,15 +316,23 @@ checkTelescope' lamOrPi (b : tel) ret =
 
 -- | Check the domain of a function type.
 --   Used in @checkTypedBindings@ and to typecheck @A.Fun@ cases.
-checkDomain :: (LensLock a, LensModality a) => LamOrPi -> List1 a -> A.Expr -> TCM Type
-checkDomain lamOrPi xs e = do
-    -- Get cohesion and quantity of arguments, which should all be equal because
+checkDomain :: (LensLock a, LensModality a, LensRewriteAnn a)
+  => LamOrPi -> Maybe Name -> List1 a -> A.Expr -> TCM (Maybe RewDom, Type)
+checkDomain lamOrPi n xs e = do
+    -- Get cohesion and quantity of arguments, as well as if they are local
+    -- rewrite rules. All of these properties should all be equal because
     -- they come from the same annotated Π-type.
     let (c :| cs) = fmap (getCohesion . getModality) xs
     unless (all (c ==) cs) $ __IMPOSSIBLE__
 
     let (q :| qs) = fmap (getQuantity . getModality) xs
     unless (all (q ==) qs) $ __IMPOSSIBLE__
+
+    let (r :| rs) = fmap (getRewriteAnn) xs
+    unless (all (r ==) rs) $ __IMPOSSIBLE__
+
+    -- Also get whether the domain is a local rewrite rule. If it is, and there
+    -- are multiple arguments, we warn that this is unnecessary
 
     t <- applyQuantityToJudgement q $
          applyCohesionToContext c $
@@ -335,7 +346,31 @@ checkDomain lamOrPi xs e = do
 
         equalSort (getSort t) LockUniv
 
-    return t
+    cxt <- getContext
+    let s = LocalRewrite cxt n t
+
+  -- For now, we disallow '@rewrite' domains on pi types
+  -- In the future, this should be allowed only when the pi type is not in
+  -- higher-order position (checked syntactically)
+    r <- case lamOrPi of
+      PiNotLam | isRewrite r -> IsNotRewrite <$
+        runMaybeT (illegalRule s LocalRewriteOutsideTelescope)
+      _                      -> pure r
+
+    eq  <- checkEquationValid s r t
+    rew <- traverse (checkLocalRewriteRule s) eq
+    -- We do not (currently) distinguish failing to elaborate to a LocalEquation
+    -- from failing to elaborate to a RewriteRule. In the case we have
+    -- a valid LocalEquation, but failed to produce a RewriteRule, we could
+    -- technically still store the LocalEquation and check the convertibility
+    -- constraint at call sites. I don't think this is super important, but
+    -- maybe worth trying in future.
+    let rDom = RewDom <$> eq <*> fmap pure (join rew)
+    whenJust rDom \rDom' -> reportSDoc "rewriting" 30 $
+      "Successfully elaborated: " <+> prettyTCM (rewDomEq rDom') <+>
+        " into a rewrite rule"
+
+    return (rDom, t)
   where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -344,7 +379,8 @@ checkDomain lamOrPi xs e = do
         modEnv (LamNotPi _) = workOnTypes
         modEnv PiNotLam     = id
 
-checkPiDomain :: (LensLock a, LensModality a) => List1 a -> A.Expr -> TCM Type
+checkPiDomain :: (LensLock a, LensModality a,  LensRewriteAnn a)
+              => Maybe Name -> List1 a -> A.Expr -> TCM (Maybe RewDom, Type)
 checkPiDomain = checkDomain PiNotLam
 
 -- | Check a typed binding and extends the context with the bound variables.
@@ -364,7 +400,10 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     -- 2011-10-04 if flag --experimental-irrelevance is set
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
 
-    t <- checkDomain lamOrPi xps e
+    -- We pick one of the names to report local rewrite errors on
+    let x = unBind $ binderName $ namedArg $ List1.head xps
+    (rew, t) <- checkDomain lamOrPi (Just x) xps e
+    whenJust rew $ \r -> reportSDoc "rewriting" 30 $ "Checked local rewrite:" <+> prettyTCM (rewDomEq r)
 
     -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
     -- instance argument does not have the right shape
@@ -379,15 +418,18 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         NoOutputTypeName -> setCurrentRange e $
           warning . InstanceNoOutputTypeName =<< prettyTCM (A.mkTBind r ixs e)
 
-    let setTac tac dom = dom { domTactic = tac }
-        setTacTel tac EmptyTel            = EmptyTel
-        setTacTel tac (ExtendTel dom tel) =
-          ExtendTel (setTac tac dom) $ setTacTel (raise 1 tac) <$> tel
-        -- We need to convert to Dom and set the domTactic field here in order
-        -- to not drop @tactic annotations
-        xs' = setTac tac . domNameFromNamedArgName . modMod lamOrPi experimental
+    let setTacRew tac rew dom = dom { domTactic = tac, rewDom = rew }
+        setTacRewTel tac rew EmptyTel            = EmptyTel
+        setTacRewTel tac rew (ExtendTel dom tel) =
+          ExtendTel (setTacRew tac rew dom) $
+            setTacRewTel (raise 1 tac) (raise 1 rew) <$> tel
+        -- We need to convert to Dom and set the domTactic and domRew fields
+        -- here in order to not drop @tactic and @rewrite annotations
+        xs' = setTacRew tac rew
+                . domNameFromNamedArgName
+                . modMod lamOrPi experimental
               <$> xs
-    let tel = setTacTel tac $ namedBindsToTel1 xs t
+    let tel = setTacRewTel tac rew $ namedBindsToTel1 xs t
 
     addContext (xs', t) $ addTypedPatterns xps (ret tel)
 
@@ -663,8 +705,15 @@ userOmittedModalities xs = do
 -- | Check that modality info in lambda is compatible with modality
 --   coming from the function type.
 --   If lambda has no user-given modality, copy that of function type.
-lambdaModalityCheck :: (LensAnnotation dom, LensModality dom) => dom -> ArgInfo -> TCM ArgInfo
-lambdaModalityCheck dom = lambdaAnnotationCheck (getAnnotation dom) <=< lambdaPolarityCheck m <=< lambdaCohesionCheck m <=< lambdaQuantityCheck m <=< lambdaIrrelevanceCheck m
+lambdaModalityCheck ::
+     (LensAnnotation dom, LensModality dom)
+  => dom -> ArgInfo -> TCM ArgInfo
+lambdaModalityCheck dom =
+  lambdaAnnotationCheck (getAnnotation dom) <=<
+  lambdaPolarityCheck m <=<
+  lambdaCohesionCheck m <=<
+  lambdaQuantityCheck m <=<
+  lambdaIrrelevanceCheck m
   where m = getModality dom
 
 -- | Check that irrelevance info in lambda is compatible with irrelevance
@@ -1549,7 +1598,8 @@ checkExpr' cmp e t =
         -- Application
         e -> do
           Application hd args <- appViewM e
-          checkApplication cmp hd args e t
+          e' <- checkApplication cmp hd args e t
+          pure e'
 
       `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
         -- We could not check the term because the type of some pattern is blocked.
@@ -1722,6 +1772,9 @@ checkOrInferMeta
   -> Maybe (Comparison , Type)
   -> TCM (Term, Type)
 checkOrInferMeta i newMeta mt = do
+  -- We still need to check equational constraints even when checking a meta
+  -- because definitions parameterised by a local rewrite rule do not block
+  -- on the corresponding argument
   case A.metaNumber i of
     Nothing -> do
       unlessNull (A.metaScope i) setScope
@@ -1818,7 +1871,9 @@ checkNamedArg arg@(Arg info e0) t0 = do
     -- argument (i.e. solve with unification).
     -- Andreas, 2024-03-07, issue #2829: Except when we don't.
     -- E.g. when 'insertImplicitPatSynArgs' inserted an instance underscore.
-    let checkU i = checkMeta i (newMetaArg (A.metaKind i) info x) CmpLeq t0
+    let checkU i = checkMeta i
+          (\cmp -> newMetaArg (A.metaKind i) x cmp . defaultArgDom info)
+          CmpLeq t0
     let checkQ = checkQuestionMark (newInteractionMetaArg info x) CmpLeq t0
     if not $ isHole e then checkExpr e t0 else localScope $ do
       -- Note: we need localScope_ here,
