@@ -1,0 +1,11 @@
+changelog:
+  exclude:
+    labels:
+      - not-in-changelog
+      - fix-agda-whitespace
+      - travis
+      - typo
+      - Makefile
+      - release
+    authors:
+      - dependabot
