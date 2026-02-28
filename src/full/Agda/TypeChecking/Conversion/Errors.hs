@@ -809,9 +809,9 @@ prettyInEqual ht (Just hdm) t1 t2 = do
             There -> pwords "the mismatched terms"
           <> pwords "are distinct extended lambdas; "
         , fwords "one is defined at"
-        , "  " <+> pretty (nameBindingSite (qnameName a))
+        , "  " <+> pretty (nameBindingSite a)
         , fwords "and the other at"
-        , "  " <+> (pretty (nameBindingSite (qnameName b)) <> ",")
+        , "  " <+> (pretty (nameBindingSite b) <> ",")
         , fwords "so they have different internal representations."
         ]
 

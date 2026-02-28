@@ -21,7 +21,7 @@ import           Agda.Interaction.Highlighting.Precise hiding ( singleton )
 import qualified Agda.Interaction.Highlighting.Precise as H
 import           Agda.Interaction.Highlighting.Range   ( rToR )  -- Range is ambiguous
 
-import           Agda.Syntax.Abstract                ( IsProjP(..), anameName, getAmbiguous )
+import           Agda.Syntax.Abstract                ( IsProjP(..), anameName, getAmbiguous, nameBindingSite )
 import qualified Agda.Syntax.Abstract      as A
 import           Agda.Syntax.Common        as Common
 import           Agda.Syntax.Concrete                ( FieldAssignment'(..), TacticAttribute' )
@@ -223,7 +223,7 @@ instance Hilite A.Declaration where
       A.UnfoldingDecl _r names               -> hl names
     where
     hl      a = hilite a
-    hlField x = hiliteField (concreteQualifier x) (concreteBase x) (Just $ bindingSite x)
+    hlField x = hiliteField (concreteQualifier x) (concreteBase x) (Just $ nameBindingSite x)
 
 instance Hilite A.Pragma where
   hilite = \case
@@ -528,7 +528,7 @@ hiliteAmbiguousQName mkind x = do
     hiliteAName q include $ nameAsp' kind
   where
     qs = getAmbiguous x
-    include = List1.allEqual $ fmap bindingSite qs
+    include = List1.allEqual $ fmap nameBindingSite qs
 
 hiliteBound :: A.Name -> Hiliter
 hiliteBound x =
@@ -659,7 +659,7 @@ hiliteAName x include asp = do
   hiliteCName (concreteQualifier x)
               (concreteBase x)
               (rangeOfFixityDeclaration currentModule)
-              (if include then Just $ bindingSite x else Nothing)
+              (if include then Just $ nameBindingSite x else Nothing)
               asp
     <> notationFile currentModule
   where
@@ -709,6 +709,3 @@ concreteBase = A.nameConcrete . A.qnameName
 
 concreteQualifier :: A.QName -> [C.Name]
 concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
-
-bindingSite :: A.QName -> Range
-bindingSite = A.nameBindingSite . A.qnameName

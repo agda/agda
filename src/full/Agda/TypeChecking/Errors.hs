@@ -136,7 +136,7 @@ nameWithBinding :: MonadPretty m => QName -> m Doc
 nameWithBinding q =
   (prettyTCM q <+> "bound at") <?> prettyTCM r
   where
-    r = nameBindingSite $ qnameName q
+    r = nameBindingSite q
 
 tcErrString :: TCErr -> String
 tcErrString err =
@@ -202,7 +202,7 @@ prettyDisambProj = prettyDisamb $ lastMaybe . filter (noRange /=) . map nameBind
 
 --   Print the range in 'qnameName'. This fixes the bad error message in #4130.
 prettyDisambCons :: MonadPretty m => QName -> m Doc
-prettyDisambCons = prettyDisamb $ Just . nameBindingSite . qnameName
+prettyDisambCons = prettyDisamb $ Just . nameBindingSite
 
 prepruneErrorRefinedContext :: forall m. MonadPretty m => Closure MetaId -> m Doc
 prepruneErrorRefinedContext = prepruneError empty $
@@ -498,7 +498,7 @@ instance PrettyTCM TypeError where
       , pwords "is not allowed"
       , [ parens "to activate, add declaration `pattern` to record definition" ]
       ]
-      where r = nameBindingSite $ qnameName q
+      where r = nameBindingSite q
 
     SplitOnAbstract d ->
       "Cannot split on abstract data type" <+> prettyTCM d
@@ -958,7 +958,7 @@ instance PrettyTCM TypeError where
           ClashingAbstractName y -> do
             pwords "Previous definition" ++ [explainWhyInScope $ whyInScopeDataFromAbstractName x y]
           ClashingQName y ->
-            pwords "Previous definition at" ++ [prettyTCM $ nameBindingSite $ qnameName y]
+            pwords "Previous definition at" ++ [prettyTCM $ nameBindingSite y]
         hint d = do
           let dataOrRecord = case d of
                 NiceDataDef{} -> "data"
@@ -1088,7 +1088,7 @@ instance PrettyTCM TypeError where
       where
         (x, _) = List1.head defs
         prDef (x, (A.PatternSynDefn xs p)) = prettyA (A.PatternSynDef x (map (fmap BindName) xs) p) <?> ("at" <+> pretty r)
-          where r = nameBindingSite $ qnameName x
+          where r = nameBindingSite x
 
     IllegalInstanceVariableInPatternSynonym x -> fsep $ concat
       [ pwords "Variable is bound as instance in pattern synonym,"
@@ -1104,7 +1104,7 @@ instance PrettyTCM TypeError where
         , [ pretty kind ]
         , pwords "defined at:"
         ]
-      , pretty $ nameBindingSite $ qnameName $ anameName y
+      , pretty $ nameBindingSite y
       ]
 
     UnusedVariableInPatternSynonym x -> fsep $
@@ -2177,13 +2177,13 @@ explainWhyInScope (WhyInScopeData y _ v xs ms) = vcat
         <+> text (prettyShow $ anameName a)
       , nest 2 $ "brought into scope by"
       ] $$
-      nest 2 (pWhy (nameBindingSite $ qnameName $ anameName a) (anameLineage a))
+      nest 2 (pWhy (nameBindingSite a) (anameLineage a))
     pMod :: AbstractModule -> m Doc
     pMod  a = sep
       [ "* a module" <+> text (prettyShow $ amodName a)
       , nest 2 $ "brought into scope by"
       ] $$
-      nest 2 (pWhy (nameBindingSite $ qnameName $ mnameToQName $ amodName a) (amodLineage a))
+      nest 2 (pWhy (nameBindingSite a) (amodLineage a))
 
     pWhy :: Range -> WhyInScope -> m Doc
     pWhy r Defined = "- its definition at" <+> prettyTCM r

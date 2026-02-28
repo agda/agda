@@ -1547,7 +1547,7 @@ instance SetBindingSite a => SetBindingSite [a]
 instance SetBindingSite a => SetBindingSite (List1 a)
 
 instance SetBindingSite A.Name where
-  setBindingSite r x = x { nameBindingSite = r }
+  setBindingSite r x = x { _nameBindingSite = r }
 
 instance SetBindingSite A.QName where
   setBindingSite r x = x { qnameName = setBindingSite r $ qnameName x }

@@ -154,7 +154,7 @@ makeConfiguration ds cs ps vs = TermConf
                         { _nameId         = NameId n (ModuleNameHash 1)
                         , nameConcrete    = C.simpleName s
                         , nameCanonical   = C.simpleName s
-                        , nameBindingSite = noRange
+                        , _nameBindingSite = noRange
                         , nameFixity      = noFixity'
                         , nameIsRecordName = False
                         }

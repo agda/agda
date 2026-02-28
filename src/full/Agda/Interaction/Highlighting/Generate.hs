@@ -56,6 +56,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Warnings ( raiseWarningsOnUsage )
 
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Name (nameBindingSite)
 import Agda.Syntax.Concrete.Definitions as W ( DeclarationWarning(..), DeclarationWarning'(..) )
 import Agda.Syntax.Common (Induction(..), pattern Ranged)
 import qualified Agda.Syntax.Common.Aspect as Aspect
@@ -403,7 +404,7 @@ extraErrorHighlighting = \case
       -- The identifier that would be shadowed by the clashing definition
       -- is highlighted as dead code.
       -- (Not sure how good this is.)
-      ClashingDefinition _ y _ -> return $ deadcodeHighlighting $ I.nameBindingSite $ I.qnameName $ clashingQName y
+      ClashingDefinition _ y _ -> return $ deadcodeHighlighting $ I.nameBindingSite $ clashingQName y
       ShadowedModule x ms      -> deadcodeHighlighting . snd <$> TCM.prettyShadowedModule x ms
         -- 'prettyShadowedModule' mostly duplicates the work done by @'renderError' ('ShadowedModule' x ms)@
         -- in 'errorHighlighting',
@@ -639,11 +640,10 @@ terminationErrorHighlighting ::
 terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
   where
     m            = parserBased { otherAspects = Set.singleton TerminationProblem }
-    functionDefs = foldMap (\x -> H.singleton (rToR $ bindingSite x) m) $
+    functionDefs = foldMap (\x -> H.singleton (rToR $ nameBindingSite x) m) $
                    concatMap termErrFunctions termErrs
     callSites    = foldMap (\r -> H.singleton (rToR r) m) $
                    concatMap (map getRange . termErrCalls) termErrs
-    bindingSite  = A.nameBindingSite . A.qnameName
 
 -- | Generate syntax highlighting for not-strictly-positive inductive
 -- definitions.

@@ -339,7 +339,7 @@ niceDeclarations fixs ds = do
                 return (d , ds)
               -- Subcase: The lhs is a proper pattern.
               -- This could be a let-pattern binding. Pass it on.
-              -- A missing type signature error might be raise in ConcreteToAbstract
+              -- A missing type signature error might be raised in ConcreteToAbstract
               _ -> do
                 return ([NiceFunClause (getRange d) PublicAccess ConcreteDef termCheck covCheck catchall d] , ds)
 

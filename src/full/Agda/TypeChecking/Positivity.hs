@@ -204,7 +204,7 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
         -- Check whether the recursive record has been declared as
         -- 'Inductive' or 'Coinductive'.  Otherwise, error.
         unlessM (isJust . recInduction . theDef <$> getConstInfo q) $
-          setCurrentRange (nameBindingSite $ qnameName q) $
+          setCurrentRange (nameBindingSite q) $
             warning $ RecursiveRecordNeedsInductivity q
 
     occ (Edge o _) = o

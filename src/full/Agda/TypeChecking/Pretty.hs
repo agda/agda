@@ -332,7 +332,7 @@ instance PrettyTCM QName where
     nk <- getConstInfo' x <&> \case
       Left  _ -> Nothing
       Right d -> Just (defnToNameKind (theDef d))
-    fmap (flip P.definedAt (nameBindingSite (qnameName x)) . maybe id P.hlNameKind nk . P.pretty) (abstractToConcrete_ x)
+    fmap (flip P.definedAt (nameBindingSite x) . maybe id P.hlNameKind nk . P.pretty) (abstractToConcrete_ x)
 
   {-# SPECIALIZE prettyTCM :: QName -> TCM Doc #-}
 
