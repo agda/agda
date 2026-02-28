@@ -69,6 +69,7 @@ import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
+import Agda.TypeChecking.Errors (renderError)
 
 instance MonadMetaSolver TCM where
   newMeta' = newMetaTCM'
@@ -1349,7 +1350,11 @@ assignMeta' m x t n ids v = do
     whenM (optDoubleCheck  <$> pragmaOptions) $ do
       m <- lookupLocalMeta x
       reportSDoc "tc.meta.check" 30 $ "double checking solution"
-      catchConstraint (CheckMetaInst x) $
+      -- Andreas, 2025-08-09.
+      -- Double checking should succeed, every error thrown is an internal error.
+      -- We allow soft exceptions (patternViolation) to be caught so.
+      errorToInternalError $
+       catchConstraint (CheckMetaInst x) $
         addContext tel' $ checkSolutionForMeta x m v' a
 
     reportSDoc "tc.meta.assign" 10 $
@@ -1367,6 +1372,18 @@ assignMeta' m x t n ids v = do
           equalTermOnFace (neg `apply1` r) t x v
           equalTermOnFace r  t y v
         return v
+
+-- | Turn errors into fatal internal errors.
+errorToInternalError :: TCM a -> TCM a
+errorToInternalError = flip catchError \case
+  -- Andreas, 2025-08-09
+  -- Generalization produces internal terms with wrong hiding,
+  -- so CheckInteral throws HidingMismatch errors.
+  -- We let them through for now, but TODO: fix generalization.
+  err@(TypeError _ _ (Closure _ _ _ _ HidingMismatch{})) -> throwError err
+  err -> do
+    s <- renderError err
+    __IMPOSSIBLE_VERBOSE__ s
 
 -- | Check that the instantiation of the given metavariable fits the
 --   type of the metavariable. If the metavariable is not yet
@@ -1399,12 +1416,18 @@ checkSolutionForMeta x m v a = do
         ctx <- getContext
         inTopContext $ "in context: " <+> prettyTCM (PrettyContext ctx)
       traceCall (CheckMetaSolution (getRange m) x a v) $
+        -- Andreas, 2025-08-09, freezing metas here leads to internal errors
+        -- when Agda tries to assign metas (even though we tell her not to!).
+        -- dontAssignMetas $ withFrozenMetas $
         checkInternal v cmp a
     IsSort{}  -> void $ do
       reportSDoc "tc.meta.check" 30 $ nest 2 $
         prettyTCM x <+> ":=" <+> prettyTCM v <+> " is a sort"
       s <- shouldBeSort (El __DUMMY_SORT__ v)
       traceCall (CheckMetaSolution (getRange m) x (sort (univSort s)) (Sort s)) $
+        -- Andreas, 2025-08-09, freezing metas here leads to internal errors
+        -- when Agda tries to assign metas (even though we tell her not to!).
+        -- dontAssignMetas $ withFrozenMetas $
         inferInternal s
 
 -- | Given two types @a@ and @b@ with @a <: b@, check that @a == b@.
