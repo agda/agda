@@ -95,6 +95,9 @@ data CCDone a = CCDone
 pattern Done :: ClauseNumber -> ClauseRecursive -> [Arg ArgName] -> a -> CompiledClauses' a
 pattern Done no mr xs b = Done_ (CCDone no mr xs b)
 
+-- needed for checkInternal, we only store the "return type" here
+type instance TypeOf CompiledClauses = (QName, Type)
+
 litCase :: Literal -> c -> Case c
 litCase l x = Branches False Map.empty Nothing (Map.singleton l x) Nothing (Just False) False
 

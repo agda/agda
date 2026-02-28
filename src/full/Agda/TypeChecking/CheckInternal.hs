@@ -16,12 +16,21 @@ module Agda.TypeChecking.CheckInternal
   ) where
 
 import Control.Monad
+import Control.Monad.Except ( MonadError(..))
+
+--import qualified Data.Map as Map
+import Data.Map (Map)
 
 import Agda.Syntax.Common
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern (dbPatPerm)
 import Agda.Syntax.Common.Pretty (prettyShow)
 
 import Agda.TypeChecking.Conversion
+--import Agda.TypeChecking.Coverage.SplitClause
+--import Agda.TypeChecking.Coverage.Match
+import Agda.TypeChecking.Coverage.SplitPattern
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
@@ -31,11 +40,13 @@ import Agda.TypeChecking.Records (shouldBeProjectible)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.Function (applyWhen, applyWhenM)
 import Agda.Utils.Functor (($>))
 import Agda.Utils.Maybe
 import Agda.Utils.Size
+import Agda.Utils.Permutation
 
 import Agda.Utils.Impossible
 
@@ -401,3 +412,179 @@ instance CheckInternal PlusLevel where
     checkLevelAtom l = do
       lvl <- levelType'
       checkInternal' action l CmpLeq lvl
+
+---------------------------------------------------------------------------
+-- * Double-checking the clauses
+---------------------------------------------------------------------------
+
+{-
+data needed for the main loop:
+  telescope : - scTel
+  target type : Dom Type - scTarget
+  scPats   :: [NamedArg SplitPattern] -- list of patterns
+  name of the function : QName
+--  list of patterns - same type as scPats - mapping from CompiledClauses to scTel - to convert from deBruijn levels to proper deBruijn indices
+-}
+
+data CheckClause = CClause
+  { ccTel    :: Telescope
+  , ccPats   :: [NamedArg SplitPattern]
+  , ccTarget :: Dom Type
+  , ccName   :: QName
+  }
+
+type DbIndex    = Int
+type DbLevel    = Int
+type Position   = Int
+type CoPosition = Int
+
+checkClausePerm :: CheckClause -> Maybe Permutation
+checkClausePerm = dbPatPerm . fromSplitPatterns . ccPats
+
+getVars :: CheckClause -> [Maybe DbIndex]
+getVars cc = pats $ ccPats cc
+  where
+    pats :: [NamedArg SplitPattern] -> [Maybe DbIndex]
+    -- also works for any Pattern' _
+    pats [] = []
+    pats (h : t) = (conv (namedArg h)) ++ pats t
+
+    conv :: SplitPattern -> [Maybe DbIndex]
+    conv (VarP _ v) = [Just $ splitPatVarIndex v]
+    conv (DotP _ _) = [Nothing]
+    conv (ConP _ _ ls) = pats ls
+    conv (LitP _ _) = []
+    conv (ProjP _ _) = []
+    conv (IApplyP _ _ _ v) = [Just $ splitPatVarIndex v]
+    conv (DefP _ _ _) = []
+
+lookupPos :: CheckClause -> Position -> Maybe DbIndex
+lookupPos cc p = (getVars cc) !! p
+
+lookupLvlPos :: CheckClause -> Position -> Maybe DbLevel
+lookupLvlPos cc p = (\x -> size (ccTel cc) - x - 1) <$> lookupPos cc p
+
+getTerms :: CheckClause -> [Maybe Term]
+getTerms cc = map (fmap var) (getVars cc)
+
+checkClauseSubst :: CheckClause -> Substitution
+checkClauseSubst cc = prependS __IMPOSSIBLE__ (reverse $ getTerms cc) idS
+
+instance CheckInternal CompiledClauses where
+  checkInternal' act cc cmp (q, t) = do
+    reportSDoc "tc.check.internal.cc" 20 $ vcat
+      [ "checking internal compiled clauses of " <+> prettyTCM q
+      , nest 2 $ return $ P.pretty cc ]
+    TelV gamma a <- telViewUpTo (-1) t
+    let
+      n      = size gamma
+      xs     = map (setOrigin Inserted) $ teleNamedArgs gamma
+      sstate = CClause gamma xs (defaultDom a) q
+    (_, r) <- checkClauses act cc cmp sstate
+    return r
+
+checkClauses
+  :: (MonadCheckInternal m)
+  => Action m
+  -> CompiledClauses
+  -> Comparison
+  -> CheckClause
+  -> m (CheckClause, CompiledClauses)
+checkClauses act c@(Done n isrec arg t) cmp s = addContext (ccTel s) $ do
+  reportSDoc "tc.check.internal.cc" 50 $ vcat
+    [ "checking internal done clause of " <+> prettyTCM (ccName s)
+    , nest 2 $ return $ P.pretty c ]
+  let sub = checkClauseSubst s
+  nt <- checkInternal' act (applySubst sub t) cmp (unDom . ccTarget $ s)
+  return (s, Done n isrec arg nt)
+checkClauses act c@(Case arg cases) cmp s = do
+  reportSDoc "tc.check.internal.cc" 50 $ vcat
+    [ "checking internal case clause of " <+> prettyTCM (ccName s)
+      , nest 2 $ return $ P.pretty c ]
+  let tel = ccTel s
+      narg = unArg arg
+  -- Split the telescope at the variable
+  -- t = type of the variable,  Δ₁ ⊢ t
+  (n, t, delta1, delta2) <- do
+    let (tel1, dom : tel2) = splitAt (size tel - narg - 1) $ telToList tel
+    return (fst $ unDom dom, snd <$> dom, telFromList tel1, telFromList tel2)
+  (dr, d, s, pars, ixs, cons', _) <- undefined --inContextOfT tel narg $ isDatatypeCool Inductive t
+  cons <- case undefined of --checkEmpty
+    True  -> undefined --ifM (liftTCM $ inContextOfT $ isEmptyType $ unDom t) (pure []) (pure cons')
+    False -> pure cons'
+  mns <- undefined {-forM cons $ \ con ->
+    computeNeighbourhood delta1 n delta2 d pars ixs narg tel con-}
+  return undefined
+checkClauses act (Fail arg) cmp s = undefined
+
+inContextOfT :: (MonadAddContext tcm, MonadDebug tcm)
+             => Telescope -> Int -> tcm a -> tcm a
+inContextOfT tel x = addContext tel . escapeContext impossible (x + 1)
+
+computeNeighbourhood
+  :: (MonadError TCErr m, MonadCheckInternal m)
+  => Telescope                    -- ^ Telescope before split point.
+  -> PatVarName                   -- ^ Name of pattern variable at split point.
+  -> Telescope                    -- ^ Telescope after split point.
+  -> QName                        -- ^ Name of datatype to split at.
+  -> Args                         -- ^ Data type parameters.
+  -> Args                         -- ^ Data type indices.
+  -> Nat                          -- ^ Index of split variable.
+  -> Telescope                    -- ^ Telescope for the patterns.
+  -> QName                        -- ^ Constructor to fit into hole.
+  -> m (Map QName (WithArity CheckClause))
+computeNeighbourhood delta1 n delta2 d pars ixs hix tel c = undefined
+
+{-
+Examples
+----------------------------
+
+f : List A -> List A -> ?
+f (Cons x xs) (Cons y (Cons z zs)) = ?
+
+Telescope: [x : ?, zs: ?, y : ?, z : ?, xs : ?]
+
+Pats: [(Cons x@4 xs@0), (Cons y@2 (Cons z@1 zs@3))]
+      [(Cons x#0 xs#1), (Cons y#2 (Cons z#3 zs#4))]
+      [(Cons x#0 xs#1), (Cons (Cons t#2 p#3) (Cons z#4 zs#5))]
+
+f = Case #2 -> ...
+~
+f = Case @2 -> ...
+
+f = Case #3 -> ...
+~
+f = Case @1 -> ...
+
+----------------
+
+g : (a b : Nat) -> a = b + b -> ?
+g .(b+b) b refl = t b
+
+Telescope before : [a : ?, b : ?, eq : ?]
+Telescope after  : [b : ?]
+
+Pats before: [a@2, b@1, eq@0]
+Pats after:  [.(b@0 + b@0), b@0, refl]
+             [.(b + b)#0, b#1, refl]
+
+Return: t b@0
+
+----------------------------
+
+g : (A : Type) (a b : Nat) -> a = b + b -> Type
+g A .(b+b) b refl = A
+
+Telescope before : [A@3, a@2 : ?, b@1 : ?, eq@0 : ?]
+Telescope after  : [A@1, b@0 : ?]
+
+Pats before: [A@3, a@2, b@1, eq@0]
+Pats after:  [A, .(b@0 + b@0), b@0, refl]
+             [A#0, .(b + b)#1, b#2, refl]
+
+Return: @@2
+Return: @1
+
+
+use `prependS` to construct a substitution from co-positions to deBruijn levels
+-}
