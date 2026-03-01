@@ -72,7 +72,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Options (isTwoLevelEnabled, isPropEnabled)
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
 import Agda.TypeChecking.Monad.State hiding (topLevelModuleName)
-import qualified Agda.TypeChecking.Monad.State as S (topLevelModuleName)
+import qualified Agda.TypeChecking.Monad.State as TCM (topLevelModuleName)
 import Agda.TypeChecking.Monad.Signature (notUnderOpaque)
 import Agda.TypeChecking.Monad.MetaVars (registerInteractionPoint)
 import Agda.TypeChecking.Monad.Debug
@@ -1533,8 +1533,13 @@ instance ToAbstract (TopLevel [C.Declaration]) where
                       let m = C.QName $ setRange (getRange m0) $
                               C.simpleName $ stringToRawName $
                               rootNameModule file
-                      top <- S.topLevelModuleName
-                               (rawTopLevelModuleNameForQName m)
+                      top <- TCM.topLevelModuleName
+                               (rawTopLevelModuleNameForQName m){ rawModuleNameInferred = True }
+                      -- Andreas, 2026-03-01, issue #6173
+                      -- Need to make sure the reconstructed module name
+                      -- matches the one we use to import it,
+                      -- otherwise we get internal errors later.
+                      checkModuleName top src (Just expectedMName)
                       return (m, top)
                 -- Andreas, 2017-05-17, issue #2574, keep name as jump target!
                 -- Andreas, 2016-07-12, ALTERNATIVE:
@@ -1550,7 +1555,7 @@ instance ToAbstract (TopLevel [C.Declaration]) where
                 -- We need to check the module name against the file name here.
                 -- Otherwise one could sneak in a lie and confuse the scope
                 -- checker.
-                  top <- S.topLevelModuleName
+                  top <- TCM.topLevelModuleName
                            (rawTopLevelModuleNameForQName m0)
                   checkModuleName top src (Just expectedMName)
                   return (m0, top)
@@ -2577,7 +2582,7 @@ scopeCheckImport r x as open dir =
   setCurrentRange r do
       dir <- notPublicWithoutOpen open dir
 
-      top <- S.topLevelModuleName (rawTopLevelModuleNameForQName x)
+      top <- TCM.topLevelModuleName (rawTopLevelModuleNameForQName x)
       -- First scope check the imported module and return its name and
       -- interface. This is done with that module as the top-level module.
       -- This is quite subtle. We rely on the fact that when setting the

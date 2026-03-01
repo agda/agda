@@ -1,6 +1,6 @@
-Issue7208.agda:4.1-19: error: [OverlappingProjects]
-The file Issue7208/A.agda can be
-accessed via several project roots. Both A and Issue7208.A point to
-this file.
+Issue7208.agda:4.1-19: error: [ModuleNameUnexpected]
+The name of the top level module does not match the file name. The
+unnamed module (Issue7208/A.agda:1.1)
+should probably be named Issue7208.A
 when scope checking the declaration
   import Issue7208.A
