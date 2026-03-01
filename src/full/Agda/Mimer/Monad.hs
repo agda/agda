@@ -83,12 +83,13 @@ assignMeta metaId term metaType = bench [Bench.CheckRHS] $ do
     metaVar <- lookupLocalMeta metaId
     metaArgs <- getMetaContextArgs metaVar
 
-    reportSMDoc "mimer.assignMeta" 60 $ vcat
-      [ "Assigning" <+> pretty term
-      , nest 2 $ vcat [ "to" <+> pretty metaId <+> ":" <+> pretty metaType
-                      , "in context" <+> (pretty =<< getContextTelescope)
-                      ]
-      ]
+    reportSMDoc "mimer.assignMeta" 60 do
+      tel <- getContextTelescope
+      vcat $ concat
+        [ [ "Assigning" <+> pretty term ]
+        , [ nest 2 $ "to" <+> pretty metaId <+> ":" <+> pretty metaType ]
+        , [ nest 2 $ "in context" <+> pretty tel | not $ null tel ]
+        ]
 
     assignV DirLeq metaId metaArgs term (AsTermsOf metaType)
 
@@ -588,6 +589,7 @@ partitionStepResult (x:xs) = do
     NoSolution -> rest
     OpenBranch br -> return (br:brs', sols)
     ResultExpr exp -> do
+      reportSLn "mimer.search" 45 "partitionStepResult: render ResultExpr"
       str <- P.render <$> prettyTCM exp
       return $ (brs', MimerExpr str : sols)
 

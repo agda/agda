@@ -102,7 +102,7 @@ mimer norm ii rng argStr = liftTCM $ do
   (sol, time) <- measureTime $ do
 
     opts <- parseOptions ii rng argStr
-    reportS "mimer.top" 15 ("Mimer options: " ++ show opts)
+    reportS "mimer.top" 60 ("Mimer options: " ++ show opts)
 
     sols <- localTCState $ runSearch norm opts ii rng
 
@@ -234,7 +234,9 @@ runSearch norm options ii rng = withInteractionId ii $ do
                 let elapsed = time - startTime
                 if elapsed < timeout
                 then do
-                  (newBranches, sols) <- refine branch >>= partitionStepResult
+                  stepResults <- refine branch
+                  reportSLn "mimer.search" 45 "partitionStepResult"
+                  (newBranches, sols) <- partitionStepResult stepResults
                   let branchQueue'' = foldr Q.insert branchQueue' newBranches
                   reportSLn "mimer.search" 40 $ show (length sols) ++ " solutions found during cycle " ++ show (n + 1)
                   reportSMDoc "mimer.search" 45 $ "Solutions:" <+> prettyTCM sols
@@ -464,6 +466,7 @@ refine branch = withBranchState branch $ do
 
 tryComponents :: Goal -> Type -> SearchBranch -> [(Component, [Component])] -> SM [SearchStepResult]
 tryComponents goal goalType branch comps = withBranchAndGoal branch goal $ do
+  reportSLn "mimer.search" 45 "tryComponents"
   checkpoint <- viewTC eCurrentCheckpoint
   let tryFor (sourceComp, comps') = do
         -- Clear out components that depend on meta-variables that have been used.
@@ -608,7 +611,8 @@ tryDataRecord goal goalType branch = withBranchAndGoal branch goal $ do
 -- NOTE: Does not reset the state!
 -- TODO: Make sure the type is always reduced
 tryRefineWith :: Goal -> Type -> SearchBranch -> Component -> SM (Maybe SearchBranch)
-tryRefineWith goal goalType branch comp = withBranchAndGoal branch goal $
+tryRefineWith goal goalType branch comp = withBranchAndGoal branch goal do
+  reportSLn "mimer.search" 45 "tryRefineWith"
   ifM (tryRefineWith' goal goalType comp)
       -- Take the metas stored in the component and add them as sub-goals
   {-then-} (Just <$> updateBranchCost comp (compMetas comp) branch)
@@ -622,6 +626,7 @@ tryRefineWith' goal goalType comp = do
     -- solving so we should not consider them as new goals (lest we run into
     -- bad checkpoints later).
     dumbUnifier (compType comp) goalType
+    reportSLn "mimer.search" 45 "assignMeta"
     assignMeta (goalMeta goal) (compTerm comp) goalType
 
     updateStat incRefineSuccess
@@ -651,4 +656,3 @@ tryRefineAddMetas goal goalType branch comp = withBranchAndGoal branch goal $ do
   comp' <- applyToMetasG Nothing comp
   branch' <- updateBranch [] branch
   tryRefineWith goal goalType branch' comp'
-
