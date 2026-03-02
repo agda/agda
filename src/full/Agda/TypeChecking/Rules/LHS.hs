@@ -2088,11 +2088,14 @@ checkSortOfSplitVar dr a tel mtarget = do
     checkFibrantSplit
       | IsRecord _ <- dr       = return ()
       | Just target <- mtarget = do
-          reportSDoc "tc.sort.check" 20 $ "target:" <+> prettyTCM target
-          checkIsFibrant target
-          forM_ (telToList tel) $ \ d -> do
-            let ty = snd $ unDom d
-            checkIsCoFibrant ty
+        reportSDoc "tc.sort.check" 20 $ "target:" <+> prettyTCM target
+        checkIsFibrant target
+        let
+          loop EmptyTel = pure ()
+          loop (ExtendTel a tel) = do
+            checkIsCoFibrant (unDom a)
+            underAbstractionAbs a tel loop
+        loop tel
       | otherwise              = do
           reportSDoc "tc.sort.check" 20 $ "no target"
           splitOnFibrantError Nothing
