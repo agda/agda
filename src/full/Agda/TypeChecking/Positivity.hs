@@ -61,6 +61,10 @@ import Agda.Utils.SemiRing
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
+import Agda.Utils.MinimalArray.Lifted qualified as AL
+import Agda.Utils.MinimalArray.MutableLifted qualified as MAL
+
+
 import Agda.Utils.Impossible
 
 ----------------------------------------------------------------------------------------------------
@@ -94,22 +98,28 @@ deriving instance (NFData n, NFData e) => NFData (Graph n e)
 instance NFData Node where
   rnf a = seq a ()
 
--- fixupNewGraph :: Graph New.Node New.Edge -> Graph Node (Edge OccursWhere)
--- fixupNewGraph (Graph.Graph m) = Graph.Graph $ foldl' go mempty assocs where
+-- fixupNewGraph :: New.OccGraph -> IO (Graph Node (Edge OccursWhere))
+-- fixupNewGraph graph = do
+--   srcs <- AL.toList <$> MAL.freeze graph
+--   _
 
---   assocs = [(tgt, src, e) | (src, tgts) <- Map.toList m, (tgt, e) <- Map.toList tgts]
 
---   convNode (New.ArgNode x i) = ArgNode x i
---   convNode (New.DefNode x)   = DefNode x
+fixupGraph :: Graph New.Node New.Edge -> Graph Node (Edge OccursWhere)
+fixupGraph (Graph.Graph m) = Graph.Graph $ foldl' go mempty assocs where
 
---   convEdge (New.Edge occ _) = Edge occ empty
+  assocs = [(tgt, src, e) | (src, tgts) <- Map.toList m, (tgt, e) <- Map.toList tgts]
 
---   go :: Map Node (Map Node (Edge OccursWhere))
---         -> (New.Node, New.Node, New.Edge) -> Map Node (Map Node (Edge OccursWhere))
---   go m (convNode -> src, convNode -> tgt, convEdge -> e) =
---     Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
---     Map.insertWith (\_ tgts -> tgts) tgt mempty $
---     m
+  convNode (New.ArgNode x i) = ArgNode x i
+  convNode (New.DefNode x)   = DefNode x
+
+  convEdge (New.Edge occ _) = Edge occ empty
+
+  go :: Map Node (Map Node (Edge OccursWhere))
+        -> (New.Node, New.Node, New.Edge) -> Map Node (Map Node (Edge OccursWhere))
+  go m (convNode -> src, convNode -> tgt, convEdge -> e) =
+    Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
+    Map.insertWith (\_ tgts -> tgts) tgt mempty $
+    m
 
 -- buildOccurrenceGraph' :: Set QName -> TCM (Graph Node (Edge OccursWhere))
 -- buildOccurrenceGraph' qs = fixupNewGraph . Graph.Graph <$!> Bench.billTo [Bench.Positivity] (New.buildOccurrenceGraph qs)
@@ -135,9 +145,9 @@ checkStrictlyPositive mi qset = do
 
       -- compute the occurrence graph
       --------------------------------------------------------------------------------
-      !g <- Bench.billTo [Bench.Positivity] (buildOccurrenceGraph qset)
+      !g <- (buildOccurrenceGraph qset)
 
-      -- _ <- Bench.billTo [Bench.Positivity] (New.buildOccurrenceGraph qs)
+      _ <- Bench.billTo [Bench.Positivity] (New.buildOccurrenceGraph qs)
 
       -- master 3.9
       -- new    3.3
