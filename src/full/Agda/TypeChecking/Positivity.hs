@@ -147,7 +147,7 @@ checkStrictlyPositive mi qset = do
       --------------------------------------------------------------------------------
       !g <- (buildOccurrenceGraph qset)
 
-      _ <- Bench.billTo [Bench.Positivity] (New.buildOccurrenceGraph qs)
+      -- _ <- Bench.billTo [Bench.Positivity] (New.buildOccurrenceGraph qs)
 
       -- master 3.9
       -- new    3.3
@@ -298,16 +298,11 @@ checkStrictlyPositive mi qset = do
 
             let checkInduction :: QName -> TCM ()
                 checkInduction q =
-                  -- ASR (01 January 2016). We don't raise this error if the
-                  -- NO_POSITIVITY_CHECK pragma was set on in the record. See
-                  -- Issue 1760.
-                  when (Info.mutualPositivityCheck mi == YesPositivityCheck) $
-                    whenM positivityCheckEnabled $ do
-                    -- Check whether the recursive record has been declared as
-                    -- 'Inductive' or 'Coinductive'.  Otherwise, error.
-                    unlessM (isJust . recInduction . theDef <$> getConstInfo q) $
-                      setCurrentRange (nameBindingSite $ qnameName q) $
-                        typeError $ RecursiveRecordNeedsInductivity q
+                  -- Check whether the recursive record has been declared as
+                  -- 'Inductive' or 'Coinductive'.  Otherwise, error.
+                  unlessM (isJust . recInduction . theDef <$> getConstInfo q) $
+                    setCurrentRange (nameBindingSite q) $
+                      warning $ RecursiveRecordNeedsInductivity q
 
             -- if we find an unguarded record, mark it as such
             case dr of
