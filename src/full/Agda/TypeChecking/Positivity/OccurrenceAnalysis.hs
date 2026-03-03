@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE Strict #-}
 {-# LANGUAGE MagicHash #-}
-{-# OPTIONS_GHC -Wunused-imports #-}
+-- {-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
 {-# OPTIONS_GHC -fmax-worker-args=20 #-}
 {-# OPTIONS_GHC -fmax-valid-hole-fits=0 -fmax-relevant-binds=3 #-}
@@ -22,6 +22,8 @@ import Data.Map.Strict qualified as Map
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
 
+import Agda.TypeChecking.Monad.Benchmark qualified as Bench
+
 import Control.DeepSeq
 
 import Agda.Interaction.Options.Base (optOccurrence, optPolarity)
@@ -31,10 +33,11 @@ import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad hiding (getOccurrencesFromType)
 import Agda.TypeChecking.Patterns.Match (properlyMatching)
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..), modalPolarityToOccurrence)
+import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..), OccursWhere(..), modalPolarityToOccurrence)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Opacity (isAccessibleDef)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty qualified as P
@@ -59,55 +62,16 @@ NOTE:
   Proposal: change behavior, skip all Unused subterms
 -}
 
--- Paths to occurrences
-----------------------------------------------------------------------------------------------------
-
-data Path
-  = Root
-  | LeftOfArrow Path
-  | DefArg Path QName Nat         -- ^ in the nth argument of a defined constant
-  | MutDefArg Path QName Nat      -- ^ in the nth argument of a def in the current mutual block
-  | UnderInf Path                 -- ^ in the principal argument of built-in ∞
-  | VarArg Path Nat               -- ^ as an argument to a bound variable.
-  | MetaArg Path                  -- ^ as an argument of a metavariable
-  | ConArgType Path QName         -- ^ in the type of a constructor
-  | IndArgType Path QName         -- ^ in a datatype index of a constructor
-  | ConEndpoint Path QName        -- ^ in an endpoint of a higher constructor
-  | InClause Path Nat             -- ^ in the nth clause of a defined function
-  | Matched Path                  -- ^ matched against in a clause of a defined function
-  | IsIndex Path                  -- ^ is an index of an inductive family
-  | InDefOf Path QName            -- ^ in the definition of a constant
-  deriving Eq
-
-instance Show Path where
-  show p = go p [] where
-    go p acc = case p of
-      Root            -> acc
-      LeftOfArrow p   -> go p $ " InLeftOfArrow" ++ acc
-      DefArg p q i    -> go p $ " InDefArg "      ++ P.prettyShow q ++ " " ++ P.prettyShow i ++ acc
-      MutDefArg p q i -> go p $ " InMutDefArg "   ++ P.prettyShow q ++ " " ++ P.prettyShow i ++ acc
-      UnderInf p      -> go p $ " InUnderInf" ++ acc
-      VarArg p i      -> go p $ " InVarArg "      ++ P.prettyShow i ++ acc
-      MetaArg p       -> go p $ " InMetaArg" ++ acc
-      ConArgType p q  -> go p $ " InConArgType "  ++ P.prettyShow q ++ acc
-      IndArgType p q  -> go p $ " InIndArgType "  ++ P.prettyShow q ++ acc
-      ConEndpoint p q -> go p $ " InConEndpoint " ++ P.prettyShow q ++ acc
-      InClause p i    -> go p $ " InClause "    ++ P.prettyShow i ++ acc
-      Matched p       -> go p $ " Matched" ++ acc
-      IsIndex p       -> go p $ " IsIndex" ++ acc
-      InDefOf p q     -> go p $ " InDefOf " ++ P.prettyShow q ++ acc
-
-instance P.Pretty Path where
-  pretty = P.text . show
-
-instance PrettyTCM Path where
-  prettyTCM = return . P.pretty
-
 -- Graph nodes
 ----------------------------------------------------------------------------------------------------
 
 data Node = DefNode QName | ArgNode QName Int
   deriving (Show, Eq, Ord)
+
+instance P.Pretty Node where
+  pretty = \case
+    DefNode q   -> P.pretty q
+    ArgNode q i -> P.pretty q <> P.text ("." ++ show i)
 
 instance NFData Node where
   rnf x = seq x ()
@@ -146,6 +110,9 @@ lookupNode n map = HT.lookup map n >>= \case
 insertNode :: Node -> v -> NodeMap v -> IO ()
 insertNode n v map = HT.insert map n v
 
+nodeMapToList :: NodeMap v -> IO [(Node, v)]
+nodeMapToList = HT.toList
+
 -- Set of QName-s
 ----------------------------------------------------------------------------------------------------
 
@@ -164,35 +131,19 @@ insertQName q qs = HT.insert qs q ()
 -- Occurrence graph
 ----------------------------------------------------------------------------------------------------
 
-data Edge     = Edge Occurrence Path deriving (Eq, Show)
+data Edge     = Edge Occurrence OccursWhere deriving (Eq, Show)
 type OccGraph = NodeMap (NodeMap Edge)
 
 {-# NOINLINE addEdgeToGraph #-}
 addEdgeToGraph :: Node -> Node -> Edge -> OccGraph -> IO ()
 addEdgeToGraph src tgt e graph = lookupNode src graph >>= \case
-  Found tgts -> do
-    insertNode tgt e tgts
+  Found tgts -> lookupNode tgt tgts >>= \case
+    Found e' -> insertNode tgt (mergeEdges e' e) tgts
+    NotFound -> insertNode tgt e tgts
   NotFound -> do
     tgts <- HT.empty
     insertNode tgt e tgts
     insertNode src tgts graph
-
--- | Convert back to "legacy" graph, for the purpose of testing and
---   producing warnings in Positivity.hs using legacy code.
-toLegacyGraph :: OccGraph -> IO (Graph.Graph Node Edge)
-toLegacyGraph graph = do
-
-  assocs <- HT.toList graph
-  assocs <- forM assocs \(src, tgts) -> (src,) <$!> HT.toList tgts
-  assocs <- pure [(tgt, src, e) | (src, tgts) <- assocs, (tgt, e) <- tgts]
-
-  let go :: Map Node (Map Node Edge) -> (Node, Node, Edge) -> Map Node (Map Node Edge)
-      go m (src, tgt, e) =
-        Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
-        Map.insertWith (\_ tgts -> tgts) tgt mempty $
-        m
-
-  pure $! Graph.Graph $! foldl' go mempty assocs
 
 -- Occurrence analysis
 ----------------------------------------------------------------------------------------------------
@@ -208,7 +159,7 @@ data OccEnv = OccEnv {
   , locals     :: Int           -- ^ Number of local binders (on the top of the definition args).
   , mutuals    :: QNameSet      -- ^ Definitions in the current mutual group.
   , target     :: Node          -- ^ We add occurrences pointing to this node.
-  , path       :: Path          -- ^ Path from the target node to the current position.
+  , path       :: OccursWhere          -- ^ Path from the target node to the current position.
   , occ        :: Occurrence    -- ^ Occurence of current position.
   , graph      :: OccGraph      -- ^ Graph that's being built.
   }
@@ -236,7 +187,7 @@ mergeEdges e@(Edge StrictPos _) _                    = e
 mergeEdges (Edge GuardPos _)    e@(Edge GuardPos _)  = e
 
 {-# INLINE underPath #-}
-underPath :: (Path -> Path) -> OccM a -> OccM a
+underPath :: (OccursWhere -> OccursWhere) -> OccM a -> OccM a
 underPath f = local \env -> env {path = f (path env)}
 
 {-# INLINE underOcc #-}
@@ -250,13 +201,13 @@ underBinder = local \env -> env {locals = locals env + 1}
 {-# INLINE underPathOcc #-}
 -- | Modify the current path and 'otimes' a new 'Occurrence' to the
 --   current occurrence.
-underPathOcc :: (Path -> Path) -> Occurrence -> OccM a -> OccM a
+underPathOcc :: (OccursWhere -> OccursWhere) -> Occurrence -> OccM a -> OccM a
 underPathOcc f p = local \e -> e {path = f (path e), occ = otimes (occ e) p}
 
 {-# INLINE underPathSetOcc #-}
 -- | Modify the current path and set the current 'Occurence' to
 --   the given value.
-underPathSetOcc :: (Path -> Path) -> Occurrence -> OccM a -> OccM a
+underPathSetOcc :: (OccursWhere -> OccursWhere) -> Occurrence -> OccM a -> OccM a
 underPathSetOcc f p = local \e -> e {path = f (path e), occ = p}
 
 getOccurrencesFromType :: Type -> TCM [Occurrence]
@@ -278,6 +229,7 @@ addEdge src = do
   path   <- asks path
   occ    <- asks occ
   graph  <- asks graph
+  -- reportSLn "" 1 $ "ADD EDGE: " ++ show (P.prettyShow src, P.prettyShow target, Edge occ path)
   expand \ret -> case occ of
     Unused -> ret $ pure ()
     occ    -> ret $ lift $ lift $ addEdgeToGraph src target (Edge occ path) graph
@@ -300,23 +252,34 @@ occurrencesInMutDefArg d p i e = expand \ret -> ret $
   local (\e -> e {path = MutDefArg (path e) d i, target = ArgNode d i, occ = p}) $
     occurrences e
 
--- | Faster variant of getConstInfo which assumes well-formedness of names, which must be the case
---   after elaboration.
-lookupDef :: QName -> TCM Definition
-lookupDef q = do
-  st <- getTC
-  let defs  = st ^. stSignature . sigDefinitions
-      idefs = st ^. stImports   . sigDefinitions
-  case HMap.lookup q defs of
-    Just d  -> pure d
-    Nothing -> case HMap.lookup q idefs of
-      Just d  -> pure d
-      Nothing -> __IMPOSSIBLE__
+-- -- | Look up a QName without any adjusments and checks.
+-- rawLookupDef :: QName -> TCM Definition
+-- rawLookupDef q = do
+--   st <- getTC
+--   let defs  = st ^. stSignature . sigDefinitions
+--       idefs = st ^. stImports   . sigDefinitions
+--   case HMap.lookup q defs of
+--     Just d  -> pure d
+--     Nothing -> case HMap.lookup q idefs of
+--       Just d  -> pure d
+--       Nothing -> __IMPOSSIBLE__
 
 mutualDefOcc :: Definition -> Occurrence
 mutualDefOcc d = case theDef d of
-  Record{}   -> StrictPos
-  _          -> GuardPos
+  Datatype{} -> GuardPos
+  _          -> StrictPos
+
+lookupDef :: QName -> TCM Definition
+lookupDef q = Bench.billTo [Bench.Positivity] (getConstInfo q)
+
+-- getDefArgOccurrences :: Definition -> TCM [Occurrence]
+-- getDefArgOccurrences def = do
+--   st  <- getTC
+--   env <- askTC
+--   if isAccessibleDef env st def then do
+--     pure $! defArgOccurrences def
+--   else do
+--     pure []
 
 class ComputeOccurrences a where
   occurrences :: a -> OccM ()
@@ -411,8 +374,9 @@ instance ComputeOccurrences Term where
                     ([]  , e:es) -> ret do ps <- lift $ getOccurrencesFromType a
                                            elims' d i (drop i ps) (e:es)
 
-              defOcc <- lift (mutualDefOcc <$> lookupDef d)
-              underOcc defOcc $ elims d (defType def) 0 (defArgOccurrences def) es
+              let defOcc = mutualDefOcc def
+              let argOccs = defArgOccurrences def -- lift $ getDefArgOccurrences def
+              underOcc defOcc $ elims d (defType def) 0 argOccs es
 
     Con _ _ es -> ret $ occurrences es -- András 2026-02-17: why not push something here?
     MetaV m es -> ret $ underPathSetOcc MetaArg Mixed (occurrences es)
@@ -446,6 +410,7 @@ instance ComputeOccurrences Clause where
       pure ()
     else do
       -- add edges for matched args
+      -- reportSLn "" 1 "ADD MATCHES"
       addClauseArgMatches ps
 
       let collectArgs :: NAPs -> [DefArgInEnv]
@@ -591,7 +556,7 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
          -- Allow UnconfimedReductions here to make sure we get the constructor type
          -- in same way as it was obtained when the data types was checked.
         (TelV tel t, bnd) <- lift $ putAllowedReductions allReductions $
-                                    telViewPathBoundary . defType =<< lookupDef c
+                                    telViewPathBoundary . defType =<< getConstInfo c
         let (tel0,tel1) = splitTelescopeAt np tel
         -- Do not collect occurrences in the data parameters.
         -- Normalization needed e.g. for test/succeed/Bush.agda.

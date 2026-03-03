@@ -6,82 +6,26 @@ module Agda.TypeChecking.Positivity.Occurrence
   ( PragmaPolarities
   , Occurrence(..)
   , OccursWhere(..)
-  , Where(..)
-  , boundToEverySome
-  , productOfEdgesInBoundedWalk
   , modalPolarityToOccurrence
   ) where
 
 import Prelude hiding (null)
 
 import Control.DeepSeq
-import Control.Monad
-
-import Data.Foldable (toList)
-
-import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
-import Data.Sequence (Seq)
-
-import GHC.Generics (Generic)
 
 import Agda.Syntax.Common
-import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Common.Pretty qualified as P
 import Agda.Syntax.Position
-
-import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
-import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.List1 (List1)
 import Agda.Utils.Null
 import Agda.Utils.SemiRing
-import Agda.Utils.Size
 
-import Agda.Utils.Impossible
-
--- Specification of occurrences -------------------------------------------
-
--- Operations and instances in Agda.TypeChecking.Positivity.
+-- Occurrences
+----------------------------------------------------------------------------------------------------
 
 -- | List of polarities stemming from POLARITY pragma.
 type PragmaPolarities = List1 (Ranged Occurrence)
-
--- | Description of an occurrence.
-data OccursWhere
-  = OccursWhere Range (Seq Where) (Seq Where)
-    -- ^ The elements of the sequences, read from left to right,
-    -- explain how to get to the occurrence. The second sequence
-    -- includes the main information, and if the first sequence is
-    -- non-empty, then it includes information about the context of
-    -- the second sequence.
-  deriving (Show, Eq, Ord, Generic)
-
-instance NFData OccursWhere
-
-instance Null OccursWhere where
-  empty = OccursWhere empty empty empty
-  null (OccursWhere r wh1 wh2) = and [ null r, null wh1, null wh2 ]
-
--- | One part of the description of an occurrence.
-data Where
-  = LeftOfArrow
-  | DefArg QName Nat      -- ^ in the nth argument of a define constant
-  | UnderInf                -- ^ in the principal argument of built-in ∞
-  | VarArg Occurrence Nat -- ^ as an argument to a bound variable.
-                            --   The polarity, if given, is the polarity of
-                            --   the argument the occurence is in
-  | MetaArg                 -- ^ as an argument of a metavariable
-  | ConArgType QName       -- ^ in the type of a constructor
-  | IndArgType QName       -- ^ in a datatype index of a constructor
-  | ConEndpoint QName
-                            -- ^ in an endpoint of a higher constructor
-  | InClause Nat           -- ^ in the nth clause of a defined function
-  | Matched                 -- ^ matched against in a clause of a defined function
-  | IsIndex                 -- ^ is an index of an inductive family
-  | InDefOf QName          -- ^ in the definition of a constant
-  deriving (Show, Eq, Ord, Generic)
-
-instance NFData Where
 
 -- | Subterm occurrences for positivity checking.
 --   The constructors are listed in increasing information they provide:
@@ -96,10 +40,8 @@ data Occurrence
   | Unused    -- ^ No occurrence.
   deriving (Show, Eq, Ord, Enum, Bounded)
 
--- Pretty instances.
-
-instance Pretty Occurrence where
-  pretty = text . \case
+instance P.Pretty Occurrence where
+  pretty = P.text . \case
     Unused    -> "_"
     Mixed     -> "*"
     JustNeg   -> "-"
@@ -107,33 +49,9 @@ instance Pretty Occurrence where
     StrictPos -> "++"
     GuardPos  -> "g+"
 
-instance Pretty Where where
-  pretty = \case
-    LeftOfArrow  -> "LeftOfArrow"
-    DefArg q i   -> "DefArg"     <+> pretty q <+> pretty i
-    UnderInf     -> "UnderInf"
-    VarArg k i   -> "VarArg" <+> pretty k <+> pretty i
-    MetaArg      -> "MetaArg"
-    ConArgType q -> "ConArgType" <+> pretty q
-    IndArgType q -> "IndArgType" <+> pretty q
-    ConEndpoint q
-                 -> "ConEndpoint" <+> pretty q
-    InClause i   -> "InClause"   <+> pretty i
-    Matched      -> "Matched"
-    IsIndex      -> "IsIndex"
-    InDefOf q    -> "InDefOf"    <+> pretty q
-
-instance Pretty OccursWhere where
-  pretty = \case
-    OccursWhere _r ws1 ws2 ->
-      "OccursWhere _" <+> pretty (toList ws1) <+> pretty (toList ws2)
-
--- Other instances for 'Occurrence'.
-
 instance NFData Occurrence where rnf x = seq x ()
 
-instance KillRange Occurrence where
-  killRange = id
+instance KillRange Occurrence where killRange = id
 
 -- | 'Occurrence' is a complete lattice with least element 'Mixed'
 --   and greatest element 'Unused'.
@@ -143,7 +61,6 @@ instance KillRange Occurrence where
 --
 --   For 'oplus', 'Unused' is neutral (zero) and 'Mixed' is dominant.
 --   For 'otimes', 'StrictPos' is neutral (one) and 'Unused' is dominant.
-
 instance SemiRing Occurrence where
   ozero = Unused
   oone  = StrictPos
@@ -185,65 +102,6 @@ instance StarSemiRing Occurrence where
 instance Null Occurrence where
   empty = Unused
 
--- Other instances for 'OccursWhere'.
-
--- There is an orphan PrettyTCM instance for Seq OccursWhere in
--- Agda.TypeChecking.Positivity.
-
-instance Sized OccursWhere where
-  size    (OccursWhere _ cs os) = 1 + size cs + size os
-  natSize (OccursWhere _ cs os) = 1 + natSize cs + natSize os
-
--- | The map contains bindings of the form @bound |-> ess@, satisfying
--- the following property: for every non-empty list @w@,
--- @'foldr1' 'otimes' w '<=' bound@ iff
--- @'or' [ 'all' every w '&&' 'any' some w | (every, some) <- ess ]@.
-
-boundToEverySome ::
-  Map Occurrence [(Occurrence -> Bool, Occurrence -> Bool)]
-boundToEverySome = Map.fromListWith __IMPOSSIBLE__
-  [ ( JustPos
-    , [((/= Unused), (`elem` [Mixed, JustNeg, JustPos]))]
-    )
-  , ( StrictPos
-    , [ ((/= Unused), (`elem` [Mixed, JustNeg, JustPos]))
-      , ((not . (`elem` [Unused, GuardPos])), const True)
-      ]
-    )
-  , ( GuardPos
-    , [((/= Unused), const True)]
-    )
-  ]
-
--- | @productOfEdgesInBoundedWalk occ g u v bound@ returns a value
--- distinct from 'Nothing' iff there is a walk @c@ (a list of edges)
--- in @g@, from @u@ to @v@, for which the product @'foldr1' 'otimes'
--- ('map' occ c) '<=' bound@. In this case the returned value is
--- @'Just' ('foldr1' 'otimes' c)@ for one such walk @c@.
---
--- Preconditions: @u@ and @v@ must belong to @g@, and @bound@ must
--- belong to the domain of @boundToEverySome@.
-
--- There is a property for this function in
--- Internal.Utils.Graph.AdjacencyMap.Unidirectional.
-
-productOfEdgesInBoundedWalk ::
-  (SemiRing e, Ord n) =>
-  (e -> Occurrence) -> Graph n e -> n -> n -> Occurrence -> Maybe e
-productOfEdgesInBoundedWalk occ g u v bound =
-  case Map.lookup bound boundToEverySome of
-    Nothing  -> __IMPOSSIBLE__
-    Just ess ->
-      case msum [ Graph.walkSatisfying
-                    (every . occ . Graph.label)
-                    (some . occ . Graph.label)
-                    g u v
-                | (every, some) <- ess
-                ] of
-        Just es@(_ : _) -> Just (foldr1 otimes (map Graph.label es))
-        Just []         -> __IMPOSSIBLE__
-        Nothing         -> Nothing
-
 modalPolarityToOccurrence :: ModalPolarity -> Occurrence
 modalPolarityToOccurrence = \case
   UnusedPolarity   -> Unused
@@ -251,3 +109,47 @@ modalPolarityToOccurrence = \case
   Positive         -> JustPos
   Negative         -> JustNeg
   MixedPolarity    -> Mixed
+
+-- Paths to occurrences
+----------------------------------------------------------------------------------------------------
+
+data OccursWhere
+  = Root
+  | LeftOfArrow !OccursWhere
+  | DefArg !OccursWhere !QName !Nat    -- ^ in the nth argument of a defined constant
+  | MutDefArg !OccursWhere !QName !Nat -- ^ in the nth argument of a def in the current mutual block
+  | UnderInf !OccursWhere              -- ^ in the principal argument of built-in ∞
+  | VarArg !OccursWhere !Nat           -- ^ as an argument to a bound variable.
+  | MetaArg !OccursWhere               -- ^ as an argument of a metavariable
+  | ConArgType !OccursWhere !QName     -- ^ in the type of a constructor
+  | IndArgType !OccursWhere !QName     -- ^ in a datatype index of a constructor
+  | ConEndpoint !OccursWhere !QName    -- ^ in an endpoint of a higher constructor
+  | InClause !OccursWhere !Nat         -- ^ in the nth clause of a defined function
+  | Matched !OccursWhere               -- ^ matched against in a clause of a defined function
+  | IsIndex !OccursWhere               -- ^ is an index of an inductive family
+  | InDefOf !OccursWhere !QName        -- ^ in the definition of a constant
+  deriving Eq
+
+instance NFData OccursWhere where
+  rnf x = seq x ()
+
+instance Show OccursWhere where
+  show p = go p [] where
+    go p acc = case p of
+      Root            -> acc
+      LeftOfArrow p   -> go p $ " InLeftOfArrow" ++ acc
+      DefArg p q i    -> go p $ " InDefArg "      ++ P.prettyShow q ++ " " ++ P.prettyShow i ++ acc
+      MutDefArg p q i -> go p $ " InMutDefArg "   ++ P.prettyShow q ++ " " ++ P.prettyShow i ++ acc
+      UnderInf p      -> go p $ " InUnderInf" ++ acc
+      VarArg p i      -> go p $ " InVarArg "      ++ P.prettyShow i ++ acc
+      MetaArg p       -> go p $ " InMetaArg" ++ acc
+      ConArgType p q  -> go p $ " InConArgType "  ++ P.prettyShow q ++ acc
+      IndArgType p q  -> go p $ " InIndArgType "  ++ P.prettyShow q ++ acc
+      ConEndpoint p q -> go p $ " InConEndpoint " ++ P.prettyShow q ++ acc
+      InClause p i    -> go p $ " InClause "    ++ P.prettyShow i ++ acc
+      Matched p       -> go p $ " Matched" ++ acc
+      IsIndex p       -> go p $ " IsIndex" ++ acc
+      InDefOf p q     -> go p $ " InDefOf " ++ P.prettyShow q ++ acc
+
+instance P.Pretty OccursWhere where
+  pretty = P.text . show

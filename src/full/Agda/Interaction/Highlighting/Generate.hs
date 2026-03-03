@@ -650,12 +650,13 @@ terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
 -- definitions.
 
 positivityErrorHighlighting ::
-  I.QName -> Seq OccursWhere -> HighlightingInfoBuilder
+  I.QName -> OccursWhere -> HighlightingInfoBuilder
 positivityErrorHighlighting q os =
-  several (rToR <$> getRange q : rs) m
-  where
-    rs = map (\(OccursWhere r _ _) -> r) (Fold.toList os)
-    m  = parserBased { otherAspects = Set.singleton PositivityProblem }
+  mempty -- TODO
+  -- several (rToR <$> getRange q : rs) m
+  -- where
+  --   rs = map (\(OccursWhere r _ _) -> r) (Fold.toList os)
+  --   m  = parserBased { otherAspects = Set.singleton PositivityProblem }
 
 deadcodeHighlighting :: HasRange a => a -> HighlightingInfoBuilder
 deadcodeHighlighting a = H.singleton (rToR $ P.continuous $ getRange a) m

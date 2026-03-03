@@ -4698,7 +4698,7 @@ data Warning
   | InlineNoExactSplit       QName Clause
     -- ^ 'Clause' was turned into copattern matching clause(s) by an @{-# INLINE constructor #-}@
     --   and thus is not a definitional equality any more.
-  | NotStrictlyPositive      QName (Seq OccursWhere)
+  | NotStrictlyPositive      QName OccursWhere
   | ConstructorDoesNotFitInData DataOrRecord_ QName Sort Sort TCErr
       -- ^ Checking whether constructor 'QName' 'Sort' fits into @data@ 'Sort'
       --   produced 'TCErr'.

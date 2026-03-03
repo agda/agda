@@ -9,6 +9,7 @@ import Control.Applicative hiding (empty)
 import Control.DeepSeq
 import Control.Monad.Reader ( MonadReader(..), asks, ReaderT, runReaderT )
 
+import Data.Foldable (toList)
 import Data.Either
 import qualified Data.Foldable as Fold
 import Data.Function (on)
@@ -26,21 +27,24 @@ import Data.Strict.These
 
 import Debug.Trace
 
+import GHC.Generics
+
 import Agda.Interaction.Options.Base (optOccurrence)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Position (HasRange(..), noRange)
+import Agda.Syntax.Position (HasRange(..), noRange, Range)
 import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Benchmark (MonadBench, Phase)
 import Agda.TypeChecking.Monad.Benchmark qualified as Bench
 import Agda.TypeChecking.Patterns.Match ( properlyMatching )
-import Agda.TypeChecking.Positivity.Occurrence
-import Agda.TypeChecking.Positivity.NewOccurrence (Node(..))
-import Agda.TypeChecking.Positivity.NewOccurrence qualified as New
+import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..))
+import Agda.TypeChecking.Positivity.Occurrence qualified as New
+import Agda.TypeChecking.Positivity.OccurrenceAnalysis (Node(..))
+import Agda.TypeChecking.Positivity.OccurrenceAnalysis qualified as New
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
@@ -86,18 +90,29 @@ checkStrictlyPositive mi qset = do
 
   preprocessBlock qs >>= \case
     Nothing -> do
-      reportSDoc "" 1 $ "NOTHING TO DO: " <+> fsep (map prettyTCM qs)
+      -- reportSDoc "" 1 $ "NOTHING TO DO: " <+> fsep (map prettyTCM qs)
+      pure ()
     Just blockInfo -> do
 
       -- compute the occurrence graph
       --------------------------------------------------------------------------------
       !g <- (buildOccurrenceGraph qset)
 
-      -- _ <- Bench.billTo [Bench.Positivity] (New.buildOccurrenceGraph qs)
+      -- g' <- Bench.billTo [Bench.Positivity] $ New.buildOccurrenceGraph qs
+      g' <- Bench.billTo [Bench.Positivity] $ New.buildOccurrenceGraph qs
+      g' <- lift $ toLegacyGraph g'
 
-      -- master 3.9
-      -- new    3.3
-      -- new with avoiding unused args 3.3
+      when (eraseWhere g /= g') do
+        reportSDoc "" 1 $ "OCCURRENCE MISMATCH" <+> fsep (map prettyTCM qs)
+        reportSDoc "" 1 $ vcat
+          [ "LEGACY GRAPH"
+          , nest 2 $ prettyTCM (eraseWhere g)
+          ]
+        reportSDoc "" 1 $ vcat
+          [ "NEW GRAPH"
+          , nest 2 $ prettyTCM g'
+          ]
+        undefined
 
       reportSDoc "tc.pos.tick" 100 $ "constructed graph"
       reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
@@ -218,6 +233,8 @@ checkStrictlyPositive mi qset = do
                 -- which relates productOfEdgesInBoundedWalk to
                 -- gaussJordanFloydWarshallMcNaughtonYamada.
 
+                -- reason :: Occurrence -> OccursWhere -> OccursWhere
+                -- reason :: _
                 reason bound =
                   case productOfEdgesInBoundedWalk
                          occ g' (DefNode q) (DefNode q) bound of
@@ -239,8 +256,9 @@ checkStrictlyPositive mi qset = do
               whenM positivityCheckEnabled $
                 case loop of
                 Just o | o <= JustPos ->
-                  warning $ NotStrictlyPositive q (reason JustPos)
+                  warning $ NotStrictlyPositive q undefined -- (reason JustPos)
                 _ -> return ()
+
 
             let checkInduction :: QName -> TCM ()
                 checkInduction q =
@@ -324,8 +342,144 @@ preprocessBlock qs = do
     _    -> pure Nothing
 
 
+-- Pretty printing
+----------------------------------------------------------------------------------------------------
+
+instance PrettyTCM New.OccursWhere where
+  prettyTCM = pure . P.pretty
+
+
+-- Legacy
+----------------------------------------------------------------------------------------------------
+
+-- | Convert back to "legacy" graph, for testing.
+toLegacyGraph :: New.OccGraph -> IO (Graph.Graph Node (Edge ()))
+toLegacyGraph graph = do
+
+  assocs <- New.nodeMapToList graph
+  assocs <- forM assocs \(src, tgts) -> (src,) <$!> New.nodeMapToList tgts
+  assocs <- pure [(src, tgt, e) | (src, tgts) <- assocs, (tgt, e) <- tgts]
+
+  let convEdge (New.Edge occ _) = Edge occ ()
+
+  let go :: Map Node (Map Node (Edge ())) -> (Node, Node, New.Edge)
+         -> Map Node (Map Node (Edge ()))
+      go m (src, tgt, convEdge -> e) =
+        Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
+        Map.insertWith (\_ tgts -> tgts) tgt mempty $
+        m
+
+  pure $! Graph.Graph $! foldl' go mempty assocs
+
+eraseWhere :: Graph.Graph Node (Edge OccursWhere) -> Graph.Graph Node (Edge ())
+eraseWhere = (fmap . fmap) (const ())
+
+-- | The map contains bindings of the form @bound |-> ess@, satisfying
+-- the following property: for every non-empty list @w@,
+-- @'foldr1' 'otimes' w '<=' bound@ iff
+-- @'or' [ 'all' every w '&&' 'any' some w | (every, some) <- ess ]@.
+
+boundToEverySome ::
+  Map Occurrence [(Occurrence -> Bool, Occurrence -> Bool)]
+boundToEverySome = Map.fromListWith __IMPOSSIBLE__
+  [ ( JustPos
+    , [((/= Unused), (`elem` [Mixed, JustNeg, JustPos]))]
+    )
+  , ( StrictPos
+    , [ ((/= Unused), (`elem` [Mixed, JustNeg, JustPos]))
+      , ((not . (`elem` [Unused, GuardPos])), const True)
+      ]
+    )
+  , ( GuardPos
+    , [((/= Unused), const True)]
+    )
+  ]
+
+-- | @productOfEdgesInBoundedWalk occ g u v bound@ returns a value
+-- distinct from 'Nothing' iff there is a walk @c@ (a list of edges)
+-- in @g@, from @u@ to @v@, for which the product @'foldr1' 'otimes'
+-- ('map' occ c) '<=' bound@. In this case the returned value is
+-- @'Just' ('foldr1' 'otimes' c)@ for one such walk @c@.
+--
+-- Preconditions: @u@ and @v@ must belong to @g@, and @bound@ must
+-- belong to the domain of @boundToEverySome@.
+
+-- There is a property for this function in
+-- Internal.Utils.Graph.AdjacencyMap.Unidirectional.
+
+productOfEdgesInBoundedWalk ::
+  (SemiRing e, Ord n) =>
+  (e -> Occurrence) -> Graph n e -> n -> n -> Occurrence -> Maybe e
+productOfEdgesInBoundedWalk occ g u v bound =
+  case Map.lookup bound boundToEverySome of
+    Nothing  -> __IMPOSSIBLE__
+    Just ess ->
+      case msum [ Graph.walkSatisfying
+                    (every . occ . Graph.label)
+                    (some . occ . Graph.label)
+                    g u v
+                | (every, some) <- ess
+                ] of
+        Just es@(_ : _) -> Just (foldr1 otimes (map Graph.label es))
+        Just []         -> __IMPOSSIBLE__
+        Nothing         -> Nothing
+
+
 -- Computing occurrences
 ----------------------------------------------------------------------------------------------------
+
+--- | Description of an occurrence.
+data OccursWhere
+  = OccursWhere Range (Seq Where) (Seq Where)
+    -- ^ The elements of the sequences, read from left to right,
+    -- explain how to get to the occurrence. The second sequence
+    -- includes the main information, and if the first sequence is
+    -- non-empty, then it includes information about the context of
+    -- the second sequence.
+  deriving (Show, Eq, Ord, Generic)
+
+instance Null OccursWhere where
+  empty = OccursWhere empty empty empty
+  null (OccursWhere r wh1 wh2) = and [ null r, null wh1, null wh2 ]
+
+data Where
+  = LeftOfArrow
+  | DefArg QName Nat      -- ^ in the nth argument of a define constant
+  | UnderInf              -- ^ in the principal argument of built-in ∞
+  | VarArg Occurrence Nat -- ^ as an argument to a bound variable.
+                          --   The polarity, if given, is the polarity of
+                          --   the argument the occurence is in
+  | MetaArg               -- ^ as an argument of a metavariable
+  | ConArgType QName      -- ^ in the type of a constructor
+  | IndArgType QName      -- ^ in a datatype index of a constructor
+  | ConEndpoint QName
+                          -- ^ in an endpoint of a higher constructor
+  | InClause Nat          -- ^ in the nth clause of a defined function
+  | Matched               -- ^ matched against in a clause of a defined function
+  | IsIndex               -- ^ is an index of an inductive family
+  | InDefOf QName         -- ^ in the definition of a constant
+  deriving (Eq, Ord, Show)
+
+instance P.Pretty Where where
+  pretty = \case
+    LeftOfArrow  -> "LeftOfArrow"
+    DefArg q i   -> "DefArg"     P.<+> P.pretty q P.<+> P.pretty i
+    UnderInf     -> "UnderInf"
+    VarArg k i   -> "VarArg" P.<+> P.pretty k P.<+> P.pretty i
+    MetaArg      -> "MetaArg"
+    ConArgType q -> "ConArgType" P.<+> P.pretty q
+    IndArgType q -> "IndArgType" P.<+> P.pretty q
+    ConEndpoint q
+                 -> "ConEndpoint" P.<+> P.pretty q
+    InClause i   -> "InClause"   P.<+> P.pretty i
+    Matched      -> "Matched"
+    IsIndex      -> "IsIndex"
+    InDefOf q    -> "InDefOf"    P.<+> P.pretty q
+
+instance P.Pretty OccursWhere where
+  pretty = \case
+    OccursWhere _r ws1 ws2 ->
+      "OccursWhere _" P.<+> P.pretty (toList ws1) P.<+> P.pretty (toList ws2)
 
 type Graph n e = Graph.Graph n e
 deriving instance (NFData n, NFData e) => NFData (Graph n e)
@@ -885,15 +1039,10 @@ computeEdges muts q ob =
 
 -- Pretty-printing -----------------------------------------------------
 
-instance Pretty Node where
-  pretty = \case
-    DefNode q   -> P.pretty q
-    ArgNode q i -> P.pretty q <> P.text ("." ++ show i)
-
 instance PrettyTCM Node where
   prettyTCM = return . P.pretty
 
-instance PrettyTCMWithNode (Edge OccursWhere) where
+instance P.Pretty a => PrettyTCMWithNode (Edge a) where
   prettyTCMWithNode (WithNode n (Edge o w)) = vcat
     [ prettyTCM o <+> prettyTCM n
     , nest 2 $ return $ P.pretty w
