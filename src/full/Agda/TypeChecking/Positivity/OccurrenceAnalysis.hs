@@ -11,14 +11,18 @@
 {-# OPTIONS_GHC -fworker-wrapper-cbv #-}
 #endif
 
-module Agda.TypeChecking.Positivity.NewOccurrence where
+module Agda.TypeChecking.Positivity.OccurrenceAnalysis where
 
 import Prelude hiding ( null, (!!) )
 
 import Data.HashMap.Strict qualified as HMap
 import Data.Hashable
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
+
+import Control.DeepSeq
 
 import Agda.Interaction.Options.Base (optOccurrence, optPolarity)
 import Agda.Syntax.Internal
@@ -26,8 +30,8 @@ import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad hiding (getOccurrencesFromType)
 import Agda.TypeChecking.Patterns.Match (properlyMatching)
-import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..), modalPolarityToOccurrence)
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..), modalPolarityToOccurrence)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -45,6 +49,7 @@ import Agda.Utils.Monad
 import Agda.Utils.SemiRing
 import Agda.Utils.Size
 import Agda.Utils.StrictReader
+import Agda.Utils.Graph.AdjacencyMap.Unidirectional qualified as Graph
 
 {-
 NOTE:
@@ -53,7 +58,6 @@ NOTE:
   and must be traversed in all cases!
   Proposal: change behavior, skip all Unused subterms
 -}
-
 
 -- Paths to occurrences
 ----------------------------------------------------------------------------------------------------
@@ -103,7 +107,10 @@ instance PrettyTCM Path where
 ----------------------------------------------------------------------------------------------------
 
 data Node = DefNode QName | ArgNode QName Int
-  deriving (Show, Eq)
+  deriving (Show, Eq, Ord)
+
+instance NFData Node where
+  rnf x = seq x ()
 
 instance Hashable Node where
   hashWithSalt h = \case
@@ -170,6 +177,22 @@ addEdgeToGraph src tgt e graph = lookupNode src graph >>= \case
     insertNode tgt e tgts
     insertNode src tgts graph
 
+-- | Convert back to "legacy" graph, for the purpose of testing and
+--   producing warnings in Positivity.hs using legacy code.
+toLegacyGraph :: OccGraph -> IO (Graph.Graph Node Edge)
+toLegacyGraph graph = do
+
+  assocs <- HT.toList graph
+  assocs <- forM assocs \(src, tgts) -> (src,) <$!> HT.toList tgts
+  assocs <- pure [(tgt, src, e) | (src, tgts) <- assocs, (tgt, e) <- tgts]
+
+  let go :: Map Node (Map Node Edge) -> (Node, Node, Edge) -> Map Node (Map Node Edge)
+      go m (src, tgt, e) =
+        Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
+        Map.insertWith (\_ tgts -> tgts) tgt mempty $
+        m
+
+  pure $! Graph.Graph $! foldl' go mempty assocs
 
 -- Occurrence analysis
 ----------------------------------------------------------------------------------------------------

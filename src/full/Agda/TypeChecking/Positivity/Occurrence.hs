@@ -246,8 +246,8 @@ productOfEdgesInBoundedWalk occ g u v bound =
 
 modalPolarityToOccurrence :: ModalPolarity -> Occurrence
 modalPolarityToOccurrence = \case
-  UnusedPolarity -> Unused
+  UnusedPolarity   -> Unused
   StrictlyPositive -> StrictPos
-  Positive -> JustPos
-  Negative -> JustNeg
-  MixedPolarity -> Mixed
+  Positive         -> JustPos
+  Negative         -> JustNeg
+  MixedPolarity    -> Mixed

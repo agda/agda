@@ -39,6 +39,7 @@ import Agda.TypeChecking.Monad.Benchmark (MonadBench, Phase)
 import Agda.TypeChecking.Monad.Benchmark qualified as Bench
 import Agda.TypeChecking.Patterns.Match ( properlyMatching )
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Positivity.NewOccurrence (Node(..))
 import Agda.TypeChecking.Positivity.NewOccurrence qualified as New
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
@@ -68,61 +69,6 @@ import Agda.Utils.MinimalArray.MutableLifted qualified as MAL
 import Agda.Utils.Impossible
 
 ----------------------------------------------------------------------------------------------------
-
-type Graph n e = Graph.Graph n e
-
-data TrimNode = ArgN String Int | DefN String deriving (Eq, Ord, Show)
-type TrimGraph = Map TrimNode (Map TrimNode Occurrence)
-
--- -- | Bring old and new graphs to same representation, ignoring paths
--- --   Also filter out useless nodes (with no associated edges)
--- trimGraphs :: Graph Node (Edge OccursWhere)
---               -> Graph New.Node New.Edge
---               -> (TrimGraph, TrimGraph)
--- trimGraphs (Graph.Graph m) (Graph.Graph m') =
---   let convnode = Map.mapKeys \case ArgNode x i -> ArgN (prettyShow x) i
---                                    DefNode x   -> DefN (prettyShow x)
---       convnode' = Map.mapKeys \case New.ArgNode x i -> ArgN (prettyShow x) i
---                                     New.DefNode x   -> DefN (prettyShow x)
---       convedge  = fmap \(Edge p _) -> p
---       convedge' = fmap \(New.Edge p _) -> p
---   in
---   ( fmap (convedge . convnode) (convnode (Map.filter (not . null) m))
---   , fmap (convedge' . convnode') (convnode' m')
---   )
-
-erasePaths :: Graph Node (Edge OccursWhere) -> Graph Node (Edge ())
-erasePaths = (fmap . fmap) (const ())
-
-deriving instance (NFData n, NFData e) => NFData (Graph n e)
-instance NFData Node where
-  rnf a = seq a ()
-
--- fixupNewGraph :: New.OccGraph -> IO (Graph Node (Edge OccursWhere))
--- fixupNewGraph graph = do
---   srcs <- AL.toList <$> MAL.freeze graph
---   _
-
-
-fixupGraph :: Graph New.Node New.Edge -> Graph Node (Edge OccursWhere)
-fixupGraph (Graph.Graph m) = Graph.Graph $ foldl' go mempty assocs where
-
-  assocs = [(tgt, src, e) | (src, tgts) <- Map.toList m, (tgt, e) <- Map.toList tgts]
-
-  convNode (New.ArgNode x i) = ArgNode x i
-  convNode (New.DefNode x)   = DefNode x
-
-  convEdge (New.Edge occ _) = Edge occ empty
-
-  go :: Map Node (Map Node (Edge OccursWhere))
-        -> (New.Node, New.Node, New.Edge) -> Map Node (Map Node (Edge OccursWhere))
-  go m (convNode -> src, convNode -> tgt, convEdge -> e) =
-    Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
-    Map.insertWith (\_ tgts -> tgts) tgt mempty $
-    m
-
--- buildOccurrenceGraph' :: Set QName -> TCM (Graph Node (Edge OccursWhere))
--- buildOccurrenceGraph' qs = fixupNewGraph . Graph.Graph <$!> Bench.billTo [Bench.Positivity] (New.buildOccurrenceGraph qs)
 
 -- | Check that the datatypes in the mutual block containing the given
 --   declarations are strictly positive.
@@ -377,10 +323,12 @@ preprocessBlock qs = do
     True -> pure $ Just info
     _    -> pure Nothing
 
-----------------------------------------------------------------------------------------------------
+
+-- Computing occurrences
 ----------------------------------------------------------------------------------------------------
 
--- Computing occurrences --------------------------------------------------
+type Graph n e = Graph.Graph n e
+deriving instance (NFData n, NFData e) => NFData (Graph n e)
 
 data Item = AnArg Nat [Occurrence]
           | ADef QName
@@ -750,10 +698,6 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
 
 
 -- Building the occurrence graph ------------------------------------------
-
-data Node = DefNode QName
-          | ArgNode QName Nat
-  deriving (Eq, Ord, Show)
 
 -- | Edge labels for the positivity graph.
 data Edge a = Edge !Occurrence a
