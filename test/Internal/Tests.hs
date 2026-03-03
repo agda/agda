@@ -80,8 +80,8 @@ tests = testGroup "Internal" $
   Internal.TypeChecking.Generators.tests :
   Internal.TypeChecking.Irrelevance.tests :
   Internal.TypeChecking.Monad.Base.tests :
-  -- Internal.TypeChecking.Positivity.tests :
-  -- Internal.TypeChecking.Positivity.Occurrence.tests :
+  Internal.TypeChecking.Positivity.tests :
+  Internal.TypeChecking.Positivity.Occurrence.tests :
   Internal.TypeChecking.Rules.LHS.Problem.tests :
   Internal.TypeChecking.SizedTypes.tests :
   Internal.TypeChecking.Substitute.tests :
@@ -92,7 +92,7 @@ tests = testGroup "Internal" $
   Internal.Utils.Either.tests :
   Internal.Utils.Favorites.tests :
   Internal.Utils.FileName.tests :
-  -- Internal.Utils.Graph.AdjacencyMap.Unidirectional.tests :
+  Internal.Utils.Graph.AdjacencyMap.Unidirectional.tests :
   Internal.Utils.IntSet.tests :
   Internal.Utils.Lens.tests :
   Internal.Utils.List.tests :

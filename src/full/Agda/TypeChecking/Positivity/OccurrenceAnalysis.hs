@@ -269,8 +269,8 @@ mutualDefOcc d = case theDef d of
   Datatype{} -> GuardPos
   _          -> StrictPos
 
-lookupDef :: QName -> TCM Definition
-lookupDef q = Bench.billTo [Bench.Positivity] (getConstInfo q)
+-- lookupDef :: QName -> TCM Definition
+-- lookupDef q = Bench.billTo [Bench.Positivity] (getConstInfo q)
 
 -- getDefArgOccurrences :: Definition -> TCM [Occurrence]
 -- getDefArgOccurrences def = do
@@ -341,12 +341,12 @@ instance ComputeOccurrences Term where
                     e:es -> ret do occurrencesInMutDefArg d p i e
                                    elims d p (i + 1) es
 
-              defOcc <- lift (mutualDefOcc <$> lookupDef d)
+              defOcc <- lift (mutualDefOcc <$> getConstInfo d)
               elims d defOcc 0 es
 
         -- not a mutual definition
         False -> do
-          def <- lift $ lookupDef d
+          def <- lift $ getConstInfo d
           case theDef def of
             Constructor{} -> do
               -- reportSLn "" 1 $ "CONSTRUCTOR " ++ P.prettyShow d

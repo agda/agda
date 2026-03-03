@@ -17,8 +17,8 @@ import Data.Graph (SCC(..))
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 import Data.Sequence (Seq)
 import qualified Data.Sequence as DS
 import Data.Set (Set)
@@ -45,6 +45,7 @@ import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..))
 import Agda.TypeChecking.Positivity.Occurrence qualified as New
 import Agda.TypeChecking.Positivity.OccurrenceAnalysis (Node(..))
 import Agda.TypeChecking.Positivity.OccurrenceAnalysis qualified as New
+import Agda.TypeChecking.Positivity.Compat
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
@@ -98,8 +99,8 @@ checkStrictlyPositive mi qset = do
       --------------------------------------------------------------------------------
       !g <- (buildOccurrenceGraph qset)
 
+      g' <- New.buildOccurrenceGraph qs
       -- g' <- Bench.billTo [Bench.Positivity] $ New.buildOccurrenceGraph qs
-      g' <- Bench.billTo [Bench.Positivity] $ New.buildOccurrenceGraph qs
       g' <- lift $ toLegacyGraph g'
 
       when (eraseWhere g /= g') do
@@ -374,112 +375,9 @@ toLegacyGraph graph = do
 eraseWhere :: Graph.Graph Node (Edge OccursWhere) -> Graph.Graph Node (Edge ())
 eraseWhere = (fmap . fmap) (const ())
 
--- | The map contains bindings of the form @bound |-> ess@, satisfying
--- the following property: for every non-empty list @w@,
--- @'foldr1' 'otimes' w '<=' bound@ iff
--- @'or' [ 'all' every w '&&' 'any' some w | (every, some) <- ess ]@.
-
-boundToEverySome ::
-  Map Occurrence [(Occurrence -> Bool, Occurrence -> Bool)]
-boundToEverySome = Map.fromListWith __IMPOSSIBLE__
-  [ ( JustPos
-    , [((/= Unused), (`elem` [Mixed, JustNeg, JustPos]))]
-    )
-  , ( StrictPos
-    , [ ((/= Unused), (`elem` [Mixed, JustNeg, JustPos]))
-      , ((not . (`elem` [Unused, GuardPos])), const True)
-      ]
-    )
-  , ( GuardPos
-    , [((/= Unused), const True)]
-    )
-  ]
-
--- | @productOfEdgesInBoundedWalk occ g u v bound@ returns a value
--- distinct from 'Nothing' iff there is a walk @c@ (a list of edges)
--- in @g@, from @u@ to @v@, for which the product @'foldr1' 'otimes'
--- ('map' occ c) '<=' bound@. In this case the returned value is
--- @'Just' ('foldr1' 'otimes' c)@ for one such walk @c@.
---
--- Preconditions: @u@ and @v@ must belong to @g@, and @bound@ must
--- belong to the domain of @boundToEverySome@.
-
--- There is a property for this function in
--- Internal.Utils.Graph.AdjacencyMap.Unidirectional.
-
-productOfEdgesInBoundedWalk ::
-  (SemiRing e, Ord n) =>
-  (e -> Occurrence) -> Graph n e -> n -> n -> Occurrence -> Maybe e
-productOfEdgesInBoundedWalk occ g u v bound =
-  case Map.lookup bound boundToEverySome of
-    Nothing  -> __IMPOSSIBLE__
-    Just ess ->
-      case msum [ Graph.walkSatisfying
-                    (every . occ . Graph.label)
-                    (some . occ . Graph.label)
-                    g u v
-                | (every, some) <- ess
-                ] of
-        Just es@(_ : _) -> Just (foldr1 otimes (map Graph.label es))
-        Just []         -> __IMPOSSIBLE__
-        Nothing         -> Nothing
-
 
 -- Computing occurrences
 ----------------------------------------------------------------------------------------------------
-
---- | Description of an occurrence.
-data OccursWhere
-  = OccursWhere Range (Seq Where) (Seq Where)
-    -- ^ The elements of the sequences, read from left to right,
-    -- explain how to get to the occurrence. The second sequence
-    -- includes the main information, and if the first sequence is
-    -- non-empty, then it includes information about the context of
-    -- the second sequence.
-  deriving (Show, Eq, Ord, Generic)
-
-instance Null OccursWhere where
-  empty = OccursWhere empty empty empty
-  null (OccursWhere r wh1 wh2) = and [ null r, null wh1, null wh2 ]
-
-data Where
-  = LeftOfArrow
-  | DefArg QName Nat      -- ^ in the nth argument of a define constant
-  | UnderInf              -- ^ in the principal argument of built-in ∞
-  | VarArg Occurrence Nat -- ^ as an argument to a bound variable.
-                          --   The polarity, if given, is the polarity of
-                          --   the argument the occurence is in
-  | MetaArg               -- ^ as an argument of a metavariable
-  | ConArgType QName      -- ^ in the type of a constructor
-  | IndArgType QName      -- ^ in a datatype index of a constructor
-  | ConEndpoint QName
-                          -- ^ in an endpoint of a higher constructor
-  | InClause Nat          -- ^ in the nth clause of a defined function
-  | Matched               -- ^ matched against in a clause of a defined function
-  | IsIndex               -- ^ is an index of an inductive family
-  | InDefOf QName         -- ^ in the definition of a constant
-  deriving (Eq, Ord, Show)
-
-instance P.Pretty Where where
-  pretty = \case
-    LeftOfArrow  -> "LeftOfArrow"
-    DefArg q i   -> "DefArg"     P.<+> P.pretty q P.<+> P.pretty i
-    UnderInf     -> "UnderInf"
-    VarArg k i   -> "VarArg" P.<+> P.pretty k P.<+> P.pretty i
-    MetaArg      -> "MetaArg"
-    ConArgType q -> "ConArgType" P.<+> P.pretty q
-    IndArgType q -> "IndArgType" P.<+> P.pretty q
-    ConEndpoint q
-                 -> "ConEndpoint" P.<+> P.pretty q
-    InClause i   -> "InClause"   P.<+> P.pretty i
-    Matched      -> "Matched"
-    IsIndex      -> "IsIndex"
-    InDefOf q    -> "InDefOf"    P.<+> P.pretty q
-
-instance P.Pretty OccursWhere where
-  pretty = \case
-    OccursWhere _r ws1 ws2 ->
-      "OccursWhere _" P.<+> P.pretty (toList ws1) P.<+> P.pretty (toList ws2)
 
 type Graph n e = Graph.Graph n e
 deriving instance (NFData n, NFData e) => NFData (Graph n e)
@@ -852,37 +750,6 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
 
 
 -- Building the occurrence graph ------------------------------------------
-
--- | Edge labels for the positivity graph.
-data Edge a = Edge !Occurrence a
-  deriving (Eq, Ord, Show, Functor)
-
--- | Merges two edges between the same source and target.
-
-mergeEdges :: Edge a -> Edge a -> Edge a
-mergeEdges _                    e@(Edge Mixed _)     = e -- dominant
-mergeEdges e@(Edge Mixed _)     _                    = e
-mergeEdges (Edge Unused _)      e                    = e -- neutral
-mergeEdges e                    (Edge Unused _)      = e
-mergeEdges (Edge JustNeg _)     e@(Edge JustNeg _)   = e
-mergeEdges _                    e@(Edge JustNeg w)   = Edge Mixed w
-mergeEdges e@(Edge JustNeg w)   _                    = Edge Mixed w
-mergeEdges _                    e@(Edge JustPos _)   = e -- dominates strict pos.
-mergeEdges e@(Edge JustPos _)   _                    = e
-mergeEdges _                    e@(Edge StrictPos _) = e -- dominates 'GuardPos'
-mergeEdges e@(Edge StrictPos _) _                    = e
-mergeEdges (Edge GuardPos _)    e@(Edge GuardPos _)  = e
-
--- | These operations form a semiring if we quotient by the relation
--- \"the 'Occurrence' components are equal\".
-
-instance SemiRing (Edge (Seq OccursWhere)) where
-  ozero = Edge ozero DS.empty
-  oone  = Edge oone  DS.empty
-
-  oplus = mergeEdges
-
-  otimes (Edge o1 w1) (Edge o2 w2) = Edge (otimes o1 o2) (w1 DS.>< w2)
 
 -- | WARNING: There can be lots of sharing between the 'OccursWhere'
 -- entries in the edges. Traversing all of these entries could be

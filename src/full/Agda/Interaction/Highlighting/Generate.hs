@@ -52,7 +52,8 @@ import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad  as TCM
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import qualified Agda.TypeChecking.Pretty as TCM
-import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..))
+import Agda.TypeChecking.Positivity.Compat
 import Agda.TypeChecking.Warnings ( raiseWarningsOnUsage )
 
 import qualified Agda.Syntax.Abstract as A
@@ -650,13 +651,12 @@ terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
 -- definitions.
 
 positivityErrorHighlighting ::
-  I.QName -> OccursWhere -> HighlightingInfoBuilder
+  I.QName -> Seq OccursWhere -> HighlightingInfoBuilder
 positivityErrorHighlighting q os =
-  mempty -- TODO
-  -- several (rToR <$> getRange q : rs) m
-  -- where
-  --   rs = map (\(OccursWhere r _ _) -> r) (Fold.toList os)
-  --   m  = parserBased { otherAspects = Set.singleton PositivityProblem }
+  several (rToR <$> getRange q : rs) m
+  where
+    rs = map (\(OccursWhere r _ _) -> r) (Fold.toList os)
+    m  = parserBased { otherAspects = Set.singleton PositivityProblem }
 
 deadcodeHighlighting :: HasRange a => a -> HighlightingInfoBuilder
 deadcodeHighlighting a = H.singleton (rToR $ P.continuous $ getRange a) m

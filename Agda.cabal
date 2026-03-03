@@ -787,6 +787,7 @@ library
       Agda.TypeChecking.Patterns.Match
       Agda.TypeChecking.Polarity
       Agda.TypeChecking.Positivity
+      Agda.TypeChecking.Positivity.Compat
       Agda.TypeChecking.Positivity.Occurrence
       Agda.TypeChecking.Positivity.OccurrenceAnalysis
       Agda.TypeChecking.Pretty

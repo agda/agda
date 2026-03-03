@@ -98,7 +98,8 @@ import Agda.TypeChecking.SizedTypes.Syntax  (HypSizeConstraint)
 import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.Conversion.Errors
 import Agda.TypeChecking.Coverage.SplitTree
-import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..), PragmaPolarities)
+import Agda.TypeChecking.Positivity.Compat (OccursWhere)
 import Agda.TypeChecking.Free
 
 import Agda.TypeChecking.DiscrimTree.Types
@@ -4698,7 +4699,7 @@ data Warning
   | InlineNoExactSplit       QName Clause
     -- ^ 'Clause' was turned into copattern matching clause(s) by an @{-# INLINE constructor #-}@
     --   and thus is not a definitional equality any more.
-  | NotStrictlyPositive      QName OccursWhere
+  | NotStrictlyPositive      QName (Seq OccursWhere)
   | ConstructorDoesNotFitInData DataOrRecord_ QName Sort Sort TCErr
       -- ^ Checking whether constructor 'QName' 'Sort' fits into @data@ 'Sort'
       --   produced 'TCErr'.
