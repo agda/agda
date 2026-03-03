@@ -28,12 +28,12 @@ module Baz = Par1
 
 module Test4 where
   open Baz.Par2
-  test : Set
+  test : Set₁ → Set
   test = A
 
 module Test5 where
   open Baz.Par2 Set
-  test : Set
+  test : Set₁ → Set
   test = A
 
 module Test6 where
