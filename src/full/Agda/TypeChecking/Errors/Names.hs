@@ -198,7 +198,6 @@ typeErrorName = \case
   QualifiedLocalModule                                       {} -> QualifiedLocalModule_
   QuantityMismatch                                           {} -> QuantityMismatch_
   RecordIsErased                                             {} -> RecordIsErased_
-  RecursiveRecordNeedsInductivity                            {} -> RecursiveRecordNeedsInductivity_
   ReferencesFutureVariables                                  {} -> ReferencesFutureVariables_
   RelevanceMismatch                                          {} -> RelevanceMismatch_
   RepeatedNamesInImportDirective                             {} -> RepeatedNamesInImportDirective_

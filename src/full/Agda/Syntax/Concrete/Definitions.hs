@@ -66,6 +66,7 @@ import Data.List             qualified as List
 import Data.Map              qualified as Map
 import Data.Maybe
 import Data.Semigroup        ( sconcat )
+import Data.Set              qualified as Set
 import Data.Text             ( Text )
 
 import Agda.Syntax.Common hiding (TerminationCheck())
@@ -167,6 +168,27 @@ declKind NiceUnquoteDecl{}                   = OtherDecl
 declKind NiceLoneConstructor{}               = OtherDecl
 declKind NiceOpaque{}                        = OtherDecl
 
+
+-- | Ensure that every signature got its definition.
+-- Signatures ('FunSig', 'NiceDataSig', 'NiceRecSig'), that are /lone/,
+-- i.e., did not get a definition,
+-- are replaced by 'Axiom's so that the scope checker will not
+-- look for accompanying definitions ('FunDef', 'NiceDataDef', 'NiceRecDef').
+-- Throws also a 'MissingDefinitions' warning for the lone names.
+turnLoneSignaturesIntoAxioms ::
+     [NiceDeclaration]
+       -- ^ Containing @(Data/Rec/Fun)Sigs@ for the lone signatures.
+  -> LoneSigs
+       -- ^ The signatures that are not accompanied by a definition.
+  -> Nice [NiceDeclaration]
+       -- ^ The indicated lone signatures have been replaced by @Axiom@s.
+       --   Length and ordering of the declaration list are not affected.
+turnLoneSignaturesIntoAxioms ds ps = do
+  -- Clear the lone sigs in the state, throw a warning for @ps@.
+  checkLoneSigs ps
+  -- Replace in @ds@ as indicated by @ps@.
+  return $ replaceSigs ps ds
+
 -- | Replace @(Data/Rec/Fun)Sigs@ with @Axiom@s for postulated names.
 --   The first argument is a list of axioms only.
 replaceSigs
@@ -218,10 +240,12 @@ niceDeclarations fixs ds = do
   nds <- nice ds
 
   -- Check that every signature got its definition.
-  ps <- use loneSigs
-  checkLoneSigs ps
-  -- We postulate the missing ones and insert them in place of the corresponding @FunSig@
-  let ds = replaceSigs ps nds
+  -- We postulate the missing ones and insert them as @Axiom@s
+  -- in place of the corresponding @FunSig@, @NiceDataSig@ or @NiceRecSig@.
+  -- This ensures that their names will be in scope but the scope checker
+  -- will not search for a corresponding definition (@FunDef@, @NiceDataDef@, @NiceRecDef@).
+  -- We also throw a @MissingDefinitions@ warning.
+  ds <- turnLoneSignaturesIntoAxioms nds =<< use loneSigs
 
   -- Note that loneSigs is ensured to be empty.
   -- (Important, since inferMutualBlocks also uses loneSigs state).
@@ -244,10 +268,9 @@ niceDeclarations fixs ds = do
           _ <- addLoneSig r x k
           InferredMutual checks nds0 ds1 <- untilAllDefined (mutualChecks k) ds
           -- If we still have lone signatures without any accompanying definition,
-          -- we postulate the definition and substitute the axiom for the lone signature
-          ps <- use loneSigs
-          checkLoneSigs ps
-          let ds0 = List1.fromListSafe __IMPOSSIBLE__ $ replaceSigs ps (d : nds0)
+          -- we postulate the definition and substitute the axiom for the lone signature.
+          ds0 <- List1.fromListSafe __IMPOSSIBLE__ <$> do
+            turnLoneSignaturesIntoAxioms (d : nds0) =<< use loneSigs
             -- NB: don't forget the LoneSig that the block started with!
           -- We then keep processing the rest of the block
           tc <- combineTerminationChecks (getRange d) (mutualTermination checks)
@@ -339,7 +362,7 @@ niceDeclarations fixs ds = do
                 return (d , ds)
               -- Subcase: The lhs is a proper pattern.
               -- This could be a let-pattern binding. Pass it on.
-              -- A missing type signature error might be raise in ConcreteToAbstract
+              -- A missing type signature error might be raised in ConcreteToAbstract
               _ -> do
                 return ([NiceFunClause (getRange d) PublicAccess ConcreteDef termCheck covCheck catchall d] , ds)
 
@@ -389,11 +412,13 @@ niceDeclarations fixs ds = do
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
-          mt <- retrieveTypeSig (DataName pc uc) x
+          (pc, uc) <- retrieveTypeSig (DataName pc uc) x >>= \case
+             DataName pc uc -> pure (pc, uc)
+             _ -> __IMPOSSIBLE__
           defpars <- niceDefParameters IsData tel
           (,ds) <$> dataOrRec pc uc NiceDataDef
                       (flip NiceDataSig defaultErased) (niceAxioms DataBlock) r
-                      x ((tel,) <$> mt) (Just (defpars, cs))
+                      x Nothing (Just (defpars, cs))
 
         RecordSig r erased x tel t -> do
           pc <- use positivityCheckPragma
@@ -426,13 +451,15 @@ niceDeclarations fixs ds = do
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
-          mt <- retrieveTypeSig (RecName pc uc) x
+          (pc, uc) <- retrieveTypeSig (RecName pc uc) x >>= \case
+            RecName pc uc -> pure (pc, uc)
+            _ -> __IMPOSSIBLE__
           defpars <- niceDefParameters (IsRecord ()) tel
           (,ds) <$> dataOrRec pc uc
                       (\r o a pc uc x tel cs ->
                         NiceRecDef r o a pc uc x dir tel cs)
                       (flip NiceRecSig defaultErased) return r x
-                      ((tel,) <$> mt) (Just (defpars, cs))
+                      Nothing (Just (defpars, cs))
 
         Mutual r ds' -> do
           -- The lone signatures encountered so far are not in scope
@@ -530,9 +557,7 @@ niceDeclarations fixs ds = do
           -- recursion by interleaving type signatures and definitions,
           -- just like the body of a module.
           decls0 <- nice body
-          ps <- use loneSigs
-          checkLoneSigs ps
-          let decls = replaceSigs ps decls0
+          decls <- turnLoneSignaturesIntoAxioms decls0 =<< use loneSigs
           body <- inferMutualBlocks decls
           pure ([NiceOpaque r (concat unfoldings) body], ds)
 
@@ -676,12 +701,16 @@ niceDeclarations fixs ds = do
       NoUniverseCheckPragma{}   -> True
       _                         -> False
 
-    -- Get the data or record type signature.
-    retrieveTypeSig :: DataRecOrFun -> Name -> Nice (Maybe Expr)
+    -- Remove the data or record type signature,
+    -- using its positivity check / universe check information
+    -- to refine the given one.
+    retrieveTypeSig :: DataRecOrFun -> Name -> Nice DataRecOrFun
     retrieveTypeSig k x = do
-      caseMaybeM (getSig x) (return Nothing) $ \ k' -> do
-        unless (sameKind k k') $ declarationException $ WrongDefinition x k' k
-        Nothing <$ removeLoneSig x
+      caseMaybeM (getSig x) (return k) $ \ k' -> do
+        removeLoneSig x
+        case mergeDataRecOrFun k k' of
+          Just k  -> return k
+          Nothing -> declarationException $ WrongDefinition x k' k
 
     dataOrRec :: forall a decl.
          PositivityCheck
@@ -926,9 +955,7 @@ niceDeclarations fixs ds = do
       (other, ISt m checks _) <- runStateT (groupByBlocks kwr ds') $ ISt empty mempty 0
       idecls <- (other ++) . concat <$> mapM (uncurry interleavedDecl) (Map.toList m)
       let decls0 = map snd $ List.sortBy (compare `on` fst) idecls
-      ps <- use loneSigs
-      checkLoneSigs ps
-      let decls = replaceSigs ps decls0
+      decls <- turnLoneSignaturesIntoAxioms decls0 =<< use loneSigs
       -- process the checks
       let r = fuseRange kwr ds'
       tc <- combineTerminationChecks r (mutualTermination checks)
@@ -1097,10 +1124,8 @@ niceDeclarations fixs ds = do
       -> Nice (Maybe NiceDeclaration)
            -- Returns a 'NiceMutual' unless empty.
     mkOldMutual kwr ds' = do
-        -- Postulate the missing definitions
-        let ps = loneSigsFromLoneNames loneNames
-        checkLoneSigs ps
-        let ds = replaceSigs ps ds'
+        -- Turn the missing definitions into postulates.
+        ds <- turnLoneSignaturesIntoAxioms ds' $ loneSigsFromLoneNames loneSigNames
 
         -- -- Remove the declarations that aren't allowed in old style mutual blocks
         -- ds <- fmap catMaybes $ forM ds $ \ d -> let success = pure (Just d) in case d of
@@ -1142,13 +1167,18 @@ niceDeclarations fixs ds = do
             NiceImport{}        -> top
             NiceRecSig{}        -> top
             NiceDataSig{}       -> top
-            -- Andreas, 2017-10-09, issue #2576, raise error about missing type signature
+            -- Andreas, 2017-10-09, issue #2576, keep NiceFunClause in
+            -- to raise error about missing type signature
             -- in ConcreteToAbstract rather than here.
-            NiceFunClause{}     -> bottom
+            -- Andreas, 2026-02-28, issue #4150: sort it up to give the
+            -- MissingTypeSignature error priority over potential NotInScope errors.
+            NiceFunClause{}     -> top
             FunSig{}            -> top
             FunDef{}            -> bottom
-            NiceDataDef{}       -> bottom
-            NiceRecDef{}        -> bottom
+            -- Andreas, 2026-02-28, issue #4150:
+            -- Sort lone defs up to prioritise MissingTypeSignature error.
+            NiceDataDef _ _ _ _ _ x _ _   -> if x `Set.member` loneDefNames then top else bottom
+            NiceRecDef _ _ _ _ _ x _ _ _  -> if x `Set.member` loneDefNames then top else bottom
             -- Andreas, 2018-05-11, issue #3051, allow pat.syn.s in mutual blocks
             -- Andreas, 2018-10-29: We shift pattern synonyms to the bottom
             -- since they might refer to constructors defined in a data types
@@ -1239,7 +1269,9 @@ niceDeclarations fixs ds = do
         sigNames  = [ (r, x, k) | LoneSigDecl r k x <- map declKind ds' ]
         defNames  = [ (x, k) | LoneDefs k xs <- map declKind ds', x <- xs ]
         -- compute the set difference with equality just on names
-        loneNames = [ (r, x, k) | (r, x, k) <- sigNames, List.all ((x /=) . fst) defNames ]
+        loneSigNames = [ (r, x, k) | (r, x, k) <- sigNames, List.all ((x /=) . fst) defNames ]
+        loneDefNames = Set.fromList [ x | (x, _) <- defNames, x `Set.notMember` sigNameSet ]
+        sigNameSet   = Set.fromList [ x | (_, x, _) <- sigNames ]
 
         termCheck :: NiceDeclaration -> TerminationCheck
         -- Andreas, 2013-02-28 (issue 804):

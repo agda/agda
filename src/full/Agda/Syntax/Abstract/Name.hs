@@ -58,7 +58,7 @@ data Name = Name
   { _nameId          :: {-# UNPACK #-} !NameId
   , nameConcrete     :: C.Name  -- ^ The concrete name used for this instance
   , nameCanonical    :: C.Name  -- ^ The concrete name in the original definition (needed by primShowQName, see #4735)
-  , nameBindingSite  :: Range
+  , _nameBindingSite :: Range   -- ^ Range of the name in its /defining/ occurrence.
   , nameFixity       :: Fixity'
   , nameIsRecordName :: Bool
       -- ^ Is this the name of the invisible record variable `self`?
@@ -207,6 +207,28 @@ instance HasNameId QName where
 
 instance HasNameId AbstractName where
   nameId = nameId . anameName
+
+---------------------------------------------------------------------------
+-- * Overloaded 'nameBindingSite'
+---------------------------------------------------------------------------
+
+class HasNameBindingSite a where
+  nameBindingSite :: a -> Range
+
+instance HasNameBindingSite Name where
+  nameBindingSite = _nameBindingSite
+
+instance HasNameBindingSite QName where
+  nameBindingSite = nameBindingSite . qnameName
+
+instance HasNameBindingSite ModuleName where
+  nameBindingSite = nameBindingSite . mnameToQName
+
+instance HasNameBindingSite AbstractName where
+  nameBindingSite = nameBindingSite . anameName
+
+instance HasNameBindingSite AbstractModule where
+  nameBindingSite = nameBindingSite . amodName
 
 ---------------------------------------------------------------------------
 -- * Class 'IsProjP'
@@ -703,7 +725,7 @@ instance SetRange ModuleName where
 
 instance KillRange Name where
   killRange (Name a b c d e f) =
-    (killRangeN Name a b c d e f) { nameBindingSite = d }
+    (killRangeN Name a b c d e f) { _nameBindingSite = d }
     -- Andreas, 2017-07-25, issue #2649
     -- Preserve the nameBindingSite for error message.
     --

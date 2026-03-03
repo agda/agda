@@ -2906,6 +2906,8 @@ data DatatypeData = DatatypeData
       --   Does include this data type.
       --   Empty if not recursive.
       --   @Nothing@ if not yet computed (by positivity checker).
+  , _dataPositivityCheck:: PositivityCheck
+      -- ^ Should positivity errors be reported for this data type?
   , _dataAbstr          :: IsAbstract
   , _dataPathCons       :: [QName]
       -- ^ Path constructor names (subset of @dataCons@).
@@ -2922,6 +2924,7 @@ pattern Datatype
   -> [QName]
   -> Sort
   -> Maybe [QName]
+  -> PositivityCheck
   -> IsAbstract
   -> [QName]
   -> Maybe QName
@@ -2935,6 +2938,7 @@ pattern Datatype
   , dataCons
   , dataSort
   , dataMutual
+  , dataPositivityCheck
   , dataAbstr
   , dataPathCons
   , dataTranspIx
@@ -2946,6 +2950,7 @@ pattern Datatype
     dataCons
     dataSort
     dataMutual
+    dataPositivityCheck
     dataAbstr
     dataPathCons
     dataTranspIx
@@ -2973,6 +2978,8 @@ data RecordData = RecordData
       --   Does include this record.
       --   Empty if not recursive.
       --   @Nothing@ if not yet computed (by positivity checker).
+  , _recPositivityCheck :: PositivityCheck
+      -- ^ Should positivity errors be reported for this record type?
   , _recEtaEquality'    :: EtaEquality
       -- ^ Eta-expand at this record type?
       --   @False@ for unguarded recursive records and coinductive records
@@ -3002,6 +3009,7 @@ pattern Record
   -> [Dom QName]
   -> Telescope
   -> Maybe [QName]
+  -> PositivityCheck
   -> EtaEquality
   -> PatternOrCopattern
   -> Maybe Induction
@@ -3018,6 +3026,7 @@ pattern Record
   , recFields
   , recTel
   , recMutual
+  , recPositivityCheck
   , recEtaEquality'
   , recPatternMatching
   , recInduction
@@ -3032,6 +3041,7 @@ pattern Record
     recFields
     recTel
     recMutual
+    recPositivityCheck
     recEtaEquality'
     recPatternMatching
     recInduction
@@ -3272,6 +3282,7 @@ instance Pretty DatatypeData where
       dataCons
       dataSort
       dataMutual
+      _dataPositivityCheck
       _dataAbstr
       _dataPathCons
       _dataTranspIx
@@ -3296,6 +3307,7 @@ instance Pretty RecordData where
       recFields
       recTel
       recMutual
+      _recPositivityCheck
       recEtaEquality'
       _recPatternMatching
       recInduction
@@ -4884,6 +4896,8 @@ data Warning
   -- Type checker warnings
   | TooManyArgumentsToSort QName (List1 (NamedArg A.Expr))
       -- ^ Extra arguments to sort (will be ignored).
+  | DefinitionBeforeDeclaration A.AbstractName
+      -- ^ A definition appears before its declaration in a @mutual@ block.
   | RewritesNothing
       -- ^ A @rewrite@ expression that does not fire.
   | WithClauseProjectionFixityMismatch
@@ -4894,6 +4908,9 @@ data Warning
     }
     -- ^ The with-clause uses projection in a different fixity style
     --   than the parent clause.
+  | RecursiveRecordNeedsInductivity QName
+      -- ^ A record type inferred as recursive needs a manual declaration
+      --   whether it should be inductively or coinductively.
 
   -- Polarity warnings
   | TooManyPolarities QName PragmaPolarities
@@ -5029,6 +5046,8 @@ warningName = \case
 
   -- Type checking
   TooManyArgumentsToSort{}             -> TooManyArgumentsToSort_
+  DefinitionBeforeDeclaration{}        -> DefinitionBeforeDeclaration_
+  RecursiveRecordNeedsInductivity{}    -> RecursiveRecordNeedsInductivity_
   RewritesNothing{}                    -> RewritesNothing_
   WithClauseProjectionFixityMismatch{} -> WithClauseProjectionFixityMismatch_
 
@@ -5414,9 +5433,6 @@ data TypeError
     -- Positivity and polarity errors
         | DatatypeIndexPolarity
             -- ^ An index of a data type has a polarity different from 'Mixed'.
-        | RecursiveRecordNeedsInductivity QName
-            -- ^ A record type inferred as recursive needs a manual declaration
-            --   whether it should be inductively or coinductively.
 
     -- Sized type errors
         | CannotSolveSizeConstraints (List1 (ProblemConstraint, HypSizeConstraint)) Doc
@@ -6795,8 +6811,8 @@ instance KillRange Defn where
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function a b c d e f g h i j k l m n ->
         killRangeN Function a b c d e f g h i j k l m n
-      Datatype a b c d e f g h i j   -> killRangeN Datatype a b c d e f g h i j
-      Record a b c d e f g h i j k l m -> killRangeN Record a b c d e f g h i j k l m
+      Datatype a b c d e f g h i j k -> killRangeN Datatype a b c d e f g h i j k
+      Record a b c d e f g h i j k l m n -> killRangeN Record a b c d e f g h i j k l m n
       Constructor a b c d e f g h i j k -> killRangeN Constructor a b c d e f g h i j k
       Primitive a b c d e f          -> killRangeN Primitive a b c d e f
       PrimitiveSort a b              -> killRangeN PrimitiveSort a b

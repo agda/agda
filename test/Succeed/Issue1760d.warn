@@ -1,0 +1,11 @@
+AGDA_UNEXPECTED_FAIL
+
+ret > ExitFailure 42
+out > Issue1760d.agda:6.8-10: error: [RecursiveRecordNeedsInductivity]
+out > Recursive record U₁ needs to be declared as either inductive or
+out > coinductive
+out >
+out > Issue1760d.agda:17.8-10: error: [RecursiveRecordNeedsInductivity]
+out > Recursive record U₂ needs to be declared as either inductive or
+out > coinductive
+out >

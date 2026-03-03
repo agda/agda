@@ -174,6 +174,7 @@ errorWarnings = Set.fromList
   , ConstructorDoesNotFitInData_
   , OverlappingTokensWarning_
   , PragmaCompiled_
+  , RecursiveRecordNeedsInductivity_
   , SafeFlagPostulate_
   , SafeFlagPragma_
   , SafeFlagNonTerminating_
@@ -257,6 +258,7 @@ data WarningName
   -- Library Warnings
   | LibUnknownField_
   -- Nicifer Warnings
+  | DefinitionBeforeDeclaration_
   | DivergentModalityInClause_
   | EmptyAbstract_
   | EmptyConstructor_
@@ -395,6 +397,7 @@ data WarningName
   | InvalidDisplayForm_
   | UnusedVariablesInDisplayForm_
   | RewritesNothing_
+  | RecursiveRecordNeedsInductivity_
   | WithClauseProjectionFixityMismatch_
   | WithoutKFlagPrimEraseEquality_
   | ConflictingPragmaOptions_
@@ -562,6 +565,7 @@ warningNameDescription = \case
   CoverageNoExactSplit_            -> "Failed exact split checks."
   InlineNoExactSplit_              -> "Failed exact split checks after inlining record constructors."
   DeprecationWarning_              -> "Deprecated features."
+  DefinitionBeforeDeclaration_     -> "Definitions that occur before their declarations."
   -- TODO: linearity
   -- FixingQuantity_                  -> "Correcting invalid user-written quantity."
   FixingRelevance_                 -> "Correcting invalid user-written relevance attribute."
@@ -642,6 +646,7 @@ warningNameDescription = \case
   InvalidDisplayForm_              -> "Invalid display forms."
   UnusedVariablesInDisplayForm_    -> "Bound but unused variables in display forms."
   TooManyArgumentsToSort_          -> "Extra arguments given to a sort."
+  RecursiveRecordNeedsInductivity_ -> "Recursive records declared neither `inductive' nor `coinductive'."
   RewritesNothing_                 -> "`rewrite' clauses that do not fire."
   WithClauseProjectionFixityMismatch_ -> "With clauses using projections in different fixities than their parent clauses."
   WithoutKFlagPrimEraseEquality_   -> "Uses of `primEraseEquality' with the without-K flags."

@@ -305,10 +305,23 @@ instance NFData DataRecOrFun
 
 -- Ignore pragmas when checking equality
 instance Eq DataRecOrFun where
-  DataName{} == DataName{} = True
-  RecName{}  == RecName{}  = True
-  FunName{}  == FunName{}  = True
-  _          == _          = False
+  (==) = sameKind
+
+sameKind :: DataRecOrFun -> DataRecOrFun -> Bool
+sameKind = curry \case
+  (DataName{} , DataName{}) -> True
+  (RecName{}  , RecName{} ) -> True
+  (FunName{}  , FunName{} ) -> True
+  _ -> False
+
+-- | Monoidal for 'DataName' and 'RecName'.
+--   Returns just first 'FunName' discarding the second one.
+mergeDataRecOrFun :: DataRecOrFun -> DataRecOrFun -> Maybe DataRecOrFun
+mergeDataRecOrFun = curry \case
+  (DataName pc uc , DataName pc' uc') -> Just $ DataName (pc <> pc') (uc <> uc')
+  (RecName  pc uc , RecName  pc' uc') -> Just $ RecName  (pc <> pc') (uc <> uc')
+  (f@FunName{}    , FunName{}       ) -> Just f
+  _ -> Nothing
 
 instance Pretty DataRecOrFun where
   pretty DataName{} = "data type"
@@ -318,9 +331,6 @@ instance Pretty DataRecOrFun where
 isFunName :: DataRecOrFun -> Bool
 isFunName (FunName{}) = True
 isFunName _           = False
-
-sameKind :: DataRecOrFun -> DataRecOrFun -> Bool
-sameKind = (==)
 
 terminationCheck :: DataRecOrFun -> TerminationCheck
 terminationCheck (FunName _ tc _) = tc

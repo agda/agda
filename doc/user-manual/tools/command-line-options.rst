@@ -1392,6 +1392,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Deprecated features.
 
+.. option:: DefinitionBeforeDeclaration
+
+     Definitions that occur in ``mutual`` blocks before their declarations.
+
 .. option:: DivergentModalityInClause
 
      Modalities of clauses that diverge from the modality of the function.
@@ -1939,6 +1943,10 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 .. option:: PragmaCompiled
 
      :ref:`COMPILE<foreign-function-interface>` pragmas not allowed in safe mode.
+
+.. option:: RecursiveRecordNeedsInductivity
+
+     Recursive records that are neither declared ``inductive`` nor ``coinductive``.
 
 .. option:: RewriteAmbiguousRules
 

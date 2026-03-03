@@ -245,7 +245,7 @@ freshAbstractName fx x = do
     { _nameId         = i
     , nameConcrete    = x
     , nameCanonical   = x
-    , nameBindingSite = getRange x
+    , _nameBindingSite = getRange x
     , nameFixity      = fx
     , nameIsRecordName = False
     }

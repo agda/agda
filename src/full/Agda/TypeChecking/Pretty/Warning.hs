@@ -54,6 +54,7 @@ import Agda.Syntax.Common
   )
 import Agda.Syntax.Common.Pretty ( Pretty, prettyShow, singPlural )
 import qualified Agda.Syntax.Common.Pretty as P
+import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
@@ -743,6 +744,11 @@ prettyWarning = \case
       , [ prettyTCM q ]
       ]
 
+    DefinitionBeforeDeclaration x -> fsep $ concat
+      [ [ prettyTCM x ]
+      , pwords "defined before its declaration"
+      ]
+
     RewritesNothing -> fsep $ pwords "`rewrite' did not apply"
 
     WithClauseProjectionFixityMismatch p0 o' q o -> fsep $ concat
@@ -759,6 +765,12 @@ prettyWarning = \case
         prettyProjOrigin ProjPrefix  = "a prefix projection"
         prettyProjOrigin ProjPostfix = "a postfix projection"
         prettyProjOrigin ProjSystem  = __IMPOSSIBLE__
+
+    RecursiveRecordNeedsInductivity q -> fsep $ concat
+      [ pwords "Recursive record"
+      , [ prettyTCM q ]
+      , pwords "needs to be declared as either inductive or coinductive"
+      ]
 
     FaceConstraintCannotBeHidden ai -> fsep $
       pwords "Face constraint patterns cannot be" ++ [ pretty (getHiding ai), "arguments"]

@@ -1,0 +1,4 @@
+Issue4150a.agda:7.3-12: error: [MissingTypeSignature.Function]
+Missing type signature for left hand side F A
+when scope checking the declaration
+  F A = Set

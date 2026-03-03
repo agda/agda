@@ -1,0 +1,22 @@
+
+Issue8435.agda:7.3-15: warning: -W[no]DefinitionBeforeDeclaration
+D defined before its declaration
+when scope checking the declaration
+  data D where
+
+Issue8435.agda:9.3-17: warning: -W[no]DefinitionBeforeDeclaration
+R defined before its declaration
+when scope checking the declaration
+  record R where
+
+———— All done; warnings encountered ————————————————————————
+
+Issue8435.agda:7.3-15: warning: -W[no]DefinitionBeforeDeclaration
+D defined before its declaration
+when scope checking the declaration
+  data D where
+
+Issue8435.agda:9.3-17: warning: -W[no]DefinitionBeforeDeclaration
+R defined before its declaration
+when scope checking the declaration
+  record R where

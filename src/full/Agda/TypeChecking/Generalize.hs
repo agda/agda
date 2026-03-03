@@ -973,6 +973,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = noMutualBlock $ d
            , recFields       = genRecFields
            , recTel          = dummyTel (length genRecFields) -- Filled in later
            , recMutual       = Just []
+           , recPositivityCheck = NoPositivityCheck
            , recEtaEquality' = Inferred YesEta
            , recPatternMatching = CopatternMatching
            , recInduction    = Nothing

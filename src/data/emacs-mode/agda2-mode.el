@@ -834,7 +834,6 @@ command is sent to Agda (if it is sent)."
   ;; arguments.  The symbol of the invoked function must have a
   ;; `agda2-safe-function' symbol property asserting the expected
   ;; types of all arguments, w.r.t `cl-typep'.
-  (save-buffer)
   (unwind-protect
       (let* ((inhibit-read-only t)
              (func (car response))

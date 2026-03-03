@@ -1,0 +1,5 @@
+Issue4150c.agda:6.3-7.18: error: [MissingTypeSignature.Record]
+Missing type signature for record definition R
+when scope checking the declaration
+  record R where
+    field f : Set
