@@ -70,39 +70,14 @@ import Agda.Utils.MinimalArray.MutableLifted qualified as Array
 
 #include "MachDeps.h"
 
---------------------------------------------------------------------------------
 {-
-TODO:
-- TRANSPOSE graph + use bfs!
-- purge telView-s if possible
-- mutable hashtable Graph
-
 NOTE:
 - We can't avoid recursing into Unused args becuse we might
   have metavars there, which have constant Mixed arg polarity
   and must be traversed in all cases!
   Proposal: change behavior, skip all Unused subterms
-
-Possible issues in old impl:
-- lack of Path/Occ handling in record constructors?
-
-- In no-occurrence-analysis mode we only look at the first clause of functions to
-  match the args
-
-- computeDefOccurrences tel1' : why addContext?
-
-- The graph library requires that every target of an edge appears as a source node.
-
-- We don't record unused edges in the graph.
-  The Unused value only appears when we set occurrences in the signature.
-  Imprecise representation in occ analysis.
-
-- The eta expansion of clause bodies does a "raise n", which is Not Good
-
 -}
 
-
---------------------------------------------------------------------------------
 
 data Path
   = Root
@@ -723,12 +698,6 @@ computeDefOccurrences q qi = inConcreteOrAbstractMode q \def -> do
     PrimitiveSort{}    -> ret mempty
     GeneralizableVar{} -> ret mempty
     AbstractDefn{}     -> ret __IMPOSSIBLE__
-
-
--- transposeGraph :: OccGraph -> OccGraph
--- transposeGraph m = foldl' ins mempty assocs where
---   assocs = [(i, j, e) | (i, m) <- Map.toList m, (j, e) <- Map.toList m]
---   ins acc (i, j, e) = addEdgeToGraph j i e acc
 
 initOccurrences :: [QName] -> IO (OccGraph, Mutuals)
 initOccurrences qs = do
