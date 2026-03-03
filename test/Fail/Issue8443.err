@@ -1,0 +1,6 @@
+Issue8443.agda:19.8-14: error: [UnequalTypes]
+The type
+  (bot : ⊥) → ⊥
+is not a subtype of
+  ⊥
+when checking that the expression M4.foo has type ⊥
