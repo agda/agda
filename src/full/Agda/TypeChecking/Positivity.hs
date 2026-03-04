@@ -270,6 +270,7 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
 transitiveOccurrence :: Graph Node (Edge OccursWhere) -> Node -> Node -> Occurrence
 transitiveOccurrence (Graph.Graph !graph) !src !tgt = let
 
+  -- function for traversing the map of children for a node
   traverseMap :: Map Node (Map Node (Edge OccursWhere)) -> Node -> Map Node (Edge OccursWhere)
               -> Occurrence -> Occurrence -> Set (Occurrence, Node) -> (Occurrence, Set (Occurrence, Node))
   traverseMap !graph !tgt !map !path !acc !seen = case map of
@@ -281,6 +282,7 @@ transitiveOccurrence (Graph.Graph !graph) !src !tgt = let
         (acc, seen) | tgt == src -> (acc, seen) -- already covered this case in go'
                     | otherwise  -> go graph tgt src (otimes path occ) acc seen
 
+  -- Function for visiting the children of a node
   go' :: Map Node (Map Node (Edge OccursWhere)) -> Node -> Node
         -> Occurrence -> Occurrence -> Set (Occurrence, Node) -> (Occurrence, Set (Occurrence, Node))
   go' !graph !tgt !src !path !acc !seen = case Map.lookup src graph of
@@ -294,8 +296,16 @@ transitiveOccurrence (Graph.Graph !graph) !src !tgt = let
 
       Nothing -> traverseMap graph tgt map path acc seen
 
-  go :: Map Node (Map Node (Edge OccursWhere)) -> Node -> Node -> Occurrence
-     -> Occurrence -> Set (Occurrence, Node) -> (Occurrence, Set (Occurrence, Node))
+  -- Function for visiting a node.
+  go :: Map Node (Map Node (Edge OccursWhere)) -- ^ Graph
+     -> Node                                   -- ^ Target node
+     -> Node                                   -- ^ Current node ("current source")
+     -> Occurrence                             -- ^ Occurence of path leading from the top-level source node
+                                               --   to the current node.
+     -> Occurrence                             -- ^ Occurrence of the least path seen so far, between the
+                                               --   top-level source node and the target.
+     -> Set (Occurrence, Node)                 -- ^ Nodes visited so far.
+     -> (Occurrence, Set (Occurrence, Node))
   go !graph !tgt !src !path !acc !seen =
     if Set.member (path, src) seen then (acc, seen)
     else case Set.insert (path, src) seen of
@@ -868,6 +878,9 @@ instance Pretty Node where
   pretty = \case
     DefNode q   -> P.pretty q
     ArgNode q i -> P.pretty q <> P.text ("." ++ show i)
+
+instance Show Node where
+  show = prettyShow
 
 instance PrettyTCM Node where
   prettyTCM = return . P.pretty
