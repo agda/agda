@@ -34,7 +34,6 @@
 module Agda.TypeChecking.Rewriting.Confluence
   ( checkConfluenceOfRules
   , checkConfluenceOfClauses
-  , sortRulesOfSymbol
   ) where
 
 import Control.Applicative
@@ -454,34 +453,24 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
         return eq
 
 
-sortRulesOfSymbol :: QName -> TCM ()
-sortRulesOfSymbol f = do
-    -- Andreas, 2025-06-28, PR #7934:
-    -- By getting all rewrite rules regardless of scope,
-    -- we replicate the old (unhygienic) approach to rewrite rule scoping
-    -- here to avoid a regression.
-    -- See also #7969 for a reason why the code below is questionable.
-    rules <- sortRules =<< getFilteredGlobalRewriteRulesFor False f
-    modifySignature $ over sigRewriteRules $ HMap.insert f rules
+sortRules :: PureTCM m => GlobalRewriteRules -> m GlobalRewriteRules
+sortRules rs = do
+  ordPairs <- deleteLoops . Set.fromList . map (grName *** grName) <$>
+    filterM (uncurry $ flip moreGeneralLHS) [(r1,r2) | r1 <- rs, r2 <- rs]
+  let perm = fromMaybe __IMPOSSIBLE__ $
+        topoSort (\r1 r2 -> (grName r1, grName r2) `Set.member` ordPairs) rs
+  reportSDoc "rewriting.confluence.sort" 50 $ "sorted rules: " <+>
+    prettyList_ (map (prettyTCM . grName) $ permute perm rs)
+  return $ permute perm rs
   where
-    sortRules :: PureTCM m => [GlobalRewriteRule] -> m [GlobalRewriteRule]
-    sortRules rs = do
-      ordPairs <- deleteLoops . Set.fromList . map (grName *** grName) <$>
-        filterM (uncurry $ flip moreGeneralLHS) [(r1,r2) | r1 <- rs, r2 <- rs]
-      let perm = fromMaybe __IMPOSSIBLE__ $
-                   topoSort (\r1 r2 -> (grName r1,grName r2) `Set.member` ordPairs) rs
-      reportSDoc "rewriting.confluence.sort" 50 $ "sorted rules: " <+>
-        prettyList_ (map (prettyTCM . grName) $ permute perm rs)
-      return $ permute perm rs
-
     moreGeneralLHS :: PureTCM m
       => GlobalRewriteRule -> GlobalRewriteRule -> m Bool
     moreGeneralLHS r1 r2
-      | sameRuleName r1 r2     = return False
-      | grHead r1 /= grHead r2 = return False
-      | otherwise              = addContext (grContext r2) $ do
-          def <- getConstInfo $ grHead r1
-          (t, hd) <- makeHead def (grType r2)
+      | sameRuleName r1 r2       = return False
+      | grName r1 /= grName r2 = return False
+      | otherwise                = addContext (grContext r2) $ do
+          def <- getConstInfo $ grName r1
+          (t, hd) <- makeHead def $ grType r2
           (vs :: Elims) <- nlPatToTerm $ grPats r2
           res <- isRight <$> onlyReduceTypes
             (nonLinMatch (grContext r1) (t, hd) (grPats r1) vs)
