@@ -220,7 +220,7 @@ to this variable to take effect."
     ;; also mark the sequences "--", "{-", and "-}" as comment sequences.
     ;; This makes `comment-kill' function, but has the somewhat unintended
     ;; side effect of making killing off "--bar" in an identifier like "foo--bar".
-    (modify-syntax-entry ?- "w123")
+    (modify-syntax-entry ?- "w 123")
 
     ;; Parens
     (modify-syntax-entry ?\( "()")
