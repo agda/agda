@@ -27,8 +27,7 @@ module Fails where
   A₀ : Set
   A₀ = Par.A
 
-  A₁ B₁ B₂ : Set₁ → Set
-  A₂ : Set
+  A₁ A₂ B₁ B₂ : Set₁ → Set
   A₁ = RenP.A
   A₂ = Ren.A
   B₁ = RenP.B
