@@ -34,7 +34,6 @@
 module Agda.TypeChecking.Rewriting.Confluence
   ( checkConfluenceOfRules
   , checkConfluenceOfClauses
-  , sortRulesOfSymbol
   ) where
 
 import Control.Applicative
@@ -442,26 +441,16 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
         return eq
 
 
-sortRulesOfSymbol :: QName -> TCM ()
-sortRulesOfSymbol f = do
-    -- Andreas, 2025-06-28, PR #7934:
-    -- By getting all rewrite rules regardless of scope,
-    -- we replicate the old (unhygienic) approach to rewrite rule scoping
-    -- here to avoid a regression.
-    -- See also #7969 for a reason why the code below is questionable.
-    rules <- sortRules =<< getFilteredRewriteRulesFor False f
-    modifySignature $ over sigRewriteRules $ HMap.insert f rules
+sortRules :: PureTCM m => [RewriteRule] -> m [RewriteRule]
+sortRules rs = do
+  ordPairs <- deleteLoops . Set.fromList . map (rewName *** rewName) <$>
+    filterM (uncurry $ flip moreGeneralLHS) [(r1,r2) | r1 <- rs, r2 <- rs]
+  let perm = fromMaybe __IMPOSSIBLE__ $
+        topoSort (\r1 r2 -> (rewName r1, rewName r2) `Set.member` ordPairs) rs
+  reportSDoc "rewriting.confluence.sort" 50 $ "sorted rules: " <+>
+    prettyList_ (map (prettyTCM . rewName) $ permute perm rs)
+  return $ permute perm rs
   where
-    sortRules :: PureTCM m => [RewriteRule] -> m [RewriteRule]
-    sortRules rs = do
-      ordPairs <- deleteLoops . Set.fromList . map (rewName *** rewName) <$>
-        filterM (uncurry $ flip moreGeneralLHS) [(r1,r2) | r1 <- rs, r2 <- rs]
-      let perm = fromMaybe __IMPOSSIBLE__ $
-                   topoSort (\r1 r2 -> (rewName r1,rewName r2) `Set.member` ordPairs) rs
-      reportSDoc "rewriting.confluence.sort" 50 $ "sorted rules: " <+>
-        prettyList_ (map (prettyTCM . rewName) $ permute perm rs)
-      return $ permute perm rs
-
     moreGeneralLHS :: PureTCM m => RewriteRule -> RewriteRule -> m Bool
     moreGeneralLHS r1 r2
       | sameRuleName r1 r2       = return False
@@ -470,7 +459,8 @@ sortRulesOfSymbol f = do
           def <- getConstInfo $ rewHead r1
           (t, hd) <- makeHead def (rewType r2)
           (vs :: Elims) <- nlPatToTerm $ rewPats r2
-          res <- isRight <$> onlyReduceTypes (nonLinMatch (rewContext r1) (t, hd) (rewPats r1) vs)
+          res <- isRight <$> onlyReduceTypes
+            (nonLinMatch (rewContext r1) (t, hd) (rewPats r1) vs)
           when res $ reportSDoc "rewriting.confluence.sort" 55 $
             "the lhs of " <+> prettyTCM (rewName r1) <+>
             "is more general than the lhs of" <+> prettyTCM (rewName r2)
