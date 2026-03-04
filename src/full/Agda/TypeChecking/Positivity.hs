@@ -297,14 +297,14 @@ transitiveOccurrence (Graph.Graph !graph) !src !tgt = let
       Nothing -> traverseMap graph tgt map path acc seen
 
   -- Function for visiting a node.
-  go :: Map Node (Map Node (Edge OccursWhere)) -- ^ Graph
-     -> Node                                   -- ^ Target node
-     -> Node                                   -- ^ Current node ("current source")
-     -> Occurrence                             -- ^ Occurence of path leading from the top-level source node
+  go :: Map Node (Map Node (Edge OccursWhere)) -- Graph
+     -> Node                                   -- Target node
+     -> Node                                   -- Current node ("current source")
+     -> Occurrence                             -- Occurence of path leading from the top-level source node
                                                --   to the current node.
-     -> Occurrence                             -- ^ Occurrence of the least path seen so far, between the
+     -> Occurrence                             -- Occurrence of the least path seen so far, between the
                                                --   top-level source node and the target.
-     -> Set (Occurrence, Node)                 -- ^ Nodes visited so far.
+     -> Set (Occurrence, Node)                 -- Nodes visited so far.
      -> (Occurrence, Set (Occurrence, Node))
   go !graph !tgt !src !path !acc !seen =
     if Set.member (path, src) seen then (acc, seen)
