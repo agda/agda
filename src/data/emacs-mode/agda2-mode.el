@@ -187,35 +187,73 @@ to this variable to take effect."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Global and buffer-local vars, initialization
 
-(defvar agda2-mode-syntax-table
-  (let ((tbl (make-syntax-table)))
-    ;; Set the syntax of every char to "w" except for those whose default
-    ;; syntax in `standard-syntax-table' is `paren' or `whitespace'.
-    (map-char-table (lambda (keys val)
-                      ;; `keys' here can be a normal char, a generic char
-                      ;; (Emacs<23), or a char range (Emacs>=23).
-                      (unless (memq (car val)
-                                    (eval-when-compile
-                                      (mapcar 'car
-                                              (list (string-to-syntax "(")
-                                                    (string-to-syntax ")")
-                                                    (string-to-syntax " ")))))
-                        (modify-syntax-entry keys "w" tbl)))
-                    (standard-syntax-table))
-    ;; Then override the remaining special cases.
-    (dolist (cs '((?- . "w 12") (?\n . ">")
-                  (?. . ".") (?\; . ".") (?! . ".")))
-      (modify-syntax-entry (car cs) (cdr cs) tbl))
-    tbl)
-  "Syntax table used by the Agda mode:
+(defconst agda2-mode-syntax-table
+  (with-syntax-table (make-syntax-table)
+    ;; The `standard-syntax-table' marks characters like "[" and "⟨" as delimiters.
+    ;; This breaks `symbol-at-point' for identifiers like "[[X]]" when the point
+    ;; is on the outer brackets. To fix this, we go through and mark all non-whitespace
+    ;; characters as word constitutents, and then patch things up afterwards.
+    (map-char-table
+     (lambda (range val)
+       (unless (memq (car val) (eval-when-compile (mapcar (lambda (c) (car (string-to-syntax c))) '(" " "w"))))
+         (modify-syntax-entry range "w")))
+     (char-table-parent (syntax-table)))
 
--   | Comment character, word constituent.
-\n  | Comment ender.
-.;! | Punctuation.
+    ;; String literals
+    ;;
+    ;; We do not include ?\' as a quote char, as it can
+    ;; be used in identifiers.
+    (modify-syntax-entry ?\" "\"")
+
+    ;; Comments
+    ;;
+    ;; We use the "c" alternative comment style over "b", as "b"
+    ;; only can be attached to the second char of a starting sequence
+    ;; or the first char of an ending sequence. This leads to ambiguities,
+    ;; as "{-" and "--" both have "-" as their second char.
+    (modify-syntax-entry ?\{ "(}1nc")
+    (modify-syntax-entry ?\} "){4nc")
+    (modify-syntax-entry ?\n ">")
+    ;; [HACK: Reed M, 04/03/2026]
+    ;; We mark "-" as a word character so that `word-at-point' selects
+    ;; whole identifiers in kebab-case like "foo-bar-baz". However, we
+    ;; also mark the sequences "--", "{-", and "-}" as comment sequences.
+    ;; This makes `comment-kill' function, but has the somewhat unintended
+    ;; side effect of making killing off "--bar" in an identifier like "foo--bar".
+    (modify-syntax-entry ?- "w123")
+
+    ;; Parens
+    (modify-syntax-entry ?\( "()")
+    (modify-syntax-entry ?\) ")(")
+    ;; Adding ⦃⦄ and ⦇⦈ is a bit dubious here, as ⦃a⦄ and ⦇a⦈ are
+    ;; valid identifers. However, it is more useful to be able
+    ;; to get matching paren highlights then it is to support this
+    ;; somewhat suspicious grammatical choice.
+    (modify-syntax-entry ?⦃ "(⦄")
+    (modify-syntax-entry ?⦄ ")⦃")
+    (modify-syntax-entry ?⦇ "(⦈")
+    (modify-syntax-entry ?⦈ ")⦇")
+
+    ;; Punctuation
+    (modify-syntax-entry ?. ".")
+    (modify-syntax-entry ?\; ".")
+    ;; [FIXME: Reed M, 04/03/2026]
+    ;; Why is this marked as puncutation?
+    (modify-syntax-entry ?! ".")
+
+    (syntax-table))
+  "Syntax table used by `agda2-mode':
+
+\"     | String delimiter.
+-      | Comment character, word constituent.
+{}     | Comment character, parentheses.
+\n     | Comment ender.
+⦃⦄⦇⦈() | Parenthesis.
+.;!    | Punctuation.
 
 Remaining characters inherit their syntax classes from the
-standard syntax table if that table treats them as matching
-parentheses or whitespace.  Otherwise they are treated as word
+`standard-syntax-table' if that table treats them as matching
+whitespace.  Otherwise they are treated as word
 constituents.")
 
 (defconst agda2-command-table
