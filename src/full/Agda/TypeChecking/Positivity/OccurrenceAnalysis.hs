@@ -541,7 +541,7 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
         _ -> ret $ pure ()
 
       -- add edges for indices
-      underPathSetOcc IsIndex Mixed $
+      underPathSetOcc InIndex Mixed $
         rangeM_ np (size telD - 1) \i -> addEdge (ArgNode q i)
 
 

@@ -126,7 +126,7 @@ data OccursWhere
   | ConEndpoint !OccursWhere !QName    -- ^ in an endpoint of a higher constructor
   | InClause !OccursWhere !Nat         -- ^ in the nth clause of a defined function
   | Matched !OccursWhere               -- ^ matched against in a clause of a defined function
-  | IsIndex !OccursWhere               -- ^ is an index of an inductive family
+  | InIndex !OccursWhere               -- ^ is an index of an inductive family
   | InDefOf !OccursWhere !QName        -- ^ in the definition of a constant
   deriving Eq
 
@@ -148,7 +148,7 @@ instance Show OccursWhere where
       ConEndpoint p q -> go p $ " InConEndpoint " ++ P.prettyShow q ++ acc
       InClause p i    -> go p $ " InClause "    ++ P.prettyShow i ++ acc
       Matched p       -> go p $ " Matched" ++ acc
-      IsIndex p       -> go p $ " IsIndex" ++ acc
+      InIndex p       -> go p $ " InIndex" ++ acc
       InDefOf p q     -> go p $ " InDefOf " ++ P.prettyShow q ++ acc
 
 instance P.Pretty OccursWhere where

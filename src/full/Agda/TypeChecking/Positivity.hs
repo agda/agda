@@ -103,7 +103,7 @@ checkStrictlyPositive mi qset = do
       -- g' <- Bench.billTo [Bench.Positivity] $ New.buildOccurrenceGraph qs
       g' <- lift $ toLegacyGraph g'
 
-      when (eraseWhere g /= g') do
+      when (eraseWhere g /= eraseWhere g') do
         reportSDoc "" 1 $ "OCCURRENCE MISMATCH" <+> fsep (map prettyTCM qs)
         reportSDoc "" 1 $ vcat
           [ "LEGACY GRAPH"
@@ -353,18 +353,21 @@ instance PrettyTCM New.OccursWhere where
 -- Legacy
 ----------------------------------------------------------------------------------------------------
 
--- | Convert back to "legacy" graph, for testing.
-toLegacyGraph :: New.OccGraph -> IO (Graph.Graph Node (Edge ()))
+-- | Convert back to legacy graph, for testing.
+toLegacyGraph :: New.OccGraph -> IO (Graph.Graph Node (Edge OccursWhere))
 toLegacyGraph graph = do
 
   assocs <- New.nodeMapToList graph
   assocs <- forM assocs \(src, tgts) -> (src,) <$!> New.nodeMapToList tgts
   assocs <- pure [(src, tgt, e) | (src, tgts) <- assocs, (tgt, e) <- tgts]
 
-  let convEdge (New.Edge occ _) = Edge occ ()
+  let convEdge (New.Edge occ path) = Edge occ (convPath path)
 
-  let go :: Map Node (Map Node (Edge ())) -> (Node, Node, New.Edge)
-         -> Map Node (Map Node (Edge ()))
+      -- convPath :: New.OccursWhere -> (Range, Seq Where, Seq Where)
+      convPath = _
+
+  let go :: Map Node (Map Node (Edge OccursWhere)) -> (Node, Node, New.Edge)
+         -> Map Node (Map Node (Edge OccursWhere))
       go m (src, tgt, convEdge -> e) =
         Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
         Map.insertWith (\_ tgts -> tgts) tgt mempty $
