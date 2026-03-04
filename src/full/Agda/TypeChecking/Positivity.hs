@@ -16,8 +16,9 @@ import Data.Graph (SCC(..))
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Map.Strict (Map)
+import Data.Map.Internal (Map(..))
+import qualified Data.Map.Strict as Map
 import Data.Sequence (Seq)
 import qualified Data.Sequence as DS
 import Data.Set (Set)
@@ -35,7 +36,6 @@ import Agda.Syntax.Position (HasRange(..), noRange)
 import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Benchmark (MonadBench, Phase)
 import Agda.TypeChecking.Monad.Benchmark qualified as Bench
 import Agda.TypeChecking.Patterns.Match ( properlyMatching )
 import Agda.TypeChecking.Positivity.Occurrence
@@ -78,8 +78,7 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
   let qs = Set.toList qset
   reportSDoc "tc.pos.tick" 100 $ "positivity of" <+> prettyTCM qs
   g <- buildOccurrenceGraph qset
-  let (gstar, sccs) =
-        Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
+  let sccs = Graph.sccs' (fmap occ g)
   reportSDoc "tc.pos.tick" 100 $ "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
@@ -87,16 +86,9 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
     [ "positivity graph for" <+> fsep (map prettyTCM qs)
     , nest 2 $ prettyTCM g
     ]
-  reportSLn "tc.pos.graph" 5 $
-    "Positivity graph (completed): E=" ++ show (length $ Graph.edges gstar)
-  reportSDoc "tc.pos.graph" 50 $ vcat
-    [ "transitive closure of positivity graph for" <+>
-      prettyTCM qs
-    , nest 2 $ prettyTCM gstar
-    ]
 
   -- remember argument occurrences for qs in the signature
-  setArgOccs qset qs gstar
+  setArgOccs qset qs g
   reportSDoc "tc.pos.tick" 100 $ "set args"
 
   -- check positivity for all strongly connected components of the graph for qs
@@ -128,28 +120,22 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
                                         | otherwise      -> "mutually recursive"
       setMutual q qs
 
-  mapM_ (checkPos g gstar) qs
+  mapM_ (checkPos g) qs
   reportSDoc "tc.pos.tick" 100 $ "checked positivity"
 
   where
     checkPos :: Graph Node (Edge OccursWhere) ->
-                Graph Node Occurrence ->
                 QName -> TCM ()
-    checkPos g gstar q = inConcreteOrAbstractMode q $ \ def -> do
+    checkPos g q = inConcreteOrAbstractMode q $ \ def -> do
       -- we check positivity only for data or record definitions
       whenJust (isDatatype_ def) \ (pc, dr) -> do
         reportSDoc "tc.pos.check" 10 $ "Checking positivity of" <+> prettyTCM q
 
-        let loop :: Maybe Occurrence
-            loop = Graph.lookup (DefNode q) (DefNode q) gstar
+        let loop :: Occurrence
+            loop = transitiveOccurrence g (DefNode q) (DefNode q)
 
             g' :: Graph Node (Edge (Seq OccursWhere))
             g' = fmap (fmap DS.singleton) g
-
-            -- Note the property
-            -- Internal.Utils.Graph.AdjacencyMap.Unidirectional.prop_productOfEdgesInBoundedWalk,
-            -- which relates productOfEdgesInBoundedWalk to
-            -- gaussJordanFloydWarshallMcNaughtonYamada.
 
             reason bound =
               case productOfEdgesInBoundedWalk
@@ -171,28 +157,28 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
         -- This information now comes either with the mututal block
         -- or with the data/record type, see issue #3355.
         unless (Info.mutualPositivityCheck mi == NoPositivityCheck || pc == NoPositivityCheck) $
-          whenM positivityCheckEnabled $
-            case loop of
-            Just o | o <= JustPos ->
+          whenM positivityCheckEnabled do
+            if loop <= JustPos then
               warning $ NotStrictlyPositive q (reason JustPos)
-            _ -> return ()
+            else
+              return ()
 
         -- if we find an unguarded record, mark it as such
         case dr of
           IsData -> return ()
           IsRecord pat -> case loop of
-            Just o | o <= StrictPos -> do
+            o | o <= StrictPos -> do
               reportSDoc "tc.pos.record" 5 $ how "not guarded" StrictPos
               unguardedRecord q pat
               checkInduction q
             -- otherwise, if the record is recursive, mark it as well
-            Just o | o <= GuardPos -> do
+            o | o <= GuardPos -> do
               reportSDoc "tc.pos.record" 5 $ how "recursive" GuardPos
               recursiveRecord q
               checkInduction q
             -- If the record is not recursive, switch on eta
             -- unless it is coinductive or a no-eta-equality record.
-            Nothing -> do
+            Unused -> do
               reportSDoc "tc.pos.record" 10 $
                 "record type " <+> prettyTCM q <+>
                 "is not recursive"
@@ -219,7 +205,7 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
         _ -> Nothing
 
     -- Set the polarity of the arguments to a couple of definitions
-    setArgOccs :: Set QName -> [QName] -> Graph Node Occurrence -> TCM ()
+    setArgOccs :: Set QName -> [QName] -> Graph Node (Edge OccursWhere) -> TCM ()
     setArgOccs qset qs g = do
       -- Andreas, 2018-05-11, issue #3049: we need to be pessimistic about
       -- argument polarity beyond the formal arity of the function.
@@ -227,14 +213,12 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
       -- -- Compute a map from each name in q to the maximal argument index
       -- let maxs = Map.fromListWith max
       --      [ (q, i) | ArgNode q i <- Set.toList $ Graph.nodes g, q `Set.member` qset ]
-      forM_ qs $ \ q -> inConcreteOrAbstractMode q $ \ def -> when (hasDefinition $ theDef def) $ do
+      forM_ qs \q -> inConcreteOrAbstractMode q \def -> when (hasDefinition $ theDef def) do
         reportSDoc "tc.pos.args" 10 $ "checking args of" <+> prettyTCM q
         n <- getDefArity def
-        -- If there is no outgoing edge @ArgNode q i@, all @n@ arguments are @Unused@.
-        -- Otherwise, we obtain the occurrences from the Graph.
-        let findOcc i = fromMaybe Unused $ Graph.lookup (ArgNode q i) (DefNode q) g
-            args = -- caseMaybe (Map.lookup q maxs) (replicate n Unused) $ \ m ->
-              map findOcc [0 .. n-1]  -- [0 .. max m (n - 1)] -- triggers issue #3049
+
+        !args <- forM [0 .. n - 1] \i -> pure $! transitiveOccurrence g (ArgNode q i) (DefNode q)
+                 -- [0 .. max m (n - 1)] -- triggers issue #3049
 
         reportSDoc "tc.pos.args" 10 $ sep
           [ "args of" <+> prettyTCM q <+> "="
@@ -277,6 +261,59 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
         Function{}         -> True
         Datatype{}         -> True
         Record{}           -> True
+
+-- | Search for transitive occurrences through the occurrence graph. We compute the 'oplus' sum of
+--   all paths from the source to the target. This is not as bad as it sounds, becuse a) we can
+--   short-circuit a search when a 'Mixed' path is found b) only 4 possible 'Occurrences' remain
+--   besides 'Mixed', and we can use a DFS where each node is visited at most 4 times, for each
+--   'Occurence' of the path to the node from the source.
+transitiveOccurrence :: Graph Node (Edge OccursWhere) -> Node -> Node -> Occurrence
+transitiveOccurrence (Graph.Graph !graph) !src !tgt = let
+
+  -- function for traversing the map of children for a node
+  traverseMap :: Map Node (Map Node (Edge OccursWhere)) -> Node -> Map Node (Edge OccursWhere)
+              -> Occurrence -> Occurrence -> Set (Occurrence, Node) -> (Occurrence, Set (Occurrence, Node))
+  traverseMap !graph !tgt !map !path !acc !seen = case map of
+    Tip -> (acc, seen)
+    Bin _ src (Edge occ _) l r -> case traverseMap graph tgt l path acc seen of
+      (Mixed, seen) -> (Mixed, seen)
+      (acc, seen)   -> case traverseMap graph tgt r path acc seen of
+        (Mixed, seen) -> (Mixed, seen)
+        (acc, seen) | tgt == src -> (acc, seen) -- already covered this case in go'
+                    | otherwise  -> go graph tgt src (otimes path occ) acc seen
+
+  -- Function for visiting the children of a node
+  go' :: Map Node (Map Node (Edge OccursWhere)) -> Node -> Node
+        -> Occurrence -> Occurrence -> Set (Occurrence, Node) -> (Occurrence, Set (Occurrence, Node))
+  go' !graph !tgt !src !path !acc !seen = case Map.lookup src graph of
+    Nothing  -> (acc, seen)
+    Just map -> case Map.lookup tgt map of
+
+      -- if there's direct edge to target, try it first
+      Just (Edge occ _) -> case go graph tgt tgt (otimes path occ) acc seen of
+        (Mixed, seen) -> (Mixed, seen)
+        (acc, seen)   -> traverseMap graph tgt map path acc seen
+
+      Nothing -> traverseMap graph tgt map path acc seen
+
+  -- Function for visiting a node.
+  go :: Map Node (Map Node (Edge OccursWhere)) -- Graph
+     -> Node                                   -- Target node
+     -> Node                                   -- Current node ("current source")
+     -> Occurrence                             -- Occurence of path leading from the top-level source node
+                                               --   to the current node.
+     -> Occurrence                             -- Occurrence of the least path seen so far, between the
+                                               --   top-level source node and the target.
+     -> Set (Occurrence, Node)                 -- Nodes visited so far.
+     -> (Occurrence, Set (Occurrence, Node))
+  go !graph !tgt !src !path !acc !seen =
+    if Set.member (path, src) seen then (acc, seen)
+    else case Set.insert (path, src) seen of
+      seen -> case (if src == tgt then oplus path acc else acc) of
+        Mixed -> (Mixed, seen)
+        acc   -> go' graph tgt src path acc seen
+
+  in fst $ go' graph tgt src StrictPos Unused mempty
 
 getDefArity :: Definition -> TCM Int
 getDefArity def = do
@@ -841,6 +878,9 @@ instance Pretty Node where
   pretty = \case
     DefNode q   -> P.pretty q
     ArgNode q i -> P.pretty q <> P.text ("." ++ show i)
+
+instance Show Node where
+  show = prettyShow
 
 instance PrettyTCM Node where
   prettyTCM = return . P.pretty
