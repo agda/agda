@@ -835,12 +835,10 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
     text "MetaVars.assign: assigning meta  " <> pretty x <> text "  with args  " <> pretty args <> text "  to  " <> pretty v
 
   let
-    boundary v = do
-      cubical <- cubicalOption
-      isip <- isInteractionMetaB x args
-      case (,) <$> cubical <*> isip of
-        Just (_, (x, ip, args)) -> tryAddBoundary dir x ip args v target
-        _ -> pure ()
+    boundary v = runMaybeT do
+      _ <- MaybeT cubicalOption
+      (x, ip, args) <- MaybeT (isInteractionMetaB x args)
+      lift $ tryAddBoundary dir x ip args v target
 
   case (v, mvJudgement mvar) of
       (Sort s, HasType{}) -> hasBiggerSort s
@@ -905,7 +903,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   when (mvFrozen mvar == Frozen) $ do
     reportSLn "tc.meta.assign" 25 $ "aborting: meta is frozen!"
     -- IApplyConfluence can contribute boundary conditions to frozen metas
-    boundary v
+    void $ boundary v
     patternViolation neverUnblock
 
   -- We never get blocked terms here anymore. TODO: we actually do. why?
