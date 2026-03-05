@@ -834,31 +834,29 @@ command is sent to Agda (if it is sent)."
   ;; arguments.  The symbol of the invoked function must have a
   ;; `agda2-safe-function' symbol property asserting the expected
   ;; types of all arguments, w.r.t `cl-typep'.
-  (unwind-protect
-      (let* ((inhibit-read-only t)
-             (func (car response))
-             (safe-p (plist-member (symbol-plist func) 'agda2-safe-function))
-             (safe-data (cadr safe-p))
-             (args '()))
-        (unless safe-p
-          (error "The function `%S' is not a valid Agda command" func))
-        ;; Check each argument
-        (dolist (arg (cdr response))
-          (when (null safe-data)
-            (error "More arguments than expected for `%S' (%S, got %S)"
-                   func safe-data response))
-          (when (eq (car-safe arg) 'quote) ;unquote arguments
-            (setq arg (cadr arg)))
-          (let ((type (pop safe-data)))
-            (unless (cl-typep arg type)
-              (error "The function `%S' was invoked with %S which is not a %S"
-                     func arg type)))
-          (push arg args))
-        (condition-case err
-            (with-local-quit
-              (apply func (nreverse args)))
-          (error (warn "Error while evaluating %S: %S" response err))))
-    (setq agda2-in-progress nil)))
+  (let* ((inhibit-read-only t)
+         (func (car response))
+         (safe-p (plist-member (symbol-plist func) 'agda2-safe-function))
+         (safe-data (cadr safe-p))
+         (args '()))
+    (unless safe-p
+      (error "The function `%S' is not a valid Agda command" func))
+    ;; Check each argument
+    (dolist (arg (cdr response))
+      (when (null safe-data)
+        (error "More arguments than expected for `%S' (%S, got %S)"
+               func safe-data response))
+      (when (eq (car-safe arg) 'quote) ;unquote arguments
+        (setq arg (cadr arg)))
+      (let ((type (pop safe-data)))
+        (unless (cl-typep arg type)
+          (error "The function `%S' was invoked with %S which is not a %S"
+                 func arg type)))
+      (push arg args))
+    (condition-case err
+        (with-local-quit
+          (apply func (nreverse args)))
+      (error (warn "Error while evaluating %S: %S" response err)))))
 
 
 
