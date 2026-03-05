@@ -400,9 +400,6 @@ The command which arrived last is stored first in the list.")
   "The Agda buffer.
 Note that this variable is not buffer-local.")
 
-(defvar agda2-in-agda2-file-buffer nil
-  "Was `agda2-file-buffer' active when `agda2-output-filter' started?
-Note that this variable is not buffer-local.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; agda2-mode
@@ -685,9 +682,7 @@ reloaded from `agda2-highlighting-file', unless
   ;; extract the fontified text and kill the temp buffer; so when Agda
   ;; finally answers, the temp buffer is long gone.
   (when (buffer-live-p agda2-file-buffer)
-  (setq agda2-in-agda2-file-buffer
-        (and agda2-file-buffer
-             (equal (current-buffer) agda2-file-buffer)))
+
   (let (;; The input lines in the current chunk.
         (lines (split-string chunk "\n"))
 
