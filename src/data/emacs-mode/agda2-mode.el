@@ -2180,12 +2180,16 @@ invoked."
 FILEPOS should have the form (FILE . POSITION).
 
 If `agda2-highlight-in-progress' is nil, then nothing happens.
-Otherwise, if the current buffer is the one that is connected to
-the Agda process, then point is moved to POSITION in
-FILE (assuming that the FILE is readable). Otherwise point is
-moved to the given position in the buffer visiting the file, if
-any, and in every window displaying the buffer, but the window
-configuration and the selected window are not changed."
+
+If there is a buffer already visiting FILE that is displayed in
+some windows, then the point is updated to POSITION in all of those
+windows.
+
+If there is a buffer visiting FILE that is not displayed in a window,
+then switch to that buffer and update the point to POSITION.
+
+Finally, if no buffer is visiting FILE, then create a buffer visiting FILE,
+display it in the current window, and set the point to POSITION."
   (declare (agda2-command (cons)))
   (when (and agda2-highlight-in-progress
              (consp filepos)
@@ -2196,8 +2200,15 @@ configuration and the selected window are not changed."
     ;; the current marker onto Xref' stack to make it seem like a Xref
     ;; jump.
     (xref-push-marker-stack)
-    (set-buffer (find-file-noselect (car filepos)))
-    (goto-char (cdr filepos))))
+    (let ((buffer (find-file-noselect (car filepos) 'no-record)))
+      (if-let* ((windows (get-buffer-window-list buffer 'no-minibuffer 'all-frames)))
+          ;; Buffer is visible, update points and do not switch.
+          (dolist (window windows)
+            (with-selected-window window
+              (goto-char (cdr filepos))))
+        ;; Buffer not visible, switch to the current buffer.
+        (switch-to-buffer buffer 'no-record)
+        (goto-char (cdr filepos))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implicit arguments
