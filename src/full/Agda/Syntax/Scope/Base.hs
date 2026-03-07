@@ -1357,7 +1357,7 @@ data AllowAmbiguousNames
   | AmbiguousConProjs
       -- ^ Ambiguous constructors, projections, or pattern synonyms.
   | AmbiguousNothing
-  deriving (Eq)
+  deriving (Eq, Show)
 
 isNameInScope :: A.QName -> ScopeInfo -> Bool
 isNameInScope q scope =
@@ -1386,6 +1386,22 @@ inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseNameLookup 
 
   NameMapEntry k xs <- HMap.lookup (A.nameId q) (scope ^. scopeInverseName)
 
+  -- try to get an unqualified concrete name, that's probably given
+  -- by the user.
+  let getUserGivenRawName :: C.QName -> Maybe RawName
+      getUserGivenRawName = \case
+        C.QName x -> case x of
+          C.Name r _ parts -> case r of
+            NoRange -> Nothing
+            _       -> case List1.last parts of
+              C.Id x -> Just x
+              _      -> Nothing
+          C.NoName{} -> Nothing
+        C.Qual _ x -> getUserGivenRawName x
+
+  -- unqualified original concrete name
+  let !userGiven = getUserGivenRawName (C.QName $ nameConcrete $ qnameName q)
+
   !xs <- List1.nonEmpty $ List.sortOn snd do
     -- List comprehension written in monadic form
     q :: C.QName <- nubOn id $ List1.toList xs
@@ -1407,11 +1423,13 @@ inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseNameLookup 
     --
     -- The rules are currently, in lexicographic order:
     --   1. Less qualified names are preferred
-    --   2. Names introduced later are preferred, by source position.
+    --   2. Names whose unqualified name part is the same as what the user originally wrote, are
+    --      preferred.
+    --   3. Names introduced later are preferred, by source position.
     --      If a single module opening introduces multiple possible printable names,
     --      we recursively prefer the names that were introduced later within the module.
     --
-    -- Caveat: rule 2 only fires within the current source file. Currently we can't use it across
+    -- Caveat: rule 3 only fires within the current source file. Currently we can't use it across
     -- files because we don't store ranges in interfaces. Currently we happen to pick the
     -- alphabetically greater names in those cases.
     let lineageRanges = go (anameLineage $ fst y) where
@@ -1420,7 +1438,14 @@ inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseNameLookup 
           go (Applied x why) = let !r = getRange x; !rs = go why in Down r:rs
 
     let sortingWeight = let !qualifiers = length (C.qnameParts q)
-                        in (qualifiers, lineageRanges)
+                            !preferUserGiven = case (userGiven, getUserGivenRawName q) of
+                              (Just x, Just x') | x == x' -> Down True
+                              _                           -> Down False
+                        in (
+                             qualifiers
+                           , preferUserGiven
+                           , lineageRanges
+                           )
 
     pure (q, sortingWeight)
 
