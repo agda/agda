@@ -29,6 +29,7 @@ import Control.DeepSeq
 import Agda.Interaction.Options.Base (optOccurrence, optPolarity)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
+import Agda.Syntax.Position (HasRange(..), noRange, Range)
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad hiding (getOccurrencesFromType)
 import Agda.TypeChecking.Patterns.Match (properlyMatching)
@@ -67,6 +68,10 @@ NOTE:
 
 data Node = DefNode QName | ArgNode QName Int
   deriving (Show, Eq, Ord)
+
+instance HasRange Node where
+  getRange (DefNode q) = getRange q
+  getRange ArgNode{}   = noRange
 
 instance P.Pretty Node where
   pretty = \case
@@ -245,7 +250,7 @@ occurrencesInDefArg d p i e = expand \ret -> ret do
 
 occurrencesInDefArgArg :: Occurrence -> Int -> Elim -> OccM ()
 occurrencesInDefArgArg p i e = expand \ret -> ret do
-  underPathOcc (`VarArg` i) p $ occurrences e
+  underPathOcc (\x -> VarArg x i p) p $ occurrences e
 
 occurrencesInMutDefArg :: QName -> Occurrence -> Int -> Elim -> OccM ()
 occurrencesInMutDefArg d p i e = expand \ret -> ret $
@@ -302,7 +307,7 @@ instance ComputeOccurrences Term where
       if x < locals then do
         let elims i es = expand \ret -> case es of
               []   -> ret $ pure ()
-              e:es -> ret $ underPath (`VarArg` i) (occurrences e) >> elims (i + 1) es
+              e:es -> ret $ underPath (\p -> VarArg p i Mixed) (occurrences e) >> elims (i + 1) es
 
         underOcc Mixed $ elims 0 es
 

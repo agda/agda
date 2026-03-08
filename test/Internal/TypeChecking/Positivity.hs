@@ -6,7 +6,7 @@ import Data.Sequence (Seq)
 
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..))
-import Agda.TypeChecking.Positivity.Compat
+import Agda.TypeChecking.Positivity.Warnings
 
 import Agda.Utils.SemiRing
 

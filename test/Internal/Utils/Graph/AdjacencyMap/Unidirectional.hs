@@ -21,7 +21,7 @@ import Data.Set qualified as Set
 
 import Agda.Syntax.Common.Pretty
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..))
-import Agda.TypeChecking.Positivity.Compat (boundToEverySome, productOfEdgesInBoundedWalk)
+import Agda.TypeChecking.Positivity.Warnings (boundToEverySome, productOfEdgesInBoundedWalk)
 
 import Agda.Utils.Function (iterateUntil)
 import Agda.Utils.Functor

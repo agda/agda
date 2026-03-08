@@ -116,18 +116,19 @@ modalPolarityToOccurrence = \case
 data OccursWhere
   = Root
   | LeftOfArrow !OccursWhere
-  | DefArg !OccursWhere !QName !Nat    -- ^ in the nth argument of a defined constant
-  | MutDefArg !OccursWhere !QName !Nat -- ^ in the nth argument of a def in the current mutual block
-  | UnderInf !OccursWhere              -- ^ in the principal argument of built-in ∞
-  | VarArg !OccursWhere !Nat           -- ^ as an argument to a bound variable.
-  | MetaArg !OccursWhere               -- ^ as an argument of a metavariable
-  | ConArgType !OccursWhere !QName     -- ^ in the type of a constructor
-  | IndArgType !OccursWhere !QName     -- ^ in a datatype index of a constructor
-  | ConEndpoint !OccursWhere !QName    -- ^ in an endpoint of a higher constructor
-  | InClause !OccursWhere !Nat         -- ^ in the nth clause of a defined function
-  | Matched !OccursWhere               -- ^ matched against in a clause of a defined function
-  | InIndex !OccursWhere               -- ^ is an index of an inductive family
-  | InDefOf !OccursWhere !QName        -- ^ in the definition of a constant
+  | DefArg !OccursWhere !QName !Nat      -- ^ in the nth argument of a defined constant
+  | MutDefArg !OccursWhere !QName !Nat   -- ^ in the nth argument of a def in the current mutual block
+  | UnderInf !OccursWhere                -- ^ in the principal argument of built-in ∞
+  | VarArg !OccursWhere !Nat !Occurrence -- ^ as an argument to a bound variable with given polarity.
+                                         --   The polarity is only used for warning printing.
+  | MetaArg !OccursWhere                 -- ^ as an argument of a metavariable
+  | ConArgType !OccursWhere !QName       -- ^ in the type of a constructor
+  | IndArgType !OccursWhere !QName       -- ^ in a datatype index of a constructor
+  | ConEndpoint !OccursWhere !QName      -- ^ in an endpoint of a higher constructor
+  | InClause !OccursWhere !Nat           -- ^ in the nth clause of a defined function
+  | Matched !OccursWhere                 -- ^ matched against in a clause of a defined function
+  | InIndex !OccursWhere                 -- ^ is an index of an inductive family
+  | InDefOf !OccursWhere !QName          -- ^ in the definition of a constant
   deriving Eq
 
 instance NFData OccursWhere where
@@ -141,7 +142,7 @@ instance Show OccursWhere where
       DefArg p q i    -> go p $ " InDefArg "      ++ P.prettyShow q ++ " " ++ P.prettyShow i ++ acc
       MutDefArg p q i -> go p $ " InMutDefArg "   ++ P.prettyShow q ++ " " ++ P.prettyShow i ++ acc
       UnderInf p      -> go p $ " InUnderInf" ++ acc
-      VarArg p i      -> go p $ " InVarArg "      ++ P.prettyShow i ++ acc
+      VarArg p i o    -> go p $ " InVarArg "      ++ P.prettyShow i ++ " " ++ P.prettyShow o ++ acc
       MetaArg p       -> go p $ " InMetaArg" ++ acc
       ConArgType p q  -> go p $ " InConArgType "  ++ P.prettyShow q ++ acc
       IndArgType p q  -> go p $ " InIndArgType "  ++ P.prettyShow q ++ acc

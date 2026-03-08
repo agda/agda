@@ -19,7 +19,7 @@ import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import Data.Sequence (Seq)
+import Data.Sequence (Seq, pattern (:<|), pattern (:|>))
 import qualified Data.Sequence as DS
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -103,16 +103,19 @@ checkStrictlyPositive mi qset = do
       -- g' <- Bench.billTo [Bench.Positivity] $ New.buildOccurrenceGraph qs
       g' <- lift $ toLegacyGraph g'
 
-      when (eraseWhere g /= eraseWhere g') do
+      when (g /= g') do
         reportSDoc "" 1 $ "OCCURRENCE MISMATCH" <+> fsep (map prettyTCM qs)
         reportSDoc "" 1 $ vcat
           [ "LEGACY GRAPH"
-          , nest 2 $ prettyTCM (eraseWhere g)
+          , nest 2 $ prettyTCM g
           ]
         reportSDoc "" 1 $ vcat
           [ "NEW GRAPH"
           , nest 2 $ prettyTCM g'
           ]
+        -- reportSLn "" 1 $ show g
+        -- reportSLn "" 1 ""
+        -- reportSLn "" 1 $ show g'
         undefined
 
       reportSDoc "tc.pos.tick" 100 $ "constructed graph"
@@ -237,7 +240,7 @@ checkStrictlyPositive mi qset = do
                 -- reason :: Occurrence -> OccursWhere -> OccursWhere
                 -- reason :: _
                 reason bound =
-                  case productOfEdgesInBoundedWalk
+                  case W.productOfEdgesInBoundedWalk
                          occ g' (DefNode q) (DefNode q) bound of
                     Just (W.Edge _ how) -> how
                     Nothing             -> __IMPOSSIBLE__
@@ -361,17 +364,54 @@ toLegacyGraph graph = do
   assocs <- forM assocs \(src, tgts) -> (src,) <$!> New.nodeMapToList tgts
   assocs <- pure [(src, tgt, e) | (src, tgts) <- assocs, (tgt, e) <- tgts]
 
-  let convEdge (New.Edge occ path) = W.Edge occ (convPath path)
+  let convEdge tgt (New.Edge occ path) = W.Edge occ (convPath tgt path)
 
-      -- convPath :: New.OccursWhere -> (Range, Seq Where, Seq Where)
-      convPath = _
+      convPath :: Node -> New.OccursWhere -> W.OccursWhere
+      convPath src path = let
+
+        go' :: New.OccursWhere -> Seq W.Where
+        go' = \case
+          New.Root            -> mempty
+          New.MutDefArg p x i -> go' p :|> W.DefArg x i
+          New.LeftOfArrow p   -> go' p :|> W.LeftOfArrow
+          New.DefArg p x i    -> go' p :|> W.DefArg x i
+          New.UnderInf p      -> go' p :|> W.UnderInf
+          New.VarArg p i o    -> go' p :|> W.VarArg o i
+          New.MetaArg p       -> go' p :|> W.MetaArg
+          New.ConArgType p x  -> go' p :|> W.ConArgType x
+          New.IndArgType p x  -> go' p :|> W.IndArgType x
+          New.ConEndpoint p x -> go' p :|> W.ConEndpoint x
+          New.InClause p i    -> go' p :|> W.InClause i
+          New.Matched p       -> go' p :|> W.Matched
+          New.InIndex p       -> go' p :|> W.InIndex
+          New.InDefOf p x     -> go' p :|> W.InDefOf x
+
+        go :: New.OccursWhere -> (Seq W.Where, Seq W.Where)
+        go = \case
+          New.Root            -> (mempty, mempty)
+          New.MutDefArg p x i -> let !s1 = go' p; !s2 = DS.singleton (W.DefArg x i) in (s1, s2)
+          New.LeftOfArrow p   -> (:|> W.LeftOfArrow)   <$!> go p
+          New.DefArg p x i    -> (:|> W.DefArg x i)    <$!> go p
+          New.UnderInf p      -> (:|> W.UnderInf)      <$!> go p
+          New.VarArg p i o    -> (:|> W.VarArg o i)    <$!> go p
+          New.MetaArg p       -> (:|> W.MetaArg)       <$!> go p
+          New.ConArgType p x  -> (:|> W.ConArgType x)  <$!> go p
+          New.IndArgType p x  -> (:|> W.IndArgType x)  <$!> go p
+          New.ConEndpoint p x -> (:|> W.ConEndpoint x) <$!> go p
+          New.InClause p i    -> (:|> W.InClause i)    <$!> go p
+          New.Matched p       -> (:|> W.Matched)       <$!> go p
+          New.InIndex p       -> (:|> W.InIndex)       <$!> go p
+          New.InDefOf p x     -> (:|> W.InDefOf x)     <$!> go p
+
+        in case go path of
+          (s1, s2) -> W.OccursWhere (getRange src) s1 s2
 
   let go :: Map Node (Map Node (W.Edge W.OccursWhere)) -> (Node, Node, New.Edge)
          -> Map Node (Map Node (W.Edge W.OccursWhere))
-      go m (src, tgt, convEdge -> e) =
-        Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
-        Map.insertWith (\_ tgts -> tgts) tgt mempty $
-        m
+      go m (src, tgt, e) = case convEdge src e of
+        e -> Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
+             Map.insertWith (\_ tgts -> tgts) tgt mempty $
+             m
 
   pure $! Graph.Graph $! foldl' go mempty assocs
 
@@ -676,7 +716,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
       let xs = [np .. size telD - 1] -- argument positions corresponding to indices
 
       let ioccs = Concat $ map (\i -> OccursHere $ AnArg i []) [np0 .. np - 1]
-                        ++ map (\i -> OccursAs W.IsIndex $ OccursHere $ AnArg i []) xs
+                        ++ map (\i -> OccursAs W.InIndex $ OccursHere $ AnArg i []) xs
 
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
@@ -892,7 +932,7 @@ computeEdges muts q ob =
     W.ConEndpoint _  -> keepGoing
     W.InClause _     -> keepGoing
     W.Matched        -> mixed -- consider arguments matched against as used
-    W.IsIndex        -> mixed -- And similarly for indices.
+    W.InIndex        -> mixed -- And similarly for indices.
     W.InDefOf d      -> do
       pol' <- isGuarding d
       return (Just (DefNode d), pol')
@@ -953,7 +993,7 @@ instance PrettyTCM (Seq W.OccursWhere) where
 
       prettyWs :: MonadPretty m => Seq W.Where -> m (String, Doc)
       prettyWs ws = case Fold.toList ws of
-        [W.InDefOf d, W.IsIndex] ->
+        [W.InDefOf d, W.InIndex] ->
           (,) "is" <$> fsep (pwords "an index of" ++ [prettyTCM d])
         _ ->
           (,) "occurs" <$>
@@ -969,7 +1009,7 @@ instance PrettyTCM (Seq W.OccursWhere) where
                             inf <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinInf
                             prettyTCM inf]
         W.VarArg p i   -> pwords "in an argument of a bound variable at position" ++ [prettyTCM i]
-                        ++ pwords "which uses its argument with polarity" ++ [ pretty p ]
+                         ++ pwords "which uses its argument with polarity" ++ [ pretty p ]
         W.MetaArg      -> pwords "in an argument of a metavariable"
         W.ConArgType c -> pwords "in the type of the constructor" ++ [prettyTCM c]
         W.IndArgType c -> pwords "in an index of the target type of the constructor" ++ [prettyTCM c]
@@ -977,7 +1017,7 @@ instance PrettyTCM (Seq W.OccursWhere) where
                            pwords "higher constructor" ++ [prettyTCM c]
         W.InClause i   -> pwords "in the" ++ nth i ++ pwords "clause"
         W.Matched      -> pwords "as matched against"
-        W.IsIndex      -> pwords "as an index"
+        W.InIndex      -> pwords "as an index"
         W.InDefOf d    -> pwords "in the definition of" ++ [prettyTCM d]
 
       adjustLeftOfArrow :: W.OccursWhere -> W.OccursWhere

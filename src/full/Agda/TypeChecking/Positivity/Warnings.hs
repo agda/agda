@@ -54,8 +54,6 @@ data Where
   | DefArg QName Nat       -- ^ in the nth argument of a define constant
   | UnderInf               -- ^ in the principal argument of built-in ∞
   | VarArg Occurrence Nat  -- ^ as an argument to a bound variable.
-                           --   The polarity, if given, is the polarity of
-                           --   the argument the occurence is in
   | MetaArg                -- ^ as an argument of a metavariable
   | ConArgType QName       -- ^ in the type of a constructor
   | IndArgType QName       -- ^ in a datatype index of a constructor
@@ -63,7 +61,7 @@ data Where
                            -- ^ in an endpoint of a higher constructor
   | InClause Nat           -- ^ in the nth clause of a defined function
   | Matched                -- ^ matched against in a clause of a defined function
-  | IsIndex                -- ^ is an index of an inductive family
+  | InIndex                -- ^ is an index of an inductive family
   | InDefOf QName          -- ^ in the definition of a constant
   deriving (Show, Eq, Ord, Generic)
 
@@ -82,7 +80,7 @@ instance Pretty Where where
                  -> "ConEndpoint" <+> pretty q
     InClause i   -> "InClause"   <+> pretty i
     Matched      -> "Matched"
-    IsIndex      -> "IsIndex"
+    InIndex      -> "IsIndex"
     InDefOf q    -> "InDefOf"    <+> pretty q
 
 instance Pretty OccursWhere where

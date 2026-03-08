@@ -53,7 +53,7 @@ import qualified Agda.TypeChecking.Monad  as TCM
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import qualified Agda.TypeChecking.Pretty as TCM
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..))
-import Agda.TypeChecking.Positivity.Compat
+import Agda.TypeChecking.Positivity.Warnings
 import Agda.TypeChecking.Warnings ( raiseWarningsOnUsage )
 
 import qualified Agda.Syntax.Abstract as A
