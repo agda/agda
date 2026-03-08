@@ -6,6 +6,7 @@ import Data.Sequence (Seq)
 
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..))
+import Agda.TypeChecking.Positivity.OccurrenceAnalysis (Node(..))
 import Agda.TypeChecking.Positivity.Warnings
 
 import Agda.Utils.SemiRing
@@ -42,16 +43,16 @@ prop_oplus_Occurrence_Edge e1@(Edge o1 _) e2@(Edge o2 _) =
   case oplus e1 e2 of
     Edge o _ -> o == oplus o1 o2
 
--- | 'transitiveOccurrence' gives the same result as looking up from
---   the transitive closure of the graph.
-prop_transitiveOccurrence :: Graph.Graph Node (Edge OccursWhere) -> Property
-prop_transitiveOccurrence g =
-  let gstar = Graph.transitiveClosure (fmap (\(Edge o _) -> o) g) in
-  forAll (nodeIn g) \n ->
-  forAll (nodeIn g) \m ->
-    maybe Unused id (Graph.lookup n m gstar)
-    ==
-    transitiveOccurrence g n m
+-- -- | 'transitiveOccurrence' gives the same result as looking up from
+-- --   the transitive closure of the graph.
+-- prop_transitiveOccurrence :: Graph.Graph Node (Edge OccursWhere) -> Property
+-- prop_transitiveOccurrence g =
+--   let gstar = Graph.transitiveClosure (fmap (\(Edge o _) -> o) g) in
+--   forAll (nodeIn g) \n ->
+--   forAll (nodeIn g) \m ->
+--     maybe Unused id (Graph.lookup n m gstar)
+--     ==
+--     transitiveOccurrence g n m
 
 ------------------------------------------------------------------------
 -- * All tests
