@@ -48,7 +48,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 
 -- import Agda.TypeChecking.CheckInternal
 -- import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (checkInternal)
-import Agda.TypeChecking.MetaVars.Occurs
+import Agda.TypeChecking.MetaVars.Occurs (occursCheck, prune, PruneResult(..))
 
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Function

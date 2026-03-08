@@ -755,6 +755,7 @@ library
       Agda.TypeChecking.MetaVars
       Agda.TypeChecking.MetaVars.Mention
       Agda.TypeChecking.MetaVars.Occurs
+      Agda.TypeChecking.MetaVars.OccursNew
       Agda.TypeChecking.Modalities
       Agda.TypeChecking.Monad
       Agda.TypeChecking.Monad.Base

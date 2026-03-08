@@ -15,7 +15,7 @@
   - We don't need to check for success, we can just continue occurs checking.
 -}
 
-module Agda.TypeChecking.MetaVars.Occurs (
+module Agda.TypeChecking.MetaVars.OccursNew (
     PruneResult(..)
   , killArgs
   , occursCheck
@@ -26,7 +26,6 @@ module Agda.TypeChecking.MetaVars.Occurs (
 import Prelude hiding (null, zip, zipWith)
 
 import Control.Monad.Except ( ExceptT, runExceptT, catchError, throwError )
-import Control.Monad.Reader ( ReaderT, runReaderT, asks, MonadReader(..) )
 
 import Data.Foldable (traverse_)
 import Data.Functor
@@ -70,6 +69,8 @@ import Agda.Utils.Size
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Zip
+import Agda.Utils.ExpandCase
+import Agda.Utils.StrictReader
 
 import Agda.Utils.Impossible
 
@@ -452,8 +453,7 @@ underQuantity = local . mapQuantity . composeQuantity . getQuantity
 
 -- | When assigning @m xs := v@, check that @m@ does not occur in @v@
 --   and that the free variables of @v@ are contained in @xs@.
-occursCheck
-  :: MetaId -> VarMap -> Term -> TCM Term
+occursCheck :: MetaId -> VarMap -> Term -> TCM Term
 occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
   mv <- lookupLocalMeta m
   n  <- getContextSize

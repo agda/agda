@@ -155,6 +155,7 @@ data LocalMetaStores = LocalMetaStores
     -- ^ A 'MetaStore' containing instantiated meta-variables.
   }
 
+{-# SPECIALIZE metasCreatedBy :: TCM a -> TCM (a, LocalMetaStores) #-}
 -- | Run a computation and record which new metas it created.
 metasCreatedBy ::
   forall m a. ReadTCState m => m a -> m (a, LocalMetaStores)
@@ -173,7 +174,6 @@ metasCreatedBy m = do
       (_, Just m,  ms) -> MapS.insert next m ms
 
 -- | Find information about the given local meta-variable, if any.
-
 lookupLocalMeta' :: ReadTCState m => MetaId -> m (Maybe MetaVariable)
 lookupLocalMeta' m = do
   mv <- lkup <$> useR stSolvedMetaStore
@@ -183,8 +183,8 @@ lookupLocalMeta' m = do
   where
   lkup = MapS.lookup m
 
+{-# SPECIALIZE lookupLocalMeta :: MetaId -> TCM MetaVariable #-}
 -- | Find information about the given local meta-variable.
-
 lookupLocalMeta ::
   (HasCallStack, MonadDebug m, ReadTCState m) =>
   MetaId -> m MetaVariable
