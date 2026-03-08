@@ -45,7 +45,7 @@ import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..))
 import Agda.TypeChecking.Positivity.Occurrence qualified as New
 import Agda.TypeChecking.Positivity.OccurrenceAnalysis (Node(..))
 import Agda.TypeChecking.Positivity.OccurrenceAnalysis qualified as New
-import Agda.TypeChecking.Positivity.Compat
+import Agda.TypeChecking.Positivity.Warnings qualified as W
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
@@ -123,7 +123,7 @@ checkStrictlyPositive mi qset = do
         , nest 2 $ prettyTCM g
         ]
 
-      let occ (Edge o _) = o
+      let occ (W.Edge o _) = o
 
       let tcl g = do
             let (!gstar, !sccs) = Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
@@ -226,7 +226,7 @@ checkStrictlyPositive mi qset = do
             let loop :: Maybe Occurrence
                 loop = Graph.lookup (DefNode q) (DefNode q) gstar
 
-                g' :: Graph Node (Edge (Seq OccursWhere))
+                g' :: Graph Node (W.Edge (Seq W.OccursWhere))
                 g' = fmap (fmap DS.singleton) g
 
                 -- Note the property
@@ -239,8 +239,8 @@ checkStrictlyPositive mi qset = do
                 reason bound =
                   case productOfEdgesInBoundedWalk
                          occ g' (DefNode q) (DefNode q) bound of
-                    Just (Edge _ how) -> how
-                    Nothing           -> __IMPOSSIBLE__
+                    Just (W.Edge _ how) -> how
+                    Nothing             -> __IMPOSSIBLE__
 
                 how :: String -> Occurrence -> TCM Doc
                 how msg bound = fsep $
@@ -354,20 +354,20 @@ instance PrettyTCM New.OccursWhere where
 ----------------------------------------------------------------------------------------------------
 
 -- | Convert back to legacy graph, for testing.
-toLegacyGraph :: New.OccGraph -> IO (Graph.Graph Node (Edge OccursWhere))
+toLegacyGraph :: New.OccGraph -> IO (Graph.Graph Node (W.Edge W.OccursWhere))
 toLegacyGraph graph = do
 
   assocs <- New.nodeMapToList graph
   assocs <- forM assocs \(src, tgts) -> (src,) <$!> New.nodeMapToList tgts
   assocs <- pure [(src, tgt, e) | (src, tgts) <- assocs, (tgt, e) <- tgts]
 
-  let convEdge (New.Edge occ path) = Edge occ (convPath path)
+  let convEdge (New.Edge occ path) = W.Edge occ (convPath path)
 
       -- convPath :: New.OccursWhere -> (Range, Seq Where, Seq Where)
       convPath = _
 
-  let go :: Map Node (Map Node (Edge OccursWhere)) -> (Node, Node, New.Edge)
-         -> Map Node (Map Node (Edge OccursWhere))
+  let go :: Map Node (Map Node (W.Edge W.OccursWhere)) -> (Node, Node, New.Edge)
+         -> Map Node (Map Node (W.Edge W.OccursWhere))
       go m (src, tgt, convEdge -> e) =
         Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
         Map.insertWith (\_ tgts -> tgts) tgt mempty $
@@ -375,7 +375,7 @@ toLegacyGraph graph = do
 
   pure $! Graph.Graph $! foldl' go mempty assocs
 
-eraseWhere :: Graph.Graph Node (Edge OccursWhere) -> Graph.Graph Node (Edge ())
+eraseWhere :: Graph.Graph Node (W.Edge W.OccursWhere) -> Graph.Graph Node (W.Edge ())
 eraseWhere = (fmap . fmap) (const ())
 
 
@@ -397,12 +397,12 @@ instance Pretty Item where
   prettyPrec p (AnArg i t) = P.mparens (p > 9) $ "AnArg" P.<+> P.pretty i P.<+> P.pretty t
   prettyPrec p (ADef qn) = P.mparens (p > 9) $ "ADef"  P.<+> P.pretty qn
 
-type Occurrences = Map Item [OccursWhere]
+type Occurrences = Map Item [W.OccursWhere]
 
 -- | Used to build 'Occurrences' and occurrence graphs.
 data OccurrencesBuilder
   = Concat [OccurrencesBuilder]
-  | OccursAs Where OccurrencesBuilder
+  | OccursAs W.Where OccurrencesBuilder
   | OccursHere Item
   | OnlyVarsUpTo Nat OccurrencesBuilder
     -- ^ @OnlyVarsUpTo n occs@ discards occurrences of de Bruijn index
@@ -411,7 +411,7 @@ data OccurrencesBuilder
 -- | Used to build 'Occurrences' and occurrence graphs.
 data OccurrencesBuilder'
   = Concat' [OccurrencesBuilder']
-  | OccursAs' Where OccurrencesBuilder'
+  | OccursAs' W.Where OccurrencesBuilder'
   | OccursHere' Item
 
 -- | The semigroup laws only hold up to flattening of 'Concat'.
@@ -534,7 +534,7 @@ instance ComputeOccurrences Clause where
       matching :: (Int, NamedArg (Pattern' a)) -> OccM (Maybe OccurrencesBuilder)
       matching (i, p) = do
         properlyMatching (namedThing $ unArg p) >>= \case
-          True -> return $ Just $ OccursAs Matched $ OccursHere $ AnArg i []
+          True -> return $ Just $ OccursAs W.Matched $ OccursHere $ AnArg i []
           False -> return Nothing
 
       -- @patItems ps@ creates a map from the pattern variables of @ps@
@@ -563,7 +563,7 @@ instance ComputeOccurrences Term where
               AnArg _ aoccs <- item
               aoccs !!! i
 
-        return $ Concat $ zipWith (\i -> OccursAs (VarArg (getPol i) i)) [0..] occs
+        return $ Concat $ zipWith (\i -> OccursAs (W.VarArg (getPol i) i)) [0..] occs
       where
         occI vars = maybe mempty OccursHere $ indexWithDefault unbound vars i
         unbound = flip trace __IMPOSSIBLE__ $
@@ -572,16 +572,16 @@ instance ComputeOccurrences Term where
 
     Def d args   -> do
       inf <- asks inf
-      let occsAs = if Just d /= inf then OccursAs . DefArg d else \ n ->
+      let occsAs = if Just d /= inf then OccursAs . W.DefArg d else \ n ->
             -- the principal argument of builtin INF (∞) is the second (n==1)
             -- the first is a level argument (n==0, counting from 0!)
-            if n == 1 then OccursAs UnderInf else OccursAs (DefArg d n)
+            if n == 1 then OccursAs W.UnderInf else OccursAs (W.DefArg d n)
       occs <- mapM occurrences args
       return . Concat $ OccursHere (ADef d) : zipWith occsAs [0..] occs
 
     Con _ _ args -> occurrences args
-    MetaV _ args -> OccursAs MetaArg <$> occurrences args
-    Pi a b       -> (OccursAs LeftOfArrow <$> occurrences a) <> occurrences b
+    MetaV _ args -> OccursAs W.MetaArg <$> occurrences args
+    Pi a b       -> (OccursAs W.LeftOfArrow <$> occurrences a) <> occurrences b
     Lam _ b      -> occurrences b
     Level l      -> occurrences l
     Lit{}        -> mempty
@@ -646,20 +646,20 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     o <- asksTC envCurrentOpaqueId
     "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show o) <+> text (show m)
       <+> prettyTCM cur
-  OccursAs (InDefOf q) <$> case theDef def of
+  OccursAs (W.InDefOf q) <$> case theDef def of
 
     Function{funClauses = cs} -> do
       cs <- mapM etaExpandClause =<< instantiateFull cs
       -- Perform automated occurrence analysis for functions?
       performAnalysis <- optOccurrence <$> pragmaOptions
       if performAnalysis then
-        Concat . zipWith (OccursAs . InClause) [0..] <$>
+        Concat . zipWith (OccursAs . W.InClause) [0..] <$>
           mapM (getOccurrences []) cs
        else case cs of
           []     -> __IMPOSSIBLE__
           cl : _ -> do
             pure $ Concat
-              [ OccursAs Matched (OccursHere (AnArg i []))
+              [ OccursAs W.Matched (OccursHere (AnArg i []))
               | (i, _) <- zip [0..] (namedClausePats cl)
               ]
 
@@ -676,7 +676,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
       let xs = [np .. size telD - 1] -- argument positions corresponding to indices
 
       let ioccs = Concat $ map (\i -> OccursHere $ AnArg i []) [np0 .. np - 1]
-                        ++ map (\i -> OccursAs IsIndex $ OccursHere $ AnArg i []) xs
+                        ++ map (\i -> OccursAs W.IsIndex $ OccursHere $ AnArg i []) xs
 
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
@@ -698,8 +698,8 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
             reportSLn "tc.pos.params" 50 $ "Adding datatypes parameters in context " ++ prettyShow pvars
 
             -- Occurrences in the types of the constructor arguments.
-            (OccursAs (ConArgType c) <$> getOccurrences pvars tel1') <>
-              (OccursAs (ConEndpoint c) <$> getOccurrences telvars bnd) <> do
+            (OccursAs (W.ConArgType c) <$> getOccurrences pvars tel1') <>
+              (OccursAs (W.ConEndpoint c) <$> getOccurrences telvars bnd) <> do
               -- Occurrences in the indices of the data type the constructor targets.
               -- Andreas, 2020-02-15, issue #4447:
               -- WAS: @t@ is not necessarily a data type, but it could be something
@@ -712,7 +712,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
                 Def q' vs
                   | q == q' -> do
                       let indices = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ drop np vs
-                      OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences telvars indices
+                      OccursAs (W.IndArgType c) . OnlyVarsUpTo np <$> getOccurrences telvars indices
                   | otherwise -> __IMPOSSIBLE__  -- this ought to be impossible now (but wasn't, see #4447)
                 Pi{}       -> __IMPOSSIBLE__  -- eliminated  by telView
                 MetaV{}    -> __IMPOSSIBLE__  -- not a constructor target; should have been solved by now
@@ -757,12 +757,12 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
 -- | WARNING: There can be lots of sharing between the 'OccursWhere'
 -- entries in the edges. Traversing all of these entries could be
 -- expensive. (See 'computeEdges' for an example.)
-buildOccurrenceGraph :: Set QName -> TCM (Graph Node (Edge OccursWhere))
+buildOccurrenceGraph :: Set QName -> TCM (Graph Node (W.Edge W.OccursWhere))
 buildOccurrenceGraph qs =
-  Graph.fromEdgesWith mergeEdges . concat <$>
+  Graph.fromEdgesWith W.mergeEdges . concat <$>
     mapM defGraph (Set.toList qs)
   where
-    defGraph :: QName -> TCM [Graph.Edge Node (Edge OccursWhere)]
+    defGraph :: QName -> TCM [Graph.Edge Node (W.Edge W.OccursWhere)]
     defGraph q = inConcreteOrAbstractMode q $ \ _def -> do
       occs <- computeOccurrences' q
 
@@ -785,7 +785,7 @@ buildOccurrenceGraph qs =
           $+$
         nest 2 (vcat $
            map (\e ->
-                   let Edge o w = Graph.label e in
+                   let W.Edge o w = Graph.label e in
                    prettyTCM (Graph.source e) <+>
                    "-[" <+> (return (P.pretty o) <> ",") <+>
                                  return (P.pretty w) <+> "]->" <+>
@@ -820,7 +820,7 @@ computeEdges
   -> QName
      -- ^ The current name.
   -> OccurrencesBuilder
-  -> TCM [Graph.Edge Node (Edge OccursWhere)]
+  -> TCM [Graph.Edge Node (W.Edge W.OccursWhere)]
 computeEdges muts q ob =
   ($ []) <$> mkEdge StrictPos (preprocess ob)
                     __IMPOSSIBLE__ DS.empty DS.empty
@@ -829,12 +829,12 @@ computeEdges muts q ob =
      :: Occurrence
      -> OccurrencesBuilder'
      -> Node          -- The current target node.
-     -> DS.Seq Where  -- 'Where' information encountered before the current target
+     -> DS.Seq W.Where  -- 'Where' information encountered before the current target
                       -- node was (re)selected.
-     -> DS.Seq Where  -- 'Where' information encountered after the current target
+     -> DS.Seq W.Where  -- 'Where' information encountered after the current target
                       -- node was (re)selected.
-     -> TCM ([Graph.Edge Node (Edge OccursWhere)] ->
-             [Graph.Edge Node (Edge OccursWhere)])
+     -> TCM ([Graph.Edge Node (W.Edge W.OccursWhere)] ->
+             [Graph.Edge Node (W.Edge W.OccursWhere)])
   mkEdge !pol ob to cs os = case ob of
     Concat' obs ->
       foldr (liftM2 (.)) (return id)
@@ -848,13 +848,13 @@ computeEdges muts q ob =
         Just to -> mk to (cs DS.>< os) (DS.singleton w)
 
     OccursHere' i ->
-      let o = OccursWhere (getRange i) cs os in
+      let o = W.OccursWhere (getRange i) cs os in
       case i of
         AnArg i t ->
           return $ applyUnless (null pol) (Graph.Edge
             { Graph.source = ArgNode q i
             , Graph.target = to
-            , Graph.label  = Edge pol o
+            , Graph.label  = W.Edge pol o
             } :)
         ADef q' ->
           -- Andreas, 2017-04-26, issue #2555
@@ -863,20 +863,20 @@ computeEdges muts q ob =
             (Graph.Edge
                { Graph.source = DefNode q'
                , Graph.target = to
-               , Graph.label  = Edge pol o
+               , Graph.label  = W.Edge pol o
                } :)
 
   -- This function might return a new target node.
   mkEdge'
     :: Node  -- The current target node.
     -> Occurrence
-    -> Where
+    -> W.Where
     -> TCM (Maybe Node, Occurrence)
   mkEdge' to !pol = \case
-    VarArg p i     -> addPol p
-    MetaArg        -> mixed
-    LeftOfArrow    -> negative
-    DefArg d i     -> do
+    W.VarArg p i     -> addPol p
+    W.MetaArg        -> mixed
+    W.LeftOfArrow    -> negative
+    W.DefArg d i     -> do
       pol' <- isGuarding d
       if Set.member d muts then
         return (Just (ArgNode d i), pol')
@@ -886,14 +886,14 @@ computeEdges muts q ob =
         addPol (otimes pol' occ)
 
         -- addPol =<< otimes pol' <$> getArgOccurrence d i
-    UnderInf       -> addPol GuardPos -- Andreas, 2012-06-09: ∞ is guarding
-    ConArgType _   -> keepGoing
-    IndArgType _   -> mixed
-    ConEndpoint _  -> keepGoing
-    InClause _     -> keepGoing
-    Matched        -> mixed -- consider arguments matched against as used
-    IsIndex        -> mixed -- And similarly for indices.
-    InDefOf d      -> do
+    W.UnderInf       -> addPol GuardPos -- Andreas, 2012-06-09: ∞ is guarding
+    W.ConArgType _   -> keepGoing
+    W.IndArgType _   -> mixed
+    W.ConEndpoint _  -> keepGoing
+    W.InClause _     -> keepGoing
+    W.Matched        -> mixed -- consider arguments matched against as used
+    W.IsIndex        -> mixed -- And similarly for indices.
+    W.InDefOf d      -> do
       pol' <- isGuarding d
       return (Just (DefNode d), pol')
     where
@@ -912,13 +912,13 @@ computeEdges muts q ob =
 instance PrettyTCM Node where
   prettyTCM = return . P.pretty
 
-instance P.Pretty a => PrettyTCMWithNode (Edge a) where
-  prettyTCMWithNode (WithNode n (Edge o w)) = vcat
+instance P.Pretty a => PrettyTCMWithNode (W.Edge a) where
+  prettyTCMWithNode (WithNode n (W.Edge o w)) = vcat
     [ prettyTCM o <+> prettyTCM n
     , nest 2 $ return $ P.pretty w
     ]
 
-instance PrettyTCM (Seq OccursWhere) where
+instance PrettyTCM (Seq W.OccursWhere) where
   prettyTCM =
     fmap snd . prettyOWs . map adjustLeftOfArrow . uniq . Fold.toList
     where
@@ -928,12 +928,12 @@ instance PrettyTCM (Seq OccursWhere) where
       nth n = pwords $ show (n + 1) ++ "th"
 
       -- Removes consecutive duplicates.
-      uniq :: [OccursWhere] -> [OccursWhere]
+      uniq :: [W.OccursWhere] -> [W.OccursWhere]
       uniq = map List1.head . List1.groupBy ((==) `on` snd')
         where
-        snd' (OccursWhere _ _ ws) = ws
+        snd' (W.OccursWhere _ _ ws) = ws
 
-      prettyOWs :: MonadPretty m => [OccursWhere] -> m (String, Doc)
+      prettyOWs :: MonadPretty m => [W.OccursWhere] -> m (String, Doc)
       prettyOWs []  = __IMPOSSIBLE__
       prettyOWs [o] = do
         (s, d) <- prettyOW o
@@ -943,47 +943,46 @@ instance PrettyTCM (Seq OccursWhere) where
         (s2, d2) <- prettyOWs os
         return (s1, d1 <> ("," P.<+> "which" P.<+> P.text s2 P.$$ d2))
 
-      prettyOW :: MonadPretty m => OccursWhere -> m (String, Doc)
-      prettyOW (OccursWhere _ cs ws)
+      prettyOW :: MonadPretty m => W.OccursWhere -> m (String, Doc)
+      prettyOW (W.OccursWhere _ cs ws)
         | null cs   = prettyWs ws
         | otherwise = do
             (s, d1) <- prettyWs ws
             (_, d2) <- prettyWs cs
             return (s, d1 P.$$ "(" <> d2 <> ")")
 
-      prettyWs :: MonadPretty m => Seq Where -> m (String, Doc)
+      prettyWs :: MonadPretty m => Seq W.Where -> m (String, Doc)
       prettyWs ws = case Fold.toList ws of
-        [InDefOf d, IsIndex] ->
+        [W.InDefOf d, W.IsIndex] ->
           (,) "is" <$> fsep (pwords "an index of" ++ [prettyTCM d])
         _ ->
           (,) "occurs" <$>
             Fold.foldrM (\w d -> return d $$ fsep (prettyW w)) empty ws
 
-      prettyW :: MonadPretty m => Where -> [m Doc]
+      prettyW :: MonadPretty m => W.Where -> [m Doc]
       prettyW = \case
-        LeftOfArrow  -> pwords "to the left of an arrow"
-        DefArg q i   -> pwords "in the" ++ nth i ++ pwords "argument of" ++
+        W.LeftOfArrow  -> pwords "to the left of an arrow"
+        W.DefArg q i   -> pwords "in the" ++ nth i ++ pwords "argument of" ++
                           [prettyTCM q]
-        UnderInf     -> pwords "under" ++
-                        [do -- this cannot fail if an 'UnderInf' has been generated
+        W.UnderInf     -> pwords "under" ++
+                           [do -- this cannot fail if an 'UnderInf' has been generated
                             inf <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinInf
                             prettyTCM inf]
-        VarArg p i   -> pwords "in an argument of a bound variable at position" ++ [prettyTCM i]
+        W.VarArg p i   -> pwords "in an argument of a bound variable at position" ++ [prettyTCM i]
                         ++ pwords "which uses its argument with polarity" ++ [ pretty p ]
-        MetaArg      -> pwords "in an argument of a metavariable"
-        ConArgType c -> pwords "in the type of the constructor" ++ [prettyTCM c]
-        IndArgType c -> pwords "in an index of the target type of the constructor" ++ [prettyTCM c]
-        ConEndpoint c
-                     -> pwords "in an endpoint of the target of the" ++
-                        pwords "higher constructor" ++ [prettyTCM c]
-        InClause i   -> pwords "in the" ++ nth i ++ pwords "clause"
-        Matched      -> pwords "as matched against"
-        IsIndex      -> pwords "as an index"
-        InDefOf d    -> pwords "in the definition of" ++ [prettyTCM d]
+        W.MetaArg      -> pwords "in an argument of a metavariable"
+        W.ConArgType c -> pwords "in the type of the constructor" ++ [prettyTCM c]
+        W.IndArgType c -> pwords "in an index of the target type of the constructor" ++ [prettyTCM c]
+        W.ConEndpoint c -> pwords "in an endpoint of the target of the" ++
+                           pwords "higher constructor" ++ [prettyTCM c]
+        W.InClause i   -> pwords "in the" ++ nth i ++ pwords "clause"
+        W.Matched      -> pwords "as matched against"
+        W.IsIndex      -> pwords "as an index"
+        W.InDefOf d    -> pwords "in the definition of" ++ [prettyTCM d]
 
-      adjustLeftOfArrow :: OccursWhere -> OccursWhere
-      adjustLeftOfArrow (OccursWhere r cs os) =
-        OccursWhere r (DS.filter (not . isArrow) cs) $
+      adjustLeftOfArrow :: W.OccursWhere -> W.OccursWhere
+      adjustLeftOfArrow (W.OccursWhere r cs os) =
+        W.OccursWhere r (DS.filter (not . isArrow) cs) $
           noArrows
             DS.><
           case DS.viewl startsWithArrow of
@@ -992,5 +991,5 @@ instance PrettyTCM (Seq OccursWhere) where
         where
         (noArrows, startsWithArrow) = DS.breakl isArrow os
 
-        isArrow LeftOfArrow{} = True
-        isArrow _             = False
+        isArrow W.LeftOfArrow{} = True
+        isArrow _               = False

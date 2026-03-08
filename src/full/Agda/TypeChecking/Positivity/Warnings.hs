@@ -1,6 +1,6 @@
 -- {-# OPTIONS_GHC -Wunused-imports #-}
 
-module Agda.TypeChecking.Positivity.Compat where
+module Agda.TypeChecking.Positivity.Warnings where
 
 import Prelude hiding (null)
 

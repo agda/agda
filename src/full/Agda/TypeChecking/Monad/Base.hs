@@ -99,7 +99,7 @@ import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.Conversion.Errors
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..), PragmaPolarities)
-import Agda.TypeChecking.Positivity.Compat (OccursWhere)
+import Agda.TypeChecking.Positivity.Warnings (OccursWhere)
 import Agda.TypeChecking.Free
 
 import Agda.TypeChecking.DiscrimTree.Types
