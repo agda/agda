@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting -v rewriting.match:50 #-}
+{-# OPTIONS --rewriting --local-confluence-check #-}
 
 open import Agda.Builtin.Equality.Rewrite
 open import Agda.Builtin.Equality
