@@ -63,6 +63,11 @@ type String1 = List1 Char
 toList' :: Maybe (List1 a) -> [a]
 toList' = maybe [] toList
 
+{-# INLINE map' #-}
+-- | Strict map.
+map' :: (a -> b) -> List1 a -> List1 b
+map' f (a :| as) = let !b = f a; !bs = List.map' f as in b :| bs
+
 -- | Lift a function on non-empty lists to a function on lists.
 --
 -- This is in essence 'fmap' for 'Maybe', if we take @[a] = Maybe (List1 a)@.
