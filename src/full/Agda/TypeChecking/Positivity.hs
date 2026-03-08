@@ -223,7 +223,7 @@ checkStrictlyPositive mi qset = do
         --------------------------------------------------------------------------------
         case dataTypeOrRec of
           Nothing -> pure ()
-          Just dr -> do
+          Just (pc, dr) -> do
             reportSDoc "tc.pos.check" 10 $ "Checking positivity of" <+> prettyTCM q
 
             let loop :: Maybe Occurrence
@@ -254,15 +254,15 @@ checkStrictlyPositive mi qset = do
             -- if we have a negative loop, raise error
 
             -- ASR (23 December 2015). We don't raise a strictly positive
-            -- error if the NO_POSITIVITY_CHECK pragma was set on in the
-            -- mutual block. See Issue 1614.
-            when (Info.mutualPositivityCheck mi == YesPositivityCheck) $
-              whenM positivityCheckEnabled $
+            -- error if the NO_POSITIVITY_CHECK pragma was set. See Issue 1614.
+            -- Andreas, 2026-02-27:
+            -- This information now comes either with the mututal block
+            -- or with the data/record type, see issue #3355.
+            unless (Info.mutualPositivityCheck mi == NoPositivityCheck || pc == NoPositivityCheck) $
+              whenM positivityCheckEnabled do
                 case loop of
-                Just o | o <= JustPos ->
-                  warning $ NotStrictlyPositive q undefined -- (reason JustPos)
-                _ -> return ()
-
+                  Just o | o <= JustPos -> warning $ NotStrictlyPositive q (reason JustPos)
+                  _                     -> pure ()
 
             let checkInduction :: QName -> TCM ()
                 checkInduction q =
@@ -322,16 +322,18 @@ hasDefinition = \case
   Datatype{}         -> True
   Record{}           -> True
 
-isDatatype :: Definition -> Maybe DataOrRecord
+isDatatype :: Definition -> Maybe (PositivityCheck, DataOrRecord)
 isDatatype def = do
   case theDef def of
-    Datatype{dataClause = Nothing} -> Just IsData
-    Record  {recClause  = Nothing, recPatternMatching } -> Just $ IsRecord recPatternMatching
+    Datatype{dataClause = Nothing, dataPositivityCheck} ->
+      Just (dataPositivityCheck, IsData)
+    Record  {recClause  = Nothing, recPositivityCheck, recPatternMatching } ->
+      Just (recPositivityCheck, IsRecord recPatternMatching)
     _ -> Nothing
 
 -- Result: [(name, arity, data or record, do we need to setMutual)] or Nothing if we don't need any
 -- occurrence analysis.
-preprocessBlock :: [QName] -> TCM (Maybe ([(QName, Int, Maybe DataOrRecord, Bool)]))
+preprocessBlock :: [QName] -> TCM (Maybe ([(QName, Int, Maybe (PositivityCheck, DataOrRecord), Bool)]))
 preprocessBlock qs = do
   info <- forMGood qs \q -> inConcreteOrAbstractMode q \def -> do
     !arity <- case hasDefinition (theDef def) of

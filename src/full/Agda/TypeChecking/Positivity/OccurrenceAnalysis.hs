@@ -143,7 +143,7 @@ type OccGraph = NodeMap (NodeMap Edge)
 addEdgeToGraph :: Node -> Node -> Edge -> OccGraph -> IO ()
 addEdgeToGraph src tgt e graph = lookupNode src graph >>= \case
   Found tgts -> lookupNode tgt tgts >>= \case
-    Found e' -> insertNode tgt (mergeEdges e' e) tgts
+    Found e' -> insertNode tgt (mergeEdges e e') tgts
     NotFound -> insertNode tgt e tgts
   NotFound -> do
     tgts <- HT.empty
@@ -322,8 +322,8 @@ instance ComputeOccurrences Term where
         topDefArgs <- asks topDefArgs
         topDef     <- asks topDef
         let DefArgInEnv argix ps = topDefArgs !! (x - locals)
-        elims 0 ps es
         addEdge (ArgNode topDef argix)
+        elims 0 ps es
 
     Def d es -> ret $ asks inf >>= \case
 
@@ -338,6 +338,7 @@ instance ComputeOccurrences Term where
 
         -- it's a mutual definition
         True -> do
+          addEdge (DefNode d)
           expand \ret -> case es of
             [] -> ret $ pure ()  -- we skip the mutualDefOcc in this case
             es -> ret do
@@ -348,7 +349,6 @@ instance ComputeOccurrences Term where
 
               defOcc <- lift (mutualDefOcc <$> getConstInfo d)
               elims d defOcc 0 es
-          addEdge (DefNode d)
 
         -- not a mutual definition
         False -> do
@@ -557,7 +557,8 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
       -- If the data type has a transport constructor (i.e. it's an
       -- indexed family in cubical mode) we should also consider it for
       -- positivity.
-      forM_ (maybeToList trx ++ cs) \c -> do
+      cs <- maybe (pure cs) (\c -> pure (cs ++ [c])) trx
+      forM_ cs \c -> do
          -- Andreas, 2020-02-15, issue #4447:
          -- Allow UnconfimedReductions here to make sure we get the constructor type
          -- in same way as it was obtained when the data types was checked.
