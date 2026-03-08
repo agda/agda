@@ -1,0 +1,13 @@
+BadNoMatchRewrite.agda:30.13-18: warning: -W[no]RewriteVariablesNotBoundByLHS
+badRw  is not a legal rewrite rule, since the following variable is
+not bound by the left hand side:
+  m
+when checking the pragma REWRITE badRw
+
+BadNoMatchRewrite.agda:33.8-12: error: [UnequalTerms]
+The terms
+  n + 4
+and
+  n
+are not equal at type Nat
+when checking that the expression refl has type n + 4 ≡ n
