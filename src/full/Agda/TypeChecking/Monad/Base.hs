@@ -3566,6 +3566,7 @@ data AllowedReduction
   = ProjectionReductions     -- ^ (Projection and) projection-like functions may be reduced.
   | InlineReductions         -- ^ Functions marked INLINE may be reduced.
   | CopatternReductions      -- ^ Copattern definitions may be reduced.
+  | NoMatchReductions        -- ^ The NOMATCH builtin may be reduced
   | FunctionReductions       -- ^ Non-recursive functions and primitives may be reduced.
   | RecursiveReductions      -- ^ Even recursive functions may be reduced.
   | LevelReductions          -- ^ Reduce @'Level'@ terms.
