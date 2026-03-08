@@ -76,7 +76,7 @@ jobs:
         tar --use-compress-program zstd --absolute-names -cvf stack.tzst ${{ steps.setup-haskell.outputs.stack-root }}
         tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock deps.txt
     - name: Upload artifacts
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         if-no-files-found: error
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -106,7 +106,7 @@ jobs:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
-    - uses: actions/download-artifact@v7
+    - uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -133,7 +133,7 @@ jobs:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
-    - uses: actions/download-artifact@v7
+    - uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -195,7 +195,7 @@ jobs:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
-    - uses: actions/download-artifact@v7
+    - uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -235,7 +235,7 @@ jobs:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
-    - uses: actions/download-artifact@v7
+    - uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts

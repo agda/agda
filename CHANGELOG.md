@@ -385,20 +385,6 @@ Changes to type checker and other components defining the Agda language.
   For compatibility with modules using `--cubical[=full]` and `--cubical=erased`, see
   [variants](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#variants).
 
-* (**BREAKING**): Module applications are no longer automatically eta-expanded.
-  E.g. previously, given the below three modules:
-  ```agda
-  module A where
-    postulate X : Set
-
-  module B (Y : Set) where
-    open A public
-
-  module C = B
-  ```
-  `B.X` would have type `Set` while `C.X` would have type `Set → Set` (as if
-  the user wrote `module C Y = B Y`). After this change, `C.X : Set` instead.
-
 * Added the [Sharp modality](https://agda.readthedocs.io/en/v2.9.0/language/flat.html#the-sharp-modality),
   which adds a right adjoint to the existing flat modality enabled via the
   `--cohesion` flag. This also enables the use of attributes in record

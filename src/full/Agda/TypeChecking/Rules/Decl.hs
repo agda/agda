@@ -1091,7 +1091,14 @@ checkSectionApplication'
       , nest 2 $ pretty copyInfo
       ]
     args <- instantiateFull $ vs ++ ts
-    applySection m1 ptel m2 args copyInfo
+    -- If we want to avoid eta-expanding modules (while supporting the current
+    -- 'open public' behaviour) we should also change 'renName'/'renMod'
+    -- in Agda.Syntax.Scope.Monad
+    -- See #8443
+    let n = size aTel
+    etaArgs <- inTopContext $ addContext aTel getContextArgs
+    addContext (KeepNames aTel) $
+      applySection m1 (ptel `abstract` aTel) m2 (raise n args ++ etaArgs) copyInfo
 
 checkSectionApplication' _ Erased{} _ A.RecordModuleInstance{} _ =
   __IMPOSSIBLE__

@@ -845,8 +845,15 @@ instance PrettyTCM TypeError where
           , [ pure dExpected ]
           ]
         | otherwise -> fsep $ concat
-          [ pwords "The name of the top level module does not match the file name. The module"
-          , [ pure dGiven ]
+          [ pwords "The name of the top level module does not match the file name."
+          , if moduleNameInferred (fileModuleName given) then
+              pwords "The unnamed module" ++
+              [ do
+                  path <- srcFilePath $ fileModuleSourceFile given
+                  let r = rangeFromAbsolutePath path
+                  parens ("at" <> prettyTCM r)
+              ]
+            else pwords "The module" ++ [ pure dGiven ]
           , pwords "should probably be named"
           , [ pure dExpected ]
           ]

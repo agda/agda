@@ -2,7 +2,7 @@
 
 -- | Properties for graph library.
 
-module Internal.Utils.Graph.AdjacencyMap.Unidirectional ( tests ) where
+module Internal.Utils.Graph.AdjacencyMap.Unidirectional ( tests, nodeIn ) where
 
 import Prelude hiding (null)
 

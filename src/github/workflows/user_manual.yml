@@ -90,7 +90,7 @@ jobs:
       run: |
         make user-manual-html
 
-    - uses: actions/upload-artifact@v6
+    - uses: actions/upload-artifact@v7
       with:
         name: user-manual-pdf
         path: doc/user-manual.pdf

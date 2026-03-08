@@ -101,6 +101,9 @@ prop_Occurrence_ostar x =
     &&
   ostar x == oplus oone (otimes (ostar x) x)
 
+prop_Occurrence_mixed_absorptive :: Occurrence -> Bool
+prop_Occurrence_mixed_absorptive = isZero Mixed oplus
+
 -- | Is the given predicate satisfiable?
 
 satisfiable :: (Occurrence -> Bool) -> Bool

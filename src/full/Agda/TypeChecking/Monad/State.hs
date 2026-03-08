@@ -444,15 +444,13 @@ isPrimitiveModule  fi = do
 
 topLevelModuleName :: RawTopLevelModuleName -> TCM TopLevelModuleName
 topLevelModuleName raw = do
-  hash <- BiMap.lookup raw <$> useR stTopLevelModuleNames
-  case hash of
+  (BiMap.lookup raw <$> useR stTopLevelModuleNames) >>= \case
     Just hash -> return (unsafeTopLevelModuleName raw hash)
     Nothing   -> do
       let hash = hashRawTopLevelModuleName raw
       when (hash == noModuleNameHash) $ typeError $ ModuleNameHashCollision raw Nothing
-      raw' <- BiMap.invLookup hash <$> useR stTopLevelModuleNames
-      case raw' of
-        Just raw' -> typeError $ ModuleNameHashCollision raw (Just raw')
+      (BiMap.invLookup hash <$> useR stTopLevelModuleNames) >>= \case
+        raw'@Just{} -> typeError $ ModuleNameHashCollision raw raw'
         Nothing -> do
           stTopLevelModuleNames `modifyTCLens'`
             BiMap.insert (killRange raw) hash
