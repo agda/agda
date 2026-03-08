@@ -85,8 +85,8 @@ instance Pretty Where where
 
 instance Pretty OccursWhere where
   pretty = \case
-    OccursWhere _r ws1 ws2 ->
-      "OccursWhere _" <+> pretty (toList ws1) <+> pretty (toList ws2)
+    OccursWhere r ws1 ws2 ->
+      "OccursWhere " <+> pretty r <+> pretty (toList ws1) <+> pretty (toList ws2)
 
 -- | Edge labels for the positivity graph.
 data Edge a = Edge !Occurrence a

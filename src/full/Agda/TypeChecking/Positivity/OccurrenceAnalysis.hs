@@ -136,7 +136,7 @@ insertQName q qs = HT.insert qs q ()
 -- Occurrence graph
 ----------------------------------------------------------------------------------------------------
 
-data Edge     = Edge Occurrence OccursWhere deriving (Eq, Show)
+data Edge     = Edge Occurrence Range OccursWhere deriving (Eq, Show)
 type OccGraph = NodeMap (NodeMap Edge)
 
 {-# NOINLINE addEdgeToGraph #-}
@@ -172,24 +172,24 @@ data OccEnv = OccEnv {
 type OccM = ReaderT OccEnv TCM
 
 instance PrettyTCMWithNode Edge where
-  prettyTCMWithNode (WithNode n (Edge o w)) = vcat
+  prettyTCMWithNode (WithNode n (Edge o _ w)) = vcat
     [ prettyTCM o <+> prettyTCM n
     , nest 2 $ return $ P.pretty w
     ]
 
 mergeEdges :: Edge -> Edge -> Edge
-mergeEdges _                    e@(Edge Mixed _)     = e -- dominant
-mergeEdges e@(Edge Mixed _)     _                    = e
-mergeEdges (Edge Unused _)      e                    = e -- neutral
-mergeEdges e                    (Edge Unused _)      = e
-mergeEdges (Edge JustNeg _)     e@(Edge JustNeg _)   = e
-mergeEdges _                    e@(Edge JustNeg p)   = Edge Mixed p
-mergeEdges e@(Edge JustNeg p)   _                    = Edge Mixed p
-mergeEdges _                    e@(Edge JustPos _)   = e -- dominates strict pos.
-mergeEdges e@(Edge JustPos _)   _                    = e
-mergeEdges _                    e@(Edge StrictPos _) = e -- dominates 'GuardPos'
-mergeEdges e@(Edge StrictPos _) _                    = e
-mergeEdges (Edge GuardPos _)    e@(Edge GuardPos _)  = e
+mergeEdges _                      e@(Edge Mixed _ _)     = e -- dominant
+mergeEdges e@(Edge Mixed _ _)     _                      = e
+mergeEdges (Edge Unused _ _)      e                      = e -- neutral
+mergeEdges e                      (Edge Unused _ _)      = e
+mergeEdges (Edge JustNeg _ _)     e@(Edge JustNeg _ _)   = e
+mergeEdges _                      e@(Edge JustNeg r p)   = Edge Mixed r p
+mergeEdges e@(Edge JustNeg r p)   _                      = Edge Mixed r p
+mergeEdges _                      e@(Edge JustPos _ _)   = e -- dominates strict pos.
+mergeEdges e@(Edge JustPos _ _)   _                      = e
+mergeEdges _                      e@(Edge StrictPos _ _) = e -- dominates 'GuardPos'
+mergeEdges e@(Edge StrictPos _ _) _                      = e
+mergeEdges (Edge GuardPos _ _)    e@(Edge GuardPos _ _)  = e
 
 {-# INLINE underPath #-}
 underPath :: (OccursWhere -> OccursWhere) -> OccM a -> OccM a
@@ -237,7 +237,9 @@ addEdge src = do
   -- reportSLn "" 1 $ "ADD EDGE: " ++ show (P.prettyShow src, P.prettyShow target, Edge occ path)
   expand \ret -> case occ of
     Unused -> ret $ pure ()
-    occ    -> ret $ lift $ lift $ addEdgeToGraph src target (Edge occ path) graph
+    occ    -> ret do
+      let range = getRange src
+      lift $ lift $ addEdgeToGraph src target (Edge occ range path) graph
 
 isMutual :: QName -> OccM Bool
 isMutual q = do
@@ -317,12 +319,11 @@ instance ComputeOccurrences Term where
               (_   , []  ) -> ret $ pure ()
               ([]  , e:es) -> ret $ occurrencesInDefArgArg Mixed i e >> elims (i + 1) [] es
               (p:ps, e:es) -> ret $ occurrencesInDefArgArg p i e     >> elims (i + 1) ps es
-
         topDefArgs <- asks topDefArgs
         topDef     <- asks topDef
         let DefArgInEnv argix ps = topDefArgs !! (x - locals)
-        addEdge (ArgNode topDef argix)
         elims 0 ps es
+        addEdge (ArgNode topDef argix)
 
     Def d es -> ret $ asks inf >>= \case
 
@@ -337,7 +338,6 @@ instance ComputeOccurrences Term where
 
         -- it's a mutual definition
         True -> do
-          addEdge (DefNode d)
           expand \ret -> case es of
             [] -> ret $ pure ()  -- we skip the mutualDefOcc in this case
             es -> ret do
@@ -348,6 +348,7 @@ instance ComputeOccurrences Term where
 
               defOcc <- lift (mutualDefOcc <$> getConstInfo d)
               elims d defOcc 0 es
+          addEdge (DefNode d)
 
         -- not a mutual definition
         False -> do

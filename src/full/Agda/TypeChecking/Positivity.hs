@@ -364,10 +364,10 @@ toLegacyGraph graph = do
   assocs <- forM assocs \(src, tgts) -> (src,) <$!> New.nodeMapToList tgts
   assocs <- pure [(src, tgt, e) | (src, tgts) <- assocs, (tgt, e) <- tgts]
 
-  let convEdge tgt (New.Edge occ path) = W.Edge occ (convPath tgt path)
+  let convEdge tgt (New.Edge occ rng path) = W.Edge occ (convPath rng path)
 
-      convPath :: Node -> New.OccursWhere -> W.OccursWhere
-      convPath src path = let
+      convPath :: Range -> New.OccursWhere -> W.OccursWhere
+      convPath rng path = let
 
         go' :: New.OccursWhere -> Seq W.Where
         go' = \case
@@ -404,7 +404,7 @@ toLegacyGraph graph = do
           New.InDefOf p x     -> (:|> W.InDefOf x)     <$!> go p
 
         in case go path of
-          (s1, s2) -> W.OccursWhere (getRange src) s1 s2
+          (s1, s2) -> W.OccursWhere rng s1 s2
 
   let go :: Map Node (Map Node (W.Edge W.OccursWhere)) -> (Node, Node, New.Edge)
          -> Map Node (Map Node (W.Edge W.OccursWhere))
