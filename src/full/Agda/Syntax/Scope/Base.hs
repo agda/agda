@@ -1388,19 +1388,16 @@ inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseNameLookup 
 
   -- try to get an unqualified concrete name, that's probably given
   -- by the user.
-  let getUserGivenRawName :: C.QName -> Maybe RawName
-      getUserGivenRawName = \case
+  let getUserGivenName :: C.QName -> Maybe NameParts
+      getUserGivenName = \case
         C.QName x -> case x of
-          C.Name r _ parts -> case r of
-            NoRange -> Nothing
-            _       -> case List1.last parts of
-              C.Id x -> Just x
-              _      -> Nothing
-          C.NoName{} -> Nothing
-        C.Qual _ x -> getUserGivenRawName x
+          C.NoName{}         -> Nothing
+          C.Name NoRange _ _ -> Nothing
+          C.Name _ _ parts   -> Just parts
+        C.Qual _ x -> getUserGivenName x
 
   -- unqualified original concrete name
-  let !userGiven = getUserGivenRawName (C.QName $ nameConcrete $ qnameName q)
+  let !userGiven = getUserGivenName (C.QName $ nameConcrete $ qnameName q)
 
   !xs <- List1.nonEmpty $ List.sortOn snd do
     -- List comprehension written in monadic form
@@ -1438,7 +1435,7 @@ inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseNameLookup 
           go (Applied x why) = let !r = getRange x; !rs = go why in Down r:rs
 
     let sortingWeight = let !qualifiers = length (C.qnameParts q)
-                            !preferUserGiven = case (userGiven, getUserGivenRawName q) of
+                            !preferUserGiven = case (userGiven, getUserGivenName q) of
                               (Just x, Just x') | x == x' -> Down True
                               _                           -> Down False
                         in (
