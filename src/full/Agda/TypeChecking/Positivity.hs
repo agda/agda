@@ -70,7 +70,6 @@ import Agda.Utils.Size
 import Agda.Utils.MinimalArray.Lifted qualified as AL
 import Agda.Utils.MinimalArray.MutableLifted qualified as MAL
 
-
 import Agda.Utils.Impossible
 
 ----------------------------------------------------------------------------------------------------
@@ -100,6 +99,7 @@ checkStrictlyPositive mi qset = do
       !g <- (buildOccurrenceGraph qset)
 
       g' <- New.buildOccurrenceGraph qs
+      sccs <- lift $ New.stronglyConnComp g'
       -- g' <- Bench.billTo [Bench.Positivity] $ New.buildOccurrenceGraph qs
       g' <- lift $ toLegacyGraph g'
 
@@ -113,9 +113,6 @@ checkStrictlyPositive mi qset = do
           [ "NEW GRAPH"
           , nest 2 $ prettyTCM g'
           ]
-        -- reportSLn "" 1 $ show g
-        -- reportSLn "" 1 ""
-        -- reportSLn "" 1 $ show g'
         undefined
 
       reportSDoc "tc.pos.tick" 100 $ "constructed graph"
@@ -133,7 +130,21 @@ checkStrictlyPositive mi qset = do
             deepseq gstar $ deepseq sccs $ pure (gstar, sccs)
           {-# NOINLINE tcl #-}
 
-      (gstar, sccs) <- Bench.billTo [Bench.Positivity] (tcl g)
+      (gstar, sccs') <- Bench.billTo [Bench.Positivity] (tcl g)
+
+      let canon :: [SCC Node] -> [[Node]]
+          canon = List.sort . map (List.sort . toList)
+      when (canon sccs /= canon sccs') do
+        reportSDoc "" 1 $ "STRONGLY CONN COMP MISMATCH" <+> fsep (map prettyTCM qs)
+        reportSDoc "" 1 $ vcat
+          [ "LEGACY GRAPH"
+          , nest 2 $ prettyTCM $ canon sccs
+          ]
+        reportSDoc "" 1 $ vcat
+          [ "NEW GRAPH"
+          , nest 2 $ prettyTCM $ canon sccs'
+          ]
+        undefined
 
       reportSLn "tc.pos.graph" 5 $
         "Positivity graph (completed): E=" ++ show (length $ Graph.edges gstar)
@@ -362,11 +373,7 @@ instance PrettyTCM New.OccursWhere where
 toLegacyGraph :: New.OccGraph -> IO (Graph.Graph Node (W.Edge W.OccursWhere))
 toLegacyGraph graph = do
 
-  assocs <- New.nodeMapToList graph
-  assocs <- forM assocs \(src, tgts) -> (src,) <$!> New.nodeMapToList tgts
-  assocs <- pure [(src, tgt, e) | (src, tgts) <- assocs, (tgt, e) <- tgts]
-
-  let convEdge tgt (New.Edge occ rng path) = W.Edge occ (convPath rng path)
+  let convEdge (New.Edge occ rng path) = W.Edge occ $! convPath rng path
 
       convPath :: Range -> New.OccursWhere -> W.OccursWhere
       convPath rng path = let
@@ -410,15 +417,13 @@ toLegacyGraph graph = do
 
   let go :: Map Node (Map Node (W.Edge W.OccursWhere)) -> (Node, Node, New.Edge)
          -> Map Node (Map Node (W.Edge W.OccursWhere))
-      go m (src, tgt, e) = case convEdge src e of
-        e -> Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
-             Map.insertWith (\_ tgts -> tgts) tgt mempty $
-             m
+      go m (src, tgt, convEdge -> e) =
+        Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
+        Map.insertWith (\_ tgts -> tgts) tgt mempty $
+        m
 
+  assocs <- New.adjacencyList graph
   pure $! Graph.Graph $! foldl' go mempty assocs
-
-eraseWhere :: Graph.Graph Node (W.Edge W.OccursWhere) -> Graph.Graph Node (W.Edge ())
-eraseWhere = (fmap . fmap) (const ())
 
 
 -- Computing occurrences

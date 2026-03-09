@@ -14,6 +14,7 @@ module Agda.Utils.HashTable
   , Agda.Utils.HashTable.insert
   , Agda.Utils.HashTable.lookup
   , Agda.Utils.HashTable.toList
+  , Agda.Utils.HashTable.clone
   , forAssocs
   , Agda.Utils.HashTable.size
   , insertingIfAbsent
@@ -64,33 +65,35 @@ type HashTableLL k v = HashTable VM.MVector k VM.MVector v
 type HashTableUL k v = HashTable VM.MVector k VM.MVector v
 
 -- | An empty hash table.
-
 empty :: (MVector ks k, MVector vs v) => IO (HashTable ks k vs v)
 empty = HashTable <$!> initialize 0
 
 -- | Inserts the key and the corresponding value into the hash table.
-
 insert :: (Hashable k, MVector vs v, MVector ks k) =>
           HashTable ks k vs v -> k -> v -> IO ()
 insert (HashTable h) = Data.Vector.Hashtables.insert h
 {-# INLINABLE insert #-}
 
 -- | Tries to find a value corresponding to the key in the hash table.
-
 lookup :: (Hashable k, MVector ks k, MVector vs v)
        => HashTable ks k vs v -> k -> IO (Maybe v)
 lookup (HashTable h) = Data.Vector.Hashtables.lookup h
 {-# INLINABLE lookup #-}
 
+-- | Make a copy.
+clone :: (MVector ks k, MVector vs v) => HashTable ks k vs v -> IO (HashTable ks k vs v)
+clone (HashTable h) = HashTable <$!> Data.Vector.Hashtables.clone h
+{-# INLINABLE clone #-}
+
 -- | Converts the hash table to a list.
 --
 -- The order of the elements in the list is unspecified.
-
 toList :: (Hashable k, MVector ks k, MVector vs v) => HashTable ks k vs v -> IO [(k, v)]
 toList (HashTable h) = Data.Vector.Hashtables.toList h
 {-# INLINABLE toList #-}
 
--- | Iterate over key-value pairs in IO.
+-- | Iterate over key-value pairs in IO. Caution: don't modify the table
+--   while iterating over it!
 forAssocs :: (MVector ks k, MVector vs v)
           => HashTable ks k vs v -> (k -> v -> IO ()) -> IO ()
 forAssocs (HashTable h) f = do

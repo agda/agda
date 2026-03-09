@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE Strict #-}
 {-# LANGUAGE MagicHash #-}
--- {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
 {-# OPTIONS_GHC -fmax-worker-args=20 #-}
 {-# OPTIONS_GHC -fmax-valid-hole-fits=0 -fmax-relevant-binds=3 #-}
@@ -15,15 +15,10 @@ module Agda.TypeChecking.Positivity.OccurrenceAnalysis where
 
 import Prelude hiding ( null, (!!) )
 
-import Data.HashMap.Strict qualified as HMap
 import Data.Hashable
-import Data.Map.Strict (Map)
-import Data.Map.Strict qualified as Map
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
-
-import Agda.TypeChecking.Monad.Benchmark qualified as Bench
-
+import Data.Graph qualified as Graph
 import Control.DeepSeq
 
 import Agda.Interaction.Options.Base (optOccurrence, optPolarity)
@@ -38,7 +33,6 @@ import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..), OccursWhere(..),
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Opacity (isAccessibleDef)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty qualified as P
@@ -46,14 +40,12 @@ import Agda.Utils.ExpandCase
 import Agda.Utils.Hash
 import Agda.Utils.HashTable qualified as HT
 import Agda.Utils.Impossible
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.SemiRing
 import Agda.Utils.Size
 import Agda.Utils.StrictReader
-import Agda.Utils.Graph.AdjacencyMap.Unidirectional qualified as Graph
 
 {-
 NOTE:
@@ -91,9 +83,10 @@ instance Hashable Node where
 
 type NodeMap v = HT.HashTableLL Node v
 
+-- unboxing the result of hashtable lookups with GHC 9.6 and above
 data Find' v = Found' v | NotFound'
 #if __GLASGOW_HASKELL__ < 906
-data Find v = Find (Find' v)
+newtype Find v = Find (Find' v)
 #else
 data Find v = Find {-# UNPACK #-} (Find' v)
 #endif
@@ -115,8 +108,13 @@ lookupNode n map = HT.lookup map n >>= \case
 insertNode :: Node -> v -> NodeMap v -> IO ()
 insertNode n v map = HT.insert map n v
 
+{-# NOINLINE nodeMapToList #-}
 nodeMapToList :: NodeMap v -> IO [(Node, v)]
 nodeMapToList = HT.toList
+
+{-# NOINLINE cloneNodeMap #-}
+cloneNodeMap :: NodeMap v -> IO (NodeMap v)
+cloneNodeMap = HT.clone
 
 -- Set of QName-s
 ----------------------------------------------------------------------------------------------------
@@ -149,6 +147,35 @@ addEdgeToGraph src tgt e graph = lookupNode src graph >>= \case
     tgts <- HT.empty
     insertNode tgt e tgts
     insertNode src tgts graph
+
+adjacencyList :: OccGraph -> IO [(Node, Node, Edge)]
+adjacencyList graph = do
+  assocs <- nodeMapToList graph
+  assocs <- forM assocs \(src, tgts) -> (src,) <$!> nodeMapToList tgts
+  pure [(src, tgt, e) | (src, tgts) <- assocs, (tgt, e) <- tgts]
+
+-- | For every node appearing as a target but not as a source, add it
+--   as a source node with empty map for targets.
+addTargetNodesAsSource :: OccGraph -> IO OccGraph
+addTargetNodesAsSource graph = do
+  graph' <- cloneNodeMap graph
+  HT.forAssocs graph \src tgts ->
+    HT.forAssocs tgts \tgt _ -> lookupNode tgt graph >>= \case
+      Found _  ->
+        pure ()
+      NotFound -> do
+        edges <- HT.empty
+        insertNode tgt edges graph'
+  pure graph'
+
+-- | Strongly connected components, in reverse topological order.
+stronglyConnComp :: OccGraph -> IO [Graph.SCC Node]
+stronglyConnComp graph = do
+  graph  <- addTargetNodesAsSource graph
+  assocs <- nodeMapToList graph
+  assocs <- forM assocs \(src, tgts) -> (src,src,) . map fst <$!> nodeMapToList tgts
+  pure $! Graph.stronglyConnComp assocs
+
 
 -- Occurrence analysis
 ----------------------------------------------------------------------------------------------------
@@ -259,34 +286,10 @@ occurrencesInMutDefArg d p i e = expand \ret -> ret $
   local (\e -> e {path = MutDefArg (path e) d i, target = ArgNode d i, occ = p}) $
     occurrences e
 
--- -- | Look up a QName without any adjusments and checks.
--- rawLookupDef :: QName -> TCM Definition
--- rawLookupDef q = do
---   st <- getTC
---   let defs  = st ^. stSignature . sigDefinitions
---       idefs = st ^. stImports   . sigDefinitions
---   case HMap.lookup q defs of
---     Just d  -> pure d
---     Nothing -> case HMap.lookup q idefs of
---       Just d  -> pure d
---       Nothing -> __IMPOSSIBLE__
-
 mutualDefOcc :: Definition -> Occurrence
 mutualDefOcc d = case theDef d of
   Datatype{} -> GuardPos
   _          -> StrictPos
-
--- lookupDef :: QName -> TCM Definition
--- lookupDef q = Bench.billTo [Bench.Positivity] (getConstInfo q)
-
--- getDefArgOccurrences :: Definition -> TCM [Occurrence]
--- getDefArgOccurrences def = do
---   st  <- getTC
---   env <- askTC
---   if isAccessibleDef env st def then do
---     pure $! defArgOccurrences def
---   else do
---     pure []
 
 class ComputeOccurrences a where
   occurrences :: a -> OccM ()
@@ -355,7 +358,6 @@ instance ComputeOccurrences Term where
           def <- lift $ getConstInfo d
           case theDef def of
             Constructor{} -> do
-              -- reportSLn "" 1 $ "CONSTRUCTOR " ++ P.prettyShow d
               let elims i es = expand \ret -> case es of
                     []   -> ret $ pure ()
                     e:es -> ret do occurrencesInDefArg d StrictPos i e
@@ -363,7 +365,6 @@ instance ComputeOccurrences Term where
               elims 0 es
 
             _ -> do
-              -- reportSLn "" 1 $ "NOTMUTUAL " ++ P.prettyShow d ++ " " ++ show (defArgOccurrences def)
               let elims' :: QName -> Int -> [Occurrence] -> Elims -> OccM ()
                   elims' d i ps es = expand \ret -> case (ps, es) of
                     (_   , []  ) -> ret $ pure ()
@@ -381,7 +382,7 @@ instance ComputeOccurrences Term where
                                            elims' d i (drop i ps) (e:es)
 
               let defOcc = mutualDefOcc def
-              let argOccs = defArgOccurrences def -- lift $ getDefArgOccurrences def
+              let argOccs = defArgOccurrences def
               underOcc defOcc $ elims d (defType def) 0 argOccs es
 
     Con _ _ es -> ret $ occurrences es -- András 2026-02-17: why not push something here?
