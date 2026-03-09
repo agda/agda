@@ -176,8 +176,8 @@ instance PatternFrom Term NLPat where
         PDef (conName c) <$> patternFrom r1 r1 k (ct , Con c ci) (map Apply vs)
       (_ , Lam{})   -> errNotPi t
       (_ , Lit{})   -> done
-      (_ , Def f [l, a, Apply x]) | isNoMatch f ->
-        return $ PTerm $ unArg x
+      (_ , Def f (l : a : Apply x : es)) | isNoMatch f ->
+        return $ PTerm $ applyE (unArg x) es
       (_ , Def f es) | isAlwaysSing r1 -> done
       (_ , Def f es) -> do
         Def lsuc [] <- primLevelSuc
