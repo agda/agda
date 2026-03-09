@@ -695,10 +695,9 @@ primNoMatch = do
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 3 $ \ ~[l, a, x] -> do
     allowed <- asksTC envAllowedReductions
 
-    -- TODO: Should we reduce arguments further?
     if NoMatchReductions `SmallSet.member` allowed
     then redReturn $ unArg x
-    else return $ NoReduction (map notReduced [l, a, x])
+    else return $ NoReduction $ notReduced <$> [l, a, x]
 
 mkPrimFun1TCM :: (FromTerm a, ToTerm b) =>
                  TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
