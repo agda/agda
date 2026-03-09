@@ -430,7 +430,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
       reportSDoc "rewriting.confluence.global" 30 $ fsep
         [ "Global confluence: checking if" , prettyTCM u
         , "reduces to" , prettyTCM w , "in one parallel step." ]
-      anyListT (parReduce u) $ \v -> do
+      anyListT (parReduce Unsorted u) $ \v -> do
         reportSDoc "rewriting.confluence.global" 30 $ fsep
           [ prettyTCM u , " reduces to " , prettyTCM v
           ]
@@ -440,7 +440,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
           ]
         return eq
 
-
+-- | Sorts a list of rewrite rules by the generality of their LHSs
 sortRules :: PureTCM m => [RewriteRule] -> m [RewriteRule]
 sortRules rs = do
   ordPairs <- deleteLoops . Set.fromList . map (rewName *** rewName) <$>
@@ -529,9 +529,17 @@ type MonadParallelReduce m =
   , MonadFresh NameId m
   )
 
+-- | Should rewrite rules be sorted by the generality of their LHSs before being
+--   applied?
+data SortRules = Sorted | Unsorted
+  deriving (Eq)
+
 -- | List all possible single-step parallel reductions of the given term.
+--
+--   Sorts rewrite rules by the generality of their LHSs before applying
+--   them.
 allParallelReductions :: (MonadParallelReduce m, ParallelReduce a) => a -> m [a]
-allParallelReductions = sequenceListT . parReduce
+allParallelReductions = sequenceListT . parReduce Sorted
 
 -- | Single-step parallel reduction of a given term.
 --   The monad 'm' can be instantiated in multiple ways:
@@ -540,24 +548,26 @@ allParallelReductions = sequenceListT . parReduce
 --   * Use 'ListT TCM' to obtain all possible one-step parallel
 --     reductions.
 class ParallelReduce a where
-  parReduce :: (MonadParallelReduce m, MonadPlus m) => a -> m a
+  parReduce :: (MonadParallelReduce m, MonadPlus m) => SortRules -> a -> m a
 
   default parReduce
     :: ( MonadParallelReduce m, MonadPlus m
        , Traversable f, a ~ f b, ParallelReduce b)
-    => a -> m a
-  parReduce = traverse parReduce
+    => SortRules -> a -> m a
+  parReduce s = traverse $ parReduce s
 
 -- | Compute possible one-step reductions by applying a rewrite rule
 --   at the top-level and reducing all subterms in the position of a
 --   variable of the rewrite rule in parallel.
-topLevelReductions :: (MonadParallelReduce m, MonadPlus m) => (Elims -> Term) -> Elims -> m Term
-topLevelReductions hd es = do
+topLevelReductions :: (MonadParallelReduce m, MonadPlus m)
+  => SortRules -> (Elims -> Term) -> Elims -> m Term
+topLevelReductions s hd es = do
   reportSDoc "rewriting.parreduce" 30 $ "topLevelReductions" <+> prettyTCM (hd es)
   -- Get type of head symbol
   (f , t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
   reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: head symbol" <+> prettyTCM (hd []) <+> ":" <+> prettyTCM t
-  RewriteRule q gamma _ ps rhs b c _ <- scatterMP (getAllRulesFor f)
+  let rews = (if (s == Sorted) then sortRules else pure) =<< getAllRulesFor f
+  RewriteRule q gamma _ ps rhs b c _ <- scatterMP rews
   reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: trying rule" <+> prettyTCM q
   -- Don't reduce if underapplied
   guard $ length es >= length ps
@@ -568,23 +578,25 @@ topLevelReductions hd es = do
     -- Matching succeeded
     Right sub -> do
       let vs = map (lookupS sub) $ [0..(size gamma-1)]
-      sub' <- parallelS <$> parReduce vs
-      es1' <- parReduce es1
+      sub' <- parallelS <$> parReduce s vs
+      es1' <- parReduce s es1
       let w = (applySubst sub' rhs) `applyE` es1'
       reportSDoc "rewriting.parreduce" 50 $ "topLevelReductions: rewrote" <+> prettyTCM (hd es) <+> "to" <+> prettyTCM w
       return w
 
 instance ParallelReduce Term where
-  parReduce = \case
+  parReduce s = \case
     -- Interesting cases
-    (Def f es) -> (topLevelReductions (Def f) es) <|> (Def f <$> parReduce es)
-    (Con c ci es) -> (topLevelReductions (Con c ci) es) <|> (Con c ci <$> parReduce es)
+    (Def f es) -> (topLevelReductions s (Def f) es) <|>
+                  (Def f <$> parReduce s es)
+    (Con c ci es) -> (topLevelReductions s (Con c ci) es) <|>
+                     (Con c ci <$> parReduce s es)
 
     -- Congruence cases
-    Lam i u  -> Lam i <$> parReduce u
-    Var x es -> Var x <$> parReduce es
-    Pi a b   -> Pi    <$> parReduce a <*> parReduce b
-    Sort s   -> Sort  <$> parReduce s
+    Lam i u  -> Lam i <$> parReduce s u
+    Var x es -> Var x <$> parReduce s es
+    Pi a b   -> Pi    <$> parReduce s a <*> parReduce s b
+    Sort t   -> Sort  <$> parReduce s t
 
     -- Base cases
     u@Lit{}      -> return u
@@ -597,7 +609,7 @@ instance ParallelReduce Term where
     MetaV{}    -> __IMPOSSIBLE__
 
 instance ParallelReduce Sort where
-  parReduce = pure -- TODO: is this fine?
+  parReduce s = pure -- TODO: is this fine?
 
 instance ParallelReduce a => ParallelReduce (Arg a) where
 instance ParallelReduce a => ParallelReduce (Dom a) where
@@ -605,12 +617,12 @@ instance ParallelReduce a => ParallelReduce (Type' a) where
 instance ParallelReduce a => ParallelReduce [a] where
 
 instance ParallelReduce a => ParallelReduce (Elim' a) where
-  parReduce (Apply u)  = Apply <$> parReduce u
-  parReduce e@Proj{}   = pure e
-  parReduce e@IApply{} = pure e -- TODO
+  parReduce s (Apply u)  = Apply <$> parReduce s u
+  parReduce s e@Proj{}   = pure e
+  parReduce s e@IApply{} = pure e -- TODO
 
 instance (Subst a, ParallelReduce a) => ParallelReduce (Abs a) where
-  parReduce = mapAbstraction __DUMMY_DOM__ parReduce
+  parReduce s = mapAbstraction __DUMMY_DOM__ $ parReduce s
 
 
 -- | Given metavariables ms and some x, construct a telescope Γ and
