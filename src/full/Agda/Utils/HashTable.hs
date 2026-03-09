@@ -16,6 +16,7 @@ module Agda.Utils.HashTable
   , Agda.Utils.HashTable.toList
   , Agda.Utils.HashTable.clone
   , forAssocs
+  , forAssocsAccum
   , Agda.Utils.HashTable.size
   , insertingIfAbsent
   ) where
@@ -112,6 +113,27 @@ forAssocs (HashTable h) f = do
           go (i - 1)
   go (count - 1)
 {-# INLINE forAssocs #-}
+
+-- | Iterate over key-value pairs in IO while accummulating a value. Caution: don't modify the table
+--   while iterating over it!
+forAssocsAccum :: forall ks k vs v acc. (MVector ks k, MVector vs v)
+               => HashTable ks k vs v -> acc -> (k -> v -> acc -> IO acc) -> IO acc
+forAssocsAccum (HashTable h) acc f = do
+  Dictionary{..} <- readMutVar (getDRef h)
+  count <- refs ! getCount
+  let go :: Int -> acc -> IO acc
+      go i acc | i < 0 = pure acc
+      go i acc = do
+        h <- hashCode ! i
+        if h < 0 then
+          go (i - 1) acc
+        else do
+          k <- key !~ i
+          v <- value !~ i
+          acc <- f k v acc
+          go (i - 1) acc
+  go (count - 1) acc
+{-# INLINE forAssocsAccum #-}
 
 size :: MVector ks k => HashTable ks k vs v -> IO Int
 size (HashTable h) = Data.Vector.Hashtables.size h

@@ -98,12 +98,12 @@ checkStrictlyPositive mi qset = do
       --------------------------------------------------------------------------------
       !g <- (buildOccurrenceGraph qset)
 
-      g' <- New.buildOccurrenceGraph qs
-      sccs <- lift $ New.stronglyConnComp g'
+      gnew <- New.buildOccurrenceGraph qs
+      sccs <- lift $ New.stronglyConnComp gnew
       -- g' <- Bench.billTo [Bench.Positivity] $ New.buildOccurrenceGraph qs
-      g' <- lift $ toLegacyGraph g'
+      glegacy <- lift $ toLegacyGraph gnew
 
-      when (g /= g') do
+      when (g /= glegacy) do
         reportSDoc "" 1 $ "OCCURRENCE MISMATCH" <+> fsep (map prettyTCM qs)
         reportSDoc "" 1 $ vcat
           [ "LEGACY GRAPH"
@@ -111,7 +111,7 @@ checkStrictlyPositive mi qset = do
           ]
         reportSDoc "" 1 $ vcat
           [ "NEW GRAPH"
-          , nest 2 $ prettyTCM g'
+          , nest 2 $ prettyTCM glegacy
           ]
         undefined
 
@@ -271,6 +271,20 @@ checkStrictlyPositive mi qset = do
             -- or with the data/record type, see issue #3355.
             unless (Info.mutualPositivityCheck mi == NoPositivityCheck || pc == NoPositivityCheck) $
               whenM positivityCheckEnabled do
+
+                loop' <- lift $ New.transitiveOccurrence gnew (DefNode q) (DefNode q) >>= \case
+                  Unused -> pure Nothing
+                  occ    -> pure $ Just occ
+
+                when (loop /= loop') do
+                  reportSDoc "" 1 $ "LOOP MISMATCH" <+> prettyTCM q
+                  reportSLn "" 1 $ "OLD: " ++ show loop ++ " NEW: " ++ show loop'
+                  reportSDoc "" 1 $ vcat
+                    [ "GRAPH"
+                    , nest 2 $ prettyTCM $ fmap (fmap (const ())) g
+                    ]
+                  undefined
+
                 case loop of
                   Just o | o <= JustPos -> warning $ NotStrictlyPositive q (reason JustPos)
                   _                     -> pure ()
