@@ -12,22 +12,22 @@ variable
 ap : (f : A → B) → x ≡ y → f x ≡ f y
 ap f refl = refl
 
-const-zero : Nat → Nat
-const-zero zero    = zero
-const-zero (suc _) = zero
+nat-id : Nat → Nat
+nat-id zero    = zero
+nat-id (suc n) = suc (nat-id n)
 
-const-zero≡ : const-zero n ≡ zero
-const-zero≡ {n = zero}  = refl
-const-zero≡ {n = suc _} = refl
+nat-id≡ : nat-id n ≡ n
+nat-id≡ {n = zero}  = refl
+nat-id≡ {n = suc n} = ap suc nat-id≡
 
-+0 : n + const-zero m ≡ n
-+0 {n = zero}  = const-zero≡
++0 : nat-id n + 0 ≡ n
++0 {n = zero}  = nat-id≡
 +0 {n = suc n} = ap suc +0
 
-badRw : n + ⟨ const-zero m ⟩ ≡ n
+badRw : ⟨ nat-id n ⟩ + 0 ≡ n
 badRw = +0
 
 {-# REWRITE badRw #-}
 
-ohNo : n + 4 ≡ n
-ohNo = refl
+fails : nat-id n + 0 ≡ n
+fails = refl
