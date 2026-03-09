@@ -184,9 +184,9 @@ instance PatternFrom Term NLPat where
       (_ , Lam{})   -> errNotPi t
       (_ , Lit{})   -> done
       -- Terms wrapped in the primNoMatch primitive are converted to PTerms
-      -- (i.e. rather than matching, we will just to a conversion test)
-      (_ , Def f [l, a, Apply x]) | isNoMatch f ->
-        return $ PTerm $ unArg x
+      -- (i.e. rather than matching, we will just test conversion)
+      (_ , Def f (l : a : Apply x : es)) | isNoMatch f ->
+        return $ PTerm $ applyE (unArg x) es
       (_ , Def f es) | isAlwaysSing r1 -> done
       (_ , Def f es) -> do
         Def lsuc [] <- primLevelSuc
