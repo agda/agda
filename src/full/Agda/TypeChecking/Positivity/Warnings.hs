@@ -10,7 +10,6 @@ import Control.DeepSeq
 
 import Data.Foldable (toList, msum)
 import Data.Sequence (Seq)
-import Data.Sequence qualified as DS
 import GHC.Generics
 
 import Agda.Syntax.Common
@@ -83,40 +82,10 @@ instance Pretty OccursWhere where
     OccursWhere r ws1 ws2 ->
       "OccursWhere " <+> pretty r <+> pretty (toList ws1) <+> pretty (toList ws2)
 
--- | Edge labels for the positivity graph.
-data Edge a = Edge !Occurrence a
-  deriving (Eq, Ord, Show, Functor)
-
--- | Merges two edges between the same source and target.
-
-mergeEdges :: Edge a -> Edge a -> Edge a
-mergeEdges _                    e@(Edge Mixed _)     = e -- dominant
-mergeEdges e@(Edge Mixed _)     _                    = e
-mergeEdges (Edge Unused _)      e                    = e -- neutral
-mergeEdges e                    (Edge Unused _)      = e
-mergeEdges (Edge JustNeg _)     e@(Edge JustNeg _)   = e
-mergeEdges _                    e@(Edge JustNeg w)   = Edge Mixed w
-mergeEdges e@(Edge JustNeg w)   _                    = Edge Mixed w
-mergeEdges _                    e@(Edge JustPos _)   = e -- dominates strict pos.
-mergeEdges e@(Edge JustPos _)   _                    = e
-mergeEdges _                    e@(Edge StrictPos _) = e -- dominates 'GuardPos'
-mergeEdges e@(Edge StrictPos _) _                    = e
-mergeEdges (Edge GuardPos _)    e@(Edge GuardPos _)  = e
-
--- | These operations form a semiring if we quotient by the relation
--- \"the 'Occurrence' components are equal\".
-
-instance SemiRing (Edge (Seq OccursWhere)) where
-  ozero = Edge ozero DS.empty
-  oone  = Edge oone  DS.empty
-  oplus = mergeEdges
-  otimes (Edge o1 w1) (Edge o2 w2) = Edge (otimes o1 o2) (w1 DS.>< w2)
-
 -- | The map contains bindings of the form @bound |-> ess@, satisfying
 -- the following property: for every non-empty list @w@,
 -- @'foldr1' 'otimes' w '<=' bound@ iff
 -- @'or' [ 'all' every w '&&' 'any' some w | (every, some) <- ess ]@.
-
 boundToEverySome ::
   Map Occurrence [(Occurrence -> Bool, Occurrence -> Bool)]
 boundToEverySome = Map.fromListWith __IMPOSSIBLE__
@@ -141,10 +110,9 @@ boundToEverySome = Map.fromListWith __IMPOSSIBLE__
 --
 -- Preconditions: @u@ and @v@ must belong to @g@, and @bound@ must
 -- belong to the domain of @boundToEverySome@.
-
+--
 -- There is a property for this function in
 -- Internal.Utils.Graph.AdjacencyMap.Unidirectional.
-
 productOfEdgesInBoundedWalk ::
   (SemiRing e, Ord n) =>
   (e -> Occurrence) -> Graph n e -> n -> n -> Occurrence -> Maybe e

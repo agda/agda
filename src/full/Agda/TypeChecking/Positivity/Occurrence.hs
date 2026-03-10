@@ -2,15 +2,9 @@
 
 -- | Occurrences.
 
-module Agda.TypeChecking.Positivity.Occurrence
-  ( PragmaPolarities
-  , Occurrence(..)
-  , OccursWhere(..)
-  , modalPolarityToOccurrence
-  ) where
+module Agda.TypeChecking.Positivity.Occurrence where
 
 import Prelude hiding (null)
-
 import Control.DeepSeq
 
 import Agda.Syntax.Common
@@ -113,28 +107,28 @@ modalPolarityToOccurrence = \case
 -- Paths to occurrences
 ----------------------------------------------------------------------------------------------------
 
-data OccursWhere
+data OccursPath
   = Root
-  | LeftOfArrow !OccursWhere
-  | DefArg !OccursWhere !QName !Nat      -- ^ in the nth argument of a defined constant
-  | MutDefArg !OccursWhere !QName !Nat   -- ^ in the nth argument of a def in the current mutual block
-  | UnderInf !OccursWhere                -- ^ in the principal argument of built-in ∞
-  | VarArg !OccursWhere !Nat !Occurrence -- ^ as an argument to a bound variable with given polarity.
+  | LeftOfArrow !OccursPath
+  | DefArg !OccursPath !QName !Nat      -- ^ in the nth argument of a defined constant
+  | MutDefArg !OccursPath !QName !Nat   -- ^ in the nth argument of a def in the current mutual block
+  | UnderInf !OccursPath                -- ^ in the principal argument of built-in ∞
+  | VarArg !OccursPath !Nat !Occurrence -- ^ as an argument to a bound variable with given polarity.
                                          --   The polarity is only used for warning printing.
-  | MetaArg !OccursWhere                 -- ^ as an argument of a metavariable
-  | ConArgType !OccursWhere !QName       -- ^ in the type of a constructor
-  | IndArgType !OccursWhere !QName       -- ^ in a datatype index of a constructor
-  | ConEndpoint !OccursWhere !QName      -- ^ in an endpoint of a higher constructor
-  | InClause !OccursWhere !Nat           -- ^ in the nth clause of a defined function
-  | Matched !OccursWhere                 -- ^ matched against in a clause of a defined function
-  | InIndex !OccursWhere                 -- ^ is an index of an inductive family
-  | InDefOf !OccursWhere !QName          -- ^ in the definition of a constant
+  | MetaArg !OccursPath                 -- ^ as an argument of a metavariable
+  | ConArgType !OccursPath !QName       -- ^ in the type of a constructor
+  | IndArgType !OccursPath !QName       -- ^ in a datatype index of a constructor
+  | ConEndpoint !OccursPath !QName      -- ^ in an endpoint of a higher constructor
+  | InClause !OccursPath !Nat           -- ^ in the nth clause of a defined function
+  | Matched !OccursPath                 -- ^ matched against in a clause of a defined function
+  | InIndex !OccursPath                 -- ^ is an index of an inductive family
+  | InDefOf !OccursPath !QName          -- ^ in the definition of a constant
   deriving Eq
 
-instance NFData OccursWhere where
+instance NFData OccursPath where
   rnf x = seq x ()
 
-instance Show OccursWhere where
+instance Show OccursPath where
   show p = go p [] where
     go p acc = case p of
       Root            -> acc
@@ -152,5 +146,36 @@ instance Show OccursWhere where
       InIndex p       -> go p $ " InIndex" ++ acc
       InDefOf p q     -> go p $ " InDefOf " ++ P.prettyShow q ++ acc
 
-instance P.Pretty OccursWhere where
+instance P.Pretty OccursPath where
   pretty = P.text . show
+
+data OccursWhere = OccursWhere !Range !OccursPath
+  deriving (Eq, Show)
+
+instance P.Pretty OccursWhere where
+  pretty (OccursWhere x y) = "OccursWhere " P.<+> P.pretty x P.<+> P.pretty y
+
+--------------------------------------------------------------------------------
+
+data Edge a = Edge !Occurrence !a
+  deriving (Eq, Ord, Show, Functor)
+
+mergeEdges :: Edge a -> Edge a -> Edge a
+mergeEdges _                    e@(Edge Mixed _)     = e -- dominant
+mergeEdges e@(Edge Mixed _)     _                    = e
+mergeEdges (Edge Unused _)      e                    = e -- neutral
+mergeEdges e                    (Edge Unused _)      = e
+mergeEdges (Edge JustNeg _)     e@(Edge JustNeg _)   = e
+mergeEdges _                    e@(Edge JustNeg a)   = Edge Mixed a
+mergeEdges e@(Edge JustNeg a)   _                    = Edge Mixed a
+mergeEdges _                    e@(Edge JustPos _)   = e -- dominates strict pos.
+mergeEdges e@(Edge JustPos _)   _                    = e
+mergeEdges _                    e@(Edge StrictPos _) = e -- dominates 'GuardPos'
+mergeEdges e@(Edge StrictPos _) _                    = e
+mergeEdges (Edge GuardPos _)    e@(Edge GuardPos _)  = e
+
+instance Monoid a => SemiRing (Edge a) where
+  ozero = Edge ozero mempty
+  oone  = Edge oone  mempty
+  oplus = mergeEdges
+  otimes (Edge o1 w1) (Edge o2 w2) = Edge (otimes o1 o2) (w1 <> w2)

@@ -162,8 +162,8 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
 
                 reason bound =
                   case W.productOfEdgesInBoundedWalk
-                         (\(W.Edge o _) -> o) ggeneric' (DefNode q) (DefNode q) bound of
-                    Just (W.Edge _ how) -> how
+                         (\(Edge o _) -> o) ggeneric' (DefNode q) (DefNode q) bound of
+                    Just (Edge _ how) -> how
                     Nothing             -> __IMPOSSIBLE__
 
                 how :: String -> Occurrence -> TCM Doc
@@ -285,8 +285,8 @@ instance PrettyTCM OccursWhere where
 instance PrettyTCM Node where
   prettyTCM = return . P.pretty
 
-instance P.Pretty a => PrettyTCMWithNode (W.Edge a) where
-  prettyTCMWithNode (WithNode n (W.Edge o w)) = vcat
+instance P.Pretty a => PrettyTCMWithNode (Edge a) where
+  prettyTCMWithNode (WithNode n (Edge o w)) = vcat
     [ prettyTCM o <+> prettyTCM n
     , nest 2 $ return $ P.pretty w
     ]

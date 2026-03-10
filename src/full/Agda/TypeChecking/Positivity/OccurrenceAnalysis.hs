@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE Strict #-}
 {-# LANGUAGE MagicHash #-}
-{-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
 {-# OPTIONS_GHC -fmax-worker-args=20 #-}
 {-# OPTIONS_GHC -fmax-valid-hole-fits=0 -fmax-relevant-binds=3 #-}
@@ -27,6 +26,7 @@ module Agda.TypeChecking.Positivity.OccurrenceAnalysis (
 
 import Prelude hiding ( null, (!!) )
 
+import Data.Foldable (foldl')
 import Data.Hashable
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
@@ -47,7 +47,7 @@ import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad hiding (getOccurrencesFromType)
 import Agda.TypeChecking.Patterns.Match (properlyMatching)
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..), OccursWhere(..), modalPolarityToOccurrence)
+import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Positivity.Warnings qualified as W
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -137,11 +137,10 @@ insertQName q qs = HT.insert qs q ()
 -- Occurrence graph
 ----------------------------------------------------------------------------------------------------
 
-data Edge     = Edge Occurrence Range OccursWhere deriving (Eq, Show)
-type OccGraph = NodeMap (NodeMap Edge)
+type OccGraph = NodeMap (NodeMap (Edge OccursWhere))
 
 {-# NOINLINE addEdgeToGraph #-}
-addEdgeToGraph :: Node -> Node -> Edge -> OccGraph -> IO ()
+addEdgeToGraph :: Node -> Node -> Edge OccursWhere -> OccGraph -> IO ()
 addEdgeToGraph src tgt e graph = lookupNode src graph >>= \case
   Just tgts -> lookupNode tgt tgts >>= \case
     Just e' -> insertNode tgt (mergeEdges e e') tgts
@@ -151,7 +150,7 @@ addEdgeToGraph src tgt e graph = lookupNode src graph >>= \case
     insertNode tgt e tgts
     insertNode src tgts graph
 
-adjacencyList :: OccGraph -> IO [(Node, Node, Edge)]
+adjacencyList :: OccGraph -> IO [(Node, Node, Edge OccursWhere)]
 adjacencyList graph = do
   assocs <- nodeMapToList graph
   assocs <- forM assocs \(src, tgts) -> (src,) <$!> nodeMapToList tgts
@@ -181,15 +180,16 @@ stronglyConnComp graph = do
 
 {-# NOINLINE toGenericGraph #-}
 -- | Convert back to legacy graph, for testing.
-toGenericGraph :: OccGraph -> Graph.Graph Node (W.Edge W.OccursWhere)
+toGenericGraph :: OccGraph -> Graph.Graph Node (Edge W.OccursWhere)
 toGenericGraph graph = unsafeDupablePerformIO do
 
-  let convEdge (Edge occ rng path) = W.Edge occ $! convPath rng path
+  let convEdge :: Edge OccursWhere -> Edge W.OccursWhere
+      convEdge (Edge occ (OccursWhere rng path)) = Edge occ $! convPath rng path
 
-      convPath :: Range -> OccursWhere -> W.OccursWhere
+      convPath :: Range -> OccursPath -> W.OccursWhere
       convPath rng path = let
 
-        go' :: OccursWhere -> Seq W.Where
+        go' :: OccursPath -> Seq W.Where
         go' = \case
           Root            -> mempty
           MutDefArg p x i -> go' p :|> W.DefArg x i
@@ -206,7 +206,7 @@ toGenericGraph graph = unsafeDupablePerformIO do
           InIndex p       -> go' p :|> W.InIndex
           InDefOf p x     -> go' p :|> W.InDefOf x
 
-        go :: OccursWhere -> (Seq W.Where, Seq W.Where)
+        go :: OccursPath -> (Seq W.Where, Seq W.Where)
         go = \case
           Root            -> (mempty, mempty)
           MutDefArg p x i -> let !s1 = go' p; !s2 = DS.singleton (W.DefArg x i) in (s1, s2)
@@ -226,8 +226,8 @@ toGenericGraph graph = unsafeDupablePerformIO do
         in case go path of
           (s1, s2) -> W.OccursWhere rng s1 s2
 
-  let go :: Map Node (Map Node (W.Edge W.OccursWhere)) -> (Node, Node, Edge)
-         -> Map Node (Map Node (W.Edge W.OccursWhere))
+  let go :: Map Node (Map Node (Edge W.OccursWhere)) -> (Node, Node, Edge OccursWhere)
+         -> Map Node (Map Node (Edge W.OccursWhere))
       go m (src, tgt, convEdge -> e) =
         Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
         Map.insertWith (\_ tgts -> tgts) tgt mempty $
@@ -239,12 +239,12 @@ toGenericGraph graph = unsafeDupablePerformIO do
 -- | Make a graph from a generic one.
 --   Note: we ignore the path information!
 {-# NOINLINE fromGenericGraph #-}
-fromGenericGraph :: Graph.Graph Node (W.Edge e) -> OccGraph
+fromGenericGraph :: Graph.Graph Node (Edge a) -> OccGraph
 fromGenericGraph (Graph.Graph graph) = unsafeDupablePerformIO do
   graph' <- HT.empty
   forM_ (Map.toList graph) \(src, tgts) ->
-    forM_ (Map.toList tgts) \(tgt, W.Edge o _) ->
-      addEdgeToGraph src tgt (Edge o noRange Root) graph'
+    forM_ (Map.toList tgts) \(tgt, Edge o _) ->
+      addEdgeToGraph src tgt (Edge o (OccursWhere noRange Root)) graph'
   pure graph'
 
 
@@ -262,35 +262,21 @@ data OccEnv = OccEnv {
   , locals     :: Int           -- ^ Number of local binders (on the top of the definition args).
   , mutuals    :: QNameSet      -- ^ Definitions in the current mutual group.
   , target     :: Node          -- ^ We add occurrences pointing to this node.
-  , path       :: OccursWhere          -- ^ Path from the target node to the current position.
+  , path       :: OccursPath    -- ^ Path from the target node to the current position.
   , occ        :: Occurrence    -- ^ Occurence of current position.
   , graph      :: OccGraph      -- ^ Graph that's being built.
   }
 
 type OccM = ReaderT OccEnv TCM
 
-instance PrettyTCMWithNode Edge where
-  prettyTCMWithNode (WithNode n (Edge o _ w)) = vcat
+instance PrettyTCMWithNode (Edge OccursWhere) where
+  prettyTCMWithNode (WithNode n (Edge o (OccursWhere _ w))) = vcat
     [ prettyTCM o <+> prettyTCM n
     , nest 2 $ return $ P.pretty w
     ]
 
-mergeEdges :: Edge -> Edge -> Edge
-mergeEdges _                      e@(Edge Mixed _ _)     = e -- dominant
-mergeEdges e@(Edge Mixed _ _)     _                      = e
-mergeEdges (Edge Unused _ _)      e                      = e -- neutral
-mergeEdges e                      (Edge Unused _ _)      = e
-mergeEdges (Edge JustNeg _ _)     e@(Edge JustNeg _ _)   = e
-mergeEdges _                      e@(Edge JustNeg r p)   = Edge Mixed r p
-mergeEdges e@(Edge JustNeg r p)   _                      = Edge Mixed r p
-mergeEdges _                      e@(Edge JustPos _ _)   = e -- dominates strict pos.
-mergeEdges e@(Edge JustPos _ _)   _                      = e
-mergeEdges _                      e@(Edge StrictPos _ _) = e -- dominates 'GuardPos'
-mergeEdges e@(Edge StrictPos _ _) _                      = e
-mergeEdges (Edge GuardPos _ _)    e@(Edge GuardPos _ _)  = e
-
 {-# INLINE underPath #-}
-underPath :: (OccursWhere -> OccursWhere) -> OccM a -> OccM a
+underPath :: (OccursPath -> OccursPath) -> OccM a -> OccM a
 underPath f = local \env -> env {path = f (path env)}
 
 {-# INLINE underOcc #-}
@@ -304,13 +290,13 @@ underBinder = local \env -> env {locals = locals env + 1}
 {-# INLINE underPathOcc #-}
 -- | Modify the current path and 'otimes' a new 'Occurrence' to the
 --   current occurrence.
-underPathOcc :: (OccursWhere -> OccursWhere) -> Occurrence -> OccM a -> OccM a
+underPathOcc :: (OccursPath -> OccursPath) -> Occurrence -> OccM a -> OccM a
 underPathOcc f p = local \e -> e {path = f (path e), occ = otimes (occ e) p}
 
 {-# INLINE underPathSetOcc #-}
 -- | Modify the current path and set the current 'Occurence' to
 --   the given value.
-underPathSetOcc :: (OccursWhere -> OccursWhere) -> Occurrence -> OccM a -> OccM a
+underPathSetOcc :: (OccursPath -> OccursPath) -> Occurrence -> OccM a -> OccM a
 underPathSetOcc f p = local \e -> e {path = f (path e), occ = p}
 
 getOccurrencesFromType :: Type -> TCM [Occurrence]
@@ -332,12 +318,12 @@ addEdge src = do
   path   <- asks path
   occ    <- asks occ
   graph  <- asks graph
-  -- reportSLn "" 1 $ "ADD EDGE: " ++ show (P.prettyShow src, P.prettyShow target, Edge occ path)
   expand \ret -> case occ of
     Unused -> ret $ pure ()
     occ    -> ret do
       let range = getRange src
-      lift $ lift $ addEdgeToGraph src target (Edge occ range path) graph
+      let e = Edge occ (OccursWhere range path)
+      lift $ lift $ addEdgeToGraph src target e graph
 
 isMutual :: QName -> OccM Bool
 isMutual q = do
@@ -694,7 +680,7 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
     AbstractDefn{}     -> ret __IMPOSSIBLE__
 
 -- | Direct occurrence of src in tgt.
-directOccurrence :: OccGraph -> Node -> Node -> IO (Maybe Edge)
+directOccurrence :: OccGraph -> Node -> Node -> IO (Maybe (Edge OccursWhere))
 directOccurrence graph src tgt = lookupNode src graph >>= \case
   Nothing   -> pure Nothing
   Just tgts -> lookupNode tgt tgts
@@ -762,16 +748,16 @@ transitiveOccurrence graph src tgt = do
       go' graph tgt src path acc seen = lookupNode src graph >>= \case
         Nothing  -> pure acc
         Just map -> lookupNode tgt map >>= \case
-          Just (Edge occ _ _) -> do
+          Just (Edge occ _) -> do
             acc <- go graph tgt tgt (otimes path occ) acc seen
             goMap graph tgt map path acc seen
           Nothing ->
             goMap graph tgt map path acc seen
 
       -- Function for traversing the map of children for a node
-      goMap :: OccGraph -> Node -> NodeMap Edge -> Occurrence -> Occurrence -> SeenNodes -> IO Occurrence
+      goMap :: OccGraph -> Node -> NodeMap (Edge OccursWhere) -> Occurrence -> Occurrence -> SeenNodes -> IO Occurrence
       goMap graph tgt map path acc seen =
-        HT.forAssocsAccum map acc \src (Edge occ _ _) acc ->
+        HT.forAssocsAccum map acc \src (Edge occ _) acc ->
           if src == tgt then pure acc -- already covered this case in go'
                         else go graph tgt src (otimes path occ) acc seen
 
