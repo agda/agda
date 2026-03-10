@@ -1,34 +1,29 @@
--- {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.TypeChecking.Positivity.Warnings where
 
 import Prelude hiding (null)
 
 import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
-
+import Data.Map.Strict qualified as Map
 import Control.DeepSeq
 
 import Data.Foldable (toList, msum)
 import Data.Sequence (Seq)
-import qualified Data.Sequence as DS
+import Data.Sequence qualified as DS
 import GHC.Generics
 
-import Agda.Interaction.Options.Base (optOccurrence)
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Info as Info
-import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Position (HasRange(..), noRange, Range)
 import Agda.Syntax.Common.Pretty
-import Agda.Syntax.Common.Pretty (Pretty, prettyShow)
+import Agda.Syntax.Internal
+import Agda.Syntax.Position (Range)
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..))
 
-import Agda.Utils.SemiRing
-import Agda.Utils.Null
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional qualified as Graph
 import Agda.Utils.Impossible
+import Agda.Utils.Null
+import Agda.Utils.SemiRing
 
 ----------------------------------------------------------------------------------------------------
 
@@ -114,12 +109,8 @@ mergeEdges (Edge GuardPos _)    e@(Edge GuardPos _)  = e
 instance SemiRing (Edge (Seq OccursWhere)) where
   ozero = Edge ozero DS.empty
   oone  = Edge oone  DS.empty
-
   oplus = mergeEdges
-
   otimes (Edge o1 w1) (Edge o2 w2) = Edge (otimes o1 o2) (w1 DS.>< w2)
-
-----------------------------------------------------------------------------------------------------
 
 -- | The map contains bindings of the form @bound |-> ess@, satisfying
 -- the following property: for every non-empty list @w@,

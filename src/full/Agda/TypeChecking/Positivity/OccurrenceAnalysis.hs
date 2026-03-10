@@ -21,6 +21,7 @@ module Agda.TypeChecking.Positivity.OccurrenceAnalysis (
   , directOccurrence
   , adjacencyList
   , lookupNode
+  , toGenericGraph
   ) where
 
 import Prelude hiding ( null, (!!) )
@@ -28,9 +29,14 @@ import Prelude hiding ( null, (!!) )
 import Data.Hashable
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
-import Data.Graph qualified as Graph
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
+import Data.Sequence (Seq, pattern (:|>))
+import Data.Sequence qualified as DS
+import Data.Graph qualified
 import Control.DeepSeq
 import Control.Exception
+import System.IO.Unsafe
 
 import Agda.Interaction.Options.Base (optOccurrence, optPolarity)
 import Agda.Syntax.Internal
@@ -41,6 +47,7 @@ import Agda.TypeChecking.Monad hiding (getOccurrencesFromType)
 import Agda.TypeChecking.Patterns.Match (properlyMatching)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..), OccursWhere(..), modalPolarityToOccurrence)
+import Agda.TypeChecking.Positivity.Warnings qualified as W
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -57,6 +64,7 @@ import Agda.Utils.Monad
 import Agda.Utils.SemiRing
 import Agda.Utils.Size
 import Agda.Utils.StrictReader
+import Agda.Utils.Graph.AdjacencyMap.Unidirectional qualified as Graph
 
 {-
 NOTE:
@@ -163,12 +171,69 @@ addTargetNodesAsSource graph = do
   pure graph'
 
 -- | Strongly connected components, in reverse topological order.
-stronglyConnComp :: OccGraph -> IO [Graph.SCC Node]
+stronglyConnComp :: OccGraph -> IO [Data.Graph.SCC Node]
 stronglyConnComp graph = do
   graph  <- addTargetNodesAsSource graph
   assocs <- nodeMapToList graph
   assocs <- forM assocs \(src, tgts) -> (src,src,) . map fst <$!> nodeMapToList tgts
-  pure $! Graph.stronglyConnComp assocs
+  pure $! Data.Graph.stronglyConnComp assocs
+
+{-# NOINLINE toGenericGraph #-}
+-- | Convert back to legacy graph, for testing.
+toGenericGraph :: OccGraph -> Graph.Graph Node (W.Edge W.OccursWhere)
+toGenericGraph graph = unsafeDupablePerformIO do
+
+  let convEdge (Edge occ rng path) = W.Edge occ $! convPath rng path
+
+      convPath :: Range -> OccursWhere -> W.OccursWhere
+      convPath rng path = let
+
+        go' :: OccursWhere -> Seq W.Where
+        go' = \case
+          Root            -> mempty
+          MutDefArg p x i -> go' p :|> W.DefArg x i
+          LeftOfArrow p   -> go' p :|> W.LeftOfArrow
+          DefArg p x i    -> go' p :|> W.DefArg x i
+          UnderInf p      -> go' p :|> W.UnderInf
+          VarArg p i o    -> go' p :|> W.VarArg o i
+          MetaArg p       -> go' p :|> W.MetaArg
+          ConArgType p x  -> go' p :|> W.ConArgType x
+          IndArgType p x  -> go' p :|> W.IndArgType x
+          ConEndpoint p x -> go' p :|> W.ConEndpoint x
+          InClause p i    -> go' p :|> W.InClause i
+          Matched p       -> go' p :|> W.Matched
+          InIndex p       -> go' p :|> W.InIndex
+          InDefOf p x     -> go' p :|> W.InDefOf x
+
+        go :: OccursWhere -> (Seq W.Where, Seq W.Where)
+        go = \case
+          Root            -> (mempty, mempty)
+          MutDefArg p x i -> let !s1 = go' p; !s2 = DS.singleton (W.DefArg x i) in (s1, s2)
+          LeftOfArrow p   -> (:|> W.LeftOfArrow)   <$!> go p
+          DefArg p x i    -> (:|> W.DefArg x i)    <$!> go p
+          UnderInf p      -> (:|> W.UnderInf)      <$!> go p
+          VarArg p i o    -> (:|> W.VarArg o i)    <$!> go p
+          MetaArg p       -> (:|> W.MetaArg)       <$!> go p
+          ConArgType p x  -> (:|> W.ConArgType x)  <$!> go p
+          IndArgType p x  -> (:|> W.IndArgType x)  <$!> go p
+          ConEndpoint p x -> (:|> W.ConEndpoint x) <$!> go p
+          InClause p i    -> (:|> W.InClause i)    <$!> go p
+          Matched p       -> (:|> W.Matched)       <$!> go p
+          InIndex p       -> (:|> W.InIndex)       <$!> go p
+          InDefOf p x     -> (:|> W.InDefOf x)     <$!> go p
+
+        in case go path of
+          (s1, s2) -> W.OccursWhere rng s1 s2
+
+  let go :: Map Node (Map Node (W.Edge W.OccursWhere)) -> (Node, Node, Edge)
+         -> Map Node (Map Node (W.Edge W.OccursWhere))
+      go m (src, tgt, convEdge -> e) =
+        Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
+        Map.insertWith (\_ tgts -> tgts) tgt mempty $
+        m
+
+  assocs <- adjacencyList graph
+  pure $! Graph.Graph $! foldl' go mempty assocs
 
 
 -- Occurrence analysis
