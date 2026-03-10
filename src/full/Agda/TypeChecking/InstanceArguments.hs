@@ -65,13 +65,10 @@ import Agda.Utils.Tuple
 import Agda.Syntax.Common.Pretty (prettyShow)
 
 import qualified Agda.Interaction.Options.ProfileOptions as Profile
--- import qualified Agda.Utils.HashTable as HashTable
 import Agda.Utils.WithDefault (lensCollapseDefault)
 import Agda.Utils.Impossible
--- import Agda.Utils.HashTable (HashTable)
 
 import Agda.TypeChecking.DiscrimTree
--- import GHC.IO (unsafePerformIO)
 
 -- | Compute a list of instance candidates.
 --   'Nothing' if target type or any context type is a meta, error if

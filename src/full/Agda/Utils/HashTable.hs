@@ -68,30 +68,31 @@ type HashTableUL k v = HashTable VM.MVector k VM.MVector v
 -- | An empty hash table.
 empty :: (MVector ks k, MVector vs v) => IO (HashTable ks k vs v)
 empty = HashTable <$!> initialize 0
+{-# INLINE empty #-}
 
 -- | Inserts the key and the corresponding value into the hash table.
 insert :: (Hashable k, MVector vs v, MVector ks k) =>
           HashTable ks k vs v -> k -> v -> IO ()
 insert (HashTable h) = Data.Vector.Hashtables.insert h
-{-# INLINABLE insert #-}
+{-# INLINE insert #-}
 
 -- | Tries to find a value corresponding to the key in the hash table.
 lookup :: (Hashable k, MVector ks k, MVector vs v)
        => HashTable ks k vs v -> k -> IO (Maybe v)
 lookup (HashTable h) = Data.Vector.Hashtables.lookup h
-{-# INLINABLE lookup #-}
+{-# INLINE lookup #-}
 
 -- | Make a copy.
 clone :: (MVector ks k, MVector vs v) => HashTable ks k vs v -> IO (HashTable ks k vs v)
 clone (HashTable h) = HashTable <$!> Data.Vector.Hashtables.clone h
-{-# INLINABLE clone #-}
+{-# INLINE clone #-}
 
 -- | Converts the hash table to a list.
 --
 -- The order of the elements in the list is unspecified.
 toList :: (Hashable k, MVector ks k, MVector vs v) => HashTable ks k vs v -> IO [(k, v)]
 toList (HashTable h) = Data.Vector.Hashtables.toList h
-{-# INLINABLE toList #-}
+{-# INLINE toList #-}
 
 -- | Iterate over key-value pairs in IO. Caution: don't modify the table
 --   while iterating over it!

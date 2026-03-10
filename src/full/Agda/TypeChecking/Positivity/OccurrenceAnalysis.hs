@@ -11,7 +11,15 @@
 {-# OPTIONS_GHC -fworker-wrapper-cbv #-}
 #endif
 
-module Agda.TypeChecking.Positivity.OccurrenceAnalysis where
+module Agda.TypeChecking.Positivity.OccurrenceAnalysis (
+    Node(..)
+  , Edge(..)
+  , type OccGraph
+  , buildOccurrenceGraph
+  , stronglyConnComp
+  , transitiveOccurrence
+  , adjacencyList
+  ) where
 
 import Prelude hiding ( null, (!!) )
 
@@ -21,6 +29,8 @@ import Data.IntMap.Strict qualified as IntMap
 import Data.Graph qualified as Graph
 import Control.DeepSeq
 import Control.Exception
+import GHC.Exts (inline)
+import Data.Vector.Hashtables qualified as Hashtables
 
 import Agda.Interaction.Options.Base (optOccurrence, optPolarity)
 import Agda.Syntax.Internal
@@ -84,26 +94,9 @@ instance Hashable Node where
 
 type NodeMap v = HT.HashTableLL Node v
 
--- unboxing the result of hashtable lookups with GHC 9.6 and above
-data Find' v = Found' v | NotFound'
-#if __GLASGOW_HASKELL__ < 906
-newtype Find v = Find (Find' v)
-#else
-data Find v = Find {-# UNPACK #-} (Find' v)
-#endif
-
-pattern Found :: v -> Find v
-pattern Found v = Find (Found' v)
-
-pattern NotFound :: Find v
-pattern NotFound = Find NotFound'
-{-# COMPLETE Found, NotFound #-}
-
 {-# NOINLINE lookupNode #-}
-lookupNode :: Node -> NodeMap v -> IO (Find v)
-lookupNode n map = HT.lookup map n >>= \case
-  Nothing -> pure NotFound
-  Just v  -> pure (Found v)
+lookupNode :: Node -> NodeMap v -> IO (Maybe v)
+lookupNode n map = HT.lookup map n
 
 {-# NOINLINE insertNode #-}
 insertNode :: Node -> v -> NodeMap v -> IO ()
@@ -141,10 +134,10 @@ type OccGraph = NodeMap (NodeMap Edge)
 {-# NOINLINE addEdgeToGraph #-}
 addEdgeToGraph :: Node -> Node -> Edge -> OccGraph -> IO ()
 addEdgeToGraph src tgt e graph = lookupNode src graph >>= \case
-  Found tgts -> lookupNode tgt tgts >>= \case
-    Found e' -> insertNode tgt (mergeEdges e e') tgts
-    NotFound -> insertNode tgt e tgts
-  NotFound -> do
+  Just tgts -> lookupNode tgt tgts >>= \case
+    Just e' -> insertNode tgt (mergeEdges e e') tgts
+    Nothing -> insertNode tgt e tgts
+  Nothing -> do
     tgts <- HT.empty
     insertNode tgt e tgts
     insertNode src tgts graph
@@ -162,9 +155,9 @@ addTargetNodesAsSource graph = do
   graph' <- cloneNodeMap graph
   HT.forAssocs graph \src tgts ->
     HT.forAssocs tgts \tgt _ -> lookupNode tgt graph >>= \case
-      Found _  ->
+      Just _  ->
         pure ()
-      NotFound -> do
+      Nothing -> do
         edges <- HT.empty
         insertNode tgt edges graph'
   pure graph'
@@ -305,9 +298,6 @@ instance ComputeOccurrences Term where
     Var x es -> ret do
       locals <- asks locals
 
-      -- tda <- asks topDefArgs
-      -- reportSLn "" 1 $ "VAR " ++ P.prettyShow (Var x es) ++ " " ++ show (locals, tda)
-
       -- it's a locally bound variable, all args are Mixed occurrence,
       -- we don't record an occurrence for the variable
       if x < locals then do
@@ -418,7 +408,6 @@ instance ComputeOccurrences Clause where
       pure ()
     else do
       -- add edges for matched args
-      -- reportSLn "" 1 "ADD MATCHES"
       addClauseArgMatches ps
 
       let collectArgs :: NAPs -> [DefArgInEnv]
@@ -433,9 +422,6 @@ instance ComputeOccurrences Clause where
               in go (i + 1) ps acc'
 
       let items = collectArgs ps
-      -- reportSLn "" 1 $ "NEW ITEMS |" ++ show items
-      -- reportSLn "" 1 $ "PS " ++ P.prettyShow ps
-
       -- process body
       local (\env -> env {topDefArgs = items}) do
         occurrences $ clauseBody cl
@@ -665,14 +651,6 @@ insertSeen x map = HT.insert map x ()
 -- | Exception for short-circuiting when finding a Mixed path from source to target.
 instance Exception Occurrence
 
-
---   go !graph !tgt !src !path !acc !seen =
---     if Set.member (path, src) seen then (acc, seen)
---     else case Set.insert (path, src) seen of
---       seen -> case (if src == tgt then oplus path acc else acc) of
---         Mixed -> (Mixed, seen)
---         acc   -> go' graph tgt src path acc seen
-
 -- | Search for transitive occurrences through the occurrence graph. We compute the 'oplus' sum of
 --   all paths from the source to the target. This is not as bad as it sounds, becuse a) we can
 --   short-circuit a search when a 'Mixed' path is found b) only 4 possible 'Occurrences' remain,
@@ -692,19 +670,19 @@ transitiveOccurrence graph src tgt = do
             if src == tgt then
               case oplus path acc of
                 Mixed -> throwIO Mixed  -- Mixed path found, abort search
-                occ   -> pure occ
+                acc   -> go' graph tgt src path acc seen
             else
               go' graph tgt src path acc seen
 
       -- Function for visiting the children of a node
       go' :: OccGraph -> Node -> Node -> Occurrence -> Occurrence -> SeenNodes -> IO Occurrence
       go' graph tgt src path acc seen = lookupNode src graph >>= \case
-        NotFound  -> pure acc
-        Found map -> lookupNode tgt map >>= \case
-          Found (Edge occ _ _) -> do
+        Nothing  -> pure acc
+        Just map -> lookupNode tgt map >>= \case
+          Just (Edge occ _ _) -> do
             acc <- go graph tgt tgt (otimes path occ) acc seen
             goMap graph tgt map path acc seen
-          NotFound ->
+          Nothing ->
             goMap graph tgt map path acc seen
 
       -- Function for traversing the map of children for a node
@@ -716,57 +694,3 @@ transitiveOccurrence graph src tgt = do
 
   seen <- HT.empty
   go' graph tgt src StrictPos Unused seen `catch` pure
-
-
--- -- | Search for transitive occurrences through the occurrence graph. We compute the 'oplus' sum of
--- --   all paths from the source to the target. This is not as bad as it sounds, becuse a) we can
--- --   short-circuit a search when a 'Mixed' path is found b) only 4 possible 'Occurrences' remain
--- --   besides 'Mixed', and we can use a DFS where each node is visited at most 4 times, for each
--- --   'Occurence' of the path to the node from the source.
--- transitiveOccurrence :: Graph Node (Edge OccursWhere) -> Node -> Node -> Occurrence
--- transitiveOccurrence (Graph.Graph !graph) !src !tgt = let
-
---   -- function for traversing the map of children for a node
---   traverseMap :: Map Node (Map Node (Edge OccursWhere)) -> Node -> Map Node (Edge OccursWhere)
---               -> Occurrence -> Occurrence -> Set (Occurrence, Node) -> (Occurrence, Set (Occurrence, Node))
---   traverseMap !graph !tgt !map !path !acc !seen = case map of
---     Tip -> (acc, seen)
---     Bin _ src (Edge occ _) l r -> case traverseMap graph tgt l path acc seen of
---       (Mixed, seen) -> (Mixed, seen)
---       (acc, seen)   -> case traverseMap graph tgt r path acc seen of
---         (Mixed, seen) -> (Mixed, seen)
---         (acc, seen) | tgt == src -> (acc, seen) -- already covered this case in go'
---                     | otherwise  -> go graph tgt src (otimes path occ) acc seen
-
---   -- Function for visiting the children of a node
---   go' :: Map Node (Map Node (Edge OccursWhere)) -> Node -> Node
---         -> Occurrence -> Occurrence -> Set (Occurrence, Node) -> (Occurrence, Set (Occurrence, Node))
---   go' !graph !tgt !src !path !acc !seen = case Map.lookup src graph of
---     Nothing  -> (acc, seen)
---     Just map -> case Map.lookup tgt map of
-
---       -- if there's direct edge to target, try it first
---       Just (Edge occ _) -> case go graph tgt tgt (otimes path occ) acc seen of
---         (Mixed, seen) -> (Mixed, seen)
---         (acc, seen)   -> traverseMap graph tgt map path acc seen
-
---       Nothing -> traverseMap graph tgt map path acc seen
-
---   -- Function for visiting a node.
---   go :: Map Node (Map Node (Edge OccursWhere)) -- Graph
---      -> Node                                   -- Target node
---      -> Node                                   -- Current node ("current source")
---      -> Occurrence                             -- Occurence of path leading from the top-level source node
---                                                --   to the current node.
---      -> Occurrence                             -- Occurrence of the least path seen so far, between the
---                                                --   top-level source node and the target.
---      -> Set (Occurrence, Node)                 -- Nodes visited so far.
---      -> (Occurrence, Set (Occurrence, Node))
---   go !graph !tgt !src !path !acc !seen =
---     if Set.member (path, src) seen then (acc, seen)
---     else case Set.insert (path, src) seen of
---       seen -> case (if src == tgt then oplus path acc else acc) of
---         Mixed -> (Mixed, seen)
---         acc   -> go' graph tgt src path acc seen
-
---   in fst $ go' graph tgt src StrictPos Unused mempty
