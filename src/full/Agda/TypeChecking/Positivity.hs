@@ -26,8 +26,8 @@ import qualified Data.Set as Set
 import Data.Strict.These
 
 import Debug.Trace
-
 import GHC.Generics
+import System.IO.Unsafe
 
 import Agda.Interaction.Options.Base (optOccurrence)
 import Agda.Syntax.Common
@@ -96,62 +96,18 @@ checkStrictlyPositive mi qset = do
 
       -- compute the occurrence graph
       --------------------------------------------------------------------------------
-      !g <- (buildOccurrenceGraph qset)
+      g <- New.buildOccurrenceGraph qs
+      sccs <- lift $ New.stronglyConnComp g
 
-      gnew <- New.buildOccurrenceGraph qs
-      sccs <- lift $ New.stronglyConnComp gnew
-      -- g' <- Bench.billTo [Bench.Positivity] $ New.buildOccurrenceGraph qs
-      glegacy <- lift $ toLegacyGraph gnew
-
-      when (g /= glegacy) do
-        reportSDoc "" 1 $ "OCCURRENCE MISMATCH" <+> fsep (map prettyTCM qs)
-        reportSDoc "" 1 $ vcat
-          [ "LEGACY GRAPH"
-          , nest 2 $ prettyTCM g
-          ]
-        reportSDoc "" 1 $ vcat
-          [ "NEW GRAPH"
-          , nest 2 $ prettyTCM glegacy
-          ]
-        undefined
+      -- lazy generic graph for debug printing and warnings
+      let ~ggeneric = toGenericGraph g
 
       reportSDoc "tc.pos.tick" 100 $ "constructed graph"
-      reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
-                                   " E=" ++ show (length $ Graph.edges g)
+      reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes ggeneric) ++
+                                   " E=" ++ show (length $ Graph.edges ggeneric)
       reportSDoc "tc.pos.graph" 10 $ vcat
         [ "positivity graph for" <+> fsep (map prettyTCM qs)
-        , nest 2 $ prettyTCM g
-        ]
-
-      let occ (W.Edge o _) = o
-
-      let tcl g = do
-            let (!gstar, !sccs) = Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
-            deepseq gstar $ deepseq sccs $ pure (gstar, sccs)
-          {-# NOINLINE tcl #-}
-
-      (gstar, sccs') <- Bench.billTo [Bench.Positivity] (tcl g)
-
-      let canon :: [SCC Node] -> [[Node]]
-          canon = List.sort . map (List.sort . toList)
-      when (canon sccs /= canon sccs') do
-        reportSDoc "" 1 $ "STRONGLY CONN COMP MISMATCH" <+> fsep (map prettyTCM qs)
-        reportSDoc "" 1 $ vcat
-          [ "LEGACY GRAPH"
-          , nest 2 $ prettyTCM $ canon sccs
-          ]
-        reportSDoc "" 1 $ vcat
-          [ "NEW GRAPH"
-          , nest 2 $ prettyTCM $ canon sccs'
-          ]
-        undefined
-
-      reportSLn "tc.pos.graph" 5 $
-        "Positivity graph (completed): E=" ++ show (length $ Graph.edges gstar)
-      reportSDoc "tc.pos.graph" 50 $ vcat
-        [ "transitive closure of positivity graph for" <+>
-          prettyTCM qs
-        , nest 2 $ prettyTCM gstar
+        , nest 2 $ prettyTCM ggeneric
         ]
 
       -- set mutual blocks
@@ -198,10 +154,8 @@ checkStrictlyPositive mi qset = do
 
           -- If there is no outgoing edge @ArgNode q i@, all @n@ arguments are @Unused@.
           -- Otherwise, we obtain the occurrences from the Graph.
-          let findOcc i = fromMaybe Unused $ Graph.lookup (ArgNode q i) (DefNode q) gstar
-              !args     = map' findOcc [0 .. arity-1]
-                -- caseMaybe (Map.lookup q maxs) (replicate arity Unused) $ \ m ->
-                --   [0 .. max m (arity - 1)] -- triggers issue #3049
+          !args <- forM [0 .. arity-1] \i -> lift $ New.transitiveOccurrence g (ArgNode q i) (DefNode q)
+              --   [0 .. max m (arity - 1)] -- triggers issue #3049
 
           reportSDoc "tc.pos.args" 10 $ sep
             [ "args of" <+> prettyTCM q <+> "="
@@ -221,9 +175,6 @@ checkStrictlyPositive mi qset = do
                 -- for now we always rely on the result from the positivity analysis.
                 align poccs toccs <&> mergeThese (\a b -> if b == Mixed then a else b)
 
-          -- The list args can take a long time to compute, but contains
-          -- small elements, and is stored in the interface, so
-          -- it is computed deep-strictly.
           !oldOccs <- getArgOccurrences q
           let !newOccs = let x = mergeOccs args oldOccs in deepseq x x
           setArgOccurrences q newOccs
@@ -237,22 +188,11 @@ checkStrictlyPositive mi qset = do
           Just (pc, dr) -> do
             reportSDoc "tc.pos.check" 10 $ "Checking positivity of" <+> prettyTCM q
 
-            let loop :: Maybe Occurrence
-                loop = Graph.lookup (DefNode q) (DefNode q) gstar
+            let ~ggeneric' = fmap (fmap DS.singleton) ggeneric
 
-                g' :: Graph Node (W.Edge (Seq W.OccursWhere))
-                g' = fmap (fmap DS.singleton) g
-
-                -- Note the property
-                -- Internal.Utils.Graph.AdjacencyMap.Unidirectional.prop_productOfEdgesInBoundedWalk,
-                -- which relates productOfEdgesInBoundedWalk to
-                -- gaussJordanFloydWarshallMcNaughtonYamada.
-
-                -- reason :: Occurrence -> OccursWhere -> OccursWhere
-                -- reason :: _
                 reason bound =
                   case W.productOfEdgesInBoundedWalk
-                         occ g' (DefNode q) (DefNode q) bound of
+                         (\(W.Edge o _) -> o) ggeneric' (DefNode q) (DefNode q) bound of
                     Just (W.Edge _ how) -> how
                     Nothing             -> __IMPOSSIBLE__
 
@@ -263,31 +203,20 @@ checkStrictlyPositive mi qset = do
                       [prettyTCM (reason bound)]
 
             -- if we have a negative loop, raise error
-
             -- ASR (23 December 2015). We don't raise a strictly positive
             -- error if the NO_POSITIVITY_CHECK pragma was set. See Issue 1614.
             -- Andreas, 2026-02-27:
             -- This information now comes either with the mututal block
             -- or with the data/record type, see issue #3355.
-            unless (Info.mutualPositivityCheck mi == NoPositivityCheck || pc == NoPositivityCheck) $
-              whenM positivityCheckEnabled do
-
-                loop' <- lift $ New.transitiveOccurrence gnew (DefNode q) (DefNode q) >>= \case
-                  Unused -> pure Nothing
-                  occ    -> pure $ Just occ
-
-                when (loop /= loop') do
-                  reportSDoc "" 1 $ "LOOP MISMATCH" <+> prettyTCM q
-                  reportSLn "" 1 $ "OLD: " ++ show loop ++ " NEW: " ++ show loop'
-                  reportSDoc "" 1 $ vcat
-                    [ "GRAPH"
-                    , nest 2 $ prettyTCM $ fmap (fmap (const ())) g
-                    ]
-                  undefined
-
-                case loop of
-                  Just o | o <= JustPos -> warning $ NotStrictlyPositive q (reason JustPos)
-                  _                     -> pure ()
+            loop <- do
+              posCheck <- positivityCheckEnabled
+              let nopc = NoPositivityCheck
+              if Info.mutualPositivityCheck mi == nopc || pc == nopc || not posCheck then
+                pure Nothing
+              else do
+                loop <- lift $ New.transitiveOccurrence g (DefNode q) (DefNode q)
+                when (loop <= JustPos) $ warning $ NotStrictlyPositive q (reason JustPos)
+                pure $ Just loop
 
             let checkInduction :: QName -> TCM ()
                 checkInduction q =
@@ -300,24 +229,28 @@ checkStrictlyPositive mi qset = do
             -- if we find an unguarded record, mark it as such
             case dr of
               IsData -> return ()
-              IsRecord pat -> case loop of
-                Just o | o <= StrictPos -> do
-                  reportSDoc "tc.pos.record" 5 $ how "not guarded" StrictPos
-                  unguardedRecord q pat
-                  checkInduction q
-                -- otherwise, if the record is recursive, mark it as well
-                Just o | o <= GuardPos -> do
-                  reportSDoc "tc.pos.record" 5 $ how "recursive" GuardPos
-                  recursiveRecord q
-                  checkInduction q
-                -- If the record is not recursive, switch on eta
-                -- unless it is coinductive or a no-eta-equality record.
-                Nothing -> do
-                  reportSDoc "tc.pos.record" 10 $
-                    "record type " <+> prettyTCM q <+>
-                    "is not recursive"
-                  nonRecursiveRecord q
-                _ -> return ()
+              IsRecord pat -> do
+                loop <- case loop of
+                  Nothing   -> lift $ New.transitiveOccurrence g (DefNode q) (DefNode q)
+                  Just loop -> pure loop
+                case loop of
+                  o | o <= StrictPos -> do
+                    reportSDoc "tc.pos.record" 5 $ how "not guarded" StrictPos
+                    unguardedRecord q pat
+                    checkInduction q
+                  -- otherwise, if the record is recursive, mark it as well
+                  o | o <= GuardPos -> do
+                    reportSDoc "tc.pos.record" 5 $ how "recursive" GuardPos
+                    recursiveRecord q
+                    checkInduction q
+                  -- If the record is not recursive, switch on eta
+                  -- unless it is coinductive or a no-eta-equality record.
+                  Unused -> do
+                    reportSDoc "tc.pos.record" 10 $
+                      "record type " <+> prettyTCM q <+>
+                      "is not recursive"
+                    nonRecursiveRecord q
+                  _ -> return ()
 
   reportSDoc "tc.pos.tick" 100 $ "checked positivity"
 
@@ -383,9 +316,10 @@ instance PrettyTCM New.OccursWhere where
 -- Legacy
 ----------------------------------------------------------------------------------------------------
 
+{-# NOINLINE toGenericGraph #-}
 -- | Convert back to legacy graph, for testing.
-toLegacyGraph :: New.OccGraph -> IO (Graph.Graph Node (W.Edge W.OccursWhere))
-toLegacyGraph graph = do
+toGenericGraph :: New.OccGraph -> Graph.Graph Node (W.Edge W.OccursWhere)
+toGenericGraph graph = unsafeDupablePerformIO do
 
   let convEdge (New.Edge occ rng path) = W.Edge occ $! convPath rng path
 

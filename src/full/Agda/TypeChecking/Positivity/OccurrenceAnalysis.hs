@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE Strict #-}
 {-# LANGUAGE MagicHash #-}
--- {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
 {-# OPTIONS_GHC -fmax-worker-args=20 #-}
 {-# OPTIONS_GHC -fmax-valid-hole-fits=0 -fmax-relevant-binds=3 #-}
@@ -29,8 +29,6 @@ import Data.IntMap.Strict qualified as IntMap
 import Data.Graph qualified as Graph
 import Control.DeepSeq
 import Control.Exception
-import GHC.Exts (inline)
-import Data.Vector.Hashtables qualified as Hashtables
 
 import Agda.Interaction.Options.Base (optOccurrence, optPolarity)
 import Agda.Syntax.Internal
