@@ -3,11 +3,12 @@
 module Internal.TypeChecking.Positivity ( tests ) where
 
 import Data.Sequence (Seq)
+import System.IO.Unsafe
 
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..))
-import Agda.TypeChecking.Positivity.OccurrenceAnalysis (Node(..))
-import Agda.TypeChecking.Positivity.Warnings
+import Agda.TypeChecking.Positivity.OccurrenceAnalysis (Node(..), fromGenericGraph, transitiveOccurrence)
+import Agda.TypeChecking.Positivity.Warnings qualified as W
 
 import Agda.Utils.SemiRing
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional qualified as Graph
@@ -20,14 +21,14 @@ import Internal.Utils.Graph.AdjacencyMap.Unidirectional (nodeIn)
 -- * Generators and tests
 ------------------------------------------------------------------------
 
-instance Arbitrary a => Arbitrary (Edge a) where
-  arbitrary = Edge <$> arbitrary <*> arbitrary
+instance Arbitrary a => Arbitrary (W.Edge a) where
+  arbitrary = W.Edge <$> arbitrary <*> arbitrary
 
-  shrink (Edge o w) = [ Edge o w | o <- shrink o ] ++
-                      [ Edge o w | w <- shrink w ]
+  shrink (W.Edge o w) = [ W.Edge o w | o <- shrink o ] ++
+                      [ W.Edge o w | w <- shrink w ]
 
-instance CoArbitrary a => CoArbitrary (Edge a) where
-  coarbitrary (Edge o w) = coarbitrary (o, w)
+instance CoArbitrary a => CoArbitrary (W.Edge a) where
+  coarbitrary (W.Edge o w) = coarbitrary (o, w)
 
 instance Arbitrary Node where
   arbitrary = oneof [DefNode <$> arbitrary, ArgNode <$> arbitrary <*> arbitrary]
@@ -38,21 +39,22 @@ instance Arbitrary Node where
 -- ('Seq' 'OccursWhere')@.
 
 prop_oplus_Occurrence_Edge ::
-  Edge (Seq OccursWhere) -> Edge (Seq OccursWhere) -> Bool
-prop_oplus_Occurrence_Edge e1@(Edge o1 _) e2@(Edge o2 _) =
+  W.Edge (Seq W.OccursWhere) -> W.Edge (Seq W.OccursWhere) -> Bool
+prop_oplus_Occurrence_Edge e1@(W.Edge o1 _) e2@(W.Edge o2 _) =
   case oplus e1 e2 of
-    Edge o _ -> o == oplus o1 o2
+    W.Edge o _ -> o == oplus o1 o2
 
--- -- | 'transitiveOccurrence' gives the same result as looking up from
--- --   the transitive closure of the graph.
--- prop_transitiveOccurrence :: Graph.Graph Node (Edge OccursWhere) -> Property
--- prop_transitiveOccurrence g =
---   let gstar = Graph.transitiveClosure (fmap (\(Edge o _) -> o) g) in
---   forAll (nodeIn g) \n ->
---   forAll (nodeIn g) \m ->
---     maybe Unused id (Graph.lookup n m gstar)
---     ==
---     transitiveOccurrence g n m
+-- | 'transitiveOccurrence' gives the same result as looking up from
+--   the transitive closure of the graph.
+prop_transitiveOccurrence :: Graph.Graph Node (W.Edge ()) -> Property
+prop_transitiveOccurrence g =
+  let gstar = Graph.transitiveClosure (fmap (\(W.Edge o _) -> o) g) in
+  let g' = fromGenericGraph g in
+  forAll (nodeIn g) \n ->
+  forAll (nodeIn g) \m ->
+    maybe Unused id (Graph.lookup n m gstar)
+    ==
+    unsafeDupablePerformIO (transitiveOccurrence g' n m)
 
 ------------------------------------------------------------------------
 -- * All tests

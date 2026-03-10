@@ -22,6 +22,7 @@ module Agda.TypeChecking.Positivity.OccurrenceAnalysis (
   , adjacencyList
   , lookupNode
   , toGenericGraph
+  , fromGenericGraph
   ) where
 
 import Prelude hiding ( null, (!!) )
@@ -234,6 +235,17 @@ toGenericGraph graph = unsafeDupablePerformIO do
 
   assocs <- adjacencyList graph
   pure $! Graph.Graph $! foldl' go mempty assocs
+
+-- | Make a graph from a generic one.
+--   Note: we ignore the path information!
+{-# NOINLINE fromGenericGraph #-}
+fromGenericGraph :: Graph.Graph Node (W.Edge e) -> OccGraph
+fromGenericGraph (Graph.Graph graph) = unsafeDupablePerformIO do
+  graph' <- HT.empty
+  forM_ (Map.toList graph) \(src, tgts) ->
+    forM_ (Map.toList tgts) \(tgt, W.Edge o _) ->
+      addEdgeToGraph src tgt (Edge o noRange Root) graph'
+  pure graph'
 
 
 -- Occurrence analysis
