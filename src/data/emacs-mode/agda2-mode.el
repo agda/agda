@@ -2178,11 +2178,10 @@ If there is a buffer already visiting FILE that is displayed in
 some windows, then the point is updated to POSITION in all of those
 windows.
 
-If there is a buffer visiting FILE that is not displayed in a window,
-then switch to that buffer and update the point to POSITION.
+If there is a buffer visiting FILE that is not displayed in any windows,
+then update the point, but do not display it.
 
-Finally, if no buffer is visiting FILE, then create a buffer visiting FILE,
-display it in the current window, and set the point to POSITION."
+If there is no buffer visiting FILE, do nothing."
   (declare (agda2-command (cons)))
   (when (and agda2-highlight-in-progress
              (consp filepos)
@@ -2193,15 +2192,16 @@ display it in the current window, and set the point to POSITION."
     ;; the current marker onto Xref' stack to make it seem like a Xref
     ;; jump.
     (xref-push-marker-stack)
-    (let ((buffer (find-file-noselect (car filepos) 'no-record)))
-      (if-let* ((windows (get-buffer-window-list buffer 'no-minibuffer 'all-frames)))
-          ;; Buffer is visible, update points and do not switch.
-          (dolist (window windows)
-            (with-selected-window window
-              (goto-char (cdr filepos))))
-        ;; Buffer not visible, switch to the current buffer.
-        (switch-to-buffer buffer 'no-record)
-        (goto-char (cdr filepos))))))
+    (if-let* ((buffer (find-buffer-visiting (car filepos))))
+        (if-let* ((windows (get-buffer-window-list buffer 'no-minibuffer 'all-frames)))
+            ;; Buffer is visible, update points in all windows.
+            (dolist (window windows)
+              (with-selected-window window
+                (goto-char (cdr filepos))))
+          ;; Buffer exists, but is not visible.
+          ;; We do not display the buffer here, as can be jarring for slow loads.
+          ;; See https://github.com/agda/agda/pull/8458#issuecomment-4032442448
+          (goto-char (cdr filepos))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implicit arguments
