@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wunused-imports #-}
+-- {-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Dropping initial arguments (``parameters'') from a function which can be
 --   easily reconstructed from its principal argument.
@@ -72,6 +72,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Free (anyFreeVar)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Positivity
+import Agda.TypeChecking.Positivity.OccurrenceAnalysis qualified as Occ
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce (reduce, abortIfBlocked)
@@ -368,10 +369,26 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     -- one could perhaps reuse information computed by the termination
     -- and/or positivity checkers.
     recursive = do
-      occs <- computeOccurrences x
-      case Map.lookup (ADef x) occs of
-        Just n | n >= 1 -> return True -- recursive occurrence
-        _               -> return False
+      -- occs <- computeOccurrences x
+      -- let lkup = Map.lookup (ADef x) occs
+
+      occs' <- Occ.buildOccurrenceGraph [x]
+      lkup' <- lift $ Occ.directOccurrence occs' (Occ.DefNode x) (Occ.DefNode x)
+      case lkup' of
+        Just _ -> return True
+        _      -> return False
+
+      -- let mismatch = do
+      --       reportSLn "" 1 $ "MISMATCH " ++ show lkup ++ " " ++ show (() <$ lkup')
+      --       reportSDoc "" 1 $ prettyTCM (toGenericGraph occs')
+      --       undefined
+      -- case lkup of
+      --   Just n | n >= 1 -> case lkup' of
+      --     Just _ -> return True
+      --     _      -> mismatch
+      --   _ -> case lkup' of
+      --     Nothing -> return False
+      --     _       -> mismatch
 
     checkOccurs cls n = all (nonOccur n) cls
 

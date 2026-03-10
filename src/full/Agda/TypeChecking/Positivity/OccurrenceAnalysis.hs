@@ -18,7 +18,9 @@ module Agda.TypeChecking.Positivity.OccurrenceAnalysis (
   , buildOccurrenceGraph
   , stronglyConnComp
   , transitiveOccurrence
+  , directOccurrence
   , adjacencyList
+  , lookupNode
   ) where
 
 import Prelude hiding ( null, (!!) )
@@ -613,6 +615,12 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
     PrimitiveSort{}    -> ret mempty
     GeneralizableVar{} -> ret mempty
     AbstractDefn{}     -> ret __IMPOSSIBLE__
+
+-- | Direct occurrence of src in tgt.
+directOccurrence :: OccGraph -> Node -> Node -> IO (Maybe Edge)
+directOccurrence graph src tgt = lookupNode src graph >>= \case
+  Nothing   -> pure Nothing
+  Just tgts -> lookupNode tgt tgts
 
 buildOccurrenceGraph :: [QName] -> TCM OccGraph
 buildOccurrenceGraph qs = do
