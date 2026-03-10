@@ -131,10 +131,8 @@ checkStrictlyPositive mi qset = do
                                   CyclicSCC scc          -> Map.fromList [ (q, qs) | q <- qs ]
                                     where qs = [ q | DefNode q <- scc ]
                               | scc <- sccs ]
-      inAbstractMode $ forMGood_ qs \q -> do
 
-        -- what if this is Nothing??? then we don't have to do occ analysis after all
-        -- test how often we get Nothing
+      inAbstractMode $ forMGood_ qs \q -> do
         whenM (isNothing <$> getMutual q) do
           let qs = fromMaybe [] $ Map.lookup q sccMap
           reportSLn "tc.pos.mutual" 10 $ "setting " ++ prettyShow q ++ " to " ++
@@ -142,8 +140,6 @@ checkStrictlyPositive mi qset = do
                                             | length qs == 1 -> "recursive"
                                             | otherwise      -> "mutually recursive"
           setMutual q qs
-
-
 
       forMGood_ blockInfo \(q, arity, dataTypeOrRec, _) -> inConcreteOrAbstractMode q \_ -> do
 

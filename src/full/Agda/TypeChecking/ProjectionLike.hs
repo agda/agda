@@ -365,30 +365,11 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     validProj (_, 0) = return False
     validProj (d, _) = eligibleForProjectionLike (unArg d)
 
-    -- NOTE: If the following definition turns out to be slow, then
-    -- one could perhaps reuse information computed by the termination
-    -- and/or positivity checkers.
-    recursive = do
-      -- occs <- computeOccurrences x
-      -- let lkup = Map.lookup (ADef x) occs
-
-      occs' <- Occ.buildOccurrenceGraph [x]
-      lkup' <- lift $ Occ.directOccurrence occs' (Occ.DefNode x) (Occ.DefNode x)
-      case lkup' of
-        Just _ -> return True
-        _      -> return False
-
-      -- let mismatch = do
-      --       reportSLn "" 1 $ "MISMATCH " ++ show lkup ++ " " ++ show (() <$ lkup')
-      --       reportSDoc "" 1 $ prettyTCM (toGenericGraph occs')
-      --       undefined
-      -- case lkup of
-      --   Just n | n >= 1 -> case lkup' of
-      --     Just _ -> return True
-      --     _      -> mismatch
-      --   _ -> case lkup' of
-      --     Nothing -> return False
-      --     _       -> mismatch
+    recursive = getMutual x >>= \case
+      Just []     -> pure False
+      Just (_:[]) -> pure True
+      Just _      -> __IMPOSSIBLE__ -- makeProjection only gets called on singleton mutual blocks
+      _           -> pure False
 
     checkOccurs cls n = all (nonOccur n) cls
 
