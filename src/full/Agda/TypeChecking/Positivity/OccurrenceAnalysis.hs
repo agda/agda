@@ -27,6 +27,7 @@ module Agda.TypeChecking.Positivity.OccurrenceAnalysis (
 
 import Prelude hiding ( null, (!!) )
 
+import Data.Coerce
 import Data.Foldable (foldl')
 import Data.Hashable
 import Data.IntMap.Strict (IntMap)
@@ -40,11 +41,6 @@ import Data.Word
 import Data.Bits
 import Control.Exception
 import System.IO.Unsafe
-
-import Data.Vector.Generic qualified as VG
-import Data.Vector.Generic.Mutable qualified as VGM
-import Data.Vector.Primitive qualified as VP
-import Data.Vector.Unboxed qualified as VU
 
 import Agda.Interaction.Options.Base (optOccurrence, optPolarity)
 import Agda.Syntax.Internal
@@ -110,14 +106,6 @@ instance Show Node where
   showsPrec p (ArgNode x y) =
     showParen (p > 10) (("ArgNode " ++) . showsPrec (p + 1) x . (' ':) . showsPrec (p + 1) y)
 
--- Incantation for getting an Unbox instance for a newtype.
--- Copied from: https://hackage-content.haskell.org/package/vector-0.13.2.0/docs/Data-Vector-Unboxed.html#t:UnboxViaPrim
-newtype instance VU.MVector s Node = MV_Word64 (VP.MVector s Word64)
-newtype instance VU.Vector    Node = V_Word64  (VP.Vector    Word64)
-deriving via (VU.UnboxViaPrim Word64) instance VGM.MVector VU.MVector Node
-deriving via (VU.UnboxViaPrim Word64) instance VG.Vector   VU.Vector  Node
-instance VU.Unbox Node
-
 instance P.Pretty Node where
   pretty = \case
     DefNode q   -> P.pretty q
@@ -126,20 +114,20 @@ instance P.Pretty Node where
 -- Maps keyed by Node
 ----------------------------------------------------------------------------------------------------
 
-type NodeMap v = HT.HashTableUL Node v
+type NodeMap v = HT.HashTableUL Word64 v
 
 -- Getting the "found" and "not found" branches as arguments
 {-# INLINE lookupNode #-}
 lookupNode :: Node -> NodeMap v -> (v -> IO a) -> IO a -> IO a
-lookupNode = HT.lookupCPS
+lookupNode (Node n) map found notfound = HT.lookupCPS n map found notfound
 
 {-# NOINLINE insertNode #-}
 insertNode :: Node -> v -> NodeMap v -> IO ()
-insertNode n v map = HT.insert map n v
+insertNode (Node n) v map = HT.insert map n v
 
 {-# NOINLINE nodeMapToList #-}
 nodeMapToList :: NodeMap v -> IO [(Node, v)]
-nodeMapToList = HT.toList
+nodeMapToList map = coerce (HT.toList map)
 
 {-# NOINLINE cloneNodeMap #-}
 cloneNodeMap :: NodeMap v -> IO (NodeMap v)
@@ -203,8 +191,8 @@ adjacencyList graph = do
 addTargetNodesAsSource :: OccGraph -> IO OccGraph
 addTargetNodesAsSource graph = do
   graph' <- cloneNodeMap graph
-  HT.forAssocs graph \src tgts ->
-    HT.forAssocs tgts \tgt _ -> lookupNode tgt graph
+  HT.forAssocs graph \(Node -> src) tgts ->
+    HT.forAssocs tgts \(Node -> tgt) _ -> lookupNode tgt graph
       (\_ -> pure ())
       (do
         edges <- HT.empty
@@ -383,19 +371,22 @@ addEdge rng src = do
 
 -- | Recurse into an argument of a non-mutual definition.
 occurrencesInDefArg :: QName -> Occurrence -> Int -> Elim -> OccM ()
-occurrencesInDefArg d p i e = expand \ret -> ret do
-  underPathOcc (\p -> DefArg p d i) p $ occurrences e
+occurrencesInDefArg d p i e = expand \ret -> case p of
+  Unused -> ret $ pure ()
+  p      -> ret $ underPathOcc (\p -> DefArg p d i) p $ occurrences e
 
 -- | Recurse into an argument of an argument of the top definition.
 occurrencesInDefArgArg :: Occurrence -> Int -> Elim -> OccM ()
-occurrencesInDefArgArg p i e = expand \ret -> ret do
-  underPathOcc (\x -> VarArg x i p) p $ occurrences e
+occurrencesInDefArgArg p i e = expand \ret -> case p of
+  Unused -> ret $ pure ()
+  p      -> ret $ underPathOcc (\x -> VarArg x i p) p $ occurrences e
 
 -- | Recurse into an argument of a mutual definition.
 occurrencesInMutDefArg :: Int -> Occurrence -> Int -> Elim -> OccM ()
-occurrencesInMutDefArg di p i e = expand \ret -> ret $
-  local (\e -> e {path = MutDefArg (path e) di i, target = ArgNode di i, occ = p}) $
-    occurrences e
+occurrencesInMutDefArg di p i e = expand \ret -> case p of
+  Unused -> ret $ pure ()
+  p      -> ret $ local (\e -> e {path = MutDefArg (path e) di i, target = ArgNode di i, occ = p}) $
+                    occurrences e
 
 mutualDefOcc :: Definition -> Occurrence
 mutualDefOcc d = case theDef d of
@@ -816,7 +807,7 @@ transitiveOccurrence graph src tgt = do
       -- Function for traversing the map of children for a node
       goMap :: OccGraph -> Node -> NodeMap (Edge OccursWhere) -> Occurrence -> Occurrence -> SeenNodes -> IO Occurrence
       goMap graph tgt map path acc seen =
-        HT.forAssocsAccum map acc \src (Edge occ _) acc ->
+        HT.forAssocsAccum map acc \(Node -> src) (Edge occ _) acc ->
           if src == tgt then pure acc -- already covered this case in go'
                         else go graph tgt src (otimes path occ) acc seen
 
