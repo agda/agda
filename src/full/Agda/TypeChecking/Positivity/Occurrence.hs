@@ -111,10 +111,11 @@ data OccursPath
   = Root
   | LeftOfArrow !OccursPath
   | DefArg !OccursPath !QName !Nat      -- ^ in the nth argument of a defined constant
-  | MutDefArg !OccursPath !QName !Nat   -- ^ in the nth argument of a def in the current mutual block
+  | MutDefArg !OccursPath !Int !Nat     -- ^ in the nth argument of a def in the current mutual block.
+                                        --   (def given by Int index in the block)
   | UnderInf !OccursPath                -- ^ in the principal argument of built-in ∞
   | VarArg !OccursPath !Nat !Occurrence -- ^ as an argument to a bound variable with given polarity.
-                                         --   The polarity is only used for warning printing.
+                                        --   The polarity is only used for warning printing.
   | MetaArg !OccursPath                 -- ^ as an argument of a metavariable
   | ConArgType !OccursPath !QName       -- ^ in the type of a constructor
   | IndArgType !OccursPath !QName       -- ^ in a datatype index of a constructor
