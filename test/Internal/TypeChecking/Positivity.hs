@@ -7,7 +7,8 @@ import System.IO.Unsafe
 
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..), Edge(..))
-import Agda.TypeChecking.Positivity.OccurrenceAnalysis (Node(..), fromGenericGraph, transitiveOccurrence)
+import Agda.TypeChecking.Positivity.OccurrenceAnalysis
+         (Node, pattern DefNode, pattern ArgNode, fromGenericGraph, transitiveOccurrence)
 import Agda.TypeChecking.Positivity.Warnings qualified as W
 
 import Agda.Utils.SemiRing

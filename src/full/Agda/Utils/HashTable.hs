@@ -10,6 +10,7 @@ module Agda.Utils.HashTable
   , HashTableLU
   , HashTableLL
   , HashTableUL
+  , HashTableUU
   , Agda.Utils.HashTable.empty
   , Agda.Utils.HashTable.insert
   , Agda.Utils.HashTable.lookup
@@ -19,6 +20,7 @@ module Agda.Utils.HashTable
   , forAssocsAccum
   , Agda.Utils.HashTable.size
   , insertingIfAbsent
+  , lookupCPS
   ) where
 
 import Prelude hiding (lookup)
@@ -63,7 +65,10 @@ type HashTableLU k v = HashTable VM.MVector k VUM.MVector v
 type HashTableLL k v = HashTable VM.MVector k VM.MVector v
 
 -- | Hashtable with unboxed keys and lifted values.
-type HashTableUL k v = HashTable VM.MVector k VM.MVector v
+type HashTableUL k v = HashTable VUM.MVector k VM.MVector v
+
+-- | Hashtable with unboxed keys and values.
+type HashTableUU k v = HashTable VUM.MVector k VUM.MVector v
 
 -- | An empty hash table.
 empty :: (MVector ks k, MVector vs v) => IO (HashTable ks k vs v)
@@ -206,3 +211,26 @@ insertingIfAbsent (HashTable DRef{..}) key' found getValue' notfound = do
 
     go =<< buckets ! targetBucket
 {-# INLINE insertingIfAbsent #-}
+
+-- | Properly inlinable CPS-d lookup function.
+lookupCPS ::
+  forall a k v ks vs.
+  (MVector ks k, MVector vs v, Hashable k) => k -> HashTable ks k vs v -> (v -> IO a) -> IO a -> IO a
+lookupCPS key' (HashTable DRef{..}) found notfound = do
+  Dictionary{..} <- readMutVar getDRef
+  let hashCode' = hash key' .&. mask
+  let go i
+        | i >= 0 = do
+            hc <- hashCode ! i
+            if hc == hashCode' then do
+              k <- key !~ i
+              if k == key' then do
+                v <- value !~ i
+                found v
+              else
+                go =<< next ! i
+            else
+              go =<< next ! i
+        | otherwise = notfound
+  go =<< buckets ! (hashCode' `fastRem` remSize)
+{-# INLINE lookupCPS #-}
