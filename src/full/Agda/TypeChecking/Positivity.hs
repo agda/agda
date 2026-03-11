@@ -55,7 +55,6 @@ import Agda.Utils.Impossible
 --
 --   Also add information about positivity and recursivity of records
 --   to the signature.
-  --
 checkStrictlyPositive :: Info.MutualInfo -> Set QName -> TCM ()
 checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
 
@@ -64,7 +63,6 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
 
   preprocessBlock qs >>= \case
     Nothing -> do
-      -- reportSDoc "" 1 $ "NOTHING TO DO: " <+> fsep (map prettyTCM qs)
       pure ()
     Just blockInfo -> do
 
@@ -97,17 +95,18 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
       reportSLn "tc.pos.graph.sccs" 15 $
         "  sccs = " ++ prettyShow [ scc | CyclicSCC scc <- sccs ]
 
-      -- #7133: Note that the graph doesn't necessarily contain all of qs in the case where there are no
-      -- occurrences of a name, but we still need to setMutual for them.
-      let sccMap = Map.unions [ case scc of
-                                  AcyclicSCC (DefNode q) -> Map.singleton q []
-                                  AcyclicSCC ArgNode{}   -> mempty
-                                  CyclicSCC scc          -> Map.fromList [ (q, qs) | q <- qs ]
-                                    where qs = [ q | DefNode q <- scc ]
-                              | scc <- sccs ]
-
       inAbstractMode $ forMGood_ qs \q -> do
         whenM (isNothing <$> getMutual q) do
+
+          -- #7133: Note that the graph doesn't necessarily contain all of qs in the case where there are no
+          -- occurrences of a name, but we still need to setMutual for them.
+          let sccMap = Map.unions [ case scc of
+                                      AcyclicSCC (DefNode q) -> Map.singleton q []
+                                      AcyclicSCC ArgNode{}   -> mempty
+                                      CyclicSCC scc          -> Map.fromList [ (q, qs) | q <- qs ]
+                                        where qs = [ q | DefNode q <- scc ]
+                                  | scc <- sccs ]
+
           let qs = fromMaybe [] $ Map.lookup q sccMap
           reportSLn "tc.pos.mutual" 10 $ "setting " ++ prettyShow q ++ " to " ++
                                          if | null qs        -> "non-recursive"
@@ -268,9 +267,8 @@ preprocessBlock qs = do
       True  -> getDefArity def
       False -> pure 0
     let !dr = isDatatype def
-    let !needToSetMutual = isJust (getMutual_ (theDef def))
+    let !needToSetMutual = isNothing (getMutual_ (theDef def))
     pure (q, arity, dr, needToSetMutual)
-  -- pure $ Just info
   case any (\(_, arity, dr, setMut) -> arity /= 0 || isJust dr || setMut) info of
     True -> pure $ Just info
     _    -> pure Nothing
