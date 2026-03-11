@@ -3,8 +3,6 @@
 {-# LANGUAGE MagicHash #-}
 {-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
 {-# OPTIONS_GHC -fmax-worker-args=20 #-}
-{-# OPTIONS_GHC -fmax-valid-hole-fits=0 -fmax-relevant-binds=3 #-}
-{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds -ddump-to-file #-}
 
 #if __GLASGOW_HASKELL__ > 902
 {-# OPTIONS_GHC -fworker-wrapper-cbv #-}
@@ -17,7 +15,6 @@ module Agda.TypeChecking.Positivity.OccurrenceAnalysis (
   , buildOccurrenceGraph
   , stronglyConnComp
   , transitiveOccurrence
-  , directOccurrence
   , adjacencyList
   , lookupNode
   , toGenericGraph
@@ -67,18 +64,13 @@ import Agda.Utils.Size
 import Agda.Utils.StrictReader
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional qualified as Graph
 
-{-
-NOTE:
-- We can't avoid recursing into Unused args becuse we might
-  have metavars there, which have constant Mixed arg polarity
-  and must be traversed in all cases!
-  Proposal: change behavior, skip all Unused subterms
--}
 
 -- Graph nodes
 ----------------------------------------------------------------------------------------------------
 
-data Node = DefNode QName | ArgNode QName Int
+data Node
+  = DefNode QName       -- ^ Name of a mutual definition in the current block.
+  | ArgNode QName Int   -- ^ An argument of a mutual definition in the current block.
   deriving (Show, Eq, Ord)
 
 instance HasRange Node where
@@ -103,6 +95,10 @@ instance Hashable Node where
 
 type NodeMap v = HT.HashTableLL Node v
 
+-- András 2026-03-11: the inlining of these functions is a bit delicate. The HT functions are all
+-- marked inline at their definition site, because in my experience INLINABLE does not yield
+-- reliable specialization through our "wrapper" Agda.Utils.HashTable module. So the HT functions
+-- are all inlined and specialized here, but they are all pretty big functions, hence the NOINLINE.
 {-# NOINLINE lookupNode #-}
 lookupNode :: Node -> NodeMap v -> IO (Maybe v)
 lookupNode n map = HT.lookup map n
@@ -137,6 +133,7 @@ insertQName q qs = HT.insert qs q ()
 -- Occurrence graph
 ----------------------------------------------------------------------------------------------------
 
+-- | Meaning of the graph: the keys in the outer NodeMap occur in the keys of the inner NodeMap.
 type OccGraph = NodeMap (NodeMap (Edge OccursWhere))
 
 {-# NOINLINE addEdgeToGraph #-}
@@ -156,8 +153,8 @@ adjacencyList graph = do
   assocs <- forM assocs \(src, tgts) -> (src,) <$!> nodeMapToList tgts
   pure [(src, tgt, e) | (src, tgts) <- assocs, (tgt, e) <- tgts]
 
--- | For every node appearing as a target but not as a source, add it
---   as a source node with empty map for targets.
+-- | For every node appearing as a target but not as a source, add it as a source node with empty
+--   map for targets. This is an invariant that's required by Data.Graph.stronglyConnComp.
 addTargetNodesAsSource :: OccGraph -> IO OccGraph
 addTargetNodesAsSource graph = do
   graph' <- cloneNodeMap graph
@@ -179,7 +176,7 @@ stronglyConnComp graph = do
   pure $! Data.Graph.stronglyConnComp assocs
 
 {-# NOINLINE toGenericGraph #-}
--- | Convert back to legacy graph, for testing.
+-- | Convert to generic Utils graph, for the purpose of testing and warning rendering.
 toGenericGraph :: OccGraph -> Graph.Graph Node (Edge W.OccursWhere)
 toGenericGraph graph = unsafeDupablePerformIO do
 
@@ -236,8 +233,9 @@ toGenericGraph graph = unsafeDupablePerformIO do
   assocs <- adjacencyList graph
   pure $! Graph.Graph $! foldl' go mempty assocs
 
--- | Make a graph from a generic one.
---   Note: we ignore the path information!
+-- | Make a graph from a generic one. We use this in testing in Internal.TypeChecking.Positivity
+--   where it's much more convenient to generate immutable graphs. Note: we ignore occurrence
+--   location info.
 {-# NOINLINE fromGenericGraph #-}
 fromGenericGraph :: Graph.Graph Node (Edge a) -> OccGraph
 fromGenericGraph (Graph.Graph graph) = unsafeDupablePerformIO do
@@ -250,6 +248,12 @@ fromGenericGraph (Graph.Graph graph) = unsafeDupablePerformIO do
 
 -- Occurrence analysis
 ----------------------------------------------------------------------------------------------------
+
+{-
+Occurrence analysis is a single traversal over definitions which builds a mutable graph in IO.
+We keep track of the "path" during traversal that leads from the current position to a top
+definition. If positivity checking produces warnings, the paths get processed into those warnings.
+-}
 
 -- | Top-level arg index that a local variable was bound in, arg polarity of the var itself.
 data DefArgInEnv = DefArgInEnv Int [Occurrence]
@@ -330,14 +334,17 @@ isMutual q = do
   mutuals <- asks mutuals
   lift $ lift $ memberQName q mutuals
 
+-- | Recurse into an argument of a non-mutual definition.
 occurrencesInDefArg :: QName -> Occurrence -> Int -> Elim -> OccM ()
 occurrencesInDefArg d p i e = expand \ret -> ret do
   underPathOcc (\p -> DefArg p d i) p $ occurrences e
 
+-- | Recurse into an argument of an argument of the top definition.
 occurrencesInDefArgArg :: Occurrence -> Int -> Elim -> OccM ()
 occurrencesInDefArgArg p i e = expand \ret -> ret do
   underPathOcc (\x -> VarArg x i p) p $ occurrences e
 
+-- | Recurse into an argument of a mutual definition.
 occurrencesInMutDefArg :: QName -> Occurrence -> Int -> Elim -> OccM ()
 occurrencesInMutDefArg d p i e = expand \ret -> ret $
   local (\e -> e {path = MutDefArg (path e) d i, target = ArgNode d i, occ = p}) $
@@ -451,6 +458,7 @@ instance ComputeOccurrences Term where
     DontCare t -> ret $ occurrences t
     Dummy{}    -> ret $ pure ()
 
+-- | Record that every matched argument of a def occurs in the def.
 addClauseArgMatches :: NAPs -> OccM ()
 addClauseArgMatches ps = underPathSetOcc Matched Mixed $ go 0 ps where
   go :: Int -> NAPs -> OccM ()
@@ -622,10 +630,6 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
         tel1' <- lift $ addContext tel0 $ normalise tel1 -- András 2026-02-18: why addContext?
         pvars <- lift $ paramsToDefArgs tel0
 
-        -- o <- asks occ
-        -- ls <- asks locals
-        -- reportSLn "" 1 $ "CONARGTY " ++ show (P.prettyShow tel1', o, pvars,ls)
-
         local (\env -> env {topDefArgs = pvars}) do
           -- edges in the types of constructor arguments
           underPath (`ConArgType` c) $ occurrences tel1'
@@ -679,12 +683,6 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
     GeneralizableVar{} -> ret mempty
     AbstractDefn{}     -> ret __IMPOSSIBLE__
 
--- | Direct occurrence of src in tgt.
-directOccurrence :: OccGraph -> Node -> Node -> IO (Maybe (Edge OccursWhere))
-directOccurrence graph src tgt = lookupNode src graph >>= \case
-  Nothing   -> pure Nothing
-  Just tgts -> lookupNode tgt tgts
-
 buildOccurrenceGraph :: [QName] -> TCM OccGraph
 buildOccurrenceGraph qs = do
   inf     <- maybe Nothing (\x -> Just $! nameOfInf x) <$> coinductionKit
@@ -697,7 +695,7 @@ buildOccurrenceGraph qs = do
   pure graph
 
 
--- Computing transitive occurrences
+-- Computing transitive occurrences, to be used in positivity checking
 ----------------------------------------------------------------------------------------------------
 
 data Seen = Seen Node Occurrence
@@ -707,6 +705,7 @@ instance Hashable Seen where
   hashWithSalt h (Seen x y) =
     fromIntegral (fromIntegral (hashWithSalt h x) `combineWord` fromIntegral (fromEnum y))
 
+-- | Set of visited nodes during graph search.
 type SeenNodes = HT.HashTableLL Seen ()
 
 memberSeen :: Seen -> SeenNodes -> IO Bool
@@ -748,9 +747,13 @@ transitiveOccurrence graph src tgt = do
       go' graph tgt src path acc seen = lookupNode src graph >>= \case
         Nothing  -> pure acc
         Just map -> lookupNode tgt map >>= \case
+
+          -- if there's a direct edge to the target, we follow that first.
+          -- this should make it faster to find Mixed edges (if there's one)
           Just (Edge occ _) -> do
             acc <- go graph tgt tgt (otimes path occ) acc seen
             goMap graph tgt map path acc seen
+
           Nothing ->
             goMap graph tgt map path acc seen
 

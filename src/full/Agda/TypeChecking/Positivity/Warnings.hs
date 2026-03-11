@@ -24,7 +24,11 @@ import Agda.Utils.Impossible
 import Agda.Utils.Null
 import Agda.Utils.SemiRing
 
-----------------------------------------------------------------------------------------------------
+{-
+András 2026-03-11: these definitions are only used to represent and render positivity warnings.
+They used to be the basis of the main occurrence/positivity implementation. I rewrote the main
+implementation in PR 8411 but I left the warning redering as it is.
+-}
 
 -- | Description of an occurrence.
 data OccursWhere
