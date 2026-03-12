@@ -48,10 +48,13 @@ import qualified Data.Text.Lazy as TL
 import Data.Typeable (Typeable, TypeRep, typeRep, typeRepFingerprint)
 import GHC.Exts
 import GHC.Fingerprint.Type
+import GHC.Generics (Generic)
 import Unsafe.Coerce
 
+import Agda.Syntax.Abstract.Name (Name, nameBindingSite)
 import Agda.Syntax.Common (NameId)
-import Agda.Syntax.Internal (QName(..), ModuleName(..), nameId, Term(..), varTable, varTableSize)
+import Agda.Syntax.Internal (QName(..), nameId, Term(..), varTable, varTableSize)
+import Agda.Syntax.Position (Range)
 import Agda.TypeChecking.Monad.Base.Types (ModuleToSource)
 import Agda.TypeChecking.Serialise.Node
 
@@ -145,12 +148,26 @@ getFresh far = MP.unsafeRead far 0
 getReuse :: FreshAndReuse -> IO Word32
 getReuse far = MP.unsafeRead far 1
 
--- | Two 'QName's are equal if their @QNameId@ is equal.
-type QNameId = [NameId]
+-- Andreas, 2026-03-12, issue #8465
+-- | We need to distinguish 'A.Name's with different 'nameBindingSite',
+--   so we complement the key 'NameId' with that 'Range'.
+data NameIdR = NameIdR
+  { nidNameId      :: !NameId
+  , nidBindingSite :: !Range
+  } deriving (Eq, Generic)
 
--- | Computing a qualified names composed ID.
+instance Hashable NameIdR
+
+-- | Computing a key of an abstract name.
+nameIdR :: Name -> NameIdR
+nameIdR x = NameIdR (nameId x) (nameBindingSite x)
+
+-- | Two 'QName's are equal if their @NameId@ is equal.
+type QNameId = NameIdR
+
+-- | Computing a key of a qualified name.
 qnameId :: QName -> QNameId
-qnameId (QName (MName ns) n) = map nameId $ n:ns
+qnameId = nameIdR . qnameName
 
 -- | State of the the encoder.
 data Dict = Dict
@@ -166,7 +183,9 @@ data Dict = Dict
   -- short cuts to speed up serialization:
   -- Andreas, Makoto, AIM XXI
   -- Memoizing A.Name does not buy us much if we already memoize A.QName.
-  , nameD        :: !(HashTableLU NameId  Word32)    -- ^ Not written to interface file.
+  -- Andreas, 2026-03-12
+  -- Memoizing A.Name saves ~17% of serialization time (25s -> 21s for std-lib).
+  , nameD        :: !(HashTableLU NameIdR Word32)    -- ^ Not written to interface file.
   , qnameD       :: !(HashTableLU QNameId Word32)    -- ^ Not written to interface file.
   -- Fresh UIDs and reuse statistics:
   , nodeC        :: !FreshAndReuse  -- counters for fresh indexes
