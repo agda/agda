@@ -30,6 +30,17 @@ They used to be the basis of the main occurrence/positivity implementation. I re
 implementation in PR 8411 but I left the warning redering as it is.
 -}
 
+data Node = DefNode !QName | ArgNode !QName !Int
+  deriving (Eq, Ord)
+
+instance Pretty Node where
+  pretty = \case
+    DefNode q   -> pretty q
+    ArgNode q i -> pretty q <> text ("." ++ show i)
+
+instance Show Node where
+  show = prettyShow
+
 -- | Description of an occurrence.
 data OccursWhere
   = OccursWhere Range (Seq Where) (Seq Where)
@@ -84,7 +95,7 @@ instance Pretty Where where
 instance Pretty OccursWhere where
   pretty = \case
     OccursWhere r ws1 ws2 ->
-      "OccursWhere " <+> pretty r <+> pretty (toList ws1) <+> pretty (toList ws2)
+      "OccursWhere" <+> pretty (toList ws1) <+> pretty (toList ws2)
 
 -- | The map contains bindings of the form @bound |-> ess@, satisfying
 -- the following property: for every non-empty list @w@,

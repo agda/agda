@@ -154,7 +154,7 @@ data OccursWhere = OccursWhere !Range !OccursPath
   deriving (Eq, Show)
 
 instance P.Pretty OccursWhere where
-  pretty (OccursWhere x y) = "OccursWhere " P.<+> P.pretty x P.<+> P.pretty y
+  pretty (OccursWhere x y) = "OccursWhere" P.<+> P.pretty x P.<+> P.pretty y
 
 --------------------------------------------------------------------------------
 

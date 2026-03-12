@@ -210,69 +210,68 @@ stronglyConnComp graph = do
 
 {-# NOINLINE toGenericGraph #-}
 -- | Convert to generic Utils graph, for the purpose of testing and warning rendering.
-toGenericGraph :: (OccGraph, InvMutuals) -> Graph.Graph Node (Edge W.OccursWhere)
+toGenericGraph :: (OccGraph, InvMutuals) -> Graph.Graph W.Node (Edge W.OccursWhere)
 toGenericGraph (!graph, !muts) = unsafeDupablePerformIO do
 
-  let convEdge :: Edge OccursWhere -> IO (Edge W.OccursWhere)
-      convEdge (Edge occ (OccursWhere rng path)) = Edge occ <$!> convPath rng path
+  let convNode :: Node -> W.Node
+      convNode = \case
+        DefNode i   -> W.DefNode (mutualIxToName muts i)
+        ArgNode i j -> W.ArgNode (mutualIxToName muts i) j
 
-      convPath :: Range -> OccursPath -> IO W.OccursWhere
+      convEdge :: Edge OccursWhere -> Edge W.OccursWhere
+      convEdge (Edge occ (OccursWhere rng path)) = Edge occ (convPath rng path)
+
+      convPath :: Range -> OccursPath -> W.OccursWhere
       convPath rng path = let
 
-        go' :: OccursPath -> IO (Seq W.Where)
+        go' :: OccursPath -> Seq W.Where
         go' = \case
-          Root            -> pure mempty
-          MutDefArg p x i -> do x <- pure $ mutualIxToName muts x
-                                (:|> W.DefArg x i) <$!> go' p
-          LeftOfArrow p   -> (:|> W.LeftOfArrow)   <$!> go' p
-          DefArg p x i    -> (:|> W.DefArg x i)    <$!> go' p
-          UnderInf p      -> (:|> W.UnderInf)      <$!> go' p
-          VarArg p i o    -> (:|> W.VarArg o i)    <$!> go' p
-          MetaArg p       -> (:|> W.MetaArg)       <$!> go' p
-          ConArgType p x  -> (:|> W.ConArgType x)  <$!> go' p
-          IndArgType p x  -> (:|> W.IndArgType x)  <$!> go' p
-          ConEndpoint p x -> (:|> W.ConEndpoint x) <$!> go' p
-          InClause p i    -> (:|> W.InClause i)    <$!> go' p
-          Matched p       -> (:|> W.Matched)       <$!> go' p
-          InIndex p       -> (:|> W.InIndex)       <$!> go' p
-          InDefOf p x     -> (:|> W.InDefOf x)     <$!> go' p
+          Root            -> mempty
+          MutDefArg p x i -> go' p :|> W.DefArg (mutualIxToName muts x) i
+          LeftOfArrow p   -> go' p :|> W.LeftOfArrow
+          DefArg p x i    -> go' p :|> W.DefArg x i
+          UnderInf p      -> go' p :|> W.UnderInf
+          VarArg p i o    -> go' p :|> W.VarArg o i
+          MetaArg p       -> go' p :|> W.MetaArg
+          ConArgType p x  -> go' p :|> W.ConArgType x
+          IndArgType p x  -> go' p :|> W.IndArgType x
+          ConEndpoint p x -> go' p :|> W.ConEndpoint x
+          InClause p i    -> go' p :|> W.InClause i
+          Matched p       -> go' p :|> W.Matched
+          InIndex p       -> go' p :|> W.InIndex
+          InDefOf p x     -> go' p :|> W.InDefOf x
 
-        go :: OccursPath -> IO (Seq W.Where, Seq W.Where)
+        go :: OccursPath -> (Seq W.Where, Seq W.Where)
         go = \case
-          Root            -> pure (mempty, mempty)
-          MutDefArg p x i -> do x <- pure $ mutualIxToName muts x
-                                s1 <- go' p
-                                let s2 = DS.singleton (W.DefArg x i)
-                                pure (s1, s2)
-          LeftOfArrow p   -> ((:|> W.LeftOfArrow)   <$!>) <$!> go p
-          DefArg p x i    -> ((:|> W.DefArg x i)    <$!>) <$!> go p
-          UnderInf p      -> ((:|> W.UnderInf)      <$!>) <$!> go p
-          VarArg p i o    -> ((:|> W.VarArg o i)    <$!>) <$!> go p
-          MetaArg p       -> ((:|> W.MetaArg)       <$!>) <$!> go p
-          ConArgType p x  -> ((:|> W.ConArgType x)  <$!>) <$!> go p
-          IndArgType p x  -> ((:|> W.IndArgType x)  <$!>) <$!> go p
-          ConEndpoint p x -> ((:|> W.ConEndpoint x) <$!>) <$!> go p
-          InClause p i    -> ((:|> W.InClause i)    <$!>) <$!> go p
-          Matched p       -> ((:|> W.Matched)       <$!>) <$!> go p
-          InIndex p       -> ((:|> W.InIndex)       <$!>) <$!> go p
-          InDefOf p x     -> ((:|> W.InDefOf x)     <$!>) <$!> go p
+          Root            -> (mempty, mempty)
+          MutDefArg p x i -> let s1 = go' p
+                                 s2 = DS.singleton (W.DefArg (mutualIxToName muts x) i)
+                             in (s1, s2)
+          LeftOfArrow p   -> (:|> W.LeftOfArrow)   <$!> go p
+          DefArg p x i    -> (:|> W.DefArg x i)    <$!> go p
+          UnderInf p      -> (:|> W.UnderInf)      <$!> go p
+          VarArg p i o    -> (:|> W.VarArg o i)    <$!> go p
+          MetaArg p       -> (:|> W.MetaArg)       <$!> go p
+          ConArgType p x  -> (:|> W.ConArgType x)  <$!> go p
+          IndArgType p x  -> (:|> W.IndArgType x)  <$!> go p
+          ConEndpoint p x -> (:|> W.ConEndpoint x) <$!> go p
+          InClause p i    -> (:|> W.InClause i)    <$!> go p
+          Matched p       -> (:|> W.Matched)       <$!> go p
+          InIndex p       -> (:|> W.InIndex)       <$!> go p
+          InDefOf p x     -> (:|> W.InDefOf x)     <$!> go p
 
-        in do (s1, s2) <- go path
-              pure $ W.OccursWhere rng s1 s2
+        in case go path of (s1, s2) -> W.OccursWhere rng s1 s2
 
-  let go :: [(Node, Node, Edge OccursWhere)]
-         -> Map Node (Map Node (Edge W.OccursWhere))
-         -> IO (Map Node (Map Node (Edge W.OccursWhere)))
-      go ((src, tgt, e):rest) m = do
-        e <- convEdge e
-        let m' =  Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e)
-                $ Map.insertWith (\_ tgts -> tgts) tgt mempty
-                $ m
-        go rest m'
-      go [] m = pure m
+  let go :: Map W.Node (Map W.Node (Edge W.OccursWhere))
+         -> (Node, Node, Edge OccursWhere)
+         -> Map W.Node (Map W.Node (Edge W.OccursWhere))
+      go m (convNode -> src, convNode -> tgt, convEdge -> e) =
+          Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
+          Map.insertWith (\_ tgts -> tgts) tgt mempty $
+          m
 
   assocs <- adjacencyList graph
-  Graph.Graph <$!> go assocs mempty
+  pure $! Graph.Graph $! foldl' go mempty assocs
 
 -- | Make a graph from a generic one. We use this in testing in Internal.TypeChecking.Positivity
 --   where it's much more convenient to generate immutable graphs. Note: we ignore occurrence
