@@ -3,9 +3,13 @@
 module Internal.TypeChecking.Positivity ( tests ) where
 
 import Data.Sequence (Seq)
+import System.IO.Unsafe
 
 import Agda.TypeChecking.Positivity
-import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..), Edge(..))
+import Agda.TypeChecking.Positivity.OccurrenceAnalysis
+         (Node, pattern DefNode, pattern ArgNode, fromGenericGraph, transitiveOccurrence)
+import Agda.TypeChecking.Positivity.Warnings qualified as W
 
 import Agda.Utils.SemiRing
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional qualified as Graph
@@ -36,21 +40,22 @@ instance Arbitrary Node where
 -- ('Seq' 'OccursWhere')@.
 
 prop_oplus_Occurrence_Edge ::
-  Edge (Seq OccursWhere) -> Edge (Seq OccursWhere) -> Bool
+  Edge (Seq W.OccursWhere) -> Edge (Seq W.OccursWhere) -> Bool
 prop_oplus_Occurrence_Edge e1@(Edge o1 _) e2@(Edge o2 _) =
   case oplus e1 e2 of
     Edge o _ -> o == oplus o1 o2
 
 -- | 'transitiveOccurrence' gives the same result as looking up from
 --   the transitive closure of the graph.
-prop_transitiveOccurrence :: Graph.Graph Node (Edge OccursWhere) -> Property
+prop_transitiveOccurrence :: Graph.Graph Node (Edge ()) -> Property
 prop_transitiveOccurrence g =
   let gstar = Graph.transitiveClosure (fmap (\(Edge o _) -> o) g) in
+  let g' = fromGenericGraph g in
   forAll (nodeIn g) \n ->
   forAll (nodeIn g) \m ->
     maybe Unused id (Graph.lookup n m gstar)
     ==
-    transitiveOccurrence g n m
+    unsafeDupablePerformIO (transitiveOccurrence g' n m)
 
 ------------------------------------------------------------------------
 -- * All tests

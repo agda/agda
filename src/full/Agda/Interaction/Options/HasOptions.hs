@@ -15,6 +15,8 @@ import Control.Monad.Writer (WriterT)
 import Agda.Interaction.Options.Types (PragmaOptions, CommandLineOptions)
 import Agda.Utils.Update (ChangeT)
 import Agda.Utils.ListT (ListT)
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictState qualified as Strict
 
 class (Functor m, Applicative m, Monad m) => HasOptions m where
   -- | Returns the pragma options which are currently in effect.
@@ -22,9 +24,11 @@ class (Functor m, Applicative m, Monad m) => HasOptions m where
   -- | Returns the command line options which are currently in effect.
   commandLineOptions :: m CommandLineOptions
 
+  {-# INLINE pragmaOptions #-}
   default pragmaOptions :: (HasOptions n, MonadTrans t, m ~ t n) => m PragmaOptions
   pragmaOptions      = lift pragmaOptions
 
+  {-# INLINE commandLineOptions #-}
   default commandLineOptions :: (HasOptions n, MonadTrans t, m ~ t n) => m CommandLineOptions
   commandLineOptions = lift commandLineOptions
 
@@ -37,5 +41,7 @@ instance HasOptions m => HasOptions (IdentityT m)
 instance HasOptions m => HasOptions (ListT m)
 instance HasOptions m => HasOptions (MaybeT m)
 instance HasOptions m => HasOptions (ReaderT r m)
+instance HasOptions m => HasOptions (Strict.ReaderT r m)
 instance HasOptions m => HasOptions (StateT s m)
+instance HasOptions m => HasOptions (Strict.StateT s m)
 instance (HasOptions m, Monoid w) => HasOptions (WriterT w m)

@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wunused-imports #-}
+-- {-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Dropping initial arguments (``parameters'') from a function which can be
 --   easily reconstructed from its principal argument.
@@ -72,6 +72,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Free (anyFreeVar)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Positivity
+import Agda.TypeChecking.Positivity.OccurrenceAnalysis qualified as Occ
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce (reduce, abortIfBlocked)
@@ -364,14 +365,11 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     validProj (_, 0) = return False
     validProj (d, _) = eligibleForProjectionLike (unArg d)
 
-    -- NOTE: If the following definition turns out to be slow, then
-    -- one could perhaps reuse information computed by the termination
-    -- and/or positivity checkers.
-    recursive = do
-      occs <- computeOccurrences x
-      case Map.lookup (ADef x) occs of
-        Just n | n >= 1 -> return True -- recursive occurrence
-        _               -> return False
+    recursive = getMutual x >>= \case
+      Just []     -> pure False
+      Just (_:[]) -> pure True
+      Just _      -> __IMPOSSIBLE__ -- makeProjection only gets called on singleton mutual blocks
+      _           -> pure False
 
     checkOccurs cls n = all (nonOccur n) cls
 
