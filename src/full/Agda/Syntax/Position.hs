@@ -111,6 +111,7 @@ import Agda.Utils.Tuple (sortPair)
 import Agda.Utils.Word (packW64, splitW64)
 
 import Agda.Utils.Impossible
+import Data.Hashable (Hashable)
 
 {--------------------------------------------------------------------------
     Types and classes
@@ -827,3 +828,10 @@ interleaveRanges as bs = runWriter $ go as bs
           (a:) <$> go as' bs
         else
           (b:) <$> go as bs'
+
+-- Hashable instances
+
+instance Hashable RangeFile
+instance Hashable a => Hashable (Position' a)
+instance Hashable a => Hashable (Interval' a)
+instance Hashable a => Hashable (Range' a)

@@ -36,7 +36,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.AssocList        ( AssocList )
 import Agda.Utils.AssocList        qualified as AssocList
-import Agda.Utils.Function         ( applyWhen )
+import Agda.Utils.Function         ( applyWhen, applyUnless )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -1633,12 +1633,24 @@ prettyNameSpace (NameSpace names nameParts mods _) =
     pr (x, y) = pretty x <+> "-->" <+> pretty y
     -- pr' :: (Pretty a, IsInstanceDef b, Pretty b) => (a, List1 b) -> Doc
     pr' :: (C.Name, List1 AbstractName) -> Doc
-    pr' (x, ys) = pretty x <+> "-->" <+> prettyList (map PrettyWithInstance $ List1.toList ys)
+    pr' (x, ys) = pretty x <+> "-->" <+> prettyList (map augment $ List1.toList ys)
+      where
+        -- Extra information for names; comment out line to remove a particular augmentation
+        augment = id
+          . PrettyWithInstance
+          -- . PrettyWithBindingSite
 
 newtype PrettyWithInstance a = PrettyWithInstance a
 instance (IsInstanceDef a, Pretty a) => Pretty (PrettyWithInstance a) where
   pretty (PrettyWithInstance x) =
     applyWhen (isJust $ isInstanceDef x) ("instance" <+>) $ pretty x
+
+newtype PrettyWithBindingSite a = PrettyWithBindingSite a
+  deriving (IsInstanceDef)
+instance (HasNameBindingSite a, Pretty a) => Pretty (PrettyWithBindingSite a) where
+  pretty (PrettyWithBindingSite x) = do
+    let r = nameBindingSite x
+    applyUnless (null r) (<+> ("bound at" <+> pretty r)) $ pretty x
 
 instance Pretty Scope where
   pretty scope@Scope{ scopeName = name, scopeParents = parents, scopeImports = imps } =

@@ -1,0 +1,9 @@
+Issue8465.agda:10.3-10: error: [ClashingDefinition]
+Multiple definitions of ℕ. Previous definition
+ℕ is in scope as
+  * a data type Agda.Builtin.Nat.Nat brought into scope by
+    - the opening of Issue8465.Lib at Issue8465.agda:7.13-26
+    - the opening of Agda.Builtin.Nat at Issue8465/Lib.agda:3.13-29
+    - its definition at Issue8465/Lib.agda:4.20-21
+when scope checking the declaration
+  ℕ : Set
