@@ -72,6 +72,7 @@ import Agda.Utils.Graph.AdjacencyMap.Unidirectional qualified as Graph
 import Agda.Utils.MinimalArray.MutableLifted qualified as MArr
 import Agda.Utils.MinimalArray.Lifted qualified as Arr
 
+
 -- Graph nodes
 ----------------------------------------------------------------------------------------------------
 
