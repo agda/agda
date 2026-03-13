@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeApplications    #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
 
 -- | This module contains the definition of hereditary substitution
 -- and application operating on internal syntax which is in β-normal
@@ -63,18 +64,18 @@ import Agda.Utils.Zip
 import Agda.Utils.Impossible
 
 
+{-# INLINE applyTermE #-}
 -- | Apply @Elims@ while using the given function to report ill-typed
 --   redexes.
 --   Recursive calls for @applyE@ and @applySubst@ happen at type @t@ to
 --   propagate the same strategy to subtrees.
-{-# SPECIALIZE applyTermE :: (Empty -> Term -> Elims -> Term) -> Term -> Elims -> Term #-}
-{-# SPECIALIZE applyTermE :: (Empty -> Term -> Elims -> Term) -> BraveTerm -> Elims -> BraveTerm #-}
 applyTermE :: forall t. (Coercible Term t, Apply t, EndoSubst t)
            => (Empty -> Term -> Elims -> Term) -> t -> Elims -> t
-applyTermE err' m [] = m
-applyTermE err' m es = coerce $
+applyTermE err' = \m es -> case es of
+  [] -> m
+  es -> coerce $
     case coerce m of
-      Var i es'   -> Var i (es' ++ es)
+      Var i es'   -> Var i $! append' es' es
       Def f es'   -> defApp f es' es  -- remove projection redexes
       Con c ci args -> conApp @t err' c ci args es
       Lam _ b     ->
@@ -82,12 +83,12 @@ applyTermE err' m es = coerce $
           Apply a : es0      -> lazyAbsApp (coerce b :: Abs t) (coerce $ unArg a) `app` es0
           IApply _ _ a : es0 -> lazyAbsApp (coerce b :: Abs t) (coerce a)         `app` es0
           _                  -> err __IMPOSSIBLE__
-      MetaV x es' -> MetaV x (es' ++ es)
+      MetaV x es' -> MetaV x $! append' es' es
       Lit{}       -> err __IMPOSSIBLE__
       Level{}     -> err __IMPOSSIBLE__
       Pi _ _      -> err __IMPOSSIBLE__
       Sort s      -> Sort $ s `applyE` es
-      Dummy s es' -> Dummy s (es' ++ es)
+      Dummy s es' -> Dummy s $! append' es' es
       DontCare mv -> dontCare $ mv `app` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
    where
@@ -217,8 +218,8 @@ relToDontCare ai = applyWhen (isIrrelevant ai) dontCare
 instance Apply Sort where
   applyE s [] = s
   applyE s es = case s of
-    MetaS x es' -> MetaS x $ es' ++ es
-    DefS  d es' -> DefS  d $ es' ++ es
+    MetaS x es' -> MetaS x $! append' es' es
+    DefS  d es' -> DefS  d $! append' es' es
     _ -> __IMPOSSIBLE__
 
 -- @applyE@ does not make sense for telecopes, definitions, clauses etc.
@@ -240,7 +241,7 @@ instance Apply RewriteRule where
   apply r args =
     let newContext = apply (rewContext r) args
         sub        = liftS (size newContext) $ parallelS $
-                       reverse $ map (PTerm . unArg) args
+                       reverse $ map' (PTerm . unArg) args
     in RewriteRule
        { rewName    = rewName r
        , rewContext = newContext
@@ -333,7 +334,7 @@ instance Apply Defn where
               where
                 args' = drop n0 args
                 -- if n == 0 then n0 <= length args (which is at least 1) so we can drop all but one
-                isVar0 = case map unArg $ drop (n0 - 1) args of [Var 0 []] -> True; _ -> False
+                isVar0 = case map'' unArg $ drop (n0 - 1) args of [Var 0 []] -> True; _ -> False
 
     Datatype{ dataPars = np, dataClause = cl } ->
       d { dataPars = np - size args
@@ -355,7 +356,7 @@ instance Apply Defn where
 
 instance Apply PrimFun where
   apply (PrimFun x ar occs def) args =
-    PrimFun x (ar - n) (drop n occs) $ \ vs -> def (args ++ vs)
+    PrimFun x (ar - n) (drop n occs) $ \ vs -> def $! append' args vs
     where
     n = size args
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -382,7 +383,7 @@ instance Apply Clause where
         -- We have
         --  Γ ⊢ args, for some outer context Γ
         --  Δ ⊢ ps,   where Δ is the clause telescope (tel)
-        rargs = map unArg $ reverse args
+        rargs = map'' unArg $ reverse args
         rps   = reverse $ take (length args) ps
         n     = size tel
 
@@ -418,7 +419,7 @@ instance Apply Clause where
             VarP _ (DBPatVar _ i) -> mkSub tm (n - 1) (substP i v' ps) vs `composeS` singletonS i (tm v')
               where v' = raise (n - 1) v
             DotP{}  -> mkSub tm n ps vs
-            ConP c _ ps' -> mkSub tm n (ps' ++ ps) (projections c v ++ vs)
+            ConP c _ ps' -> (mkSub tm n $! (append' ps' ps)) $! (append' (projections c v) vs)
             DefP{}  -> __IMPOSSIBLE__
             LitP{}  -> __IMPOSSIBLE__
             ProjP{} -> __IMPOSSIBLE__
@@ -441,7 +442,7 @@ instance Apply Clause where
           case namedArg p of
             VarP _ (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
             DotP{}              -> newTel n tel ps vs
-            ConP c _ ps'        -> newTel n tel (ps' ++ ps) (projections c v ++ vs)
+            ConP c _ ps'        -> (newTel n tel $! append' ps' ps) $! (append' (projections c v) vs)
             DefP{}  -> __IMPOSSIBLE__
             LitP{}  -> __IMPOSSIBLE__
             ProjP{} -> __IMPOSSIBLE__
@@ -476,7 +477,7 @@ instance Apply CompiledClauses where
     Fail hs -> Fail (drop len hs)
     Done no mr hs t
       | length hs >= len ->
-         let sub = parallelS $ map var [0..length hs - len - 1] ++ map unArg args
+         let sub = parallelS $! append' (map' var [0..length hs - len - 1]) (map'' unArg args)
          in  Done no mr (List.drop len hs) $ applySubst sub t
       | otherwise -> __IMPOSSIBLE__
     Case n bs
@@ -495,7 +496,7 @@ instance Apply System where
   -- lambda lifting.
   apply (System tel sys) args
       = if nargs > ntel then __IMPOSSIBLE__
-        else System newTel (map (map (f *** id) *** f) sys)
+        else System newTel (map'' (map'' (f *** id) *** f) sys)
 
     where
       f = applySubst sigma
@@ -503,7 +504,7 @@ instance Apply System where
       ntel = size tel
       newTel = apply tel args
       -- newTel ⊢ σ : tel
-      sigma = liftS (ntel - nargs) (parallelS (reverse $ map unArg args))
+      sigma = liftS (ntel - nargs) (parallelS (reverse $ map'' unArg args))
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
@@ -524,22 +525,22 @@ instance Apply FunctionInverse where
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply DisplayTerm where
-  apply (DTerm' v es)      args = DTerm' v       $ es ++ map Apply args
-  apply (DDot' v es)       args = DDot' v        $ es ++ map Apply args
-  apply (DCon c ci vs)     args = DCon c ci     $ vs ++ map (fmap DTerm) args
-  apply (DDef c es)        args = DDef c        $ es ++ map (Apply . fmap DTerm) args
-  apply (DWithApp v ws es) args = DWithApp v ws $ es ++ map Apply args
+  apply (DTerm' v es)      args = DTerm' v       $! append' es (map' Apply args)
+  apply (DDot' v es)       args = DDot' v        $! append' es (map' Apply args)
+  apply (DCon c ci vs)     args = DCon c ci      $! append' vs (map' (fmap DTerm) args)
+  apply (DDef c es)        args = DDef c         $! append' es (map' (Apply . fmap DTerm) args)
+  apply (DWithApp v ws es) args = DWithApp v ws  $! append' es (map' Apply args)
 
-  applyE (DTerm' v es')      es = DTerm' v $ es' ++ es
-  applyE (DDot' v es')       es = DDot' v $ es' ++ es
-  applyE (DCon c ci vs)      es = DCon c ci $ vs ++ map (fmap DTerm) ws
+  applyE (DTerm' v es')      es = DTerm' v $! append' es' es
+  applyE (DDot' v es')       es = DDot' v $! append' es' es
+  applyE (DCon c ci vs)      es = DCon c ci $! append' vs (map'' (fmap DTerm) ws)
     where ws = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-  applyE (DDef c es')        es = DDef c $ es' ++ map (fmap DTerm) es
-  applyE (DWithApp v ws es') es = DWithApp v ws $ es' ++ es
+  applyE (DDef c es')        es = DDef c $! append' es' (map'' (fmap DTerm) es)
+  applyE (DWithApp v ws es') es = DWithApp v ws $! append' es' es
 
 instance {-# OVERLAPPABLE #-} Apply t => Apply [t] where
-  apply  ts args = map (`apply` args) ts
-  applyE ts es   = map (`applyE` es) ts
+  apply  ts args = map'' (`apply` args) ts
+  applyE ts es   = map'' (`applyE` es) ts
 
 instance Apply t => Apply (Blocked t) where
   apply  b args = fmap (`apply` args) b
@@ -579,14 +580,14 @@ instance DoDrop a => Abstract (Drop a) where
 instance Apply Permutation where
   -- The permutation must start with [0..m - 1]
   -- NB: section (- m) not possible (unary minus), hence (flip (-) m)
-  apply (Perm n xs) args = Perm (n - m) $ map (flip (-) m) $ drop m xs
+  apply (Perm n xs) args = Perm (n - m) $! map' (flip (-) m) $ drop m xs
     where
       m = size args
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Abstract Permutation where
-  abstract tel (Perm n xs) = Perm (n + m) $ [0..m - 1] ++ map (+ m) xs
+  abstract tel (Perm n xs) = Perm (n + m) $! [0..m - 1] ++ map' (+ m) xs
     where
       m = size tel
 
@@ -652,8 +653,8 @@ instance Abstract Projection where
     }
 
 instance Abstract ProjLams where
-  abstract tel (ProjLams lams) = ProjLams $
-    map (\ !dom -> argFromDom (fst <$> dom)) (telToList tel) ++ lams
+  abstract tel (ProjLams lams) = ProjLams $!
+    append' (map' (\ !dom -> argFromDom (fst <$> dom)) (telToList tel)) lams
 
 instance Abstract System where
   abstract tel (System tel1 sys) = System (abstract tel tel1) sys
@@ -680,11 +681,11 @@ instance Abstract Defn where
       -- then abstract over last element of tel (the others are params).
       if projIndex p > 0 then
         d { funProjection = Right $ abstract tel p
-          , funClauses    = map (abstractClause EmptyTel) cs
+          , funClauses    = map' (abstractClause EmptyTel) cs
           }
       else
         d { funProjection = Right $ abstract tel p
-          , funClauses    = map (abstractClause tel1) cs
+          , funClauses    = map' (abstractClause tel1) cs
           , funCompiled   = abstract tel1 cc
           , funCovering   = abstract tel1 cov
           , funInv        = abstract tel1 inv
@@ -736,7 +737,7 @@ instance Abstract CompiledClauses where
       Done no mr xs t -> Done no mr (hs ++ xs) t
       Case n bs       -> Case (n <&> \ i -> i + size tel) (abstract tel bs)
     where
-      hs = map (argFromDom . fmap fst) $ telToList tel
+      hs = map' (argFromDom . fmap fst) $ telToList tel
 
 instance Abstract a => Abstract (WithArity a) where
   abstract tel (WithArity n a) = WithArity n $ abstract tel a
@@ -747,20 +748,21 @@ instance Abstract a => Abstract (Case a) where
                  (abstract tel ls) (abstract tel m) b lz
 
 telVars :: Int -> Telescope -> [Arg DeBruijnPattern]
-telVars m = map (fmap namedThing) . (namedTelVars m)
+telVars m = map' (fmap namedThing) . (namedTelVars m)
 
 namedTelVars :: Int -> Telescope -> [NamedArg DeBruijnPattern]
-namedTelVars m EmptyTel                     = []
+namedTelVars m EmptyTel             = []
 namedTelVars m (ExtendTel !dom tel) =
-  Arg (domInfo dom) (namedDBVarP (m-1) $ absName tel) :
-  namedTelVars (m-1) (unAbs tel)
+  let !rest = namedTelVars (m-1) (unAbs tel) in
+  let !this = Arg (domInfo dom) $! (namedDBVarP (m-1) $ absName tel) in
+  this : rest
 
 instance Abstract FunctionInverse where
   abstract tel NotInjective  = NotInjective
   abstract tel (Inverse inv) = Inverse $ abstract tel inv
 
 instance {-# OVERLAPPABLE #-} Abstract t => Abstract [t] where
-  abstract tel = map (abstract tel)
+  abstract tel = map'' (abstract tel)
 
 instance Abstract t => Abstract (Maybe t) where
   abstract tel x = fmap (abstract tel) x
@@ -797,7 +799,7 @@ renaming err p = prependS err gamma $ raiseS $ size p
 renamingR :: DeBruijn a => Permutation -> Substitution' a
 renamingR p@(Perm n is) = xs ++# raiseS n
   where
-  xs = map (\i -> deBruijnVar (n - 1 - i)) (reverse is)
+  xs = map' (\i -> deBruijnVar (n - 1 - i)) (reverse is)
 
   -- The list xs used to be defined in the following way:
   --
@@ -825,16 +827,15 @@ instance EndoSubst a => Subst (Substitution' a) where
   type SubstArg (Substitution' a) = a
   applySubst rho sgm = composeS rho sgm
 
-{-# SPECIALIZE applySubstTerm :: Substitution -> Term -> Term #-}
-{-# SPECIALIZE applySubstTerm :: Substitution' BraveTerm -> BraveTerm -> BraveTerm #-}
+{-# INLINE applySubstTerm #-}
 applySubstTerm :: forall t. (Coercible t Term, EndoSubst t, Apply t) => Substitution' t -> t -> t
 applySubstTerm IdS t = t
 applySubstTerm rho t    = coerce $ case coerce t of
-    Var i es    -> coerce $ lookupS rho i  `applyE` subE es
+    Var i es    -> let !t = lookupS rho i in coerce (t  `applyE` subE es)
     Lam h m     -> Lam h $ sub @(Abs t) m
-    Def f es    -> defApp f [] $ subE es
-    Con c ci vs -> Con c ci $ subE vs
-    MetaV x es  -> MetaV x $ subE es
+    Def f es    -> defApp f [] $! subE es
+    Con c ci vs -> Con c ci $! subE vs
+    MetaV x es  -> MetaV x $! subE es
     Lit l       -> Lit l
     Level l     -> levelTm $ sub @(Level' t) l
     Pi a b      -> uncurry Pi $ subPi (a,b)
@@ -877,10 +878,11 @@ instance Subst a => Subst (Sort' a) where
     PiSort a s1 s2 -> PiSort (sub a) (sub s1) (sub s2)
     FunSort s1 s2 -> FunSort (sub s1) (sub s2)
     UnivSort s -> UnivSort $ sub s
-    MetaS x es -> MetaS x $ sub es
-    DefS d es  -> DefS d $ sub es
+    MetaS x es -> MetaS x $! sub es
+    DefS d es  -> DefS d $! sub es
     s@DummyS{} -> s
     where
+      {-# INLINE sub #-}
       sub :: forall b. (Subst b, SubstArg a ~ SubstArg b) => b -> b
       sub x = applySubst rho x
 
@@ -952,18 +954,18 @@ instance Subst NLPat where
   type SubstArg NLPat = NLPat
   applySubst rho = \case
     PVar s i bvs   -> lookupS rho i `applyBV` bvs
-    PDef f es      -> PDef f $ applySubst rho es
+    PDef f es      -> PDef f $! applySubst rho es
     PLam i u       -> PLam i $ applySubst rho u
     PPi a b        -> PPi (applyNLSubstToDom rho a) (applySubst rho b)
     PSort s        -> PSort $ applySubst rho s
-    PBoundVar i es -> PBoundVar i $ applySubst rho es
+    PBoundVar i es -> PBoundVar i $! applySubst rho es
     PTerm u        -> PTerm $ applyNLPatSubst rho u
 
     where
       applyBV :: NLPat -> [Arg Int] -> NLPat
       applyBV p ys = case p of
-        PVar s i xs    -> PVar s i (xs ++ ys)
-        PTerm u        -> PTerm $ u `apply` map (fmap var) ys
+        PVar s i xs    -> PVar s i $! append' xs ys
+        PTerm u        -> PTerm $ u `apply` map'' (fmap var) ys
         PDef f es      -> __IMPOSSIBLE__
         PLam i u       -> __IMPOSSIBLE__
         PPi a b        -> __IMPOSSIBLE__
@@ -1006,10 +1008,10 @@ instance Subst DisplayForm where
 
 instance Subst DisplayTerm where
   type SubstArg DisplayTerm = Term
-  applySubst rho (DTerm' v es)      = DTerm' (applySubst rho v) $ applySubst rho es
-  applySubst rho (DDot' v es)       = DDot'  (applySubst rho v) $ applySubst rho es
-  applySubst rho (DCon c ci vs)     = DCon c ci $ applySubst rho vs
-  applySubst rho (DDef c es)        = DDef c $ applySubst rho es
+  applySubst rho (DTerm' v es)      = DTerm' (applySubst rho v) $! applySubst rho es
+  applySubst rho (DDot' v es)       = DDot'  (applySubst rho v) $! applySubst rho es
+  applySubst rho (DCon c ci vs)     = DCon c ci $! applySubst rho vs
+  applySubst rho (DDef c es)        = DDef c $! applySubst rho es
   applySubst rho (DWithApp v vs es) = uncurry3 DWithApp $ applySubst rho (v, vs, es)
 
 instance Subst a => Subst (Tele a) where
@@ -1041,6 +1043,7 @@ instance Subst Constraint where
     CheckType t              -> CheckType (rf t)
     UsableAtModality cc ms mod m -> UsableAtModality cc (rf ms) mod (rf m)
     where
+      {-# INLINE rf #-}
       rf :: forall a. TermSubst a => a -> a
       rf x = applySubst rho x
 
@@ -1092,9 +1095,12 @@ instance Subst a => Subst (Maybe a) where
 
 instance Subst a => Subst [a] where
   type SubstArg [a] = SubstArg a
+  applySubst rho [] = []
+  applySubst rho (a:as) = let !as' = applySubst rho as in applySubst rho a : as'
 
 instance Subst a => Subst (List1 a) where
   type SubstArg (List1 a) = SubstArg a
+  applySubst rho (a :| as) = let !as' = applySubst rho as in applySubst rho a :| as'
 
 instance (Ord k, Subst a) => Subst (Map k a) where
   type SubstArg (Map k a) = SubstArg a
@@ -1111,6 +1117,7 @@ instance Subst () where
 
 instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (a, b) where
   type SubstArg (a, b) = SubstArg a
+  {-# INLINE applySubst #-}
   applySubst rho (x,y) = (applySubst rho x, applySubst rho y)
 
 instance (Subst a, Subst b, Subst c, SubstArg a ~ SubstArg b, SubstArg b ~ SubstArg c) => Subst (a, b, c) where
@@ -1189,8 +1196,8 @@ instance Subst DeBruijnPattern where
       useName (dbPatVarName x) $
       lookupS rho $ dbPatVarIndex x
     DotP i u     -> DotP i $ applyPatSubst rho u
-    ConP c ci ps -> ConP c ci {conPType = applyPatSubst rho (conPType ci)} $ applySubst rho ps
-    DefP i q ps  -> DefP i q $ applySubst rho ps
+    ConP c ci ps -> ConP c ci {conPType = applyPatSubst rho (conPType ci)} $! applySubst rho ps
+    DefP i q ps  -> DefP i q $! applySubst rho ps
     p@(LitP _ _) -> p
     p@ProjP{}    -> p
     IApplyP i t u x ->
@@ -1222,7 +1229,7 @@ projDropParsApply (Projection prop d r _ lams) o rel args =
   case initLast $ getProjLams lams of
     -- If we have no more abstractions, we must be a record field
     -- (projection applied already to record value).
-    Nothing -> if proper then Def d $ map Apply args else __IMPOSSIBLE__
+    Nothing -> if proper then Def d $ map' Apply args else __IMPOSSIBLE__
     Just (pars, Arg i y) ->
       let irr = isIrrelevant rel
           core
@@ -1272,7 +1279,7 @@ absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 -- | Turn a typed binding @(x1 .. xn : A)@ into a telescope.
 bindsToTel' :: (Name -> a) -> [Name] -> Dom Type -> ListTel' a
 bindsToTel' f []     t = []
-bindsToTel' f (x:xs) t = fmap (f x,) t : bindsToTel' f xs (raise 1 t)
+bindsToTel' f (x:xs) t = let !rest = bindsToTel' f xs (raise 1 t) in fmap (f x,) t : rest
 
 bindsToTel :: [Name] -> Dom Type -> ListTel
 bindsToTel = bindsToTel' nameToArgName
@@ -1287,7 +1294,8 @@ bindsToTel1 = bindsToTel . List1.toList
 namedBindsToTel :: [NamedArg Name] -> Type -> Telescope
 namedBindsToTel []       t = EmptyTel
 namedBindsToTel (x : xs) t =
-  ExtendTel (t <$ domFromNamedArgName x) $ Abs (nameToArgName $ namedArg x) $ namedBindsToTel xs (raise 1 t)
+  let !rest = namedBindsToTel xs (raise 1 t) in
+  ExtendTel (t <$ domFromNamedArgName x) (Abs (nameToArgName $ namedArg x) rest)
 
 namedBindsToTel1 :: List1 (NamedArg Name) -> Type -> Telescope
 namedBindsToTel1 = namedBindsToTel . List1.toList
@@ -1814,10 +1822,10 @@ levelMax !n0 as0 = Max n as
 
     lmax :: Integer -> [PlusLevel] -> [Level] -> Level
     lmax m as []              = Max m as
-    lmax m as (Max n bs : ls) = lmax (max m n) (bs ++ as) ls
+    lmax m as (Max n bs : ls) = lmax (max m n) (append' bs as) ls
 
     expandLevel :: Level -> Level
-    expandLevel (Max m as) = lmax m [] $ map expandPlus as
+    expandLevel (Max m as) = lmax m [] $ map'' expandPlus as
 
     expandPlus :: PlusLevel -> Level
     expandPlus (Plus m l) = levelPlus m (expandTm l)
@@ -1826,15 +1834,15 @@ levelMax !n0 as0 = Max n as
     expandTm l               = atomicLevel l
 
     removeSubsumed =
-      map (\(a, n) -> Plus n a) .
+      map' (\(a, n) -> Plus n a) .
       MapS.toAscList .
       MapS.fromListWith max .
-      map (\(Plus n a) -> (a, n))
+      map' (\(Plus n a) -> (a, n))
 
 -- | Given two levels @a@ and @b@, compute @a ⊔ b@ and return its
 --   canonical form.
 levelLub :: Level -> Level -> Level
-levelLub (Max m as) (Max n bs) = levelMax (max m n) $ as ++ bs
+levelLub (Max m as) (Max n bs) = levelMax (max m n) $! append' as bs
 
 levelTm :: Level -> Term
 levelTm l =

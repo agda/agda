@@ -42,6 +42,12 @@ import Agda.Utils.Impossible
 -- * Variants of list case, cons, head, tail, init, last
 ---------------------------------------------------------------------------
 
+-- | Strict (++)
+append' :: [a] -> [a] -> [a]
+append' xs ys = case xs of
+  []   -> ys
+  x:xs -> let !res = append' xs ys in x : res
+
 -- | Append a single element at the end.
 --   Time: O(length); use only on small lists.
 snoc :: [a] -> a -> [a]
@@ -221,6 +227,15 @@ indexWithDefault a (_ : xs) n = indexWithDefault a xs (n - 1)
 findWithIndex :: (a -> Bool) -> [a] -> Maybe (a, Int)
 findWithIndex p as = List.find (p . fst) (zip as [0..])
 
+{-# INLINE findWithIndex' #-}
+-- | The more efficient implementation.
+findWithIndex' :: forall a b. (a -> Bool) -> [a] -> b -> (a -> Int -> b) -> b
+findWithIndex' f as notfound found = go 0 as where
+  go :: Int -> [a] -> b
+  go !i [] = notfound
+  go i (a:as) | f a       = found a i
+              | otherwise = go (i + 1) as
+
 -- | A generalised variant of 'elemIndex'.
 -- O(n).
 genericElemIndex :: (Eq a, Integral i) => a -> [a] -> Maybe i
@@ -244,8 +259,16 @@ downFrom n | n <= 0     = []
 {-# INLINE map' #-}
 -- | Strict map.
 map' :: (a -> b) -> [a] -> [b]
-map' f [] = []
-map' f (a:as) = let !b = f a; !bs = map' f as in b:bs
+map' f = go where
+  go []     = []
+  go (a:as) = let !b = f a; !bs = go as in b:bs
+
+{-# INLINE map'' #-}
+-- | Spine-strict map.
+map'' :: (a -> b) -> [a] -> [b]
+map'' f = go where
+  go []     = []
+  go (a:as) = let !bs = go as in f a:bs
 
 -- | Update the first element of a list, if it exists.
 --   O(1).

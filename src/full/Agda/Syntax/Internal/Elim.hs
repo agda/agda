@@ -32,6 +32,7 @@ instance LensOrigin (Elim' a) where
   mapOrigin f e@Proj{}  = e
   mapOrigin f e@IApply{} = e
 
+{-# INLINE isApplyElim #-}
 -- | Drop 'Apply' constructor. (Safe)
 isApplyElim :: Elim' a -> Maybe (Arg a)
 isApplyElim (Apply u) = Just u

@@ -1615,16 +1615,19 @@ irrelevant = Irrelevant empty
 shapeIrrelevant :: Relevance
 shapeIrrelevant = ShapeIrrelevant empty
 
+{-# INLINE isRelevant #-}
 isRelevant :: LensRelevance a => a -> Bool
 isRelevant a = case getRelevance a of
   Relevant{} -> True
   _ -> False
 
+{-# INLINE isIrrelevant #-}
 isIrrelevant :: LensRelevance a => a -> Bool
 isIrrelevant a = case getRelevance a of
   Irrelevant{} -> True
   _ -> False
 
+{-# INLINE isShapeIrrelevant #-}
 isShapeIrrelevant :: LensRelevance a => a -> Bool
 isShapeIrrelevant a = case getRelevance a of
   ShapeIrrelevant{} -> True
