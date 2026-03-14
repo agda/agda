@@ -134,10 +134,13 @@ instance EmbPrj KwRange where
 
 newtype SerialisedRange = SerialisedRange { underlyingRange :: Range }
 
-instance EmbPrj SerialisedRange where
-  icod_ (SerialisedRange r) = icodeN' P.intervalsToRange (P.rangeFile r) (P.rangeIntervals r)
+instance EmbPrj IntervalWithoutFile' where
+  icod_ (P.IWF x y z) = icodeN' P.IWF x y z
+  value = valueN P.IWF
 
-  value i = SerialisedRange <$!> valueN P.intervalsToRange i
+instance EmbPrj SerialisedRange where
+  icod_ (SerialisedRange r) = icodeN' P.intervalsToRange (P.rangeFile r) (P.rangeIntervals' r)
+  value i = SerialisedRange <$!> valueN P.intervalsToRange' i
 
 instance EmbPrj C.Name where
   icod_ (C.NoName a b)     = icodeN 0 C.NoName a b

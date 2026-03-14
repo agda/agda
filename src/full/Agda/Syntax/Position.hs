@@ -28,7 +28,7 @@ module Agda.Syntax.Position
     -- * Intervals
   , Interval
   , IntervalWithoutFile
-  , IntervalWithoutFile'
+  , IntervalWithoutFile'(..)
   , pattern PackIWF
   , unpackIWF
   , Interval'(Interval, iStart', iEnd')
@@ -47,9 +47,11 @@ module Agda.Syntax.Position
   , rangeInvariant
   , consecutiveAndSeparated
   , intervalsToRange
+  , intervalsToRange'
   , intervalToRange
   , rangeFromAbsolutePath
   , rangeIntervals
+  , rangeIntervals'
   , rangeFile
   , rangeModule'
   , rangeModule
@@ -113,6 +115,7 @@ import Agda.Utils.TypeLevel (IsBase, All, Domains)
 import Agda.Utils.Tuple (sortPair)
 import Agda.Utils.Word (packW64, splitW64)
 import Agda.Utils.Hash (combineWord)
+import Agda.Utils.Sequence qualified as SeqUtils
 
 import Agda.Utils.Impossible
 import Data.Hashable (Hashable(..))
@@ -277,18 +280,13 @@ posToInterval f p1 p2 = uncurry (Interval f) $ sortPair (p1, p2)
 iLength :: Interval' a -> Word32
 iLength i = posPos (iEnd i) - posPos (iStart i)
 
--- | Tolerably efficient representation of 'IntervalWithoutFile'
+-- | Efficient representation of 'IntervalWithoutFile'. It takes up one third of the space. This is
+--   the version that should be generally persisted in structures.
 data IntervalWithoutFile' = IWF !Word64 !Word64 !Word64
   deriving (Eq)
 
 instance NFData IntervalWithoutFile' where
   rnf x = seq x ()
-
-instance Hashable IntervalWithoutFile' where
-  hashWithSalt h (IWF a b c) = fromIntegral $
-    fromIntegral h `combineWord` fromIntegral a
-                   `combineWord` fromIntegral b
-                   `combineWord` fromIntegral c
 
 pattern PackIWF :: IntervalWithoutFile -> IntervalWithoutFile'
 pattern PackIWF x <- ((\(IWF ps lc0 lc1) -> case splitW64 ps of
@@ -297,6 +295,7 @@ pattern PackIWF x <- ((\(IWF ps lc0 lc1) -> case splitW64 ps of
 {-# INLINE PackIWF #-}
 {-# COMPLETE PackIWF #-}
 
+{-# INLINE unpackIWF #-}
 unpackIWF :: IntervalWithoutFile' -> IntervalWithoutFile
 unpackIWF (PackIWF x) = x
 
@@ -315,9 +314,27 @@ data Range' a
   = NoRange
   | Range !a (Seq IntervalWithoutFile')
   deriving
-    (Show, Eq, Ord, Functor, Foldable, Traversable, Generic)
+    (Show, Functor, Foldable, Traversable, Generic)
 
--- TODO: custom Eq, Ord, Hashable using better Seq functions
+-- We define Eq and Ord manually, using faster implementations than
+-- what we get from Data.Sequence.
+eqIntervalSeq :: Seq IntervalWithoutFile' -> Seq IntervalWithoutFile' -> Bool
+eqIntervalSeq is is' =
+  length is == length is' && SeqUtils.toList is == SeqUtils.toList is'
+
+compareIntervalSeq :: Seq IntervalWithoutFile' -> Seq IntervalWithoutFile' -> Ordering
+compareIntervalSeq is is' = compare (SeqUtils.toList is) (SeqUtils.toList is')
+
+instance Eq a => Eq (Range' a) where
+  NoRange    == NoRange      = True
+  Range a is == Range a' is' = a == a' && eqIntervalSeq is is'
+  _          == _            = False
+
+instance Ord a => Ord (Range' a) where
+  compare NoRange      NoRange        = EQ
+  compare NoRange      (Range _ _)    = LT
+  compare (Range _ _)  NoRange        = GT
+  compare (Range a is) (Range a' is') = compare a a' <> compareIntervalSeq is is'
 
 type Range = Range' SrcFile
 type RangeWithoutFile = Range' ()
@@ -345,22 +362,26 @@ instance Eq a => Monoid (Range' a) where
 
 -- | The intervals that make up the range. The intervals are
 -- consecutive and separated ('consecutiveAndSeparated').
+rangeIntervals :: Range' a -> [IntervalWithoutFile']
+rangeIntervals NoRange      = []
+rangeIntervals (Range _ is) = SeqUtils.toList is
+
+-- | Same as 'rangeIntervals' but returns a strict list.
 rangeIntervals' :: Range' a -> [IntervalWithoutFile']
 rangeIntervals' NoRange      = []
-rangeIntervals' (Range _ is) = Fold.toList is
-
--- | The intervals that make up the range. The intervals are
--- consecutive and separated ('consecutiveAndSeparated').
-rangeIntervals :: Range' a -> [IntervalWithoutFile]
-rangeIntervals NoRange      = []
-rangeIntervals (Range _ is) = map unpackIWF $ Fold.toList is
+rangeIntervals' (Range _ is) = SeqUtils.toList' is
 
 -- | Turns a file name plus a list of intervals into a range.
 --
 -- Precondition: 'consecutiveAndSeparated'.
-intervalsToRange :: a -> [IntervalWithoutFile] -> Range' a
+intervalsToRange :: a -> [IntervalWithoutFile'] -> Range' a
 intervalsToRange _ [] = NoRange
-intervalsToRange f is = Range f (Seq.fromList $ map PackIWF is)
+intervalsToRange f is = Range f (Seq.fromList is)
+
+-- | Same as 'intervalsToRange' but forces the result.
+intervalsToRange' :: a -> [IntervalWithoutFile'] -> Range' a
+intervalsToRange' _ [] = NoRange
+intervalsToRange' f is = Range f $! Seq.fromList is
 
 -- | Are the intervals consecutive and separated, do they all point to
 -- the same file, and do they satisfy the interval invariant?
@@ -375,7 +396,7 @@ consecutiveAndSeparated is =
 -- | Range invariant.
 rangeInvariant :: Range' a -> Bool
 rangeInvariant r =
-  consecutiveAndSeparated (rangeIntervals r)
+  consecutiveAndSeparated (map unpackIWF $ rangeIntervals r)
     &&
   case r of
     Range _ is -> not (null is)
@@ -895,8 +916,17 @@ instance Hashable a => Hashable (Interval' a) where
   {-# INLINE hashWithSalt #-}
   hashWithSalt h (Interval a b c) = h `hashWithSalt` a `hashWithSalt` b `hashWithSalt` c
 
+instance Hashable IntervalWithoutFile' where
+  hashWithSalt h (IWF a b c) = fromIntegral $
+    fromIntegral h `combineWord` fromIntegral a
+                   `combineWord` fromIntegral b
+                   `combineWord` fromIntegral c
+
+hashIntervalSeq :: Int -> Seq IntervalWithoutFile' -> Int
+hashIntervalSeq salt is = SeqUtils.foldl' hashWithSalt salt is
+
 instance Hashable a => Hashable (Range' a) where
   {-# INLINE hashWithSalt #-}
   hashWithSalt h = \case
-    NoRange   -> h + 1
-    Range a b -> h + 2 `hashWithSalt` a `hashWithSalt` b
+    NoRange    -> h + 1
+    Range a is -> ((h + 2) `hashWithSalt` a) `hashIntervalSeq` is

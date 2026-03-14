@@ -33,7 +33,7 @@ import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Internal
          ( telToList, Dom'(..), Dom, MetaId(..), ProblemId(..), Blocker(..), alwaysUnblock )
 import Agda.Syntax.Position
-         ( Range, rangeIntervals, Interval'(..), Position'(..), noRange, posLine, posCol )
+         ( Range, rangeIntervals, Interval'(..), Position'(..), pattern PackIWF, noRange, posLine, posCol )
 import Agda.Syntax.Scope.Base
          ( WhyInScopeData(..) )
 
@@ -112,8 +112,8 @@ instance ToJSON (Position' ()) where
 
 instance EncodeTCM Range where
 instance ToJSON Range where
-  toJSON = toJSON . map prettyInterval . rangeIntervals
-    where prettyInterval (Interval f s e) = object [ "start" .= (f <$ s), "end" .= (f <$ e) ]
+  toJSON = toJSON . map prettyInterval . rangeIntervals where
+    prettyInterval (PackIWF (Interval f s e)) = object [ "start" .= (f <$ s), "end" .= (f <$ e) ]
 
 instance EncodeTCM ProblemId where
 instance EncodeTCM MetaId    where

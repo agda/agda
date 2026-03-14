@@ -39,7 +39,7 @@ iPositions i = IntSet.fromList [fromIntegral (posPos (iStart i)) .. fromIntegral
 -- | The positions corresponding to the range, including the
 -- end-points.
 rPositions :: Range' a -> IntSet
-rPositions r = IntSet.unions (map iPositions $ rangeIntervals r)
+rPositions r = IntSet.unions (map (iPositions . unpackIWF) $ rangeIntervals r)
 
 -- | Constructs the least interval containing all the elements in the
 -- set.
@@ -109,7 +109,7 @@ prop_continuousPerLine r =
   where
   r' = continuousPerLine r
 
-  lineNumbers = concatMap lines (rangeIntervals r')
+  lineNumbers = concatMap (lines . unpackIWF) (rangeIntervals r')
     where
     lines i | s == e    = [s]
             | otherwise = [s, e]
@@ -216,14 +216,18 @@ instance (Arbitrary a) => Arbitrary (Interval' a) where
     let (p1', p2') = sortPair (p1, p2)
     return (Interval f p1' p2')
 
+instance Arbitrary IntervalWithoutFile' where
+  arbitrary = PackIWF <$> arbitrary
+
 instance (Arbitrary a) => Arbitrary (Range' a) where
   arbitrary = do
     f <- arbitrary
     intervalsToRange f . fuse . sort <$> arbitrary
     where
-    fuse (i1 : i2 : is)
-      | iEnd i1 >= iStart i2 = fuse (fuseIntervals i1 i2 : is)
-      | otherwise            = i1 : fuse (i2 : is)
+    fuse :: [IntervalWithoutFile'] -> [IntervalWithoutFile']
+    fuse (pi1@(PackIWF i1) : pi2@(PackIWF i2) : is)
+      | iEnd i1 >= iStart i2 = fuse (PackIWF (fuseIntervals i1 i2) : is)
+      | otherwise            = pi1 : fuse (pi2 : is)
     fuse is = is
 
 instance CoArbitrary RangeFile
