@@ -152,11 +152,13 @@ getReuse far = MP.unsafeRead far 1
 -- | We need to distinguish 'A.Name's with different 'nameBindingSite',
 --   so we complement the key 'NameId' with that 'Range'.
 data NameIdR = NameIdR
-  { nidNameId      :: !NameId
+  { nidNameId      :: {-# UNPACK #-} !NameId
   , nidBindingSite :: !Range
   } deriving (Eq, Generic)
 
-instance Hashable NameIdR
+instance Hashable NameIdR where
+  {-# INLINE hashWithSalt #-}
+  hashWithSalt h (NameIdR a b) = h `hashWithSalt` a `hashWithSalt` b
 
 -- | Computing a key of an abstract name.
 nameIdR :: Name -> NameIdR
