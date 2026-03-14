@@ -44,6 +44,7 @@ import Agda.Utils.Boolean (Boolean(fromBool), IsBool(toBool))
 import Agda.Utils.Float (toStringWithoutDotZero)
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.Hash (combineWord)
 import Agda.Utils.List  ( lastMaybe )
 import Agda.Utils.List1  ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
@@ -3327,7 +3328,9 @@ instance NFData NameId where
 
 instance Hashable NameId where
   {-# INLINE hashWithSalt #-}
-  hashWithSalt salt (NameId n (ModuleNameHash m)) = hashWithSalt salt (n, m)
+  hashWithSalt salt (NameId n (ModuleNameHash m)) =
+    fromIntegral
+    (fromIntegral salt `combineWord` fromIntegral n `combineWord` fromIntegral m)
 
 ---------------------------------------------------------------------------
 -- * Meta variables
