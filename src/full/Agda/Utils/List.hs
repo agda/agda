@@ -228,7 +228,8 @@ findWithIndex :: (a -> Bool) -> [a] -> Maybe (a, Int)
 findWithIndex p as = List.find (p . fst) (zip as [0..])
 
 {-# INLINE findWithIndex' #-}
--- | The more efficient implementation.
+-- | The more efficient implementation. We return a CPS's Maybe result for
+--   reliable inlining.
 findWithIndex' :: forall a b. (a -> Bool) -> [a] -> b -> (a -> Int -> b) -> b
 findWithIndex' f as notfound found = go 0 as where
   go :: Int -> [a] -> b

@@ -92,6 +92,7 @@ applyTermE err' = \m es -> case es of
       DontCare mv -> dontCare $ mv `app` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
    where
+     {-# INLINE app #-}
      app :: Coercible t a => a -> Elims -> Term
      app u es = coerce $ (coerce u :: t) `applyE` es
      err e = err' e (coerce m) es
@@ -102,6 +103,7 @@ instance Apply Term where
 instance Apply BraveTerm where
   applyE = applyTermE (\ _ t es ->  Dummy (DummyBrave t) es)
 
+{-# INLINE canProject #-}
 -- | If @v@ is a record or constructed value, @canProject f v@
 --   returns its field @f@.
 canProject :: QName -> Term -> Maybe (Arg Term)
@@ -109,13 +111,13 @@ canProject f v =
   case v of
     -- Andreas, 2022-06-10, issue #5922: also unfold data projections
     -- (not just record projections).
-    (Con (ConHead _ _ _ fs) _ vs) -> do
-      (fld, i) <- findWithIndex ((f ==) . unArg) fs
-      -- Jesper, 2019-10-17: dont unfold irrelevant projections
-      guard $ not $ isIrrelevant fld
-      -- Andreas, 2018-06-12, issue #2170
-      -- The ArgInfo from the ConHead is more accurate (relevance subtyping!).
-      setArgInfo (getArgInfo fld) <.> isApplyElim =<< listToMaybe (drop i vs)
+    (Con (ConHead _ _ _ fs) _ vs) ->
+      findWithIndex' ((f ==) . unArg) fs Nothing \fld i -> do
+        -- Jesper, 2019-10-17: dont unfold irrelevant projections
+        guard $ not $ isIrrelevant fld
+        -- Andreas, 2018-06-12, issue #2170
+        -- The ArgInfo from the ConHead is more accurate (relevance subtyping!).
+        setArgInfo (getArgInfo fld) <.> isApplyElim =<< listToMaybe (drop i vs)
     _ -> Nothing
 
 -- | Eliminate a constructed term.
@@ -137,14 +139,16 @@ conApp fallback ch@(ConHead c _ _ fs) ci args ees@(Proj o f : es) =
       app :: Term -> Elims -> Term
       app v es = coerce $ applyE (coerce v :: t) es
   in
-   case findWithIndex ((f ==) . unArg) fs of
-     Nothing -> failure $ stuck __IMPOSSIBLE__ `app` es
-     Just (fld, i) -> let
-      -- Andreas, 2018-06-12, issue #2170
-      -- We safe-guard the projected value by DontCare using the ArgInfo stored at the record constructor,
-      -- since the ArgInfo in the constructor application might be inaccurate because of subtyping.
-      v = maybe (failure $ stuck __IMPOSSIBLE__) (relToDontCare fld . argToDontCare . isApply) $ listToMaybe $ drop i args
-      in v `app` es
+    findWithIndex' ((f ==) . unArg) fs
+      (failure $ stuck __IMPOSSIBLE__ `app` es)
+      (\fld i -> let
+        -- Andreas, 2018-06-12, issue #2170
+        -- We safe-guard the projected value by DontCare using the ArgInfo stored at the record
+        -- constructor, since the ArgInfo in the constructor application might be inaccurate
+        -- because of subtyping.
+        !v = maybe (failure $ stuck __IMPOSSIBLE__) (relToDontCare fld . argToDontCare . isApply)
+                   $ listToMaybe $ drop i args
+        in v `app` es)
 
   -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin
   --     fallback = v
@@ -181,7 +185,7 @@ conApp fallback ch@(ConHead c _ _ fs) ci args ees@(Proj o f : es) =
 defApp :: QName -> Elims -> Elims -> Term
 defApp f [] (Apply a : es) | Just v <- canProject f (unArg a)
   = argToDontCare v `applyE` es
-defApp f es0 es = Def f $ es0 ++ es
+defApp f es0 es = Def f $! append' es0 es
 
 -- protect irrelevant fields (see issue 610)
 argToDontCare :: Arg Term -> Term
@@ -587,7 +591,7 @@ instance Apply Permutation where
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Abstract Permutation where
-  abstract tel (Perm n xs) = Perm (n + m) $! [0..m - 1] ++ map' (+ m) xs
+  abstract tel (Perm n xs) = Perm (n + m) $! append' [0..m - 1] (map' (+ m) xs)
     where
       m = size tel
 
@@ -624,7 +628,7 @@ instance Abstract Telescope where
 instance Abstract Definition where
   abstract tel (Defn info x t pol occ gpars df m c inst copy ma nc inj copat blk lang d) =
     Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ)
-      (replicate (size tel) Nothing ++ gpars)
+      (append' (replicate (size tel) Nothing) gpars)
       df m c inst copy ma nc inj copat blk lang (abstract tel d)
 
 -- | @tel ⊢ (Γ ⊢ lhs ↦ rhs : t)@ becomes @tel, Γ ⊢ lhs ↦ rhs : t)@
@@ -636,11 +640,11 @@ instance Abstract RewriteRule where
 
 instance {-# OVERLAPPING #-} Abstract [Occ.Occurrence] where
   abstract tel []  = []
-  abstract tel occ = replicate (size tel) Mixed ++ occ -- TODO: check occurrence
+  abstract tel occ = append' (replicate (size tel) Mixed) occ -- TODO: check occurrence
 
 instance {-# OVERLAPPING #-} Abstract [Polarity] where
   abstract tel []  = []
-  abstract tel pol = replicate (size tel) Invariant ++ pol -- TODO: check polarity
+  abstract tel pol = append' (replicate (size tel) Invariant) pol -- TODO: check polarity
 
 instance Abstract NumGeneralizableArgs where
   abstract tel NoGeneralizableArgs       = NoGeneralizableArgs
@@ -905,8 +909,8 @@ instance Subst ConPatternInfo where
 instance Subst Pattern where
   type SubstArg Pattern = Term
   applySubst rho = \case
-    ConP c mt ps    -> ConP c (applySubst rho mt) $ applySubst rho ps
-    DefP o q ps     -> DefP o q $ applySubst rho ps
+    ConP c mt ps    -> ConP c (applySubst rho mt) $! applySubst rho ps
+    DefP o q ps     -> DefP o q $! applySubst rho ps
     DotP o t        -> DotP o $ applySubst rho t
     p@(VarP _o _x)  -> p
     p@(LitP _o _l)  -> p
@@ -1003,8 +1007,10 @@ instance Subst a => Subst (Blocked a) where
 instance Subst DisplayForm where
   type SubstArg DisplayForm = Term
   applySubst rho (Display n ps v) =
-    Display n (applySubst (liftS n rho) ps)
-              (applySubst (liftS n rho) v)
+    let rho' = liftS n rho
+        !ps' = applySubst rho' ps in
+    Display n ps' (applySubst rho' v)
+
 
 instance Subst DisplayTerm where
   type SubstArg DisplayTerm = Term
@@ -1017,7 +1023,7 @@ instance Subst DisplayTerm where
 instance Subst a => Subst (Tele a) where
   type SubstArg (Tele a) = SubstArg a
   applySubst rho  EmptyTel         = EmptyTel
-  applySubst rho (ExtendTel t tel) = uncurry ExtendTel $ applySubst rho (t, tel)
+  applySubst rho (ExtendTel t tel) = ExtendTel (applySubst rho t) $! applySubst rho tel
 
 instance Subst Constraint where
   type SubstArg Constraint = Term
