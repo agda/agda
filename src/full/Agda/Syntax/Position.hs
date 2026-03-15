@@ -109,8 +109,11 @@ import Agda.Utils.Set1 qualified as Set1
 import Agda.Utils.TypeLevel (IsBase, All, Domains)
 import Agda.Utils.Tuple (sortPair)
 import Agda.Utils.Word (packW64, splitW64)
+import Agda.Utils.Hash (combineWord)
 
 import Agda.Utils.Impossible
+import Data.Hashable (Hashable(..))
+
 
 {--------------------------------------------------------------------------
     Types and classes
@@ -827,3 +830,24 @@ interleaveRanges as bs = runWriter $ go as bs
           (a:) <$> go as' bs
         else
           (b:) <$> go as bs'
+
+-- Hashable instances
+
+instance Hashable RangeFile where
+  {-# INLINE hashWithSalt #-}
+  hashWithSalt h (RangeFile x y) = h `hashWithSalt` x `hashWithSalt` y
+
+instance Hashable a => Hashable (Position' a) where
+  {-# INLINE hashWithSalt #-}
+  hashWithSalt h (Pn' a b c) =
+    fromIntegral (fromIntegral (hashWithSalt h a) `combineWord` fromIntegral b `combineWord` fromIntegral c)
+
+instance Hashable a => Hashable (Interval' a) where
+  {-# INLINE hashWithSalt #-}
+  hashWithSalt h (Interval a b c) = h `hashWithSalt` a `hashWithSalt` b `hashWithSalt` c
+
+instance Hashable a => Hashable (Range' a) where
+  {-# INLINE hashWithSalt #-}
+  hashWithSalt h = \case
+    NoRange   -> h + 1
+    Range a b -> h + 2 `hashWithSalt` a `hashWithSalt` b

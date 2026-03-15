@@ -271,7 +271,11 @@ instance EmbPrj A.ModuleName where
   value n           = A.MName <$!> value n
 
 instance EmbPrj A.Name where
-  icod_ (A.Name a b c d e f) = icodeMemo nameD nameC a $
+  icod_ x@(A.Name a b c d e f) =
+    -- Andreas, 2026-03-12: issue #8465:
+    -- We include the definition site into the key for 'A.Name'
+    -- to correctly serialize the 'nameDefinitionSite' field.
+    icodeMemo nameD nameC (nameIdR x) $
     icodeN' (\ a b c d e f -> A.Name a b c (underlyingRange d) e f) a b c (SerialisedRange d) e f
 
   value = valueN (\a b c d e f -> A.Name a b c (underlyingRange d) e f)
