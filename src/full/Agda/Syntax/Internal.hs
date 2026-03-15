@@ -706,7 +706,7 @@ data Substitution' a
     --   Apply this to closed terms you want to use in a non-empty context.
     --   @Γ ⊢ EmptyS : ()@
 
-  | a :# Substitution' a
+  | a :# !(Substitution' a)
     -- ^ Substitution extension, ``cons''.
     --   @
     --     Γ ⊢ u : Aρ   Γ ⊢ ρ : Δ
@@ -714,7 +714,7 @@ data Substitution' a
     --     Γ ⊢ u :# ρ : Δ, A
     --   @
 
-  | Strengthen Impossible !Int (Substitution' a)
+  | Strengthen Impossible !Int !(Substitution' a)
     -- ^ Strengthening substitution.  First argument is @__IMPOSSIBLE__@.
     --   In @'Strengthen err n ρ@ the number @n@ must be non-negative.
     --   This substitution should only be applied to values @t@ for
@@ -726,7 +726,7 @@ data Substitution' a
     --     Γ ⊢ Strengthen n ρ : Δ, Θ
     --   @
 
-  | Wk !Int (Substitution' a)
+  | Wk !Int !(Substitution' a)
     -- ^ Weakening substitution, lifts to an extended context.
     --   @
     --         Γ ⊢ ρ : Δ
@@ -735,7 +735,7 @@ data Substitution' a
     --   @
 
 
-  | Lift !Int (Substitution' a)
+  | Lift !Int !(Substitution' a)
     -- ^ Lifting substitution.  Use this to go under a binder.
     --   @Lift 1 ρ == var 0 :# Wk 1 ρ@.
     --   @

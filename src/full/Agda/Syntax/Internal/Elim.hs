@@ -55,7 +55,7 @@ allApplyElims = mapM isApplyElim
 
 -- | Split at first non-'Apply'
 splitApplyElims :: [Elim' a] -> ([Arg a], [Elim' a])
-splitApplyElims (Apply u : es) = first (u :) $ splitApplyElims es
+splitApplyElims (Apply u : es) = first (u :) $! splitApplyElims es
 splitApplyElims es             = ([], es)
 
 class IsProjElim e where

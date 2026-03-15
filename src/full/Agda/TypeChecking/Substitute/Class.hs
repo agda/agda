@@ -280,6 +280,7 @@ strengthenS' err m rho = case compare m 0 of
     Strengthen _ n rho -> Strengthen err (m + n) rho
     _                  -> Strengthen err m       rho
 
+{-# SPECIALIZE lookupS ::
 {-# INLINABLE lookupS #-}
 lookupS :: EndoSubst a => Substitution' a -> Nat -> a
 lookupS rho i = case rho of
