@@ -5871,7 +5871,6 @@ reduceSt f s = f (redSt s) <&> \ e -> s { redSt = e }
 {-# INLINE reduceSt #-}
 
 newtype ReduceM a = ReduceM { unReduceM :: ReduceEnv -> a }
---  deriving (Functor, Applicative, Monad)
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
 unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
@@ -5955,6 +5954,13 @@ instance ReadTCState ReduceM where
   getSessionState = ReduceM redSess
 
   locallyTCState l f = onReduceEnv $ mapRedSt $ over l f
+
+instance ExpandCase a => ExpandCase (ReduceM a) where
+  type Result (ReduceM a) = Result a
+  {-# INLINE expand #-}
+  expand k =
+    ReduceM (oneShot \ ~r ->
+     expand @a (oneShot \deflateA -> let r' = r in k (oneShot \act -> deflateA (unReduceM act r'))))
 
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = TCM $ \ r e -> do
