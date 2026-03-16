@@ -75,7 +75,7 @@ applyTermE err' = \m es -> case es of
   [] -> m
   es -> coerce $
     case coerce m of
-      Var i es'   -> Var i $! append' es' es
+      Var i es'   -> Var i $! es' ++! es
       Def f es'   -> defApp f es' es  -- remove projection redexes
       Con c ci args -> conApp @t err' c ci args es
       Lam _ b     ->
@@ -83,12 +83,12 @@ applyTermE err' = \m es -> case es of
           Apply a : es0      -> lazyAbsApp (coerce b :: Abs t) (coerce $ unArg a) `app` es0
           IApply _ _ a : es0 -> lazyAbsApp (coerce b :: Abs t) (coerce a)         `app` es0
           _                  -> err __IMPOSSIBLE__
-      MetaV x es' -> MetaV x $! append' es' es
+      MetaV x es' -> MetaV x $! es' ++! es
       Lit{}       -> err __IMPOSSIBLE__
       Level{}     -> err __IMPOSSIBLE__
       Pi _ _      -> err __IMPOSSIBLE__
       Sort s      -> Sort $ s `applyE` es
-      Dummy s es' -> Dummy s $! append' es' es
+      Dummy s es' -> Dummy s $! es' ++! es
       DontCare mv -> dontCare $ mv `app` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
    where
@@ -136,7 +136,7 @@ conApp fallback ch@(ConHead c _ _ fs) ci args topEs = go topEs where
     go c f fs args es err = flip trace err $ concat
       [ "conApp: constructor ", prettyShow c
       , unlines $ " with fields" : map (("  " ++) . prettyShow) fs
-      , unlines $ " and args"    : map (("  " ++) . prettyShow) (append' args es)
+      , unlines $ " and args"    : map (("  " ++) . prettyShow) (args ++! es)
       , " projected by ", prettyShow f
       ]
 
@@ -145,7 +145,7 @@ conApp fallback ch@(ConHead c _ _ fs) ci args topEs = go topEs where
 
   go :: Elims -> Term
   go = \case
-    []            -> Con ch ci $! append' args topEs
+    []            -> Con ch ci $! args ++! topEs
     Apply{}  : es -> go es
     IApply{} : es -> go es
     Proj o f : es -> lookupProj fs args where
@@ -213,7 +213,7 @@ conApp fallback ch@(ConHead c _ _ fs) ci args topEs = go topEs where
 defApp :: QName -> Elims -> Elims -> Term
 defApp f [] (Apply a : es) | Just v <- canProject f (unArg a)
   = argToDontCare v `applyE` es
-defApp f es0 es = Def f $! append' es0 es
+defApp f es0 es = Def f $! es0 ++! es
 
 -- protect irrelevant fields (see issue 610)
 argToDontCare :: Arg Term -> Term
@@ -250,8 +250,8 @@ relToDontCare ai = applyWhen (isIrrelevant ai) dontCare
 instance Apply Sort where
   applyE s [] = s
   applyE s es = case s of
-    MetaS x es' -> MetaS x $! append' es' es
-    DefS  d es' -> DefS  d $! append' es' es
+    MetaS x es' -> MetaS x $! es' ++! es
+    DefS  d es' -> DefS  d $! es' ++! es
     _ -> __IMPOSSIBLE__
 
 -- @applyE@ does not make sense for telecopes, definitions, clauses etc.
@@ -261,13 +261,13 @@ instance TermSubst a => Apply (Tele a) where
   apply EmptyTel          _        = __IMPOSSIBLE__
   apply (ExtendTel _ tel) (t : ts) = lazyAbsApp tel (unArg t) `apply` ts
 
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 instance Apply Definition where
   apply (Defn info x t pol occ gpars df m c inst copy ma nc inj copat blk lang d) args =
     Defn info x (piApply t args) (apply pol args) (apply occ args) (drop (length args) gpars) df m c inst copy ma nc inj copat blk lang (apply d args)
 
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 instance Apply RewriteRule where
   apply r args =
@@ -285,20 +285,20 @@ instance Apply RewriteRule where
        , rewTopModule  = rewTopModule r
        }
 
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 instance {-# OVERLAPPING #-} Apply [Occ.Occurrence] where
   apply occ args = List.drop (length args) occ
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 instance {-# OVERLAPPING #-} Apply [Polarity] where
   apply pol args = List.drop (length args) pol
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 instance Apply NumGeneralizableArgs where
   apply NoGeneralizableArgs       args = NoGeneralizableArgs
   apply (SomeGeneralizableArgs n) args = SomeGeneralizableArgs (n - length args)
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 -- | Make sure we only drop variable patterns.
 instance {-# OVERLAPPING #-} Apply [NamedArg (Pattern' a)] where
@@ -317,18 +317,18 @@ instance {-# OVERLAPPING #-} Apply [NamedArg (Pattern' a)] where
             ProjP{} -> __IMPOSSIBLE__
             IApplyP{} -> recurse
 
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 instance Apply Projection where
   apply p args = p
     { projIndex = projIndex p - size args
     , projLams  = projLams p `apply` args
     }
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 instance Apply ProjLams where
   apply (ProjLams lams) args = ProjLams $ List.drop (length args) lams
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 instance Apply Defn where
   apply d [] = d
@@ -384,14 +384,14 @@ instance Apply Defn where
       d { primClauses = apply cs args }
     PrimitiveSort{} -> d
 
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 instance Apply PrimFun where
   apply (PrimFun x ar occs def) args =
-    PrimFun x (ar - n) (drop n occs) $ \ vs -> def $! append' args vs
+    PrimFun x (ar - n) (drop n occs) $ \ vs -> def $! args ++! vs
     where
     n = size args
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 instance Apply Clause where
     -- This one is a little bit tricksy after the parameter refinement change.
@@ -416,7 +416,7 @@ instance Apply Clause where
         --  Γ ⊢ args, for some outer context Γ
         --  Δ ⊢ ps,   where Δ is the clause telescope (tel)
         rargs = map'' unArg $ reverse args
-        rps   = reverse $ take (length args) ps
+        rps   = reverse $ take' (length args) ps
         n     = size tel
 
         -- This is the new telescope. Created by substituting the args into the
@@ -451,7 +451,7 @@ instance Apply Clause where
             VarP _ (DBPatVar _ i) -> mkSub tm (n - 1) (substP i v' ps) vs `composeS` singletonS i (tm v')
               where v' = raise (n - 1) v
             DotP{}  -> mkSub tm n ps vs
-            ConP c _ ps' -> (mkSub tm n $! (append' ps' ps)) $! (append' (projections c v) vs)
+            ConP c _ ps' -> (mkSub tm n $! (ps' ++! ps)) $! (projections c v ++! vs)
             DefP{}  -> __IMPOSSIBLE__
             LitP{}  -> __IMPOSSIBLE__
             ProjP{} -> __IMPOSSIBLE__
@@ -474,7 +474,7 @@ instance Apply Clause where
           case namedArg p of
             VarP _ (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
             DotP{}              -> newTel n tel ps vs
-            ConP c _ ps'        -> (newTel n tel $! append' ps' ps) $! (append' (projections c v) vs)
+            ConP c _ ps'        -> (newTel n tel $! ps' ++! ps) $! (projections c v ++! vs)
             DefP{}  -> __IMPOSSIBLE__
             LitP{}  -> __IMPOSSIBLE__
             ProjP{} -> __IMPOSSIBLE__
@@ -502,14 +502,14 @@ instance Apply Clause where
         subTel 0 v (ExtendTel _ tel) = absApp tel v
         subTel i v (ExtendTel a tel) = ExtendTel a $ subTel (i - 1) (raise 1 v) <$> tel
 
-    applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+    applyE t es = apply t $ mustAllApplyElims es
 
 instance Apply CompiledClauses where
   apply cc args = case cc of
     Fail hs -> Fail (drop len hs)
     Done no mr hs t
       | length hs >= len ->
-         let sub = parallelS $! append' (map' var [0..length hs - len - 1]) (map'' unArg args)
+         let sub = parallelS $! (map' var [0..length hs - len - 1]) ++! (map'' unArg args)
          in  Done no mr (List.drop len hs) $ applySubst sub t
       | otherwise -> __IMPOSSIBLE__
     Case n bs
@@ -517,11 +517,11 @@ instance Apply CompiledClauses where
       | otherwise -> __IMPOSSIBLE__
     where
       len = length args
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 instance Apply ExtLamInfo where
   apply (ExtLamInfo m b sys) args = ExtLamInfo m b (apply sys args)
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 instance Apply System where
   -- We assume we apply a system only to arguments introduced by
@@ -538,7 +538,7 @@ instance Apply System where
       -- newTel ⊢ σ : tel
       sigma = liftS (ntel - nargs) (parallelS (reverse $ map'' unArg args))
 
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 instance Apply a => Apply (WithArity a) where
   apply  (WithArity n a) args = WithArity n $ apply  a args
@@ -554,21 +554,21 @@ instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
   apply (Inverse inv) args = Inverse $ apply inv args
 
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 instance Apply DisplayTerm where
-  apply (DTerm' v es)      args = DTerm' v       $! append' es (map' Apply args)
-  apply (DDot' v es)       args = DDot' v        $! append' es (map' Apply args)
-  apply (DCon c ci vs)     args = DCon c ci      $! append' vs (map' (fmap DTerm) args)
-  apply (DDef c es)        args = DDef c         $! append' es (map' (Apply . fmap DTerm) args)
-  apply (DWithApp v ws es) args = DWithApp v ws  $! append' es (map' Apply args)
+  apply (DTerm' v es)      args = DTerm' v       $! es ++! (map' Apply args)
+  apply (DDot' v es)       args = DDot' v        $! es ++! (map' Apply args)
+  apply (DCon c ci vs)     args = DCon c ci      $! vs ++! (map' (fmap DTerm) args)
+  apply (DDef c es)        args = DDef c         $! es ++! (map' (Apply . fmap DTerm) args)
+  apply (DWithApp v ws es) args = DWithApp v ws  $! es ++! (map' Apply args)
 
-  applyE (DTerm' v es')      es = DTerm' v $! append' es' es
-  applyE (DDot' v es')       es = DDot' v $! append' es' es
-  applyE (DCon c ci vs)      es = DCon c ci $! append' vs (map'' (fmap DTerm) ws)
-    where ws = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-  applyE (DDef c es')        es = DDef c $! append' es' (map'' (fmap DTerm) es)
-  applyE (DWithApp v ws es') es = DWithApp v ws $! append' es' es
+  applyE (DTerm' v es')      es = DTerm' v $! es' ++! es
+  applyE (DDot' v es')       es = DDot' v $! es' ++! es
+  applyE (DCon c ci vs)      es = DCon c ci $! vs ++! map'' (fmap DTerm) ws
+    where ws = mustAllApplyElims es
+  applyE (DDef c es')        es = DDef c $! es' ++! map'' (fmap DTerm) es
+  applyE (DWithApp v ws es') es = DWithApp v ws $! es' ++! es
 
 instance {-# OVERLAPPABLE #-} Apply t => Apply [t] where
   apply  ts args = map'' (`apply` args) ts
@@ -604,7 +604,7 @@ instance (Apply a, Apply b, Apply c) => Apply (a,b,c) where
 
 instance DoDrop a => Apply (Drop a) where
   apply x args = dropMore (size args) x
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 instance DoDrop a => Abstract (Drop a) where
   abstract tel x = unDrop (size tel) x
@@ -616,10 +616,10 @@ instance Apply Permutation where
     where
       m = size args
 
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ mustAllApplyElims es
 
 instance Abstract Permutation where
-  abstract tel (Perm n xs) = Perm (n + m) $! append' [0..m - 1] (map' (+ m) xs)
+  abstract tel (Perm n xs) = Perm (n + m) $! [0..m - 1] ++! (map' (+ m) xs)
     where
       m = size tel
 
@@ -633,7 +633,7 @@ piApply :: Type -> Args -> Type
 piApply t []                      = t
 piApply (El _ (Pi  _ b)) (a:args) = lazyAbsApp b (unArg a) `piApply` args
 piApply t args                    =
-  trace ("piApply t = " ++ prettyShow t ++ "\n  args = " ++ prettyShow args) __IMPOSSIBLE__
+  trace ("piApply t = " ++! prettyShow t ++! "\n  args = " ++! prettyShow args) __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
 -- * Abstraction
@@ -656,7 +656,7 @@ instance Abstract Telescope where
 instance Abstract Definition where
   abstract tel (Defn info x t pol occ gpars df m c inst copy ma nc inj copat blk lang d) =
     Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ)
-      (append' (replicate (size tel) Nothing) gpars)
+      (replicate' (size tel) Nothing ++! gpars)
       df m c inst copy ma nc inj copat blk lang (abstract tel d)
 
 -- | @tel ⊢ (Γ ⊢ lhs ↦ rhs : t)@ becomes @tel, Γ ⊢ lhs ↦ rhs : t)@
@@ -668,11 +668,11 @@ instance Abstract RewriteRule where
 
 instance {-# OVERLAPPING #-} Abstract [Occ.Occurrence] where
   abstract tel []  = []
-  abstract tel occ = append' (replicate (size tel) Mixed) occ -- TODO: check occurrence
+  abstract tel occ = replicate' (size tel) Mixed ++! occ -- TODO: check occurrence
 
 instance {-# OVERLAPPING #-} Abstract [Polarity] where
   abstract tel []  = []
-  abstract tel pol = append' (replicate (size tel) Invariant) pol -- TODO: check polarity
+  abstract tel pol = replicate' (size tel) Invariant ++! pol -- TODO: check polarity
 
 instance Abstract NumGeneralizableArgs where
   abstract tel NoGeneralizableArgs       = NoGeneralizableArgs
@@ -686,7 +686,7 @@ instance Abstract Projection where
 
 instance Abstract ProjLams where
   abstract tel (ProjLams lams) = ProjLams $!
-    append' (map' (\ !dom -> argFromDom (fst <$> dom)) (telToList tel)) lams
+    (map' (\ !dom -> argFromDom (fst <$> dom)) (telToList tel)) ++! lams
 
 instance Abstract System where
   abstract tel (System tel1 sys) = System (abstract tel tel1) sys
@@ -746,14 +746,14 @@ instance Abstract Defn where
 
 instance Abstract PrimFun where
     abstract tel (PrimFun x ar occs def) =
-      PrimFun x (ar + n) (replicate n Mixed ++ occs) $ \ts ->
+      PrimFun x (ar + n) (replicate' n Mixed ++! occs) $ \ts ->
         def $ drop n ts
         where n = size tel
 
 instance Abstract Clause where
   abstract tel (Clause rl rf tel' ps b t catchall recursive unreachable ell wm) =
     Clause rl rf (abstract tel tel')
-           (namedTelVars m tel ++ ps)
+           (namedTelVars m tel ++! ps)
            b
            t -- nothing to do for t, since it lives under the telescope
            catchall
@@ -765,8 +765,8 @@ instance Abstract Clause where
 
 instance Abstract CompiledClauses where
   abstract tel cc = case cc of
-      Fail xs         -> Fail (hs ++ xs)
-      Done no mr xs t -> Done no mr (hs ++ xs) t
+      Fail xs         -> Fail (hs ++! xs)
+      Done no mr xs t -> Done no mr (hs ++! xs) t
       Case n bs       -> Case (n <&> \ i -> i + size tel) (abstract tel bs)
     where
       hs = map' (argFromDom . fmap fst) $ telToList tel
@@ -996,7 +996,7 @@ instance Subst NLPat where
     where
       applyBV :: NLPat -> [Arg Int] -> NLPat
       applyBV p ys = case p of
-        PVar s i xs    -> PVar s i $! append' xs ys
+        PVar s i xs    -> PVar s i $! xs ++! ys
         PTerm u        -> PTerm $ u `apply` map'' (fmap var) ys
         PDef f es      -> __IMPOSSIBLE__
         PLam i u       -> __IMPOSSIBLE__
@@ -1856,7 +1856,7 @@ levelMax !n0 as0 = Max n as
 
     lmax :: Integer -> [PlusLevel] -> [Level] -> Level
     lmax m as []              = Max m as
-    lmax m as (Max n bs : ls) = lmax (max m n) (append' bs as) ls
+    lmax m as (Max n bs : ls) = lmax (max m n) (bs ++! as) ls
 
     expandLevel :: Level -> Level
     expandLevel (Max m as) = lmax m [] $ map'' expandPlus as
@@ -1876,7 +1876,7 @@ levelMax !n0 as0 = Max n as
 -- | Given two levels @a@ and @b@, compute @a ⊔ b@ and return its
 --   canonical form.
 levelLub :: Level -> Level -> Level
-levelLub (Max m as) (Max n bs) = levelMax (max m n) $! append' as bs
+levelLub (Max m as) (Max n bs) = levelMax (max m n) $! as ++! bs
 
 levelTm :: Level -> Term
 levelTm l =

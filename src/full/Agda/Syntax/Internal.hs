@@ -77,7 +77,10 @@ data Dom' t e = Dom
     -- ^ Is this a Π-type (False), or a partial type (True)?
   , domTactic :: Maybe t        -- ^ "@tactic e".
   , unDom     :: e
-  } deriving (Show, Functor, Foldable, Traversable)
+  } deriving (Show, Foldable, Traversable)
+
+instance Functor (Dom' t) where
+  fmap f = \(Dom a b c d e) -> Dom a b c d $! f e
 
 type Dom = Dom' Term
 
@@ -301,7 +304,12 @@ data Abs a = Abs   { absName :: ArgName, unAbs :: a }
                -- ^ The body has (at least) one free variable.
                --   Danger: 'unAbs' doesn't shift variables properly
            | NoAbs { absName :: ArgName, unAbs :: a }
-  deriving (Functor, Foldable, Traversable, Generic)
+  deriving (Foldable, Traversable, Generic)
+
+instance Functor Abs where
+  fmap f = \case
+    Abs x y   -> Abs x $! f y
+    NoAbs x y -> NoAbs x $! f y
 
 instance Decoration Abs where
   traverseF f (Abs   x a) = Abs   x <$> f a

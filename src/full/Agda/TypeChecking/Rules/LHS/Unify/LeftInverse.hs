@@ -138,8 +138,8 @@ buildLeftInverse s0 log = Bench.billTo [Bench.UnifyIndices, Bench.CubicalLeftInv
         -- leftInv0 : [wkS |φ,us =_Δ vs| ρ,1,refls][τ] = idS : Γ,φ,us =_Δ vs
         let tau = tau0 `composeS` raiseS 1
         unview <- intervalUnview'
-        let replaceAt n x xs = append' xs0 (x:xs1)
-                    where (xs0,_:xs1) = splitAt n xs
+        let replaceAt n x xs = xs0 ++! (x:xs1)
+                    where (xs0,_:xs1) = splitAt' n xs
         let max r s = unview $ IMax (argN r) (argN s)
             neg r = unview $ INeg (argN r)
         let phieq = neg (var 0) `max` var (size (eqTel s0) + 1)
@@ -330,9 +330,9 @@ buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = 
 
           -- . ⊢ Γ₁  ,  γ₁. x : A, Γ₂, φ : I, eqs : lhs ≡ rhs
           let (gamma1, xxi) = bindSplit $ splitTelescopeAt (size gamma - x - 1) working_tel'
-              (gamma1_args,xxi_args) = splitAt (size gamma1) all_args
+              (gamma1_args,xxi_args) = splitAt' (size gamma1) all_args
               (_x_arg:xi_args) = xxi_args
-              (x_arg:xi0,k_arg:xi1) = splitAt (size gamma - size gamma1 + phis + k) xxi_args
+              (x_arg:xi0,k_arg:xi1) = splitAt' (size gamma - size gamma1 + phis + k) xxi_args
               -- working_tel ⊢ x : A, Γ₂, φ : I, eqs : lhs ≡ rhs
               xxi_here = absAppN xxi $ map' unArg gamma1_args
               --                                                  x:A, Γ₂               φ
@@ -347,7 +347,7 @@ buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = 
                      abstractN pre $ \ args ->
                        apply1 <$!> applyN krest (x:args) <*!> eq
           -- working_tel ⊢ delta0_args : Δ₀
-          let delta0_args = append' xi0 xi1
+          let delta0_args = xi0 ++! xi1
           let appSide = case side of
                           Left{} -> id
                           Right{} -> unview . INeg . argN
@@ -362,10 +362,10 @@ buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = 
                                             Right{} -> unview (IMin (argN j) (argN . unview $ INeg $ argN i))
                                   in k_arg <@@> (u, v, r <$!> i <*!> j)
                               ]
-          let replaceAt n x xs = append' xs0 (x:xs1)
-                where (xs0,_:xs1) = splitAt n xs
-              dropAt n xs = append' xs0 xs1
-                where (xs0,_:xs1) = splitAt n xs
+          let replaceAt n x xs = xs0 ++! (x:xs1)
+                where (xs0,_:xs1) = splitAt' n xs
+              dropAt n xs = xs0 ++! xs1
+                where (xs0,_:xs1) = splitAt' n xs
           delta <- open delta
           -- d = i. Δ (k i) (λ j → k (i ∧ j))
           d <- bind "i" $ \ i -> applyN delta (csingl' i)
@@ -380,13 +380,13 @@ buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = 
           -- when checking if "t" depends on "x" to decide what
           -- to transp and what not to.
           let flag = True
-          tau <- (append' gamma1_args) <$!> lift (cantTransport (transpTel' flag d phi delta0_args))
+          tau <- (gamma1_args ++!) <$!> lift (cantTransport (transpTel' flag d phi delta0_args))
           reportSDoc "tc.lhs.unify.inv" 20 $ "tau    :" <+> prettyTCM (map (setHiding NotHidden) tau)
           leftInv <- do
             gamma1_args <- open gamma1_args
             phi <- open phi
             -- xxi_here <- open xxi_here
-            -- (xi_here_f :: Abs Telescope) <- bind "i" $ \ i -> apply <$> xxi_here <*> (take 1 `fmap` csingl i)
+            -- (xi_here_f :: Abs Telescope) <- bind "i" $ \ i -> apply <$> xxi_here <*> (take' 1 `fmap` csingl i)
             -- xi_here_f <- open xi_here_f
             -- xi_args <- open xi_args
             -- xif <- bind "i" $ \ i -> do
@@ -396,7 +396,7 @@ buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = 
 
             xi0 <- open xi0
             xi1 <- open xi1
-            delta0 <- bind "i" $ \ i -> apply <$!> xpre <*!> (take 1 <$!> csingl i)
+            delta0 <- bind "i" $ \ i -> apply <$!> xpre <*!> (take' 1 <$!> csingl i)
             delta0 <- open delta0
             xi0f <- bind "i" $ \ i -> do
                                  m <- trFillTel' flag <$!> delta0 <*!> phi <*!> xi0 <*!> i
@@ -406,17 +406,17 @@ buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = 
             delta1 <- bind "i" $ \ i -> do
 
                    args <- mapM (open . unArg) =<< (lazyAbsApp <$!> xi0f <*!> i)
-                   apply <$> applyN krest (take 1 (csingl' i) `append'` args) <*!> (drop 1 <$!> csingl i)
+                   apply <$> applyN krest (take' 1 (csingl' i) ++! args) <*!> (drop 1 <$!> csingl i)
             delta1 <- open delta1
             xi1f <- bind "i" $ \ i -> do
                                  m <- trFillTel' flag <$!> delta1 <*!> phi <*!> xi1 <*!> i
                                  lift (cantTransport m)
             xi1f <- open xi1f
             fmap absBody $ bind "i" $ \ i' -> do
-              let (+++) m = liftM2 append' m
+              let (+++) m = liftM2 (++!) m
                   i = cl (lift primINeg) <@> i'
               fmap (permute (invertP __IMPOSSIBLE__ permw)) $
-                gamma1_args +++ ((take 1 <$!> csingl i) +++ ((lazyAbsApp <$!> xi0f <*!> i) +++ ((drop 1 <$!> csingl i) +++ (lazyAbsApp <$!> xi1f <*!> i))))
+                gamma1_args +++ ((take' 1 <$!> csingl i) +++ ((lazyAbsApp <$!> xi0f <*!> i) +++ ((drop 1 <$!> csingl i) +++ (lazyAbsApp <$!> xi1f <*!> i))))
           return (tau,leftInv,phi)
         iz <- lift $ primIZero
         io <- lift $ primIOne

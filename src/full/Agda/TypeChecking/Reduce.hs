@@ -225,7 +225,7 @@ instance Instantiate Term where
          PostponedTypeCheckingProblem _ -> return t
 
       Nothing -> __IMPOSSIBLE_VERBOSE__
-                   ("Meta-variable not found: " ++ prettyShow x)
+                   ("Meta-variable not found: " ++! prettyShow x)
     where
     cont i = instantiate' inst
       where
@@ -233,8 +233,8 @@ instance Instantiate Term where
       -- in which case we have to build the lambda abstraction before
       -- applying the substitution, or overapplied in which case we need to
       -- fall back to applyE.
-      (es1, es2) = splitAt (length (instTel i)) es
-      vs1 = reverse $ map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es1
+      (es1, es2) = splitAt' (length (instTel i)) es
+      vs1 = reverse $ map'' unArg $ mustAllApplyElims es1
       rho = vs1 ++# wkS (length vs1) idS
             -- really should be .. ++# emptyS but using wkS makes it reduce to idS
             -- when applicable
@@ -713,7 +713,7 @@ unfoldDefinitionStep v0 f es =
             ]
           ]
         then
-          reduceNormalE v0 f (map notReduced es) dontUnfold
+          reduceNormalE v0 f (map' notReduced es) dontUnfold
                        (defClauses info) (defCompiled info) rewr
         else noReduction $ notBlocked v  -- Andrea(s), 2014-12-05 OK?
 
@@ -724,17 +724,17 @@ unfoldDefinitionStep v0 f es =
       | length es < ar
                   = noReduction $ NotBlocked Underapplied $ v0 `applyE` es -- not fully applied
       | otherwise = {-# SCC "reducePrimitive" #-} do
-          let (es1,es2) = splitAt ar es
+          let (es1,es2) = splitAt' ar es
               args1     = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es1
           r <- primFunImplementation pf args1 (length es2)
           case r of
             NoReduction args1' -> do
-              let es1' = map (fmap Apply) args1'
+              let es1' = map' (fmap Apply) args1'
               if null cls && null rewr then do
                 noReduction $ applyE (Def f []) <$> do
-                  blockAll $ map mredToBlocked es1' ++ map notBlocked es2
+                  blockAll $ map' mredToBlocked es1' ++! map' notBlocked es2
                else
-                reduceNormalE v0 f (es1' ++ map notReduced es2) dontUnfold cls mcc rewr
+                reduceNormalE v0 f (es1' ++! map' notReduced es2) dontUnfold cls mcc rewr
             YesReduction simpl v -> yesReduction simpl $ v `applyE` es2
       where
           ar  = primFunArity pf
@@ -760,13 +760,13 @@ unfoldDefinitionStep v0 f es =
           return ev
       where
       defaultResult = noReduction $ NotBlocked ReallyNotBlocked vfull
-      vfull         = v0 `applyE` map ignoreReduced es
+      vfull         = v0 `applyE` map' ignoreReduced es
       debugReduce ev = verboseS "tc.reduce" 90 $ do
         case ev of
           NoReduction v -> do
             reportSDoc "tc.reduce" 90 $ vcat
               [ "*** tried to reduce " <+> pretty f
-              , "    es =  " <+> sep (map (pretty . ignoreReduced) es)
+              , "    es =  " <+> sep (map' (pretty . ignoreReduced) es)
               -- , "*** tried to reduce " <+> pretty vfull
               , "    stuck on" <+> pretty (ignoreBlocking v)
               ]
@@ -805,11 +805,11 @@ reduceDefCopy f es = do
                 etaArgs (_ : ps) (_ : es) = etaArgs ps es
                 xs  = etaArgs ps es
                 n   = length xs
-                newes = raise n es ++ [ Apply $ var i <$ x | (i, x) <- zip (downFrom n) xs ]
+                newes = raise n es ++! [ Apply $ var i <$ x | (i, x) <- zip (downFrom n) xs ]
         if defNonterminating info
          then return $ NoReduction ()
          else do
-            ev <- liftReduce $ appDefE_ f v0 [cl] Nothing mempty $ map notReduced es'
+            ev <- liftReduce $ appDefE_ f v0 [cl] Nothing mempty $ map' notReduced es'
             case ev of
               YesReduction simpl t -> return $ YesReduction simpl (lam t)
               NoReduction{}        -> return $ NoReduction ()
@@ -831,8 +831,8 @@ reduceHead v = do -- ignoreAbstractMode $ do
       abstractMode <- envAbstractMode <$> askTC
       isAbstract <- not <$> hasAccessibleDef f
       traceSLn "tc.inj.reduce" 50 (
-        "reduceHead: we are in " ++ show abstractMode ++ "; " ++ prettyShow f ++
-        " is treated " ++ if isAbstract then "abstractly" else "concretely"
+        "reduceHead: we are in " ++! show abstractMode ++! "; " ++! prettyShow f ++!
+        " is treated " ++! if isAbstract then "abstractly" else "concretely"
         ) $ do
       let v0  = Def f []
           red = liftReduce $ unfoldDefinitionE reduceHead v0 f es
@@ -844,7 +844,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
         -- type checker loop here on non-terminating functions.
         -- see test/fail/TerminationInfiniteRecord
         Function{ funClauses = [ _ ], funTerminates = Just True } -> do
-          traceSLn "tc.inj.reduce" 50 ("reduceHead: head " ++ prettyShow f ++ " is Function") $ do
+          traceSLn "tc.inj.reduce" 50 ("reduceHead: head " ++! prettyShow f ++! " is Function") $ do
           red
         Datatype{ dataClause = Just _ } -> red
         Record{ recClause = Just _ }    -> red
@@ -872,17 +872,17 @@ unfoldInlined v = do
         Function{} ->
           reportSLn "tc.inline" 90 $
             intercalate "\n"
-            [ "considering to inline " ++ prettyShow f
-            , "irr         = " ++ prettyShow irr
-            , "funInline   = " ++ prettyShow (def ^. funInline)
-            , "funCompiled = " ++ prettyShow (funCompiled def)
+            [ "considering to inline " ++! prettyShow f
+            , "irr         = " ++! prettyShow irr
+            , "funInline   = " ++! prettyShow (def ^. funInline)
+            , "funCompiled = " ++! prettyShow (funCompiled def)
             ]
         _ -> pure ()
 
       case def of -- Only for simple definitions with no pattern matching (TODO: maybe copatterns?)
         Function{ funCompiled = Just Done{} }
           | (defCopy info || def ^. funInline), not irr -> do
-            reportSLn "tc.inline" 70 $ "asking to inline " ++ prettyShow f
+            reportSLn "tc.inline" 70 $ "asking to inline " ++! prettyShow f
             liftReduce $
               ignoreBlocking <$> unfoldDefinitionE continue (Def f []) f es
         _ -> return v
@@ -891,7 +891,7 @@ unfoldInlined v = do
 -- | Apply a definition using the compiled clauses, or fall back to
 --   ordinary clauses if no compiled clauses exist.
 appDef_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
-appDef_ f v0 cls mcc rewr args = appDefE_ f v0 cls mcc rewr $ map (fmap Apply) args
+appDef_ f v0 cls mcc rewr args = appDefE_ f v0 cls mcc rewr $ map' (fmap Apply) args
 
 appDefE_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE_ f v0 cls mcc rewr args =
@@ -903,7 +903,7 @@ appDefE_ f v0 cls mcc rewr args =
 -- | Apply a defined function to it's arguments, using the compiled clauses.
 --   The original term is the first argument applied to the third.
 appDef :: Term -> CompiledClauses -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
-appDef v cc rewr args = appDefE v cc rewr $ map (fmap Apply) args
+appDef v cc rewr args = appDefE v cc rewr $ map' (fmap Apply) args
 
 appDefE :: Term -> CompiledClauses -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE v cc rewr es = do
@@ -915,7 +915,7 @@ appDefE v cc rewr es = do
 
 -- | Apply a defined function to it's arguments, using the original clauses.
 appDef' :: QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
-appDef' f v cls rewr args = appDefE' f v cls rewr $ map (fmap Apply) args
+appDef' f v cls rewr args = appDefE' f v cls rewr $ map' (fmap Apply) args
 
 appDefE' :: QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE' f v cls rewr es =
@@ -925,7 +925,7 @@ appDefE' f v cls rewr es =
 -- | Expects @'envAppDef' = Just f@ in 'TCEnv' to be able to report @'MissingClauses' f@.
 appDefE'' :: Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v) $ do
-  goCls cls $ map ignoreReduced es
+  goCls cls $ map' ignoreReduced es
   where
     goCls :: [Clause] -> [Elim] -> ReduceM (Reduced (Blocked Term) Term)
     goCls cl es = do
@@ -947,9 +947,9 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
           -- if clause is underapplied, skip to next clause
           if length es < npats then goCls cls es else do
             allowedReductions <- asksTC envAllowedReductions
-            let (es0, es1) = splitAt npats es
+            let (es0, es1) = splitAt' npats es
             (m, es0) <- matchCopatterns pats es0
-            let es = es0 ++ es1
+            let es = es0 ++! es1
             case m of
               No               -> goCls cls es
               -- Szumi, 2024-03-29, issue #7181:
@@ -1089,7 +1089,7 @@ instance Simplify Term where
         (simpl, v) <- unfoldDefinition' keepGoing (Def f []) f vs
         when (simpl == YesSimplification) $
           reportSDoc "tc.simplify'" 90 $
-            pretty f <+> text ("simplify': unfolding definition returns " ++ show simpl) <+> pretty (ignoreBlocking v)
+            pretty f <+> text ("simplify': unfolding definition returns " ++! show simpl) <+> pretty (ignoreBlocking v)
         case simpl of
           YesSimplification -> simplifyBlocked' v -- Dangerous, but if @simpl@ then @v /= Def f vs@
           NoSimplification  -> Def f <$> simplify' vs

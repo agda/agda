@@ -62,7 +62,7 @@ import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List  ( (!!!), initWithDefault )
+import Agda.Utils.List hiding (Suffix)
 import qualified Agda.Utils.List as List
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
@@ -111,7 +111,7 @@ acHeadConstraints hd = go hd . acCheckedArgs
 checkHeadConstraints :: (Elims -> Term) -> ArgsCheckState a -> TCM Term
 checkHeadConstraints hd st = do
   mapM_ solveConstraint_ $ acHeadConstraints hd st
-  return $ hd $ map caElim $ acCheckedArgs st
+  return $ hd $ map' caElim $ acCheckedArgs st
 
 
 -- | @checkApplication hd args e t@ checks an application.
@@ -133,10 +133,10 @@ checkApplication cmp hd args e t =
     ]
   reportSDoc "tc.check.app" 70 $ vcat
     [ "checkApplication (raw)"
-    , nest 2 $ text $ "hd   = " ++ show hd
-    , nest 2 $ text $ "args = " ++ show (deepUnscope args)
-    , nest 2 $ text $ "e    = " ++ show (deepUnscope e)
-    , nest 2 $ text $ "t    = " ++ show t
+    , nest 2 $ text $ "hd   = " ++! show hd
+    , nest 2 $ text $ "args = " ++! show (deepUnscope args)
+    , nest 2 $ text $ "e    = " ++! show (deepUnscope e)
+    , nest 2 $ text $ "t    = " ++! show t
     ]
   case unScope hd of
     -- Subcase: unambiguous projection
@@ -231,7 +231,7 @@ checkApplication cmp hd args e t =
                                                     -- a b : (x : X) (y : Y x)
           (_, hole) <- newValueMeta RunMetaOccursCheck CmpLeq holeType
           unquoteM hd hole holeType
-          let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
+          let rho = reverse (map' unArg vs) ++# IdS  -- [x := a, y := b]
           coerce CmpEq (apply hole vs) (applySubst rho target) t -- H a b : A
       where
         metaTel :: [Arg a] -> TCM Telescope
@@ -283,7 +283,7 @@ inferHeadDef o x = do
   rel  <- getRelevance . defArgInfo <$> getConstInfo x
   let app =
         case proj of
-          Nothing -> \ args -> Def x $ map Apply args
+          Nothing -> \ args -> Def x $ map' Apply args
           Just p  -> \ args -> projDropParsApply p o rel args
   first applyE <$> inferDef app x
 
@@ -380,7 +380,7 @@ inferDef mkTerm x =
         -- since x is considered living in the top-level, we have to
         -- apply it to the current context
         vs <- freeVarsToApply x
-        reportSDoc "tc.term.def" 30 $ "  free vars:" <+> prettyList_ (map prettyTCM vs)
+        reportSDoc "tc.term.def" 30 $ "  free vars:" <+> prettyList_ (map' prettyTCM vs)
         let t = defType d
             v = mkTerm vs -- applies x to vs, dropping parameters
 
@@ -396,9 +396,9 @@ inferDef mkTerm x =
     debug :: Args -> Type -> Term -> TCM ()
     debug vs t v = do
       reportSDoc "tc.term.def" 60 $
-        "freeVarsToApply to def " <+> hsep (map (text . show) vs)
+        "freeVarsToApply to def " <+> hsep (map' (text . show) vs)
       reportSDoc "tc.term.def" 10 $ vcat
-        [ "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
+        [ "inferred def " <+> prettyTCM x <+> hsep (map' prettyTCM vs)
         , nest 2 $ ":" <+> prettyTCM t
         , nest 2 $ "-->" <+> prettyTCM v ]
 
@@ -450,10 +450,10 @@ checkHeadApplication cmp e t hd args = do
       let check :: Maybe (TCM Args)
           check = do
             k <- mk
-            vs <- allApplyElims $ map caElim cas
-            pure $ k (map caRange cas) vs t1
+            vs <- allApplyElims $ map' caElim cas
+            pure $ k (map' caRange cas) vs t1
       st' <- case check of
-               Just ck -> (`setACElims` st) . map Apply <$> ck
+               Just ck -> (`setACElims` st) . map' Apply <$> ck
                Nothing -> pure st
       v <- unfoldInlined =<< checkHeadConstraints f st'
       coerce' cmp checkedTarget v t1 t
@@ -583,7 +583,7 @@ checkArgumentsE' S{ sArgs = [], .. } =
     sResultType <- traverse (unEl <.> reduce) sResultType
     (ncargs, t) <- implicitCheckedArgs (-1) (\ h _x -> expand sResultType h) sFunType
     return $ ACState
-      { acCheckedArgs = map namedThing ncargs
+      { acCheckedArgs = map' namedThing ncargs
       , acFun         = sFun
       , acType        = t
       , acData        = sChecked
@@ -599,7 +599,7 @@ checkArgumentsE' S{ sArgs = [], .. } =
 checkArgumentsE'
   s@S{ sArgs = sArgs@((arg@(Arg info e), sArgsVisible) : args), .. } =
 
-    traceCallE (CheckArguments sFun (map fst sArgs) sFunType sResultType) $ do
+    traceCallE (CheckArguments sFun (map' fst sArgs) sFunType sResultType) $ do
       lift $ reportSDoc "tc.term.args" 30 $ sep
         [ "checkArgumentsE"
 --        , "  sArgs =" <+> prettyA sArgs
@@ -640,7 +640,7 @@ checkArgumentsE'
             { acCheckedArgs = cargs
             , acFun         = sFun
             , acType        = sFunType
-            , acData        = map fst sArgs
+            , acData        = map' fst sArgs
             }) {- else -} $ \ _ sFunType -> do
 
         -- What can go wrong?
@@ -793,10 +793,10 @@ checkArgumentsE'
                   checkArgumentsE' s{ sFunType = absApp b u }
             | otherwise -> do
                 reportSDoc "error" 10 $ nest 2 $ vcat
-                  [ text $ "info      = " ++ show info
-                  , text $ "info'     = " ++ show info'
-                  , text $ "absName b = " ++ absName b
-                  , text $ "nameOf e  = " ++ show (nameOf e)
+                  [ text $ "info      = " ++! show info
+                  , text $ "info'     = " ++! show info'
+                  , text $ "absName b = " ++! absName b
+                  , text $ "nameOf e  = " ++! show (nameOf e)
                   ]
                 wrongPi
           _
@@ -823,7 +823,7 @@ checkArgumentsE'
       -> CheckArgumentsE'
     addCheckedArgs cas ca cont = do
       let upd :: ArgsCheckState a -> ArgsCheckState a
-          upd st = st{ acCheckedArgs = cas ++ ca : acCheckedArgs st }
+          upd st = st{ acCheckedArgs = cas ++! ca : acCheckedArgs st }
       -- Add checked arguments to both regular and exceptional result of @cont@.
       withError upd $ upd <$> cont
 
@@ -953,20 +953,20 @@ postponeArgs ::
 postponeArgs (ACState cas fun t1 es) cmp exph hd args t0 t k = do
   reportSDoc "tc.term.expr.args" 80 $
     sep [ "postponed checking arguments"
-        , nest 4 $ prettyList (map (prettyA . namedThing . unArg) args)
+        , nest 4 $ prettyList (map' (prettyA . namedThing . unArg) args)
         , nest 2 $ "against"
         , nest 4 $ prettyTCM t0
         ] $$
     sep [ "progress:"
-        , nest 2 $ "checked" <+> prettyList (map (prettyTCM . caElim) cas)
+        , nest 2 $ "checked" <+> prettyList (map' (prettyTCM . caElim) cas)
         , nest 2 $ "remaining" <+> sep
-            [ prettyList (map (prettyA . namedThing . unArg) es)
+            [ prettyList (map' (prettyA . namedThing . unArg) es)
             , nest 2 $ ":" <+> prettyTCM t1
             ]
         ]
   postponeTypeCheckingProblem_ $
     CheckArgs cmp exph fun es t1 t $ \ (ACState cas' func t pid) ->
-      k $ ACState (cas ++ cas') func t pid
+      k $ ACState (cas ++! cas') func t pid
 
 -----------------------------------------------------------------------------
 -- * Constructors
@@ -1026,8 +1026,8 @@ checkConstructorApplication cmp org t c hd args = do
          -- from t = Def d' vs, we drop the additional parameters.
          npars' <- getNumberOfParameters d'
          caseMaybe (sequenceA $ Pair (Just npars) npars') fallback $ \ (Pair n n') -> do
-           reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n    = " ++ show n
-           reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n'   = " ++ show n'
+           reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n    = " ++! show n
+           reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n'   = " ++! show n'
            when (n > n')  -- preprocessor does not like ', so put on next line
              __IMPOSSIBLE__
            let ps    = take n $ drop (n' - n) vs
@@ -1040,7 +1040,7 @@ checkConstructorApplication cmp org t c hd args = do
            reportSDoc "tc.term.con" 20 $ nest 2 $ "ctype' =" <+> prettyTCM ctype'
            -- get the parameter names
            let TelV ptel _ = telView'UpTo n ctype
-           let pnames = map (fmap fst) $ telToList ptel
+           let pnames = map' (fmap fst) $ telToList ptel
            -- drop the parameter arguments
                args' = dropArgs pnames args
            -- check the non-parameter arguments
@@ -1094,21 +1094,21 @@ type DisambiguateConstructor = TCM (Either (Blocker, ConstructorDisambiguationDa
 -- | Successfully disambiguate constructor with given choice.
 decideOn :: ConHead -> DisambiguateConstructor
 decideOn c = do
-  reportSLn "tc.check.term.con" 40 $ "  decided on: " ++ prettyShow c
+  reportSLn "tc.check.term.con" 40 $ "  decided on: " ++! prettyShow c
   storeDisambiguatedConstructor (conInductive c) (conName c)
   return $ Right c
 
 -- | Returns an unblocking action in case of failure.
 disambiguateConstructor :: AmbiguousQName -> A.Args -> Type -> DisambiguateConstructor
 disambiguateConstructor ambC args t = do
-  reportSLn "tc.check.term.con" 40 $ "Ambiguous constructor: " ++ prettyShow ambC
-  reportSDoc "tc.check.term.con" 40 $ vcat $ "Arguments:" : map (nest 2 . prettyTCM) args
+  reportSLn "tc.check.term.con" 40 $ "Ambiguous constructor: " ++! prettyShow ambC
+  reportSDoc "tc.check.term.con" 40 $ vcat $ "Arguments:" : map' (nest 2 . prettyTCM) args
   let cs0 = getAmbiguous ambC
 
   -- Get the datatypes of the various constructors
   let getData Constructor{conData = d} = d
       getData _                        = __IMPOSSIBLE__
-  reportSLn "tc.check.term.con" 40 $ "  ranges before: " ++ prettyShow (getRange cs0)
+  reportSLn "tc.check.term.con" 40 $ "  ranges before: " ++! prettyShow (getRange cs0)
   -- We use the reduced constructor when disambiguating, but
   -- the original constructor for type checking. This is important
   -- since they may have different types (different parameters).
@@ -1116,12 +1116,12 @@ disambiguateConstructor ambC args t = do
   -- Andreas, 2017-08-13, issue #2686: ignore abstract constructors
   ccons  <- List1.rights <$> do
      forM cs0 $ \ c -> mapRight (c,) <$> getConForm c
-  reportSLn "tc.check.term.con" 40 $ "  reduced: " ++ prettyShow (map snd ccons)
+  reportSLn "tc.check.term.con" 40 $ "  reduced: " ++! prettyShow (map' snd ccons)
   case ccons of
     []    -> typeError $ AbstractConstructorNotInScope $ List1.head cs0
     [(c0,con)] -> do
       let c = setConName c0 con
-      reportSLn "tc.check.term.con" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
+      reportSLn "tc.check.term.con" 40 $ "  only one non-abstract constructor: " ++! prettyShow c
       decideOn c
     cons@(c0,_):conss   -> do
       dcs :: List1 (QName, Type, ConHead) <- forM (cons :| conss) $ \ (c, con) -> do
@@ -1156,7 +1156,7 @@ resolveAmbiguousConstructor bcd@(ConstructorDisambiguationData c0 dcs1 args t) =
        ifBlocked t1 (\ b _ -> disambiguateByArgs dcs args $ postpone b) $ \ _ t' ->
          caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ (d, _) -> do
            let dcs' = filter ((d ==) . fst3) dcs
-           case map thd3 dcs' of
+           case map' thd3 dcs' of
              [c] -> decideOn c
              []  -> badCon $ t' $> Def d []
              -- If the information from the target type did not eliminate ambiguity fully,
@@ -1185,9 +1185,9 @@ disambiguateByArgs dcs args fallback = do
     -- without full-fledged type inference.
     askel <- visibleVarArgs
     reportSDoc "tc.check.term.con" 40 $ hsep $
-      "trying disambiguation by arguments" : map prettyTCM askel
+      "trying disambiguation by arguments" : map' prettyTCM askel
     reportSDoc "tc.check.term.con" 80 $ hsep $
-      "trying disambiguation by arguments" : map pretty askel
+      "trying disambiguation by arguments" : map' pretty askel
 
     -- Filter out candidates with definitive mismatches.
     cands <- filterM (\ (_d, t, _c) -> matchSkel askel =<< visibleConDoms t) dcs
@@ -1346,7 +1346,7 @@ inferOrCheckProjApp
 inferOrCheckProjApp e o ds hd args mt = do
   reportSDoc "tc.proj.amb" 20 $ vcat
     [ "checking ambiguous projection"
-    , text $ "  ds   = " ++ prettyShow ds
+    , text $ "  ds   = " ++! prettyShow ds
     , text   "  args = " <+> do prettyList $ fmap prettyTCM args
     , text   "  t    = " <+> caseMaybe mt "Nothing" prettyTCM
     ]
@@ -1446,7 +1446,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
       -- try to project it with all of the possible projections
       let try d = do
             reportSDoc "tc.proj.amb" 30 $ vcat
-              [ text $ "trying projection " ++ prettyShow d
+              [ text $ "trying projection " ++! prettyShow d
               , "  td  = " <+> caseMaybeM (getDefType d ta) "Nothing" prettyTCM
               ]
 
@@ -1454,10 +1454,10 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
             def <- lift $ getConstInfo d
             let isP = isProjection_ $ theDef def
             reportSDoc "tc.proj.amb" 40 $ vcat $
-              text ( "  isProjection = " ++ caseMaybe isP "no" (const "yes")
+              text ( "  isProjection = " ++! caseMaybe isP "no" (const "yes")
                    ) : caseMaybe isP [] (\ Projection{ projProper = proper, projOrig = orig } ->
-              [ text $ "  proper       = " ++ show proper
-              , text $ "  orig         = " ++ prettyShow orig
+              [ text $ "  proper       = " ++! show proper
+              , text $ "  orig         = " ++! prettyShow orig
               ])
 
             -- Andreas, 2017-01-21, issue #2422
@@ -1490,8 +1490,8 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
             let tfull = defType def
             TelV tel _ <- lift $ telViewUpTo' (-1) (not . visible) tfull
             reportSDoc "tc.proj.amb" 30 $ vcat
-              [ text $ "  size tel  = " ++ show (size tel)
-              , text $ "  size pars = " ++ show (size pars)
+              [ text $ "  size tel  = " ++! show (size tel)
+              , text $ "  size pars = " ++! show (size pars)
               ]
             -- See issue 1960 for when the following assertion fails for
             -- the correct disambiguation.
@@ -1512,7 +1512,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
 
           -- Check parameters
           tfull <- typeOfConst d
-          (args0, princArg : args') <- pure $ splitAt k args
+          (args0, princArg : args') <- pure $ splitAt' k args
           (_,_) <- checkKnownArguments args0 pars tfull
 
           -- Check remaining arguments
@@ -1627,7 +1627,7 @@ checkSharpApplication e t c args = do
 
   -- The name of the fresh function.
   i <- fresh :: TCM Int
-  let name = filter (/= '_') (prettyShow $ A.nameConcrete $ A.qnameName c) ++ "-" ++ show i
+  let name = filter (/= '_') (prettyShow $ A.nameConcrete $ A.qnameName c) ++! "-" ++! show i
 
   kit <- coinductionKit'
   let flat = nameOfFlat kit
@@ -1698,7 +1698,7 @@ checkSharpApplication e t c args = do
 
   -- The application of the fresh function to the relevant
   -- arguments.
-  e' <- Def wrapper . map Apply <$> getContextArgs
+  e' <- Def wrapper . map' Apply <$> getContextArgs
 
   reportSDoc "tc.term.expr.coind" 15 $ vcat $
       [ "The coinductive constructor application"

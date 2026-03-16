@@ -1366,7 +1366,7 @@ atTopLevel m = inConcreteMode $ do
           types = map (snd <$>) $ telToList tel
           gamma :: ListTel' A.Name
           gamma = fromMaybe __IMPOSSIBLE__ $
-                    zipWith' (\ x dom -> (x,) <$> dom) names types
+                    zipWithSameLen (\ x dom -> (x,) <$> dom) names types
       reportSDoc "interaction.top" 20 $ TP.vcat
         [ "BasicOps.atTopLevel"
         , "  names = " TP.<+> TP.sep (map prettyA   names)

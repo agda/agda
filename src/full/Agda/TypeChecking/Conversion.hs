@@ -338,7 +338,7 @@ compareTerm' cmp a m n =
               hcomp <- getPrimitiveName' builtinHComp
 
               let
-                ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+                ps = mustAllApplyElims es
                 -- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
                 -- to change Agda's behavior
                 --    isNeutral Blocked{}          = False
@@ -492,7 +492,7 @@ compareTerm' cmp a m n =
         Def q es | Just q == mGlue, Just args@(l:_:a:phi:_) <- allApplyElims es -> do
           aty <- el' (pure $ unArg l) (pure $ unArg a)
           unglue <- prim_unglue
-          let mkUnglue m = apply unglue $ append' (map' (setHiding Hidden) args) [argN m]
+          let mkUnglue m = apply unglue $ (map' (setHiding Hidden) args) ++! [argN m]
           reportSDoc "conv.glue" 20 $ prettyTCM (aty,mkUnglue m,mkUnglue n)
 
           -- Amy, 2023-01-04: Here and in hcompu below we *used to*
@@ -533,14 +533,14 @@ compareTerm' cmp a m n =
           let l = Level lvl
           ty <- el' (pure $ l) (pure $ unArg u0)
           let bA = subIn `apply` [sl,s,phi,u0]
-          let mkUnglue m = apply unglueU $! (argE l:) $! append' (map' (setHiding Hidden) [phi,u]) [argH bA,argN m]
+          let mkUnglue m = apply unglueU $! (argE l:) $! map' (setHiding Hidden) [phi,u] ++! [argH bA,argN m]
           reportSDoc "conv.hcompU" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
           compareTerm cmp ty (mkUnglue m) (mkUnglue n)
 
         Def q es | Just q == mSub, Just args@(l:a:_) <- allApplyElims es -> do
           ty <- el' (pure $ unArg l) (pure $ unArg a)
           out <- primSubOut
-          let mkOut m = apply out $! append' (map (setHiding Hidden) args) [argN m]
+          let mkOut m = apply out $! map (setHiding Hidden) args ++! [argN m]
           compareTerm cmp ty (mkOut m) (mkOut n)
 
         Def q [] | Just q == mI -> compareInterval cmp a' m n
@@ -730,7 +730,7 @@ compareAtom cmp t m n =
               -- sense.
               -- equalType (El (tmSort (unArg lb)) $ apply tGlue $ [la,lb] ++ map (setHiding NotHidden) [bA,phi,bT,e])
               --           (El (tmSort (unArg lb')) $ apply tGlue $ [la',lb'] ++ map (setHiding NotHidden) [bA',phi',bT',e'])
-              compareAtom cmp (AsTermsOf $ El (tmSort (unArg lb)) $ apply tGlue $! append' [la,lb] $! map' (setHiding NotHidden) [bA,phi,bT,e])
+              compareAtom cmp (AsTermsOf $ El (tmSort (unArg lb)) $ apply tGlue $! [la,lb] ++! map' (setHiding NotHidden) [bA,phi,bT,e])
                               (unArg b) (unArg b')
               () <- compareElims [] [] (El (tmSort (unArg la)) (unArg bA)) (Def q as) bs bs'
               return True
@@ -753,7 +753,7 @@ compareAtom cmp t m n =
                 bT  <- open . unArg $ bT
                 bAS <- open . unArg $ bAS
                 (pure tSubOut <#@> (pure tLSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <#> (bT <@> primIZero) <@> bAS)
-              compareAtom cmp (AsTermsOf $ El (tmSort . unArg $ sucla) $ apply tHComp $! append' [sucla, argH (Sort s), phi] [argH (unArg bT), argH bA])
+              compareAtom cmp (AsTermsOf $ El (tmSort . unArg $ sucla) $ apply tHComp $! [sucla, argH (Sort s), phi] ++! [argH (unArg bT), argH bA])
                               (unArg b) (unArg b')
               () <- compareElims [] [] (El s bA) (Def q as) bs bs'
               return True

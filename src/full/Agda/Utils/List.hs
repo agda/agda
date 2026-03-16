@@ -42,11 +42,17 @@ import Agda.Utils.Impossible
 -- * Variants of list case, cons, head, tail, init, last
 ---------------------------------------------------------------------------
 
--- | Strict (++)
-append' :: [a] -> [a] -> [a]
-append' xs ys = case xs of
-  []   -> ys
-  x:xs -> let !res = append' xs ys in x : res
+-- | Spine-strict 'replicate'.
+replicate' :: Int -> a -> [a]
+replicate' n a | n <= 0 = []
+replicate' n a = a : replicate' (n - 1) a
+
+infixr 5 ++!
+-- | Spine-strict (++).
+(++!) :: [a] -> [a] -> [a]
+(++!) xs ys = case xs of
+  []   -> seq ys ys
+  x:xs -> let !res = (++!) xs ys in x : res
 
 -- | Append a single element at the end.
 --   Time: O(length); use only on small lists.
@@ -146,6 +152,17 @@ initLast1 :: a -> [a] -> ([a], a)
 initLast1 a = \case
   []   -> ([], a)
   b:bs -> first (a:) $ initLast1 b bs
+
+-- | Spine-strict 'initLast'.
+initLast' :: forall a. [a] -> Maybe ([a],a)
+initLast' []     = Nothing
+initLast' (a:as) = Just $! initLast1' a as
+
+-- | Spine-strict 'initLast1'.
+initLast1' :: a -> [a] -> ([a], a)
+initLast1' a = \case
+  []   -> ([], a)
+  b:bs -> case initLast1' b bs of (!bs, b) -> (a:bs, b)
 
 -- | 'init' of non-empty list, safe.
 --   O(n).
@@ -250,8 +267,8 @@ genericElemIndex x xs =
 -- | @downFrom n = [n-1,..1,0]@.
 --   O(n).
 downFrom :: Integral a => a -> [a]
-downFrom n | n <= 0     = []
-           | otherwise = let n' = n-1 in n' : downFrom n'
+downFrom n | n <= 0    = []
+           | otherwise = let !n' = n-1 in (n' :) $! downFrom n'
 
 ---------------------------------------------------------------------------
 -- * Update
@@ -270,12 +287,6 @@ map'' :: (a -> b) -> [a] -> [b]
 map'' f = go where
   go []     = []
   go (a:as) = let !bs = go as in f a:bs
-
--- | Spine-strict take.
-take' :: Int -> [a] -> [a]
-take' n as | n <= 0 = []
-take' n []     = []
-take' n (a:as) = (a:) $! take' (n - 1) as
 
 -- | Update the first element of a list, if it exists.
 --   O(1).
@@ -315,6 +326,18 @@ splitExactlyAt :: Integral n => n -> [a] -> Maybe (Prefix a, Suffix a)
 splitExactlyAt 0 xs       = return ([], xs)
 splitExactlyAt n []       = Nothing
 splitExactlyAt n (x : xs) = first (x :) <$> splitExactlyAt (n-1) xs
+
+-- | Spine-strict splitAt.
+splitAt' :: Int -> [a] -> ([a], [a])
+splitAt' n !as | n <= 0 = ([], as)
+splitAt' n []           = ([], [])
+splitAt' n (a:as)       = case splitAt' (n - 1) as of (as, as') -> (a:as, as')
+
+-- | Spine-strict 'take'.
+take' :: Int -> [a] -> [a]
+take' n !as | n <= 0 = []
+take' n []           = []
+take' n (a:as)       = (a:) $! take' (n - 1) as
 
 -- | @takeExactly a n as == take n (as ++ repeat a)@
 --
@@ -805,13 +828,31 @@ nubM eq = loop where
 -- * Zipping
 ---------------------------------------------------------------------------
 
+-- | Spine-strict zipping.
+zip' :: [a] -> [b] -> [(a, b)]
+zip' (a:as) (b:bs) = ((a, b):) $! zip' as bs
+zip' as  !bs       = []
+
+{-# INLINE zipWith' #-}
+-- | Strict 'zipWith'.
+zipWith' :: (a -> b -> c) -> [a] -> [b] -> [c]
+zipWith' f = go where
+  go (a:as) (b:bs) = let !c = f a b in (c:) $! go as bs
+  go as     !bs    = []
+
+{-# INLINE zipWith'' #-}
+-- | Spine-strict 'zipWith'.
+zipWith'' :: (a -> b -> c) -> [a] -> [b] -> [c]
+zipWith'' f = go where
+  go (a:as) (b:bs) = (f a b:) $! go as bs
+  go as     !bs    = []
+
 -- | Requires both lists to have the same length.
 --   O(n).
 --
 --   Otherwise, @Nothing@ is returned.
-
-zipWith' :: (a -> b -> c) -> [a] -> [b] -> Maybe [c]
-zipWith' f = loop
+zipWithSameLen :: (a -> b -> c) -> [a] -> [b] -> Maybe [c]
+zipWithSameLen f = loop
   where
   loop []        []      = Just []
   loop (x : xs) (y : ys) = (f x y :) <$> loop xs ys

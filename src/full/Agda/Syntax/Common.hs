@@ -2695,7 +2695,10 @@ isInsertedHidden a = getHiding a == Hidden && getOrigin a == Inserted
 data Arg e  = Arg
   { argInfo :: ArgInfo
   , unArg :: e
-  } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  } deriving (Eq, Ord, Show, Foldable, Traversable)
+
+instance Functor Arg where
+  fmap f = \(Arg x y) -> Arg x $! f y
 
 instance Decoration Arg where
   traverseF f (Arg ai a) = Arg ai <$> f a

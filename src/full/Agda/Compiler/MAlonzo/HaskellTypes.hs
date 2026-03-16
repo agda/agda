@@ -140,10 +140,10 @@ haskellType' t = runToHs (unEl t) (fromType t)
       kit <- liftTCM coinductionKit
       case v of
         Var x es -> do
-          let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+          let args = mustAllApplyElims es
           hsApp . hsVar <$> getHsVar x <*> fromArgs args
         Def d es -> do
-          let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+          let args = mustAllApplyElims es
           hsApp <$> getHsType d <*> fromArgs args
         Pi a b ->
           if isBinderUsed b  -- Andreas, 2012-04-03.  Q: could we rely on Abs/NoAbs instead of again checking freeness of variable?
@@ -153,7 +153,7 @@ haskellType' t = runToHs (unEl t) (fromType t)
               hsForall <$> getHsVar 0 <*> (hsFun hsA <$> fromType b)
           else hsFun <$> fromDom a <*> fromType (noabsApp __IMPOSSIBLE__ b)
         Con c ci es -> do
-          let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+          let args = mustAllApplyElims es
           hsApp <$> getHsType (conName c) <*> fromArgs args
         Lam{}      -> throwError (BadLambda v)
         Level{}    -> return hsUnit
@@ -222,7 +222,7 @@ hsTypeApproximation poly fv dom
             | q `is` ghcEnvNat     -> return $ tyCon "Integer"
             | q `is` ghcEnvWord64  -> return $ rteCon "Word64"
             | otherwise -> do
-                let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims els
+                let args = mustAllApplyElims els
                 foldl HS.TyApp <$> getHsType' q <*> mapM (goArg n) args
               `catchError` \ _ -> -- Not a Haskell type
                 ifM (and2M (isCompiled q) (isData q))

@@ -25,7 +25,7 @@ import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 
 import Agda.Utils.Range
-import Agda.Utils.List
+import Agda.Utils.List hiding (splitAt')
 import Agda.Utils.Null
 
 ------------------------------------------------------------------------

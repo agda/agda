@@ -57,7 +57,7 @@ import Agda.Utils.Impossible
 -- * Tools to build record values
 
 mkCon :: ConHead -> ConInfo -> Args -> Term
-mkCon h info args = Con h info (map Apply args)
+mkCon h info args = Con h info $! map' Apply args
 
 -- | Order the fields of a record construction.
 orderFields
@@ -662,14 +662,14 @@ curryAt t n = do
           u   = mkCon (killRange $ _recConHead def) ConOSystem ys
           b'  = raise m b `absApp` u
           t'  = gamma `telePi` (tel `telePi` b')
-          gammai = map domInfo $ telToList gamma
-          xs  = reverse $ zipWith (\ ai i -> Arg ai $ var i) gammai [m..]
+          gammai = map' domInfo $ telToList gamma
+          xs  = reverse $ zipWith (\ ai i -> Arg ai $! var i) gammai [m..]
           curry v = teleLam gamma $ teleLam tel $
-                      raise (n + m) v `apply` (xs ++ [Arg ai u])
+                      raise (n + m) v `apply` (xs ++! [Arg ai u])
           zs  = for fs $ fmap $ \ f -> Var 0 [Proj ProjSystem f]
           atel = sgTel $ (,) (absName b) <$> dom
           uncurry v = teleLam gamma $ teleLam atel $
-                        raise (n + 1) v `apply` (xs ++ zs)
+                        raise (n + 1) v `apply` (xs ++! zs)
       return (curry, uncurry, t')
     _ -> __IMPOSSIBLE__
 
@@ -746,7 +746,7 @@ etaExpandRecord'_ forceEta r pars
 
     -- Already expanded.
     Con con_ ci es -> do
-      let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      let args = mustAllApplyElims es
       -- Andreas, 2019-10-21, issue #4148
       -- @con == con_@ might fail, but their normal forms should be equal.
       whenNothingM (conName con `sameDef` conName con_) $ do
@@ -762,7 +762,7 @@ etaExpandRecord'_ forceEta r pars
     _ -> do
       -- Andreas, < 2016-01-18: Note: recFields are always the original projections,
       -- thus, we can use them in Proj directly.
-      let xs' = for (map argFromDom xs) $ fmap $ \ x -> u `applyE` [Proj ProjSystem x]
+      let xs' = for (map' argFromDom xs) $ fmap $ \ x -> u `applyE` [Proj ProjSystem x]
       reportSDoc "tc.record.eta" 20 $ vcat
         [ "eta expanding" <+> prettyTCM u <+> ":" <+> prettyTCM r
         , nest 2 $ vcat
@@ -821,7 +821,7 @@ etaContractRecord r c ci args = if all (not . usableModality) args then fallBack
           _ -> fallBack -- just irrelevant terms
         _ -> fallBack  -- a Nothing
   where
-  fallBack = return (mkCon c ci args)
+  fallBack = return $! mkCon c ci args
   check :: Arg Term -> Dom QName -> Maybe (Maybe Term)
   check a ax = do
   -- @a@ is the constructor argument, @ax@ the corr. record field name
@@ -915,7 +915,7 @@ isSingletonType t = isSingletonType' False t mempty
 -- | Check whether a type has a unique inhabitant (irrelevant parts ignored).
 --   Can be blocked by a metavar.
 isSingletonTypeModuloRelevance :: (PureTCM m, MonadBlock m) => Type -> m Bool
-isSingletonTypeModuloRelevance t = isJust <$> isSingletonType' True t mempty
+isSingletonTypeModuloRelevance t = isJust <$!> isSingletonType' True t mempty
 
 isSingletonType'
   :: forall m. (PureTCM m, MonadBlock m)
@@ -959,7 +959,7 @@ isSingletonType' regardIrrelevance t rs = do
             -- definitional singleton.
             _ -> mzero
 
-      (<|>) <$> record <*> subtype
+      (<|>) <$!> record <*!> subtype
 
 {-# SPECIALIZE isEtaVar :: Term -> Type -> TCM (Maybe Int) #-}
 -- | Checks whether the given term (of the given type) is beta-eta-equivalent
@@ -972,7 +972,7 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
     -- `Var i es`, and returns i if it is. If the argument mi is `Just i'`,
     -- then i and i' are also required to be equal (else Nothing is returned).
     isEtaVarG :: Term -> Type -> Maybe Int -> [Elim' Int] -> MaybeT m Int
-    isEtaVarG u a mi es = do
+    isEtaVarG u a !mi es = do
       (u, a) <- reduce (u, a)
       reportSDoc "tc.lhs" 80 $ "isEtaVarG" <+> nest 2 (vcat
         [ "u  = " <+> prettyTCM u
@@ -988,11 +988,11 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
           return i'
         (_, Def d pars) -> do
           guard =<< do isEtaRecord d
-          fs <- map unDom . recFields . theDef <$> getConstInfo d
+          fs <- map'' unDom . recFields . theDef <$> getConstInfo d
           is <- forM fs $ \f -> do
             let o = ProjSystem
             (_, _, fa) <- MaybeT $ projectTyped u a o f
-            isEtaVarG (u `applyE` [Proj o f]) fa mi (es ++ [Proj o f])
+            isEtaVarG (u `applyE` [Proj o f]) fa mi (es ++! [Proj o f])
           case (mi, is) of
             (Just i, _)     -> return i
             (Nothing, [])   -> mzero
@@ -1000,9 +1000,9 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
         (_, Pi dom cod) -> addContext dom $ do
           let u'  = raise 1 u `apply` [argFromDom dom $> var 0]
               a'  = absBody cod
-              mi' = fmap (+ 1) mi
-              es' = (fmap . fmap) (+ 1) es ++ [Apply $ argFromDom dom $> 0]
-          (-1 +) <$> isEtaVarG u' a' mi' es'
+              mi' = (+ 1) <$!> mi
+              es' = (map' . fmap) (+ 1) es ++! [Apply $ argFromDom dom $> 0]
+          (-1 +) <$!> isEtaVarG u' a' mi' es'
         _ -> mzero
 
     -- `areEtaVarElims u a es es'` checks whether the given elims es (as applied

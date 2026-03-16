@@ -12,6 +12,7 @@ import Agda.Syntax.Common.Pretty
 import Agda.Utils.Empty
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple
+import Agda.Utils.Impossible
 
 -- | Eliminations, subsuming applications and projections.
 --
@@ -37,7 +38,14 @@ instance LensOrigin (Elim' a) where
 isApplyElim :: Elim' a -> Maybe (Arg a)
 isApplyElim (Apply u) = Just u
 isApplyElim Proj{}    = Nothing
-isApplyElim (IApply _ _ r) = Just (defaultArg r)
+isApplyElim (IApply _ _ r) = Just $! defaultArg r
+
+{-# INLINE mustApplyElim #-}
+-- | Drop 'Apply' constructor, fails with @__IMPOSSIBLE__@ on a projection.
+mustApplyElim :: Elim' a -> Arg a
+mustApplyElim (Apply u)      = u
+mustApplyElim Proj{}         = __IMPOSSIBLE__
+mustApplyElim (IApply _ _ r) = defaultArg r
 
 isApplyElim' :: Empty -> Elim' a -> Arg a
 isApplyElim' e = fromMaybe (absurd e) . isApplyElim
@@ -52,6 +60,15 @@ isProperApplyElim = \case
 -- | Drop 'Apply' constructors. (Safe)
 allApplyElims :: [Elim' a] -> Maybe [Arg a]
 allApplyElims = mapM isApplyElim
+
+-- | Drop 'Apply' constructors, fails with @__IMPOSSIBLE__@ if there'
+--  a non-'Apply' entry.
+mustAllApplyElims :: [Elim' a] -> [Arg a]
+mustAllApplyElims [] = []
+mustAllApplyElims (a:as) = case a of
+  Apply a      -> (a :) $! mustAllApplyElims as
+  Proj{}       -> __IMPOSSIBLE__
+  IApply _ _ r -> let !a = defaultArg r in (a :) $! mustAllApplyElims as
 
 -- | Split at first non-'Apply'
 splitApplyElims :: [Elim' a] -> ([Arg a], [Elim' a])

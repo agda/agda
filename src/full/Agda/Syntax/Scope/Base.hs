@@ -836,7 +836,7 @@ zipScope fd fnps fm fs s1 s2 =
          [ (nsid, zipNS nsid ns1 ns2)
          | ((nsid, ns1), (nsid', ns2)) <-
              fromMaybe __IMPOSSIBLE__ $
-               zipWith' (,) (scopeNameSpaces s1) (scopeNameSpaces s2)
+               zipWithSameLen (,) (scopeNameSpaces s1) (scopeNameSpaces s2)
          , assert (nsid == nsid')
          ]
      , scopeImports  = (Map.union `on` scopeImports)  s1 s2

@@ -72,7 +72,7 @@ import Agda.Utils.Impossible
 
 instance MonadMetaSolver TCM where
   newMeta' = newMetaTCM'
-  assignV dir x args v t = assignWrapper dir x (map Apply args) v $ assign dir x args v t
+  assignV dir x args v t = assignWrapper dir x (map' Apply args) v $ assign dir x args v t
   assignTerm' = assignTermTCM'
   etaExpandMeta = etaExpandMetaTCM
   updateMetaVar = updateMetaVarTCM
@@ -98,12 +98,12 @@ findIdx vs v = List.elemIndex v (reverse vs)
 hasTwinMeta :: MetaId -> TCM Bool
 hasTwinMeta x = do
     m <- lookupLocalMeta x
-    return $ isJust $ mvTwin m
+    return $! isJust $ mvTwin m
 
 -- | Check whether a meta variable is a place holder for a blocked term.
 isBlockedTerm :: MetaId -> TCM Bool
 isBlockedTerm x = do
-    reportSLn "tc.meta.blocked" 12 $ "is " ++ prettyShow x ++ " a blocked term? "
+    reportSLn "tc.meta.blocked" 12 $ "is " ++! prettyShow x ++! " a blocked term? "
     i <- lookupMetaInstantiation x
     let r = case i of
             BlockedConst{}                 -> True
@@ -111,13 +111,13 @@ isBlockedTerm x = do
             InstV{}                        -> False
             OpenMeta{}                     -> False
     reportSLn "tc.meta.blocked" 12 $
-      if r then "  yes, because " ++ prettyShow i else "  no"
+      if r then "  yes, because " ++! prettyShow i else "  no"
     return r
 
 isEtaExpandable :: [MetaClass] -> MetaId -> TCM Bool
 isEtaExpandable classes x = do
     i <- lookupMetaInstantiation x
-    return $ case i of
+    return $! case i of
       OpenMeta UnificationMeta       -> True
       OpenMeta InstanceMeta          -> Records `notElem` classes
       InstV{}                        -> False
@@ -142,7 +142,7 @@ assignTermTCM' :: MetaId -> [Arg ArgName] -> Term -> TCM ()
 assignTermTCM' x tel v = do
     reportSDoc "tc.meta.assign" 70 $ vcat
       [ "assignTerm" <+> prettyTCM x <+> " := " <+> prettyTCM v
-      , nest 2 $ "tel =" <+> prettyList_ (map (text . unArg) tel)
+      , nest 2 $ "tel =" <+> prettyList_ (map' (text . unArg) tel)
       ]
      -- verify (new) invariants
     whenM (not <$> asksTC envAssignMetas) __IMPOSSIBLE__
@@ -161,7 +161,7 @@ assignTermTCM' x tel v = do
          }
     etaExpandListeners x
     wakeupConstraints x
-    reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++ prettyShow x
+    reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++! prettyShow x
 
 -- * Creating meta variables.
 
@@ -183,7 +183,7 @@ newSortMeta =
        x   <- newMeta Instantiable i normalMetaPriority (idP 0) j
        reportSDoc "tc.meta.new" 50 $
          "new sort meta" <+> prettyTCM x
-       return $ MetaS x []
+       return $! MetaS x []
 
 -- | Create a sort meta that may be instantiated with 'Inf' (Setω).
 newSortMetaCtx :: MonadMetaSolver m => Args -> m Sort
@@ -194,7 +194,7 @@ newSortMetaCtx vs = do
     x   <- newMeta Instantiable i normalMetaPriority (idP $ size tel) $ IsSort () t
     reportSDoc "tc.meta.new" 50 $
       "new sort meta" <+> prettyTCM x <+> ":" <+> prettyTCM t
-    return $ MetaS x $ map Apply vs
+    return $! MetaS x $ map' Apply vs
 
 newTypeMeta' :: Comparison -> Sort -> TCM Type
 newTypeMeta' cmp s = El s . snd <$> newValueMeta RunMetaOccursCheck cmp (sort s)
@@ -213,7 +213,7 @@ newTypeMeta_  = newTypeMeta' CmpEq =<< (workOnTypes $ newSortMeta)
 newLevelMeta :: MonadMetaSolver m => m Level
 newLevelMeta = do
   (x, v) <- newValueMeta RunMetaOccursCheck CmpEq =<< levelType
-  return $ case v of
+  return $! case v of
     Level l    -> l
     _          -> atomicLevel v
 
@@ -249,7 +249,7 @@ newInstanceMetaCtx s t vs = do
   let c = FindInstance r x Nothing
   addAwakeConstraint alwaysUnblock c
   etaExpandMetaSafe x
-  return (x, MetaV x $ map Apply vs)
+  return (x, MetaV x $ map' Apply vs)
 
 -- | Create a new value meta with specific dependencies, possibly η-expanding in the process.
 newNamedValueMeta :: MonadMetaSolver m => RunMetaOccursCheck -> MetaNameSuggestion -> Comparison -> Type -> m (MetaId, Term)
@@ -309,13 +309,13 @@ newValueMetaCtx' frozen b cmp a tel perm vs = do
   x <- newMeta frozen i normalMetaPriority perm (HasType () cmp t)
   modality <- currentModality
   reportSDoc "tc.meta.new" 50 $ fsep
-    [ text $ "new meta (" ++ show (i ^. lensIsAbstract) ++ "):"
+    [ text $ "new meta (" ++! show (i ^. lensIsAbstract) ++! "):"
     , nest 2 $ prettyTCM vs <+> "|-"
     , nest 2 $ pretty x <+> ":" <+> pretty modality <+> prettyTCM t
     ]
   etaExpandMetaSafe x
   -- Andreas, 2012-09-24: for Metas X : Size< u add constraint X+1 <= u
-  let u = MetaV x $ map Apply vs
+  let u = MetaV x $ map' Apply vs
   boundedSizeMetaHook u tel a
   return (x, u)
 
@@ -352,9 +352,9 @@ newArgsMetaCtx'' pref frozen condition (El s tm) tel perm ctx = do
           -- Issue #3031: It's not enough to applyModalityToContext, since most (all?)
           -- of the context lives in tel. Don't forget the arguments in ctx.
           tel' = telFromList $
-                 map (mod `inverseApplyModalityButNotQuantity`) $
+                 map' (mod `inverseApplyModalityButNotQuantity`) $
                  telToList tel
-          ctx' = map (mod `inverseApplyModalityButNotQuantity`) ctx
+          ctx' = map' (mod `inverseApplyModalityButNotQuantity`) ctx
       (m, u) <- applyModalityToContext info $
                  newValueMetaCtx frozen RunMetaOccursCheck CmpLeq a tel' perm ctx'
       -- Jesper, 2021-05-05: When creating a metavariable from a
@@ -365,7 +365,7 @@ newArgsMetaCtx'' pref frozen condition (El s tm) tel perm ctx = do
         setMetaGeneralizableArgInfo m $ hideOrKeepInstance info
       setMetaNameSuggestion m (suffixNameSuggestion pref (absName codom))
       args <- newArgsMetaCtx'' pref frozen condition (codom `absApp` u) tel perm ctx
-      return $ Arg info u : args
+      return $! Arg info u : args
     _  -> return []
 
 newArgsMetaCtx'
@@ -396,7 +396,7 @@ newRecordMetaCtx pref frozen r pars tel perm ctx = do
   let ftel = apply (_recTel rdef) pars
   fields <- newArgsMetaCtx'' pref frozen trueCondition
               (telePi_ ftel __DUMMY_TYPE__) tel perm ctx
-  return $ Con con ConOSystem (map Apply fields)
+  return $! Con con ConOSystem $! map' Apply fields
 
 newQuestionMark :: InteractionId -> Comparison -> Type -> TCM (MetaId, Term)
 newQuestionMark ii cmp = newQuestionMark' (newValueMeta' RunMetaOccursCheck) ii cmp
@@ -441,8 +441,8 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
     -- with substitutions to move between parent and child.
     let gxs  = contextNames' gamma
     let dxs  = contextNames' delta
-    let gys  = map nameCanonical gxs
-    let dys  = map nameCanonical dxs
+    let gys  = map' nameCanonical gxs
+    let dys  = map' nameCanonical dxs
     let glen = length gxs
     let dlen = length dxs
     reportSDoc "tc.interaction" 20 $ vcat
@@ -477,7 +477,7 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
             ]
           __IMPOSSIBLE__
         -- Apply the meta to |Γ| arguments from Δ.
-        return $ map var [dlen - glen .. dlen - 1]
+        return $! map' var [dlen - glen .. dlen - 1]
 
       -- Case: record variable in the context.
       Just k -> do
@@ -487,8 +487,8 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
         -- However, as they do not share common ancestry, the @nameId@s differ,
         -- so we consider only the original concrete names in gys and dys.
         -- This is a bit risky... blame goes to #434.
-        let (d2len, g1len) = findOverlap (take k dys) gys
-        reportSDoc "tc.interaction" 30 $ vcat $ map (nest 2)
+        let (d2len, g1len) = findOverlap (take' k dys) gys
+        reportSDoc "tc.interaction" 30 $ vcat $ map' (nest 2)
           [ "k     =" <+> pretty k
           , "glen  =" <+> pretty glen
           , "g0len =" <+> pretty g0len
@@ -505,7 +505,7 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
             ]
           __IMPOSSIBLE__
         -- The Γ₁ part should match.
-        unless ( ((==) `on` take g1len) gys (drop d2len dys) ) $ do
+        unless ( ((==) `on` take' g1len) gys (drop d2len dys) ) $ do
           reportSDoc "impossible" 10 $ vcat
             [ "expecting meta-creation context (with fields instead of record var)"
             , nest 2 $ pretty gxs
@@ -513,37 +513,37 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
             , nest 2 $ pretty dxs
             ]
           __IMPOSSIBLE__
-        let (vs1, v : vs0) = splitAt g1len $ map var [d2len..dlen-1]
+        let (vs1, v : vs0) = splitAt' g1len $ map' var [d2len..dlen-1]
         -- We need to expand the record var @v@ into the correct number of fields.
         let numFields = glen - g1len - g0len
-        if numFields <= 0 then return $ vs1 ++ vs0 else do
+        if numFields <= 0 then return $! vs1 ++! vs0 else do
           -- Get the record type.
           let t = unDom $ ctxEntryDom $ fromMaybe __IMPOSSIBLE__ $
                   cxLookup k delta
           -- Get the record field names.
-          fs <- reverse . take numFields <$> getRecordTypeFields t
+          fs <- reverse . take' numFields <$> getRecordTypeFields t
           -- Check that the record field names match
           -- the supposed record field names from the context of the original meta.
-          let gfs = take numFields (drop g1len gxs)
-          reportSDoc "tc.interaction" 30 $ vcat $ map (nest 2)
+          let gfs = take' numFields (drop g1len gxs)
+          reportSDoc "tc.interaction" 30 $ vcat $ map' (nest 2)
             [ "fs    =" <+> pretty fs
             , "gfs   =" <+> pretty gfs
             ]
           -- NameIds do not match, so we have to revert to the concrete name.
-          -- unless (gfs == map (qnameName . unDom) fs) __IMPOSSIBLE__
-          unless (((==) `on` map nameCanonical) gfs (map (qnameName . unDom) fs)) __IMPOSSIBLE__
+          -- unless (gfs == map' (qnameName . unDom) fs) __IMPOSSIBLE__
+          unless (((==) `on` map' nameCanonical) gfs (map' (qnameName . unDom) fs)) __IMPOSSIBLE__
           -- Field arguments to the original meta are projections from the record var.
-          let vfs = map ((\ x -> v `applyE` [Proj ProjSystem x]) . unDom) fs
+          let vfs = map' ((\ x -> v `applyE` [Proj ProjSystem x]) . unDom) fs
           -- These are the final args to the original meta:
-          return $ vs1 ++ vfs ++ vs0
+          return $! vs1 ++! vfs ++! vs0
 
     -- Use ArgInfo from Γ.
-    let args = zipWith (<$) (reverse rev_args) $ contextArgs gamma
+    let args = zipWith' (<$) (reverse rev_args) $ contextArgs gamma
     -- Take the permutation into account (see TC.Monad.MetaVars.getMetaContextArgs).
     let vs = permute (takeP (length args) p) args
     reportSDoc "tc.interaction" 20 $ vcat
       [ "meta reuse arguments:" <+> prettyTCM vs ]
-    return (x, MetaV x $ map Apply vs)
+    return (x, MetaV x $ map' Apply vs)
 
 {-# SPECIALIZE blockTerm :: Type -> TCM Term -> TCM Term #-}
 -- | Construct a blocked constant if there are constraints.
@@ -562,10 +562,10 @@ blockTermOnProblem t v pid = do
   -- Andreas, 2012-09-27 do not block on unsolved size constraints
   solved <- isProblemSolved pid
   ifM (return solved `or2M` isSizeProblem pid)
-      (v <$ reportSLn "tc.meta.blocked" 20 ("Not blocking because " ++ show pid ++ " is " ++
+      (v <$ reportSLn "tc.meta.blocked" 20 ("Not blocking because " ++! show pid ++! " is " ++
                                             if solved then "solved" else "a size problem")) $ do
     i   <- createMetaInfo
-    es  <- map Apply <$> getContextArgs
+    es  <- map' Apply <$> getContextArgs
     tel <- getContextTelescope
     x   <- newMeta' (BlockedConst $ abstract tel v)
                     Instantiable
@@ -656,7 +656,7 @@ postponeTypeCheckingProblem p unblock = do
   -- Since this meta's solution comes from user code, we do not need
   -- to run the extended occurs check (metaOccurs) to exclude
   -- non-terminating solutions.
-  es  <- map Apply <$> getContextArgs
+  es  <- map' Apply <$> getContextArgs
   (_, v) <- newValueMeta DontRunMetaOccursCheck CmpLeq t
   cmp <- buildProblemConstraint_ (unblockOnMeta m) (ValueCmp CmpEq (AsTermsOf t) v (MetaV m es))
   reportSDoc "tc.constr.add" 20 $ "adding constraint" <+> prettyTCM cmp
@@ -678,7 +678,7 @@ problemType (DisambiguateConstructor (ConstructorDisambiguationData _ _ _ t) _) 
 --   Don't do anything if the meta-variable is a blocked term.
 etaExpandMetaTCM :: [MetaClass] -> MetaId -> TCM ()
 etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignMetas `and2M` isEtaExpandable kinds m) $ do
-  verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ prettyShow m) $ do
+  verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++! prettyShow m) $ do
     let waitFor b = do
           reportSDoc "tc.meta.eta" 20 $ do
             "postponing eta-expansion of meta variable" <+>
@@ -688,7 +688,7 @@ etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignM
         dontExpand = do
           reportSDoc "tc.meta.eta" 20 $ do
             "we do not expand meta variable" <+> prettyTCM m <+>
-              text ("(requested was expansion of " ++ show kinds ++ ")")
+              text ("(requested was expansion of " ++! show kinds ++! ")")
     meta <- lookupLocalMeta m
     case mvJudgement meta of
       IsSort{} -> dontExpand
@@ -749,7 +749,7 @@ etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignM
                 catchPatternErr (\x -> waitFor x) $ do
                  ifM (isSingletonRecord r ps) expand dontExpand
                 else dontExpand
-            ) $ {- else -} ifM (andM [ return $ Levels `elem` kinds
+            ) $ {- else -} ifM (andM [ return $! Levels `elem` kinds
                             , typeInType
                             , (Just lvl ==) <$> getBuiltin' builtinLevel
                             ]) (do
@@ -781,7 +781,7 @@ assignWrapper :: (MonadMetaSolver m)
 assignWrapper dir x es v doAssign = do
   ifNotM (asksTC envAssignMetas) dontAssign $ {- else -} do
     reportSDoc "tc.meta.assign" 10 $ do
-      "term" <+> prettyTCM (MetaV x es) <+> text (":" ++ prettyShow dir) <+> prettyTCM v
+      "term" <+> prettyTCM (MetaV x es) <+> text (":" ++! prettyShow dir) <+> prettyTCM v
     nowSolvingConstraints doAssign `finally` solveAwakeConstraints
 
   where dontAssign = do
@@ -826,7 +826,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   reportSDoc "tc.meta.assign" 25 $ "v = " <+> prettyTCM v
   reportSDoc "tc.meta.assign" 45 $
     "MetaVars.assign: assigning meta " <+> prettyTCM (MetaV x []) <+>
-    " with args " <+> prettyList_ (map (prettyTCM . unArg) args) <+>
+    " with args " <+> prettyList_ (map' (prettyTCM . unArg) args) <+>
     " to " <+> prettyTCM v
   reportSDoc "tc.meta.assign" 45 $
     "MetaVars.assign: type of meta: " <+> prettyTCM t
@@ -961,8 +961,8 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
       -- BEGIN attempt #4159
       -- let constraint = case v of
-      --       -- Sort s -> dirToCmp SortCmp dir (MetaS x $ map Apply args) s
-      --       _      -> dirToCmp (\ cmp -> ValueCmp cmp target) dir (MetaV x $ map Apply args) v
+      --       -- Sort s -> dirToCmp SortCmp dir (MetaS x $ map' Apply args) s
+      --       _      -> dirToCmp (\ cmp -> ValueCmp cmp target) dir (MetaV x $ map' Apply args) v
       -- reportSDoc "tc.meta.assign.catch" 40 $ sep
       --   [ "assign: catching constraint:"
       --   , prettyTCM constraint
@@ -1009,10 +1009,10 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
               pr (Def c []) = prettyTCM c
               pr _          = ".."
           in vcat
-               [ "mvar args:" <+> sep (map (pr . unArg) args)
-               , "fvars lhs (relevant)        :" <+> sep (map (text . show) relevantVL)
-               , "fvars lhs (shape-irrelevant):" <+> sep (map (text . show) shapeIrrelevantVL)
-               , "fvars lhs (irrelevant)      :" <+> sep (map (text . show) irrelevantVL)
+               [ "mvar args:" <+> sep (map' (pr . unArg) args)
+               , "fvars lhs (relevant)        :" <+> sep (map' (text . show) relevantVL)
+               , "fvars lhs (shape-irrelevant):" <+> sep (map' (text . show) shapeIrrelevantVL)
+               , "fvars lhs (irrelevant)      :" <+> sep (map' (text . show) irrelevantVL)
                ]
 
       -- Check that the x doesn't occur in the right hand side.
@@ -1040,7 +1040,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       -- we'll build solutions where the irrelevant terms are not valid
       let fvs = freeVarSet v
       reportSDoc "tc.meta.assign" 20 $
-        "fvars rhs:" <+> sep (map (text . show) $ VarSet.toAscList fvs)
+        "fvars rhs:" <+> sep (map' (text . show) $ VarSet.toAscList fvs)
 
       -- Check that the arguments are variables
       mids <- do
@@ -1049,10 +1049,10 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           -- all args are variables
           Right ids -> do
             reportSDoc "tc.meta.assign" 60 $
-              "inverseSubst returns:" <+> sep (map pretty ids)
+              "inverseSubst returns:" <+> sep (map' pretty ids)
             reportSDoc "tc.meta.assign" 50 $
-              "inverseSubst returns:" <+> sep (map prettyTCM ids)
-            let boundVars = VarSet.fromList $ map fst ids
+              "inverseSubst returns:" <+> sep (map' prettyTCM ids)
+            let boundVars = VarSet.fromList $ map' fst ids
             if fvs `VarSet.isSubsetOf` boundVars
               then return $ Just ids
               else return Nothing
@@ -1084,7 +1084,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
           -- Check ids is time respecting.
           () <- do
-            let idvars = map (second freeVarSet) ids
+            let idvars = map' (second freeVarSet) ids
             -- earlierThan α v := v "arrives" before α
             let earlierThan l j = j > l
             TelV tel' _ <- telViewUpToPath (length args) t
@@ -1093,7 +1093,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
               case getLock (getArgInfo d) of
                 IsNotLock -> pure ()
                 IsLock{} -> do
-                let us = VarSet.unions $ map snd $ filter (earlierThan i . fst) idvars
+                let us = VarSet.unions $ map' snd $ filter (earlierThan i . fst) idvars
                 -- us Earlier than u
                 unlessM (addContext tel' $ checkEarlierThan u us) $
                   patternViolation (unblockOnMeta x)  -- If the earlier check hard-fails we need to
@@ -1113,7 +1113,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           --     Γ ⊢ _X =?= λ x → v
           --   @
           -- we need to check that @A <: A'@ (due to contravariance).
-          let sigma = parallelS $ reverse $ map unArg args
+          let sigma = parallelS $ reverse $ map' unArg args
           hasSubtyping <- optCumulativity <$> pragmaOptions
           when hasSubtyping $ forM_ ids $ \(i , u) -> do
             -- @u@ is a (projected) variable, so we can infer its type
@@ -1142,7 +1142,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
         "pruning" <+> prettyTCM x <+> do text $ if success then "succeeded" else "failed"
       blocker <- if
         | success   -> return alwaysUnblock  -- If pruning succeeded we want to retry right away
-        | otherwise -> unblockOnAnyMetaIn . MetaV x . map Apply <$> instantiateFull args
+        | otherwise -> unblockOnAnyMetaIn . MetaV x . map' Apply <$> instantiateFull args
              -- TODO: could be more precise: only unblock on metas
              --       applied to offending variables
       patternViolation blocker
@@ -1189,7 +1189,7 @@ attemptInertRHSImprovement :: MetaId -> Args -> Term -> TCM ()
 attemptInertRHSImprovement m args v = do
   reportSDoc "tc.meta.inert" 30 $ vcat
     [ "attempting inert rhs improvement"
-    , nest 2 $ sep [ prettyTCM (MetaV m $ map Apply args) <+> "=="
+    , nest 2 $ sep [ prettyTCM (MetaV m $ map' Apply args) <+> "=="
                    , prettyTCM v ] ]
   -- Check that the right-hand side has the form D vs, for some inert constant D.
   -- Returns the type of D and a function to build an application of D.
@@ -1209,13 +1209,13 @@ attemptInertRHSImprovement m args v = do
   -- Solve the meta with _M := \ xs -> D (_Y1 xs) .. (_Yn xs), for fresh metas
   -- _Yi.
   metaArgs <- inTopContext $ addContext tel $ newArgsMeta a
-  let varArgs = map Apply $ reverse $ zipWith (\i a -> var i <$ a) [0..] (reverse args)
+  let varArgs = map' Apply $ reverse $ zipWith' (\i a -> var i <$ a) [0..] (reverse args)
       sol     = mkRHS metaArgs
-      argTel  = map ("x" <$) args
+      argTel  = map' ("x" <$) args
   reportSDoc "tc.meta.inert" 30 $ nest 2 $ vcat
     [ "a       =" <+> prettyTCM a
     , "tel     =" <+> prettyTCM tel
-    , "metas   =" <+> prettyList (map prettyTCM metaArgs)
+    , "metas   =" <+> prettyList (map' prettyTCM metaArgs)
     , "sol     =" <+> prettyTCM sol
     ]
   assignTerm m argTel sol
@@ -1234,11 +1234,11 @@ attemptInertRHSImprovement m args v = do
                 patternViolation
               Just args -> return args
       case v of
-        Var x elims -> (, Var x . map Apply) <$> typeOfBV x
+        Var x elims -> (, Var x . map' Apply) <$> typeOfBV x
         Con c ci args  -> notInert -- (, Con c ci) <$> defType <$> getConstInfo (conName c)
         Def f elims -> do
           def <- getConstInfo f
-          let good = return (defType def, Def f . map Apply)
+          let good = return (defType def, Def f . map' Apply)
           case theDef def of
             Axiom{}       -> good
             Datatype{}    -> good
@@ -1288,7 +1288,7 @@ attemptInertRHSImprovement m args v = do
 assignMeta :: Int -> MetaId -> Type -> [Int] -> Term -> TCM ()
 assignMeta m x t ids v = do
   let n    = length ids
-      cand = List.sort $ zip ids $ map var $ downFrom n
+      cand = List.sort $ zip' ids $ map' var $ downFrom n
   assignMeta' m x t n cand v
 
 -- | @assignMeta' m x t ids u@ solves @x = [ids]u@ for meta @x@ of type @t@,
@@ -1472,12 +1472,12 @@ subtypingForSizeLt dir   x mvar t args v cont = do
                        (HasType __IMPOSSIBLE__ CmpLeq t')
           -- Note: no eta-expansion of new meta possible/necessary.
           -- Add the size constraint @y args `dir` u@.
-          let yArgs = MetaV y $ map Apply args
+          let yArgs = MetaV y $ map' Apply args
           addConstraint (unblockOnMeta y) $ dirToCmp (`ValueCmp` AsSizes) dir yArgs u
           -- We continue with the new assignment problem, and install
           -- an exception handler, since we created a meta and a constraint,
           -- so we cannot fall back to the original handler.
-          let xArgs = MetaV x $ map Apply args
+          let xArgs = MetaV x $ map' Apply args
               v'    = Def qSizeLt [Apply $ Arg ai yArgs]
               c     = dirToCmp (`ValueCmp` (AsTermsOf sizeUniv)) dir xArgs v'
           catchConstraint c $ cont v'
@@ -1535,7 +1535,7 @@ instance NoProjectedVar a => NoProjectedVar [a]
 instance NoProjectedVar Term where
   noProjectedVar = \case
       Var i es
-        | qs@(_:_) <- takeWhileJust id $ map isProjElim es
+        | qs@(_:_) <- takeWhileJust id $ map' isProjElim es
         -> Left $ ProjectedVar i qs
       -- Andreas, 2015-09-12 Issue #1316:
       -- Also look in inductive record constructors
@@ -1607,10 +1607,10 @@ etaExpandProjectedVar mvar x t n qs = inTopContext $ do
       unless (recEtaEquality def) __IMPOSSIBLE__
       let tel = recTel def `apply` pars
           m   = size tel
-          v   = Con (recConHead def) $ map var $ downFrom m
+          v   = Con (recConHead def) $ map' var $ downFrom m
           b'  = raise m b `absApp` v
           fs  = recFields def
-          vs  = zipWith (\ f i -> Var i [Proj f]) fs $ downFrom m
+          vs  = zipWith' (\ f i -> Var i [Proj f]) fs $ downFrom m
           -- v = c (n-1) ... 1 0
       (tel, u) <- etaExpandAtRecordType a $ var 0
       -- TODO: compose argInfo ai with tel.
@@ -1663,10 +1663,10 @@ data InvertExcept
 --   has to be checked separately.
 --
 inverseSubst' :: (Term -> Bool) -> Args -> ExceptT InvertExcept TCM SubstCand
-inverseSubst' skip args = map (first unArg) <$> loop (zip args terms)
+inverseSubst' skip args = map' (first unArg) <$> loop (zip' args terms)
   where
   loop  = foldM isVarOrIrrelevant []
-  terms = map var (downFrom (size args))
+  terms = map' var (downFrom (size args))
   failure c = do
     lift $ reportSDoc "tc.meta.assign" 15 $ vcat
       [ "not all arguments are variables: " <+> prettyTCM args
@@ -1682,7 +1682,7 @@ inverseSubst' skip args = map (first unArg) <$> loop (zip args terms)
     ineg <- getPrimitiveName' builtinINeg
     case stripDontCare v of
       -- i := x
-      Var i [] -> return $ (Arg info i, t) `cons` vars
+      Var i [] -> return $! (Arg info i, t) `cons` vars
 
       -- π i := x  try to eta-expand projection π away!
       Var i es | Just qs <- mapM isProjElim es ->
@@ -1718,8 +1718,8 @@ inverseSubst' skip args = map (first unArg) <$> loop (zip args terms)
                       , argInfoAnnotation    = argInfoAnnotation info'
                       }
                   vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-              res <- loop $ zipWith aux vs fs
-              return $ res `append` vars
+              res <- loop $ zipWith' aux vs fs
+              return $! res `append` vars
             | otherwise -> fallback
           _ -> fallback
 
@@ -1819,7 +1819,7 @@ isFaceConstraint mid args = runMaybeT $ do
     rho = prependS impossible ivs $ raiseS n
 
     over  = size tel' - size tel''
-    endps = IntMap.fromList $ catMaybes $ zipWith (\a i -> fin a (i - over)) args (downFrom n)
+    endps = IntMap.fromList $ catMaybes $ zipWith' (\a i -> fin a (i - over)) args (downFrom n)
 
   reportSDoc "tc.ip.boundary" 45 $ vcat
     [ "ivs   =" <+> prettyTCM ivs
@@ -1857,7 +1857,7 @@ tryAddBoundary dir x iid args v target = do
     rhsv = freeVarSet v
 
     allVars :: SubstCand -> Bool
-    allVars sub = rhsv `VarSet.isSubsetOf` VarSet.fromList (map fst sub)
+    allVars sub = rhsv `VarSet.isSubsetOf` VarSet.fromList (map' fst sub)
 
   TelV tel' _ <- telViewUpToPath n t
 
@@ -1914,13 +1914,13 @@ openMetasToPostulates = do
     -- Create a name for the new postulate.
     let r = clValue $ miClosRange $ mvInfo mv
     s' <- render <$> prettyTCM x -- Using _ is a bad idea, as it prints as prefix op
-    let s = "unsolved#meta." ++ filter (/= '_') s'
+    let s = "unsolved#meta." ++! filter (/= '_') s'
     n <- freshName r s
     let q = A.QName m n
 
     -- Debug.
     reportSDoc "meta.postulate" 20 $ vcat
-      [ text ("Turning " ++ if isSortMeta_ mv then "sort" else "value" ++ " meta ")
+      [ text ("Turning " ++! if isSortMeta_ mv then "sort" else "value" ++! " meta ")
           <+> prettyTCM x <+> " into postulate."
       , nest 2 $ vcat
         [ "Name: " <+> prettyTCM q
@@ -1956,7 +1956,7 @@ dependencySortMetas metas = do
                 getType m
       return [ (m, m') | m' <- Set.toList deps ]
 
-  return $ Graph.topSort metas' metaGraph
+  return $! Graph.topSort metas' metaGraph
 
   where
     metas' = Set.fromList metas
