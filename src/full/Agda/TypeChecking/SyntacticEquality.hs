@@ -29,7 +29,7 @@ import Control.Monad.Trans      ( lift )
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Monad  ( ReduceM(..), MonadReduce(..), TCEnv(..), MonadTCEnv(..) )
+import Agda.TypeChecking.Monad  (TCM, ReduceM(..), MonadReduce(..), TCEnv(..), MonadTCEnv(..))
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 

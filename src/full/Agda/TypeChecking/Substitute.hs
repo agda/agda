@@ -120,35 +120,63 @@ canProject f v =
         setArgInfo (getArgInfo fld) <.> isApplyElim =<< listToMaybe (drop i vs)
     _ -> Nothing
 
+{-# INLINE conApp #-}
 -- | Eliminate a constructed term.
-conApp :: forall t. (Coercible t Term, Apply t) => (Empty -> Term -> Elims -> Term) -> ConHead -> ConInfo -> Elims -> Elims -> Term
-conApp fallback ch                    ci args []                  = Con ch ci args
-conApp fallback ch                    ci args    (a@Apply{} : es) = conApp @t fallback ch ci (args ++ [a]) es
-conApp fallback ch                    ci args   (a@IApply{} : es) = conApp @t fallback ch ci (args ++ [a]) es
-conApp fallback ch@(ConHead c _ _ fs) ci args ees@(Proj o f : es) =
-  let failure :: forall a. a -> a
-      failure err = flip trace err $ concat
-        [ "conApp: constructor ", prettyShow c
-        , unlines $ " with fields" : map (("  " ++) . prettyShow) fs
-        , unlines $ " and args"    : map (("  " ++) . prettyShow) args
-        , " projected by ", prettyShow f
-        ]
-      isApply e = fromMaybe (failure __IMPOSSIBLE__) $ isApplyElim e
-      stuck err = fallback err (Con ch ci args) [Proj o f]
-      -- Recurse using the instance for 't', see @applyTermE@
+conApp :: forall t. (Coercible t Term, Apply t)
+       => (Empty -> Term -> Elims -> Term) -> ConHead -> ConInfo -> Elims -> Elims -> Term
+conApp fallback ch@(ConHead c _ _ fs) ci args topEs = go topEs where
+
+  -- print a message when we can't project "f" field
+  {-# INLINE traceProjFailure #-}
+  traceProjFailure :: forall a. QName -> a -> a
+  traceProjFailure f err = go c f fs args topEs err where
+    {-# NOINLINE go #-} -- Noinline because we don't want GHC to lift thunks out from the definition.
+                        -- And we abstract over all free vars because we don't want GHC to make a closure
+                        -- for go.
+    go c f fs args es err = flip trace err $ concat
+      [ "conApp: constructor ", prettyShow c
+      , unlines $ " with fields" : map (("  " ++) . prettyShow) fs
+      , unlines $ " and args"    : map (("  " ++) . prettyShow) (append' args es)
+      , " projected by ", prettyShow f
+      ]
+
+  stuck :: Empty -> Term
+  stuck err = fallback err (Con ch ci args) topEs
+
+  go :: Elims -> Term
+  go = \case
+    []            -> Con ch ci $! append' args topEs
+    Apply{}  : es -> go es
+    IApply{} : es -> go es
+    Proj o f : es -> lookupProj fs args where
+
+      fieldNotFound :: Term
+      fieldNotFound = traceProjFailure f $ stuck __IMPOSSIBLE__
+
       app :: Term -> Elims -> Term
       app v es = coerce $ applyE (coerce v :: t) es
-  in
-    findWithIndex' ((f ==) . unArg) fs
-      (failure $ stuck __IMPOSSIBLE__ `app` es)
-      (\fld i -> let
+
+      -- attempt to return a projected term
+      project :: Arg QName -> Elim -> Term
+      project fld = \case
         -- Andreas, 2018-06-12, issue #2170
-        -- We safe-guard the projected value by DontCare using the ArgInfo stored at the record
-        -- constructor, since the ArgInfo in the constructor application might be inaccurate
-        -- because of subtyping.
-        !v = maybe (failure $ stuck __IMPOSSIBLE__) (relToDontCare fld . argToDontCare . isApply)
-                   $ listToMaybe $ drop i args
-        in v `app` es)
+        -- We safe-guard the projected value by DontCare using the ArgInfo stored at the record constructor,
+        -- since the ArgInfo in the constructor application might be inaccurate because of subtyping.
+        Apply a -> let !v = relToDontCare fld (argToDontCare a) in app v es
+        _       -> traceProjFailure f __IMPOSSIBLE__
+
+      -- try to look up the projection
+      lookupProj :: [Arg QName] -> Elims -> Term
+      lookupProj (fld:fs) (a:args) | f == unArg fld = project fld a
+                                   | otherwise      = lookupProj fs args
+      lookupProj fs [] = lookupFromElims fs topEs -- field is not in the original constructor args
+      lookupProj [] _  = fieldNotFound
+
+      -- try to look up the projection from the newly supplied Elims
+      lookupFromElims :: [Arg QName] -> Elims -> Term
+      lookupFromElims (fld:fs) (a:es) | f == unArg fld = project fld a
+                                      | otherwise      = lookupFromElims fs es
+      lookupFromElims _ _ = fieldNotFound
 
   -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin
   --     fallback = v

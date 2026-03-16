@@ -271,6 +271,12 @@ map'' f = go where
   go []     = []
   go (a:as) = let !bs = go as in f a:bs
 
+-- | Spine-strict take.
+take' :: Int -> [a] -> [a]
+take' n as | n <= 0 = []
+take' n []     = []
+take' n (a:as) = (a:) $! take' (n - 1) as
+
 -- | Update the first element of a list, if it exists.
 --   O(1).
 updateHead :: (a -> a) -> [a] -> [a]
