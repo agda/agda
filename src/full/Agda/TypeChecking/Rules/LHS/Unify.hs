@@ -353,7 +353,7 @@ dataStrategy k s = do
   case unEl a of
     Def d es | sortOk -> do
       npars <- catMaybesMP $ getNumberOfParameters d
-      let (pars,ixs) = splitAt npars $ mustAllApplyElims es
+      let (!pars, !ixs) = splitAt' npars $ mustAllApplyElims es
       reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s `abstract` eqTel s) $
         "Found equation at datatype " <+> prettyTCM d
          <+> " with parameters " <+> prettyTCM (raise (size (eqTel s) - k) pars)
@@ -554,7 +554,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   withoutK <- withoutKOption
 
   -- Split equation telescope into parts before and after current equation
-  let (eqListTel1, _ : eqListTel2) = splitAt k $ telToList $ eqTel s
+  let (eqListTel1, _ : eqListTel2) = splitAt' k $ telToList $ eqTel s
       (eqTel1, eqTel2) = (telFromList eqListTel1, telFromList eqListTel2)
 
   -- Get constructor telescope and target indices
@@ -961,8 +961,8 @@ patternBindingForcedVars forced v = do
           -- The new binding site must be more relevant (more relevant = smaller).
           -- "The forcing analysis guarantees that there exists such a position."
           -- Really? Andreas, 2021-08-18, issue #5506
-          tell   $ IntMap.singleton i md
-          modify $ IntMap.delete i
+          tell   $! IntMap.singleton i md
+          modify $! IntMap.delete i
           return $! varP (deBruijnVar i)
         _ -> return $! dotP (Var i [])
 

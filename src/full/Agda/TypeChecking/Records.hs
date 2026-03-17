@@ -276,7 +276,7 @@ tryRecordType t = ifBlocked t (\ m a -> return $ Left $ Blocked m a) $ \ nb t ->
   let no = return $ Left $ NotBlocked nb t
   case unEl t of
     Def r es -> do
-      let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      let vs = mustAllApplyElims es
       caseMaybeM (isRecord r) no $ \ def -> return $ Right (r,vs,def)
     _ -> no
 
@@ -335,7 +335,7 @@ getDefType f t = do
           -- we will produce garbage parameters.
           ifNotM (eligibleForProjectionLike d) failNotElig $ {- else -} do
             -- now we know it is reduced, we can safely take the parameters
-            let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
+            let pars = mustAllApplyElims $ take npars es
             reportSDoc "tc.deftype" 20 $ vcat
               [ text $ "head d     = " ++ prettyShow d
               , "parameters =" <+> sep (map' prettyTCM pars)

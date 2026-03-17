@@ -1,7 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeApplications    #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
 
 -- | This module contains the definition of hereditary substitution
 -- and application operating on internal syntax which is in β-normal
@@ -888,20 +887,9 @@ applySubstTerm rho t    = coerce $ case coerce t of
 
    {- András, 2026-03-17: when substituting a term, we don't want to create any thunks until we hit the *next*
       inductive layer of terms.
-      But apparent, not for Pi, currently! Forcing Pi seems to cost some checking time in stdlib.
+      But apparently, not for Pi, currently! Forcing Pi seems to cost some checking time in stdlib.
+      Below's some commented-out definitions for stricter Pi substitution.
    -}
-
-   -- subPiDom :: Substitution' t -> Dom Type -> Dom Type
-   -- subPiDom rho (Dom i n f t a) =
-   --   let !i' = setFreeVariables unknownFreeVariables i in
-   --   Dom i' n f (sub @(Maybe t) rho t) (sub @(Type' t) rho a)
-
-   -- subPiCod :: Substitution' t -> Abs Type -> Abs Type
-   -- subPiCod rho (Abs x a) =
-   --   let !rho' = liftS 1 rho in
-   --   Abs x (sub @(Type' t) rho' a)
-   -- subPiCod rho (NoAbs x a) =
-   --   NoAbs x (sub @(Type' t) rho a)
 
    -- subPiDom :: Substitution' t -> Dom Type -> Dom Type
    -- subPiDom rho (Dom i n f t (El s a)) =

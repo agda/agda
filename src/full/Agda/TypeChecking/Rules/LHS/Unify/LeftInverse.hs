@@ -1,5 +1,4 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
-{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 {-| Functions for building the left inverse part of a 'UnifyEquiv'.

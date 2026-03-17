@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
 
 module Agda.TypeChecking.Reduce
  -- Meta instantiation
