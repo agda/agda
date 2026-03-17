@@ -5716,11 +5716,12 @@ data IsAmbiguous
   | NotAmbiguous
   deriving (Show, Generic)
 
--- Reason, why type for rewrite rule is incorrect
+-- Reason, why type for rewrite relation is incorrect
 data IncorrectTypeForRewriteRelationReason
   = ShouldAcceptAtLeastTwoArguments
   | FinalTwoArgumentsNotVisible
   | TypeDoesNotEndInSort Type Telescope
+  | RelationNotDataOrPostulate
     deriving (Show, Generic)
 
 -- | Extra information for error 'CannotQuote'.
