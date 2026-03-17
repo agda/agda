@@ -345,9 +345,9 @@ generateConstructorInfo top kinds decl = do
   -- @noRange@ should be impossible, but in case of @noRange@
   -- it makes sense to return mempty.
   caseList (P.rangeIntervals $ getRange decl)
-           (return mempty) $ \ i is -> do
+           (return mempty) $ \ pi@(P.PackIWF i) is -> do
     let start = fromIntegral $ P.posPos $ P.iStart i
-        end   = fromIntegral $ P.posPos $ P.iEnd $ last1 i is
+        end   = fromIntegral $ P.posPos $ P.iEnd $ P.unpackIWF $ last1 pi is
 
     -- Get all disambiguated names that fall within the range of decl.
     m0 <- useTC stDisambiguatedNames

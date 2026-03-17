@@ -14,6 +14,12 @@ import Data.String    ( fromString )       -- for RebindableSyntax, somehow not 
 
 import Agda.Utils.Boolean
 
+-- | Left-associative strict function application.
+{-# INLINE ($$!) #-}
+infixl 9 $$!
+($$!) :: (a -> b) -> a -> b
+($$!) !f !x = f x
+
 -- | Repeat a state transition @f :: a -> (b, a)@ with output @b@
 --   while condition @cond@ on the output is true.
 --   Return all intermediate results and the final result
