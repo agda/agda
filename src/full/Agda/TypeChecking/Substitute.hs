@@ -572,9 +572,9 @@ instance Apply DisplayTerm where
 
   applyE (DTerm' v es')      es = DTerm' v $! es' ++! es
   applyE (DDot' v es')       es = DDot' v $! es' ++! es
-  applyE (DCon c ci vs)      es = DCon c ci $! vs ++! map'' (fmap DTerm) ws
+  applyE (DCon c ci vs)      es = DCon c ci $! vs ++! map' (fmap DTerm) ws
     where ws = mustAllApplyElims es
-  applyE (DDef c es')        es = DDef c $! es' ++! map'' (fmap DTerm) es
+  applyE (DDef c es')        es = DDef c $! es' ++! map' (fmap DTerm) es
   applyE (DWithApp v ws es') es = DWithApp v ws $! es' ++! es
 
 instance {-# OVERLAPPABLE #-} Apply t => Apply [t] where
@@ -870,24 +870,28 @@ instance EndoSubst a => Subst (Substitution' a) where
 applySubstTerm :: forall t. (Coercible t Term, EndoSubst t, Apply t) => Substitution' t -> t -> t
 applySubstTerm IdS t = t
 applySubstTerm rho t    = coerce $ case coerce t of
-    Var i es    -> let !t = lookupS rho i in coerce (t  `applyE` subE es)
-    Lam h m     -> Lam h $ sub @(Abs t) m
-    Def f es    -> defApp f [] $! subE es
-    Con c ci vs -> Con c ci $! subE vs
-    MetaV x es  -> MetaV x $! subE es
+    Var i es    -> let !t = lookupS rho i in coerce (t `applyE` subE rho es)
+    Lam h m     -> Lam h $! sub @(Abs t) rho m
+    Def f es    -> defApp f [] $! subE rho es
+    Con c ci vs -> Con c ci $! subE rho vs
+    MetaV x es  -> MetaV x $! subE rho es
     Lit l       -> Lit l
-    Level l     -> levelTm $ sub @(Level' t) l
-    Pi a b      -> uncurry Pi $ subPi (a,b)
-    Sort s      -> Sort $ sub @(Sort' t) s
-    DontCare mv -> dontCare $ sub @t mv
-    Dummy s es  -> Dummy s $ subE es
+    Level l     -> levelTm $ sub @(Level' t) rho l
+    Pi a b      -> (Pi $! sub @(Dom' t (Type'' t t)) rho a) $! sub @(Abs (Type'' t t)) rho b
+    Sort s      -> Sort (sub @(Sort' t) rho s)
+    DontCare mv -> dontCare (sub @t rho mv)
+    Dummy s es  -> Dummy s $! subE rho es
  where
-   sub :: forall a b. (Coercible b a, SubstWith t a) => b -> b
-   sub t = coerce $ applySubst rho (coerce t :: a)
-   subE :: Elims -> Elims
-   subE  = sub @[Elim' t]
-   subPi :: (Dom Type, Abs Type) -> (Dom Type, Abs Type)
-   subPi = sub @(Dom' t (Type'' t t), Abs (Type'' t t))
+   sub :: forall a b. (Coercible b a, SubstWith t a) => Substitution' t -> b -> b
+   sub rho t = coerce (applySubst rho (coerce t :: a)); {-# INLINE sub #-}
+
+   subE :: Substitution' t -> Elims -> Elims
+   subE rho []     = []
+   subE rho (a:as) = case a of
+     Apply (Arg x y) -> let !x' = setFreeVariables unknownFreeVariables x
+                        in (Apply (Arg x' (sub @t rho y)):) $! subE rho as
+     p@Proj{}        -> (p :) $! subE rho as
+     IApply l r t    -> (IApply (sub @t rho l) (sub @t rho r) (sub @t rho t):) $! subE rho as
 
 instance Subst Term where
   type SubstArg Term = Term
@@ -908,26 +912,33 @@ instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Type'' a b) where
 instance Subst a => Subst (Sort' a) where
   type SubstArg (Sort' a) = SubstArg a
   applySubst rho = \case
-    Univ u n   -> Univ u $ sub n
-    Inf u n    -> Inf u n
-    SizeUniv   -> SizeUniv
-    LockUniv   -> LockUniv
-    LevelUniv  -> LevelUniv
-    IntervalUniv -> IntervalUniv
-    PiSort a s1 s2 -> PiSort (sub a) (sub s1) (sub s2)
-    FunSort s1 s2 -> FunSort (sub s1) (sub s2)
-    UnivSort s -> UnivSort $ sub s
-    MetaS x es -> MetaS x $! sub es
-    DefS d es  -> DefS d $! sub es
-    s@DummyS{} -> s
+    Univ u n       -> Univ u $! applySubst rho n
+    Inf u n        -> Inf u n
+    SizeUniv       -> SizeUniv
+    LockUniv       -> LockUniv
+    LevelUniv      -> LevelUniv
+    IntervalUniv   -> IntervalUniv
+    PiSort a s1 s2 -> ((PiSort $! applySubst rho a) (applySubst rho s1)) $! applySubst rho s2
+    FunSort s1 s2  -> FunSort (applySubst rho s1) (applySubst rho s2)
+    UnivSort s     -> UnivSort $ applySubst rho s
+    MetaS x es     -> MetaS x $! subE rho es
+    DefS d es      -> DefS d $! subE rho es
+    s@DummyS{}     -> s
     where
-      {-# INLINE sub #-}
-      sub :: forall b. (Subst b, SubstArg a ~ SubstArg b) => b -> b
-      sub x = applySubst rho x
+      subE :: Substitution' (SubstArg a) -> [Elim' a] -> [Elim' a]
+      subE rho []     = []
+      subE rho (a:as) = case a of
+        Apply (Arg x y) -> let !x' = setFreeVariables unknownFreeVariables x
+                           in (Apply (Arg x' (applySubst rho y)):) $! subE rho as
+        p@Proj{}        -> (p :) $! subE rho as
+        IApply l r t    -> (IApply (applySubst rho l) (applySubst rho r) (applySubst rho t):)
+                           $! subE rho as
 
 instance Subst a => Subst (Level' a) where
   type SubstArg (Level' a) = SubstArg a
-  applySubst rho (Max n as) = Max n $ applySubst rho as
+  applySubst rho (Max n as) = Max n $! go rho as where
+    go rho []              = []
+    go rho (Plus x y : as) = (Plus x (applySubst rho y):) $! go rho as
 
 instance Subst a => Subst (PlusLevel' a) where
   type SubstArg (PlusLevel' a) = SubstArg a
@@ -1004,7 +1015,7 @@ instance Subst NLPat where
       applyBV :: NLPat -> [Arg Int] -> NLPat
       applyBV p ys = case p of
         PVar s i xs    -> PVar s i $! xs ++! ys
-        PTerm u        -> PTerm $ u `apply` map'' (fmap var) ys
+        PTerm u        -> PTerm $ u `apply` map' (fmap var) ys
         PDef f es      -> __IMPOSSIBLE__
         PLam i u       -> __IMPOSSIBLE__
         PPi a b        -> __IMPOSSIBLE__
@@ -1103,8 +1114,8 @@ instance Subst a => Subst (Elim' a) where
 
 instance Subst a => Subst (Abs a) where
   type SubstArg (Abs a) = SubstArg a
-  applySubst rho (Abs x a)   = Abs x $ applySubst (liftS 1 rho) a
-  applySubst rho (NoAbs x a) = NoAbs x $ applySubst rho a
+  applySubst rho (Abs x a)   = Abs x (applySubst (liftS 1 rho) a)
+  applySubst rho (NoAbs x a) = NoAbs x (applySubst rho a)
 
 instance Subst a => Subst (Arg a) where
   type SubstArg (Arg a) = SubstArg a
