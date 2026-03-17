@@ -779,7 +779,7 @@ prune m' vs xs = do
       , nest 2 $ vcat
         [ "m'    =" <+> pretty m'
         -- , "xs    =" <+> prettyList (map (prettyTCM . var) xs)  -- no longer printable
-        , "vs    =" <+> prettyList (map prettyTCM vs)
+        , "vs    =" <+> prettyList (map' prettyTCM vs)
         , "kills =" <+> text (show kills)
         ]
       ]
@@ -1060,7 +1060,8 @@ killedType args b = do
           (ys, b) <- go args ys $ strengthen impossible b
           -- We need to return a set of killed variables relative to Δ (x : A), so
           -- shift ys and add x back in.
-          return (VarSet.insert 0 $ VarSet.weaken 1 ys, b)
+          let !ys' = VarSet.insert 0 $ VarSet.weaken 1 ys
+          return (ys', b)
       | otherwise = do
           -- Case x ∉ xs. We either can't or don't want to get rid of x. In
           -- this case we have to check A for potential dependencies preventing
@@ -1072,7 +1073,8 @@ killedType args b = do
           -- not free in A'. We already know ys not free in B.
           (zs, b) <- go args ys $ mkPi ((name, a) <$ arg) b
           -- Shift back up to make it relative to Δ (x : A) again.
-          return (VarSet.weaken 1 zs, b)
+          let !zs' = VarSet.weaken 1 zs
+          return (zs', b)
 
 reallyNotFreeIn :: (MonadReduce m) => VarSet -> Type -> m (VarSet, Type)
 reallyNotFreeIn xs a | null xs = return (xs, a) -- Shortcut
@@ -1083,15 +1085,16 @@ reallyNotFreeIn xs a = do
       nonrigid = VarSet.difference anywhere rigid
       hasNo    = VarSet.disjoint xs
   if hasNo nonrigid
-    then
+    then do
        -- No non-rigid occurrences. We can't do anything about the rigid
        -- occurrences so drop those and leave `a` untouched.
-       return (VarSet.difference xs rigid, a)
+       let !diff = VarSet.difference xs rigid
+       return (diff, a)
     else do
       -- If there are non-rigid occurrences we need to reduce to see if
       -- we can get rid of them (#3177).
       (fvs, a) <- liftReduce $ forceNotFree (VarSet.difference xs rigid) a
-      let xs = nonFreeVars fvs
+      let !xs = nonFreeVars fvs
       return (xs, a)
 
 -- | Instantiate a meta variable with a new one that only takes

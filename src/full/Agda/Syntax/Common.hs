@@ -2813,6 +2813,7 @@ instance LensModalPolarity (Arg e) where
   setModalPolarity = setPolarityMod
   mapModalPolarity = mapPolarityMod
 
+{-# INLINE defaultArg #-}
 defaultArg :: a -> Arg a
 defaultArg = Arg defaultArgInfo
 

@@ -31,9 +31,10 @@ import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Function (applyWhen, applyWhenJust)
 import Agda.Utils.Functor
-import qualified Agda.Utils.List as List
+import Agda.Utils.List
+import Agda.Utils.List qualified as List
 import Agda.Utils.List1 (List1, pattern (:|))
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1 qualified as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Tuple
@@ -74,7 +75,7 @@ implicitArgs
   -> (Hiding -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
   -> Type              -- ^ The (function) type @t@ we are eliminating.
   -> m (Args, Type)    -- ^ The eliminating arguments and the remaining type.
-implicitArgs n expand t = first (map (fmap namedThing)) <$> do
+implicitArgs n expand t = first (map' (fmap namedThing)) <$> do
   implicitNamedArgs n (\ h _x -> expand h) t
 
 -- | @implicitNamedArgs n expand t@ generates up to @n@ named implicit arguments
@@ -91,7 +92,7 @@ implicitNamedArgs n expand t0 = do
   (ncas, t) <- implicitCheckedArgs n expand t0
   let (ns, cas) = List.unzipWith (\ (Named n ca) -> (n, ca)) ncas
   es <- liftTCM $ noHeadConstraints cas
-  let nargs = zipWith (\ n (Arg ai v) -> Arg ai (Named n v)) ns (fromMaybe __IMPOSSIBLE__ $ allApplyElims es)
+  let nargs = zipWith' (\ n (Arg ai v) -> Arg ai (Named n v)) ns (mustAllApplyElims es)
   return (nargs, t)
 
 -- | Make sure there are no head constraints attached to the eliminations
@@ -234,7 +235,7 @@ insertImplicit' _ [] = BadImplicits
 insertImplicit' a ts
 
   -- If @a@ is visible, then take the non-visible prefix of @ts@.
-  | visible a = ImpInsert $ takeWhile notVisible $ map void ts
+  | visible a = ImpInsert $! takeWhile' notVisible $ map' void ts
 
   -- If @a@ is named, take prefix of @ts@ until the name of @a@ (with correct hiding).
   -- If the name is not found, throw exception 'NoSuchName'.
@@ -255,6 +256,6 @@ insertImplicit' a ts
     takeHiddenUntil p ts =
       case ts2 of
         []      -> Nothing  -- Predicate was never true
-        (t : _) -> if visible t then Nothing else Just $ map void ts1
+        (t : _) -> if visible t then Nothing else Just $! map' void ts1
       where
-      (ts1, ts2) = break (\ t -> p t || visible t) ts
+      (!ts1, !ts2) = break' (\ t -> p t || visible t) ts

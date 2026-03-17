@@ -350,7 +350,7 @@ instance LensSort a => LensSort (Arg a) where
 -- | Sequence of types. An argument of the first type is bound in later types
 --   and so on.
 data Tele a = EmptyTel
-            | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
+            | ExtendTel a !(Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
   deriving (Show, Functor, Foldable, Traversable, Generic)
 
 type Telescope = Tele (Dom Type)
@@ -1165,6 +1165,7 @@ unSpine' p v =
                                   loop (Def f) [Apply v] es'
         e        : es'         -> loop h (e : res) es'
 
+{-# INLINE hasElims #-}
 -- | A view distinguishing the neutrals @Var@, @Def@, and @MetaV@ which
 --   can be projected.
 hasElims :: Term -> Maybe (Elims -> Term, Elims)

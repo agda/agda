@@ -339,6 +339,23 @@ take' n !as | n <= 0 = []
 take' n []           = []
 take' n (a:as)       = (a:) $! take' (n - 1) as
 
+{-# INLINE takeWhile' #-}
+-- | Strict 'takeWhile'.
+takeWhile' :: (a -> Bool) -> [a] -> [a]
+takeWhile' f = go where
+  go [] = []
+  go (!a:as) | f a       = (a:) $! go as
+             | otherwise = []
+
+{-# INLINE break' #-}
+-- | Strict 'break'.
+break' :: (a -> Bool) -> [a] -> ([a],[a])
+break' p = go where
+  go xs@[] =  (xs, xs)
+  go xs@(!x:xs')
+    | p x        =  ([],xs)
+    | otherwise  =  case go xs' of (ys,zs) -> (x:ys,zs)
+
 -- | @takeExactly a n as == take n (as ++ repeat a)@
 --
 {-# SPECIALIZE takeExactly :: a -> Int -> [a] -> [a] #-}
@@ -449,11 +466,26 @@ partitionMaybe f = loop
       Nothing -> first  (a :) $ loop as
       Just b  -> second (b :) $ loop as
 
+-- | Spine-strict 'catMaybe'.
+catMaybe' :: [Maybe a] -> [a]
+catMaybe' []           = []
+catMaybe' (Just a:as)  = (a:) $! catMaybe' as
+catMaybe' (Nothing:as) = catMaybe' as
+
+
 -- | Like 'filter', but additionally return the last partition
 --   of the list where the predicate is @False@ everywhere.
 --   O(n).
 filterAndRest :: (a -> Bool) -> [a] -> ([a], Suffix a)
 filterAndRest p = mapMaybeAndRest $ \ a -> if p a then Just a else Nothing
+
+{-# INLINE filter' #-}
+-- | Strict 'filter'.
+filter' :: (a -> Bool) -> [a] -> [a]
+filter' f = go where
+  go [] = []
+  go (!a:as) | f a       = (a:) $! go as
+             | otherwise = go as
 
 -- | Like 'mapMaybe', but additionally return the last partition
 --   of the list where the function always returns @Nothing@.

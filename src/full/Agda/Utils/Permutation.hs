@@ -37,7 +37,7 @@ import Agda.Utils.Impossible
 --   Agda typing would be:
 --   @Perm : {m : Nat}(n : Nat) -> Vec (Fin n) m -> Permutation@
 --   @m@ is the 'size' of the permutation.
-data Permutation = Perm { permRange :: Int, permPicks :: [Int] }
+data Permutation = Perm { permRange :: !Int, permPicks :: ![Int] }
   deriving (Eq, Generic)
 
 instance Show Permutation where
@@ -46,7 +46,7 @@ instance Show Permutation where
           showList :: String -> (a -> String) -> [a] -> String
           showList sep f [] = ""
           showList sep f [e] = f e
-          showList sep f (e:es) = f e ++ sep ++ showList sep f es
+          showList sep f (e:es) = f e ++! sep ++! showList sep f es
 
 instance Sized Permutation where
   size    (Perm _ xs) = size xs
@@ -89,20 +89,18 @@ permute (Perm _ is) xs = go mempty 0 xs is
      -> [a]
   go seen !n xs []       = []
   go seen  n xs (i : is)
-    | i < n     = fromMaybe __IMPOSSIBLE__
-                    (IntMap.lookup i seen) :
-                  go seen n xs is
+    | i < n     = (fromMaybe __IMPOSSIBLE__ (IntMap.lookup i seen):) $! go seen n xs is
     | otherwise = scan seen n xs (i - n) is
 
   -- Finds the element at the given position and continues.
   scan :: IntMap a -> Int -> [a] -> Int -> [Int] -> [a]
   scan seen !n (x : xs) !i is
-    | i == 0 = x : (go $! seen') n' xs is
+    | i == 0 = (x :) $! (go $! seen') n' xs is
     | i > 0  = (scan $! seen') n' xs (i - 1) is
     where
     seen' = IntMap.insert n x seen
     n'    = n + 1
-  scan seen n xs !_ is = __IMPOSSIBLE__ : go seen n xs is
+  scan seen n xs !_ is = (__IMPOSSIBLE__ :) $! go seen n xs is
 
 -- |  Invert a Permutation on a partial finite int map.
 -- @inversePermute perm f = f'@
@@ -122,7 +120,7 @@ class InversePermute a b where
   inversePermute :: Permutation -> a -> b
 
 instance InversePermute [Maybe a] [(Int,a)] where
-  inversePermute (Perm n is) = catMaybes . zipWith (\ i ma -> (i,) <$> ma) is
+  inversePermute (Perm n is) = catMaybes . zipWith' (\ i ma -> (i,) <$> ma) is
 
 instance InversePermute [Maybe a] (IntMap a) where
   inversePermute p = IntMap.fromList . inversePermute p
@@ -135,7 +133,7 @@ instance InversePermute (Int -> a) [Maybe a] where
   inversePermute (Perm n xs) f =
     for [0..n-1] $ \i -> f <$> IntMap.lookup i m
     where
-    m = IntMapS.fromListWith (flip const) $ zip xs [0..]
+    m = IntMapS.fromListWith (flip const) $ zip' xs [0..]
 
 -- | Identity permutation.
 idP :: Int -> Permutation
@@ -143,26 +141,26 @@ idP n = Perm n [0..n - 1]
 
 -- | Restrict a permutation to work on @n@ elements, discarding picks @>=n@.
 takeP :: Int -> Permutation -> Permutation
-takeP n (Perm m xs) = Perm n $ filter (< n) xs
+takeP n (Perm m xs) = Perm n $! filter' (< n) xs
 
 -- | Pick the elements that are not picked by the permutation.
 droppedP :: Permutation -> Permutation
-droppedP (Perm n xs) = Perm n $ filter (notInXs !) [0 .. n - 1]
+droppedP (Perm n xs) = Perm n $! filter' (notInXs !) [0 .. n - 1]
   where
   notInXs :: UArray Int Bool
   notInXs =
-    accumArray (flip const) True (0, n - 1) $ map (,False) xs
+    accumArray (flip const) True (0, n - 1) $ map' (,False) xs
 
 -- | @liftP k@ takes a @Perm {m} n@ to a @Perm {m+k} (n+k)@.
 --   Analogous to 'Agda.TypeChecking.Substitution.liftS',
 --   but Permutations operate on de Bruijn LEVELS, not indices.
 liftP :: Int -> Permutation -> Permutation
-liftP n (Perm m xs) = Perm (n + m) $ xs ++ [m .. m + n - 1]
+liftP n (Perm m xs) = Perm (n + m) $! xs ++! [m .. m + n - 1]
 -- liftP n (Perm m xs) = Perm (n + m) $ [0..n-1] ++ map (n+) xs -- WRONG, works for indices, but not for levels
 
 -- | @permute (compose p1 p2) == permute p1 . permute p2@
 composeP :: Permutation -> Permutation -> Permutation
-composeP p1 (Perm n xs) = Perm n $ permute p1 xs
+composeP p1 (Perm n xs) = Perm n $! permute p1 xs
   {- proof:
       permute (compose (Perm xs) (Perm ys)) zs
       == permute (Perm (permute (Perm xs) ys)) zs
@@ -179,12 +177,12 @@ composeP p1 (Perm n xs) = Perm n $ permute p1 xs
 --   otherwise defaults to @err@.
 --   @composeP p (invertP err p) == p@
 invertP :: Int -> Permutation -> Permutation
-invertP err p@(Perm n xs) = Perm (size xs) $ elems tmpArray
+invertP err p@(Perm n xs) = Perm (size xs) $! elems tmpArray
   where
   -- This array cannot be unboxed, because it should be possible to
   -- instantiate err with __IMPOSSIBLE__.
   tmpArray :: Array Int Int
-  tmpArray = accumArray (const id) err (0, n-1) $ zip xs [0..]
+  tmpArray = accumArray (const id) err (0, n-1) $ zip' xs [0..]
 
 -- | @lookupP π i@ applies @π@ to @i@.
 lookupP :: Permutation -> Int -> Maybe Int
@@ -196,7 +194,7 @@ lookupRP (Perm n xs) i = List.elemIndex i xs
 
 -- | Turn a possible non-surjective permutation into a surjective permutation.
 compactP :: Permutation -> Permutation
-compactP p@(Perm _ xs) = Perm (length xs) $ map adjust xs
+compactP p@(Perm _ xs) = Perm (length xs) $! map' adjust xs
   where
   missing      = IntSet.fromList $ permPicks $ droppedP p
   holesBelow k = IntSet.size $ fst $ IntSet.split k missing
@@ -219,7 +217,7 @@ compactP p@(Perm _ xs) = Perm (length xs) $ map adjust xs
 --   With @reverseP@, you can convert a permutation on de Bruijn indices
 --   to one on de Bruijn levels, and vice versa.
 reverseP :: Permutation -> Permutation
-reverseP (Perm n xs) = Perm n $ map ((n - 1) -) $ reverse xs
+reverseP (Perm n xs) = Perm n $! map' ((n - 1) -) $ reverse xs
                   -- = flipP $ Perm n $ reverse xs
 
 -- | @permPicks (flipP p) = permute p (downFrom (permRange p))@
@@ -231,7 +229,7 @@ reverseP (Perm n xs) = Perm n $ map ((n - 1) -) $ reverse xs
 --
 --   See 'Agda.Syntax.Internal.Patterns.numberPatVars'.
 flipP :: Permutation -> Permutation
-flipP (Perm n xs) = Perm n $ map (n - 1 -) xs
+flipP (Perm n xs) = Perm n $! map' (n - 1 -) xs
 
 -- | @expandP i n π@ in the domain of @π@ replace the /i/th element by /n/ elements.
 expandP :: Int -> Int -> Permutation -> Permutation
@@ -268,7 +266,7 @@ topoSortM parent xs = do
         return $ x : ys
       where
         xs = [ x | (x, []) <- g ]
-        remove x g = [ (y, filter (/= x) ys) | (y, ys) <- g, x /= y ]
+        remove x g = [ (y, filter' (/= x) ys) | (y, ys) <- g, x /= y ]
 
 ------------------------------------------------------------------------
 -- * Drop (apply) and undrop (abstract)
@@ -276,7 +274,7 @@ topoSortM parent xs = do
 
 -- | Delayed dropping which allows undropping.
 data Drop a = Drop
-  { dropN    :: Int  -- ^ Non-negative number of things to drop.
+  { dropN    :: !Int  -- ^ Non-negative number of things to drop.
   , dropFrom :: a    -- ^ Where to drop from.
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
@@ -299,6 +297,6 @@ instance DoDrop [a] where
 
 instance DoDrop Permutation where
   doDrop (Drop k (Perm n xs)) =
-    Perm (n + m) $ [0..m-1] ++ map (+ m) (List.drop k xs)
+    Perm (n + m) $! [0..m-1] ++! map' (+ m) (List.drop k xs)
     where m = -k
   unDrop m = dropMore (-m) -- allow picking up more than dropped
