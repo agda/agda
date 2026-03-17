@@ -151,9 +151,9 @@ jsCommandLineFlags =
     -- Minification is described at https://en.wikipedia.org/wiki/Minification_(programming)
     , Option [] ["js-minify"] (NoArg enableMin) "minify generated JS code"
     , Option [] ["js-verify"] (NoArg enableVerify) "except for main module, run generated JS modules through `node` (needs to be in PATH)"
-    , Option [] ["js-es6"] (NoArg setES6) "use ES6 module style for JS"
-    , Option [] ["js-cjs"] (NoArg setCJS) "use CommonJS module style (default)"
-    , Option [] ["js-amd"] (NoArg setAMD) "use AMD module style for JS"
+    , Option [] ["js-es6"] (NoArg setES6) "use ES6 module style for JS (recommended)"
+    , Option [] ["js-cjs"] (NoArg setCJS) "use CommonJS module style (default) (deprecated)"
+    , Option [] ["js-amd"] (NoArg setAMD) "use AMD module style for JS (deprecated)"
     ]
   where
     enable       o = pure o{ optJSCompile  = True }
@@ -169,6 +169,10 @@ jsCommandLineFlags =
 jsPreCompile :: JSOptions -> TCM JSOptions
 jsPreCompile opts = opts <$ do
   mapM_ (typeError . CubicalCompilationNotSupported) =<< cubicalOption
+  case optJSModuleStyle opts of
+    JSCJS -> warning $ DeprecationWarning "JavaScript CommonJS module style" (Just "ES6 module style (via --js-es6)") "Agda version 2.10.0"
+    JSAMD -> warning $ DeprecationWarning "JavaScript AMD module style" (Just "ES6 module style (via --js-es6)") "Agda version 2.10.0"
+    JSES6 -> return ()
 
 -- | After all modules have been compiled, copy RTE modules and verify compiled modules.
 
