@@ -421,19 +421,7 @@ isBuiltinModuleWithSafePostulates fi = do
     Nothing                                -> False
     Just IsBuiltinModule                   -> False
     Just IsBuiltinModuleWithSafePostulates -> True
-    Just IsPrimitiveModule                 -> True
-
--- | Does the given 'FileId' belong to one of Agda's magical primitive modules?
---
--- Implies 'isBuiltinModuleWithSafePostulates'.
-
-isPrimitiveModule :: ReadTCState m => FileId -> m Bool
-isPrimitiveModule  fi = do
-  isBuiltinModule fi <&> \case
-    Nothing                                -> False
-    Just IsBuiltinModule                   -> False
-    Just IsBuiltinModuleWithSafePostulates -> False
-    Just IsPrimitiveModule                 -> True
+    Just IsPrimitiveModule{}               -> True
 
 ---------------------------------------------------------------------------
 -- * Top level module

@@ -8,6 +8,8 @@ import Control.Monad.Trans.Maybe ( MaybeT(..), runMaybeT )
 
 import qualified Data.Map as Map
 
+import Agda.Interaction.Options.Base
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -56,15 +58,44 @@ gpi info name a b = do
   return $ El (mkPiSort dom (Abs y b))
               (Pi dom (Abs y b))
 
-hPi, nPi :: (MonadAddContext m, MonadDebug m)
-         => String -> m Type -> m Type -> m Type
+hPi, nPi ::
+  (MonadAddContext m, MonadDebug m) =>
+  String -> m Type -> m Type -> m Type
 hPi = gpi $ setHiding Hidden defaultArgInfo
 nPi = gpi defaultArgInfo
 
-hPi', nPi' :: (MonadAddContext m, MonadDebug m)
-           => String -> NamesT m Type -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
+-- | An 'ArgInfo' that stands for \"implicit\" if
+-- @--no-erased-levels-in-primitives@ is used, and otherwise \"erased
+-- and implicit\".
+
+primLevelArgInfo :: HasOptions m => m ArgInfo
+primLevelArgInfo = do
+  erased <- optErasedLevelsInPrims <$> pragmaOptions
+  return $
+    if erased
+    then erasedHiddenArgInfo
+    else setHiding Hidden defaultArgInfo
+
+-- | An implicit Π that is erased if
+-- @--no-erased-levels-in-primitives@ is not enabled.
+
+ePi ::
+  (MonadAddContext m, MonadDebug m, HasOptions m) =>
+  String -> m Type -> m Type -> m Type
+ePi name a b = do
+  info <- primLevelArgInfo
+  gpi info name a b
+
+hPi', nPi' ::
+  (MonadAddContext m, MonadDebug m) =>
+  String -> NamesT m Type -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
 hPi' s a b = hPi s a (bind' s (\ x -> b x))
 nPi' s a b = nPi s a (bind' s (\ x -> b x))
+
+ePi' ::
+  (MonadAddContext m, MonadDebug m, HasOptions m) =>
+  String -> NamesT m Type -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
+ePi' s a b = ePi s a (bind' s (\ x -> b x))
 
 {-# INLINABLE pPi' #-}
 pPi' :: (MonadAddContext m, HasBuiltins m, MonadDebug m)
@@ -114,10 +145,28 @@ gApply' info a b = do
     y <- b
     pure $ x `apply` [Arg info y]
 
-(<@>),(<#>),(<..>) :: Applicative m => m Term -> m Term -> m Term
+(<@>), (<#>), (<..>) ::
+  Applicative m => m Term -> m Term -> m Term
 (<@>) = gApply NotHidden
 (<#>) = gApply Hidden
 (<..>) = gApply' defaultIrrelevantArgInfo
+
+-- | An implicit application that is erased if
+-- @--no-erased-levels-in-primitives@ is not enabled.
+
+(<#@>) :: HasOptions m => m Term -> m Term -> m Term
+t <#@> u = do
+  info <- primLevelArgInfo
+  gApply' info t u
+
+-- | A variant of '<#@>'.
+
+mkEApp ::
+  (HasOptions m1, Applicative m2) =>
+  m1 (m2 Term -> m2 Term -> m2 Term)
+mkEApp = do
+  info <- primLevelArgInfo
+  return (gApply' info)
 
 (<@@>) :: Applicative m => m Term -> (m Term,m Term,m Term) -> m Term
 t <@@> (x,y,r) = do
@@ -170,6 +219,26 @@ argH = Arg $ setHiding Hidden defaultArgInfo
 
 domH :: e -> Dom e
 domH = setHiding Hidden . defaultDom
+
+-- | An implicit argument that is erased if
+-- @--no-erased-levels-in-primitives@ is not used.
+
+argE :: HasOptions m => e -> m (Arg e)
+argE e = do
+  info <- primLevelArgInfo
+  return (Arg info e)
+
+-- | An implicit domain that is erased if
+-- @--no-erased-levels-in-primitives@ is not used.
+
+domE :: HasOptions m => e -> m (Dom e)
+domE e = do
+  erased <- optErasedLevelsInPrims <$> pragmaOptions
+  let dom = setHiding Hidden (defaultDom e)
+  return $
+    if erased
+    then setQuantity zeroQuantity dom
+    else dom
 
 ---------------------------------------------------------------------------
 -- * Accessing the primitive functions

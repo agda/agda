@@ -69,7 +69,7 @@ import System.IO.Error ( isPermissionError )
 import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
 
-import Agda.TypeChecking.Monad.Base.Types ( IsBuiltinModule(..) )
+import Agda.TypeChecking.Monad.Base.Types
 
 import Agda.Utils.Environment
 import Agda.Utils.FileName
@@ -160,17 +160,23 @@ agdaBuiltin = ("Agda" </>) . ("Builtin" </>)
 
 -- | The very magical, auto-imported modules.
 
-primitiveModules :: Set FilePath
-primitiveModules = Set.fromList
-  [ "Agda" </> "Primitive.agda"
-  , "Agda" </> "Primitive" </> "Cubical.agda"
+primitiveModules :: Map FilePath IgnoreErasedLevelsInPrims
+primitiveModules = Map.fromList
+  [ -- The definitions in Agda.Primitive are (at the time of writing)
+    -- not affected by --no-erased-levels-in-primitives.
+    ("Agda" </> "Primitive.agda", Ignore)
+  , -- It does not make sense to use erased levels for
+    -- Agda.Primitive.Cubical.PathP but not for the PATH builtin,
+    -- which is (at the time of writing) not declared in
+    -- Agda.Primitive.Cubical.
+    ("Agda" </> "Primitive" </> "Cubical.agda", DontIgnore)
   ]
 
 -- | These builtins may use postulates, and are still considered @--safe@.
 
 builtinModulesWithSafePostulates :: Set FilePath
 builtinModulesWithSafePostulates =
-  (primitiveModules `Set.union`) $ Set.fromList $
+  (Map.keysSet primitiveModules `Set.union`) $ Set.fromList $
   map agdaBuiltin $
     [ "Bool.agda"
     , "Char.agda"
@@ -231,8 +237,9 @@ classifyBuiltinModule_ primLibDir fp = do
   f <- relativizeAbsolutePath fp primLibDir
   guard $ f `Set.member` builtinModules
   if f `Set.member` builtinModulesWithUnsafePostulates then return IsBuiltinModule
-  else if f `Set.member` primitiveModules then return IsPrimitiveModule
-  else return IsBuiltinModuleWithSafePostulates
+  else case Map.lookup f primitiveModules of
+    Just i  -> return (IsPrimitiveModule i)
+    Nothing -> return IsBuiltinModuleWithSafePostulates
 
 ------------------------------------------------------------------------
 -- * Get the libraries for the current project

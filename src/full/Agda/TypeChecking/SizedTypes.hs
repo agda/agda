@@ -423,13 +423,14 @@ trivial u v = do
 ------------------------------------------------------------------------
 
 -- | Test whether a problem consists only of size constraints.
-isSizeProblem :: (ReadTCState m, HasOptions m, HasBuiltins m) => ProblemId -> m Bool
+isSizeProblem :: (ReadTCState m, HasBuiltins m) => ProblemId -> m Bool
 isSizeProblem pid = do
   test <- isSizeTypeTest
   all (mkIsSizeConstraint test (const True) . theConstraint) <$> getConstraintsForProblem pid
 
 -- | Test whether a constraint speaks about sizes.
-isSizeConstraint :: (HasOptions m, HasBuiltins m) => (Comparison -> Bool) -> Closure Constraint -> m Bool
+isSizeConstraint ::
+  HasBuiltins m => (Comparison -> Bool) -> Closure Constraint -> m Bool
 isSizeConstraint p c = isSizeTypeTest <&> \ test -> mkIsSizeConstraint test p c
 
 mkIsSizeConstraint :: (Term -> Maybe BoundedSize) -> (Comparison -> Bool) -> Closure Constraint -> Bool

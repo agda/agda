@@ -1,3 +1,4 @@
+{-# OPTIONS --erasure #-}
 
 module _ where
 
@@ -5,13 +6,13 @@ open import Common.Prelude
 open import Common.Equality
 
 primitive
-  primForce      : ∀ {a b} {A : Set a} {B : A → Set b} (x : A) → (∀ x → B x) → B x
-  primForceLemma : ∀ {a b} {A : Set a} {B : A → Set b} (x : A) (f : ∀ x → B x) → primForce x f ≡ f x
+  primForce      : ∀ {@0 a b} {A : Set a} {B : A → Set b} (x : A) → (∀ x → B x) → B x
+  primForceLemma : ∀ {@0 a b} {A : Set a} {B : A → Set b} (x : A) (f : ∀ x → B x) → primForce x f ≡ f x
 
 force = primForce
 forceLemma = primForceLemma
 
-seq : ∀ {a b} {A : Set a} {B : Set b} → A → B → B
+seq : ∀ {@0 a b} {A : Set a} {B : Set b} → A → B → B
 seq x y = force x λ _ → y
 
 foo : (a b : Nat) → seq a b ≡ b
@@ -27,7 +28,7 @@ seqType n = refl
 seqPi : {A B : Set} {n : Nat} → seq (A → B) n ≡ n
 seqPi = refl
 
-seqLam : {n : Nat} → seq (λ (x : Nat) → x) n ≡ n
+seqLam : {n : Nat} → seq {A = _ → _} (λ (x : Nat) → x) n ≡ n
 seqLam = refl
 
 seqLemma : (a b : Nat) → seq a b ≡ b
@@ -37,7 +38,7 @@ evalLemma : (n : Nat) → seqLemma (suc n) n ≡ refl
 evalLemma n = refl
 
 infixr 0 _$!_
-_$!_ : ∀ {a b} {A : Set a} {B : A → Set b} → (∀ x → B x) → ∀ x → B x
+_$!_ : ∀ {@0 a b} {A : Set a} {B : A → Set b} → (∀ x → B x) → ∀ x → B x
 f $! x = force x f
 
 -- Without seq, this would be exponential --

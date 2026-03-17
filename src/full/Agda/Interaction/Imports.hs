@@ -24,6 +24,7 @@ module Agda.Interaction.Imports
   , importPrimitiveModules
   , raiseNonFatalErrors
 
+  , AutomaticallyImported(..)
   , MainInterface(..)
   , TCWorkers
   , wantsParallelChecking
@@ -132,6 +133,7 @@ import qualified Agda.Utils.Set1 as Set1
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.Impossible
 import Agda.Utils.IORef.Strict
+import Agda.Utils.WithDefault
 
 -- | Whether to ignore interfaces (@.agdai@) other than built-in modules
 
@@ -278,6 +280,12 @@ data Mode
   | TypeCheck
   deriving (Eq, Show)
 
+-- | Is the module an automatically imported module or explicitly
+-- imported by the user?
+
+data AutomaticallyImported = AutoImported | ExplicitlyImported
+  deriving (Eq, Show)
+
 -- | Are we loading the interface for the user-loaded file
 --   or for an import?
 data MainInterface
@@ -285,23 +293,24 @@ data MainInterface
                        --
                        --   In this case state changes inflicted by
                        --   'createInterface' are preserved.
-  | NotMainInterface   -- ^ For an imported file.
-                       --
-                       --   In this case state changes inflicted by
-                       --   'createInterface' are not preserved.
+  | NotMainInterface AutomaticallyImported
+    -- ^ For an imported file.
+    --
+    --   In this case state changes inflicted by 'createInterface' are
+    --   not preserved.
   deriving (Eq, Show)
 
 -- | Should state changes inflicted by 'createInterface' be preserved?
 
 includeStateChanges :: MainInterface -> Bool
-includeStateChanges (MainInterface _) = True
-includeStateChanges NotMainInterface  = False
+includeStateChanges (MainInterface _)  = True
+includeStateChanges NotMainInterface{} = False
 
 -- | The kind of interface produced by 'createInterface'
 moduleCheckMode :: MainInterface -> ModuleCheckMode
 moduleCheckMode = \case
     MainInterface TypeCheck                       -> ModuleTypeChecked
-    NotMainInterface                              -> ModuleTypeChecked
+    NotMainInterface{}                            -> ModuleTypeChecked
     MainInterface ScopeCheck                      -> ModuleScopeChecked
 
 -- | Merge an interface into the current proof state.
@@ -438,7 +447,8 @@ scopeCheckFileImport top = do
       reportSLn "import.scope" 30 $ "  visited: " ++ visited
     -- Since scopeCheckFileImport is called from the scope checker,
     -- we need to reimburse her account.
-    i <- Bench.billTo [] $ getNonMainInterface top Nothing
+    i <- Bench.billTo [] $
+         getNonMainInterface top Nothing ExplicitlyImported
     addImport top
 
     -- Print list of imported modules in current state.
@@ -624,7 +634,8 @@ chaseModule workers mod main msrc = do
             -- indefinitely on MVar operation".
             act <- locallyTC eImportStack (mod:) do
               locallyTC eImportStack (tl:) checkForImportCycle
-              chaseModule workers tl NotMainInterface Nothing
+              chaseModule workers tl
+                (NotMainInterface ExplicitlyImported) Nothing
 
             pure $ Endo (act:)
 
@@ -714,11 +725,13 @@ importPrimitiveModules = whenM (optLoadPrimitives <$> pragmaOptions) $ do
 
     -- We don't want to generate highlighting information for Agda.Primitive.
     withHighlightingLevel None $
-      forM_ (map (filePath libdirPrim </>) $ Set.toList primitiveModules) \ f -> do
+      forM_ (map (filePath libdirPrim </>) $ Map.keys primitiveModules) \ f -> do
         sf <- srcFromPath (mkAbsolute f)
         primSource <- parseSource sf
         checkModuleName' (srcModuleName primSource) (srcOrigin primSource)
-        void $ getNonMainInterface (srcModuleName primSource) (Just primSource)
+        void $
+          getNonMainInterface (srcModuleName primSource)
+            (Just primSource) AutoImported
 
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
 
@@ -734,9 +747,10 @@ getNonMainInterface
   :: TopLevelModuleName
   -> Maybe Source
      -- ^ Optional: the source code and some information about the source code.
+  -> AutomaticallyImported
   -> TCM Interface
-getNonMainInterface x msrc = do
-  mi <- getNonMainModuleInfo x msrc
+getNonMainInterface x msrc auto = do
+  mi <- getNonMainModuleInfo x msrc auto
   tcWarningsToError (TopLevelModuleNameWithSourceFile x $ miSourceFile mi) $ Set.toAscList $ miWarnings mi
   return (miInterface mi)
 
@@ -744,12 +758,13 @@ getNonMainModuleInfo
   :: TopLevelModuleName
   -> Maybe Source
      -- ^ Optional: the source code and some information about the source code.
+  -> AutomaticallyImported
   -> TCM ModuleInfo
-getNonMainModuleInfo x msrc =
+getNonMainModuleInfo x msrc auto =
   -- Preserve/restore the current pragma options, which will be mutated when loading
   -- and checking the interface.
   bracket_ (useTC stPragmaOptions) (stPragmaOptions `setTCLens`) $
-           getInterface x NotMainInterface msrc
+           getInterface x (NotMainInterface auto) msrc
 
 -- | If the module has already been visited (without warnings), then
 -- its interface is returned directly.
@@ -825,8 +840,10 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
             reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
             setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
             mi <- case isMain of
-              MainInterface{}  -> createInterface x file isMain msrc
-              NotMainInterface -> createInterfaceIsolated x file msrc
+              MainInterface{} ->
+                createInterface x file isMain msrc
+              NotMainInterface auto ->
+                createInterfaceIsolated x file msrc auto
 
             -- Ensure that the given module name matches the one in the file.
             let topLevelName = iTopLevelModuleName (miInterface mi)
@@ -854,21 +871,22 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
       return mi
   where
     addOptionsCompatibilityWarnings :: PragmaOptions -> ModuleInfo -> TCM ModuleInfo
-    addOptionsCompatibilityWarnings currentOptions
-      mi@ModuleInfo{ miInterface = i, miPrimitive = isPrim, miWarnings = ws } = do
+    addOptionsCompatibilityWarnings currentOptions mi = do
 
       -- Andreas, 2026-02-03, issue #8361, debug printing by @nad.
       -- For testing whether 'isBuiltinModule' is thread-safe.
       reportSDoc "import.iface.builtin" 25 do
         isBuiltin <- isJust <$> isBuiltinModule (srcFileId (miSourceFile mi))
-        P.hsep [ "The module", prettyTCM (iTopLevelModuleName i), "is"
+        P.hsep [ "The module"
+               , prettyTCM (iTopLevelModuleName (miInterface mi)), "is"
                , if isBuiltin then "primitive." else "not primitive."
                ]
 
       -- Check that imported options are compatible with current ones (issue #2487),
       -- but give primitive modules a pass.
       -- Compute updated warnings if needed.
-      ws' <- fromMaybe ws <$> getOptionsCompatibilityWarnings isMain isPrim currentOptions i
+      ws' <- fromMaybe (miWarnings mi) <$>
+             getOptionsCompatibilityWarnings isMain currentOptions mi
       return mi{ miWarnings = ws' }
 
 -- | If checking produced non-benign warnings, error out.
@@ -884,22 +902,53 @@ raiseNonFatalErrors result = do
 --   compatible with the current options. Raises Non-fatal errors if
 --   not.
 checkOptionsCompatible ::
-  PragmaOptions -> PragmaOptions -> TopLevelModuleName -> TCM Bool
-checkOptionsCompatible current imported importedModule = flip execStateT True $ do
-  reportSDoc "import.iface.options" 25 $ P.nest 2 $ "current options  =" P.<+> showOptions current
-  reportSDoc "import.iface.options" 25 $ P.nest 2 $ "imported options =" P.<+> showOptions imported
-  forM_ infectiveCoinfectiveOptions $ \opt -> do
-    unless (icOptionOK opt current imported) $ do
+  PragmaOptions -> PragmaOptions -> SourceFile -> TopLevelModuleName ->
+  AutomaticallyImported -> TCM Bool
+checkOptionsCompatible
+  current imported importedFile importedModule auto =
+  flip execStateT True $ do
+  builtin <- isBuiltinModule (srcFileId importedFile)
+  let importedWithoutErasure =
+        set lensOptErasure Default imported
+      imported' = case builtin of
+        -- No flags are ignored.
+        Nothing ->
+          Just imported
+        -- All flags are ignored, the test is aborted.
+        Just IsPrimitiveModule{} | auto == AutoImported ->
+          Nothing
+        Just (IsPrimitiveModule Ignore) ->
+          Nothing
+        -- All flags except for --no-erased-levels-in-primitives are
+        -- ignored.
+        Just (IsPrimitiveModule DontIgnore) ->
+          Just $
+          set lensOptErasedLevelsInPrims
+            (imported ^. lensOptErasedLevelsInPrims) current
+        -- The flag --erasure is ignored for builtin modules.
+        Just IsBuiltinModuleWithSafePostulates ->
+          Just importedWithoutErasure
+        Just IsBuiltinModule ->
+          Just importedWithoutErasure
+  case imported' of
+    Nothing       -> return ()
+    Just imported -> do
       reportSDoc "import.iface.options" 25 $ P.nest 2 $
-        "incompatible: " <> P.text (icOptionDescription opt)
-        <> ", current: " <> P.pretty (icOptionActive opt current)
-        <> ", imported: " <> P.pretty (icOptionActive opt imported)
-      put False
-      warning $
-        (case icOptionKind opt of
-           Infective   -> InfectiveImport
-           Coinfective -> CoInfectiveImport)
-        (icOptionWarning opt importedModule)
+        "current options  =" P.<+> showOptions current
+      reportSDoc "import.iface.options" 25 $ P.nest 2 $
+        "imported options =" P.<+> showOptions imported
+      forM_ infectiveCoinfectiveOptions $ \opt -> do
+        unless (icOptionOK opt current imported) $ do
+          reportSDoc "import.iface.options" 25 $ P.nest 2 $
+            "incompatible: " <> P.text (icOptionDescription opt)
+            <> ", current: " <> P.pretty (icOptionActive opt current)
+            <> ", imported: " <> P.pretty (icOptionActive opt imported)
+          put False
+          warning $
+            (case icOptionKind opt of
+               Infective   -> InfectiveImport
+               Coinfective -> CoInfectiveImport)
+            (icOptionWarning opt importedModule)
   where
   showOptions opts =
     P.prettyList $
@@ -912,16 +961,22 @@ checkOptionsCompatible current imported importedModule = flip execStateT True $ 
 
 getOptionsCompatibilityWarnings ::
      MainInterface
-  -> Bool           -- ^ Are we looking at a primitvie module?
   -> PragmaOptions
-  -> Interface
+  -> ModuleInfo
   -> TCM (Maybe (Set TCWarning))
-getOptionsCompatibilityWarnings isMain False currentOptions Interface{ iOptionsUsed, iTopLevelModuleName } = do
-  ifM (checkOptionsCompatible currentOptions iOptionsUsed iTopLevelModuleName)
+getOptionsCompatibilityWarnings
+  isMain currentOptions
+  ModuleInfo{
+    miInterface = Interface{ iOptionsUsed, iTopLevelModuleName },
+    miSourceFile } = do
+  ifM (checkOptionsCompatible currentOptions iOptionsUsed miSourceFile
+         iTopLevelModuleName auto)
     {-then-} (return Nothing) -- No warnings to collect because options were compatible.
     {-else-} (Just <$> getAllWarnings' isMain ErrorWarnings)
--- Options consistency checking is disabled for always-available primitive modules.
-getOptionsCompatibilityWarnings _ True _ _ = return Nothing
+  where
+  auto = case isMain of
+    MainInterface{}       -> ExplicitlyImported
+    NotMainInterface auto -> auto
 
 -- | Try to get the interface from interface file or cache.
 
@@ -1000,8 +1055,6 @@ getStoredInterface x file@(SourceFile fi) msrc = do
           path <- srcFilePath file
           lift $ typeError $ OverlappingProjects path topLevelName x
 
-        isPrimitiveMod <- isPrimitiveModule fi
-
         lift $ chaseMsg "Loading " x $ Just ifp
         -- print imported warnings
         reportWarningsForModule x $ iWarnings i
@@ -1009,7 +1062,6 @@ getStoredInterface x file@(SourceFile fi) msrc = do
         loadDecodedModule file $ ModuleInfo
           { miInterface = i
           , miWarnings = empty
-          , miPrimitive = isPrimitiveMod
           , miMode = ModuleTypeChecked
           , miSourceFile = file
           }
@@ -1136,8 +1188,9 @@ createInterfaceIsolated ::
      -- ^ File we process.
   -> Maybe Source
      -- ^ Optional: the source code and some information about the source code.
+  -> AutomaticallyImported
   -> TCM ModuleInfo
-createInterfaceIsolated x file msrc = do
+createInterfaceIsolated x file msrc auto = do
       cleanCachedLog
 
       ms          <- asksTC envImportStack
@@ -1179,7 +1232,7 @@ createInterfaceIsolated x file msrc = do
                addImportedThings isig metas ibuiltin ipatsyns display
                  userwarn partialdefs empty opaqueblk opaqueid
 
-               r  <- createInterface x file NotMainInterface msrc
+               r  <- createInterface x file (NotMainInterface auto) msrc
                ds' <- getDecodedModules
                return (r, ds')
 
@@ -1198,7 +1251,7 @@ createInterfaceIsolated x file msrc = do
       -- reason it continually fails to validate interface.
       let recheckOnError = \msg -> do
             alwaysReportSLn "import.iface" 1 $ "Failed to validate just-loaded interface: " ++ msg
-            createInterfaceIsolated x file msrc
+            createInterfaceIsolated x file msrc auto
 
       either recheckOnError pure validated
 
@@ -1535,12 +1588,9 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
     lensAccumStatistics `modifyTCLens'` (<>) localStatistics
     reportSLn "import.iface" 25 $ prettyShow mname ++ ": Added statistics to the accumulated statistics."
 
-    isPrimitiveMod <- isPrimitiveModule sfi
-
     return ModuleInfo
       { miInterface = finalIface
       , miWarnings = mallWarnings
-      , miPrimitive = isPrimitiveMod
       , miMode = moduleCheckMode isMain
       , miSourceFile = sf
       }
@@ -1550,8 +1600,10 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
 -- warnings.
 
 getAllWarnings' :: (MonadWarning m, MonadTCM m) => MainInterface -> WhichWarnings -> m (Set TCWarning)
-getAllWarnings' MainInterface{}  = getAllWarningsPreserving unsolvedWarnings
-getAllWarnings' NotMainInterface = getAllWarningsPreserving Set.empty
+getAllWarnings' MainInterface{} =
+  getAllWarningsPreserving unsolvedWarnings
+getAllWarnings' NotMainInterface{} =
+  getAllWarningsPreserving Set.empty
 
 -- Andreas, issue 964: not checking null interactionPoints
 -- anymore; we want to serialize with open interaction points now!
@@ -1672,5 +1724,13 @@ getInterfaceFileHashes fp = do
   hClose h
   deserializeHashes bstr
 
+-- | Precondition: The module is already type-checked (but perhaps the
+-- source code has later been modified).
+
 moduleHash :: TopLevelModuleName -> TCM Hash
-moduleHash m = iFullHash <$> getNonMainInterface m Nothing
+moduleHash m =
+  -- The module might not be explicitly imported, but the choice of
+  -- constructor hopefully doesn't matter. If the choice turns out to
+  -- matter, then this choice leads to more errors, and is therefore
+  -- in a sense safer.
+  iFullHash <$> getNonMainInterface m Nothing ExplicitlyImported

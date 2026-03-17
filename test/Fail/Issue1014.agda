@@ -6,9 +6,9 @@
 -- hypothesis (n : ℕ). While @bar@ is accepted by the termination
 -- checker, @bar'@ is rejected for it.
 
+open import Agda.Builtin.Coinduction
 open import Common.Prelude renaming (Nat to ℕ)
 open import Common.Product
-open import Common.Coinduction
 open import Common.Equality
 
 data Foo : ℕ → Set where

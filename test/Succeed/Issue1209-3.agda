@@ -5,7 +5,7 @@
 
 {-# OPTIONS --guardedness --sized-types #-}
 
-open import Common.Coinduction renaming (∞ to co)
+open import Agda.Builtin.Coinduction renaming (∞ to co)
 open import Common.Size
 
 data ⊥ : Set where
