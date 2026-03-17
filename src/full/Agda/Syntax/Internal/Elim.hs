@@ -17,7 +17,7 @@ import Agda.Utils.Impossible
 -- | Eliminations, subsuming applications and projections.
 --
 data Elim' a
-  = Apply (Arg a)         -- ^ Application.
+  = Apply {-# UNPACK #-} !(Arg a) -- ^ Application.
   | Proj ProjOrigin QName -- ^ Projection.  'QName' is name of a record projection.
   | IApply a a a -- ^ IApply x y r, x and y are the endpoints
   deriving (Show, Functor, Foldable, Traversable)
@@ -61,7 +61,7 @@ isProperApplyElim = \case
 allApplyElims :: [Elim' a] -> Maybe [Arg a]
 allApplyElims = mapM isApplyElim
 
--- | Drop 'Apply' constructors, fails with @__IMPOSSIBLE__@ if there'
+-- | Drop 'Apply' constructors, fails with @__IMPOSSIBLE__@ if there's
 --  a non-'Apply' entry.
 mustAllApplyElims :: [Elim' a] -> [Arg a]
 mustAllApplyElims [] = []

@@ -877,13 +877,43 @@ applySubstTerm rho t    = coerce $ case coerce t of
     MetaV x es  -> MetaV x $! subE rho es
     Lit l       -> Lit l
     Level l     -> levelTm $ sub @(Level' t) rho l
-    Pi a b      -> (Pi $! sub @(Dom' t (Type'' t t)) rho a) $! sub @(Abs (Type'' t t)) rho b
+    Pi a b      -> (Pi $ sub @(Dom' t (Type'' t t)) rho a) $ sub @(Abs (Type'' t t)) rho b
+    -- Pi a b      -> (Pi $! subPiDom rho a) $! subPiCod rho b
     Sort s      -> Sort (sub @(Sort' t) rho s)
     DontCare mv -> dontCare (sub @t rho mv)
     Dummy s es  -> Dummy s $! subE rho es
  where
    sub :: forall a b. (Coercible b a, SubstWith t a) => Substitution' t -> b -> b
    sub rho t = coerce (applySubst rho (coerce t :: a)); {-# INLINE sub #-}
+
+   {- András, 2026-03-17: when substituting a term, we don't want to create any thunks until we hit the *next*
+      inductive layer of terms.
+      But apparent, not for Pi, currently! Forcing Pi seems to cost some checking time in stdlib.
+   -}
+
+   -- subPiDom :: Substitution' t -> Dom Type -> Dom Type
+   -- subPiDom rho (Dom i n f t a) =
+   --   let !i' = setFreeVariables unknownFreeVariables i in
+   --   Dom i' n f (sub @(Maybe t) rho t) (sub @(Type' t) rho a)
+
+   -- subPiCod :: Substitution' t -> Abs Type -> Abs Type
+   -- subPiCod rho (Abs x a) =
+   --   let !rho' = liftS 1 rho in
+   --   Abs x (sub @(Type' t) rho' a)
+   -- subPiCod rho (NoAbs x a) =
+   --   NoAbs x (sub @(Type' t) rho a)
+
+   -- subPiDom :: Substitution' t -> Dom Type -> Dom Type
+   -- subPiDom rho (Dom i n f t (El s a)) =
+   --   let !i' = setFreeVariables unknownFreeVariables i in
+   --   Dom i' n f (sub @(Maybe t) rho t) $! El (sub @(Sort' t) rho s) (sub @t rho a)
+
+   -- subPiCod :: Substitution' t -> Abs Type -> Abs Type
+   -- subPiCod rho (Abs x (El s a)) =
+   --   let !rho' = liftS 1 rho in
+   --   Abs x $! El (sub @(Sort' t) rho' s) (sub @t rho' a)
+   -- subPiCod rho (NoAbs x (El s a)) =
+   --   NoAbs x $! El (sub @(Sort' t) rho s) (sub @t rho a)
 
    subE :: Substitution' t -> Elims -> Elims
    subE rho []     = []
@@ -1130,8 +1160,9 @@ instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Dom' a b) where
   type SubstArg (Dom' a b) = SubstArg a
 
   applySubst IdS dom = dom
-  applySubst rho dom = setFreeVariables unknownFreeVariables $
-    fmap (applySubst rho) dom{ domTactic = applySubst rho (domTactic dom) }
+  applySubst rho (Dom i n f t e) =
+    let !i' = setFreeVariables unknownFreeVariables i in
+    Dom i' n f (applySubst rho t) (applySubst rho e)
   {-# INLINABLE applySubst #-}
 
 instance Subst LetBinding where
