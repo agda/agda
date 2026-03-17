@@ -2,7 +2,7 @@
 
 module CoinductiveBuiltinList where
 
-open import Agda.Builtin.Coinduction
+open import Common.Coinduction
 
 data List (A : Set) : Set where
   []  : List A

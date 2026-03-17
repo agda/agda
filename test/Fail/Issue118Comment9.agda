@@ -3,7 +3,7 @@
 module Issue118Comment9 where
 
 open import Common.Level
-open import Agda.Builtin.Coinduction
+open import Common.Coinduction
 
 data Box (A : Set) : Set where
   [_] : A → Box A

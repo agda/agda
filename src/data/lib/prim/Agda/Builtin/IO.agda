@@ -1,9 +1,8 @@
-{-# OPTIONS --cubical-compatible --safe --no-sized-types
-            --no-guardedness --level-universe --erasure #-}
+{-# OPTIONS --cubical-compatible --safe --no-sized-types --no-guardedness --level-universe #-}
 
 module Agda.Builtin.IO where
 
-postulate IO : ∀ {@0 a} → Set a → Set a
+postulate IO : ∀ {a} → Set a → Set a
 {-# POLARITY IO ++ ++ #-}
 {-# BUILTIN IO IO #-}
 

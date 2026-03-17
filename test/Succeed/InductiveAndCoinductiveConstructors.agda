@@ -4,7 +4,7 @@
 
 module InductiveAndCoinductiveConstructors where
 
-open import Agda.Builtin.Coinduction
+open import Common.Coinduction
 
 record ⊤ : Set where
 

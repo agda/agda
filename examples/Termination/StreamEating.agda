@@ -19,7 +19,7 @@ Cf. examples/Termination/StreamProc.agda
 
 module StreamEating where
 
-open import Agda.Builtin.Coinduction
+open import Common.Coinduction
 
 -- Infinite streams.
 

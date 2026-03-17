@@ -32,23 +32,23 @@ import Agda.Utils.Null
 -- | The type of @∞@.
 
 typeOfInf :: TCM Type
-typeOfInf = ePi "a" (el primLevel) $
+typeOfInf = hPi "a" (el primLevel) $
             (return . sort $ varSort 0) --> (return . sort $ varSort 0)
 
 -- | The type of @♯_@.
 
 typeOfSharp :: TCM Type
-typeOfSharp = ePi "a" (el primLevel) $
+typeOfSharp = hPi "a" (el primLevel) $
               hPi "A" (return . sort $ varSort 0) $
               (El (varSort 1) <$> varM 0) -->
-              (El (varSort 1) <$> primInf <#@> varM 1 <@> varM 0)
+              (El (varSort 1) <$> primInf <#> varM 1 <@> varM 0)
 
 -- | The type of @♭@.
 
 typeOfFlat :: TCM Type
-typeOfFlat = ePi "a" (el primLevel) $
+typeOfFlat = hPi "a" (el primLevel) $
              hPi "A" (return . sort $ varSort 0) $
-             (El (varSort 1) <$> primInf <#@> varM 1 <@> varM 0) -->
+             (El (varSort 1) <$> primInf <#> varM 1 <@> varM 0) -->
              (El (varSort 1) <$> varM 0)
 
 -- | Binds the INFINITY builtin, but does not change the type's
@@ -64,7 +64,7 @@ bindBuiltinInf x = bindPostulatedName builtinInf x $ \inf _ -> do
 
 -- The following (no longer supported) definition is used:
 --
--- codata ∞ {@0 a} (A : Set a) : Set a where
+-- codata ∞ {a} (A : Set a) : Set a where
 --   ♯_ : (x : A) → ∞ A
 
 bindBuiltinSharp :: ResolvedName -> TCM ()
@@ -117,7 +117,7 @@ bindBuiltinSharp x =
 
 -- The following (no longer supported) definition is used:
 --
---   ♭ : ∀ {@0 a} {A : Set a} → ∞ A → A
+--   ♭ : ∀ {a} {A : Set a} → ∞ A → A
 --   ♭ (♯ x) = x
 
 bindBuiltinFlat :: ResolvedName -> TCM ()
@@ -130,12 +130,11 @@ bindBuiltinFlat x =
     let sharpCon = ConHead sharp (IsRecord CopatternMatching) CoInductive [defaultArg flat]
         level    = El (mkType 0) $ Def (typeName kit) []
         tel     :: Telescope
-        tel      = ExtendTel (domE $ level)                  $ Abs "a" $
+        tel      = ExtendTel (domH $ level)                  $ Abs "a" $
                    ExtendTel (domH $ sort $ varSort 0)       $ Abs "A" $
                    ExtendTel (domN $ El (varSort 1) $ var 0) $ Abs "x" $
                    EmptyTel
-        infA     = El (varSort 2) $
-                   Def inf [ Apply (argE (var 2)), Apply (argN (var 1)) ]
+        infA     = El (varSort 2) $ Def inf [ Apply $ defaultArg $ var 1 ]
         cpi      = noConPatternInfo { conPType = Just $ defaultArg infA
                                     , conPLazy = True }
     let clause   = Clause
@@ -158,7 +157,7 @@ bindBuiltinFlat x =
           , projOrig     = flat
           , projFromType = defaultArg inf
           , projIndex    = 3
-          , projLams     = ProjLams $ [ argE "a" , argH "A" , argN "x" ]
+          , projLams     = ProjLams $ [ argH "a" , argH "A" , argN "x" ]
           }
     fun <- emptyFunctionData
     addConstant flat $

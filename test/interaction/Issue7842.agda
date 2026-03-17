@@ -16,4 +16,4 @@ cong :
   (f : A → B) → x ≡ y → f x ≡ f y
 cong {x = x} f eq = {!subst (λ y → x ≡ y → f x ≡ f y) ? ? eq!}
 
--- Giving should not cause a panic.
+-- giving should produce InteractionError.CannotGive

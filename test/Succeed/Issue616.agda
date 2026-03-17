@@ -2,7 +2,7 @@
 
 module Issue616 where
 
-open import Agda.Builtin.Coinduction
+open import Common.Coinduction
 
 const : ∀ {a b}{A : Set a}{B : Set b} → A → B → A
 const x _ = x
