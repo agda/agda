@@ -1,0 +1,28 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > red
+out > blue
+out > magenta
+out > warm
+out > cool
+out > cool
+out > warm
+out > 0
+out > 30
+out > 20
+out > 12
+out > red circle
+out > blue dot
+out > green rect
+out > other
+out > 0
+out > 42
+out > 30
+out > 5
+out > 8
+out > 15
+out > 1
+out > 5
+out > 10
+out >

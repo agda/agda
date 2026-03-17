@@ -68,7 +68,6 @@ import Agda.Utils.Size (size)
 
 import Agda.Compiler.Common as CC
 import Agda.Compiler.ToTreeless
-import Agda.Compiler.Treeless.EliminateDefaults
 import Agda.Compiler.Treeless.EliminateLiteralPatterns
 import Agda.Compiler.Treeless.GuardsToPrims
 import Agda.Compiler.Treeless.Erase ( computeErasedConstructorArgs, isErasable )
@@ -76,7 +75,8 @@ import Agda.Compiler.Treeless.Subst ()
 import Agda.Compiler.Backend (Backend,Backend_boot(..), Backend',Backend'_boot(..), Recompile(..))
 
 import Agda.Compiler.JS.Syntax
-  ( Exp(Self,Local,Global,Undefined,Null,String,Char,Integer,Double,Lambda,Object,Array,Apply,Lookup,If,BinOp,PlainJS),
+  ( Exp(Self,Local,Global,Undefined,Null,String,Char,Integer,Int,Double,Lambda,Object,Array,Apply,Lookup,If,BinOp,PlainJS,IIFE),
+    Stmt(Return, Switch, VarDecl, Block, ExprStmt),
     LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Export(Export), Module(Module, modName, callMain), Comment(Comment),
     modName, expName, uses
   , JSQName
@@ -369,6 +369,7 @@ isTopLevelValue :: Export -> Bool
 isTopLevelValue (Export _ e) = case e of
   Object m | flatName `Map.member` m -> False
   Lambda{} -> False
+  Array{}  -> False  -- Tagged array constructors are constants
   _        -> True
 
 isEmptyObject :: Export -> Bool
@@ -448,9 +449,9 @@ definition' kit q d t ls =
       let mTreeless = toTreeless T.EagerEvaluation q
       caseMaybeM mTreeless (pure Nothing) $ \ treeless -> do
         used <- fromMaybe [] <$> getCompiledArgUse q
-        funBody <- eliminateCaseDefaults =<<
-          eliminateLiteralPatterns
-          (convertGuards treeless)
+        -- With tagged arrays, we no longer need eliminateCaseDefaults
+        -- since switch statements handle default cases naturally
+        funBody <- eliminateLiteralPatterns (convertGuards treeless)
         reportSDoc "compile.js" 30 $ " compiled treeless fun:" <+> pretty funBody
         reportSDoc "compile.js" 40 $ " argument usage:" <+> (text . show) used
 
@@ -487,20 +488,13 @@ definition' kit q d t ls =
         return Nothing
 
     Constructor{} | Just e <- defJSDef d -> plainJS e
-    -- Implements Scott-Encoding of constructor definitions
-    -- (see the note "Implementing data types")
+    -- Compiles constructors to tagged arrays: [tag, arg0, arg1, ...]
     Constructor{conData = p, conPars = nc} -> do
       TelV tel _ <- telViewPath t
       let nargs = length (telToList tel) - nc
-          args = [ Local $ LocalId $ nargs - i | i <- [0 .. nargs-1] ]
-      d <- getConstInfo p
-      let l = List1.last ls
-      ret
-        $ curriedLambda nargs
-        $ (case theDef d of
-              Record {} -> Object . Map.singleton l
-              dt -> id)
-        $  Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args
+          args = [ (Comment "", Local $ LocalId $ nargs - 1 - i) | i <- [0 .. nargs-1] ]
+      tag <- getConstructorTag q
+      ret $ curriedLambda nargs $ Array $ (Comment "", Int tag) : args
 
     AbstractDefn{} -> __IMPOSSIBLE__
   where
@@ -595,21 +589,34 @@ compileTerm kit t = go t
       -- Implements Scott-Encoding of constructor applications
       -- (see the note "Implementing data types")
       T.TCon q -> qname q
-    -- Implements Scott-Encoding of case splits
-    -- (see the note "Implementing data types")
+    -- Case splits: use tagged arrays with switch for native types,
+    -- Scott-encoding for types with custom JS
       T.TCase sc ct def alts | T.CTData dt <- T.caseType ct -> do
-        dt <- getConstInfo dt
-        alts' <- traverse (compileAlt kit) alts
-        let obj = Object $ Map.fromListWith __IMPOSSIBLE__ alts'
-        case (theDef dt, defJSDef dt) of
-          (_, Just e) -> do
+        dtInfo <- getConstInfo dt
+        case defJSDef dtInfo of
+          -- Custom JS: use old Scott-encoding style for compatibility
+          Just e -> do
+            alts' <- traverse (compileAlt kit) alts
+            let obj = Object $ Map.fromListWith __IMPOSSIBLE__ alts'
             return $ apply (PlainJS e) [Local (LocalId sc), obj]
-          (Record{}, _) -> do
-            memId <- visitorName $ recCon $ theDef dt
-            return $ apply (Lookup (Local $ LocalId sc) memId) [obj]
-          (Datatype{}, _) -> do
-            return $ curriedApply (Local (LocalId sc)) [obj]
-          _ -> __IMPOSSIBLE__
+          -- No custom JS: use tagged arrays with switch
+          Nothing -> do
+            isSingleCon <- isSingleConstructorType dt
+            case (isSingleCon, alts) of
+              -- Single-constructor type with one alternative:
+              -- skip switch, extract fields directly
+              (True, [T.TACon con nargs body]) -> do
+                body' <- compileTerm kit body
+                if nargs == 0
+                  then return body'
+                  else do
+                    let scrut = Local (LocalId sc)
+                        fieldBindings = [ Lookup scrut (MemberIndex (i + 1) (Comment ""))
+                                        | i <- [0 .. nargs - 1] ]
+                    return $ IIFE $ VarDecl nargs fieldBindings (Return body')
+              _ -> do
+                stmt <- compileCaseToStmt kit sc def alts
+                return $ IIFE stmt
       T.TCase _ _ _ _ -> __IMPOSSIBLE__
 
       T.TPrim p -> return $ compilePrim p
@@ -653,8 +660,7 @@ compilePrim p =
         unOp js  = curriedLambda 1 $ apply (PlainJS js) [local 0]
         primEq   = curriedLambda 2 $ BinOp (local 1) "===" (local 0)
 
--- Implements Scott-Encoding of case split cases
--- (see the note "Implementing data types")
+-- Implements Scott-Encoding of case split cases (for types with custom JS)
 compileAlt :: EnvWithOpts -> T.TAlt -> TCM (MemberId, Exp)
 compileAlt kit = \case
   T.TACon con nargs body -> do
@@ -663,8 +669,61 @@ compileAlt kit = \case
     return (memId, body)
   _ -> __IMPOSSIBLE__
 
+-- | Compile case expression to a Switch statement (for tagged arrays)
+compileCaseToStmt :: EnvWithOpts -> Int -> T.TTerm -> [T.TAlt] -> TCM Stmt
+compileCaseToStmt kit sc def alts = do
+  alts' <- traverse (compileAltToStmt kit sc) alts
+  def' <- compileTerm kit def
+  -- Switch on scrutinee[0] (the tag)
+  let scrut = Local (LocalId sc)
+      tag = Lookup scrut (MemberIndex 0 (Comment "tag"))
+  return $ Switch tag alts' (Just (Return def'))
+
+-- | Compile a single case alternative to a (tag, Stmt) pair
+compileAltToStmt :: EnvWithOpts -> Int -> T.TAlt -> TCM (Int, Stmt)
+compileAltToStmt kit sc (T.TACon con nargs body) = do
+  tag <- getConstructorTag con
+  body' <- compileTerm kit body
+  -- body' expects LocalId 0..nargs-1 to be constructor fields
+  -- scrutinee was LocalId sc in outer context
+  let scrut = Local (LocalId sc)
+      fieldBindings = [ Lookup scrut (MemberIndex (i + 1) (Comment ""))
+                      | i <- [0 .. nargs - 1] ]
+  if nargs == 0
+    then return (tag, Return body')
+    else return (tag, VarDecl nargs fieldBindings (Return body'))
+compileAltToStmt _ _ _ = __IMPOSSIBLE__
+
 visitorName :: QName -> TCM MemberId
 visitorName q = List1.last . snd <$> global q
+
+-- | Check if a datatype has exactly one constructor.
+isSingleConstructorType :: QName -> TCM Bool
+isSingleConstructorType dt = do
+  def <- theDef <$> getConstInfo dt
+  return $ case def of
+    Datatype{dataCons = cs} -> length cs == 1
+    Record{}                -> True
+    _                       -> False
+
+-- | Get constructor index (tag) within its datatype.
+--   Uses canonicalName to handle module-instantiated constructors,
+--   where the constructor QName and dataCons entries may differ.
+getConstructorTag :: QName -> TCM Int
+getConstructorTag con = do
+  def <- getConstInfo con
+  case theDef def of
+    Constructor{conData = d} -> do
+      dt <- theDef <$> getConstInfo d
+      case dt of
+        Datatype{dataCons = cs} -> do
+          conCanon <- canonicalName con
+          csCanon  <- mapM canonicalName cs
+          return $ fromMaybe __IMPOSSIBLE__ $ elemIndex conCanon csCanon
+        Record{} ->
+          return 0  -- Records have only one constructor
+        _ -> __IMPOSSIBLE__
+    _ -> __IMPOSSIBLE__
 
 flatName :: MemberId
 flatName = MemberId "flat"
