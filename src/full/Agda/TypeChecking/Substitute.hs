@@ -133,12 +133,14 @@ conApp fallback ch@(ConHead c _ _ fs) ci args topEs = go topEs where
     {-# NOINLINE go #-} -- Noinline because we don't want GHC to lift thunks out from the definition.
                         -- And we abstract over all free vars because we don't want GHC to make a closure
                         -- for go.
-    go c f fs args es err = flip trace err $ concat
-      [ "conApp: constructor ", prettyShow c
-      , unlines $ " with fields" : map (("  " ++) . prettyShow) fs
-      , unlines $ " and args"    : map (("  " ++) . prettyShow) (args ++! es)
-      , " projected by ", prettyShow f
-      ]
+    go c f fs args es err =
+      let argsBeforeProj = takeWhile' (\case Proj{} -> False; _ -> True) (args ++! es)
+      in trace (concat
+        [ "conApp: constructor ", prettyShow c
+        , unlines $ " with fields" : map' (("  " ++!) . prettyShow) fs
+        , unlines $ " and args"    : map' (("  " ++!) . prettyShow) argsBeforeProj
+        , " projected by ", prettyShow f
+        ]) err
 
   stuck :: Empty -> Term
   stuck err = fallback err (Con ch ci args) topEs
@@ -153,29 +155,34 @@ conApp fallback ch@(ConHead c _ _ fs) ci args topEs = go topEs where
       fieldNotFound :: Term
       fieldNotFound = traceProjFailure f $ stuck __IMPOSSIBLE__
 
-      app :: Term -> Elims -> Term
-      app v es = coerce $ applyE (coerce v :: t) es
-
       -- attempt to return a projected term
-      project :: Arg QName -> Elim -> Term
-      project fld = \case
+      project :: Arg QName -> Arg Term -> Term
+      project fld a =
         -- Andreas, 2018-06-12, issue #2170
         -- We safe-guard the projected value by DontCare using the ArgInfo stored at the record constructor,
         -- since the ArgInfo in the constructor application might be inaccurate because of subtyping.
-        Apply a -> let !v = relToDontCare fld (argToDontCare a) in app v es
-        _       -> traceProjFailure f __IMPOSSIBLE__
+        let !v = relToDontCare fld (argToDontCare a) in coerce (applyE (coerce v :: t) es)
 
       -- try to look up the projection
       lookupProj :: [Arg QName] -> Elims -> Term
-      lookupProj (fld:fs) (a:args) | f == unArg fld = project fld a
-                                   | otherwise      = lookupProj fs args
-      lookupProj fs [] = lookupFromElims fs topEs -- field is not in the original constructor args
+      lookupProj (fld:fs) (a:args)
+        | f == unArg fld = case a of
+            Proj{}       -> traceProjFailure f __IMPOSSIBLE__ -- Con args never contains Proj
+            Apply a      -> project fld a
+            IApply _ _ a -> project fld (defaultArg a)
+        | otherwise = lookupProj fs args
+      lookupProj fs [] = lookupFromElims fs topEs -- field is not in the constructor args
       lookupProj [] _  = fieldNotFound
 
       -- try to look up the projection from the newly supplied Elims
       lookupFromElims :: [Arg QName] -> Elims -> Term
-      lookupFromElims (fld:fs) (a:es) | f == unArg fld = project fld a
-                                      | otherwise      = lookupFromElims fs es
+      lookupFromElims (fld:fs) (a:es)
+        | f == unArg fld = case a of
+            Proj{}       -> fieldNotFound -- this happens when we project an under-applied constructor,
+                                          -- so the projection is at the index where the field should be
+            Apply a      -> project fld a
+            IApply _ _ a -> project fld (defaultArg a)
+        | otherwise = lookupFromElims fs es
       lookupFromElims _ _ = fieldNotFound
 
   -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin
