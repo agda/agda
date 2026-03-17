@@ -91,7 +91,7 @@ import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings hiding (warnings)
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRules, sortRulesOfSymbol )
+import Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRules )
 import Agda.TypeChecking.Rewriting.NonLinPattern (getMatchables)
 import Agda.TypeChecking.MetaVars ( openMetasToPostulates )
 import Agda.TypeChecking.Monad.State as S
@@ -352,12 +352,6 @@ mergeInterface i = do
           reportSDoc "" 1 $ P.vcat $ map (P.nest 2) $
             "Checking confluence of imported rewrite rules" :
             map (("-" P.<+>) . prettyTCM . rewName) rews
-
-      -- Andreas, 2025-06-28, PR #7934 and issue #7969:
-      -- Global confluence checker requires rules to be sorted
-      -- according to the generality of their lhs
-      when (confChk == GlobalConfluenceCheck) $
-        forM_ (nubOn id $ map rewHead rews) sortRulesOfSymbol
 
       -- #8273: We need to ensure the module we are importing is considered
       -- imported when checking confluence.
