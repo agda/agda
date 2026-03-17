@@ -1,5 +1,5 @@
-{-# OPTIONS --no-main #-}
--- {-# OPTIONS -v compile.haskell.pragma:40 #-}
+
+module Common.Coinduction where
 
 postulate
   ∞  : ∀ {a} (A : Set a) → Set a
@@ -9,5 +9,3 @@ postulate
 {-# BUILTIN INFINITY ∞  #-}
 {-# BUILTIN SHARP    ♯_ #-}
 {-# BUILTIN FLAT     ♭  #-}
-
-{-# COMPILE GHC ♭ = undefined #-}

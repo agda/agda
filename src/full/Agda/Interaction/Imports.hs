@@ -132,7 +132,6 @@ import qualified Agda.Utils.Set1 as Set1
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.Impossible
 import Agda.Utils.IORef.Strict
-import Agda.Utils.WithDefault
 
 -- | Whether to ignore interfaces (@.agdai@) other than built-in modules
 
@@ -855,22 +854,21 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
       return mi
   where
     addOptionsCompatibilityWarnings :: PragmaOptions -> ModuleInfo -> TCM ModuleInfo
-    addOptionsCompatibilityWarnings currentOptions mi = do
+    addOptionsCompatibilityWarnings currentOptions
+      mi@ModuleInfo{ miInterface = i, miPrimitive = isPrim, miWarnings = ws } = do
 
       -- Andreas, 2026-02-03, issue #8361, debug printing by @nad.
       -- For testing whether 'isBuiltinModule' is thread-safe.
       reportSDoc "import.iface.builtin" 25 do
         isBuiltin <- isJust <$> isBuiltinModule (srcFileId (miSourceFile mi))
-        P.hsep [ "The module"
-               , prettyTCM (iTopLevelModuleName (miInterface mi)), "is"
+        P.hsep [ "The module", prettyTCM (iTopLevelModuleName i), "is"
                , if isBuiltin then "primitive." else "not primitive."
                ]
 
       -- Check that imported options are compatible with current ones (issue #2487),
       -- but give primitive modules a pass.
       -- Compute updated warnings if needed.
-      ws' <- fromMaybe (miWarnings mi) <$>
-             getOptionsCompatibilityWarnings isMain currentOptions mi
+      ws' <- fromMaybe ws <$> getOptionsCompatibilityWarnings isMain isPrim currentOptions i
       return mi{ miWarnings = ws' }
 
 -- | If checking produced non-benign warnings, error out.
@@ -886,15 +884,8 @@ raiseNonFatalErrors result = do
 --   compatible with the current options. Raises Non-fatal errors if
 --   not.
 checkOptionsCompatible ::
-  PragmaOptions -> PragmaOptions -> SourceFile -> TopLevelModuleName ->
-  TCM Bool
-checkOptionsCompatible current imported importedFile importedModule =
-  flip execStateT True $ do
-  -- The flag --erasure is ignored for builtin modules.
-  imported <-
-    ifM (isJust <$> isBuiltinModule (srcFileId importedFile))
-      (return (set lensOptErasure Default imported))
-      (return imported)
+  PragmaOptions -> PragmaOptions -> TopLevelModuleName -> TCM Bool
+checkOptionsCompatible current imported importedModule = flip execStateT True $ do
   reportSDoc "import.iface.options" 25 $ P.nest 2 $ "current options  =" P.<+> showOptions current
   reportSDoc "import.iface.options" 25 $ P.nest 2 $ "imported options =" P.<+> showOptions imported
   forM_ infectiveCoinfectiveOptions $ \opt -> do
@@ -921,22 +912,16 @@ checkOptionsCompatible current imported importedFile importedModule =
 
 getOptionsCompatibilityWarnings ::
      MainInterface
+  -> Bool           -- ^ Are we looking at a primitvie module?
   -> PragmaOptions
-  -> ModuleInfo
+  -> Interface
   -> TCM (Maybe (Set TCWarning))
-getOptionsCompatibilityWarnings
-  isMain currentOptions
-  ModuleInfo{
-    miPrimitive = False,
-    miInterface = Interface{ iOptionsUsed, iTopLevelModuleName },
-    miSourceFile } = do
-  ifM (checkOptionsCompatible currentOptions iOptionsUsed miSourceFile
-         iTopLevelModuleName)
+getOptionsCompatibilityWarnings isMain False currentOptions Interface{ iOptionsUsed, iTopLevelModuleName } = do
+  ifM (checkOptionsCompatible currentOptions iOptionsUsed iTopLevelModuleName)
     {-then-} (return Nothing) -- No warnings to collect because options were compatible.
     {-else-} (Just <$> getAllWarnings' isMain ErrorWarnings)
 -- Options consistency checking is disabled for always-available primitive modules.
-getOptionsCompatibilityWarnings _ _ ModuleInfo{ miPrimitive = True } =
-  return Nothing
+getOptionsCompatibilityWarnings _ True _ _ = return Nothing
 
 -- | Try to get the interface from interface file or cache.
 

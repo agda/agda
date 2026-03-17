@@ -47,7 +47,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
-import Agda.Interaction.Options (optFirstOrder, optErasure)
+import Agda.Interaction.Options (optFirstOrder)
 
 import Agda.Utils.Either
 import Agda.Utils.Function
@@ -661,13 +661,7 @@ instance Occurs Sort where
         s2' <- mapAbstraction (El s1' <$> a') (flexibly . underBinder . occurs_) s2
         return $! PiSort a' s1' s2'
       FunSort s1 s2 -> FunSort <$> flexibly (occurs_ s1) <*> flexibly (occurs_ s2)
-      Univ u a -> do
-        -- If --erasure has been turned on, then the argument of
-        -- Set/Prop/SSet is erased.
-        erasureEnabled <- optErasure <$> pragmaOptions
-        Univ u <$>
-          (if erasureEnabled then underQuantity zeroQuantity else id)
-          (occurs_ a)
+      Univ u a   -> Univ u <$> occurs_ a
       s@Inf{}    -> return s
       s@SizeUniv -> return s
       s@LockUniv -> return s

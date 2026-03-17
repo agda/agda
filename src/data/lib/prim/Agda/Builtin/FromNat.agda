@@ -1,12 +1,11 @@
-{-# OPTIONS --cubical-compatible --safe --no-sized-types
-            --no-guardedness --level-universe --erasure #-}
+{-# OPTIONS --cubical-compatible --safe --no-sized-types --no-guardedness --level-universe #-}
 
 module Agda.Builtin.FromNat where
 
 open import Agda.Primitive
 open import Agda.Builtin.Nat
 
-record Number {@0 a} (A : Set a) : Set (lsuc a) where
+record Number {a} (A : Set a) : Set (lsuc a) where
   field
     Constraint : Nat → Set a
     fromNat : ∀ n → {{_ : Constraint n}} → A

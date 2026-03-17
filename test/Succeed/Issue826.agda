@@ -4,7 +4,7 @@
 {-# OPTIONS --allow-unsolved-metas --guardedness #-}
 module Issue826 where
 
-open import Agda.Builtin.Coinduction
+open import Common.Coinduction
 
 postulate
   A : Set
