@@ -57,6 +57,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import qualified Agda.Benchmarking as Benchmark
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 
+import Agda.Utils.List
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -118,7 +119,7 @@ initialInstanceCandidates blockOverlap instTy = do
       ctx <- getContext
       reportSDoc "tc.instance.cands" 40 $ hang "Getting candidates from context" 2 (inTopContext $ prettyTCM $ PrettyContext ctx)
           -- Context variables with their types lifted to live in the full context
-      let varsAndRaisedTypes = reverse $ zip (contextTerms ctx) (flattenTel $ contextToTel ctx)
+      let varsAndRaisedTypes = reverse $ zip' (contextTerms ctx) (flattenTel $ contextToTel ctx)
           vars = [ Candidate LocalCandidate x t (infoOverlapMode info)
                  | (x, Dom{domInfo = info, unDom = t}) <- varsAndRaisedTypes
                  , isInstance info
@@ -145,7 +146,7 @@ initialInstanceCandidates blockOverlap instTy = do
       reportSDoc "tc.instance.fields" 30 $
         if null fields then "no instance field candidates" else
           "instance field candidates" $$ do
-            nest 2 $ vcat (map debugCandidate fields)
+            nest 2 $ vcat (map' debugCandidate fields)
 
       -- get let bindings
       env <- asksTC envLetBindings
@@ -155,7 +156,7 @@ initialInstanceCandidates blockOverlap instTy = do
                  , isInstance info
                  , usableModality info
                  ]
-      filterM (sameHead cls . candidateType) $ vars ++ fields ++ lets
+      filterM (sameHead cls . candidateType) $ vars ++! fields ++! lets
 
     sameHead :: Maybe QName -> Type -> BlockT TCM Bool
     sameHead Nothing _ = pure True
@@ -194,8 +195,8 @@ initialInstanceCandidates blockOverlap instTy = do
       addContext piTel $ caseMaybeM (etaExpand etaOnce t') (return []) $ \ (r, pars) -> do
         let v' = raise n v `apply` teleArgs piTel
         (tel, args) <- lift $ forceEtaExpandRecord r pars v'
-        let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
-        fmap concat $ forM (zip args types) $ \ (arg, t) -> do
+        let types = map' unDom $ applySubst (parallelS $ reverse $ map' unArg args) (flattenTel tel)
+        fmap concat $ forM (zip' args types) $ \ (arg, t) -> do
           let
             absArg = abstract piTel (unArg arg)
             absTy = telePi piTel t
@@ -339,7 +340,7 @@ initialInstanceCandidates blockOverlap instTy = do
               -- I do not understand why the Constructor case is not impossible.
               -- Ulf, 2014-08-20: constructors are always instances.
               Constructor{ conSrcCon = c }       -> Con c ConOSystem []
-              _                                  -> Def q $ map Apply args
+              _                                  -> Def q $! map' Apply args
 
             mode = case defInstance def of
               Just i  -> instanceOverlap i
@@ -394,7 +395,7 @@ findInstance m Nothing = do
   setCurrentRange mv $ do
     reportSLn "tc.instance" 20 $ "The type of the FindInstance constraint isn't known, trying to find it again."
     t <- instantiate =<< getMetaTypeInContext m
-    reportSLn "tc.instance" 70 $ "findInstance 1: t: " ++ prettyShow t
+    reportSLn "tc.instance" 70 $ "findInstance 1: t: " ++! prettyShow t
 
     -- Issue #2577: If the target is a function type the arguments are
     -- potential candidates, so we add them to the context to make
@@ -437,7 +438,7 @@ getInstanceCandidates m = wrapper where
       lift (foldrM insertCandidate [] cands)
 
     reportSDoc "tc.instance.sort" 20 $ nest 2 $
-      "sorted candidates" $$ vcat (map debugCandidate cands)
+      "sorted candidates" $$ vcat (map' debugCandidate cands)
 
     pure cands
 
@@ -535,17 +536,17 @@ findInstance' m cands = do
   mv <- lookupLocalMeta m
   setCurrentRange mv $ do
       reportSLn "tc.instance" 15 $
-        "findInstance 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
-      reportSDoc "tc.instance" 60 $ nest 2 $ vcat $ map debugCandidate cands
+        "findInstance 2: constraint: " ++! prettyShow m ++! "; candidates left: " ++! show (length cands)
+      reportSDoc "tc.instance" 60 $ nest 2 $ vcat $ map' debugCandidate cands
       reportSDoc "tc.instance" 70 $ "raw" $$ do
-       nest 2 $ vcat $ map debugCandidateRaw cands
+       nest 2 $ vcat $ map' debugCandidateRaw cands
 
       t <- getMetaTypeInContext m
-      reportSLn "tc.instance" 70 $ "findInstance 2: t: " ++ prettyShow t
+      reportSLn "tc.instance" 70 $ "findInstance 2: t: " ++! prettyShow t
 
       insidePi t $ \ t -> do
       reportSDoc "tc.instance" 15 $ "findInstance 3: t =" <+> prettyTCM t
-      reportSLn "tc.instance" 70 $ "findInstance 3: t: " ++ prettyShow t
+      reportSLn "tc.instance" 70 $ "findInstance 3: t: " ++! prettyShow t
 
       mcands <-
         -- Temporarily remove other instance constraints to avoid
@@ -569,7 +570,7 @@ findInstance' m cands = do
           let sortedErrs = List.sortBy (compare `on` precision) errs
                 where precision (_, err) = maybe infinity iLength $ rangeToInterval $ getRange err
                       infinity = 1000000000
-          setCurrentRange (take 1 $ map snd sortedErrs) $
+          setCurrentRange (take' 1 $ map' snd sortedErrs) $
             typeError $ InstanceNoCandidate t [ (candidateTerm c, err) | (c, err) <- sortedErrs ]
 
         Just (errs, [(c@(Candidate q term t' _), v)]) -> do
@@ -581,7 +582,7 @@ findInstance' m cands = do
           reportSDoc "tc.instance" 70 $ nest 2 $
             "candidate v = " <+> pretty v
 
-          ctxElims <- map Apply <$> getContextArgs
+          ctxElims <- map' Apply <$> getContextArgs
           equalTerm t (MetaV m ctxElims) v
 
           reportSDoc "tc.instance" 15 $ vcat
@@ -597,10 +598,10 @@ findInstance' m cands = do
           return Nothing  -- We’re done
 
         _ -> do
-          let cs = maybe cands (map fst . snd) mcands -- keep the current candidates if Nothing
+          let cs = maybe cands (map' fst . snd) mcands -- keep the current candidates if Nothing
           reportSDoc "tc.instance" 15 $
             text ("findInstance 5: refined candidates: ") <+>
-            prettyTCM (List.map candidateTerm cs)
+            prettyTCM (map' candidateTerm cs)
           whenProfile Profile.Instances $ tick "findInstance: multiple candidates"
           return (Just (cs, neverUnblock))
 
@@ -635,7 +636,7 @@ filterResettingState
   -> TCM ([(Candidate, TCErr)], [(Candidate, Term)])
 filterResettingState m cands f = do
   ctxArgs  <- getContextArgs
-  let ctxElims = map Apply ctxArgs
+  let ctxElims = map' Apply ctxArgs
   result <- mapM (\c -> (c,) <$> localTCStateSaving (f c)) cands
 
   -- Check that there aren't any hard failures
@@ -704,7 +705,7 @@ resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
     -- If some of the candidates are overlappable/overlapping, then we
     -- should do the work.
     | otherwise = Bench.billTo [Bench.Typing, Bench.InstanceSearch, Bench.CheckOverlap] do
-      reportSDoc "tc.instance.overlap" 30 $ "overlapping instances:" $$ vcat (map (debugCandidate . itemC) cands)
+      reportSDoc "tc.instance.overlap" 30 $ "overlapping instances:" $$ vcat (map' (debugCandidate . itemC) cands)
 
       sinkIncoherent . survivingCands <$> foldrM insert (OverlapState [] []) cands
 
@@ -720,7 +721,7 @@ resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
   sinkIncoherent :: [item] -> [item]
   sinkIncoherent cands = case List.partition (isIncoherent . itemC) cands of
     (as, [c]) | all (isGlobal . itemC) as -> pure c
-    (as, cs)  | all (isGlobal . itemC) as -> cs ++ as
+    (as, cs)  | all (isGlobal . itemC) as -> cs ++! as
     _                                     -> cands
 
   -- Insert a new item into the overlap state.
@@ -762,7 +763,7 @@ resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
             [ "will become guard:"
             , nest 2 (debugCandidate new)
             , "old items:"
-            , nest 2 (vcat (map (debugCandidate . itemC) oldItems))
+            , nest 2 (vcat (map' (debugCandidate . itemC) oldItems))
             ]
 
           -- But we can't /just/ add it to the list of guards: the new
@@ -793,9 +794,9 @@ resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
       [ "inserting new candidate:"
       , nest 2 (debugCandidate new)
       , "against old candidates"
-      , nest 2 (vcat (map (debugCandidate . itemC) oldItems))
+      , nest 2 (vcat (map' (debugCandidate . itemC) oldItems))
       , "and guarding candidates"
-      , nest 2 (vcat (map debugCandidate guards))
+      , nest 2 (vcat (map' debugCandidate guards))
       , "is guarded?" <+> prettyTCM guarded
       ]
 
@@ -815,7 +816,7 @@ dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSam
 
   -- Take overlappable candidates into account
   cands <- resolveInstanceOverlap overlapOk rel fst3 cands0
-  reportSDoc "tc.instance.overlap" 30 $ "instances after resolving overlap:" $$ vcat (map (debugCandidate . fst3) cands)
+  reportSDoc "tc.instance.overlap" 30 $ "instances after resolving overlap:" $$ vcat (map' (debugCandidate . fst3) cands)
 
   reportSDoc "tc.instance" 50 $ vcat
     [ "valid candidates:"
@@ -900,19 +901,19 @@ debugCandidateTerm = debugCandidate' False True
 -- candidates that failed some constraints.
 checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe ([(Candidate, TCErr)], [(Candidate, Term)]))
 checkCandidates m t cands =
-  verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++ prettyShow m) $
+  verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++! prettyShow m) $
   ifM (anyMetaTypes cands) (return Nothing) $ Just <$> do
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ "target:" <+> prettyTCM t
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
-      [ "candidates", vcat (map debugCandidate cands) ]
+      [ "candidates", vcat (map' debugCandidate cands) ]
 
     t <- instantiateFull t
     cands'@(_, okay) <- filterResettingState m cands (checkCandidateForMeta m t)
 
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
-      [ "valid candidates", vcat (map (debugCandidate . fst) okay) ]
+      [ "valid candidates", vcat (map' (debugCandidate . fst) okay) ]
     reportSDoc "tc.instance.candidates" 60 $ nest 2 $ vcat
-      [ "valid candidates", vcat (map (debugCandidateTerm . fst) okay) ]
+      [ "valid candidates", vcat (map' (debugCandidateTerm . fst) okay) ]
 
     return cands'
   where
@@ -940,7 +941,7 @@ checkCandidates m t cands =
       -- current instance meta, thus, we set the range.
       mv <- lookupLocalMeta m
       setCurrentRange mv $ runCandidateCheck $
-        verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ prettyShow m) $ do
+        verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++! prettyShow m) $ do
           reportSDoc "tc.instance" 20 $ vcat
             [ "checkCandidateForMeta"
             , "  t    =" <+> prettyTCM t
@@ -1002,7 +1003,7 @@ checkCandidates m t cands =
 
             reportSDoc "tc.instance.overlap" 30 $
               "candidate" <+> prettyTCM v <+> "okay for overlap?" <+> prettyTCM overlapOk
-              $$ vcat (map prettyTCM cons)
+              $$ vcat (map' prettyTCM cons)
 
             whenProfile Profile.Instances $ tick "checkCandidateForMeta: yes"
             return $ Yes v overlapOk
@@ -1074,7 +1075,7 @@ applyDroppingParameters t vs = do
         Constructor {conPars = n, conData = d} -> do
           -- Szumi, 2025-05-05, issue #7853: don't drop parameters from the current module.
           fv <- getDefFreeVars d
-          return $ Con c ci (map Apply $ drop (n - fv) vs)
+          return $! Con c ci $! map' Apply $ drop (n - fv) vs
         _ -> __IMPOSSIBLE__
     -- Def f [] -> do
     --   -- Andreas, 2022-03-07, issue #5809: don't drop parameters of irrelevant projections.

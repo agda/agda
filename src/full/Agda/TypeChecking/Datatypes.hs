@@ -118,7 +118,7 @@ getFullyAppliedConType c t = do
       reportSLn "tc.getConType" 35 $ unwords $
         [ "getFullyAppliedConType: case Def", prettyShow d, prettyShow es ]
       dt <- defType <$> getConstInfo d
-      let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
+      let pars = mustAllApplyElims $ take npars es
       ctPars <- ctype `piApplyM` pars
       return $ Just ((d, dt, pars), ctPars)
     _ -> return Nothing

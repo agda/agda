@@ -77,7 +77,10 @@ data Dom' t e = Dom
     -- ^ Is this a Π-type (False), or a partial type (True)?
   , domTactic :: Maybe t        -- ^ "@tactic e".
   , unDom     :: e
-  } deriving (Show, Functor, Foldable, Traversable)
+  } deriving (Show, Foldable, Traversable)
+
+instance Functor (Dom' t) where
+  fmap f = \(Dom a b c d e) -> Dom a b c d $! f e
 
 type Dom = Dom' Term
 
@@ -301,7 +304,12 @@ data Abs a = Abs   { absName :: ArgName, unAbs :: a }
                -- ^ The body has (at least) one free variable.
                --   Danger: 'unAbs' doesn't shift variables properly
            | NoAbs { absName :: ArgName, unAbs :: a }
-  deriving (Functor, Foldable, Traversable, Generic)
+  deriving (Foldable, Traversable, Generic)
+
+instance Functor Abs where
+  fmap f = \case
+    Abs x y   -> Abs x $! f y
+    NoAbs x y -> NoAbs x $! f y
 
 instance Decoration Abs where
   traverseF f (Abs   x a) = Abs   x <$> f a
@@ -342,7 +350,7 @@ instance LensSort a => LensSort (Arg a) where
 -- | Sequence of types. An argument of the first type is bound in later types
 --   and so on.
 data Tele a = EmptyTel
-            | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
+            | ExtendTel a !(Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
   deriving (Show, Functor, Foldable, Traversable, Generic)
 
 type Telescope = Tele (Dom Type)
@@ -706,7 +714,7 @@ data Substitution' a
     --   Apply this to closed terms you want to use in a non-empty context.
     --   @Γ ⊢ EmptyS : ()@
 
-  | a :# Substitution' a
+  | a :# !(Substitution' a)
     -- ^ Substitution extension, ``cons''.
     --   @
     --     Γ ⊢ u : Aρ   Γ ⊢ ρ : Δ
@@ -714,7 +722,7 @@ data Substitution' a
     --     Γ ⊢ u :# ρ : Δ, A
     --   @
 
-  | Strengthen Impossible !Int (Substitution' a)
+  | Strengthen Impossible !Int !(Substitution' a)
     -- ^ Strengthening substitution.  First argument is @__IMPOSSIBLE__@.
     --   In @'Strengthen err n ρ@ the number @n@ must be non-negative.
     --   This substitution should only be applied to values @t@ for
@@ -726,7 +734,7 @@ data Substitution' a
     --     Γ ⊢ Strengthen n ρ : Δ, Θ
     --   @
 
-  | Wk !Int (Substitution' a)
+  | Wk !Int !(Substitution' a)
     -- ^ Weakening substitution, lifts to an extended context.
     --   @
     --         Γ ⊢ ρ : Δ
@@ -735,7 +743,7 @@ data Substitution' a
     --   @
 
 
-  | Lift !Int (Substitution' a)
+  | Lift !Int !(Substitution' a)
     -- ^ Lifting substitution.  Use this to go under a binder.
     --   @Lift 1 ρ == var 0 :# Wk 1 ρ@.
     --   @
@@ -1157,6 +1165,7 @@ unSpine' p v =
                                   loop (Def f) [Apply v] es'
         e        : es'         -> loop h (e : res) es'
 
+{-# INLINE hasElims #-}
 -- | A view distinguishing the neutrals @Var@, @Def@, and @MetaV@ which
 --   can be projected.
 hasElims :: Term -> Maybe (Elims -> Term, Elims)

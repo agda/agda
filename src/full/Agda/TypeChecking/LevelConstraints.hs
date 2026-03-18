@@ -11,7 +11,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level
 
 import Agda.Utils.Impossible
-import Agda.Utils.List (nubOn)
+import Agda.Utils.List
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Update
@@ -54,7 +54,7 @@ matchLeq (a :=< b) (c :=< d)
   where
     xs  = nubOn id . freeVarList $ (a, b) -- Note: use a list to preserve order of variables
     ys  = nubOn id . freeVarList $ (c, d)
-    rho = mkSub $ List.sort $ zip ys xs
+    rho = mkSub $ List.sort $ zip' ys xs
     mkSub = go 0
       where
         go _ [] = IdS
@@ -68,7 +68,7 @@ matchLeq (a :=< b) (c :=< d)
 inequalities :: Constraint -> Maybe [Leq]
 
 inequalities (LevelCmp CmpLeq a b)
-  | Just b' <- singleLevelView b = Just $ map (:=< b') $ List1.toList $ levelMaxView a
+  | Just b' <- singleLevelView b = Just $! map' (:=< b') $ List1.toList $ levelMaxView a
   -- Andreas, 2016-09-28
   -- Why was this most natural case missing?
   -- See test/Succeed/LevelLeqGeq.agda for where it is useful!
@@ -79,12 +79,12 @@ inequalities (LevelCmp CmpLeq a b)
 inequalities (LevelCmp CmpEq a b)
   | Just a' <- singleLevelView a =
   case List1.break (== a') (levelMaxView b) of
-    (bs0, _ : bs1) -> Just [ b' :=< a' | b' <- bs0 ++ bs1 ]
+    (bs0, _ : bs1) -> Just $! map' (\b' -> b' :=< a') (bs0 ++! bs1)
     _              -> Nothing
 
 inequalities (LevelCmp CmpEq a b)
   | Just b' <- singleLevelView b =
   case List1.break (== b') (levelMaxView a) of
-    (as0, _ : as1) -> Just [ a' :=< b' | a' <- as0 ++ as1 ]
+    (as0, _ : as1) -> Just $! map' (\a' -> a' :=< b') (as0 ++! as1)
     _              -> Nothing
 inequalities _ = Nothing

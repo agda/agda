@@ -104,11 +104,11 @@ prop_genericElemIndex x xs =
   classify (x `elem` xs) "members" $
     genericElemIndex x xs == elemIndex x xs
 
-prop_zipWith' :: (Integer -> Integer -> Integer) -> Property
-prop_zipWith' f =
+prop_zipWithSameLen :: (Integer -> Integer -> Integer) -> Property
+prop_zipWithSameLen f =
   forAll natural $ \n ->
     forAll (two $ vector n) $ \(xs, ys) ->
-      zipWith' f xs ys == Just (zipWith f xs ys)
+      zipWithSameLen f xs ys == Just (zipWith f xs ys)
 
 -- | Defining property of zipWithKeepRest
 prop_zipWithKeepRest f as bs =

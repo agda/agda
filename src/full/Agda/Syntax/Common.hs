@@ -1616,16 +1616,19 @@ irrelevant = Irrelevant empty
 shapeIrrelevant :: Relevance
 shapeIrrelevant = ShapeIrrelevant empty
 
+{-# INLINE isRelevant #-}
 isRelevant :: LensRelevance a => a -> Bool
 isRelevant a = case getRelevance a of
   Relevant{} -> True
   _ -> False
 
+{-# INLINE isIrrelevant #-}
 isIrrelevant :: LensRelevance a => a -> Bool
 isIrrelevant a = case getRelevance a of
   Irrelevant{} -> True
   _ -> False
 
+{-# INLINE isShapeIrrelevant #-}
 isShapeIrrelevant :: LensRelevance a => a -> Bool
 isShapeIrrelevant a = case getRelevance a of
   ShapeIrrelevant{} -> True
@@ -2685,7 +2688,10 @@ isInsertedHidden a = getHiding a == Hidden && getOrigin a == Inserted
 data Arg e  = Arg
   { argInfo :: ArgInfo
   , unArg :: e
-  } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  } deriving (Eq, Ord, Show, Foldable, Traversable)
+
+instance Functor Arg where
+  fmap f = \(Arg x y) -> Arg x $! f y
 
 instance Decoration Arg where
   traverseF f (Arg ai a) = Arg ai <$> f a
@@ -2800,6 +2806,7 @@ instance LensModalPolarity (Arg e) where
   setModalPolarity = setPolarityMod
   mapModalPolarity = mapPolarityMod
 
+{-# INLINE defaultArg #-}
 defaultArg :: a -> Arg a
 defaultArg = Arg defaultArgInfo
 

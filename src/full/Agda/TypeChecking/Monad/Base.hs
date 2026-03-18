@@ -5839,10 +5839,10 @@ enableCaching = optCaching <$> pragmaOptions
 
 -- | Environment of the reduce monad.
 data ReduceEnv = ReduceEnv
-  { redEnv  :: TCEnv    -- ^ Read only access to environment.
-  , redSt   :: TCState  -- ^ Read only access to state (signature, metas...).
-  , redSess :: SessionState -- ^ Read only access to the *session* state (module - source maps, etc)
-  , redPred :: Maybe (MetaId -> ReduceM Bool)
+  { redEnv  :: !TCEnv    -- ^ Read only access to environment.
+  , redSt   :: !TCState  -- ^ Read only access to state (signature, metas...).
+  , redSess :: !SessionState -- ^ Read only access to the *session* state (module - source maps, etc)
+  , redPred :: !(Maybe (MetaId -> ReduceM Bool))
     -- ^ An optional predicate that is used by 'instantiate'' and
     -- 'instantiateFull'': meta-variables are only instantiated if
     -- they satisfy this predicate.
@@ -5870,18 +5870,23 @@ reduceSt :: Lens' ReduceEnv TCState
 reduceSt f s = f (redSt s) <&> \ e -> s { redSt = e }
 {-# INLINE reduceSt #-}
 
-newtype ReduceM a = ReduceM { unReduceM :: ReduceEnv -> a }
---  deriving (Functor, Applicative, Monad)
+newtype ReduceM a = ReduceM# { unReduceM :: ReduceEnv -> a }
+
+pattern ReduceM :: (ReduceEnv -> a) -> ReduceM a
+pattern ReduceM f <- ReduceM# f where
+  ReduceM f = ReduceM# (oneShot \ !e -> f e)
+{-# INLINE ReduceM #-}
+{-# COMPLETE ReduceM #-}
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
-unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
+unKleisli f = ReduceM \env x -> unReduceM (f x) env
 
 onReduceEnv :: (ReduceEnv -> ReduceEnv) -> ReduceM a -> ReduceM a
-onReduceEnv f (ReduceM m) = ReduceM (m . f)
+onReduceEnv f (ReduceM m) = ReduceM \e -> m $! f e
 {-# INLINE onReduceEnv #-}
 
 fmapReduce :: (a -> b) -> ReduceM a -> ReduceM b
-fmapReduce f (ReduceM m) = ReduceM $ \ e -> f $! m e
+fmapReduce f (ReduceM m) = ReduceM \e -> f $! m e
 {-# INLINE fmapReduce #-}
 
 -- Andreas, 2021-05-12, issue #5379:
@@ -5889,7 +5894,7 @@ fmapReduce f (ReduceM m) = ReduceM $ \ e -> f $! m e
 -- from left to right, for the sake of printing
 -- debug messages in order.
 apReduce :: ReduceM (a -> b) -> ReduceM a -> ReduceM b
-apReduce (ReduceM f) (ReduceM x) = ReduceM $ \ e ->
+apReduce (ReduceM f) (ReduceM x) = ReduceM \e ->
   let g = f e
       a = x e
   in  g `pseq` a `pseq` g a
@@ -5901,7 +5906,7 @@ apReduce (ReduceM f) (ReduceM x) = ReduceM $ \ e ->
 -- unsafePerformIO, we need to force results that later
 -- computations do not depend on, otherwise we lose debug messages.
 thenReduce :: ReduceM a -> ReduceM b -> ReduceM b
-thenReduce (ReduceM x) (ReduceM y) = ReduceM $ \ e -> x e `pseq` y e
+thenReduce (ReduceM x) (ReduceM y) = ReduceM \e -> x e `pseq` y e
 {-# INLINE thenReduce #-}
 
 
@@ -5955,6 +5960,13 @@ instance ReadTCState ReduceM where
   getSessionState = ReduceM redSess
 
   locallyTCState l f = onReduceEnv $ mapRedSt $ over l f
+
+instance ExpandCase a => ExpandCase (ReduceM a) where
+  type Result (ReduceM a) = Result a
+  {-# INLINE expand #-}
+  expand k =
+    ReduceM (oneShot \ ~r ->
+     expand @a (oneShot \deflateA -> let r' = r in k (oneShot \act -> deflateA (unReduceM act r'))))
 
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = TCM $ \ r e -> do

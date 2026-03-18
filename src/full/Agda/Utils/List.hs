@@ -42,6 +42,18 @@ import Agda.Utils.Impossible
 -- * Variants of list case, cons, head, tail, init, last
 ---------------------------------------------------------------------------
 
+-- | Spine-strict 'replicate'.
+replicate' :: Int -> a -> [a]
+replicate' n a | n <= 0 = []
+replicate' n a = a : replicate' (n - 1) a
+
+infixr 5 ++!
+-- | Spine-strict (++).
+(++!) :: [a] -> [a] -> [a]
+(++!) xs ys = case xs of
+  []   -> seq ys ys
+  x:xs -> let !res = (++!) xs ys in x : res
+
 -- | Append a single element at the end.
 --   Time: O(length); use only on small lists.
 snoc :: [a] -> a -> [a]
@@ -141,6 +153,17 @@ initLast1 a = \case
   []   -> ([], a)
   b:bs -> first (a:) $ initLast1 b bs
 
+-- | Spine-strict 'initLast'.
+initLast' :: forall a. [a] -> Maybe ([a],a)
+initLast' []     = Nothing
+initLast' (a:as) = Just $! initLast1' a as
+
+-- | Spine-strict 'initLast1'.
+initLast1' :: a -> [a] -> ([a], a)
+initLast1' a = \case
+  []   -> ([], a)
+  b:bs -> case initLast1' b bs of (!bs, b) -> (a:bs, b)
+
 -- | 'init' of non-empty list, safe.
 --   O(n).
 --   @init1 a as = init (a:as)@
@@ -221,6 +244,16 @@ indexWithDefault a (_ : xs) n = indexWithDefault a xs (n - 1)
 findWithIndex :: (a -> Bool) -> [a] -> Maybe (a, Int)
 findWithIndex p as = List.find (p . fst) (zip as [0..])
 
+{-# INLINE findWithIndex' #-}
+-- | The more efficient implementation. We return a CPS's Maybe result for
+--   reliable inlining.
+findWithIndex' :: forall a b. (a -> Bool) -> [a] -> b -> (a -> Int -> b) -> b
+findWithIndex' f as notfound found = go 0 as where
+  go :: Int -> [a] -> b
+  go !i [] = notfound
+  go i (a:as) | f a       = found a i
+              | otherwise = go (i + 1) as
+
 -- | A generalised variant of 'elemIndex'.
 -- O(n).
 genericElemIndex :: (Eq a, Integral i) => a -> [a] -> Maybe i
@@ -234,8 +267,8 @@ genericElemIndex x xs =
 -- | @downFrom n = [n-1,..1,0]@.
 --   O(n).
 downFrom :: Integral a => a -> [a]
-downFrom n | n <= 0     = []
-           | otherwise = let n' = n-1 in n' : downFrom n'
+downFrom n | n <= 0    = []
+           | otherwise = let !n' = n-1 in (n' :) $! downFrom n'
 
 ---------------------------------------------------------------------------
 -- * Update
@@ -244,8 +277,16 @@ downFrom n | n <= 0     = []
 {-# INLINE map' #-}
 -- | Strict map.
 map' :: (a -> b) -> [a] -> [b]
-map' f [] = []
-map' f (a:as) = let !b = f a; !bs = map' f as in b:bs
+map' f = go where
+  go []     = []
+  go (a:as) = let !b = f a; !bs = go as in b:bs
+
+{-# INLINE map'' #-}
+-- | Spine-strict map.
+map'' :: (a -> b) -> [a] -> [b]
+map'' f = go where
+  go []     = []
+  go (a:as) = let !bs = go as in f a:bs
 
 -- | Update the first element of a list, if it exists.
 --   O(1).
@@ -285,6 +326,35 @@ splitExactlyAt :: Integral n => n -> [a] -> Maybe (Prefix a, Suffix a)
 splitExactlyAt 0 xs       = return ([], xs)
 splitExactlyAt n []       = Nothing
 splitExactlyAt n (x : xs) = first (x :) <$> splitExactlyAt (n-1) xs
+
+-- | Spine-strict splitAt.
+splitAt' :: Int -> [a] -> ([a], [a])
+splitAt' n !as | n <= 0 = ([], as)
+splitAt' n []           = ([], [])
+splitAt' n (a:as)       = case splitAt' (n - 1) as of (as, as') -> (a:as, as')
+
+-- | Spine-strict 'take'.
+take' :: Int -> [a] -> [a]
+take' n !as | n <= 0 = []
+take' n []           = []
+take' n (a:as)       = (a:) $! take' (n - 1) as
+
+{-# INLINE takeWhile' #-}
+-- | Strict 'takeWhile'.
+takeWhile' :: (a -> Bool) -> [a] -> [a]
+takeWhile' f = go where
+  go [] = []
+  go (!a:as) | f a       = (a:) $! go as
+             | otherwise = []
+
+{-# INLINE break' #-}
+-- | Strict 'break'.
+break' :: (a -> Bool) -> [a] -> ([a],[a])
+break' p = go where
+  go xs@[] =  (xs, xs)
+  go xs@(!x:xs')
+    | p x        =  ([],xs)
+    | otherwise  =  case go xs' of (ys,zs) -> (x:ys,zs)
 
 -- | @takeExactly a n as == take n (as ++ repeat a)@
 --
@@ -396,11 +466,26 @@ partitionMaybe f = loop
       Nothing -> first  (a :) $ loop as
       Just b  -> second (b :) $ loop as
 
+-- | Spine-strict 'catMaybe'.
+catMaybe' :: [Maybe a] -> [a]
+catMaybe' []           = []
+catMaybe' (Just a:as)  = (a:) $! catMaybe' as
+catMaybe' (Nothing:as) = catMaybe' as
+
+
 -- | Like 'filter', but additionally return the last partition
 --   of the list where the predicate is @False@ everywhere.
 --   O(n).
 filterAndRest :: (a -> Bool) -> [a] -> ([a], Suffix a)
 filterAndRest p = mapMaybeAndRest $ \ a -> if p a then Just a else Nothing
+
+{-# INLINE filter' #-}
+-- | Strict 'filter'.
+filter' :: (a -> Bool) -> [a] -> [a]
+filter' f = go where
+  go [] = []
+  go (!a:as) | f a       = (a:) $! go as
+             | otherwise = go as
 
 -- | Like 'mapMaybe', but additionally return the last partition
 --   of the list where the function always returns @Nothing@.
@@ -775,13 +860,31 @@ nubM eq = loop where
 -- * Zipping
 ---------------------------------------------------------------------------
 
+-- | Spine-strict zipping.
+zip' :: [a] -> [b] -> [(a, b)]
+zip' (a:as) (b:bs) = ((a, b):) $! zip' as bs
+zip' as  !bs       = []
+
+{-# INLINE zipWith' #-}
+-- | Strict 'zipWith'.
+zipWith' :: (a -> b -> c) -> [a] -> [b] -> [c]
+zipWith' f = go where
+  go (a:as) (b:bs) = let !c = f a b in (c:) $! go as bs
+  go as     !bs    = []
+
+{-# INLINE zipWith'' #-}
+-- | Spine-strict 'zipWith'.
+zipWith'' :: (a -> b -> c) -> [a] -> [b] -> [c]
+zipWith'' f = go where
+  go (a:as) (b:bs) = (f a b:) $! go as bs
+  go as     !bs    = []
+
 -- | Requires both lists to have the same length.
 --   O(n).
 --
 --   Otherwise, @Nothing@ is returned.
-
-zipWith' :: (a -> b -> c) -> [a] -> [b] -> Maybe [c]
-zipWith' f = loop
+zipWithSameLen :: (a -> b -> c) -> [a] -> [b] -> Maybe [c]
+zipWithSameLen f = loop
   where
   loop []        []      = Just []
   loop (x : xs) (y : ys) = (f x y :) <$> loop xs ys

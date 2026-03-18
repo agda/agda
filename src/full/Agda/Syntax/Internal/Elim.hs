@@ -12,11 +12,12 @@ import Agda.Syntax.Common.Pretty
 import Agda.Utils.Empty
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple
+import Agda.Utils.Impossible
 
 -- | Eliminations, subsuming applications and projections.
 --
 data Elim' a
-  = Apply (Arg a)         -- ^ Application.
+  = Apply {-# UNPACK #-} !(Arg a) -- ^ Application.
   | Proj ProjOrigin QName -- ^ Projection.  'QName' is name of a record projection.
   | IApply a a a -- ^ IApply x y r, x and y are the endpoints
   deriving (Show, Functor, Foldable, Traversable)
@@ -32,11 +33,19 @@ instance LensOrigin (Elim' a) where
   mapOrigin f e@Proj{}  = e
   mapOrigin f e@IApply{} = e
 
+{-# INLINE isApplyElim #-}
 -- | Drop 'Apply' constructor. (Safe)
 isApplyElim :: Elim' a -> Maybe (Arg a)
 isApplyElim (Apply u) = Just u
 isApplyElim Proj{}    = Nothing
-isApplyElim (IApply _ _ r) = Just (defaultArg r)
+isApplyElim (IApply _ _ r) = Just $! defaultArg r
+
+{-# INLINE mustApplyElim #-}
+-- | Drop 'Apply' constructor, fails with @__IMPOSSIBLE__@ on a projection.
+mustApplyElim :: Elim' a -> Arg a
+mustApplyElim (Apply u)      = u
+mustApplyElim Proj{}         = __IMPOSSIBLE__
+mustApplyElim (IApply _ _ r) = defaultArg r
 
 isApplyElim' :: Empty -> Elim' a -> Arg a
 isApplyElim' e = fromMaybe (absurd e) . isApplyElim
@@ -52,9 +61,18 @@ isProperApplyElim = \case
 allApplyElims :: [Elim' a] -> Maybe [Arg a]
 allApplyElims = mapM isApplyElim
 
+-- | Drop 'Apply' constructors, fails with @__IMPOSSIBLE__@ if there's
+--  a non-'Apply' entry.
+mustAllApplyElims :: [Elim' a] -> [Arg a]
+mustAllApplyElims [] = []
+mustAllApplyElims (a:as) = case a of
+  Apply a      -> (a :) $! mustAllApplyElims as
+  Proj{}       -> __IMPOSSIBLE__
+  IApply _ _ r -> let !a = defaultArg r in (a :) $! mustAllApplyElims as
+
 -- | Split at first non-'Apply'
 splitApplyElims :: [Elim' a] -> ([Arg a], [Elim' a])
-splitApplyElims (Apply u : es) = first (u :) $ splitApplyElims es
+splitApplyElims (Apply u : es) = first (u :) $! splitApplyElims es
 splitApplyElims es             = ([], es)
 
 class IsProjElim e where

@@ -68,6 +68,7 @@ import Agda.Termination.TermCheck
 import Agda.Utils.Function ( applyUnless, applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
@@ -86,7 +87,7 @@ checkDeclCached d@A.ScopedDecl{} = checkDecl d
 checkDeclCached
   d@(A.Section _ erased mname (A.GeneralizeTel _ tbinds) _) = do
   e <- readFromCachedLog  -- Can ignore the set of generalizable vars (they occur in the telescope)
-  reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show (isJust e)
+  reportSLn "cache.decl" 10 $ "checkDeclCached: " ++! show (isJust e)
   case e of
     Just (EnterSection erased' mname' tbinds', _)
       | erased == erased' && mname == mname' && tbinds == tbinds' ->
@@ -105,7 +106,7 @@ checkDeclCached d = do
   case e of
     Just (Decl d', s) | compareDecl d d' -> do
       restorePostScopeState s
-      reportSLn "cache.decl" 50 $ "range: " ++ prettyShow (getRange d)
+      reportSLn "cache.decl" 50 $ "range: " ++! prettyShow (getRange d)
       printSyntaxInfo (getRange d)
     _ -> do
       cleanCachedLog
@@ -139,7 +140,7 @@ checkDeclCached d = do
 -- | Type check a sequence of declarations.
 checkDecls :: [A.Declaration] -> TCM ()
 checkDecls ds = do
-  reportSLn "tc.decl" 45 $ "Checking " ++ show (length ds) ++ " declarations..."
+  reportSLn "tc.decl" 45 $ "Checking " ++! show (length ds) ++! " declarations..."
   mapM_ checkDecl ds
 
 -- | Type check a single declaration.
@@ -183,9 +184,9 @@ checkDecl d = setCurrentRange d $ do
                                       current <- asksTC envMutualBlock
                                       unless (Just blockId == current) $ do
                                         reportS "" 0
-                                          [ "mutual block id discrepancy for " ++ prettyShow x
-                                          , "  current    mut. bl. = " ++ show current
-                                          , "  calculated mut. bl. = " ++ show blockId
+                                          [ "mutual block id discrepancy for " ++! prettyShow x
+                                          , "  current    mut. bl. = " ++! show current
+                                          , "  calculated mut. bl. = " ++! show blockId
                                           ]
 
                                     return (blockId, Set.singleton x)
@@ -211,7 +212,7 @@ checkDecl d = setCurrentRange d $ do
       -- TODO: Benchmarking for unquote.
       A.UnquoteDecl mi is xs e -> checkMaybeAbstractly is $ checkUnquoteDecl mi is xs e
       A.UnquoteDef is xs e     -> impossible $ checkMaybeAbstractly is $ checkUnquoteDef is xs e
-      A.UnquoteData is x uc js cs e -> checkMaybeAbstractly (is ++ js) $ do
+      A.UnquoteData is x uc js cs e -> checkMaybeAbstractly (is ++! js) $ do
         reportSDoc "tc.unquote.data" 20 $ "Checking unquoteDecl data" <+> prettyTCM x
         Nothing <$ unquoteTop (x:cs) e
 
@@ -348,12 +349,12 @@ type FinalChecks = Maybe (TCM ())
 
 checkUnquoteDecl :: Info.MutualInfo -> [A.DefInfo] -> [QName] -> A.Expr -> TCM FinalChecks
 checkUnquoteDecl mi is xs e = do
-  reportSDoc "tc.unquote.decl" 20 $ "Checking unquoteDecl" <+> sep (map prettyTCM xs)
+  reportSDoc "tc.unquote.decl" 20 $ "Checking unquoteDecl" <+> sep (map' prettyTCM xs)
   Nothing <$ unquoteTop xs e
 
 checkUnquoteDef :: [A.DefInfo] -> [QName] -> A.Expr -> TCM ()
 checkUnquoteDef _ xs e = do
-  reportSDoc "tc.unquote.decl" 20 $ "Checking unquoteDef" <+> sep (map prettyTCM xs)
+  reportSDoc "tc.unquote.decl" 20 $ "Checking unquoteDef" <+> sep (map' prettyTCM xs)
   () <$ unquoteTop xs e
 
 -- | Run a reflected TCM computatation expected to define a given list of
@@ -379,7 +380,7 @@ unquoteTop xs e = do
 --   Precondition: name has been added to signature already.
 instantiateDefinitionType :: QName -> TCM ()
 instantiateDefinitionType q = do
-  reportSLn "tc.decl.inst" 20 $ "instantiating type of " ++ prettyShow q
+  reportSLn "tc.decl.inst" 20 $ "instantiating type of " ++! prettyShow q
   t  <- defType . fromMaybe __IMPOSSIBLE__ . lookupDefinition q <$> getSignature
   t' <- instantiateFull t
   modifySignature $ updateDefinition q $ updateDefType $ const t'
@@ -398,7 +399,7 @@ instantiateDefinitionType q = do
 -- --   Precondition: name has been added to signature already.
 -- instantiateDefinition :: QName -> TCM ()
 -- instantiateDefinition q = do
---   reportSLn "tc.decl.inst" 20 $ "instantiating " ++ prettyShow q
+--   reportSLn "tc.decl.inst" 20 $ "instantiating " ++! prettyShow q
 --   sig <- getSignature
 --   let def = fromMaybe __IMPOSSIBLE__ $ lookupDefinition q sig
 --   def <- instantiateFull def
@@ -501,10 +502,10 @@ checkInjectivity_ names = Bench.billTo [Bench.Injectivity] $ do
         | term /= Just True -> do
             -- Not terminating, thus, running the injectivity check could get us into a loop.
             reportSLn "tc.inj.check" 35 $
-              prettyShow q ++ " is not verified as terminating, thus, not considered for injectivity"
+              prettyShow q ++! " is not verified as terminating, thus, not considered for injectivity"
         | isProperProjection d -> do
             reportSLn "tc.inj.check" 40 $
-              prettyShow q ++ " is a projection, thus, not considered for injectivity"
+              prettyShow q ++! " is a projection, thus, not considered for injectivity"
         | otherwise -> do
 
             inv <- checkInjectivity q cs
@@ -514,8 +515,8 @@ checkInjectivity_ names = Bench.billTo [Bench.Injectivity] $ do
       _ -> do
         abstr <- asksTC envAbstractMode
         reportSLn "tc.inj.check" 40 $
-          "we are in " ++ show abstr ++ " and " ++
-             prettyShow q ++ " is abstract or not a function, thus, not considered for injectivity"
+          "we are in " ++! show abstr ++! " and " ++
+             prettyShow q ++! " is abstract or not a function, thus, not considered for injectivity"
 
 -- | Check a set of mutual names for projection likeness.
 --
@@ -529,7 +530,7 @@ checkProjectionLikeness_ names = Bench.billTo [Bench.ProjectionLikeness] $ do
       -- Non-mutual definitions can be considered for
       -- projection likeness
       let ds = Set.toList names
-      reportSLn "tc.proj.like" 20 $ "checkDecl: checking projection-likeness of " ++ prettyShow ds
+      reportSLn "tc.proj.like" 20 $ "checkDecl: checking projection-likeness of " ++! prettyShow ds
       case ds of
         [d] -> do
           def <- getConstInfo d
@@ -538,7 +539,7 @@ checkProjectionLikeness_ names = Bench.billTo [Bench.ProjectionLikeness] $ do
           case theDef def of
             Function{} -> makeProjection (defName def)
             _          -> reportSLn "tc.proj.like" 25 $
-              prettyShow d ++ " is abstract or not a function, thus, not considered for projection-likeness"
+              prettyShow d ++! " is abstract or not a function, thus, not considered for projection-likeness"
         _ -> reportSLn "tc.proj.like" 25 $
                "mutual definitions are not considered for projection-likeness"
 
@@ -556,9 +557,9 @@ whenAbstractFreezeMetasAfter Info.DefInfo{defAccess, defAbstract, defOpaque} m =
 
     reportSDoc "tc.decl.ax" 20 $ vcat
       [ "Abstract type signature produced new open metas: " <+>
-        sep (map prettyTCM oms)
+        sep (map' prettyTCM oms)
       , "We froze the following ones of these:            " <+>
-        sep (map prettyTCM $ Set.toList xs)
+        sep (map' prettyTCM $ Set.toList xs)
       ]
     return a
 
@@ -646,7 +647,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
     ]
 
   unless (null genParams) $
-    reportSLn "tc.decl.ax" 40 $ "  generalized params: " ++ show genParams
+    reportSLn "tc.decl.ax" 40 $ "  generalized params: " ++! show genParams
 
   -- Jesper, 2018-06-05: should be done AFTER generalizing
   --whenM (optDoubleCheck <$> pragmaOptions) $ workOnTypes $ do
@@ -689,7 +690,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         warning $ TooManyPolarities x $
           List1.fromListSafe __IMPOSSIBLE__ $ drop n occs
 
-      return $ map rangedThing occs
+      return $ map' rangedThing occs
 
   -- Set blocking tag to MissingClauses if we still expect clauses
   let blk = case kind of
@@ -714,7 +715,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         where
           fun = FunctionDefn $ set funAbstr_ (Info.defAbstract i) funD{ _funOpaque = Info.defOpaque i }
 
-  let pols = map polFromOcc occs
+  let pols = map' polFromOcc occs
 
   addConstant x =<< do
     useTerPragma $ defn
@@ -725,8 +726,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         }
 
   reportSLn "tc.polarity" 10 $
-    "Setting occurrences and polarity for " ++ prettyShow x ++ ":\n  " ++
-    prettyShow occs ++ "\n  " ++ prettyShow pols
+    "Setting occurrences and polarity for " ++! prettyShow x ++! ":\n  " ++
+    prettyShow occs ++! "\n  " ++! prettyShow pols
 
   -- Add the definition to the instance table, if needed
   case Info.defInstance i of
@@ -848,7 +849,7 @@ checkPragma r p = do
         A.OverlapPragma q new -> do
           ifNotM ((q `isInModule`) <$> currentModule)
             (uselessPragma =<< fsep (
-              pwords "This" ++ [pretty new] ++
+              pwords "This" ++! [pretty new] ++
               pwords "pragma must appear in the same module as the definition of" ++
               [prettyTCM q]))
 
@@ -1017,7 +1018,7 @@ checkSectionApplication'
     mfv <- getCurrentModuleFreeVars
     fv  <- getContextSize
     return (fv - mfv)
-  when (extraParams > 0) $ reportSLn "tc.mod.apply" 30 $ "Extra parameters to " ++ prettyShow m1 ++ ": " ++ show extraParams
+  when (extraParams > 0) $ reportSLn "tc.mod.apply" 30 $ "Extra parameters to " ++! prettyShow m1 ++! ": " ++! show extraParams
   -- Type-check the LHS (ptel) of the module macro.
   checkTelescope ModTelNotData ptel $ \ ptel -> do
     -- We are now in the context @ptel@.
@@ -1045,7 +1046,7 @@ checkSectionApplication'
     reportSDoc "tc.mod.apply" 15 $
         "applying section" <+> prettyTCM m2
     reportSDoc "tc.mod.apply" 15 $
-        nest 2 $ "args =" <+> sep (map prettyA args)
+        nest 2 $ "args =" <+> sep (map' prettyA args)
     reportSDoc "tc.mod.apply" 15 $
         nest 2 $ "ptel =" <+> escapeContext impossible (size ptel) (prettyTCM ptel)
     reportSDoc "tc.mod.apply" 15 $
@@ -1087,10 +1088,10 @@ checkSectionApplication'
     addSection' m1 $ ctxTel `abstract` aTel
 
     reportSDoc "tc.mod.apply" 20 $ vcat
-      [ sep [ "applySection", prettyTCM m1, "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]
+      [ sep [ "applySection", prettyTCM m1, "=", prettyTCM m2, fsep $ map' prettyTCM (vs ++! ts) ]
       , nest 2 $ pretty copyInfo
       ]
-    args <- instantiateFull $ vs ++ ts
+    args <- instantiateFull $ vs ++! ts
     -- If we want to avoid eta-expanding modules (while supporting the current
     -- 'open public' behaviour) we should also change 'renName'/'renMod'
     -- in Agda.Syntax.Scope.Monad
@@ -1098,7 +1099,7 @@ checkSectionApplication'
     let n = size aTel
     etaArgs <- inTopContext $ addContext aTel getContextArgs
     addContext (KeepNames aTel) $
-      applySection m1 (ptel `abstract` aTel) m2 (raise n args ++ etaArgs) copyInfo
+      applySection m1 (ptel `abstract` aTel) m2 (raise n args ++! etaArgs) copyInfo
 
 checkSectionApplication' _ Erased{} _ A.RecordModuleInstance{} _ =
   __IMPOSSIBLE__
@@ -1134,8 +1135,8 @@ checkSectionApplication'
     , nest 2 $ "name    =" <+> prettyTCM name
     , nest 2 $ "tel     =" <+> prettyTCM tel
     , nest 2 $ "telInst =" <+> prettyTCM telInst
-    , nest 2 $ "vs      =" <+> sep (map prettyTCM vs)
-    -- , nest 2 $ "args    =" <+> sep (map prettyTCM args)
+    , nest 2 $ "vs      =" <+> sep (map' prettyTCM vs)
+    -- , nest 2 $ "args    =" <+> sep (map' prettyTCM args)
     ]
   reportSDoc "tc.mod.apply" 60 $ vcat
     [ nest 2 $ "vs      =" <+> text (show vs)
@@ -1146,15 +1147,15 @@ checkSectionApplication'
   addContext telInst $ do
     vs <- moduleParamsToApply x
     reportSDoc "tc.mod.apply" 20 $ vcat
-      [ nest 2 $ "vs      =" <+> sep (map prettyTCM vs)
-      , nest 2 $ "args    =" <+> sep (map (parens . prettyTCM) args)
+      [ nest 2 $ "vs      =" <+> sep (map' prettyTCM vs)
+      , nest 2 $ "args    =" <+> sep (map' (parens . prettyTCM) args)
       ]
     reportSDoc "tc.mod.apply" 60 $ vcat
       [ nest 2 $ "vs      =" <+> text (show vs)
       , nest 2 $ "args    =" <+> text (show args)
       ]
     addSection m1
-    applySection m1 telInst x (vs ++ args) copyInfo
+    applySection m1 telInst x (vs ++! args) copyInfo
 
 -- | Checks that @open public@ is not used in hard compile-time mode.
 checkImportDirective :: A.ImportDirective -> TCM ()
@@ -1199,13 +1200,13 @@ instance ShowHead A.Declaration where
 debugPrintDecl :: A.Declaration -> TCM ()
 debugPrintDecl d = do
     verboseS "tc.decl" 45 $ do
-      reportSLn "tc.decl" 45 $ "checking a " ++ showHead d
+      reportSLn "tc.decl" 45 $ "checking a " ++! showHead d
       case d of
         A.Section info erased mname tel ds -> do
           reportSLn "tc.decl" 45 $
-            "section " ++ prettyShow mname ++ " has "
-              ++ show (length $ A.generalizeTel tel) ++ " parameters and "
-              ++ show (length ds) ++ " declarations"
+            "section " ++! prettyShow mname ++! " has "
+              ++! show (length $ A.generalizeTel tel) ++! " parameters and "
+              ++! show (length ds) ++! " declarations"
           reportSDoc "tc.decl" 45 $
             prettyA $ A.Section info erased mname tel []
           forM_ ds $ \ d -> do
