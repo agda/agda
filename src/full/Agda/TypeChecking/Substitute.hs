@@ -906,8 +906,10 @@ applySubstTerm rho t    = coerce $ case coerce t of
    subE :: Substitution' t -> Elims -> Elims
    subE rho []     = []
    subE rho (a:as) = case a of
-     Apply (Arg x y) -> let !x' = setFreeVariables unknownFreeVariables x
-                        in (Apply (Arg x' (sub @t rho y)):) $! subE rho as
+     Apply (Arg i t) ->
+       let !i' | getFreeVariables i == unknownFreeVariables = i
+               | otherwise = setFreeVariables unknownFreeVariables i
+       in (Apply (Arg i' (sub @t rho t)):) $! subE rho as
      p@Proj{}        -> (p :) $! subE rho as
      IApply l r t    -> (IApply (sub @t rho l) (sub @t rho r) (sub @t rho t):) $! subE rho as
 
@@ -946,8 +948,10 @@ instance Subst a => Subst (Sort' a) where
       subE :: Substitution' (SubstArg a) -> [Elim' a] -> [Elim' a]
       subE rho []     = []
       subE rho (a:as) = case a of
-        Apply (Arg x y) -> let !x' = setFreeVariables unknownFreeVariables x
-                           in (Apply (Arg x' (applySubst rho y)):) $! subE rho as
+        Apply (Arg i t) ->
+          let !i' | getFreeVariables i == unknownFreeVariables = i
+                  | otherwise = setFreeVariables unknownFreeVariables i
+          in (Apply (Arg i' (applySubst rho t)):) $! subE rho as
         p@Proj{}        -> (p :) $! subE rho as
         IApply l r t    -> (IApply (applySubst rho l) (applySubst rho r) (applySubst rho t):)
                            $! subE rho as
@@ -1126,7 +1130,7 @@ instance Subst CompareAs where
 instance Subst a => Subst (Elim' a) where
   type SubstArg (Elim' a) = SubstArg a
   applySubst rho = \case
-    Apply v      -> Apply $ applySubst rho v
+    Apply v      -> Apply (applySubst rho v)
     IApply x y r -> IApply (applySubst rho x) (applySubst rho y) (applySubst rho r)
     e@Proj{}     -> e
 
@@ -1137,8 +1141,11 @@ instance Subst a => Subst (Abs a) where
 
 instance Subst a => Subst (Arg a) where
   type SubstArg (Arg a) = SubstArg a
-  applySubst IdS arg = arg
-  applySubst rho arg = setFreeVariables unknownFreeVariables $ fmap (applySubst rho) arg
+  applySubst IdS arg       = arg
+  applySubst rho (Arg i t) =
+    let !i' | getFreeVariables i == unknownFreeVariables = i
+            | otherwise = setFreeVariables unknownFreeVariables i
+    in Arg i' (applySubst rho t)
 
 instance Subst a => Subst (Named name a) where
   type SubstArg (Named name a) = SubstArg a
@@ -1149,8 +1156,9 @@ instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Dom' a b) where
 
   applySubst IdS dom = dom
   applySubst rho (Dom i n f t e) =
-    let !i' = setFreeVariables unknownFreeVariables i in
-    Dom i' n f (applySubst rho t) (applySubst rho e)
+    let !i' | getFreeVariables i == unknownFreeVariables = i
+            | otherwise = setFreeVariables unknownFreeVariables i
+    in Dom i' n f (applySubst rho t) (applySubst rho e)
   {-# INLINABLE applySubst #-}
 
 instance Subst LetBinding where
