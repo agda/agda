@@ -236,20 +236,20 @@ instance Apply Definition where
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
-instance Apply RewriteRule where
+instance Apply GlobalRewriteRule where
   apply r args =
-    let newContext = apply (rewContext r) args
+    let newContext = apply (grContext r) args
         sub        = liftS (size newContext) $ parallelS $
                        reverse $ map (PTerm . unArg) args
-    in RewriteRule
-       { rewName    = rewName r
-       , rewContext = newContext
-       , rewHead    = rewHead r
-       , rewPats    = applySubst sub (rewPats r)
-       , rewRHS     = applyNLPatSubst sub (rewRHS r)
-       , rewType    = applyNLPatSubst sub (rewType r)
-       , rewFromClause = rewFromClause r
-       , rewTopModule  = rewTopModule r
+    in GlobalRewriteRule
+       { grName    = grName r
+       , grContext = newContext
+       , grHead    = grHead r
+       , grPats    = applySubst sub (grPats r)
+       , grRHS     = applyNLPatSubst sub (grRHS r)
+       , grType    = applyNLPatSubst sub (grType r)
+       , grFromClause = grFromClause r
+       , grTopModule  = grTopModule r
        }
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -629,9 +629,9 @@ instance Abstract Definition where
 -- | @tel ⊢ (Γ ⊢ lhs ↦ rhs : t)@ becomes @tel, Γ ⊢ lhs ↦ rhs : t)@
 --   we do not need to change lhs, rhs, and t since they live in Γ.
 --   See 'Abstract Clause'.
-instance Abstract RewriteRule where
-  abstract tel (RewriteRule q gamma f ps rhs t c top) =
-    RewriteRule q (abstract tel gamma) f ps rhs t c top
+instance Abstract GlobalRewriteRule where
+  abstract tel (GlobalRewriteRule q gamma f ps rhs t c top) =
+    GlobalRewriteRule q (abstract tel gamma) f ps rhs t c top
 
 instance {-# OVERLAPPING #-} Abstract [Occ.Occurrence] where
   abstract tel []  = []
@@ -984,10 +984,10 @@ instance Subst NLPSort where
     PLevelUniv -> PLevelUniv
     PIntervalUniv -> PIntervalUniv
 
-instance Subst RewriteRule where
-  type SubstArg RewriteRule = NLPat
-  applySubst rho (RewriteRule q gamma f ps rhs t c top) =
-    RewriteRule q (applyNLPatSubst rho gamma)
+instance Subst GlobalRewriteRule where
+  type SubstArg GlobalRewriteRule = NLPat
+  applySubst rho (GlobalRewriteRule q gamma f ps rhs t c top) =
+    GlobalRewriteRule q (applyNLPatSubst rho gamma)
                 f (applySubst (liftS n rho) ps)
                   (applyNLPatSubst (liftS n rho) rhs)
                   (applyNLPatSubst (liftS n rho) t)
@@ -1558,13 +1558,13 @@ deriving instance Eq DefSing
 deriving instance Eq NLPat
 deriving instance Eq NLPType
 deriving instance Eq NLPSort
-deriving instance Eq LocalRewriteRule
+deriving instance Eq RewriteRule
 
 deriving instance Ord DefSing
 deriving instance Ord NLPSort
 deriving instance Ord NLPType
 deriving instance Ord NLPat
-deriving instance Ord LocalRewriteRule
+deriving instance Ord RewriteRule
 
 ---------------------------------------------------------------------------
 -- * Sort stuff

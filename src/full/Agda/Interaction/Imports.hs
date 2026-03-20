@@ -352,13 +352,13 @@ mergeInterface i = do
         else do
           reportSDoc "" 1 $ P.vcat $ map (P.nest 2) $
             "Checking confluence of imported rewrite rules" :
-            map (("-" P.<+>) . prettyTCM . rewName) rews
+            map (("-" P.<+>) . prettyTCM . grName) rews
 
       -- Andreas, 2025-06-28, PR #7934 and issue #7969:
       -- Global confluence checker requires rules to be sorted
       -- according to the generality of their lhs
       when (confChk == GlobalConfluenceCheck) $
-        forM_ (nubOn id $ map rewHead rews) sortRulesOfSymbol
+        forM_ (nubOn id $ map grHead rews) sortRulesOfSymbol
 
       -- #8273: We need to ensure the module we are importing is considered
       -- imported when checking confluence.

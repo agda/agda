@@ -625,8 +625,8 @@ instance PrettyTCM (Type' NLPat) where
   prettyTCM = prettyTCM . unEl
 {-# SPECIALIZE prettyTCM :: Type' NLPat -> TCM Doc #-}
 
-instance PrettyTCM RewriteRule where
-  prettyTCM (RewriteRule q gamma f ps rhs b _c _top) = fsep
+instance PrettyTCM GlobalRewriteRule where
+  prettyTCM (GlobalRewriteRule q gamma f ps rhs b _c _top) = fsep
     [ prettyTCM q
     , prettyTCM gamma <+> " |- "
     , addContext gamma $ sep
@@ -637,7 +637,7 @@ instance PrettyTCM RewriteRule where
       , prettyTCM b
       ]
     ]
-{-# SPECIALIZE prettyTCM :: RewriteRule -> TCM Doc #-}
+{-# SPECIALIZE prettyTCM :: GlobalRewriteRule -> TCM Doc #-}
 
 instance PrettyTCM Occurrence where
   prettyTCM occ  = text $ "-[" ++ prettyShow occ ++ "]->"
