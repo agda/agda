@@ -76,7 +76,7 @@ data Dom' t e = Dom
   , domIsFinite :: Bool
     -- ^ Is this a Π-type (False), or a partial type (True)?
   , domTactic :: Maybe t        -- ^ "@tactic e".
-  , domRewrite :: Maybe LocalRewriteRule
+  , domRewrite :: Maybe RewriteRule
   , unDom     :: e
   } deriving (Show, Functor, Foldable, Traversable)
 
@@ -1279,12 +1279,12 @@ pattern PSSet p = PUniv USSet p
   PType, PSSet, PProp, PInf,
   PSizeUniv, PLockUniv, PLevelUniv, PIntervalUniv #-}
 
-data LocalRewriteRule = LocalRewriteRule
-  { lrewContext :: Telescope
-  , lrewHead    :: Int        -- de Bruijn index of head symbol (excluding lrewContext variables)
-  , lrewPats    :: PElims     -- patterns (including lrewContext variables)
-  , lrewRHS     :: Term
-  , lrewType    :: Type
+data RewriteRule = RewriteRule
+  { rewContext :: Telescope
+  , rewHead    :: Int        -- de Bruijn index of head symbol (excluding rewContext variables)
+  , rewPats    :: PElims     -- patterns (including rewContext variables)
+  , rewRHS     :: Term
+  , rewType    :: Type
   }
   deriving (Show, Generic)
 
@@ -1522,9 +1522,9 @@ instance KillRange NLPSort where
   killRange PLevelUniv = PLevelUniv
   killRange PIntervalUniv = PIntervalUniv
 
-instance KillRange LocalRewriteRule where
-  killRange (LocalRewriteRule a b c d e) =
-    killRangeN LocalRewriteRule a b c d e
+instance KillRange RewriteRule where
+  killRange (RewriteRule a b c d e) =
+    killRangeN RewriteRule a b c d e
 
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange
@@ -1764,4 +1764,4 @@ instance NFData DefSing
 instance NFData NLPat
 instance NFData NLPType
 instance NFData NLPSort
-instance NFData LocalRewriteRule
+instance NFData RewriteRule

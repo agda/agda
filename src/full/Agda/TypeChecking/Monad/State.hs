@@ -268,7 +268,7 @@ withSignature sig m = do
 addRewriteRulesFor ::
      QName
        -- ^ Head symbol of rewrite rules
-  -> RewriteRules
+  -> GlobalRewriteRules
        -- ^ Rewrite rules
   -> [QName]
        -- ^ Matchable symbols
@@ -280,7 +280,7 @@ addRewriteRulesFor f rews matchables = do
 updateDefsForRewrites ::
      QName
         -- ^ Head symbol of rewrite rules
-  -> RewriteRules
+  -> GlobalRewriteRules
         -- ^ Rewrites
   -> [QName]
         -- ^ Matchable symbols
@@ -298,7 +298,7 @@ updateDefsForRewrites f rews matchables
       setCopatternLHS =
         updateDefCopatternLHS (|| any hasProjectionPattern rews)
 
-      hasProjectionPattern rew = any (isJust . isProjElim) $ rewPats rew
+      hasProjectionPattern rew = any (isJust . isProjElim) $ grPats rew
 
 setMatchableSymbols ::
      QName

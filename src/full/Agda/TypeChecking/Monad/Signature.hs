@@ -974,7 +974,7 @@ class ( Functor m
   --   reduction of the head symbol is disabled.
   --   Rewrite rules that only happen to be in the signature but are not in scope
   --   are also not returned.
-  getRewriteRulesFor :: QName -> m RewriteRules
+  getGlobalRewriteRulesFor :: QName -> m GlobalRewriteRules
 
   -- Lifting HasConstInfo through monad transformers:
 
@@ -983,10 +983,10 @@ class ( Functor m
     => QName -> m (Either SigError Definition)
   getConstInfo' = lift . getConstInfo'
 
-  default getRewriteRulesFor
+  default getGlobalRewriteRulesFor
     :: (HasConstInfo n, MonadTrans t, m ~ t n)
-    => QName -> m RewriteRules
-  getRewriteRulesFor = lift . getRewriteRulesFor
+    => QName -> m GlobalRewriteRules
+  getGlobalRewriteRulesFor = lift . getGlobalRewriteRulesFor
 
 {-# SPECIALIZE getConstInfo :: HasCallStack => QName -> TCM Definition #-}
 
@@ -1013,25 +1013,26 @@ getOriginalConstInfo q = do
 --   reduction of the head symbol is disabled.
 --   Rewrite rules that only happen to be in the signature but are not in scope
 --   are also not returned.
-defaultGetRewriteRulesFor :: (ReadTCState m, MonadTCEnv m) => QName -> m RewriteRules
-defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
-  getFilteredRewriteRulesFor True q
+defaultGetGlobalRewriteRulesFor :: (ReadTCState m, MonadTCEnv m)
+  => QName -> m GlobalRewriteRules
+defaultGetGlobalRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
+  getFilteredGlobalRewriteRulesFor True q
 
 -- | If the 'Bool' parameter is 'True', get the rules in scope,
 --   otherwise, get *all* rules unfiltered.
-getFilteredRewriteRulesFor :: (ReadTCState m)
+getFilteredGlobalRewriteRulesFor :: (ReadTCState m)
   => Bool            -- ^ Only return rewrite rules that are in scope?
   -> QName           -- ^ Head symbol.
-  -> m RewriteRules  -- ^ Rules for the head symbol.
-getFilteredRewriteRulesFor filt q = do
+  -> m GlobalRewriteRules  -- ^ Rules for the head symbol.
+getFilteredGlobalRewriteRulesFor filt q = do
   st <- getTCState
   let
-    look :: Lens' TCState Signature -> Maybe RewriteRules
+    look :: Lens' TCState Signature -> Maybe GlobalRewriteRules
     look l = HMap.lookup q $ st ^. (l . sigRewriteRules)
 
   -- Restrict "imported" rewrite rules to those defined in modules we currently (transitively) import.
   let imps = st ^. stImportedModulesTransitive
-  let inScope rew = rewTopModule rew `Set.member` imps
+  let inScope rew = grTopModule rew `Set.member` imps
   let rewImported = applyWhen filt (filter inScope) <$> look stImports  -- stImports is actually a superset of imported symbols.
 
   return $ mconcat $ catMaybes [look stSignature, rewImported]
@@ -1042,7 +1043,7 @@ getOriginalProjection :: (HasCallStack, HasConstInfo m) => QName -> m QName
 getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
 instance HasConstInfo TCM where
-  getRewriteRulesFor = defaultGetRewriteRulesFor
+  getGlobalRewriteRulesFor = defaultGetGlobalRewriteRulesFor
   getConstInfo' q = do
     st  <- getTC
     env <- askTC
@@ -1409,17 +1410,20 @@ instantiateDef d = do
   return $ d `apply` vs
 
 instantiateRewriteRule :: (HasConstInfo m, ReadTCState m)
-  => RewriteRule -> m RewriteRule
+  => GlobalRewriteRule -> m GlobalRewriteRule
 instantiateRewriteRule rew = do
-  traceSDoc "rewriting" 95 ("instantiating rewrite rule" <+> pretty (rewName rew) <+> "to the local context.") $ do
-  vs  <- freeVarsToApply $ rewName rew
+  traceSDoc "rewriting" 95
+    ("instantiating rewrite rule" <+>
+    pretty (grName rew) <+>
+    "to the local context.") $ do
+  vs  <- freeVarsToApply $ grName rew
   let rew' = rew `apply` vs
   traceSLn "rewriting" 95 ("instantiated rewrite rule: ") $ do
   traceSLn "rewriting" 95 (show rew') $ do
   return rew'
 
 instantiateRewriteRules :: (HasConstInfo m, ReadTCState m)
-  => RewriteRules -> m RewriteRules
+  => GlobalRewriteRules -> m GlobalRewriteRules
 instantiateRewriteRules = mapM instantiateRewriteRule
 
 -- | Return the abstract view of a definition, /regardless/ of whether

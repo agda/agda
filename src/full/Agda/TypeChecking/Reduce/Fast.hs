@@ -94,7 +94,7 @@ import Debug.Trace
 data CompactDef =
   CompactDef { cdefUnconfirmed    :: Bool
              , cdefDef            :: CompactDefn
-             , cdefRewriteRules   :: RewriteRules
+             , cdefRewriteRules   :: GlobalRewriteRules
              }
 
 data CompactDefn
@@ -113,7 +113,9 @@ data BuiltinEnv = BuiltinEnv
   , bPrimForce, bPrimErase  :: Maybe QName }
 
 -- | Compute a 'CompactDef' from a regular definition.
-compactDef :: BuiltinEnv -> Definition -> RewriteRules -> ReduceM CompactDef
+compactDef ::
+     BuiltinEnv -> Definition -> GlobalRewriteRules
+  -> ReduceM CompactDef
 compactDef bEnv def rewr = do
 
   -- WARNING: don't use isPropM here because it relies on reduction,
@@ -459,7 +461,7 @@ fastReduce' norm v = do
   rwr <- optRewriting <$> pragmaOptions
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f
-    rewr <- if rwr then instantiateRewriteRules =<< getRewriteRulesFor f
+    rewr <- if rwr then instantiateRewriteRules =<< getGlobalRewriteRulesFor f
                    else return []
     compactDef bEnv info rewr
   ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm v
@@ -818,7 +820,9 @@ unusedPointer = Pure (Closure (Value $ notBlocked ())
 --   'getConstInfo' function, a couple of flags (allow non-terminating function unfolding, and
 --   whether rewriting is enabled), and a term to reduce. The result is the weak-head normal form of
 --   the term with an attached blocking tag.
-reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> Term -> Blocked Term
+reduceTm ::
+     ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> Term
+  -> Blocked Term
 reduceTm rEnv bEnv !constInfo normalisation =
     compileAndRun . traceDoc "-- fast reduce --"
   where
