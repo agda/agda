@@ -142,10 +142,10 @@ addRewriteRules qs = do
 
   -- Add rewrite rules to the signature
   forM_ rews $ \rew -> do
-    let f = rewHead rew
+    let f = grHead rew
         matchables = getMatchables rew
     reportSDoc "rewriting" 10 $
-      "adding rule" <+> prettyTCM (rewName rew) <+>
+      "adding rule" <+> prettyTCM (grName rew) <+>
       "to the definition of" <+> prettyTCM f
     reportSDoc "rewriting" 30 $ "matchable symbols: " <+> prettyTCM matchables
     addRewriteRulesFor f [rew] matchables
@@ -158,10 +158,11 @@ addRewriteRules qs = do
     -- Global confluence checker requires rules to be sorted
     -- according to the generality of their lhs
     when (confChk == GlobalConfluenceCheck) $
-      forM_ (nubOn id $ map rewHead rews) sortRulesOfSymbol
+      forM_ (nubOn id $ map grHead rews) sortRulesOfSymbol
     checkConfluenceOfRules confChk rews
     reportSDoc "rewriting" 10 $
-      "done checking confluence of rules" <+> prettyList_ (map (prettyTCM . rewName) rews)
+      "done checking confluence of rules" <+>
+      prettyList_ (map (prettyTCM . grName) rews)
 
 -- Auxiliary function for checkRewriteRule.
 -- | Get domain of rewrite relation.
@@ -184,7 +185,7 @@ rewriteRelationDom rel = do
 --   Remember that @rel : Δ → A → A → Set i@, so
 --   @rel us : (lhs rhs : A[us/Δ]) → Set i@.
 --   Returns the checked rewrite rule to be added to the signature.
-checkRewriteRule :: QName -> TCM (Maybe RewriteRule)
+checkRewriteRule :: QName -> TCM (Maybe GlobalRewriteRule)
 checkRewriteRule q = runMaybeT $ setCurrentRange q do
   lift requireOptionRewriting
   rels <- lift getBuiltinRewriteRelations
@@ -331,7 +332,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         unlessNull (freeVarsRhs VarSet.\\ neverSingPatVars) warnUnsafeVars
 
         top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
-        let rew = RewriteRule q gamma f ps rhs (unDom b) False top
+        let rew = GlobalRewriteRule q gamma f ps rhs (unDom b) False top
 
         reportSDoc "rewriting" 10 $ vcat
           [ "checked rewrite rule" , prettyTCM rew ]
@@ -405,11 +406,12 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
       where
       illegalHead = illegalRule $ HeadSymbolIsTypeConstructor f
 
-    ifNotAlreadyAdded :: QName -> MaybeT TCM RewriteRule -> MaybeT TCM RewriteRule
+    ifNotAlreadyAdded ::
+      QName -> MaybeT TCM GlobalRewriteRule -> MaybeT TCM GlobalRewriteRule
     ifNotAlreadyAdded f cont = do
-      rews <- getRewriteRulesFor f
+      rews <- getGlobalRewriteRulesFor f
       -- check if q is already an added rewrite rule
-      case List.find ((q ==) . rewName) rews of
+      case List.find ((q ==) . grName) rews of
         Just rew -> illegalRule DuplicateRewriteRule
         Nothing -> cont
 
@@ -441,10 +443,10 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
 --   tries to rewrite @f es@ with @rew@, returning the reduct if successful.
 rewriteWith :: Type
             -> (Elims -> Term)
-            -> RewriteRule
+            -> GlobalRewriteRule
             -> Elims
             -> ReduceM (Either (Blocked Term) Term)
-rewriteWith t hd rew@(RewriteRule q gamma _ ps rhs b isClause _) es
+rewriteWith t hd rew@(GlobalRewriteRule q gamma _ ps rhs b isClause _) es
  | isClause = return $ Left $ NotBlocked ReallyNotBlocked $ hd es
  | otherwise = do
   traceSDoc "rewriting.rewrite" 50 (sep
@@ -471,7 +473,9 @@ rewriteWith t hd rew@(RewriteRule q gamma _ ps rhs b isClause _) es
 
 -- | @rewrite b v rules es@ tries to rewrite @v@ applied to @es@ with the
 --   rewrite rules @rules@. @b@ is the default blocking tag.
-rewrite :: Blocked_ -> (Elims -> Term) -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+rewrite ::
+     Blocked_ -> (Elims -> Term) -> GlobalRewriteRules -> Elims
+  -> ReduceM (Reduced (Blocked Term) Term)
 rewrite block hd rules es = do
   rewritingAllowed <- optRewriting <$> pragmaOptions
   if (rewritingAllowed && not (null rules)) then do
@@ -480,7 +484,9 @@ rewrite block hd rules es = do
   else
     return $ NoReduction (block $> hd es)
   where
-    loop :: Blocked_ -> Type -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+    loop ::
+         Blocked_ -> Type -> GlobalRewriteRules -> Elims
+      -> ReduceM (Reduced (Blocked Term) Term)
     loop block t [] es =
       traceSDoc "rewriting.rewrite" 20 (sep
         [ "failed to rewrite " <+> prettyTCM (hd es)
@@ -497,5 +503,5 @@ rewrite block hd rules es = do
             Right w               -> return $ YesReduction YesSimplification $ w `applyE` es2
      | otherwise = loop (block `mappend` NotBlocked Underapplied ()) t rews es
 
-    rewArity :: RewriteRule -> Int
-    rewArity = length . rewPats
+    rewArity :: GlobalRewriteRule -> Int
+    rewArity = length . grPats

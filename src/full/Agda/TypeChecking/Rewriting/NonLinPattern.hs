@@ -354,8 +354,8 @@ instance GetMatchables NLPSort where
 instance GetMatchables Term where
   getMatchables = getDefs' __IMPOSSIBLE__ singleton
 
-instance GetMatchables RewriteRule where
-  getMatchables = getMatchables . rewPats
+instance GetMatchables GlobalRewriteRule where
+  getMatchables = getMatchables . grPats
 
 -- Throws a pattern violation if the given term contains any
 -- metavariables.

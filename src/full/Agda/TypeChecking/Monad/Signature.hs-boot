@@ -11,7 +11,7 @@ import Agda.Syntax.Internal (ModuleName, Telescope)
 
 import Agda.TypeChecking.Monad.Base
   ( TCM, ReadTCState, HasOptions, MonadTCEnv
-  , Definition, RewriteRules
+  , Definition, GlobalRewriteRules
   )
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug (MonadDebug)
 
@@ -38,13 +38,13 @@ class ( Functor m
 
   getConstInfo' :: HasCallStack => QName -> m (Either SigError Definition)
   -- getConstInfo' q = Right <$> getConstInfo q
-  getRewriteRulesFor :: QName -> m RewriteRules
+  getGlobalRewriteRulesFor :: QName -> m GlobalRewriteRules
 
   default getConstInfo' :: (HasCallStack, HasConstInfo n, MonadTrans t, m ~ t n) => QName -> m (Either SigError Definition)
   getConstInfo' = lift . getConstInfo'
 
-  default getRewriteRulesFor :: (HasConstInfo n, MonadTrans t, m ~ t n) => QName -> m RewriteRules
-  getRewriteRulesFor = lift . getRewriteRulesFor
+  default getGlobalRewriteRulesFor :: (HasConstInfo n, MonadTrans t, m ~ t n) => QName -> m GlobalRewriteRules
+  getGlobalRewriteRulesFor = lift . getGlobalRewriteRulesFor
 
 instance HasConstInfo m => HasConstInfo (ReaderT r m)
 instance HasConstInfo m => HasConstInfo (StateT s m)

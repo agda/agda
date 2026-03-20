@@ -320,15 +320,16 @@ instance EmbPrj NLPSort where
     valu (N1 7)     = valuN PLevelUniv
     valu _          = malformed
 
+instance EmbPrj GlobalRewriteRule where
+  icod_ (GlobalRewriteRule a b c d e f g h) =
+    icodeN' GlobalRewriteRule a b c d e f g h
+
+  value = valueN GlobalRewriteRule
+
 instance EmbPrj RewriteRule where
-  icod_ (RewriteRule a b c d e f g h) = icodeN' RewriteRule a b c d e f g h
+  icod_ (RewriteRule a b c d e) = icodeN' RewriteRule a b c d e
 
   value = valueN RewriteRule
-
-instance EmbPrj LocalRewriteRule where
-  icod_ (LocalRewriteRule a b c d e) = icodeN' LocalRewriteRule a b c d e
-
-  value = valueN LocalRewriteRule
 
 instance EmbPrj Projection where
   icod_ (Projection a b c d e) = icodeN' Projection a b c d e
