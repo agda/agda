@@ -741,6 +741,19 @@ Experimental features
 
      Default, opposite of :option:`--rewriting`.
 
+.. option:: --local-rewriting
+
+     .. versionadded:: 2.9.0
+
+     Enable declaring local rewrite rules with the ``@rewrite`` attribute (see
+     :ref:`local-rewriting`).
+
+.. option:: --no-local-rewriting
+
+     .. versionadded:: 2.9.0
+
+     Default, opposite of :option:`--local-rewriting`.
+
 .. option:: --two-level
 
      .. versionadded:: 2.6.2
@@ -1573,9 +1586,17 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Unknown fields in library files.
 
+.. option:: LocalRewritingConfluenceCheck
+
+     Confluence checking (:option:`--confluence-check` or :option:`--local-confluence-check`) is not yet implemented for local rewrite rules (:option:`--local-rewriting`).
+
 .. option:: MisplacedAttributes
 
      Attributes where they cannot appear.
+
+.. option:: MisplacedRewrite
+
+     Invalid local rewrite annotations, automatically ignored.
 
 .. option:: MissingTypeSignatureForOpaque
 
@@ -1920,6 +1941,14 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
      Importing a file using e.g. :option:`--cubical` into one which does not.
 
+.. option:: InferredLocalRewrite
+
+     Tried to solve a meta with an '@rewrite' function.
+
+.. option:: LocalRewriteOutsideTelescope
+
+     '@rewrite' arguments are (currently) only allowed in module telescopes.
+
 .. option:: MissingDataDeclaration
 
      Constructor definitions not associated to a data declaration.
@@ -2101,6 +2130,7 @@ are infective:
 * :option:`--polarity`
 * :option:`--prop`
 * :option:`--rewriting`
+* :option:`--local-rewriting`
 * :option:`--two-level`
 
 Furthermore, the Cubical options are *jointly infective*
@@ -2194,6 +2224,7 @@ again, the source file is re-typechecked instead:
 * :option:`--qualified-instances`
 * :option:`--quote-metas`
 * :option:`--rewriting`
+* :option:`--local-rewriting`
 * :option:`--safe`
 * :option:`--save-metas`
 * :option:`--syntactic-equality`

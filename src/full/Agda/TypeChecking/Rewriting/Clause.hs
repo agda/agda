@@ -49,12 +49,12 @@ clauseToRewriteRule f q cl | hasDefP (namedClausePats cl) = return  Nothing
 clauseToRewriteRule f q cl = do
   top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
   return $ clauseBody cl <&> \rhs -> GlobalRewriteRule
-    { grName    = q
-    , grContext = clauseTel cl
-    , grHead    = f
-    , grPats    = toNLPat $ namedClausePats cl
-    , grRHS     = rhs
-    , grType    = unArg $ fromMaybe __IMPOSSIBLE__  $ clauseType cl
+    { grName       = q
+    , grContext    = clauseTel cl
+    , grHead       = f
+    , grPats       = toNLPat $ namedClausePats cl
+    , grRHS        = rhs
+    , grType       = unArg $ fromMaybe __IMPOSSIBLE__  $ clauseType cl
     , grFromClause = True
     , grTopModule  = top
     }

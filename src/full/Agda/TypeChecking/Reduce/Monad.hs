@@ -42,6 +42,8 @@ instance MonadAddContext ReduceM where
 
   addLetBinding' = defaultAddLetBinding'
 
+  addLocalRewrite = defaultAddLocalRewrite
+
   updateContext rho f ret = withFreshR $ \ chkpt ->
     localTC (\e -> e { envContext = f $ envContext e
                      , envCurrentCheckpoint = chkpt
@@ -79,6 +81,7 @@ instance MonadDebug ReduceM where
 
 instance HasConstInfo ReduceM where
   getGlobalRewriteRulesFor = defaultGetGlobalRewriteRulesFor
+  getLocalRewriteRulesFor  = defaultGetLocalRewriteRulesFor
   getConstInfo' q = do
     ReduceEnv env st _ _ <- askR
     defaultGetConstInfo st env q

@@ -287,7 +287,8 @@ instance Pretty TypedBinding where
         $ prettyQuantity y
         $ prettyLock y
         $ prettyPolarity y
-        $ prettyTactic (binderName $ namedArg y) $
+        $ prettyTactic (binderName $ namedArg y)
+        $ prettyRewriteAnn y $
         sep [ fsep (map (pretty . NamedBinding False) ys)
             , colon <+> pretty e ]
       | ys@(y : _) <- groupBinds $ List1.toList xs ]
@@ -383,7 +384,8 @@ instance Pretty Declaration where
   prettyList = vcat . map pretty
   pretty = \case
     TypeSig i tac x e ->
-      sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ prettyPolarity i $ pretty x <+> colon
+      sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $
+              prettyQuantity i $ prettyPolarity i $ pretty x <+> colon
           , nest 2 $ pretty e
           ]
     FieldSig inst tac x (Arg i e) ->

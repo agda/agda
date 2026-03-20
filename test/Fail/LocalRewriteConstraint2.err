@@ -1,0 +1,10 @@
+LocalRewriteConstraint2.agda:17.6-13: error: [UnequalTerms]
+The terms
+  nat
+and
+  1
+are not equal at type Nat
+when checking the following local rewrite rule constraint:
+   |-  nat  =  1  :  Nat
+when checking that nat0 is a valid argument to a function accepting
+arguments of type (@rewrite p : nat ≡ 1)

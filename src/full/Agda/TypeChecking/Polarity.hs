@@ -37,7 +37,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 
 import Agda.Utils.List
 import Agda.Utils.ListInf qualified as ListInf
-import Agda.Utils.Maybe ( whenNothingM )
+import Agda.Utils.Maybe ( whenNothingM, whenJust )
 import Agda.Utils.Monad
 import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.Singleton

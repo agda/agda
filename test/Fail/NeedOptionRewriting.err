@@ -1,7 +1,3 @@
-NeedOptionRewriting.agda:6.1-28: warning: -W[no]UselessPragma
-Ignoring BUILTIN REWRITE pragma since option --rewriting is off
-when checking the pragma BUILTIN REWRITE _≡_
-
 NeedOptionRewriting.agda:25.1-23: warning: -W[no]UselessPragma
 Ignoring REWRITE pragma since option --rewriting is off
 when scope checking the declaration
