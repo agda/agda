@@ -326,10 +326,29 @@ instance EmbPrj GlobalRewriteRule where
 
   value = valueN GlobalRewriteRule
 
+instance EmbPrj LocalEquation where
+  icod_ (LocalEquation a b c d) = icodeN' LocalEquation a b c d
+
+  value = valueN LocalEquation
+
+instance EmbPrj RewriteHead where
+  icod_ (RewDefHead a) = icodeN 0 RewDefHead a
+  icod_ (RewVarHead a) = icodeN 1 RewVarHead a
+
+  value = vcase valu where
+    valu (N2 0 a) = valuN RewDefHead a
+    valu (N2 1 a) = valuN RewVarHead a
+    valu _        = malformed
+
 instance EmbPrj RewriteRule where
   icod_ (RewriteRule a b c d e) = icodeN' RewriteRule a b c d e
 
   value = valueN RewriteRule
+
+instance EmbPrj RewDom where
+  icod_ (RewDom a b) = icodeN' RewDom a b
+
+  value = valueN RewDom
 
 instance EmbPrj Projection where
   icod_ (Projection a b c d e) = icodeN' Projection a b c d e

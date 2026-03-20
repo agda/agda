@@ -30,6 +30,7 @@ Language Reference
    let-and-where
    lexical-structure
    literal-overloading
+   local-rewriting
    lossy-unification
    mixfix-operators
    modalities

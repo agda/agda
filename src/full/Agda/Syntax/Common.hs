@@ -1874,6 +1874,8 @@ class LensLock a where
   mapLock :: (Lock -> Lock) -> a -> a
   mapLock f a = setLock (f $ getLock a) a
 
+  {-# MINIMAL getLock , (setLock | mapLock) #-}
+
 instance LensLock Lock where
   getLock = id
   setLock = const
@@ -1902,23 +1904,42 @@ prettyLock a = (pretty (getLock a) <+>)
 
 data RewriteAnn
   = IsNotRewrite
-  | IsRewrite
-  deriving (Show, Generic, Eq, Ord)
+  | IsRewrite Range
+  deriving (Show, Generic)
 
 defaultRewrite :: RewriteAnn
 defaultRewrite = IsNotRewrite
+
+instance HasRange RewriteAnn where
+  getRange = \case
+    IsRewrite r  -> r
+    IsNotRewrite -> noRange
+
+instance SetRange RewriteAnn where
+  setRange r = \case
+    IsRewrite _  -> IsRewrite r
+    IsNotRewrite -> IsNotRewrite
+
+instance KillRange RewriteAnn where
+  killRange = setRange noRange
+
+instance Eq RewriteAnn where
+  (==) = (==) `on` isRewrite
+
+instance Ord RewriteAnn where
+  compare = compare `on` isRewrite
 
 instance Null RewriteAnn where
   empty = defaultRewrite
 
 instance NFData RewriteAnn where
-  rnf IsNotRewrite = ()
-  rnf IsRewrite    = ()
+  rnf IsNotRewrite  = ()
+  rnf (IsRewrite _) = ()
 
 instance Pretty RewriteAnn where
   pretty = \case
-    IsRewrite     -> "@rewrite"
-    IsNotRewrite -> empty
+    (IsRewrite _) -> "@rewrite"
+    IsNotRewrite  -> empty
 
 class LensRewriteAnn a where
 
@@ -1929,6 +1950,8 @@ class LensRewriteAnn a where
 
   mapRewriteAnn :: (RewriteAnn -> RewriteAnn) -> a -> a
   mapRewriteAnn f a = setRewriteAnn (f $ getRewriteAnn a) a
+
+  {-# MINIMAL getRewriteAnn , (setRewriteAnn | mapRewriteAnn) #-}
 
 instance LensRewriteAnn RewriteAnn where
   getRewriteAnn = id
@@ -1943,6 +1966,20 @@ instance LensRewriteAnn (Arg t) where
   getRewriteAnn = getRewriteAnn . getArgInfo
   setRewriteAnn = mapArgInfo . setRewriteAnn
 
+isRewrite :: LensRewriteAnn a => a -> Bool
+isRewrite a = case getRewriteAnn a of
+  IsRewrite _  -> True
+  IsNotRewrite -> False
+
+ignoreRew :: Monad m => LensRewriteAnn a => (RewriteAnn  -> m ()) -> a -> m a
+ignoreRew warn info
+  | isRewrite info = do
+    warn $ getRewriteAnn info
+    return $ setRewriteAnn IsNotRewrite info
+  | otherwise      = return info
+
+prettyRewriteAnn :: LensRewriteAnn a => a -> Doc -> Doc
+prettyRewriteAnn a = (pretty (getRewriteAnn a) <+>)
 
 ---------------------------------------------------------------------------
 -- * Cohesion

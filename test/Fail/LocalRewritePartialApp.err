@@ -1,0 +1,9 @@
+LocalRewritePartialApp.agda:15.1-27: error: [UnequalTerms]
+The terms
+  0
+and
+  1
+are not equal at type Nat
+when checking the following local rewrite rule constraint:
+   |-  0  =  1  :  Nat
+when checking the module application module Bar = Foo (λ _ → 0)

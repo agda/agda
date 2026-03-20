@@ -164,11 +164,11 @@ lockAttributeTable = concat
   ]
 
 -- | Modifiers for @RewriteAnn@
-
+--   I don't think we ever actually hit this because 'rewrite' is a keyword
+--   Of course, we might want to add aliases
 rewriteAttributeTable :: [(String, RewriteAnn)]
 rewriteAttributeTable =
-  [ ("notrew" , IsNotRewrite)
-  , ("rew" , IsRewrite)
+  [ ("rewrite" , IsRewrite noRange)
   ]
 
 -- | Concrete syntax for all attributes.
@@ -254,7 +254,6 @@ setPristineLock q a
   | getLock a == defaultLock = Just $ setLock q a
   | otherwise = Nothing
 
-
 -- | Setting 'RewriteAnn' if unset.
 
 setPristineRewriteAnn :: (LensRewriteAnn a) => RewriteAnn -> a -> Maybe a
@@ -298,6 +297,11 @@ isTacticAttribute = C.TacticAttribute . \case
   TacticAttribute t -> Just t
   _ -> Nothing
 
+isRewriteAttribute :: Attribute -> Maybe RewriteAnn
+isRewriteAttribute = \case
+  RewriteAttribute q -> Just q
+  _                  -> Nothing
+
 relevanceAttributes :: [Attribute] -> [Attribute]
 relevanceAttributes = filter $ isJust . isRelevanceAttribute
 
@@ -306,3 +310,6 @@ quantityAttributes = filter $ isJust . isQuantityAttribute
 
 tacticAttributes :: [Attribute] -> [Attribute]
 tacticAttributes = filter $ isJust . C.theTacticAttribute . isTacticAttribute
+
+rewAttributes :: [Attribute] -> [Attribute]
+rewAttributes = filter $ isJust . isRewriteAttribute

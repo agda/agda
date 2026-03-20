@@ -1,0 +1,10 @@
+LocalRewriteMeta.agda:14.9-14: error: [UnequalTerms]
+The terms
+  x
+and
+  zero
+are not equal at type Nat
+when checking the following local rewrite rule constraint:
+   |-  x  =  0  :  Nat
+when checking that ? is a valid argument to a function of type
+(@rewrite _ : x ≡ 0) → Nat

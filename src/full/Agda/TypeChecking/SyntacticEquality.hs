@@ -230,10 +230,10 @@ instance (Subst a, SynEq a) => SynEq (Abs a) where
 instance SynEq a => SynEq (Arg a) where
   synEq (Arg ai a) (Arg ai' a') = Arg <$$> synEq ai ai' <**> synEq a a'
 
--- Ignore the tactic.
+-- Ignore the tactic and elaborated rewrite.
 instance SynEq a => SynEq (Dom a) where
-  synEq d@(Dom ai x f t r a) d'@(Dom ai' x' f' _ _ a')
-    | x == x'   = Dom <$$> synEq ai ai' <**> pure2 x <**> synEq f f' <**> pure2 t <**> pure2 r <**> synEq a a'
+  synEq d@(Dom ai x f t r a) d'@(Dom ai' x' f' _ r' a')
+    | x == x'   = Dom <$$> synEq ai ai' <**> pure2 x <**> synEq f f' <**> pure2 t <**> pure (r, r') <**> synEq a a'
     | otherwise = inequal (d, d')
 
 instance SynEq ArgInfo where

@@ -22,14 +22,17 @@ import qualified Data.Map as Map
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
+import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Constraints (MonadConstraint, solveConstraint)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Env
 
 import Agda.Utils.Function
 import Agda.Utils.Lens
+import Agda.Utils.Maybe (whenJust)
 import Agda.Utils.Monad
 
 -- | data 'Relevance'
@@ -140,6 +143,18 @@ splittableCohesion a = do
   let c = getCohesion a
   pure (usableCohesion c) `and2M` (pure (c /= Flat) `or2M` do optFlatSplit <$> pragmaOptions)
 
+-- | Apply modalities and equational constraints (local rewrite rules) to the
+--   context.
+applyDomToContext :: (MonadConstraint tcm) => Dom e -> tcm a -> tcm a
+applyDomToContext d ret =
+  applyModalityToContext d $ do
+    whenJust (domEq d) addRewConstraint
+    ret
+
+-- | Adds an equational constraint due to a local rewrite rule.
+addRewConstraint :: MonadConstraint tcm
+  => LocalEquation -> tcm ()
+addRewConstraint = solveConstraint . RewConstraint
 
 {-# SPECIALIZE applyModalityToContext :: Modality -> TCM a -> TCM a #-}
 -- | (Conditionally) wake up irrelevant variables and make them relevant.

@@ -536,15 +536,13 @@ instance EmbPrj Lock where
   value 2 = pure (IsLock LockOLock)
   value _ = malformed
 
-
 instance EmbPrj RewriteAnn where
-  icod_ IsNotRewrite = pure 0
-  icod_ IsRewrite    = pure 1
+  icod_ IsNotRewrite  = pure 0
+  icod_ (IsRewrite _) = pure 1
 
   value 0 = pure IsNotRewrite
-  value 1 = pure IsRewrite
+  value 1 = pure $ IsRewrite noRange
   value _ = malformed
-
 
 instance EmbPrj Origin where
   icod_ UserWritten    = return 0
