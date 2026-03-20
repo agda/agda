@@ -1,0 +1,15 @@
+LocalRewriteLet.agda:10.15-23: warning: -W[no]MisplacedRewrite
+Ignoring misplaced local rewrite attribute.
+when scope checking
+let q : 0 ≡ x
+    q = p
+in x
+
+———— All done; warnings encountered ————————————————————————
+
+LocalRewriteLet.agda:10.15-23: warning: -W[no]MisplacedRewrite
+Ignoring misplaced local rewrite attribute.
+when scope checking
+let q : 0 ≡ x
+    q = p
+in x

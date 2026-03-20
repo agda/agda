@@ -64,6 +64,7 @@ interestingCall = \case
     CheckRecDef{}             -> True
     CheckConstructor{}        -> True
     CheckIApplyConfluence{}   -> True
+    CheckLocalRewriteConstraint{} -> True
     CheckConArgFitsIn{}       -> True
     CheckFunDefCall{}         -> True
     CheckPragma{}             -> True
@@ -195,6 +196,7 @@ instance MonadTrace TCM where
       CheckIsEmpty{}            -> True
       CheckConfluence{}         -> False
       CheckIApplyConfluence{}   -> False
+      CheckLocalRewriteConstraint{} -> False
       CheckModuleParameters{}   -> False
       CheckWithFunctionType{}   -> True
       CheckSectionApplication{} -> True

@@ -1,0 +1,4 @@
+LocalRewriteDataCubical.agda:11.8-11: error: [CannotGenerateTransportLocalRewrite]
+Could not generate a transport function for Foo
+because there is a local rewrite rule in its telescope
+when checking the definition of Foo

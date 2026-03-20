@@ -111,7 +111,7 @@ noHeadConstraint (CheckedArg _ range Just{} ) = do
 --   and @expand@ holds on the hiding and name info of its domain.
 
 implicitCheckedArgs :: (PureTCM m, MonadMetaSolver m, MonadTCM m)
-  => Int                          -- ^ @n@, the maximum number of implicts to be inserted.
+  => Int                          -- ^ @n@, the maximum number of implicits to be inserted.
   -> (Hiding -> ArgName -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
   -> Type                         -- ^ The (function) type @t@ we are eliminating.
   -> m ([Named_ CheckedArg], Type)-- ^ The eliminating arguments and the remaining type.
@@ -132,9 +132,11 @@ implicitCheckedArgs n expand t0 = do
               ]
 
             return InstanceMeta
-          (_, v) <- newMetaArg kind info x CmpLeq a
+          (_, v) <- newMetaArg kind x CmpLeq dom
           whenJust mtac \ tac -> liftTCM do
-            applyModalityToContext info $ unquoteTactic tac v a
+            -- We don't need to do a full 'applyDomToContext' here.
+            -- 'newMetaArg' already adds the local rewrite rule constraint
+            applyModalityToContext dom $ unquoteTactic tac v a
           let name = Just $ WithOrigin Inserted $ unranged x
           mc <- liftTCM $ makeLockConstraint t0' v
           let carg = CheckedArg{ caElim = Apply (Arg info v), caRange = empty, caConstraint = mc }
@@ -142,7 +144,7 @@ implicitCheckedArgs n expand t0 = do
       _ -> return ([], t0')
 
 -- | @makeLockConstraint u funType@(El _ (Pi (Dom{ domInfo=info, unDom=a }) _))@
---   creates a @CheckLockedVars@ constaint for lock @u : a@
+--   creates a @CheckLockedVars@ constraint for lock @u : a@
 --   if @getLock info == IsLock _@.
 --
 --   Precondition: 'Type' is reduced.
@@ -166,18 +168,17 @@ makeLockConstraint funType u =
 
 newMetaArg
   :: (PureTCM m, MonadMetaSolver m)
-  => MetaKind   -- ^ Kind of meta.
-  -> ArgInfo    -- ^ Rrelevance of meta.
-  -> ArgName    -- ^ Name suggestion for meta.
-  -> Comparison -- ^ Check (@CmpLeq@) or infer (@CmpEq@) the type.
-  -> Type       -- ^ Type of meta.
+  => MetaKind          -- ^ Kind of meta.
+  -> ArgName           -- ^ Name suggestion for meta.
+  -> Comparison        -- ^ Check (@CmpLeq@) or infer (@CmpEq@) the type.
+  -> Dom Type          -- ^ Type of meta plus relevance and local rewrite info.
   -> m (MetaId, Term)  -- ^ The created meta as id and as term.
-newMetaArg kind info x cmp a = do
+newMetaArg kind x cmp a = do
   prp <- runBlocked $ isPropM a
   let irrelevantIfProp =
         applyWhen (prp == Right True) $ applyRelevanceToContext irrelevant
-  applyModalityToContext info $ irrelevantIfProp $
-    newMeta (argNameToString x) kind a
+  applyDomToContext a $ irrelevantIfProp $
+    newMeta (argNameToString x) kind (unDom a)
   where
     newMeta :: MonadMetaSolver m => String -> MetaKind -> Type -> m (MetaId, Term)
     newMeta n = \case

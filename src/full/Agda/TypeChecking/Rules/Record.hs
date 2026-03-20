@@ -610,7 +610,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                 , _funTerminates     = Just True
                 })
               { defArgOccurrences = [StrictPos]
-              , defCopatternLHS   = hasProjectionPatterns cc
+              , defCopatternLHS'  = hasProjectionPatterns cc
               }
           computePolarity [projname]
 
