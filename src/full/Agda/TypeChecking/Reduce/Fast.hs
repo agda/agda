@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE DataKinds #-}
 
 {-|
 
@@ -58,7 +57,6 @@ import System.IO.Unsafe (unsafeDupablePerformIO)
 import Data.IORef
 import Data.STRef
 import Data.Char
-import Unsafe.Coerce
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -469,22 +467,21 @@ fastReduce' norm v = do
   ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm v
 
 
-data ThunkOrClosure = IsThunk | IsClosure
-
 -- * Closures
 
 -- | The abstract machine represents terms as closures containing a 'Term', an environment, and a
 --   spine of eliminations. Note that the environment doesn't necessarily bind all variables in the
 --   term. The variables in the context in which the abstract machine is started are free in
 --   closures. The 'IsValue' argument tracks whether the closure is in weak-head normal form.
-data Closure' s tc where
-  Closure   :: IsValue -> Term -> Env s -> Spine s -> Closure' s tc
+data Closure s
+  = Closure IsValue Term (Env s) (Spine s)
   -- ^ The environment applies to the 'Term' argument. The spine contains closures
   --   with their own environments.
-  BlackHole :: Closure' s 'IsThunk
+  | BlackHole
 
-type Closure s = Closure' s 'IsClosure
-type Thunk s   = Closure' s 'IsThunk
+-- | A thunk can be a 'BlackHole' while a plain 'Closure' can't. This is not enforced in types. We
+--   could distinguish these by making 'Closure' an indexed GADT, but I don't think it's worth it.
+type Thunk s = Closure s
 
 -- | Used to track if a closure is @Unevaluated@ or a @Value@ (in weak-head normal form), and if so
 --   why it cannot reduce further.
@@ -508,6 +505,7 @@ type Spine s = [SElim s]
 
 isValue :: Closure s -> IsValue
 isValue (Closure isV _ _ _) = isV
+isValue _ = __IMPOSSIBLE__
 
 sAllApplyElims :: Spine s -> Maybe# [Pointer s]
 sAllApplyElims = \case
@@ -522,18 +520,21 @@ sAllApplyElims = \case
 
 setIsValue :: IsValue -> Closure s -> Closure s
 setIsValue isV (Closure _ t env spine) = Closure isV t env spine
+setIsValue isV _ = __IMPOSSIBLE__
 
 -- | Apply a closure to a spine of eliminations. Note that this does not preserve the 'IsValue'
 --   field.
 clApply :: Closure s -> Spine s -> Closure s
 clApply c [] = c
 clApply (Closure _ t env es) es' = Closure Unevaled t env (es ++! es')
+clApply _ _ = __IMPOSSIBLE__
 
 -- | Apply a closure to a spine, preserving the 'IsValue' field. Use with care, since usually
 --   eliminations do not preserve the value status.
 clApply_ :: Closure s -> Spine s -> Closure s
 clApply_ c [] = c
 clApply_ (Closure b t env es) es' = Closure b t env (es ++! es')
+clApply_ _ _ = __IMPOSSIBLE__
 
 -- * Pointers and thunks
 
@@ -548,8 +549,7 @@ data Pointer s = Pure (Closure s)
 type STPointer s = STRef s (Thunk s)
 
 thunk :: Closure s -> Thunk s
-thunk = unsafeCoerce
-
+thunk = id
 
 derefPointer :: Pointer s -> ST s (Thunk s)
 derefPointer (Pure cl)     = return $ thunk cl
@@ -560,7 +560,7 @@ derefPointer_ :: Pointer s -> ST s (Closure s)
 derefPointer_ ptr =
   derefPointer ptr <&> \case
     BlackHole -> __IMPOSSIBLE__
-    cl        -> unsafeCoerce cl
+    cl        -> cl
 
 -- | Only use for debug printing!
 unsafeDerefPointer :: Pointer s -> Thunk s
@@ -786,6 +786,7 @@ decodeClosure (Closure isV t env spine) = do
              Value b  -> b
              Unevaled -> notBlocked ()  -- only when falling back to slow reduce in which case the
                                         -- blocking tag is immediately discarded
+decodeClosure _ = __IMPOSSIBLE__
 
 -- | Turn a list of internal syntax eliminations into a spine. This builds closures and allocates
 --   thunks for all the 'Apply' elims.
@@ -932,6 +933,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
 
     -- The main function. This is where the stuff happens!
     runAM' :: AM s -> ST s (Blocked Term)
+    runAM' (Eval BlackHole _) = __IMPOSSIBLE__
 
     -- Base case: The focus is a value closure and the control stack is empty. Decode and return.
     runAM' (Eval cl@(Closure Value{} _ _ _) []) = decodeClosure cl
@@ -1171,6 +1173,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
     -- cases and otherwise fall back to slow reduce.
     runAM' (Eval cl2@(Closure Value{} arg2 _ _) (EraseK f spine0 [SApply _ p1] _ spine3 : ctrl)) =
       derefPointer_ p1 >>= \case
+        BlackHole -> __IMPOSSIBLE__
         cl1@(Closure _ arg1 _ sp1) -> case (arg1, arg2) of
           (Lit l1, Lit l2) | l1 == l2, isJust refl ->
             runAM (evalTrueValue (Con (fromJust refl) ConOSystem []) emptyEnv [] ctrl)
@@ -1381,8 +1384,8 @@ reduceTm rEnv bEnv !constInfo normalisation =
       BlackHole -> __IMPOSSIBLE__
       cl@(Closure Unevaled _ _ _) | callByNeed -> do
         blackHole p
-        runAM (Eval (unsafeCoerce cl) $ updateThunkCtrl p $ [ApplyK spine | not (null spine)] ++! ctrl)
-      cl@(Closure _ _ _ _) -> runAM (Eval (clApply (unsafeCoerce cl) spine) ctrl)
+        runAM (Eval cl $ updateThunkCtrl p $ [ApplyK spine | not (null spine)] ++! ctrl)
+      cl@(Closure _ _ _ _) -> runAM (Eval (clApply cl spine) ctrl)
 
     {-# INLINE evalIApplyAM #-}
     -- 'evalIApplyAM spine ctrl fallback' checks if any 'IApply x y r' has a canonical 'r' (i.e. 0 or 1),
@@ -1516,7 +1519,7 @@ instance Pretty FastCompiledClauses where
 instance Pretty (Pointer s) where
   prettyPrec p = prettyPrec p . unsafeDerefPointer
 
-instance Pretty (Closure' s tc) where
+instance Pretty (Closure s) where
   prettyPrec _ (Closure Value{} (Lit (LitString unused)) _ _)
     | unused == unusedPointerString = "_"
   prettyPrec p (Closure isV t env spine) =
