@@ -5878,6 +5878,7 @@ pattern ReduceM f <- ReduceM# f where
 {-# INLINE ReduceM #-}
 {-# COMPLETE ReduceM #-}
 
+{-# INLINE unKleisli #-}
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
 unKleisli f = ReduceM \env x -> unReduceM (f x) env
 

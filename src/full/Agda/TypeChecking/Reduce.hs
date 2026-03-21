@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
 
 module Agda.TypeChecking.Reduce
  -- Meta instantiation
@@ -226,27 +227,23 @@ instance Instantiate Term where
       Nothing -> __IMPOSSIBLE_VERBOSE__
                    ("Meta-variable not found: " ++! prettyShow x)
     where
-    cont i = instantiate' inst
+    cont i = instantiate' $ go (raiseS arity) tel es
       where
       -- A slight complication here is that the meta might be underapplied,
       -- in which case we have to build the lambda abstraction before
       -- applying the substitution, or overapplied in which case we need to
       -- fall back to applyE.
-      (es1, es2) = splitAt' (length (instTel i)) es
-      vs1 = reverse $ map'' unArg $ mustAllApplyElims es1
-      rho = vs1 ++# wkS (length vs1) idS
-            -- really should be .. ++# emptyS but using wkS makes it reduce to idS
-            -- when applicable
-      -- specification:
-      -- inst == foldr mkLam (instBody i) (instTel i) `applyE` es
-      inst =
-        applySubst rho
-          (foldr mkLam (instBody i) $ drop (length es1) (instTel i))
-          `applyE` es2
+      !tel = instTel i
+      !arity = length tel
+
+      go :: Substitution -> [Arg ArgName] -> Elims -> Term
+      go !rho args es = case (args, es) of
+        (arg:args, (mustApplyElim -> Arg _ e):es) -> go (consS e rho) args es
+        (args, es) -> applySubst rho (foldr' mkLam (instBody i) args) `applyE` es
 
   instantiate' (Level l) = levelTm <$> instantiate' l
-  instantiate' (Sort s) = Sort <$> instantiate' s
-  instantiate' t = return t
+  instantiate' (Sort s)  = Sort <$> instantiate' s
+  instantiate' t         = return t
 
 instance Instantiate t => Instantiate (Type' t) where
   instantiate' (El s t) = El <$> instantiate' s <*> instantiate' t
@@ -382,6 +379,7 @@ instance IsMeta CompareAs where
   isMeta AsSizes       = Nothing
   isMeta AsTypes       = Nothing
 
+{-# INLINE ifBlocked #-}
 -- | Case on whether a term is blocked on a meta (or is a meta).
 --   That means it can change its shape when the meta is instantiated.
 ifBlocked
@@ -559,31 +557,38 @@ shouldTryFastReduce = optFastReduce <$> pragmaOptions
 
 maybeFastReduceTerm :: Term -> ReduceM (Blocked Term)
 maybeFastReduceTerm v = do
-  let tryFast = case v of
-                  Def{}   -> True
-                  Con{}   -> True
-                  MetaV{} -> True
-                  _       -> False
-  if not tryFast then slowReduceTerm v
-                 else
-    case v of
-      MetaV x _ -> ifM (isOpen x) (return $ blocked x v) (maybeFast v)
-      _         -> maybeFast v
-  where
-    isOpen x = isOpenMeta <$> lookupMetaInstantiation x
-    maybeFast v = ifM shouldTryFastReduce (fastReduce v) (slowReduceTerm v)
+  let maybeFast v = ifM shouldTryFastReduce (fastReduce v) (slowReduceTerm v)
+  case v of
+    v@Def{}       -> maybeFast v
+    v@Con{}       -> maybeFast v
+    v@(MetaV x _) -> ifM (isOpenMeta <$> lookupMetaInstantiation x)
+                         (return $! blocked x v)
+                         (maybeFast v)
+    v             -> slowReduceTerm v
+
+  -- let tryFast = case v of
+  --                 Def{}   -> True
+  --                 Con{}   -> True
+  --                 MetaV{} -> True
+  --                 _       -> False
+  -- if not tryFast then slowReduceTerm v
+  --                else
+  --   case v of
+  --     MetaV x _ -> ifM (isOpen x) (return $ blocked x v) (maybeFast v)
+  --     _         -> maybeFast v
+  -- where
+  --   isOpen x = isOpenMeta <$> lookupMetaInstantiation x
+  --   maybeFast v = ifM shouldTryFastReduce (fastReduce v) (slowReduceTerm v)
 
 slowReduceTerm :: Term -> ReduceM (Blocked Term)
 slowReduceTerm v = do
     v <- instantiate' v
-    let done | MetaV x _ <- v = return $ blocked x v
-             | otherwise      = return $ notBlocked v
-        iapp = reduceIApply done
+    let done = return $ notBlocked v
     case v of
 --    Andreas, 2012-11-05 not reducing meta args does not destroy anything
 --    and seems to save 2% sec on the standard library
 --      MetaV x args -> notBlocked . MetaV x <$> reduce' args
-      MetaV x es -> iapp es
+      MetaV x es -> reduceIApply (return $! blocked x v) es
       Def f es   -> flip reduceIApply es $ unfoldDefinitionE reduceB' (Def f []) f es
       Con c ci es -> do
           -- Constructors can reduce' when they come from an
@@ -596,10 +601,10 @@ slowReduceTerm v = do
       Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
                     {- else -} done
-      Pi _ _   -> done
-      Lit _    -> done
-      Var _ es  -> iapp es
-      Lam _ _  -> done
+      Pi _ _     -> done
+      Lit _      -> done
+      Var _ es   -> reduceIApply done es
+      Lam _ _    -> done
       DontCare _ -> done
       Dummy{}    -> done
     where
@@ -612,12 +617,12 @@ slowReduceTerm v = do
       reduceNat v@(Con c ci [Apply a]) | visible a && isRelevant a = do
         ms  <- getBuiltin' builtinSuc
         case v of
-          _ | Just (Con c ci []) == ms -> inc <$> reduce' (unArg a)
-          _                         -> return v
+          _ | Just (Con c ci []) == ms -> inc <$!> reduce' (unArg a)
+          _                            -> return v
           where
             inc = \case
               Lit (LitNat n) -> Lit $ LitNat $ n + 1
-              w              -> Con c ci [Apply $ defaultArg w]
+              w              -> let !arg = Apply $! defaultArg w in Con c ci [arg]
       reduceNat v = return v
 
 -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
@@ -645,6 +650,7 @@ unfoldDefinition ::
 unfoldDefinition keepGoing v f args =
   unfoldDefinitionE keepGoing v f (map Apply args)
 
+{-# INLINE unfoldDefinitionE #-}
 unfoldDefinitionE ::
   (Term -> ReduceM (Blocked Term)) ->
   Term -> QName -> Elims -> ReduceM (Blocked Term)
@@ -1600,12 +1606,12 @@ instance InstantiateFull t => InstantiateFull (Open t) where
       --  mention functions that deadcode elimination will get rid of.
       prune cps = do
         inscope <- viewTC eCheckpoints
-        return $ cps `Map.intersection` inscope
+        return $! cps `Map.intersection` inscope
 
 instance InstantiateFull a => InstantiateFull (Closure a) where
     instantiateFull' cl = do
         x <- enterClosure cl instantiateFull'
-        return $ cl { clValue = x }
+        return $! cl { clValue = x }
 
 instance InstantiateFull ProblemConstraint where
   instantiateFull' (PConstr p u c) = PConstr p u <$!> instantiateFull' c
@@ -1714,19 +1720,19 @@ instance InstantiateFull Defn where
       Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv, funExtLam = extLam } -> do
         (cs, cc, cov, inv) <- instantiateFull' (cs, cc, cov, inv)
         extLam <- instantiateFull' extLam
-        return $ d { funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv, funExtLam = extLam }
+        return $! d { funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv, funExtLam = extLam }
       Datatype{ dataSort = s, dataClause = cl } -> do
         s  <- instantiateFull' s
         cl <- instantiateFull' cl
-        return $ d { dataSort = s, dataClause = cl }
+        return $! d { dataSort = s, dataClause = cl }
       Record{ recClause = cl, recTel = tel } -> do
         cl  <- instantiateFull' cl
         tel <- instantiateFull' tel
-        return $ d { recClause = cl, recTel = tel }
+        return $! d { recClause = cl, recTel = tel }
       Constructor{} -> return d
       Primitive{ primClauses = cs } -> do
         cs <- instantiateFull' cs
-        return $ d { primClauses = cs }
+        return $! d { primClauses = cs }
       PrimitiveSort{} -> return d
 
 instance InstantiateFull ExtLamInfo where
