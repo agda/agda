@@ -913,6 +913,7 @@ library
       Agda.Utils.Map1
       Agda.Utils.Maybe
       Agda.Utils.Maybe.Strict
+      Agda.Utils.Maybe.Unboxable
       Agda.Utils.Memo
       Agda.Utils.MinimalArray.Lifted
       Agda.Utils.MinimalArray.MutableLifted

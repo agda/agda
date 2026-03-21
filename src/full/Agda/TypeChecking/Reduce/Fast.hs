@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE PatternGuards #-}
 
 {-|
@@ -74,14 +76,15 @@ import Agda.Utils.Float
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Maybe.Unboxable
 import Agda.Utils.Monad
 import Agda.Utils.Null (empty, null)
 import Agda.Utils.Functor
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Zipper
-import qualified Agda.Utils.SmallSet as SmallSet
-import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.SmallSet qualified as SmallSet
+import Agda.Utils.VarSet qualified as VarSet
 
 import Agda.Utils.Impossible
 
@@ -795,13 +798,12 @@ trimEnvironment (KnownFVs fvs) env
 buildEnv :: [Arg String] -> Spine s -> ([Arg String], Env s, Spine s)
 buildEnv xs spine = go xs spine emptyEnv
   where
-    go [] sp env = ([], env, sp)
-    go xs0@(x : xs) sp env =
-      case sp of
-        []           -> (xs0, env, sp)
-        Apply c : sp -> go xs sp (unArg c `extendEnv` env)
-        IApply x y r : sp -> go xs sp (r `extendEnv` env)
-        _            -> __IMPOSSIBLE__
+    go [] !sp !env = ([], env, sp)
+    go xs0@(x : xs) sp env = case sp of
+      []                   -> (xs0, env, sp)
+      Apply (Arg _ c) : sp -> go xs sp (c `extendEnv` env)
+      IApply x y r    : sp -> go xs sp (r `extendEnv` env)
+      _                    -> __IMPOSSIBLE__
 
 unusedPointerString :: Text
 unusedPointerString = T.pack (show (withCurrentCallStack Impossible))
@@ -839,6 +841,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
     runReduce :: ReduceM a -> a
     runReduce m = unReduceM m rEnv
 
+#ifdef DEBUG
     -- Debug output. Taking care that we only look at the verbosity level once.
     hasVerb tag lvl = unReduceM (hasVerbosity tag lvl) rEnv
     doDebug = hasVerb "tc.reduce.fast" 110
@@ -846,6 +849,22 @@ reduceTm rEnv bEnv !constInfo normalisation =
     traceDoc
       | doDebug   = trace . show
       | otherwise = const id
+
+    -- Run the machine in a given state. Prints the state if the right verbosity level is active.
+    runAM :: AM s -> ST s (Blocked Term)
+    runAM = if doDebug then \ s -> trace (prettyShow s) (runAM' s)
+                       else runAM'
+#else
+    {-# INLINE traceDoc #-}
+    traceDoc :: Doc -> a -> a
+    traceDoc _ a = a
+
+    {-# INLINE runAM #-}
+    -- Run the machine in a given state. Prints the state if the right verbosity level is active.
+    runAM :: AM s -> ST s (Blocked Term)
+    runAM = runAM'
+#endif
+
 
     -- Checking for built-in zero and suc
     BuiltinEnv{ bZero = zero, bSuc = suc, bRefl = refl0 } = bEnv
@@ -866,10 +885,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
     compileAndRun :: Term -> Blocked Term
     compileAndRun t = runST (runAM (compile normalisation t))
 
-    -- Run the machine in a given state. Prints the state if the right verbosity level is active.
-    runAM :: AM s -> ST s (Blocked Term)
-    runAM = if doDebug then \ s -> trace (prettyShow s) (runAM' s)
-                       else runAM'
+
 
     -- The main function. This is where the stuff happens!
     runAM' :: AM s -> ST s (Blocked Term)
@@ -895,10 +911,10 @@ reduceTm rEnv bEnv !constInfo normalisation =
             CAxiom         -> rewriteAM done
             CTyCon         -> rewriteAM done
             CCon{}         -> runAM done   -- Only happens for builtinSharp (which is a Def when you bind it)
-            CForce | (spine0, Apply v : spine1) <- splitAt 4 spine ->
+            CForce | (spine0, Apply v : spine1) <- splitAt' 4 spine ->
               evalPointerAM (unArg v) [] (ForceK f spine0 spine1 : ctrl)
             CForce -> runAM done -- partially applied
-            CErase | (spine0, Apply v : spine1 : spine2) <- splitAt 2 spine ->
+            CErase | (spine0, Apply v : spine1 : spine2) <- splitAt' 2 spine ->
               evalPointerAM (unArg v) [] (EraseK f spine0 [] [spine1] spine2 : ctrl)
             CErase -> runAM done -- partially applied
             CPrimOp n op cc | length spine == n,                      -- PrimOps can't be over-applied. They don't
@@ -918,18 +934,28 @@ reduceTm rEnv bEnv !constInfo normalisation =
 
         -- Case: constructor. Perform beta reduction if projected from, otherwise return a value.
         Con c i []
-          -- Constructors of types in Prop are not representex as
+          -- Constructors of types in Prop are not represented as
           -- CCon, so this match might fail!
           | CCon{cconSrcCon = c', cconArity = ar} <- cdefDef (constInfo (conName c)) ->
-            evalIApplyAM spine ctrl $
-            case splitAt ar spine of
-              (args, Proj _ p : spine')
-                  -> evalPointerAM (unArg arg) spine' ctrl  -- Andreas #2170: fit argToDontCare here?!
-                where
-                  fields    = map' unArg $ conFields c
-                  Just n    = List.elemIndex p fields
-                  Apply arg = args !! n
-              _ -> rewriteAM (evalTrueValue (Con c' i []) env spine ctrl)
+            evalIApplyAM spine ctrl $ do
+              let dontProject = rewriteAM (evalTrueValue (Con c' i []) env spine ctrl)
+
+              let doProj p (f:fs) (a:sp) restOfElims
+                    | unArg f == p = case a of
+                                     -- Andreas #2170: fit argToDontCare here?!
+                        Apply arg -> evalPointerAM (unArg arg) restOfElims ctrl
+                        _         -> __IMPOSSIBLE__
+                    | otherwise = doProj p fs sp restOfElims
+                  doProj _ _ _ _ = __IMPOSSIBLE__
+
+              let shouldProj sp 0 = case sp of
+                    Proj _ p : rest -> doProj p (conFields c) spine rest
+                    _               -> dontProject
+                  shouldProj (_ : sp) ar = shouldProj sp (ar - 1)
+                  shouldProj []       ar = dontProject
+
+              shouldProj spine ar
+
           | otherwise -> runAM done
 
         -- Case: variable. Look up the variable in the environment and evaluate the resulting
@@ -1059,7 +1085,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
       where
         p         = pureThunk cl
         lits      = map' (pureThunk . litClos) (reverse vs)
-        spine     = fmap (Apply . defaultArg) $ lits ++! [p] ++! es
+        spine     = map' (Apply . defaultArg) $! lits ++! (p : es)
         stuck     = Closure (Value blk) (Def f []) emptyEnv spine
         notstuck  = Closure Unevaled    (Def f []) emptyEnv spine
         litClos l = trueValue (Lit l) emptyEnv []
@@ -1080,7 +1106,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
       where
         argPtr = pureThunk arg
         elim   = Apply (defaultArg argPtr)
-        spine' = spine0 ++! [elim] ++! spine1
+        spine' = spine0 ++! (elim : spine1)
         stuck  = Closure (Value blk) (Def pf []) emptyEnv spine'
 
         isCanonical = \case
@@ -1174,7 +1200,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
             stuckMatch blk' stack ctrl
 
         -- This the spine at this point in the matching. A catch-all match doesn't change the spine.
-        catchallSpine = spine0 ++! [Apply $ Arg i p] ++! spine1
+        catchallSpine = spine0 ++! (Apply (Arg i p) : spine1)
           where p = pureThunk cl -- cl is already a value so no need to thunk it.
 
         -- Push catch-all frame on the match stack if there is a catch-all (and we're not taking it
@@ -1209,7 +1235,8 @@ reduceTm rEnv bEnv !constInfo normalisation =
         -- Matching a non-zero natural number literal: Subtract one from the literal and
         -- insert it in the spine for the Match state.
         matchLitSuc n = fsucBranch bs `ifJust` \ cc ->
-            runAM (Match f cc (spine0 ++! [Apply $ defaultArg arg] ++! spine1) catchallStack ctrl)
+            let !arg' = Apply (defaultArg arg) in
+            runAM (Match f cc (spine0 ++! (arg' : spine1)) catchallStack ctrl)
           where n'  = n - 1
                 arg = pureThunk $ trueValue (Lit $ LitNat n') emptyEnv []
 
@@ -1237,30 +1264,44 @@ reduceTm rEnv bEnv !constInfo normalisation =
                && cdefUnconfirmed (constInfo f)
                && (UnconfirmedReductions `SmallSet.notMember` allowedReductions)
           if abort then undo else do
-            -- Don't ask me why, but not being strict in the spine causes a memory leak.
-            let (zs, env, !spine') = buildEnv xs spine
+            let (!zs, !env, !spine') = buildEnv xs spine
             runAM (Eval (Closure Unevaled (lams zs body) env spine') ctrl)
 
         -- A record pattern match. This does not block evaluation (since that would violate eta
         -- equality), so in this case we replace the argument with its projections in the spine and
         -- keep matching.
-        FEta n fs cc ca ->
-          case splitAt n spine of                           -- Question: add lambda here? doesn't
-            (_, [])                    -> done Underapplied -- matter for equality, but might for
-            (spine0, Apply e : spine1) -> do                -- rewriting or 'with'.
-              -- Replace e by its projections in the spine. And don't forget a
-              -- Catchall frame if there's a catch-all.
-              let projClosure (Arg ai f) = Closure Unevaled (Var 0 []) (extendEnv (unArg e) emptyEnv) [Proj ProjSystem f]
-              projs <- mapM (createThunk . projClosure) fs
-              let spine' = spine0 ++! map' (Apply . defaultArg) projs ++! spine1
-                  stack' = caseMaybe ca stack $ \ cc -> Catchall cc spine >: stack
+        FEta n fs cc ca -> do
+
+              -- Recurse down to the application, replace it by projections
+              -- in the spine, rebuild the spine. If we don't have enough
+              -- arguments, return Nothing#
+          let go 0 (Apply e : spine1) = do Just# <$!> goFs fs e spine1
+              go n (e : spine1) = go (n - 1) spine1 >>= \case
+                Nothing# -> pure Nothing#
+                Just# sp -> pure $! Just# $! e:sp
+              go _ [] = pure Nothing#
+
+              -- Replace e by its projections in the spine.
+              goFs []     e spine1 = pure spine1
+              goFs (f:fs) e spine1 = do
+                let projClosure (Arg ai f) =
+                       Closure Unevaled (Var 0 []) (extendEnv (unArg e) emptyEnv) [Proj ProjSystem f]
+                !t <- Apply . defaultArg <$!> createThunk (projClosure f)
+                (t:) <$!> goFs fs e spine1
+
+          go n spine >>= \case
+            Nothing# ->
+              -- Question: add lambda here? doesn't matter for equality, but might for
+              -- rewriting or 'with'
+              done Underapplied
+            Just# spine' -> do
+              let !stack' = caseMaybe ca stack \cc -> Catchall cc spine >: stack
               runAM (Match f cc spine' stack' ctrl)
-            _ -> __IMPOSSIBLE__
 
         -- Split on nth elimination in the spine. Can be either a regular split or a copattern
         -- split.
         FCase n bs ->
-          case splitAt n spine of
+          case splitAt' n spine of
             -- If the nth elimination is not given, we're stuck.
             (_, []) -> done Underapplied
             -- Apply elim: push the current match on the control stack and evaluate the argument
@@ -1280,6 +1321,8 @@ reduceTm rEnv bEnv !constInfo normalisation =
                 Just cc -> runAM (Match f cc (spine0 ++! spine1) stack ctrl)
               where CFun{ cfunProjection = op } = cdefDef (constInfo p)
             (_, IApply{} : _) -> __IMPOSSIBLE__ -- Paths cannot be defined by pattern matching
+
+
       where done why = stuckMatch (NotBlocked why ()) stack ctrl
 
     -- 'evalPointerAM p spine ctrl'. Evaluate the closure pointed to by 'p' applied to 'spine' with
@@ -1295,6 +1338,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
         runAM (Eval cl $ updateThunkCtrl p $ [ApplyK spine | not (null spine)] ++! ctrl)
       Thunk cl -> runAM (Eval (clApply cl spine) ctrl)
 
+    {-# INLINE evalIApplyAM #-}
     -- 'evalIApplyAM spine ctrl fallback' checks if any 'IApply x y r' has a canonical 'r' (i.e. 0 or 1),
     -- in that case continues evaluating 'x' or 'y' with the rest of 'spine' and same 'ctrl'.
     -- If no such 'IApply' is found we continue with 'fallback'.
@@ -1436,7 +1480,7 @@ instance Pretty (Closure s) where
   prettyPrec p (Closure isV t env spine) =
     mparens (p > 9) $ fsep [ text tag
                            , nest 2 $ prettyPrec 10 t
-                           , nest 2 $ prettyList $ zipWith envEntry [0..] (envToList env)
+                           , nest 2 $ prettyList $ zipWith' envEntry [0..] (envToList env)
                            , nest 2 $ prettyList spine ]
       where envEntry i c = text ("@" ++! show i ++! " =") <+> pretty c
             tag = case isV of Value{} -> "V"; Unevaled -> "E"
