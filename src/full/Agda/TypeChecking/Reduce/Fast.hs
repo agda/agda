@@ -37,6 +37,7 @@ module Agda.TypeChecking.Reduce.Fast
 
 import Prelude hiding ((!!), null)
 
+import Data.Foldable hiding (null)
 import Control.Applicative hiding (empty)
 import Control.Monad.ST
 import Control.Monad.ST.Unsafe (unsafeSTToIO, unsafeInterleaveST)
@@ -50,7 +51,7 @@ import qualified Data.List as List
 import Data.Text (Text)
 import qualified Data.Text as T
 
-import System.IO.Unsafe (unsafePerformIO)
+import System.IO.Unsafe (unsafeDupablePerformIO)
 import Data.IORef
 import Data.STRef
 import Data.Char
@@ -99,12 +100,12 @@ data CompactDef =
 
 data CompactDefn
   = CFun  { cfunCompiled  :: FastCompiledClauses, cfunProjection :: Maybe QName }
-  | CCon  { cconSrcCon :: ConHead, cconArity :: Int }
+  | CCon  { cconSrcCon :: ConHead, cconArity :: !Int }
   | CForce   -- ^ primForce
   | CErase   -- ^ primErase
   | CTyCon   -- ^ Datatype or record type. Need to know this for primForce.
   | CAxiom   -- ^ Axiom or abstract defn
-  | CPrimOp Int ([Literal] -> Term) (Maybe FastCompiledClauses)
+  | CPrimOp !Int ([Literal] -> Term) (Maybe FastCompiledClauses)
             -- ^ Literals in reverse argument order
   | COther  -- ^ In this case we fall back to slow reduction
 
@@ -116,10 +117,6 @@ data BuiltinEnv = BuiltinEnv
 compactDef :: BuiltinEnv -> Definition -> RewriteRules -> ReduceM CompactDef
 compactDef bEnv def rewr = do
 
-  -- WARNING: don't use isPropM here because it relies on reduction,
-  -- which causes an infinite loop.
-  let isPrp = isProp $ getSort $ defType def
-
   shouldReduce <- shouldReduceDef (defName def)
   allowed <- asksTC envAllowedReductions
 
@@ -127,22 +124,24 @@ compactDef bEnv def rewr = do
         Constructor{} -> True
         Function { funProjection = Right{} } -> True
         _ -> False
-  let allowReduce = and
-        [ shouldReduce
-        , or
-          [ RecursiveReductions `SmallSet.member` allowed
-          , isConOrProj && ProjectionReductions `SmallSet.member` allowed
-          , isInlineFun (theDef def) && InlineReductions `SmallSet.member` allowed
-          , definitelyNonRecursive_ (theDef def) && or
-            [ defCopatternLHS def && CopatternReductions `SmallSet.member` allowed
-            , FunctionReductions `SmallSet.member` allowed
-            ]
-          ]
-        , not (defNonterminating def) || SmallSet.member NonTerminatingReductions allowed
-        -- , not (defTerminationUnconfirmed def) || SmallSet.member UnconfirmedReductions allowed
-        , not isPrp
-        , not (isIrrelevant def)
-        ]
+
+  let allowReduce =
+             shouldReduce
+          && (
+                   (RecursiveReductions `SmallSet.member` allowed)
+                || (isConOrProj && ProjectionReductions `SmallSet.member` allowed)
+                || (isInlineFun (theDef def) && InlineReductions `SmallSet.member` allowed)
+                || (definitelyNonRecursive_ (theDef def) && (
+                       (defCopatternLHS def && CopatternReductions `SmallSet.member` allowed)
+                    || (FunctionReductions `SmallSet.member` allowed))
+                   )
+             )
+          && (not (defNonterminating def) || SmallSet.member NonTerminatingReductions allowed)
+             -- WARNING: don't use isPropM here because it relies on reduction,
+             -- which causes an infinite loop.
+          && (not $ isProp $ getSort $ defType def)
+          && (not (isIrrelevant def))
+
 
   cdefn <-
     case theDef def of
@@ -358,12 +357,12 @@ data FastCase c = FBranches
 -- | Case tree with bodies.
 
 data FastCompiledClauses
-  = FCase Int (FastCase FastCompiledClauses)
+  = FCase !Int (FastCase FastCompiledClauses)
     -- ^ @Case n bs@ stands for a match on the @n@-th argument
     -- (counting from zero) with @bs@ as the case branches.
     -- If the @n@-th argument is a projection, we have only 'conBranches'
     -- with arity 0.
-  | FEta Int [Arg QName] FastCompiledClauses (Maybe FastCompiledClauses)
+  | FEta !Int [Arg QName] FastCompiledClauses (Maybe FastCompiledClauses)
     -- ^ Match on record constructor. Can still have a catch-all though. Just
     --   contains the fields, not the actual constructor.
   | FDone (CCDone Term)
@@ -407,9 +406,9 @@ lookupCon c (FBranches _ cons _ _ _ _) = Map.lookup (nameId c) cons
 
 {-# NOINLINE memoQName #-}
 memoQName :: (QName -> a) -> (QName -> a)
-memoQName f = unsafePerformIO $ do
+memoQName f = unsafeDupablePerformIO $ do
   tbl <- newIORef Map.empty
-  return (unsafePerformIO . f' tbl)
+  return (unsafeDupablePerformIO . f' tbl)
   where
     f' tbl x = do
       let i = nameId x
@@ -418,7 +417,7 @@ memoQName f = unsafePerformIO $ do
         Just y  -> return y
         Nothing -> do
           let y = f x
-          writeIORef tbl (Map.insert i y m)
+          writeIORef tbl $! Map.insert i y m
           return y
 
 -- * Fast reduction
@@ -491,13 +490,13 @@ setIsValue isV (Closure _ t env spine) = Closure isV t env spine
 --   field.
 clApply :: Closure s -> Spine s -> Closure s
 clApply c [] = c
-clApply (Closure _ t env es) es' = Closure Unevaled t env (es <> es')
+clApply (Closure _ t env es) es' = Closure Unevaled t env (es ++! es')
 
 -- | Apply a closure to a spine, preserving the 'IsValue' field. Use with care, since usually
 --   eliminations do not preserve the value status.
 clApply_ :: Closure s -> Spine s -> Closure s
 clApply_ c [] = c
-clApply_ (Closure b t env es) es' = Closure b t env (es <> es')
+clApply_ (Closure b t env es) es' = Closure b t env (es ++! es')
 
 -- * Pointers and thunks
 
@@ -530,7 +529,7 @@ derefPointer_ ptr =
 -- | Only use for debug printing!
 unsafeDerefPointer :: Pointer s -> Thunk (Closure s)
 unsafeDerefPointer (Pure x)    = Thunk x
-unsafeDerefPointer (Pointer p) = unsafePerformIO (unsafeSTToIO (readSTRef p))
+unsafeDerefPointer (Pointer p) = unsafeDupablePerformIO (unsafeSTToIO (readSTRef p))
 
 readPointer :: STPointer s -> ST s (Thunk (Closure s))
 readPointer = readSTRef
@@ -545,9 +544,10 @@ blackHole ptr = writeSTRef ptr BlackHole
 -- | Create a thunk. If the closure is a naked variable we can reuse the pointer from the
 --   environment to avoid creating long pointer chains.
 createThunk :: Closure s -> ST s (Pointer s)
-createThunk (Closure _ (Var x []) env spine)
-  | null spine, Just p <- lookupEnv x env = return p
-createThunk cl = Pointer <$> newSTRef (Thunk cl)
+createThunk cl@(Closure _ (Var x []) env []) =
+  lookupEnv x env (\p -> return p)
+                  (\_ -> Pointer <$!> newSTRef (Thunk cl))
+createThunk cl = Pointer <$!> newSTRef (Thunk cl)
 
 -- | Create a thunk that is not shared or updated.
 pureThunk :: Closure s -> Pointer s
@@ -573,15 +573,12 @@ envToList (Env xs) = xs
 extendEnv :: Pointer s -> Env s -> Env s
 extendEnv p (Env xs) = Env (p : xs)
 
--- | Unsafe.
-lookupEnv_ :: Int -> Env s -> Pointer s
-lookupEnv_ i (Env e) = indexWithDefault __IMPOSSIBLE__ e i
-
--- Andreas, 2018-11-12, which isn't this just Agda.Utils.List.!!! ?
-lookupEnv :: Int -> Env s -> Maybe (Pointer s)
-lookupEnv i e | i < n     = Just (lookupEnv_ i e)
-              | otherwise = Nothing
-  where n = envSize e
+{-# INLINE lookupEnv #-}
+lookupEnv :: Int -> Env s -> (Pointer s -> a) -> (() -> a) -> a
+lookupEnv i (Env e) found notfound = go i e where
+  go 0 (p:ps) = found p
+  go i (p:ps) = go (i - 1) ps
+  go _ _      = notfound ()
 
 -- * The Agda Abstract Machine
 
@@ -737,7 +734,7 @@ decodeClosure (Closure isV t env spine) = do
     es <- decodeSpine spine
     return $ applyE (applySubst (parS vs) t) es <$ b
   where
-    parS = foldr (:#) IdS  -- parallelS is too strict
+    parS = foldr' (:#) IdS  -- parallelS is too strict
     b    = case isV of
              Value b  -> b
              Unevaled -> notBlocked ()  -- only when falling back to slow reduce in which case the
@@ -751,14 +748,16 @@ elimsToSpine env es = do
     forceSpine spine `seq` return spine
   where
     -- Need to be strict in mkClosure to avoid memory leak
-    forceSpine = foldl (\ () -> forceEl) ()
+    forceSpine = foldl' (\ () -> forceEl) ()
     forceEl (Apply (Arg _ (Pure Closure{}))) = ()
     forceEl (Apply (Arg _ (Pointer{})))      = ()
     forceEl _                                = ()
 
     -- We don't preserve free variables of closures (in the sense of their
     -- decoding), since we freely add things to the spines.
-    unknownFVs = setFreeVariables unknownFreeVariables
+    unknownFVs i
+      | getFreeVariables i == unknownFreeVariables = i
+      | otherwise = setFreeVariables unknownFreeVariables i
 
     thunk (Apply (Arg i t)) = Apply . Arg (unknownFVs i) <$> createThunk (closure (getFreeVariables i) t)
     thunk (Proj o f)        = return (Proj o f)
@@ -904,7 +903,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
             CErase -> runAM done -- partially applied
             CPrimOp n op cc | length spine == n,                      -- PrimOps can't be over-applied. They don't
                               Just (v : vs) <- allApplyElims spine -> -- return functions or records.
-              evalPointerAM (unArg v) [] (PrimOpK f op [] (map unArg vs) cc : ctrl)
+              evalPointerAM (unArg v) [] (PrimOpK f op [] (map' unArg vs) cc : ctrl)
             CPrimOp{} -> runAM done  -- partially applied
             COther    -> fallbackAM s
 
@@ -927,7 +926,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
               (args, Proj _ p : spine')
                   -> evalPointerAM (unArg arg) spine' ctrl  -- Andreas #2170: fit argToDontCare here?!
                 where
-                  fields    = map unArg $ conFields c
+                  fields    = map' unArg $ conFields c
                   Just n    = List.elemIndex p fields
                   Apply arg = args !! n
               _ -> rewriteAM (evalTrueValue (Con c' i []) env spine ctrl)
@@ -938,9 +937,9 @@ reduceTm rEnv bEnv !constInfo normalisation =
         -- deBruijn index appropriately.
         Var x []   ->
           evalIApplyAM spine ctrl $
-          case lookupEnv x env of
-            Nothing -> runAM (evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl)
-            Just p  -> evalPointerAM p spine ctrl
+          lookupEnv x env
+            (\p -> evalPointerAM p spine ctrl)
+            (\_ -> runAM (evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl))
 
         -- Case: lambda. Perform the beta reduction if applied. Otherwise it's a value.
         Lam h b ->
@@ -978,7 +977,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
               runAM (Eval (mkValue (blocked m ()) cl) ctrl)
             Just (InstV i) -> do
               spine' <- elimsToSpine env es
-              let (zs, env, !spine'') = buildEnv (instTel i) (spine' <> spine)
+              let (zs, env, !spine'') = buildEnv (instTel i) (spine' ++! spine)
               runAM (evalClosure (lams zs (instBody i)) env spine'' ctrl)
             Just OpenMeta{}                     -> __IMPOSSIBLE__
             Just BlockedConst{}                 -> __IMPOSSIBLE__
@@ -993,7 +992,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
       where done = Eval (mkValue (notBlocked ()) cl) ctrl
             shiftElims t env0 env es = do
               spine' <- elimsToSpine env es
-              runAM (evalClosure t env0 (spine' <> spine) ctrl)
+              runAM (evalClosure t env0 (spine' ++! spine) ctrl)
 
     -- If the current focus is a value closure, we look at the control stack.
 
@@ -1018,7 +1017,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
       where done = Eval (mkValue (notBlocked ()) cl) ctrl
             shiftElims t env0 env es = do
               spine' <- elimsToSpine env es
-              runAM (Eval (Closure b t env0 (spine' <> spine)) (NormaliseK : ctrl))
+              runAM (Eval (Closure b t env0 (spine' ++! spine)) (NormaliseK : ctrl))
 
     -- Case: ArgK: We successfully normalised an argument. Start on the next argument, or if there
     -- isn't one we're done.
@@ -1059,8 +1058,8 @@ reduceTm rEnv bEnv !constInfo normalisation =
         Just cc -> runAM (Match f cc spine ([] :> notstuck) ctrl)
       where
         p         = pureThunk cl
-        lits      = map (pureThunk . litClos) (reverse vs)
-        spine     = fmap (Apply . defaultArg) $ lits <> [p] <> es
+        lits      = map' (pureThunk . litClos) (reverse vs)
+        spine     = fmap (Apply . defaultArg) $ lits ++! [p] ++! es
         stuck     = Closure (Value blk) (Def f []) emptyEnv spine
         notstuck  = Closure Unevaled    (Def f []) emptyEnv spine
         litClos l = trueValue (Lit l) emptyEnv []
@@ -1081,7 +1080,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
       where
         argPtr = pureThunk arg
         elim   = Apply (defaultArg argPtr)
-        spine' = spine0 <> [elim] <> spine1
+        spine' = spine0 ++! [elim] ++! spine1
         stuck  = Closure (Value blk) (Def pf []) emptyEnv spine'
 
         isCanonical = \case
@@ -1107,7 +1106,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
         (Lit l1, Lit l2) | l1 == l2, isJust refl ->
           runAM (evalTrueValue (Con (fromJust refl) ConOSystem []) emptyEnv [] ctrl)
         _ ->
-          let spine = spine0 ++ map (Apply . hide . defaultArg . pureThunk) [cl1, cl2] ++ spine3 in
+          let spine = spine0 ++! map' (Apply . hide . defaultArg . pureThunk) [cl1, cl2] ++! spine3 in
           fallbackAM (evalClosure (Def f []) emptyEnv spine ctrl)
     runAM' (Eval cl1@(Closure Value{} _ _ _) (EraseK f spine0 [] [Apply p2] spine3 : ctrl)) =
       evalPointerAM (unArg p2) [] (EraseK f spine0 [Apply $ hide $ defaultArg $ pureThunk cl1] [] spine3 : ctrl)
@@ -1144,7 +1143,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
           -- shifting arguments onto spine)
           Con c ci es -> do
             spine' <- elimsToSpine env es
-            runAM (evalValue blk (Con c ci []) emptyEnv (spine' <> spine) ctrl0)
+            runAM (evalValue blk (Con c ci []) emptyEnv (spine' ++! spine) ctrl0)
           -- Case: natural number literals. Literal natural number patterns are translated to
           -- suc-matches, so there is no need to try matchLit.
           Lit (LitNat 0) -> matchLitZero  $ matchCatchall $ failedMatch f stack ctrl
@@ -1157,7 +1156,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
           Def q [] | isJust $ lookupCon q bs -> matchCon' q (length spine) $ matchCatchall $ failedMatch f stack ctrl
           Def q es | isJust $ lookupCon q bs -> do
             spine' <- elimsToSpine env es
-            runAM (evalValue blk (Def q []) emptyEnv (spine' <> spine) ctrl0)
+            runAM (evalValue blk (Def q []) emptyEnv (spine' ++! spine) ctrl0)
 
           -- Case: not constructor or literal. In this case we are stuck.
           _ -> stuck
@@ -1175,7 +1174,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
             stuckMatch blk' stack ctrl
 
         -- This the spine at this point in the matching. A catch-all match doesn't change the spine.
-        catchallSpine = spine0 <> [Apply $ Arg i p] <> spine1
+        catchallSpine = spine0 ++! [Apply $ Arg i p] ++! spine1
           where p = pureThunk cl -- cl is already a value so no need to thunk it.
 
         -- Push catch-all frame on the match stack if there is a catch-all (and we're not taking it
@@ -1193,7 +1192,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
         -- the spine between spine0 and spine1.
         matchCon c ci ar = matchCon' (conName c) ar
         matchCon' q ar = lookupCon q bs `ifJust` \ cc ->
-          runAM (Match f cc (spine0 <> spine <> spine1) catchallStack ctrl)
+          runAM (Match f cc (spine0 ++! spine ++! spine1) catchallStack ctrl)
 
         -- Catch-all: Don't add a Catchall to the match stack since this _is_ the catch-all.
         matchCatchall = fcatchallBranch bs `ifJust` \ cc ->
@@ -1201,16 +1200,16 @@ reduceTm rEnv bEnv !constInfo normalisation =
 
         -- Matching literal: Switch to the Match state. There are no arguments to add to the spine.
         matchLit l = Map.lookup l (flitBranches bs) `ifJust` \ cc ->
-          runAM (Match f cc (spine0 <> spine1) catchallStack ctrl)
+          runAM (Match f cc (spine0 ++! spine1) catchallStack ctrl)
 
         -- Matching a 'suc' constructor: Insert the argument in the spine.
         matchSuc = fsucBranch bs `ifJust` \ cc ->
-            runAM (Match f cc (spine0 <> spine <> spine1) catchallStack ctrl)
+            runAM (Match f cc (spine0 ++! spine ++! spine1) catchallStack ctrl)
 
         -- Matching a non-zero natural number literal: Subtract one from the literal and
         -- insert it in the spine for the Match state.
         matchLitSuc n = fsucBranch bs `ifJust` \ cc ->
-            runAM (Match f cc (spine0 <> [Apply $ defaultArg arg] <> spine1) catchallStack ctrl)
+            runAM (Match f cc (spine0 ++! [Apply $ defaultArg arg] ++! spine1) catchallStack ctrl)
           where n'  = n - 1
                 arg = pureThunk $ trueValue (Lit $ LitNat n') emptyEnv []
 
@@ -1233,11 +1232,10 @@ reduceTm rEnv bEnv !constInfo normalisation =
         FDone (CCDone _ mr xs body) -> do
           let allowedReductions = envAllowedReductions (redEnv rEnv)
           let undo = stuckMatch (NotBlocked ReallyNotBlocked ()) stack ctrl
-          let abort = and
-               [ couldBeRecursive mr
-               , cdefUnconfirmed (constInfo f)
-               , UnconfirmedReductions `SmallSet.notMember` allowedReductions
-               ]
+          let abort =
+                  couldBeRecursive mr
+               && cdefUnconfirmed (constInfo f)
+               && (UnconfirmedReductions `SmallSet.notMember` allowedReductions)
           if abort then undo else do
             -- Don't ask me why, but not being strict in the spine causes a memory leak.
             let (zs, env, !spine') = buildEnv xs spine
@@ -1254,7 +1252,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
               -- Catchall frame if there's a catch-all.
               let projClosure (Arg ai f) = Closure Unevaled (Var 0 []) (extendEnv (unArg e) emptyEnv) [Proj ProjSystem f]
               projs <- mapM (createThunk . projClosure) fs
-              let spine' = spine0 <> map (Apply . defaultArg) projs <> spine1
+              let spine' = spine0 ++! map' (Apply . defaultArg) projs ++! spine1
                   stack' = caseMaybe ca stack $ \ cc -> Catchall cc spine >: stack
               runAM (Match f cc spine' stack' ctrl)
             _ -> __IMPOSSIBLE__
@@ -1279,7 +1277,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
                 Nothing
                   | f `elem` partialDefs -> stuckMatch (NotBlocked (MissingClauses f) ()) stack ctrl
                   | otherwise          -> __IMPOSSIBLE__
-                Just cc -> runAM (Match f cc (spine0 <> spine1) stack ctrl)
+                Just cc -> runAM (Match f cc (spine0 ++! spine1) stack ctrl)
               where CFun{ cfunProjection = op } = cdefDef (constInfo p)
             (_, IApply{} : _) -> __IMPOSSIBLE__ -- Paths cannot be defined by pattern matching
       where done why = stuckMatch (NotBlocked why ()) stack ctrl
@@ -1294,7 +1292,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
       BlackHole -> __IMPOSSIBLE__
       Thunk cl@(Closure Unevaled _ _ _) | callByNeed -> do
         blackHole p
-        runAM (Eval cl $ updateThunkCtrl p $ [ApplyK spine | not (null spine)] ++ ctrl)
+        runAM (Eval cl $ updateThunkCtrl p $ [ApplyK spine | not (null spine)] ++! ctrl)
       Thunk cl -> runAM (Eval (clApply cl spine) ctrl)
 
     -- 'evalIApplyAM spine ctrl fallback' checks if any 'IApply x y r' has a canonical 'r' (i.e. 0 or 1),
@@ -1394,7 +1392,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
 
     -- Building lambdas
     lams :: [Arg String] -> Term -> Term
-    lams xs t = foldr lam t xs
+    lams xs t = foldr' lam t xs
 
     lam :: Arg String -> Term -> Term
     lam x t = Lam (argInfo x) (Abs (unArg x) t)
@@ -1403,7 +1401,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
 
 instance Pretty a => Pretty (FastCase a) where
   prettyPrec p (FBranches _cop cs suc ls m _) =
-    mparens (p > 0) $ vcat (prettyMap_ cs ++ prettyMap_ ls ++ prSuc suc ++ prC m)
+    mparens (p > 0) $ vcat (prettyMap_ cs ++! prettyMap_ ls ++! prSuc suc ++! prC m)
     where
       prC Nothing = []
       prC (Just x) = ["_ ->" <?> pretty x]
@@ -1415,15 +1413,15 @@ instance Pretty FastCompiledClauses where
   pretty (FDone done) = pretty done
   pretty FFail        = "fail"
   pretty (FEta n _ cc ca) =
-    text ("eta " ++ show n ++ " of") <?>
+    text ("eta " ++! show n ++! " of") <?>
       vcat ("{} ->" <?> pretty cc :
             [ "_ ->" <?> pretty cc | Just cc <- [ca] ])
   pretty (FCase n bs) | fprojPatterns bs =
-    sep [ text $ "project " ++ show n
+    sep [ text $ "project " ++! show n
         , nest 2 $ pretty bs
         ]
   pretty (FCase n bs) =
-    text ("case " ++ show n ++ " of") <?> pretty bs
+    text ("case " ++! show n ++! " of") <?> pretty bs
 
 instance Pretty a => Pretty (Thunk a) where
   prettyPrec _ BlackHole  = "<BLACKHOLE>"
@@ -1440,7 +1438,7 @@ instance Pretty (Closure s) where
                            , nest 2 $ prettyPrec 10 t
                            , nest 2 $ prettyList $ zipWith envEntry [0..] (envToList env)
                            , nest 2 $ prettyList spine ]
-      where envEntry i c = text ("@" ++ show i ++ " =") <+> pretty c
+      where envEntry i c = text ("@" ++! show i ++! " =") <+> pretty c
             tag = case isV of Value{} -> "V"; Unevaled -> "E"
 
 instance Pretty (AM s) where
@@ -1461,13 +1459,13 @@ instance Pretty (MatchStack s) where
 
 instance Pretty (ControlFrame s) where
   prettyPrec p (CaseK f _ _ _ _ mc)       = mparens (p > 9) $ ("CaseK" <+> pretty (qnameName f)) <?> pretty mc
-  prettyPrec p (ForceK _ spine0 spine1)   = mparens (p > 9) $ "ForceK" <?> prettyList (spine0 <> spine1)
+  prettyPrec p (ForceK _ spine0 spine1)   = mparens (p > 9) $ "ForceK" <?> prettyList (spine0 ++! spine1)
   prettyPrec p (EraseK _ sp0 sp1 sp2 sp3) = mparens (p > 9) $ sep [ "EraseK"
                                                                   , nest 2 $ prettyList sp0
                                                                   , nest 2 $ prettyList sp1
                                                                   , nest 2 $ prettyList sp2
                                                                   , nest 2 $ prettyList sp3 ]
-  prettyPrec _ (NatSucK n)              = text ("+" ++ show n)
+  prettyPrec _ (NatSucK n)              = text ("+" ++! show n)
   prettyPrec p (PrimOpK f _ vs cls _)   = mparens (p > 9) $ sep [ "PrimOpK" <+> pretty f
                                                                 , nest 2 $ prettyList vs
                                                                 , nest 2 $ prettyList cls ]
