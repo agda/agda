@@ -795,31 +795,30 @@ decodeClosure _ = __IMPOSSIBLE__
 
 -- | Turn a list of internal syntax eliminations into a spine. This builds closures and allocates
 --   thunks for all the 'Apply' elims.
-elimsToSpine :: Env s -> Elims -> ST s (Spine s)
-elimsToSpine env es = go es where
+elimsToSpine :: Env s -> Elims -> Spine s -> ST s (Spine s)
+elimsToSpine env es sp0 = goETS es env sp0 where
   -- We don't preserve free variables of closures (in the sense of their
   -- decoding), since we freely add things to the spines.
   unknownFVs i
     | getFreeVariables i == unknownFreeVariables = i
     | otherwise = setFreeVariables unknownFreeVariables i
 
-  mkThunk = createThunk . closure UnknownFVs
-
   -- Going straight for a value for literals is mostly to make debug traces
   -- less verbose and doesn't really buy anything performance-wise.
-  closure _ t@Lit{} = let !v = Value $! notBlocked () in Closure v t emptyEnv []
-  closure fv t      = let !env' = trimEnvironment fv env in Closure Unevaled t env' []
+  closure _ _ t@Lit{} = let !v = Value $! notBlocked () in Closure v t emptyEnv []
+  closure env fv t    = let !env' = trimEnvironment fv env in Closure Unevaled t env' []
 
-  go (e:es) = case e of
+  goETS (e:es) env sp0 = case e of
     (Apply (Arg i t)) -> do
-      !t <- createThunk (closure (getFreeVariables i) t)
+      !t <- createThunk (closure env (getFreeVariables i) t)
       let !i' = unknownFVs i
-      (SApply i' t:) <$!> go es
-    (Proj o f)     -> (SProj o f:) <$!> go es
+      (SApply i' t:) <$!> goETS es env sp0
+    (Proj o f)     -> (SProj o f:) <$!> goETS es env sp0
     (IApply a x y) -> do
+      let mkThunk = createThunk . closure env UnknownFVs
       !e <- SIApply <$!> mkThunk a <*!> mkThunk x <*!> mkThunk y
-      (e:) <$!> go es
-  go [] = pure []
+      (e:) <$!> goETS es env sp0
+  goETS [] _ sp0 = pure sp0
 
 
 -- | Trim unused entries from an environment. Currently only trims closed terms for performance
@@ -832,12 +831,12 @@ trimEnvironment (KnownFVs fvs) env
     -- some cases run in constant instead of linear space you need quite contrived examples to
     -- notice the effect.
   | otherwise       = env -- Env $ trim 0 $ envToList env
-  where
-    -- Important: strict enough that the trimming actually happens
-    trim _ [] = []
-    trim i (p : ps)
-      | VarSet.member i fvs = (p :)             $! trim (i + 1) ps
-      | otherwise           = (unusedPointer :) $! trim (i + 1) ps
+  -- where
+  --   -- Important: strict enough that the trimming actually happens
+  --   trim _ [] = []
+  --   trim i (p : ps)
+  --     | VarSet.member i fvs = (p :)             $! trim (i + 1) ps
+  --     | otherwise           = (unusedPointer :) $! trim (i + 1) ps
 
 -- | Build an environment for a body with some given free variables from a spine of arguments.
 --   Returns a triple containing
@@ -1052,8 +1051,8 @@ reduceTm rEnv bEnv !constInfo normalisation =
             Nothing ->
               runAM (Eval (mkValue (blocked m ()) cl) ctrl)
             Just (InstV i) -> do
-              spine' <- elimsToSpine env es
-              let (zs, env, !spine'') = buildEnv (instTel i) (spine' ++! spine)
+              spine' <- elimsToSpine env es spine
+              let (zs, env, !spine'') = buildEnv (instTel i) spine'
               runAM (evalClosure (lams zs (instBody i)) env spine'' ctrl)
             Just OpenMeta{}                     -> __IMPOSSIBLE__
             Just BlockedConst{}                 -> __IMPOSSIBLE__
@@ -1067,8 +1066,8 @@ reduceTm rEnv bEnv !constInfo normalisation =
 
       where done = Eval (mkValue (notBlocked ()) cl) ctrl
             shiftElims t env0 env es = do
-              spine' <- elimsToSpine env es
-              runAM (evalClosure t env0 (spine' ++! spine) ctrl)
+              spine' <- elimsToSpine env es spine
+              runAM (evalClosure t env0 spine' ctrl)
 
     -- If the current focus is a value closure, we look at the control stack.
 
@@ -1092,8 +1091,8 @@ reduceTm rEnv bEnv !constInfo normalisation =
 
       where done = Eval (mkValue (notBlocked ()) cl) ctrl
             shiftElims t env0 env es = do
-              spine' <- elimsToSpine env es
-              runAM (Eval (Closure b t env0 (spine' ++! spine)) (NormaliseK ctrl))
+              spine' <- elimsToSpine env es spine
+              runAM (Eval (Closure b t env0 spine') (NormaliseK ctrl))
 
     -- Case: ArgK: We successfully normalised an argument. Start on the next argument, or if there
     -- isn't one we're done.
@@ -1222,8 +1221,8 @@ reduceTm rEnv bEnv !constInfo normalisation =
           -- Case: non-empty elims. We can get here from a fallback (which builds a value without
           -- shifting arguments onto spine)
           Con c ci es -> do
-            spine' <- elimsToSpine env es
-            runAM (evalValue blk (Con c ci []) emptyEnv (spine' ++! spine) ctrl0)
+            spine' <- elimsToSpine env es spine
+            runAM (evalValue blk (Con c ci []) emptyEnv spine' ctrl0)
           -- Case: natural number literals. Literal natural number patterns are translated to
           -- suc-matches, so there is no need to try matchLit.
           Lit (LitNat 0) -> matchLitZero  $ matchCatchall $ failedMatch f stack ctrl
@@ -1235,8 +1234,8 @@ reduceTm rEnv bEnv !constInfo normalisation =
           -- Case: hcomp
           Def q [] | isJust $ lookupCon q bs -> matchCon' q (length spine) $ matchCatchall $ failedMatch f stack ctrl
           Def q es | isJust $ lookupCon q bs -> do
-            spine' <- elimsToSpine env es
-            runAM (evalValue blk (Def q []) emptyEnv (spine' ++! spine) ctrl0)
+            spine' <- elimsToSpine env es spine
+            runAM (evalValue blk (Def q []) emptyEnv spine' ctrl0)
 
           -- Case: not constructor or literal. In this case we are stuck.
           _ -> stuck
