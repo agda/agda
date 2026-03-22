@@ -1664,9 +1664,12 @@ instance (Subst a, InstantiateFull a) => InstantiateFull (Tele a) where
   instantiateFull' (ExtendTel a b) = uncurry ExtendTel <$!> instantiateFull' (a, b)
 
 instance InstantiateFull Definition where
-    instantiateFull' def@Defn{ defType = t ,defDisplay = df, theDef = d } = do
+  instantiateFull' def@Defn{ defType = t ,defDisplay = df, theDef = d } =
+    if defMightContainMetas def then do
       (t, df, d) <- instantiateFull' (t, df, d)
-      return $ def{ defType = t, defDisplay = df, theDef = d }
+      return $! def{ defType = t, defDisplay = df, theDef = d }
+    else do
+      return def
 
 instance InstantiateFull NLPat where
   instantiateFull' (PVar s x y)    = return $ PVar s x y

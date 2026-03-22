@@ -681,7 +681,8 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
                         Cubical CWithoutGlue -> lang
                         WithoutK             -> lang
                         WithK                -> lang
-                    , theDef            = df }
+                    , defMightContainMetas = True
+                    , theDef               = df }
             oldDef = theDef d
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
             mutual = case oldDef of { Function{funMutual = m} -> m              ; _ -> Nothing }

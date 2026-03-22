@@ -2,12 +2,13 @@
 
 module Agda.TypeChecking.DeadCode (eliminateDeadCode) where
 
-import Control.Monad (filterM)
+import Control.Monad
 import Control.Monad.Trans
 
 import Data.Maybe
 import qualified Data.Map.Strict as MapS
 import qualified Data.HashMap.Strict as HMap
+import Data.IORef
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -19,12 +20,12 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Monad
 
-import Agda.Utils.Monad (mapMaybeM)
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
+import Agda.Utils.List
 import qualified Agda.Utils.List1 as List1
 
-import Agda.Utils.HashTable (HashTableLU)
+import Agda.Utils.HashTable (HashTableLU, HashTableLL)
 import qualified Agda.Utils.HashTable as HT
 
 -- | Run before serialisation to remove data that's not reachable from the
@@ -77,37 +78,70 @@ eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
   !rootDisplayForms <-
       HMap.mapMaybe eliminateNonClosed <$> useTC stImportsDisplayForms
 
-  let !rootPubNames  = map anameName $ publicNamesOfModules pubModules
+  let !rootPubNames  = map' anameName $ publicNamesOfModules pubModules
   let !rootExtraDefs = mapMaybe extraRootsFilter $ HMap.toList defs
   let !rootRewrites  = sig ^. sigRewriteRules
   let !rootModSections = sig ^. sigSections
   !rootBuiltins <- useTC stLocalBuiltins
   !rootPatSyns  <- getPatternSyns
 
-  !seenNames <- liftIO HT.empty :: TCM (HashTableLU QName ())
-  !seenMetas <- liftIO HT.empty :: TCM (HashTableLU MetaId ())
+  -- When we're traversing the definition of a name, we want to record if the definition contains
+  -- any metas. If a definition doesn't contain metas, we can skip instantiateFull on it before
+  -- serialization.
+  --
+  -- We record "meta-closedness" in the following way. If we're traversing a name definition,
+  -- "insideDef" contains the IORef Bool which can be flipped if we hit a metavariable. We
+  -- store these IORef Bool-s in "seenNames". A new IORef Bool is created for each QName when we
+  -- encounter it for the first time.
+  !insideDef <- lift $ newIORef Nothing :: TCM (IORef (Maybe (IORef Bool)))
+
+  !seenNames <- lift $ HT.empty :: TCM (HashTableLL QName (IORef Bool))
+  !seenMetas <- lift $ HT.empty :: TCM (HashTableLU MetaId ())
 
   let goName :: QName -> IO ()
       goName !x = HT.insertingIfAbsent seenNames x
+        -- already visited name, do nothing
         (\_ -> pure ())
-        (pure ())
-        (\_ -> go (HMap.lookup x defs))
+
+        -- unvisited, insert new IORef into table
+        (newIORef False)
+
+        (\ref -> do
+            prevRef <- readIORef insideDef  -- save ref
+            writeIORef insideDef (Just ref)
+            go (HMap.lookup x defs)
+            writeIORef insideDef prevRef    -- restore ref
+        )
 
       goMeta :: MetaId -> IO ()
-      goMeta !m = HT.insertingIfAbsent seenMetas m
-        (\_ -> pure ())
-        (pure ())
-        (\_ -> case MapS.lookup m metas of
+      goMeta !m = do
+        prevRef <- readIORef insideDef
+        case prevRef of
+          -- we're not inside any name definition
+          Nothing  -> pure ()
+          -- we're inside a name definition, record meta occurrence
+          Just ref -> writeIORef ref True
+
+        HT.insertingIfAbsent seenMetas m
+          -- already visited, do nothing
+          (\_ -> pure ())
+
+          (pure ())
+          -- unvisited
+          (\_ -> case MapS.lookup m metas of
             Nothing -> pure ()
             Just mv -> do
+              writeIORef insideDef Nothing
               go (instBody (theInstantiation mv))
-              go (jMetaType (mvJudgement mv)))
+              go (jMetaType (mvJudgement mv))
+              writeIORef insideDef prevRef -- restore ref
+          )
 
       go :: NamesIn a => a -> IO ()
       go !x = namesAndMetasIn' (either goName goMeta) x
       {-# INLINE go #-}
 
-  Bench.billTo [Bench.DeadCode, Bench.DeadCodeReachable] $ liftIO $ do
+  Bench.billTo [Bench.DeadCode, Bench.DeadCodeReachable] $ lift $ do
     go rootDisplayForms
     foldMap goName rootPubNames
     foldMap goName rootExtraDefs
@@ -116,18 +150,27 @@ eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
     go rootBuiltins
     foldMap go rootPatSyns
 
-  let filterMeta :: (MetaId, MetaVariable) -> IO (Maybe (MetaId, RemoteMetaVariable))
-      filterMeta (!i, !m) = HT.lookup seenMetas i >>= \case
-        Nothing -> pure Nothing
-        Just _  -> let !m' = remoteMetaVariable m in pure $ Just (i, m')
+  let goMetas :: [(MetaId, MetaVariable)] -> IO [(MetaId, RemoteMetaVariable)]
+      goMetas [] = pure []
+      goMetas ((!i, !m):metas) = HT.lookup seenMetas i >>= \case
+        Nothing -> goMetas metas
+        Just _  -> do
+          let !m' = remoteMetaVariable m
+          ((i, m'):) <$!> goMetas metas
 
-      filterDef :: (QName, Definition) -> IO Bool
-      filterDef (!x, !d) = HT.lookup seenNames x >>= \case
-        Nothing -> pure False
-        Just _  -> pure True
+      goDefs :: [(QName, Definition)] -> IO [(QName, Definition)]
+      goDefs [] = pure []
+      goDefs ((!x, !d):defs) = HT.lookup seenNames x >>= \case
+        Nothing -> goDefs defs
+        Just r  -> do
+          hasM <- readIORef r
+          !d <- case hasM of
+            True  -> pure d
+            False -> pure $! d {defMightContainMetas = False}
+          ((x, d):) <$!> goDefs defs
 
-  !metas <- liftIO $ HMap.fromList <$> mapMaybeM filterMeta (MapS.toList metas)
-  !defs  <- liftIO $ HMap.fromList <$> filterM filterDef (HMap.toList defs)
+  !metas <- lift $ HMap.fromList <$> goMetas (MapS.toList metas)
+  !defs  <- lift $ HMap.fromList <$> goDefs (HMap.toList defs)
   pure (metas, defs, rootDisplayForms)
 
 -- | Returns the instantiation.

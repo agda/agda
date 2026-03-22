@@ -2528,7 +2528,11 @@ data Definition = Defn
     --   in the type.
   , defLanguage       :: !Language
     -- ^ The language used for the definition.
-  , theDef            :: Defn
+  , defMightContainMetas :: !Bool
+    -- ^ If this is 'False', the definition doesn't contain metavariables. If 'True', the definition
+    -- may or may not contain metavariables. This field is updated by 'TypeChecking.DeadCode', and
+    -- it's used to avoid unnecessary 'instantiateFull' on the definition before serialization.
+  , theDef               :: Defn
   }
     deriving (Show, Generic)
 
@@ -2555,24 +2559,25 @@ lensTheDef f d = f (theDef d) <&> \ df -> d { theDef = df }
 defaultDefn ::
   ArgInfo -> QName -> Type -> Language -> Defn -> Definition
 defaultDefn info x t lang def = Defn
-  { defArgInfo        = info
-  , defName           = x
-  , defType           = t
-  , defPolarity       = []
-  , defArgOccurrences = []
+  { defArgInfo           = info
+  , defName              = x
+  , defType              = t
+  , defPolarity          = []
+  , defArgOccurrences    = []
   , defGeneralizedParams = []
-  , defDisplay        = defaultDisplayForm x
-  , defMutual         = 0
-  , defCompiledRep    = noCompiledRep
-  , defInstance       = Nothing
-  , defCopy           = False
-  , defMatchable      = Set.empty
-  , defNoCompilation  = False
-  , defInjective      = False
-  , defCopatternLHS   = False
-  , defBlocked        = NotBlocked ReallyNotBlocked ()
-  , defLanguage       = lang
-  , theDef            = def
+  , defDisplay           = defaultDisplayForm x
+  , defMutual            = 0
+  , defCompiledRep       = noCompiledRep
+  , defInstance          = Nothing
+  , defCopy              = False
+  , defMatchable         = Set.empty
+  , defNoCompilation     = False
+  , defInjective         = False
+  , defCopatternLHS      = False
+  , defBlocked           = NotBlocked ReallyNotBlocked ()
+  , defLanguage          = lang
+  , defMightContainMetas = True
+  , theDef               = def
   }
 
 instance Pretty Polarity where
@@ -6728,8 +6733,8 @@ instance KillRange InstanceInfo where
   killRange (InstanceInfo a b) = killRangeN InstanceInfo a b
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs gpars displ mut compiled inst copy ma nc inj copat blk lang def) =
-    killRangeN Defn ai name t pols occs gpars displ mut compiled inst copy ma nc inj copat blk lang def
+  killRange (Defn ai name t pols occs gpars displ mut compiled inst copy ma nc inj copat blk lang hasmetas def) =
+    killRangeN Defn ai name t pols occs gpars displ mut compiled inst copy ma nc inj copat blk lang hasmetas def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NumGeneralizableArgs where
