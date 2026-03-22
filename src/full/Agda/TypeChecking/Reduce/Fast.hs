@@ -913,7 +913,7 @@ reduceTm rEnv bEnv !constInfo normalisation = compileAndRun . traceDoc "-- fast 
     -- Run the machine in a given state. Prints the state if the right verbosity level is active.
     runMatch :: Match s -> ST s (Blocked Term)
     runMatch = if doDebug then \s -> trace (prettyShow s) (runMatch' s)
-                          else runMatch
+                          else runMatch'
 #else
     {-# INLINE traceDoc #-}
     traceDoc :: Doc -> a -> a
