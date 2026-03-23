@@ -34,6 +34,10 @@ import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 import Agda.Utils.Update
 
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictWriter qualified as Strict
+import Agda.Utils.StrictState  qualified as Strict
+
 import Agda.Utils.Impossible
 
 class ( Functor m
@@ -53,6 +57,9 @@ instance HasBuiltins m => HasBuiltins (MaybeT m)
 instance HasBuiltins m => HasBuiltins (ReaderT e m)
 instance HasBuiltins m => HasBuiltins (StateT s m)
 instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m)
+instance HasBuiltins m => HasBuiltins (Strict.ReaderT e m)
+instance HasBuiltins m => HasBuiltins (Strict.StateT s m)
+instance (HasBuiltins m, Monoid w) => HasBuiltins (Strict.WriterT w m)
 
 deriving instance HasBuiltins m => HasBuiltins (BlockT m)
 

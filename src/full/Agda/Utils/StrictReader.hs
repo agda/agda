@@ -11,7 +11,6 @@ import GHC.Exts (oneShot)
 import Control.Monad.Reader (MonadReader(..), asks)
 import Control.Monad.Except (MonadError(..))
 import Control.Monad.State (MonadState(..))
-import Control.Monad.Writer (MonadWriter(..))
 import Control.Monad.Trans.Class (MonadTrans(..))
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Monad.Trans.Control (MonadTransControl(..))
@@ -105,7 +104,9 @@ instance ExpandCase (m a) => ExpandCase (ReaderT r m a) where
 instance MonadError e m => MonadError e (ReaderT r m) where
   {-# INLINE throwError #-}
   throwError = lift . throwError
-  catchError = Reader.liftCatch catchError
+  {-# INLINE catchError #-}
+  catchError m h =
+    ReaderT (oneShot \r -> catchError (runReaderT m r) (\e -> runReaderT (h e) r))
 
 ----------------------------------------------------------------------------------------------------
 

@@ -47,6 +47,10 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Update
 
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictWriter qualified as Strict
+import Agda.Utils.StrictState  qualified as Strict
+
 import Agda.Utils.Impossible
 
 -- * Modifying the context
@@ -296,6 +300,9 @@ instance MonadAddContext m => MonadAddContext (MaybeT m)
 instance MonadAddContext m => MonadAddContext (ReaderT r m)
 instance MonadAddContext m => MonadAddContext (StateT r m)
 instance (Monoid w, MonadAddContext m) => MonadAddContext (WriterT w m)
+instance MonadAddContext m => MonadAddContext (Strict.ReaderT r m)
+instance MonadAddContext m => MonadAddContext (Strict.StateT r m)
+instance (Monoid w, MonadAddContext m) => MonadAddContext (Strict.WriterT w m)
 deriving instance MonadAddContext m => MonadAddContext (BlockT m)
 
 instance MonadAddContext m => MonadAddContext (ListT m) where
