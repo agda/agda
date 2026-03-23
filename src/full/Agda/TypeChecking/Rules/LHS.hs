@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
 
 module Agda.TypeChecking.Rules.LHS
   ( checkLeftHandSide
@@ -16,8 +17,6 @@ import Data.Function (on)
 import Data.Maybe
 
 import Control.Monad.Except       ( MonadError(..), ExceptT(..), runExceptT )
-import Control.Monad.Reader       ( MonadReader(..), asks, runReaderT )
-import Control.Monad.Writer       ( MonadWriter(..), runWriterT )
 import Control.Monad.Trans.Maybe
 
 import Data.IntSet (IntSet)
@@ -91,6 +90,8 @@ import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.StrictReader
+import Agda.Utils.StrictWriter
 
 import Agda.Utils.Impossible
 import Agda.TypeChecking.Free (freeIn)
@@ -968,16 +969,20 @@ splitStrategy = filter shouldSplit
       A.PatternSynP{} -> __IMPOSSIBLE__
       A.WithP{}       -> __IMPOSSIBLE__
 
+type CheckLHSM = ReaderT LHSContext (WriterT Blocked_ TCM)
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
-checkLHS :: forall tcm a. (MonadTCM tcm, PureTCM tcm, MonadWriter Blocked_ tcm, MonadError TCErr tcm, MonadTrace tcm, MonadReader LHSContext tcm)
-  => LetOrClause      -- ^ Are we checking a let-pattern or a function clause?
+checkLHS ::
+     forall a.
+     LetOrClause      -- ^ Are we checking a let-pattern or a function clause?
   -> LHSState a       -- ^ The current state.
-  -> tcm a
+  -> CheckLHSM a
 checkLHS mf = updateModality checkLHS_ where
+
+ {-# INLINE updateModality #-}
     -- If the target type is irrelevant or in Prop,
     -- we need to check the lhs in irr. cxt. (see Issue 939).
- updateModality cont st@(LHSState tel ip problem target psplit _) = do
+ updateModality cont = \st@(LHSState tel ip problem target psplit _) -> do
       let m = getModality target
       applyModalityToContext m $ do
         cont $ over (lhsTel . listTel)
@@ -1013,19 +1018,19 @@ checkLHS mf = updateModality checkLHS_ where
   where
 
     trySplit :: ProblemEq
-             -> tcm (Either [TCErr] (LHSState a))
-             -> tcm (Either [TCErr] (LHSState a))
+             -> CheckLHSM (Either [TCErr] (LHSState a))
+             -> CheckLHSM (Either [TCErr] (LHSState a))
     trySplit eq tryNextSplit = runExceptT (splitArg eq) >>= \case
       Right st' -> return $ Right st'
       Left err  -> first (err:) <$> tryNextSplit
 
     -- If there are any remaining user patterns, try to split on them
-    trySplitRest :: tcm (Either [TCErr] (LHSState a))
+    trySplitRest :: CheckLHSM (Either [TCErr] (LHSState a))
     trySplitRest = case problem ^. problemRestPats of
       []    -> return $ Left []
       (p:_) -> first singleton <$> runExceptT (splitRest p)
 
-    splitArg :: ProblemEq -> ExceptT TCErr tcm (LHSState a)
+    splitArg :: ProblemEq -> ExceptT TCErr CheckLHSM (LHSState a)
     -- Split on constructor/literal pattern
     splitArg (ProblemEq p v Dom{unDom = a}) = traceCall (CheckPattern p tel a) $ do
 
@@ -1069,7 +1074,7 @@ checkLHS mf = updateModality checkLHS_ where
       splitOnPat p
 
 
-    splitRest :: NamedArg A.Pattern -> ExceptT TCErr tcm (LHSState a)
+    splitRest :: NamedArg A.Pattern -> ExceptT TCErr CheckLHSM (LHSState a)
     splitRest p = setCurrentRange p $ do
       reportSDoc "tc.lhs.split" 20 $ sep
         [ "splitting problem rest"
@@ -1170,7 +1175,7 @@ checkLHS mf = updateModality checkLHS_ where
             -- The types of arguments after the one we split on.
       -> List1 (A.Expr, A.Expr)
             -- [(φ₁ = b1),..,(φn = bn)]
-      -> ExceptT TCErr tcm (LHSState a)
+      -> ExceptT TCErr CheckLHSM (LHSState a)
 
     splitPartial delta1 dom adelta2 ts = do
 
@@ -1268,7 +1273,7 @@ checkLHS mf = updateModality checkLHS_ where
              -> Dom Type       -- The type of the literal we split on
              -> Abs Telescope  -- The types of arguments after the one we split on
              -> Literal        -- The literal written by the user
-             -> ExceptT TCErr tcm (LHSState a)
+             -> ExceptT TCErr CheckLHSM (LHSState a)
     splitLit delta1 dom@Dom{domInfo = info, unDom = a} adelta2 lit = do
       let delta2 = absApp adelta2 (Lit lit)
           delta' = abstract delta1 delta2
@@ -1312,7 +1317,7 @@ checkLHS mf = updateModality checkLHS_ where
              -> A.Pattern      -- The pattern written by the user
              -> Maybe AmbiguousQName  -- @Just c@ for a (possibly ambiguous) constructor @c@, or
                                       -- @Nothing@ for a record pattern
-             -> ExceptT TCErr tcm (LHSState a)
+             -> ExceptT TCErr CheckLHSM (LHSState a)
     splitCon delta1 dom@Dom{domInfo = info, unDom = a} adelta2 focusPat ambC = do
       let delta2 = absBody adelta2
 

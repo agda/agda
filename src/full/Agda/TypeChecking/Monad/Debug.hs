@@ -42,6 +42,9 @@ import Agda.Syntax.Common.Pretty
 import Agda.Interaction.Options.ProfileOptions
 import Agda.Utils.Update
 import qualified Agda.Utils.Trie as Trie
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictWriter qualified as Strict
+import Agda.Utils.StrictState  qualified as Strict
 
 import Agda.Utils.Impossible
 import Agda.Utils.DocTree (renderToTree)
@@ -205,6 +208,9 @@ instance MonadDebug m => MonadDebug (MaybeT m)
 instance MonadDebug m => MonadDebug (ReaderT r m)
 instance MonadDebug m => MonadDebug (StateT s m)
 instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m)
+instance MonadDebug m => MonadDebug (Strict.ReaderT r m)
+instance MonadDebug m => MonadDebug (Strict.StateT s m)
+instance (MonadDebug m, Monoid w) => MonadDebug (Strict.WriterT w m)
 instance MonadDebug m => MonadDebug (IdentityT m)
 
 -- We are lacking MonadTransControl ListT

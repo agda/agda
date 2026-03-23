@@ -77,6 +77,9 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple ( first, second )
 import Agda.Utils.Update
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictWriter qualified as Strict
+import Agda.Utils.StrictState  qualified as Strict
 
 import Agda.Utils.Impossible
 
@@ -1116,6 +1119,9 @@ instance HasConstInfo m => HasConstInfo (MaybeT m)
 instance HasConstInfo m => HasConstInfo (ReaderT r m)
 instance HasConstInfo m => HasConstInfo (StateT s m)
 instance (Monoid w, HasConstInfo m) => HasConstInfo (WriterT w m)
+instance HasConstInfo m => HasConstInfo (Strict.ReaderT r m)
+instance HasConstInfo m => HasConstInfo (Strict.StateT s m)
+instance (Monoid w, HasConstInfo m) => HasConstInfo (Strict.WriterT w m)
 instance HasConstInfo m => HasConstInfo (BlockT m)
 
 {-# INLINE getConInfo #-}

@@ -153,6 +153,9 @@ import Agda.Utils.Update
 import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.VarSet qualified as VarSet
 import Agda.Utils.Atomic
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictWriter qualified as Strict
+import Agda.Utils.StrictState  qualified as Strict
 
 import Agda.Utils.Impossible
 
@@ -212,6 +215,9 @@ instance ReadTCState m => ReadTCState (MaybeT m)
 instance ReadTCState m => ReadTCState (ReaderT r m)
 instance ReadTCState m => ReadTCState (StateT s m)
 instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m)
+instance ReadTCState m => ReadTCState (Strict.ReaderT r m)
+instance ReadTCState m => ReadTCState (Strict.StateT s m)
+instance (Monoid w, ReadTCState m) => ReadTCState (Strict.WriterT w m)
 
 instance Show TCState where
   show _ = "TCSt{}"
@@ -6039,6 +6045,9 @@ instance MonadReduce m => MonadReduce (MaybeT m)
 instance MonadReduce m => MonadReduce (ReaderT r m)
 instance MonadReduce m => MonadReduce (StateT w m)
 instance (Monoid w, MonadReduce m) => MonadReduce (WriterT w m)
+instance MonadReduce m => MonadReduce (Strict.ReaderT r m)
+instance MonadReduce m => MonadReduce (Strict.StateT w m)
+instance (Monoid w, MonadReduce m) => MonadReduce (Strict.WriterT w m)
 instance MonadReduce m => MonadReduce (BlockT m)
 
 ---------------------------------------------------------------------------
@@ -6066,6 +6075,9 @@ instance MonadTCEnv m => MonadTCEnv (MaybeT m)
 instance MonadTCEnv m => MonadTCEnv (ReaderT r m)
 instance MonadTCEnv m => MonadTCEnv (StateT s m)
 instance (Monoid w, MonadTCEnv m) => MonadTCEnv (WriterT w m)
+instance MonadTCEnv m => MonadTCEnv (Strict.ReaderT r m)
+instance MonadTCEnv m => MonadTCEnv (Strict.StateT s m)
+instance (Monoid w, MonadTCEnv m) => MonadTCEnv (Strict.WriterT w m)
 
 instance MonadTCEnv m => MonadTCEnv (ListT m) where
   localTC = mapListT . localTC
@@ -6108,9 +6120,13 @@ instance MonadTCState m => MonadTCState (ListT m)
 instance MonadTCState m => MonadTCState (ExceptT err m)
 instance MonadTCState m => MonadTCState (ReaderT r m)
 instance MonadTCState m => MonadTCState (StateT s m)
+instance (Monoid w, MonadTCState m) => MonadTCState (WriterT w m)
 instance MonadTCState m => MonadTCState (ChangeT m)
 instance MonadTCState m => MonadTCState (IdentityT m)
-instance (Monoid w, MonadTCState m) => MonadTCState (WriterT w m)
+instance MonadTCState m => MonadTCState (Strict.ReaderT r m)
+instance MonadTCState m => MonadTCState (Strict.StateT s m)
+instance (Monoid w, MonadTCState m) => MonadTCState (Strict.WriterT w m)
+
 
 {-# INLINE getsTC #-}
 -- ** @TCState@ accessors (no lenses)
@@ -6521,6 +6537,9 @@ instance MonadTCM tcm => MonadTCM (MaybeT tcm)
 instance MonadTCM tcm => MonadTCM (ReaderT r tcm)
 instance MonadTCM tcm => MonadTCM (StateT s tcm)
 instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm)
+instance MonadTCM tcm => MonadTCM (Strict.ReaderT r tcm)
+instance MonadTCM tcm => MonadTCM (Strict.StateT s tcm)
+instance (Monoid w, MonadTCM tcm) => MonadTCM (Strict.WriterT w tcm)
 
 -- | We store benchmark statistics in an IORef.
 --   This enables benchmarking pure computation, see

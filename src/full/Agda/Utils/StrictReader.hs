@@ -9,7 +9,9 @@ module Agda.Utils.StrictReader (
 
 import GHC.Exts (oneShot)
 import Control.Monad.Reader (MonadReader(..), asks)
+import Control.Monad.Except (MonadError(..))
 import Control.Monad.State (MonadState(..))
+import Control.Monad.Writer (MonadWriter(..))
 import Control.Monad.Trans.Class (MonadTrans(..))
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Monad.Trans.Control (MonadTransControl(..))
@@ -99,6 +101,11 @@ instance ExpandCase (m a) => ExpandCase (ReaderT r m a) where
   expand k = ReaderT (oneShot \ ~r ->
     expand @(m a) (oneShot \ret ->
       let r' = r in k (oneShot \act -> ret (runReaderT act r'))))
+
+instance MonadError e m => MonadError e (ReaderT r m) where
+  {-# INLINE throwError #-}
+  throwError = lift . throwError
+  catchError = Reader.liftCatch catchError
 
 ----------------------------------------------------------------------------------------------------
 
