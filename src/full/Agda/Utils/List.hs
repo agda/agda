@@ -50,9 +50,10 @@ replicate' n a = a : replicate' (n - 1) a
 infixr 5 ++!
 -- | Spine-strict (++).
 (++!) :: [a] -> [a] -> [a]
-(++!) xs ys = case xs of
-  []   -> seq ys ys
-  x:xs -> let !res = (++!) xs ys in x : res
+(++!) !xs [] = xs
+(++!)  xs ys = go xs ys where
+  go []     ys = ys
+  go (x:xs) ys = let !res = go xs ys in x : res
 
 -- | Append a single element at the end.
 --   Time: O(length); use only on small lists.
@@ -288,6 +289,26 @@ map'' f = go where
   go []     = []
   go (a:as) = let !bs = go as in f a:bs
 
+{-# INLINE mapMaybe' #-}
+-- | Strict 'mapMaybe'.
+mapMaybe' :: (a -> Maybe b) -> [a] -> [b]
+mapMaybe' f = go where
+  go [] = []
+  go (a:as) = case f a of
+    Nothing -> go as
+    Just !b -> (b:) $! go as
+
+{-# INLINE concatMap' #-}
+-- | Strict 'concatMap'
+concatMap' :: (a -> [b]) -> [a] -> [b]
+concatMap' f = go where
+  go []     = []
+  go (a:as) = f a ++! go as
+
+-- | Strict 'concat'.
+concat' :: [[a]] -> [a]
+concat' = concatMap' id
+
 -- | Update the first element of a list, if it exists.
 --   O(1).
 updateHead :: (a -> a) -> [a] -> [a]
@@ -316,6 +337,22 @@ updateAt n f (a : as) = a : updateAt (n-1) f as
 ---------------------------------------------------------------------------
 -- * Sublist extraction and partitioning
 ---------------------------------------------------------------------------
+
+{-# INLINE partition' #-}
+-- | Strict 'partition'
+partition' :: (a -> Bool) -> [a] -> ([a], [a])
+partition' f = go where
+  go []     = ([], [])
+  go (a:as) = case go as of
+    (!xs, !ys) -> if f a then (a:xs, ys) else (xs, a:ys)
+
+-- | Strict 'partitionEithers'.
+partitionEithers' :: [Either a b] -> ([a], [b])
+partitionEithers' [] = ([], [])
+partitionEithers' (Left a:abs) = case partitionEithers' abs of
+  (!as, !bs) -> (a:as, bs)
+partitionEithers' (Right b:abs) = case partitionEithers' abs of
+  (!as, !bs) -> (as, b:bs)
 
 type Prefix a = [a]  -- ^ The list before the split point.
 type Suffix a = [a]  -- ^ The list after the split point.

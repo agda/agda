@@ -9,11 +9,9 @@ module Agda.Syntax.Concrete.Operators.Parser where
 import Control.Applicative ( Alternative((<|>), many) )
 import Control.Monad ((<=<))
 
-import Data.Either
 import Data.Function (on)
 import Data.Kind ( Type )
 import qualified Data.List as List
-import Data.Maybe
 import qualified Data.Strict.Maybe as Strict
 
 import Agda.Syntax.Position
@@ -25,7 +23,7 @@ import Agda.Syntax.Concrete.Operators.Parser.Monad hiding (parse)
 import qualified Agda.Syntax.Concrete.Operators.Parser.Monad as P
 
 import Agda.Syntax.Common.Pretty
-import Agda.Utils.List  ( spanEnd )
+import Agda.Utils.List
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Set1  ( Set1 )
@@ -255,8 +253,8 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
   flip fmap (worker (List1.init $ qnameParts q)
                     withoutExternalHoles) $ \(range, hs) ->
 
-  let (normal, binders) = partitionEithers hs
-      lastHole          = maximum $ (-1) : mapMaybe holeTarget syn
+  let (normal, binders) = partitionEithers' hs
+      lastHole          = maximum $ ((-1) :) $ mapMaybe' holeTarget syn
 
       app :: ([(MaybePlaceholder e, NamedArg (Ranged Int))] ->
               [(MaybePlaceholder e, NamedArg (Ranged Int))]) -> e
@@ -273,13 +271,13 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
             {-then-} (unExprView $ LocalV q')
             {-else-} $ unExprView . OpAppV q' names
         where
-        args = fmap (findExprFor (f normal) binders) [0..lastHole]
+        args = map (findExprFor (f normal) binders) [0..lastHole]
         q'   = setRange range q
   in
 
   case kind of
-    In   -> \x y -> app (\es -> (x, leadingHole) : es ++ [(y, trailingHole)])
-    Pre  -> \  y -> app (\es ->                    es ++ [(y, trailingHole)])
+    In   -> \x y -> app (\es -> (x, leadingHole) : es ++! [(y, trailingHole)])
+    Pre  -> \  y -> app (\es ->                    es ++! [(y, trailingHole)])
     Post -> \x   -> app (\es -> (x, leadingHole) : es)
     Non  ->         app (\es ->                    es)
 
@@ -315,16 +313,19 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
       <*> worker ms xs
   worker ms (WildPart h : xs) =
     (\(r, es) -> let anon = mkBinder_ simpleHole
-                 in (r, Right (mkBinding h anon) : es))
+                     !e = Right $! mkBinding h anon
+                 in (r, e : es))
       <$> worker ms xs
   worker ms (VarPart _ h : xs) = do
-    (\ b (r, es) -> (r, Right (mkBinding h b) : es))
+    (\ b (r, es) ->
+       let !e = Right $! mkBinding h b
+       in (r,  e : es))
            -- Andreas, 2011-04-07 put just 'Relevant' here, is this
            -- correct?
       <$> patternBinder
       <*> worker ms xs
 
-  mkBinding h b = (DomainFree $ defaultNamedArg b, h)
+  mkBinding h b = ((,) $! DomainFree $ defaultNamedArg b) h
 
   set x arg = fmap (fmap (const x)) arg
 
@@ -337,7 +338,7 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
       [(Placeholder p,     arg)] -> set (Placeholder p) arg
       [(NoPlaceholder _ e, arg)] ->
         List1.ifNull
-          (map snd $
+          (map' snd $
            List.sortBy (compare `on` fst)
              [ (varNumber (rangedThing m), b)
              | (b, m) <- binders
@@ -348,7 +349,7 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
       _ -> __IMPOSSIBLE__
 
   noPlaceholders :: OpAppArgs0 e -> Int
-  noPlaceholders = sum . fmap (isPlaceholder . namedArg)
+  noPlaceholders = sum . map (isPlaceholder . namedArg)
     where
     isPlaceholder NoPlaceholder{} = 0
     isPlaceholder Placeholder{}   = 1
@@ -362,7 +363,7 @@ argsP p = many (mkArg <$> p)
     _              -> defaultArg (unnamed e)
 
 appP :: IsExpr e => Parser e e -> Parser e [NamedArg e] -> Parser e e
-appP p pa = foldl app <$> p <*> pa
+appP p pa = foldl' app <$> p <*> pa
     where
         app e = unExprView . AppV e
 
