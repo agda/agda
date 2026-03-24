@@ -1063,35 +1063,26 @@ defaultGetConstInfo
 defaultGetConstInfo st env q = do
     let defs  = st ^. stSignature . sigDefinitions
         idefs = st ^. stImports   . sigDefinitions
-    case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
-        []  -> return $ Left $ SigUnknown $ "Unbound name: " ++ prettyShow q ++ showQNameId q
-        [d] -> checkErasureFixQuantity d >>= \case
-                 Left err -> return (Left err)
-                 Right d  -> mkAbs env d
-        ds  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
+        unambiguous d = checkErasureFixQuantity d >>= \case
+          Left err -> return $ Left err
+          Right d  -> mkAbs env d
+    case (HMap.lookup q defs, HMap.lookup q idefs) of
+      (Nothing, Nothing) -> return $ Left $ SigUnknown $ "Unbound name: " ++ prettyShow q ++ showQNameId q
+      (Just d, Nothing)  -> unambiguous d
+      (Nothing, Just d)  -> unambiguous d
+      _                  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
     where
       mkAbs env d
         -- Apply the reducibility rules (abstract, opaque) to check
         -- whether the definition should be hidden behind an
         -- 'AbstractDef'.
-        | not (isAccessibleDef env st d{defName = q'}) =
+        | not (isAccessibleDef env st d) =
           case alwaysMakeAbstract d of
             Just d      -> return $ Right d
             Nothing     -> return $ Left SigAbstract
-              -- the above can happen since the scope checker is a bit sloppy with 'abstract'
+            -- the above can happen since the scope checker is a bit sloppy with 'abstract'
         | otherwise = return $ Right d
-        where
-          q' = case theDef d of
-            -- Hack to make abstract constructors work properly. The constructors
-            -- live in a module with the same name as the datatype, but for 'abstract'
-            -- purposes they're considered to be in the same module as the datatype.
-            Constructor{} -> dropLastModule q
-            _             -> q
 
-          dropLastModule q@QName{ qnameModule = m } =
-            q{ qnameModule = mnameFromList $
-                 initWithDefault __IMPOSSIBLE__ $ mnameToList m
-             }
 
       -- Names defined in Cubical Agda may only be used in Erased
       -- Cubical Agda if --erasure is used. In that case they are (to
@@ -1102,10 +1093,9 @@ defaultGetConstInfo st env q = do
            current == Cubical CErased
         then do
           erasure <- optErasure <$> pragmaOptions
-          return $
-            if erasure
-            then Right $ setQuantity zeroQuantity d
-            else Left SigCubicalNotErasure
+          if erasure
+            then return $! Right $! setQuantity zeroQuantity d
+            else return $ Left SigCubicalNotErasure
         else return $ Right d
 
 -- HasConstInfo lifts through monad transformers

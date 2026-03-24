@@ -32,8 +32,9 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Monad
 
 import Agda.Utils.Impossible
-import Agda.Utils.Monad
 import Agda.Utils.Lens
+import Agda.Utils.List
+import Agda.Utils.Monad
 
 -- | Ensure that opaque blocks defined in the current module have
 -- saturated unfolding sets.
@@ -169,17 +170,22 @@ isAccessibleDef env state defn =
       -- figure it out:
       IgnoreAbstractMode -> ConcreteDef
 
-      AbstractMode
-        -- Symbols from enclosing modules will be made concrete:
-        | current `isLeChildModuleOf` m -> ConcreteDef
+      AbstractMode -> let
+        dropLastModule (MName ms) = MName $ initWithDefault __IMPOSSIBLE__ ms
+        dropAnon       (MName ms) = MName $ List.dropWhileEnd isNoName ms
 
-        -- Symbols from child modules, or unrelated modules, will keep
-        -- the same concreteness:
-        | otherwise                     -> def
-      where
         current = dropAnon $ envCurrentModule env
-        m       = dropAnon $ qnameModule (defName defn)
-        dropAnon (MName ms) = MName $ List.dropWhileEnd isNoName ms
+
+        modname = case theDef defn of
+          -- Hack to make abstract constructors work properly. The constructors
+          -- live in a module with the same name as the datatype, but for 'abstract'
+          -- purposes they're considered to be in the same module as the datatype.
+          Constructor{} -> dropAnon $ dropLastModule $ qnameModule $ defName defn
+          _             -> dropAnon $ qnameModule $ defName defn
+
+       in if current `isLeChildModuleOf` modname
+        then ConcreteDef
+        else def
 
     -- Reducibility rule for opaque definitions: If we are operating
     -- under an unfolding block,

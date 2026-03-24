@@ -684,13 +684,12 @@ unfoldDefinitionStep v0 f es =
       -- (i.e., those that failed the termination check)
       -- and delayed definitions
       -- are not unfolded unless explicitly permitted.
-      dontUnfold = or
-        [ defNonterminating info && SmallSet.notMember NonTerminatingReductions allowed
-        -- , defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed
-        , prp == Right True
-        , isIrrelevant info
-        , not defOk
-        ]
+      dontUnfold =
+          (defNonterminating info && SmallSet.notMember NonTerminatingReductions allowed)
+        -- defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed
+        || (prp == Right True)
+        || (isIrrelevant info)
+        || (not defOk)
       copatterns = defCopatternLHS info
   case def of
     Constructor{conSrcCon = c} -> do
