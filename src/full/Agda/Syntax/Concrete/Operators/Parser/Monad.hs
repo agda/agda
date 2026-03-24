@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE MagicHash #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wunused-matches #-}
@@ -25,7 +26,9 @@ module Agda.Syntax.Concrete.Operators.Parser.Monad
 
 import Data.Hashable
 import GHC.Generics (Generic)
+#if ! (__GLASGOW_HASKELL__ <= 908)
 import GHC.Exts
+#endif
 import GHC.Word (Word64(..))
 
 import Agda.Syntax.Common
@@ -53,9 +56,17 @@ pattern RightPK l = PrecKey False l
 pattern LeftPK :: PrecedenceLevel -> PrecedenceKey
 pattern LeftPK l = PrecKey True l
 
+#if __GLASGOW_HASKELL__ <= 908
+doubleToWord64 :: Double -> Word64
+doubleToWord64 x = fromIntegral $ hash x
+#else
+doubleToWord64 :: Double -> Word64
+doubleToWord64 (D# x) = W64# (castDoubleToWord64# x)
+#endif
+
 instance Hashable PrecedenceKey where
-  hashWithSalt h (PrecKey b (D# l)) = fromIntegral $
-    fromIntegral (h + fromEnum b) `combineWord` fromIntegral (W64# (castDoubleToWord64# l))
+  hashWithSalt h (PrecKey b l) = fromIntegral $
+    fromIntegral (h + fromEnum b) `combineWord` fromIntegral (doubleToWord64 l)
 
 instance Hashable MemoKey where
   hashWithSalt h = \case

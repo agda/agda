@@ -363,7 +363,7 @@ argsP p = many (mkArg <$> p)
     _              -> defaultArg (unnamed e)
 
 appP :: IsExpr e => Parser e e -> Parser e [NamedArg e] -> Parser e e
-appP p pa = foldl' app <$> p <*> pa
+appP p pa = List.foldl' app <$> p <*> pa
     where
         app e = unExprView . AppV e
 

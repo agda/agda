@@ -493,12 +493,21 @@ type Thunk s = Closure s
 --   why it cannot reduce further.
 data IsValue = Value Blocked_ | Unevaled
 
+#if __GLASGOW_HASKELL__ < 906
+data SElim s
+  = SApply !ArgInfo !(Pointer s)
+  | SProj !ProjOrigin !QName
+  | SIApply !(Pointer s)
+            !(Pointer s)
+            !(Pointer s)
+#else
 data SElim s
   = SApply !ArgInfo {-# UNPACK #-} !(Pointer s)
   | SProj !ProjOrigin !QName
   | SIApply {-# UNPACK #-} !(Pointer s)
             {-# UNPACK #-} !(Pointer s)
             {-# UNPACK #-} !(Pointer s)
+#endif
 
 sElimToElim :: SElim s -> Elim' (Pointer s)
 sElimToElim = \case
