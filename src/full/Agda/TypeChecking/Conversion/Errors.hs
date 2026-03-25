@@ -277,6 +277,7 @@ failConversion cmp l r cas = do
       , convErrCtx = Floating ConvStop
       }
 
+{-# INLINE addConversionContext #-}
 -- | Add some call stack context to floating t'ConversionError's thrown
 -- from the continuation.
 --

@@ -103,13 +103,13 @@ class (MonadTCEnv m, ReadTCState m) => MonadTrace m where
   traceCallCPS call k ret = do
 
     -- Save current call and ranges.
-    TCEnv{ envCall = mcall, envRange = r, envHighlightingRange = hr } <- askTC
+    TCEnv{ coldEnv = ColdEnv {envCall = mcall, envRange = r, envHighlightingRange = hr }} <- askTC
 
     -- Run given computation under given call.
     traceCall call $ k $ \ a -> do
 
       -- Restore previous call and ranges for the continuation.
-      localTC (\ e -> e{ envCall = mcall, envRange = r, envHighlightingRange = hr }) $
+      localTC (\ e -> e{coldEnv = (coldEnv e){ envCall = mcall, envRange = r, envHighlightingRange = hr }}) $
         ret a
 
   traceClosureCall :: Closure Call -> m a -> m a
@@ -161,19 +161,19 @@ instance MonadTrace TCM where
 
     -- Compute update to 'Range' and 'Call' components of 'TCEnv'.
     let withCall = localTC $ foldr (.) id $ concat $
-          [ [ \e -> e { envCall = Just cl } | interestingCall call ]
-          , [ \e -> e { envHighlightingRange = callRange }
+          [ [ \e -> e { coldEnv = (coldEnv e){envCall = Just cl} } | interestingCall call ]
+          , [ \e -> e { coldEnv = (coldEnv e){envHighlightingRange = callRange }}
             | callHasRange && highlightCall
               || isNoHighlighting
             ]
-          , [ \e -> e { envRange = callRange } | callHasRange ]
+          , [ \e -> e { coldEnv = (coldEnv e){ envRange = callRange} } | callHasRange ]
           ]
 
     -- For interactive highlighting, also wrap computation @m@ in 'highlightAsTypeChecked':
-    ifNotM (pure highlightCall `and2M` do (Interactive ==) . envHighlightingLevel <$> askTC)
+    ifNotM (pure highlightCall `and2M` do (Interactive ==) . envHighlightingLevel . coldEnv <$> askTC)
       {-then-} (withCall m)
       {-else-} $ do
-        oldRange <- envHighlightingRange <$> askTC
+        oldRange <- envHighlightingRange . coldEnv <$> askTC
         highlightAsTypeChecked oldRange callRange $
           withCall m
     where
@@ -240,7 +240,7 @@ instance MonadTrace TCM where
 
 
 getCurrentRange :: MonadTCEnv m => m Range
-getCurrentRange = asksTC envRange
+getCurrentRange = asksTC (envRange . coldEnv)
 
 -- | Sets the current range (for error messages etc.) to the range
 --   of the given object, if it has a range (i.e., its range is not 'noRange').

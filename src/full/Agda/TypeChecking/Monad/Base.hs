@@ -1488,11 +1488,11 @@ intSignature f i = f (iSignature i) <&> \s -> i { iSignature = s }
 ---------------------------------------------------------------------------
 
 data Closure a = Closure
-  { clSignature        :: Signature
-  , clEnv              :: TCEnv
-  , clScope            :: ScopeInfo
+  { clSignature         :: Signature
+  , clEnv               :: TCEnv
+  , clScope             :: ScopeInfo
   , clModuleCheckpoints :: ModuleCheckpoints
-  , clValue            :: a
+  , clValue             :: a
   }
     deriving (Functor, Foldable, Generic)
 
@@ -2098,8 +2098,8 @@ instance LensIsAbstract TCEnv where
      -- Andreas, 2019-08-19
      -- Using $! to prevent space leaks like #1829.
      -- This can crash when trying to get IsAbstract from IgnoreAbstractMode.
-    (f $! fromMaybe __IMPOSSIBLE__ (aModeToDef $ envAbstractMode env))
-    <&> \ a -> env { envAbstractMode = aDefToMode a }
+    (f $! fromMaybe __IMPOSSIBLE__ (aModeToDef $ envAbstractMode (coldEnv env)))
+    <&> \ a -> env {coldEnv = (coldEnv env) {envAbstractMode = aDefToMode a}}
 
 instance LensIsAbstract (Closure a) where
   lensIsAbstract = lensTCEnv . lensIsAbstract
@@ -2109,9 +2109,9 @@ instance LensIsAbstract MetaInfo where
 
 instance LensIsOpaque TCEnv where
   lensIsOpaque f env =
-    (f $! case envCurrentOpaqueId env of { Just x -> OpaqueDef x ; Nothing -> TransparentDef })
-    <&> \case { OpaqueDef x    -> env { envCurrentOpaqueId = Just x }
-              ; TransparentDef -> env { envCurrentOpaqueId = Nothing }
+    (f $! case envCurrentOpaqueId (coldEnv env) of { Just x -> OpaqueDef x ; Nothing -> TransparentDef })
+    <&> \case { OpaqueDef x    -> env {coldEnv = (coldEnv env) {envCurrentOpaqueId = Just x}}
+              ; TransparentDef -> env {coldEnv = (coldEnv env) {envCurrentOpaqueId = Nothing}}
               }
 
 ---------------------------------------------------------------------------
@@ -3646,7 +3646,7 @@ locallyReduceAllDefs :: MonadTCEnv m => m a -> m a
 locallyReduceAllDefs = locallyReduceDefs reduceAllDefs
 
 shouldReduceDef :: (MonadTCEnv m) => QName -> m Bool
-shouldReduceDef f = asksTC envReduceDefs <&> \case
+shouldReduceDef f = asksTC (envReduceDefs . coldEnv) <&> \case
   OnlyReduceDefs defs -> f `Set.member` defs
   DontReduceDefs defs -> not $ f `Set.member` defs
 
@@ -3662,7 +3662,7 @@ locallyReconstructed :: MonadTCEnv m => m a -> m a
 locallyReconstructed = locallyTC eReconstructed . const $ True
 
 isReconstructed :: (MonadTCEnv m) => m Bool
-isReconstructed = asksTC envReconstructed
+isReconstructed = asksTC (envReconstructed . coldEnv)
 
 -- | Primitives
 
@@ -4081,8 +4081,8 @@ ifTopLevelAndHighlightingLevelIsOr ::
   MonadTCEnv tcm => HighlightingLevel -> Bool -> tcm () -> tcm ()
 ifTopLevelAndHighlightingLevelIsOr l b m = do
   e <- askTC
-  when (envHighlightingLevel e >= l || b) $
-    case (envImportStack e) of
+  when (envHighlightingLevel (coldEnv e) >= l || b) $
+    case (envImportStack (coldEnv e)) of
       -- Below the main module.
       (_:_:_) -> pure ()
       -- In or before the top-level module.
@@ -4101,174 +4101,211 @@ ifTopLevelAndHighlightingLevelIs l =
 -- * Type checking environment
 ---------------------------------------------------------------------------
 
-data TCEnv =
-    TCEnv { envContext             :: Context
-          , envLetBindings         :: LetBindings
-          , envCurrentModule       :: ModuleName
-          , envCurrentPath         :: Maybe FileId
-            -- ^ The path to the file that is currently being
-            -- type-checked.  'Nothing' if we do not have a file
-            -- (like in interactive mode see @CommandLine@).
-          , envAnonymousModules    :: [(ModuleName, Nat)] -- ^ anonymous modules and their number of free variables
-          , envImportStack         :: [TopLevelModuleName]
-            -- ^ The module stack with the entry being the top-level module as
-            --   Agda chases modules. It will be empty if there is no main
-            --   module, will have a single entry for the top level module, or
-            --   more when descending past the main module. This is used to
-            --   detect import cycles and in some cases highlighting behavior.
-            --   The level of a given module is not necessarily the same as the
-            --   length, in the module dependency graph, of the shortest path
-            --   from the top-level module; it depends on in which order Agda
-            --   chooses to chase dependencies.
-          , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
-          , envTerminationCheck    :: TerminationCheck ()  -- ^ are we inside the scope of a termination pragma
-          , envCoverageCheck       :: CoverageCheck        -- ^ are we inside the scope of a coverage pragma
-          , envMakeCase            :: Bool                 -- ^ are we inside a make-case (if so, ignore forcing analysis in unifier)
-          , envSolvingConstraints  :: Bool
-                -- ^ Are we currently in the process of solving active constraints?
-          , envCheckingWhere       :: C.WhereClause_
-                -- ^ Have we stepped into the where-declarations of a clause?
-                --   Everything under a @where@ will be checked with this flag on.
-          , envWorkingOnTypes      :: Bool
-                -- ^ Are we working on types? Turned on by 'workOnTypes'.
-          , envAssignMetas         :: Bool
-            -- ^ Are we allowed to assign metas?
-          , envActiveProblems      :: Set ProblemId
-          , envUnquoteProblem      :: Maybe ProblemId
-            -- ^ If inside a `runUnquoteM` call, stores the top-level problem id assigned to the
-            --   invokation. We use this to decide which instance constraints originate from the
-            --   current call and which come from the outside, for the purpose of a
-            --   `solveInstanceConstraints` inside `noConstraints` only failing for local instance
-            --   constraints.
-          , envAbstractMode        :: AbstractMode
-                -- ^ When checking the typesignature of a public definition
-                --   or the body of a non-abstract definition this is true.
-                --   To prevent information about abstract things leaking
-                --   outside the module.
-          , envRelevance           :: Relevance
-                -- ^ Are we checking an irrelevant argument? (=@Irrelevant@)
-                -- Then top-level irrelevant declarations are enabled.
-                -- Other value: @Relevant@, then only relevant decls. are available.
-          , envQuantity            :: Quantity
-                -- ^ Are we checking a runtime-irrelevant thing? (='Quantity0')
-                -- Then runtime-irrelevant things are usable.
-          , envHardCompileTimeMode :: Bool
-                -- ^ Is the \"hard\" compile-time mode enabled? In
-                -- this mode the quantity component of the environment
-                -- is always zero, and every new definition is treated
-                -- as erased.
-          , envSplitOnStrict       :: Bool
-                -- ^ Are we currently case-splitting on a strict
-                --   datatype (i.e. in SSet)? If yes, the
-                --   pattern-matching unifier will solve reflexive
-                --   equations even --without-K.
-          , envDisplayFormsEnabled :: Bool
-                -- ^ Sometimes we want to disable display forms.
-          , envFoldLetBindings :: Bool
-                -- ^ Fold let-bindings when printing terms (default: True)
-          , envRange :: Range
-          , envHighlightingRange :: Range
-                -- ^ Interactive highlighting uses this range rather
-                --   than 'envRange'.
-          , envClause :: IPClause
-                -- ^ What is the current clause we are type-checking?
-                --   Will be recorded in interaction points in this clause.
-          , envCall  :: Maybe (Closure Call)
-                -- ^ what we're doing at the moment
-          , envHighlightingLevel  :: HighlightingLevel
-                -- ^ Set to 'None' when imported modules are
-                --   type-checked.
-          , envHighlightingMethod :: HighlightingMethod
-          , envExpandLast :: ExpandHidden
-                -- ^ When type-checking an alias f=e, we do not want
-                -- to insert hidden arguments in the end, because
-                -- these will become unsolved metas.
-          , envAppDef :: Maybe QName
-                -- ^ We are reducing an application of this function.
-                -- (For tracking of incomplete matches.)
-          , envSimplification :: Simplification
-                -- ^ Did we encounter a simplification (proper match)
-                --   during the current reduction process?
-          , envAllowedReductions :: AllowedReductions
-          , envReduceDefs :: ReduceDefs
-          , envReconstructed :: Bool
-          , envInjectivityDepth :: Int
-                -- ^ Injectivity can cause non-termination for unsolvable contraints
-                --   (#431, #3067). Keep a limit on the nesting depth of injectivity
-                --   uses.
-          , envCompareBlocked :: Bool
-                -- ^ When @True@, the conversion checker will consider
-                --   all term constructors as injective, including
-                --   blocked function applications and metas. Warning:
-                --   this should only be used when not assigning any
-                --   metas (e.g. when @envAssignMetas@ is @False@ or
-                --   when running @pureEqualTerms@) or else we get
-                --   non-unique meta solutions.
-          , envPrintDomainFreePi :: Bool
-                -- ^ When @True@, types will be omitted from printed pi types if they
-                --   can be inferred.
-          , envPrintMetasBare :: Bool
-                -- ^ When @True@, throw away meta numbers and meta elims.
-                --   This is used for reifying terms for feeding into the
-                --   user's source code, e.g., for the interaction tactics @solveAll@.
-          , envInsideDotPattern :: Bool
-                -- ^ Used by the scope checker to make sure that certain forms
-                --   of expressions are not used inside dot patterns: extended
-                --   lambdas and let-expressions.
-          , envUnquoteFlags :: UnquoteFlags
-          , envInstanceDepth :: !Int
-              -- ^ Until we get a termination checker for instance search (#1743) we
-              --   limit the search depth to ensure termination.
-          , envIsDebugPrinting :: Bool
-          , envPrintingPatternLambdas :: [QName]
-                -- ^ #3004: pattern lambdas with copatterns may refer to themselves. We
-                --   don't have a good story for what to do in this case, but at least
-                --   printing shouldn't loop. Here we keep track of which pattern lambdas
-                --   we are currently in the process of printing.
-          , envCallByNeed :: Bool
-                -- ^ Use call-by-need evaluation for reductions.
-          , envCurrentCheckpoint :: CheckpointId
-                -- ^ Checkpoints track the evolution of the context as we go
-                -- under binders or refine it by pattern matching.
-          , envCheckpoints :: Map CheckpointId Substitution
-                -- ^ Keeps the substitution from each previous checkpoint to
-                --   the current context.
-          , envGeneralizeMetas :: DoGeneralize
-                -- ^ Should new metas generalized over.
-          , envGeneralizedVars :: Map QName GeneralizedValue
-                -- ^ Values for used generalizable variables.
-          , envActiveBackendName :: Maybe BackendName
-                -- ^ Is some backend active at the moment, and if yes, which?
-                --   NB: we only store the 'BackendName' here, otherwise
-                --   @instance Data TCEnv@ is not derivable.
-                --   The actual backend can be obtained from the name via 'stBackends'.
-          , envConflComputingOverlap :: Bool
-                -- ^ Are we currently computing the overlap between
-                --   two rewrite rules for the purpose of confluence checking?
-          , envCurrentlyElaborating :: Bool
-                -- ^ Are we currently in the process of executing an
-                --   elaborate-and-give interactive command?
-          , envSyntacticEqualityFuel :: !(Strict.Maybe Int)
-                -- ^ If this counter is 'Strict.Nothing', then
-                -- syntactic equality checking is unrestricted. If it
-                -- is zero, then syntactic equality checking is not
-                -- run at all. If it is a positive number, then
-                -- syntactic equality checking is allowed to run, but
-                -- the counter is decreased in the failure
-                -- continuation of
-                -- 'Agda.TypeChecking.SyntacticEquality.checkSyntacticEquality'.
-          , envCurrentOpaqueId :: !(Maybe OpaqueId)
-                -- ^ Unique identifier of the opaque block we are
-                -- currently under, if any. Used by the scope checker
-                -- (to associate definitions to blocks), and by the type
-                -- checker (for unfolding control).
-          }
-    deriving (Generic)
+data TCEnv = TCEnv {
+    syntacticEqualityFuel :: !(Strict.Maybe Int)
+    -- ^ If this counter is 'Strict.Nothing', then
+    -- syntactic equality checking is unrestricted. If it
+    -- is zero, then syntactic equality checking is not
+    -- run at all. If it is a positive number, then
+    -- syntactic equality checking is allowed to run, but
+    -- the counter is decreased in the failure
+    -- continuation of
+    -- 'Agda.TypeChecking.SyntacticEquality.checkSyntacticEquality'.
+  , tcContext :: !TCContext
+  , metaEnv   :: !MetaEnv
+  , modalEnv  :: !ModalEnv
+  , coldEnv   :: !ColdEnv
+  } deriving Generic
 
-initEnv :: TCEnv
-initEnv = TCEnv { envContext             = CxEmpty
-                , envLetBindings         = Map.empty
-                , envCurrentModule       = noModuleName
+data TCContext = TCContext {
+    envContext           :: !Context
+  , envCurrentCheckpoint :: !CheckpointId
+    -- ^ Checkpoints track the evolution of the context as we go
+    -- under binders or refine it by pattern matching.
+  , envCheckpoints       :: !(Map CheckpointId Substitution)
+    -- ^ Keeps the substitution from each previous checkpoint to
+    --   the current context.
+  } deriving Generic
+
+data MetaEnv = MetaEnv {
+    envAssignMetas         :: !Bool
+    -- ^ Are we allowed to assign metas?
+  , envSolvingConstraints  :: !Bool
+    -- ^ Are we currently in the process of solving active constraints?
+  , envActiveProblems      :: !(Set ProblemId)
+  } deriving Generic
+
+data ModalEnv = ModalEnv {
+    envRelevance           :: !Relevance
+    -- ^ Are we checking an irrelevant argument? (=@Irrelevant@)
+    -- Then top-level irrelevant declarations are enabled.
+    -- Other value: @Relevant@, then only relevant decls. are available.
+  , envQuantity            :: !Quantity
+    -- ^ Are we checking a runtime-irrelevant thing? (='Quantity0')
+    -- Then runtime-irrelevant things are usable.
+  , envLetBindings         :: !LetBindings
+  , envAllowedReductions   :: !AllowedReductions
+  , envWorkingOnTypes      :: !Bool
+    -- ^ Are we working on types? Turned on by 'workOnTypes'.
+  } deriving Generic
+
+data ColdEnv = ColdEnv {
+    envCurrentModule       :: ModuleName
+  , envCurrentPath         :: Maybe FileId
+    -- ^ The path to the file that is currently being
+    -- type-checked.  'Nothing' if we do not have a file
+    -- (like in interactive mode see @CommandLine@).
+  , envAnonymousModules    :: [(ModuleName, Nat)] -- ^ anonymous modules and their number of free variables
+  , envImportStack         :: [TopLevelModuleName]
+    -- ^ The module stack with the entry being the top-level module as
+    --   Agda chases modules. It will be empty if there is no main
+    --   module, will have a single entry for the top level module, or
+    --   more when descending past the main module. This is used to
+    --   detect import cycles and in some cases highlighting behavior.
+    --   The level of a given module is not necessarily the same as the
+    --   length, in the module dependency graph, of the shortest path
+    --   from the top-level module; it depends on in which order Agda
+    --   chooses to chase dependencies.
+  , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
+  , envTerminationCheck    :: !(TerminationCheck ())  -- ^ are we inside the scope of a termination pragma
+  , envCoverageCheck       :: !CoverageCheck          -- ^ are we inside the scope of a coverage pragma
+  , envMakeCase            :: !Bool                   -- ^ are we inside a make-case (if so, ignore forcing analysis in unifier)
+  , envCheckingWhere       :: C.WhereClause_
+        -- ^ Have we stepped into the where-declarations of a clause?
+        --   Everything under a @where@ will be checked with this flag on.
+  , envUnquoteProblem      :: Maybe ProblemId
+    -- ^ If inside a `runUnquoteM` call, stores the top-level problem id assigned to the
+    --   invokation. We use this to decide which instance constraints originate from the
+    --   current call and which come from the outside, for the purpose of a
+    --   `solveInstanceConstraints` inside `noConstraints` only failing for local instance
+    --   constraints.
+  , envAbstractMode        :: !AbstractMode
+        -- ^ When checking the typesignature of a public definition
+        --   or the body of a non-abstract definition this is true.
+        --   To prevent information about abstract things leaking
+        --   outside the module.
+  , envHardCompileTimeMode :: !Bool
+        -- ^ Is the \"hard\" compile-time mode enabled? In
+        -- this mode the quantity component of the environment
+        -- is always zero, and every new definition is treated
+        -- as erased.
+  , envSplitOnStrict       :: !Bool
+        -- ^ Are we currently case-splitting on a strict
+        --   datatype (i.e. in SSet)? If yes, the
+        --   pattern-matching unifier will solve reflexive
+        --   equations even --without-K.
+  , envDisplayFormsEnabled :: !Bool
+        -- ^ Sometimes we want to disable display forms.
+  , envFoldLetBindings :: !Bool
+        -- ^ Fold let-bindings when printing terms (default: True)
+  , envRange :: Range
+  , envHighlightingRange :: Range
+        -- ^ Interactive highlighting uses this range rather
+        --   than 'envRange'.
+  , envClause :: IPClause
+        -- ^ What is the current clause we are type-checking?
+        --   Will be recorded in interaction points in this clause.
+  , envCall  :: Maybe (Closure Call)
+        -- ^ what we're doing at the moment
+  , envHighlightingLevel  :: !HighlightingLevel
+        -- ^ Set to 'None' when imported modules are
+        --   type-checked.
+  , envHighlightingMethod :: !HighlightingMethod
+  , envExpandLast :: !ExpandHidden
+        -- ^ When type-checking an alias f=e, we do not want
+        -- to insert hidden arguments in the end, because
+        -- these will become unsolved metas.
+  , envAppDef :: Maybe QName
+        -- ^ We are reducing an application of this function.
+        -- (For tracking of incomplete matches.)
+  , envSimplification :: !Simplification
+        -- ^ Did we encounter a simplification (proper match)
+        --   during the current reduction process?
+  , envReduceDefs :: !ReduceDefs
+  , envReconstructed :: !Bool
+  , envInjectivityDepth :: !Int
+        -- ^ Injectivity can cause non-termination for unsolvable contraints
+        --   (#431, #3067). Keep a limit on the nesting depth of injectivity
+        --   uses.
+  , envCompareBlocked :: !Bool
+        -- ^ When @True@, the conversion checker will consider
+        --   all term constructors as injective, including
+        --   blocked function applications and metas. Warning:
+        --   this should only be used when not assigning any
+        --   metas (e.g. when @envAssignMetas@ is @False@ or
+        --   when running @pureEqualTerms@) or else we get
+        --   non-unique meta solutions.
+  , envPrintDomainFreePi :: !Bool
+        -- ^ When @True@, types will be omitted from printed pi types if they
+        --   can be inferred.
+  , envPrintMetasBare :: !Bool
+        -- ^ When @True@, throw away meta numbers and meta elims.
+        --   This is used for reifying terms for feeding into the
+        --   user's source code, e.g., for the interaction tactics @solveAll@.
+  , envInsideDotPattern :: !Bool
+        -- ^ Used by the scope checker to make sure that certain forms
+        --   of expressions are not used inside dot patterns: extended
+        --   lambdas and let-expressions.
+  , envUnquoteFlags :: !UnquoteFlags
+  , envInstanceDepth :: !Int
+      -- ^ Until we get a termination checker for instance search (#1743) we
+      --   limit the search depth to ensure termination.
+  , envIsDebugPrinting :: !Bool
+  , envPrintingPatternLambdas :: [QName]
+        -- ^ #3004: pattern lambdas with copatterns may refer to themselves. We
+        --   don't have a good story for what to do in this case, but at least
+        --   printing shouldn't loop. Here we keep track of which pattern lambdas
+        --   we are currently in the process of printing.
+  , envCallByNeed :: !Bool
+        -- ^ Use call-by-need evaluation for reductions.
+  , envGeneralizeMetas :: !DoGeneralize
+        -- ^ Should new metas generalized over.
+  , envGeneralizedVars :: !(Map QName GeneralizedValue)
+        -- ^ Values for used generalizable variables.
+  , envActiveBackendName :: !(Maybe BackendName)
+        -- ^ Is some backend active at the moment, and if yes, which?
+        --   NB: we only store the 'BackendName' here, otherwise
+        --   @instance Data TCEnv@ is not derivable.
+        --   The actual backend can be obtained from the name via 'stBackends'.
+  , envConflComputingOverlap :: !Bool
+        -- ^ Are we currently computing the overlap between
+        --   two rewrite rules for the purpose of confluence checking?
+  , envCurrentlyElaborating :: !Bool
+        -- ^ Are we currently in the process of executing an
+        --   elaborate-and-give interactive command?
+  , envCurrentOpaqueId :: !(Maybe OpaqueId)
+        -- ^ Unique identifier of the opaque block we are
+        -- currently under, if any. Used by the scope checker
+        -- (to associate definitions to blocks), and by the type
+        -- checker (for unfolding control).
+  } deriving Generic
+
+initTCContext :: TCContext
+initTCContext = TCContext {
+    envContext             = CxEmpty
+  , envCurrentCheckpoint   = 0
+  , envCheckpoints         = Map.singleton 0 IdS
+  }
+
+initMetaEnv :: MetaEnv
+initMetaEnv = MetaEnv {
+    envAssignMetas         = True
+  , envSolvingConstraints  = False
+  , envActiveProblems      = Set.empty
+  }
+
+initModalEnv :: ModalEnv
+initModalEnv = ModalEnv {
+    envRelevance           = unitRelevance
+  , envQuantity            = unitQuantity
+  , envLetBindings         = Map.empty
+  , envAllowedReductions   = allReductions
+  , envWorkingOnTypes      = False
+  }
+
+initColdEnv :: ColdEnv
+initColdEnv = ColdEnv {
+                  envCurrentModule       = noModuleName
                 , envCurrentPath         = Nothing
                 , envAnonymousModules    = []
                 , envImportStack         = []
@@ -4276,12 +4313,8 @@ initEnv = TCEnv { envContext             = CxEmpty
                 , envTerminationCheck    = TerminationCheck
                 , envCoverageCheck       = YesCoverageCheck
                 , envMakeCase            = False
-                , envSolvingConstraints  = False
                 , envCheckingWhere       = C.NoWhere_
-                , envActiveProblems      = Set.empty
                 , envUnquoteProblem      = Nothing
-                , envWorkingOnTypes      = False
-                , envAssignMetas         = True
                 , envAbstractMode        = ConcreteMode
   -- Andreas, 2013-02-21:  This was 'AbstractMode' until now.
   -- However, top-level checks for mutual blocks, such as
@@ -4291,8 +4324,6 @@ initEnv = TCEnv { envContext             = CxEmpty
   -- The initial mode should be 'ConcreteMode', ensuring you
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
-                , envRelevance              = unitRelevance
-                , envQuantity               = unitQuantity
                 , envHardCompileTimeMode    = False
                 , envSplitOnStrict          = False
                 , envDisplayFormsEnabled    = True
@@ -4306,7 +4337,6 @@ initEnv = TCEnv { envContext             = CxEmpty
                 , envExpandLast             = ExpandLast
                 , envAppDef                 = Nothing
                 , envSimplification         = NoSimplification
-                , envAllowedReductions      = allReductions
                 , envReduceDefs             = reduceAllDefs
                 , envReconstructed          = False
                 , envInjectivityDepth       = 0
@@ -4319,16 +4349,23 @@ initEnv = TCEnv { envContext             = CxEmpty
                 , envIsDebugPrinting        = False
                 , envPrintingPatternLambdas = []
                 , envCallByNeed             = True
-                , envCurrentCheckpoint      = 0
-                , envCheckpoints            = Map.singleton 0 IdS
                 , envGeneralizeMetas        = NoGeneralize
                 , envGeneralizedVars        = Map.empty
                 , envActiveBackendName      = Nothing
                 , envConflComputingOverlap  = False
                 , envCurrentlyElaborating   = False
-                , envSyntacticEqualityFuel  = Strict.Nothing
                 , envCurrentOpaqueId        = Nothing
                 }
+
+initEnv :: TCEnv
+initEnv = TCEnv {
+    syntacticEqualityFuel = Strict.Nothing
+  , tcContext             = initTCContext
+  , metaEnv               = initMetaEnv
+  , modalEnv              = initModalEnv
+  , coldEnv               = initColdEnv
+  }
+
 
 class LensTCEnv a where
   lensTCEnv :: Lens' a TCEnv
@@ -4354,172 +4391,180 @@ eUnquoteNormalise = eUnquoteFlags . unquoteNormalise
 ------------------------------------------------------------------------
 
 eContext :: Lens' TCEnv Context
-eContext f e = f (envContext e) <&> \ x -> e { envContext = x }
+eContext f e = f (envContext (tcContext e)) <&> \ !x -> e {tcContext = (tcContext e){envContext = x}}
 
 eLetBindings :: Lens' TCEnv LetBindings
-eLetBindings f e = f (envLetBindings e) <&> \ x -> e { envLetBindings = x }
+eLetBindings f e = f (envLetBindings (modalEnv e)) <&> \ !x -> e {modalEnv = (modalEnv e){envLetBindings = x}}
 
 eCurrentModule :: Lens' TCEnv ModuleName
-eCurrentModule f e = f (envCurrentModule e) <&> \ x -> e { envCurrentModule = x }
+eCurrentModule f e = f (envCurrentModule (coldEnv e)) <&> \ !x -> e {coldEnv = (coldEnv e){envCurrentModule = x}}
 
 eCurrentPath :: Lens' TCEnv (Maybe FileId)
-eCurrentPath f e = f (envCurrentPath e) <&> \ x -> e { envCurrentPath = x }
+eCurrentPath f e = f (envCurrentPath $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envCurrentPath = x }}
 
 eAnonymousModules :: Lens' TCEnv [(ModuleName, Nat)]
-eAnonymousModules f e = f (envAnonymousModules e) <&> \ x -> e { envAnonymousModules = x }
+eAnonymousModules f e = f (envAnonymousModules $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e) {envAnonymousModules = x }}
 
 eImportStack :: Lens' TCEnv [TopLevelModuleName]
-eImportStack f e = f (envImportStack e) <&> \ x -> e { envImportStack = x }
+eImportStack f e = f (envImportStack $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envImportStack = x }}
 
 eMutualBlock :: Lens' TCEnv (Maybe MutualId)
-eMutualBlock f e = f (envMutualBlock e) <&> \ x -> e { envMutualBlock = x }
+eMutualBlock f e = f (envMutualBlock $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envMutualBlock = x }}
 
 eTerminationCheck :: Lens' TCEnv (TerminationCheck ())
-eTerminationCheck f e = f (envTerminationCheck e) <&> \ x -> e { envTerminationCheck = x }
+eTerminationCheck f e = f (envTerminationCheck $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e) { envTerminationCheck = x }}
 
 eCoverageCheck :: Lens' TCEnv CoverageCheck
-eCoverageCheck f e = f (envCoverageCheck e) <&> \ x -> e { envCoverageCheck = x }
+eCoverageCheck f e = f (envCoverageCheck $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envCoverageCheck = x }}
 
 eMakeCase :: Lens' TCEnv Bool
-eMakeCase f e = f (envMakeCase e) <&> \ x -> e { envMakeCase = x }
+eMakeCase f e = f (envMakeCase $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envMakeCase = x }}
 
 eSolvingConstraints :: Lens' TCEnv Bool
-eSolvingConstraints f e = f (envSolvingConstraints e) <&> \ x -> e { envSolvingConstraints = x }
+eSolvingConstraints f e = f (envSolvingConstraints $ metaEnv e) <&> \ !x -> e {metaEnv = (metaEnv e){envSolvingConstraints = x }}
 
 eCheckingWhere :: Lens' TCEnv C.WhereClause_
-eCheckingWhere f e = f (envCheckingWhere e) <&> \ x -> e { envCheckingWhere = x }
+eCheckingWhere f e = f (envCheckingWhere $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envCheckingWhere = x }}
 
 eWorkingOnTypes :: Lens' TCEnv Bool
-eWorkingOnTypes f e = f (envWorkingOnTypes e) <&> \ x -> e { envWorkingOnTypes = x }
+eWorkingOnTypes f e = f (envWorkingOnTypes $ modalEnv e) <&> \ !x -> e {modalEnv = (modalEnv e){ envWorkingOnTypes = x }}
 
 eAssignMetas :: Lens' TCEnv Bool
-eAssignMetas f e = f (envAssignMetas e) <&> \ x -> e { envAssignMetas = x }
+eAssignMetas f e = f (envAssignMetas $ metaEnv e) <&> \ !x -> e { metaEnv = (metaEnv e) {envAssignMetas = x }}
 
 eActiveProblems :: Lens' TCEnv (Set ProblemId)
-eActiveProblems f e = f (envActiveProblems e) <&> \ x -> e { envActiveProblems = x }
+eActiveProblems f e = f (envActiveProblems $ metaEnv e) <&> \ !x -> e {metaEnv = (metaEnv e){ envActiveProblems = x }}
 
 eAbstractMode :: Lens' TCEnv AbstractMode
-eAbstractMode f e = f (envAbstractMode e) <&> \ x -> e { envAbstractMode = x }
+eAbstractMode f e = f (envAbstractMode $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envAbstractMode = x }}
 
 eRelevance :: Lens' TCEnv Relevance
-eRelevance f e = f (envRelevance e) <&> \x -> e { envRelevance = x }
+eRelevance f e = f (envRelevance $ modalEnv e) <&> \ !x -> e {modalEnv = (modalEnv e){ envRelevance = x }}
 
+{-# INLINE eQuantity #-}
 -- | Note that this lens does not satisfy all lens laws: If hard
 -- compile-time mode is enabled, then quantities other than zero are
 -- replaced by '__IMPOSSIBLE__'.
-
 eQuantity :: Lens' TCEnv Quantity
 eQuantity f e =
-  if envHardCompileTimeMode e
-  then f (check (envQuantity e)) <&>
-       \x -> e { envQuantity = check x }
-  else f (envQuantity e) <&> \x -> e { envQuantity = x }
+  if envHardCompileTimeMode (coldEnv e)
+  then f (check (envQuantity (modalEnv e))) <&>
+       \ !x -> e { modalEnv = (modalEnv e){ envQuantity = check x }}
+  else f (envQuantity (modalEnv e)) <&> \ !x -> e { modalEnv = (modalEnv e){ envQuantity = x }}
   where
   check q
     | hasQuantity0 q = q
     | otherwise      = __IMPOSSIBLE__
 
 eHardCompileTimeMode :: Lens' TCEnv Bool
-eHardCompileTimeMode f e = f (envHardCompileTimeMode e) <&> \x -> e { envHardCompileTimeMode = x }
+eHardCompileTimeMode f e =
+  f (envHardCompileTimeMode $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envHardCompileTimeMode = x }}
 
 eSplitOnStrict :: Lens' TCEnv Bool
-eSplitOnStrict f e = f (envSplitOnStrict e) <&> \ x -> e { envSplitOnStrict = x }
+eSplitOnStrict f e = f (envSplitOnStrict $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envSplitOnStrict = x }}
 
 eDisplayFormsEnabled :: Lens' TCEnv Bool
-eDisplayFormsEnabled f e = f (envDisplayFormsEnabled e) <&> \ x -> e { envDisplayFormsEnabled = x }
+eDisplayFormsEnabled f e =
+  f (envDisplayFormsEnabled $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envDisplayFormsEnabled = x }}
 
 eFoldLetBindings :: Lens' TCEnv Bool
-eFoldLetBindings f e = f (envFoldLetBindings e) <&> \ x -> e { envFoldLetBindings = x }
+eFoldLetBindings f e =
+  f (envFoldLetBindings $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envFoldLetBindings = x }}
 
 eRange :: Lens' TCEnv Range
-eRange f e = f (envRange e) <&> \ x -> e { envRange = x }
+eRange f e = f (envRange $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envRange = x }}
 
 eHighlightingRange :: Lens' TCEnv Range
-eHighlightingRange f e = f (envHighlightingRange e) <&> \ x -> e { envHighlightingRange = x }
+eHighlightingRange f e =
+  f (envHighlightingRange $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envHighlightingRange = x }}
 
 eCall :: Lens' TCEnv (Maybe (Closure Call))
-eCall f e = f (envCall e) <&> \ x -> e { envCall = x }
+eCall f e = f (envCall $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envCall = x }}
 
 eHighlightingLevel :: Lens' TCEnv HighlightingLevel
-eHighlightingLevel f e = f (envHighlightingLevel e) <&> \ x -> e { envHighlightingLevel = x }
+eHighlightingLevel f e =
+  f (envHighlightingLevel $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envHighlightingLevel = x }}
 
 eHighlightingMethod :: Lens' TCEnv HighlightingMethod
-eHighlightingMethod f e = f (envHighlightingMethod e) <&> \ x -> e { envHighlightingMethod = x }
+eHighlightingMethod f e =
+  f (envHighlightingMethod $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envHighlightingMethod = x }}
 
 eExpandLast :: Lens' TCEnv ExpandHidden
-eExpandLast f e = f (envExpandLast e) <&> \ x -> e { envExpandLast = x }
+eExpandLast f e = f (envExpandLast $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envExpandLast = x }}
 
 eExpandLastBool :: Lens' TCEnv Bool
-eExpandLastBool f e = f (isExpandLast $ envExpandLast e) <&> \ x -> e { envExpandLast = toExpandLast x }
+eExpandLastBool f e =
+  f (isExpandLast $ envExpandLast $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envExpandLast = toExpandLast x }}
 
 eAppDef :: Lens' TCEnv (Maybe QName)
-eAppDef f e = f (envAppDef e) <&> \ x -> e { envAppDef = x }
+eAppDef f e = f (envAppDef $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envAppDef = x }}
 
 eSimplification :: Lens' TCEnv Simplification
-eSimplification f e = f (envSimplification e) <&> \ x -> e { envSimplification = x }
+eSimplification f e = f (envSimplification $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envSimplification = x }}
 
 eAllowedReductions :: Lens' TCEnv AllowedReductions
-eAllowedReductions f e = f (envAllowedReductions e) <&> \ x -> e { envAllowedReductions = x }
+eAllowedReductions f e = f (envAllowedReductions $ modalEnv e) <&> \ x -> e {modalEnv = (modalEnv e) {envAllowedReductions = x }}
 
 eReduceDefs :: Lens' TCEnv ReduceDefs
-eReduceDefs f e = f (envReduceDefs e) <&> \ x -> e { envReduceDefs = x }
+eReduceDefs f e = f (envReduceDefs $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envReduceDefs = x }}
 
 eReduceDefsPair :: Lens' TCEnv (Bool, [QName])
-eReduceDefsPair f e = f (fromReduceDefs $ envReduceDefs e) <&> \ x -> e { envReduceDefs = toReduceDefs x }
+eReduceDefsPair f e = f (fromReduceDefs $ envReduceDefs $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envReduceDefs = toReduceDefs x }}
 
 eReconstructed :: Lens' TCEnv Bool
-eReconstructed f e = f (envReconstructed e) <&> \ x -> e { envReconstructed = x }
+eReconstructed f e = f (envReconstructed $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envReconstructed = x }}
 
 eInjectivityDepth :: Lens' TCEnv Int
-eInjectivityDepth f e = f (envInjectivityDepth e) <&> \ x -> e { envInjectivityDepth = x }
+eInjectivityDepth f e = f (envInjectivityDepth $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envInjectivityDepth = x }}
 
 eCompareBlocked :: Lens' TCEnv Bool
-eCompareBlocked f e = f (envCompareBlocked e) <&> \ x -> e { envCompareBlocked = x }
+eCompareBlocked f e = f (envCompareBlocked $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envCompareBlocked = x }}
 
 ePrintDomainFreePi :: Lens' TCEnv Bool
-ePrintDomainFreePi f e = f (envPrintDomainFreePi e) <&> \ x -> e { envPrintDomainFreePi = x }
+ePrintDomainFreePi f e = f (envPrintDomainFreePi $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envPrintDomainFreePi = x }}
 
 ePrintMetasBare :: Lens' TCEnv Bool
-ePrintMetasBare f e = f (envPrintMetasBare e) <&> \ x -> e { envPrintMetasBare = x }
+ePrintMetasBare f e = f (envPrintMetasBare $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envPrintMetasBare = x }}
 
 eInsideDotPattern :: Lens' TCEnv Bool
-eInsideDotPattern f e = f (envInsideDotPattern e) <&> \ x -> e { envInsideDotPattern = x }
+eInsideDotPattern f e = f (envInsideDotPattern $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envInsideDotPattern = x }}
 
 eUnquoteFlags :: Lens' TCEnv UnquoteFlags
-eUnquoteFlags f e = f (envUnquoteFlags e) <&> \ x -> e { envUnquoteFlags = x }
+eUnquoteFlags f e = f (envUnquoteFlags $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envUnquoteFlags = x }}
 
 eInstanceDepth :: Lens' TCEnv Int
-eInstanceDepth f e = f (envInstanceDepth e) <&> \ x -> e { envInstanceDepth = x }
+eInstanceDepth f e = f (envInstanceDepth $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envInstanceDepth = x }}
 
 eIsDebugPrinting :: Lens' TCEnv Bool
-eIsDebugPrinting f e = f (envIsDebugPrinting e) <&> \ x -> e { envIsDebugPrinting = x }
+eIsDebugPrinting f e = f (envIsDebugPrinting $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envIsDebugPrinting = x }}
 
 ePrintingPatternLambdas :: Lens' TCEnv [QName]
-ePrintingPatternLambdas f e = f (envPrintingPatternLambdas e) <&> \ x -> e { envPrintingPatternLambdas = x }
+ePrintingPatternLambdas f e = f (envPrintingPatternLambdas $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envPrintingPatternLambdas = x }}
 
 eCallByNeed :: Lens' TCEnv Bool
-eCallByNeed f e = f (envCallByNeed e) <&> \ x -> e { envCallByNeed = x }
+eCallByNeed f e = f (envCallByNeed $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envCallByNeed = x }}
 
 eCurrentCheckpoint :: Lens' TCEnv CheckpointId
-eCurrentCheckpoint f e = f (envCurrentCheckpoint e) <&> \ x -> e { envCurrentCheckpoint = x }
+eCurrentCheckpoint f e =
+  f (envCurrentCheckpoint $ tcContext e) <&> \ x -> e {tcContext = (tcContext e){ envCurrentCheckpoint = x }}
 
 eCheckpoints :: Lens' TCEnv (Map CheckpointId Substitution)
-eCheckpoints f e = f (envCheckpoints e) <&> \ x -> e { envCheckpoints = x }
+eCheckpoints f e = f (envCheckpoints $ tcContext e) <&> \ x -> e {tcContext = (tcContext e){ envCheckpoints = x }}
 
 eGeneralizeMetas :: Lens' TCEnv DoGeneralize
-eGeneralizeMetas f e = f (envGeneralizeMetas e) <&> \ x -> e { envGeneralizeMetas = x }
+eGeneralizeMetas f e = f (envGeneralizeMetas $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envGeneralizeMetas = x }}
 
 eGeneralizedVars :: Lens' TCEnv (Map QName GeneralizedValue)
-eGeneralizedVars f e = f (envGeneralizedVars e) <&> \ x -> e { envGeneralizedVars = x }
+eGeneralizedVars f e = f (envGeneralizedVars $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envGeneralizedVars = x }}
 
 eActiveBackendName :: Lens' TCEnv (Maybe BackendName)
-eActiveBackendName f e = f (envActiveBackendName e) <&> \ x -> e { envActiveBackendName = x }
+eActiveBackendName f e = f (envActiveBackendName $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envActiveBackendName = x }}
 
 eConflComputingOverlap :: Lens' TCEnv Bool
-eConflComputingOverlap f e = f (envConflComputingOverlap e) <&> \ x -> e { envConflComputingOverlap = x }
+eConflComputingOverlap f e = f (envConflComputingOverlap $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envConflComputingOverlap = x }}
 
 eCurrentlyElaborating :: Lens' TCEnv Bool
-eCurrentlyElaborating f e = f (envCurrentlyElaborating e) <&> \ x -> e { envCurrentlyElaborating = x }
+eCurrentlyElaborating f e = f (envCurrentlyElaborating $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envCurrentlyElaborating = x }}
 
 {-# SPECIALISE currentModality :: TCM Modality #-}
 -- | The current modality.
@@ -5778,14 +5823,14 @@ data TCErr
 
 instance Show TCErr where
   show = \case
-    TypeError _ _ e      -> prettyShow (envRange $ clEnv e) ++ ": " ++ show (clValue e)
+    TypeError _ _ e      -> prettyShow (envRange $ coldEnv $ clEnv e) ++ ": " ++ show (clValue e)
     ParserError e        -> prettyShow e
     GenericException msg -> msg
     IOException _ r e    -> prettyShow r ++ ": " ++ showIOException e
     PatternErr{}         -> "Pattern violation (you shouldn't see this)"
 
 instance HasRange TCErr where
-  getRange (TypeError _ _ cl)  = envRange $ clEnv cl
+  getRange (TypeError _ _ cl)  = envRange $ coldEnv $ clEnv cl
   getRange (ParserError e)     = getRange e
   getRange GenericException{}  = noRange
   getRange (IOException _ r _) = r
@@ -6406,7 +6451,7 @@ instance (CatchIO m, MonadIO m) => MonadFail (TCMT m) where
 
 instance MonadIO m => MonadIO (TCMT m) where
   liftIO m = TCM $ \ s env -> do
-    liftIO $ wrap s (envRange env) $ do
+    liftIO $ wrap s (envRange $ coldEnv env) $ do
       x <- m
       x `seq` return x
     where
@@ -6974,6 +7019,10 @@ instance NFData BuiltinSort
 instance NFData pf => NFData (Builtin pf)
 instance NFData HighlightingLevel
 instance NFData HighlightingMethod
+instance NFData TCContext
+instance NFData ColdEnv
+instance NFData ModalEnv
+instance NFData MetaEnv
 instance NFData TCEnv
 instance NFData LetBinding
 instance NFData UnquoteFlags

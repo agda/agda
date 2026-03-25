@@ -18,7 +18,7 @@ enterClosure c k | Closure _sig env scope cps x <- c ^. lensClosure = do
   evalWithScope scope
       -- TODO: use the signature here? would that fix parts of issue #118?
     $ locallyTCState stModuleCheckpoints (const cps)
-    $ withEnv env{ envIsDebugPrinting = isDbg }
+    $ withEnv env{ coldEnv = (coldEnv env){ envIsDebugPrinting = isDbg }}
     $ k x
 
 {-# INLINE withClosure  #-}

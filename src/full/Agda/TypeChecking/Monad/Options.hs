@@ -256,16 +256,16 @@ setOptionsFromPragma' checkConsistency ps = setCurrentRange (pragmaRange ps) $ d
 -- | Disable display forms.
 enableDisplayForms :: MonadTCEnv m => m a -> m a
 enableDisplayForms =
-  localTC $ \e -> e { envDisplayFormsEnabled = True }
+  localTC $ \e -> e { coldEnv = (coldEnv e) {envDisplayFormsEnabled = True }}
 
 -- | Disable display forms.
 disableDisplayForms :: MonadTCEnv m => m a -> m a
 disableDisplayForms =
-  localTC $ \e -> e { envDisplayFormsEnabled = False }
+  localTC $ \e -> e { coldEnv = (coldEnv e) { envDisplayFormsEnabled = False }}
 
 -- | Check if display forms are enabled.
 displayFormsEnabled :: MonadTCEnv m => m Bool
-displayFormsEnabled = asksTC envDisplayFormsEnabled
+displayFormsEnabled = asksTC (envDisplayFormsEnabled . coldEnv)
 
 -- | Gets the include directories.
 --

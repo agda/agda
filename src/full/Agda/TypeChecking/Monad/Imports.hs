@@ -129,7 +129,7 @@ dropDecodedModule x = modifyTC $ \s ->
 --   worried about.
 checkForImportCycle :: TCM ()
 checkForImportCycle = do
-  caseListM (asksTC envImportStack) __IMPOSSIBLE__ $ \ m ms -> do
+  caseListM (asksTC (envImportStack . coldEnv)) __IMPOSSIBLE__ $ \ m ms -> do
     when (m `elem` ms) $ typeError $ CyclicModuleDependency $
       List2.snoc (List1.fromListSafe __IMPOSSIBLE__ $ dropWhile (/= m) $ reverse ms) m
         -- NB: we know that ms contains m, so even after dropWhile the list is not empty.

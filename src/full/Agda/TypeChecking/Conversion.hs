@@ -711,15 +711,15 @@ compareAtom cmp t m n =
               -- since b and b' should be neutral terms, but it's a
               -- precondition for the compareAtom call to make
               -- sense.
-              equalType (El (tmSSort $ unArg a) $! apply tSub $! a : map' (setHiding NotHidden) [bA,phi,u])
-                        (El (tmSSort $ unArg a) $! apply tSub $! a : map' (setHiding NotHidden) [bA',phi',u'])
-              compareAtom cmp (AsTermsOf $ El (tmSSort $ unArg a) $! apply tSub $ a : map' (setHiding NotHidden) [bA,phi,u])
+              equalType (El (tmSSort $ unArg a) $! apply tSub $! (a :) $! map' (setHiding NotHidden) [bA,phi,u])
+                        (El (tmSSort $ unArg a) $! apply tSub $! (a :) $! map' (setHiding NotHidden) [bA',phi',u'])
+              compareAtom cmp (AsTermsOf $ El (tmSSort $ unArg a) $! apply tSub $! (a :) $! map' (setHiding NotHidden) [bA,phi,u])
                               (unArg x) (unArg x')
               () <- compareElims [] [] (El (tmSort (unArg a)) (unArg bA)) (Def q as) bs bs'
               return True
             _  -> return False
         compareUnglueApp q es es' = do
-          let (as,bs) = splitAt 7 es; (as',bs') = splitAt 7 es'
+          let (as,bs) = splitAt' 7 es; (as',bs') = splitAt' 7 es'
           case (allApplyElims as, allApplyElims as') of
             (Just [la,lb,bA,phi,bT,e,b], Just [la',lb',bA',phi',bT',e',b']) -> do
               tGlue <- getPrimitiveTerm builtinGlue
@@ -737,7 +737,7 @@ compareAtom cmp t m n =
             _  -> return False
         compareUnglueUApp :: QName -> Elims -> Elims -> m Bool
         compareUnglueUApp q es es' = do
-          let (as,bs) = splitAt 5 es; (as',bs') = splitAt 5 es'
+          let (as,bs) = splitAt' 5 es; (as',bs') = splitAt' 5 es'
           case (allApplyElims as, allApplyElims as') of
             (Just [la,phi,bT,bAS,b], Just [la',phi',bT',bA',b']) -> do
               tHComp <- primHComp
@@ -863,7 +863,7 @@ compareDom cmp0
         -- We only need to require a1 == a2 if b2 is dependent
         -- If it's non-dependent it doesn't matter what we add to the context.
       let name = suggests [ Suggestion b1 , Suggestion b2 ]
-      addConversionContext (ConvCod dom name) $ addContext (name, dom) $ cont
+      addConversionContext (ConvCod dom name) $ addContext (name, dom) $ connt
       stealConstraints pid
         -- Andreas, 2013-05-15 Now, comparison of codomains is not
         -- blocked any more by getting stuck on domains.

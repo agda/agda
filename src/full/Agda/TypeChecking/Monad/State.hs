@@ -479,7 +479,7 @@ currentTopLevelModule ::
 currentTopLevelModule = do
   useR stCurrentModule >>= \case
     Just (_, top) -> return (Just top)
-    Nothing       -> listToMaybe <$> asksTC envImportStack
+    Nothing       -> listToMaybe <$> asksTC (envImportStack . coldEnv)
 
 -- | Use a different top-level module for a computation. Used when generating
 --   names for imported modules.
@@ -523,7 +523,7 @@ lookupBackend name = useSession lensBackends <&> \ backends ->
 
 activeBackend :: TCM (Maybe Backend)
 activeBackend = runMaybeT $ do
-  bname <- MaybeT $ asksTC envActiveBackendName
+  bname <- MaybeT $ asksTC (envActiveBackendName . coldEnv)
   lift $ fromMaybe __IMPOSSIBLE__ <$> lookupBackend bname
 
 -- | Ask the active backend whether a type may be erased.
@@ -536,7 +536,7 @@ activeBackendMayEraseType q = do
 
 addForeignCode :: BackendName -> String -> TCM ()
 addForeignCode backend code = do
-  r <- asksTC envRange  -- can't use TypeChecking.Monad.Trace.getCurrentRange without cycle
+  r <- asksTC (envRange . coldEnv)  -- can't use TypeChecking.Monad.Trace.getCurrentRange without cycle
   modifyTCLens (stForeignCode . key backend) $
     Just . ForeignCodeStack . (ForeignCode r code :) . maybe [] getForeignCodeStack
 

@@ -24,7 +24,7 @@ solvingProblem pid = solvingProblems (Set.singleton pid)
 
 solvingProblems :: MonadConstraint m => Set ProblemId -> m a -> m a
 solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on problems " ++ show (Set.toList pids)) $ do
-  x <- localTC (\e -> e { envActiveProblems = pids `Set.union` envActiveProblems e }) m
+  x <- localTC (\e -> e { metaEnv = (metaEnv e){ envActiveProblems = pids `Set.union` envActiveProblems (metaEnv e) }}) m
   Fold.forM_ pids $ \ pid -> do
     ifNotM (isProblemSolved pid)
         (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
@@ -41,7 +41,7 @@ isProblemCompletelySolved = isProblemSolved' True
 
 isProblemSolved' :: (MonadTCEnv m, ReadTCState m) => Bool -> ProblemId -> m Bool
 isProblemSolved' completely pid =
-  and2M (not . Set.member pid <$> asksTC envActiveProblems)
+  and2M (not . Set.member pid <$> asksTC (envActiveProblems . metaEnv))
         (not . any belongsToUs <$> getAllConstraints)
   where
     belongsToUs c
@@ -123,9 +123,9 @@ getAllConstraints = do
 withConstraint :: MonadConstraint m => (Constraint -> m a) -> ProblemConstraint -> m a
 withConstraint f (PConstr pids _ c) = do
   -- We should preserve the problem stack and the isSolvingConstraint flag
-  (pids', isSolving) <- asksTC $ envActiveProblems &&& envSolvingConstraints
+  (pids', isSolving) <- asksTC $ (envActiveProblems &&& envSolvingConstraints) . metaEnv
   enterClosure c $ \c ->
-    localTC (\e -> e { envActiveProblems = pids', envSolvingConstraints = isSolving }) $
+    localTC (\e -> e {metaEnv = (metaEnv e){ envActiveProblems = pids', envSolvingConstraints = isSolving }}) $
     solvingProblems pids (f c)
 
 buildProblemConstraint
@@ -140,7 +140,7 @@ buildProblemConstraint_ = buildProblemConstraint Set.empty
 
 buildConstraint :: Blocker -> Constraint -> TCM ProblemConstraint
 buildConstraint unblock c = do
-  pids <- asksTC envActiveProblems
+  pids <- asksTC (envActiveProblems . metaEnv)
   buildProblemConstraint pids unblock c
 
 -- | Monad service class containing methods for adding and solving
@@ -225,10 +225,10 @@ isBlockingConstraint = \case
 
 -- | Start solving constraints
 nowSolvingConstraints :: MonadTCEnv m => m a -> m a
-nowSolvingConstraints = localTC $ \e -> e { envSolvingConstraints = True }
+nowSolvingConstraints = localTC $ \e -> e { metaEnv = (metaEnv e){envSolvingConstraints = True }}
 
 isSolvingConstraints :: MonadTCEnv m => m Bool
-isSolvingConstraints = asksTC envSolvingConstraints
+isSolvingConstraints = asksTC (envSolvingConstraints . metaEnv)
 
 -- | Add constraint if the action raises a pattern violation
 catchConstraint :: MonadConstraint m => Constraint -> m () -> m ()
