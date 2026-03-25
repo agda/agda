@@ -79,6 +79,7 @@ module Agda.Interaction.Options.Base
     , lensOptErasure
     , lensOptErasedMatches
     , lensOptEraseRecordParameters
+    , lensOptErasedLevelsInPrims
     , lensOptRewriting
     , lensOptCubical
     , lensOptGuarded
@@ -144,6 +145,7 @@ module Agda.Interaction.Options.Base
     , optErasure
     , optErasedMatches
     , optEraseRecordParameters
+    , optErasedLevelsInPrims
     , optRewriting
     , optGuarded
     , optFirstOrder
@@ -313,6 +315,7 @@ optProjectionLike            :: PragmaOptions -> Bool
 optErasure                   :: PragmaOptions -> Bool
 optErasedMatches             :: PragmaOptions -> Bool
 optEraseRecordParameters     :: PragmaOptions -> Bool
+optErasedLevelsInPrims       :: PragmaOptions -> Bool
 optRewriting                 :: PragmaOptions -> Bool
 optGuarded                   :: PragmaOptions -> Bool
 optFirstOrder                :: PragmaOptions -> Bool
@@ -377,6 +380,7 @@ optProjectionLike            = collapseDefault . _optProjectionLike
 optErasure                   = collapseDefault . _optErasure || optEraseRecordParameters || (Value True ==) . _optErasedMatches
 optErasedMatches             = collapseDefault . _optErasedMatches && optErasure
 optEraseRecordParameters     = collapseDefault . _optEraseRecordParameters
+optErasedLevelsInPrims       = collapseDefault . _optErasedLevelsInPrims
 optRewriting                 = collapseDefault . _optRewriting
 optGuarded                   = collapseDefault . _optGuarded
 optFirstOrder                = collapseDefault . _optFirstOrder
@@ -546,6 +550,11 @@ lensOptErasedMatches f o = f (_optErasedMatches o) <&> \ i -> o{ _optErasedMatch
 
 lensOptEraseRecordParameters :: Lens' PragmaOptions _
 lensOptEraseRecordParameters f o = f (_optEraseRecordParameters o) <&> \ i -> o{ _optEraseRecordParameters = i }
+
+lensOptErasedLevelsInPrims :: Lens' PragmaOptions _
+lensOptErasedLevelsInPrims f o =
+  f (_optErasedLevelsInPrims o) <&>
+  \i -> o { _optErasedLevelsInPrims = i }
 
 lensOptRewriting :: Lens' PragmaOptions _
 lensOptRewriting f o = f (_optRewriting o) <&> \ i -> o{ _optRewriting = i }
@@ -933,6 +942,10 @@ infectiveCoinfectiveOptions =
   , infectiveOption optCohesion               "--cohesion"
   , infectiveOption optErasure                "--erasure"
   , infectiveOption optErasedMatches          "--erased-matches"
+  , infectiveOption (not . optErasedLevelsInPrims)
+      "--no-erased-levels-in-primitives"
+  , coinfectiveOption (not . optErasedLevelsInPrims)
+      "--no-erased-levels-in-primitives"
   ]
   where
   cubicalCompatible =
@@ -1541,6 +1554,11 @@ modalityPragmaOptions = ("Modalities",) $ concat
   , pragmaFlag      "erase-record-parameters" lensOptEraseRecordParameters
                     "mark all parameters of record modules as erased" "(implies --erasure)"
                     Nothing
+  , [ Option []     ["no-erased-levels-in-primitives"]
+                    (NoArg $ \o ->
+                     return o { _optErasedLevelsInPrims = Value False })
+                    "do not use erased levels in primitives/builtins"
+    ]
   , pragmaFlag      "cohesion" lensOptCohesion
                     "enable the cohesion modalities" "(in particular @flat)"
                     Nothing

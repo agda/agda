@@ -14,7 +14,7 @@ import           System.FilePath                  ( (</>) )
 import qualified System.FilePath.Find             as Find
 
 import           Agda.Interaction.FindFile        (hasAgdaExtension, checkModuleName)
-import           Agda.Interaction.Imports         (TCWorkers, Source, MainInterface(..))
+import           Agda.Interaction.Imports         (TCWorkers, Source, AutomaticallyImported(..), MainInterface(..))
 import qualified Agda.Interaction.Imports         as Imp
 import           Agda.Interaction.Library         (pattern AgdaLibFile, _libIncludes, _libPragmas, getAgdaLibFile)
 import           Agda.Interaction.Options         (optOnlyScopeChecking)
@@ -106,10 +106,11 @@ postCheckModule m src mi = do
 checkModule :: Maybe TCWorkers -> TopLevelModuleName -> Source -> TCM (TCM ())
 checkModule (Just w) m src = bracket_ (useTC stPragmaOptions) (stPragmaOptions `setTCLens`) do
   Imp.setOptionsFromSourcePragmas True src
-  mip <- Imp.chaseModule w m NotMainInterface (Just src)
+  mip <- Imp.chaseModule w m (NotMainInterface ExplicitlyImported)
+           (Just src)
   pure $ mip >>= postCheckModule m src
 
 checkModule Nothing m src = do
-  mi <- Imp.getNonMainModuleInfo m (Just src)
+  mi <- Imp.getNonMainModuleInfo m (Just src) ExplicitlyImported
   postCheckModule m src mi
   pure $ pure ()

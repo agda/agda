@@ -14,6 +14,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Primitive.Base (argE)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -47,9 +48,10 @@ telePiPath = \ reAbs lams tel t (Boundary bs) -> do
             let names = teleArgNames $ unAbs tel
             -- assume a = 𝕀
             l <- getLevel b
+            argL <- argE (Level l)
             return $ El (Type l) $
               pathP `apply`
-                [ argH (Level l)
+                [ argL
                 , argN (Lam defaultArgInfo (unEl <$> b))
                 , argN $ lams names u0
                 , argN $ lams names u1

@@ -6,7 +6,7 @@
 --
 -- Sized types are needed to formulate initial algebras in general:
 --
-{-# OPTIONS --sized-types --no-guardedness #-}
+{-# OPTIONS --sized-types --no-guardedness --erasure #-}
 --
 -- We need to skip the positivity check since we cannot communicate
 -- to Agda that we only want strictly positive F's in the definition of Mu
@@ -20,9 +20,9 @@ module _ where
 infix 1000 ♯_
 
 postulate
-  co : ∀ {a} (A : Set a) → Set a
-  ♯_ : ∀ {a} {A : Set a} → A → co A
-  ♭  : ∀ {a} {A : Set a} → co A → A
+  co : ∀ {@0 a} (A : Set a) → Set a
+  ♯_ : ∀ {@0 a} {A : Set a} → A → co A
+  ♭  : ∀ {@0 a} {A : Set a} → co A → A
 
 {-# BUILTIN INFINITY co #-}
 {-# BUILTIN SHARP    ♯_ #-}

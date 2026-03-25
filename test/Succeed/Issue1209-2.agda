@@ -2,7 +2,7 @@
 
 {-# OPTIONS --guardedness --sized-types #-}
 
-open import Common.Coinduction renaming (∞ to Delay)
+open import Agda.Builtin.Coinduction renaming (∞ to Delay)
 open import Common.Size
 open import Common.Product
 

@@ -85,6 +85,7 @@ defaultPragmaOptions = PragmaOptions
   , _optErasure                    = Default
   , _optErasedMatches              = Default
   , _optEraseRecordParameters      = Default
+  , _optErasedLevelsInPrims        = Default
   , _optRewriting                  = Default
   , _optCubical                    = Nothing
   , _optGuarded                    = Default

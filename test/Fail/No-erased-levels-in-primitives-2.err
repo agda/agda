@@ -1,0 +1,5 @@
+No-erased-levels-in-primitives-2.agda:3.1-35: error: [CoInfectiveImport]
+Importing module Agda.Primitive.Cubical not using the
+--no-erased-levels-in-primitives flag from a module which does.
+when scope checking the declaration
+  open import Agda.Primitive.Cubical
