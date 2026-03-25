@@ -44,7 +44,7 @@ jobs:
     # This is a fork of teatimeguest/setup-texlive-action, which vanished from github.
     # See https://github.com/TeX-Live/setup-texlive-action
     - name: Install dependencies (LaTeX)
-      uses: TeX-Live/setup-texlive-action@v3
+      uses: TeX-Live/setup-texlive-action@v4
       with:
         packages: >-
           scheme-basic
