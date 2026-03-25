@@ -32,6 +32,10 @@ import Agda.Utils.ListT          (ListT)
 import Agda.Utils.Null           (Null(..))
 import Agda.Utils.Update         (ChangeT)
 
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictWriter qualified as Strict
+import Agda.Utils.StrictState  qualified as Strict
+
 import Agda.Utils.Impossible
 
 type File = AbsolutePath
@@ -107,6 +111,9 @@ instance MonadFileId m => MonadFileId (MaybeT m)
 instance MonadFileId m => MonadFileId (ReaderT r m)
 instance MonadFileId m => MonadFileId (StateT s m)
 instance (MonadFileId m, Monoid w) => MonadFileId (WriterT w m)
+instance MonadFileId m => MonadFileId (Strict.ReaderT r m)
+instance MonadFileId m => MonadFileId (Strict.StateT s m)
+instance (MonadFileId m, Monoid w) => MonadFileId (Strict.WriterT w m)
 instance MonadFileId m => MonadFileId (ChangeT m)
 
 -- Instances for GetFileId

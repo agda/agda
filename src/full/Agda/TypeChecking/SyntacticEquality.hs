@@ -1,4 +1,10 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE Strict #-}
+#if  __GLASGOW_HASKELL__ > 902
+{-# OPTIONS_GHC -fworker-wrapper-cbv #-}
+#endif
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wno-redundant-bang-patterns #-}
 
 -- | A syntactic equality check that takes meta instantiations into account,
 --   but does not reduce.  It replaces
@@ -17,21 +23,23 @@ module Agda.TypeChecking.SyntacticEquality
   )
   where
 
-import Control.Monad            ( zipWithM )
-import Control.Monad.State      ( MonadState(..), StateT, runStateT )
+import Control.Monad
 import Control.Monad.Trans      ( lift )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Monad  ( ReduceM, MonadReduce(..), TCEnv(..), MonadTCEnv(..) )
+import Agda.TypeChecking.Monad  (TCM, ReduceM(..), MonadReduce(..), TCEnv(..), MonadTCEnv(..))
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.ExpandCase
 import Agda.Utils.Maybe.Strict  qualified as Strict
 import Agda.Utils.Monad         ( ifM )
 import Agda.Utils.Unsafe        ( unsafeComparePointers )
 import Agda.Utils.Tuple         ( (***) )
+import Agda.Utils.StrictState
+
 
 -- | Syntactic equality check for terms. If syntactic equality
 -- checking has fuel left, then 'checkSyntacticEquality' behaves as if
@@ -58,9 +66,9 @@ import Agda.Utils.Tuple         ( (***) )
       ReduceM a #-}
 {-# SPECIALIZE checkSyntacticEquality ::
       Type -> Type ->
-      (Type -> Type -> ReduceM a) ->
-      (Type -> Type -> ReduceM a) ->
-      ReduceM a #-}
+      (Type -> Type -> TCM a) ->
+      (Type -> Type -> TCM a) ->
+      TCM a #-}
 checkSyntacticEquality
   :: (Instantiate a, SynEq a, MonadReduce m)
   => a
@@ -82,17 +90,6 @@ checkSyntacticEquality u v s f =
         env { envSyntacticEqualityFuel = Strict.Just (pred n) }
 
 -- | Syntactic equality check for terms without checking remaining fuel.
-
-{-# SPECIALIZE checkSyntacticEquality' ::
-      Term -> Term ->
-      (Term -> Term -> ReduceM a) ->
-      (Term -> Term -> ReduceM a) ->
-      ReduceM a #-}
-{-# SPECIALIZE checkSyntacticEquality' ::
-      Type -> Type ->
-      (Type -> Type -> ReduceM a) ->
-      (Type -> Type -> ReduceM a) ->
-      ReduceM a #-}
 checkSyntacticEquality'
   :: (SynEq a, MonadReduce m)
   => a
@@ -120,123 +117,141 @@ type SynEqM = StateT Bool ReduceM
 inequal :: a -> SynEqM a
 inequal a = put False >> return a
 
--- | If inequality is flagged, return, else continue.
-ifEqual :: (a -> SynEqM a) -> (a -> SynEqM a)
-ifEqual cont a = ifM get (cont a) (return a)
-
 -- Since List2 is only Applicative, not a monad, I cannot
 -- define a List2T monad transformer, so we do it manually:
-
-(<$$>) :: Functor f => (a -> b) -> f (a, a) -> f (b, b)
-f <$$> xx = (f *** f) <$> xx
+{-# INLINE (<$$>) #-}
+(<$$>) :: Monad f => (a -> b) -> f (a, a) -> f (b, b)
+f <$$> aa = do
+  (a, a') <- aa
+  let b  = f a
+  let b' = f a'
+  pure (b, b')
 
 pure2 :: Applicative f => a -> f (a, a)
 pure2 a = pure (a, a)
 
-(<**>) :: Applicative f => f (a -> b, a -> b) -> f (a, a) -> f (b, b)
-ff <**> xx = (uncurry (***)) <$> ff <*> xx
+{-# INLINE (<**>) #-}
+(<**>) :: Monad f => f (a -> b, a -> b) -> f (a, a) -> f (b, b)
+ff <**> aa = do
+  (f, f') <- ff
+  (a, a') <- aa
+  let b = f a
+  let b' = f' a'
+  pure (b, b')
 
 -- | Instantiate full as long as things are equal
 class SynEq a where
   synEq  :: a -> a -> SynEqM (a, a)
+
+  {-# INLINE synEq' #-}
   synEq' :: a -> a -> SynEqM (a, a)
-  synEq' a a' = ifEqual (uncurry synEq) (a, a')
+  synEq' a a' = do
+    eq <- get
+    expand \ret -> if eq then ret $ synEq a a'
+                         else ret $ pure (a, a')
 
 instance SynEq Bool where
-  synEq x y | x == y    = return (x, y)
-  synEq x y | otherwise = inequal (x, y)
+  synEq x y = expand \ret -> if x == y then ret $ pure (x, y) else ret $ inequal (x, y)
 
 -- | Syntactic term equality ignores 'DontCare' stuff.
 instance SynEq Term where
-  synEq v v' = if unsafeComparePointers v v' then return (v, v') else do
+  synEq v v' = expand \ret -> if unsafeComparePointers v v' then ret $ pure (v, v') else ret do
     (v, v') <- lift $ instantiate' (v, v')
-    case (v, v') of
-      (Var   i vs, Var   i' vs') | i == i' -> Var i   <$$> synEq vs vs'
-      (Con c i vs, Con c' i' vs') | c == c' -> Con c (bestConInfo i i') <$$> synEq vs vs'
-      (Def   f vs, Def   f' vs') | f == f' -> Def f   <$$> synEq vs vs'
-      (MetaV x vs, MetaV x' vs') | x == x' -> MetaV x <$$> synEq vs vs'
-      (Lit   l   , Lit   l'    ) | l == l' -> pure2 $ v
-      (Lam   h b , Lam   h' b' )           -> Lam <$$> synEq h h' <**> synEq b b'
-      (Level l   , Level l'    )           -> levelTm <$$> synEq l l'
-      (Sort  s   , Sort  s'    )           -> Sort    <$$> synEq s s'
-      (Pi    a b , Pi    a' b' )           -> Pi      <$$> synEq a a' <**> synEq' b b'
-      (DontCare u, DontCare u' )           -> DontCare <$$> synEq u u'
+    expand \ret -> case (v, v') of
+      (Var   i vs, Var   i' vs')  | i == i' -> ret $ Var i   <$$> synEq vs vs'
+      (Con c i vs, Con c' i' vs') | c == c' -> ret $ Con c (bestConInfo i i') <$$> synEq vs vs'
+      (Def   f vs, Def   f' vs')  | f == f' -> ret $ Def f   <$$> synEq vs vs'
+      (MetaV x vs, MetaV x' vs')  | x == x' -> ret $ MetaV x <$$> synEq vs vs'
+      (Lit   l   , Lit   l'    )  | l == l' -> ret $ pure2 $ v
+      (Lam   h b , Lam   h' b' )            -> ret $ Lam <$$> synEq h h' <**> synEq b b'
+      (Level l   , Level l'    )            -> ret $ levelTm <$$> synEq l l'
+      (Sort  s   , Sort  s'    )            -> ret $ Sort    <$$> synEq s s'
+      (Pi    a b , Pi    a' b' )            -> ret $ Pi      <$$> synEq a a' <**> synEq' b b'
+      (DontCare u, DontCare u' )            -> ret $ DontCare <$$> synEq u u'
          -- Irrelevant things are not syntactically equal. ALT:
          -- pure (u, u')
          -- Jesper, 2019-10-21: considering irrelevant things to be
          -- syntactically equal causes implicit arguments to go
          -- unsolved, so it is better to go under the DontCare.
-      (Dummy{}   , Dummy{}     )           -> pure (v, v')
-      _                                    -> inequal (v, v')
+      (Dummy{}   , Dummy{}     )            -> ret $ pure (v, v')
+      _                                     -> ret $ inequal (v, v')
 
 instance SynEq Level where
-  synEq l@(Max n vs) l'@(Max n' vs')
-    | n == n'   = levelMax n <$$> synEq vs vs'
-    | otherwise = inequal (l, l')
+  synEq l l' = expand \ret -> case (l, l') of
+    (l@(Max n vs), l'@(Max n' vs'))
+      | n == n'   -> ret $ levelMax n <$$> synEq vs vs'
+      | otherwise -> ret $ inequal (l, l')
 
 instance SynEq PlusLevel where
-  synEq l@(Plus n v) l'@(Plus n' v')
-    | n == n'   = Plus n <$$> synEq v v'
-    | otherwise = inequal (l, l')
+  synEq l l' = expand \ret -> case (l, l') of
+    (l@(Plus n v), l'@(Plus n' v'))
+      | n == n'   -> ret $ Plus n <$$> synEq v v'
+      | otherwise -> ret $ inequal (l, l')
 
 instance SynEq Sort where
-  synEq s s' = if unsafeComparePointers s s' then return (s, s') else do
+  synEq s s' = expand \ret -> if unsafeComparePointers s s' then ret $ pure (s, s') else ret do
     (s, s') <- lift $ instantiate' (s, s')
-    case (s, s') of
-      (Univ u l, Univ u' l') | u == u' -> Univ u <$$> synEq l l'
-      (PiSort a b c, PiSort a' b' c') -> PiSort <$$> synEq a a' <**> synEq' b b' <**> synEq' c c'
-      (FunSort a b, FunSort a' b') -> FunSort <$$> synEq a a' <**> synEq' b b'
-      (UnivSort a, UnivSort a') -> UnivSort <$$> synEq a a'
-      (SizeUniv, SizeUniv  ) -> pure2 s
-      (LockUniv, LockUniv  ) -> pure2 s
-      (LevelUniv, LevelUniv  ) -> pure2 s
-      (IntervalUniv, IntervalUniv) -> pure2 s
-      (Inf u m , Inf u' n) | u == u', m == n -> pure2 s
-      (MetaS x es , MetaS x' es') | x == x' -> MetaS x <$$> synEq es es'
-      (DefS  d es , DefS  d' es') | d == d' -> DefS d  <$$> synEq es es'
-      (DummyS{}, DummyS{}) -> pure (s, s')
-      _ -> inequal (s, s')
+    expand \ret -> case (s, s') of
+      (Univ u l, Univ u' l') | u == u' -> ret $ Univ u <$$> synEq l l'
+      (PiSort a b c, PiSort a' b' c') -> ret $ PiSort <$$> synEq a a' <**> synEq' b b' <**> synEq' c c'
+      (FunSort a b, FunSort a' b') -> ret $ FunSort <$$> synEq a a' <**> synEq' b b'
+      (UnivSort a, UnivSort a') -> ret $ UnivSort <$$> synEq a a'
+      (SizeUniv, SizeUniv  ) -> ret $ pure2 s
+      (LockUniv, LockUniv  ) -> ret $ pure2 s
+      (LevelUniv, LevelUniv  ) -> ret $ pure2 s
+      (IntervalUniv, IntervalUniv) -> ret $ pure2 s
+      (Inf u m , Inf u' n) | u == u', m == n -> ret $ pure2 s
+      (MetaS x es , MetaS x' es') | x == x' -> ret $ MetaS x <$$> synEq es es'
+      (DefS  d es , DefS  d' es') | d == d' -> ret $ DefS d  <$$> synEq es es'
+      (DummyS{}, DummyS{}) -> ret $ pure (s, s')
+      _ -> ret $ inequal (s, s')
 
 -- | Syntactic equality ignores sorts.
 instance SynEq Type where
-  synEq (El s t) (El s' t') = (El s *** El s') <$> synEq t t'
+  synEq x y = expand \ret -> case (x, y) of
+    (El s t, El s' t') -> ret $ (El s *** El s') <$!> synEq t t'
 
 instance SynEq a => SynEq [a] where
-  synEq as as'
-    | length as == length as' = unzip <$> zipWithM synEq' as as'
-    | otherwise               = inequal (as, as')
+  synEq as as' = expand \ret -> case (as, as') of
+    ([], [])       -> ret $ pure ([], [])
+    (a:as, a':as') -> ret $ (:) <$$> synEq a a' <**> synEq as as'
+    (as, as')      -> ret $ inequal (as, as')
 
 instance (SynEq a, SynEq b) => SynEq (a,b) where
-  synEq (a,b) (a',b') = (,) <$$> synEq a a' <**> synEq b b'
+  synEq x y = expand \ret -> case (x, y) of
+    ((a,b), (a',b')) -> ret $ (,) <$$> synEq a a' <**> synEq b b'
 
 instance SynEq a => SynEq (Elim' a) where
-  synEq e e' =
+  synEq e e' = expand \ret ->
     case (e, e') of
-      (Proj _ f, Proj _ f') | f == f' -> pure2 e
-      (Apply a, Apply a') -> Apply <$$> synEq a a'
+      (Proj _ f, Proj _ f') | f == f' -> ret $ pure2 e
+      (Apply a, Apply a') -> ret $ Apply <$$> synEq a a'
       (IApply u v r, IApply u' v' r')
-                          -> (IApply u v *** IApply u' v') <$> synEq r r'
-      _                   -> inequal (e, e')
+                          -> ret $ (IApply u v *** IApply u' v') <$!> synEq r r'
+      _                   -> ret $ inequal (e, e')
 
 instance (Subst a, SynEq a) => SynEq (Abs a) where
-  synEq a a' =
+  synEq a a' = expand \ret ->
     case (a, a') of
-      (NoAbs x b, NoAbs x' b') -> (NoAbs x *** NoAbs x') <$>  synEq b b'
-      (Abs   x b, Abs   x' b') -> (Abs x *** Abs x') <$> synEq b b'
-      (Abs   x b, NoAbs x' b') -> Abs x  <$$> synEq b (raise 1 b')  -- TODO: mkAbs?
-      (NoAbs x b, Abs   x' b') -> Abs x' <$$> synEq (raise 1 b) b'
+      (NoAbs x b, NoAbs x' b') -> ret $ (NoAbs x *** NoAbs x') <$!>  synEq b b'
+      (Abs   x b, Abs   x' b') -> ret $ (Abs x *** Abs x') <$!> synEq b b'
+      (Abs   x b, NoAbs x' b') -> ret $ Abs x  <$$> synEq b (raise 1 b')  -- TODO: mkAbs?
+      (NoAbs x b, Abs   x' b') -> ret $ Abs x' <$$> synEq (raise 1 b) b'
 
 -- NOTE: Do not ignore 'ArgInfo', or test/fail/UnequalHiding will pass.
 instance SynEq a => SynEq (Arg a) where
-  synEq (Arg ai a) (Arg ai' a') = Arg <$$> synEq ai ai' <**> synEq a a'
+  synEq x y = expand \ret -> case (x, y) of
+    ((Arg ai a), (Arg ai' a')) -> ret $ Arg <$$> synEq ai ai' <**> synEq a a'
 
 -- Ignore the tactic.
 instance SynEq a => SynEq (Dom a) where
-  synEq d@(Dom ai x f t a) d'@(Dom ai' x' f' _ a')
-    | x == x'   = Dom <$$> synEq ai ai' <**> pure2 x <**> synEq f f' <**> pure2 t <**> synEq a a'
-    | otherwise = inequal (d, d')
+  synEq d d' = expand \ret -> case (d, d') of
+    (d@(Dom ai x f t a), d'@(Dom ai' x' f' _ a'))
+      | x == x'   -> ret $ Dom <$$> synEq ai ai' <**> pure2 x <**> synEq f f' <**> pure2 t <**> synEq a a'
+      | otherwise -> ret $ inequal (d, d')
 
 instance SynEq ArgInfo where
-  synEq ai@(ArgInfo h r o _ a) ai'@(ArgInfo h' r' o' _ a')
-    | h == h', sameModality r r', a == a' = pure2 ai
-    | otherwise        = inequal (ai, ai')
+  synEq ai ai' = expand \ret -> case (ai, ai') of
+    (ai@(ArgInfo h r o _ a), ai'@(ArgInfo h' r' o' _ a'))
+      | h == h', sameModality r r', a == a' -> ret $ pure2 ai
+      | otherwise                           -> ret $ inequal (ai, ai')

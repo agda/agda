@@ -235,10 +235,10 @@ unifyIndices' linv tel flex a us vs = Bench.billTo [Bench.UnifyIndices] $ case (
     reportSDoc "tc.lhs.unify" 10 $
       sep [ "unifyIndices"
           , ("tel  =" <+>) $ nest 2 $ prettyTCM tel
-          , ("flex =" <+>) $ nest 2 $ addContext tel $ text $ show $ map flexVar flex
+          , ("flex =" <+>) $ nest 2 $ addContext tel $ text $ show $ map' flexVar flex
           , ("a    =" <+>) $ nest 2 $ addContext tel $ parens (prettyTCM a)
-          , ("us   =" <+>) $ nest 2 $ addContext tel $ prettyList $ map prettyTCM us
-          , ("vs   =" <+>) $ nest 2 $ addContext tel $ prettyList $ map prettyTCM vs
+          , ("us   =" <+>) $ nest 2 $ addContext tel $ prettyList $ map' prettyTCM us
+          , ("vs   =" <+>) $ nest 2 $ addContext tel $ prettyList $ map' prettyTCM vs
           ]
     initialState    <- initUnifyState tel flex a us vs
     reportSDoc "tc.lhs.unify" 20 $ "initial unifyState:" <+> prettyTCM initialState
@@ -278,7 +278,7 @@ rightToLeftStrategy s =
   where n = size $ eqTel s
 
 completeStrategyAt :: Int -> UnifyStrategy
-completeStrategyAt k s = msum $ map (\strat -> strat k s) $
+completeStrategyAt k s = msum $ map' (\strat -> strat k s) $
 -- ASR (2021-02-07). The below eta-expansions are required by GHC >=
 -- 9.0.1 (see Issue #4955).
     [ (\n -> skipIrrelevantStrategy n)
@@ -353,7 +353,7 @@ dataStrategy k s = do
   case unEl a of
     Def d es | sortOk -> do
       npars <- catMaybesMP $ getNumberOfParameters d
-      let (pars,ixs) = splitAt npars $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      let (!pars, !ixs) = splitAt' npars $ mustAllApplyElims es
       reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s `abstract` eqTel s) $
         "Found equation at datatype " <+> prettyTCM d
          <+> " with parameters " <+> prettyTCM (raise (size (eqTel s) - k) pars)
@@ -412,7 +412,7 @@ etaExpandVarStrategy k s = do
       -- forcing translation is unhappy.
       let k  = varCount s - 1 - i -- position of var i in telescope
           b0 = unDom $ getVarTypeUnraised k s
-      b         <- addContext (telFromList $ take k $ telToList $ varTel s) $ reduce b0
+      b         <- addContext (telFromList $ take' k $ telToList $ varTel s) $ reduce b0
       (d, pars) <- catMaybesMP $ isEtaRecordType b
       ps        <- fromMaybeMP $ allProjElims es
       guard =<< orM
@@ -421,7 +421,7 @@ etaExpandVarStrategy k s = do
         , (Right True ==) <$> runBlocked (isSingletonRecord d pars)
         ]
       reportSDoc "tc.lhs.unify" 50 $
-        "with projections " <+> prettyTCM (map snd ps)
+        "with projections " <+> prettyTCM (map' snd ps)
       reportSDoc "tc.lhs.unify" 50 $
         "at record type " <+> prettyTCM d
       return $ EtaExpandVar fi d pars
@@ -458,7 +458,7 @@ etaExpandEquationStrategy k s = do
       DontCare _ -> return False
       Dummy s _  -> __IMPOSSIBLE_VERBOSE__ (show s)
 
-    tel = varTel s `abstract` telFromList (take k $ telToList $ eqTel s)
+    tel = varTel s `abstract` telFromList (take' k $ telToList $ eqTel s)
 
 simplifySizesStrategy :: Int -> UnifyStrategy
 simplifySizesStrategy k s = do
@@ -498,8 +498,8 @@ injectiveTypeConStrategy k s = do
                 PrimitiveSort{} -> __IMPOSSIBLE__
                 GeneralizableVar{} -> __IMPOSSIBLE__
                 Constructor{} -> __IMPOSSIBLE__  -- Never a type!
-      let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-          vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es'
+      let us = mustAllApplyElims es
+          vs = mustAllApplyElims es'
       return $ TypeConInjectivity k d us vs
     _ -> mzero
 
@@ -512,8 +512,8 @@ injectivePragmaStrategy k s = do
       -- d must have an injective pragma
       def <- getConstInfo d
       guard $ defInjective def
-      let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-          vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es'
+      let us = mustAllApplyElims es
+          vs = mustAllApplyElims es'
       return $ TypeConInjectivity k d us vs
     _ -> mzero
 
@@ -554,7 +554,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   withoutK <- withoutKOption
 
   -- Split equation telescope into parts before and after current equation
-  let (eqListTel1, _ : eqListTel2) = splitAt k $ telToList $ eqTel s
+  let (eqListTel1, _ : eqListTel2) = splitAt' k $ telToList $ eqTel s
       (eqTel1, eqTel2) = (telFromList eqListTel1, telFromList eqListTel2)
 
   -- Get constructor telescope and target indices
@@ -565,7 +565,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   TelV ctel ctarget <- addContext (varTel s `abstract` eqTel1) $ telView ctype
   let cixs = case unEl ctarget of
                Def d' es | d == d' ->
-                 let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+                 let args = mustAllApplyElims es
                  in  drop (length pars) args
                _ -> __IMPOSSIBLE__
 
@@ -696,7 +696,7 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
   tellUnifySubst $ rho
   return $ Unifies $ UState
     { varTel   = varTel'
-    , flexVars = projectFlexible ++ liftFlexibles nfields (flexVars s)
+    , flexVars = projectFlexible ++! liftFlexibles nfields (flexVars s)
     , eqTel    = applyPatSubst rho $ eqTel s
     , eqLHS    = applyPatSubst rho $ eqLHS s
     , eqRHS    = applyPatSubst rho $ eqRHS s
@@ -737,7 +737,7 @@ unifyStep s EtaExpandEquation{ expandAt = k, expandRecordType = d, expandParamet
       let (us1,v:us2) = fromMaybe __IMPOSSIBLE__ $ splitExactlyAt k us
       vs <- snd <$> etaExpandRecord d pars (unArg v)
       vs <- reduce vs
-      return $ us1 ++ vs ++ us2
+      return $! us1 ++! vs ++! us2
 
 unifyStep s LitConflict
   { litType          = a
@@ -770,14 +770,14 @@ unifyStep s (SkipIrrelevantEquation k) = do
 unifyStep s (TypeConInjectivity k d us vs) = do
   dtype <- defType <$> getConstInfo d
   TelV dtel _ <- telView dtype
-  let deq = Def d $ map Apply $ teleArgs dtel
+  let deq = Def d $ map' Apply $ teleArgs dtel
   -- TODO: tellUnifyProof ???
   -- but d is not a constructor...
   Unifies <$> do
    lensEqTel reduce $ s
     { eqTel = dtel `abstract` applyUnder k (eqTel s) (raise k deq)
-    , eqLHS = us ++ dropAt k (eqLHS s)
-    , eqRHS = vs ++ dropAt k (eqRHS s)
+    , eqLHS = us ++! dropAt k (eqLHS s)
+    , eqRHS = vs ++! dropAt k (eqRHS s)
     }
 
 data RetryNormalised = RetryNormalised | DontRetryNormalised
@@ -823,7 +823,7 @@ solutionStep retry s
         where
           upd i a | Just md' <- IntMap.lookup i vars = setModality (composeModality md md') a
                   | otherwise                        = a
-  s <- return $ s { varTel = updModality (getModality fi) bound (varTel s) }
+  s <- return $! s { varTel = updModality (getModality fi) bound (varTel s) }
 
   reportSDoc "tc.lhs.unify.force" 45 $ vcat
     [ "forcedVars =" <+> pretty (IntMap.keys forcedVars)
@@ -857,9 +857,9 @@ solutionStep retry s
       mod    = applyUnless (shapeIrrelevant `moreRelevant` eqrel) (setRelevance eqrel)
              $ applyUnless (usableQuantity envmod) (setQuantity zeroQuantity)
              $ varmod
-  reportSDoc "tc.lhs.unify" 65 $ text $ "Equation modality: " ++ show (getModality dom)
-  reportSDoc "tc.lhs.unify" 65 $ text $ "Variable modality: " ++ show varmod
-  reportSDoc "tc.lhs.unify" 65 $ text $ "Solution must be usable in a " ++ show mod ++ " position."
+  reportSDoc "tc.lhs.unify" 65 $ text $ "Equation modality: " ++! show (getModality dom)
+  reportSDoc "tc.lhs.unify" 65 $ text $ "Variable modality: " ++! show varmod
+  reportSDoc "tc.lhs.unify" 65 $ text $ "Solution must be usable in a " ++! show mod ++! " position."
   -- Andreas, 2018-10-18
   -- Currently, the modality check has problems with meta-variables created in the type signature,
   -- and thus, in quantity 0, that get into terms using the unifier, and there are checked to be
@@ -886,7 +886,7 @@ solutionStep retry s
           s <- lensVarTel normalise s
           solutionStep DontRetryNormalised s step{ solutionTerm = u }
         Nothing ->
-          return $ UnifyStuck [UnifyRecursiveEq (varTel s) a i u]
+          return $! UnifyStuck [UnifyRecursiveEq (varTel s) a i u]
         Just (s', sub, perm) -> do
           let rho = sub `composeS` dotSub
           tellUnifySubst rho
@@ -896,7 +896,7 @@ solutionStep retry s
           return $ Unifies s''
           -- Andreas, 2019-02-23, issue #3578: do not eagerly reduce
           -- Unifies <$> liftTCM (reduce s'')
-    Right True -> return $ UnifyStuck [UnifyUnusableModality (varTel s) a i u mod]
+    Right True -> return $! UnifyStuck [UnifyUnusableModality (varTel s) a i u mod]
 solutionStep _ _ _ = __IMPOSSIBLE__
 
 unify :: UnifyState -> UnifyStrategy -> UnifyLogT TCM (UnificationResult' UnifyState)
@@ -940,7 +940,7 @@ unify s strategy = do
         UnifyStuck err1 -> do
           y <- fallback
           case y of
-            UnifyStuck err2 -> return $ UnifyStuck $ err1 ++ err2
+            UnifyStuck err2 -> return $! UnifyStuck $! err1 ++! err2
             _               -> return y
 
     failure :: Monad m => m (UnificationResult' a)
@@ -961,39 +961,39 @@ patternBindingForcedVars forced v = do
           -- The new binding site must be more relevant (more relevant = smaller).
           -- "The forcing analysis guarantees that there exists such a position."
           -- Really? Andreas, 2021-08-18, issue #5506
-          tell   $ IntMap.singleton i md
-          modify $ IntMap.delete i
-          return $ varP (deBruijnVar i)
-        _ -> return $ dotP (Var i [])
+          tell   $! IntMap.singleton i md
+          modify $! IntMap.delete i
+          return $! varP (deBruijnVar i)
+        _ -> return $! dotP (Var i [])
 
-    go md v = ifM (noForced v) (return $ dotP v) $ do
+    go md v = ifM (noForced v) (return $! dotP v) $ do
       v' <- lift $ lift $ reduce v
       case v' of
         Var i [] -> bind md i  -- we know i is forced
         Con c ci es
           | Just vs <- allApplyElims es -> do
             fs <- defForced <$> getConstInfo (conName c)
-            let goArg Forced    v = return $ fmap (unnamed . dotP) v
+            let goArg Forced    v = return $! fmap (unnamed . dotP) v
                 goArg NotForced v = fmap unnamed <$> traverse (go $ composeModality md $ getModality v) v
-            (ps, bound) <- listen $ zipWithM goArg (fs ++ repeat NotForced) vs
+            (ps, bound) <- listen $ zipWithM goArg (fs ++! repeat NotForced) vs
             if IntMap.null bound
-              then return $ dotP v  -- bound nothing
+              then return $! dotP v  -- bound nothing
               else do
                 let cpi = (toConPatternInfo ci) { conPLazy   = True } -- Not setting conPType. Is this a problem?
-                return $ ConP c cpi $ map (setOrigin Inserted) ps
-          | otherwise -> return $ dotP v   -- Higher constructor (es has IApply)
+                return $! ConP c cpi $! map' (setOrigin Inserted) ps
+          | otherwise -> return $! dotP v   -- Higher constructor (es has IApply)
 
         -- Non-pattern positions
-        Var _ (_:_) -> return $ dotP v
-        Lam{}       -> return $ dotP v
-        Pi{}        -> return $ dotP v
-        Def{}       -> return $ dotP v
-        MetaV{}     -> return $ dotP v
-        Sort{}      -> return $ dotP v
-        Level{}     -> return $ dotP v
-        DontCare{}  -> return $ dotP v
-        Dummy{}     -> return $ dotP v
-        Lit{}       -> return $ dotP v
+        Var _ (_:_) -> return $! dotP v
+        Lam{}       -> return $! dotP v
+        Pi{}        -> return $! dotP v
+        Def{}       -> return $! dotP v
+        MetaV{}     -> return $! dotP v
+        Sort{}      -> return $! dotP v
+        Level{}     -> return $! dotP v
+        DontCare{}  -> return $! dotP v
+        Dummy{}     -> return $! dotP v
+        Lit{}       -> return $! dotP v
           -- Andreas, 2023-08-20, issue #6767
           -- The last case is not __IMPOSSIBLE__ (regresssion in 2.6.2).
           -- It would be if we had reduced to `constructorForm`,

@@ -229,6 +229,10 @@ instance (Arbitrary a) => Arbitrary (Range' a) where
 instance CoArbitrary RangeFile
 instance CoArbitrary a => CoArbitrary (Position' a)
 instance CoArbitrary a => CoArbitrary (Interval' a)
+
+instance CoArbitrary IntervalWithoutFile' where
+  coarbitrary = coarbitrary . unpackIWF
+
 instance CoArbitrary a => CoArbitrary (Range' a)
 
 prop_positionInvariant :: Position' Integer -> Bool

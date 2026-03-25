@@ -38,22 +38,22 @@ data WithArity c = WithArity { arity :: Int, content :: c }
 -- | Branches in a case tree.
 
 data Case c = Branches
-  { projPatterns   :: Bool
+  { projPatterns   :: !Bool
     -- ^ We are constructing a record here (copatterns).
     --   'conBranches' lists projections.
-  , conBranches    :: Map QName (WithArity c)
+  , conBranches    :: !(Map QName (WithArity c))
     -- ^ Map from constructor (or projection) names to their arity
     --   and the case subtree.  (Projections have arity 0.)
-  , etaBranch      :: Maybe (ConHead, WithArity c)
+  , etaBranch      :: !(Maybe (ConHead, WithArity c))
     -- ^ Eta-expand with the given (eta record) constructor. If this is
     --   present, there should not be any conBranches or litBranches.
-  , litBranches    :: Map Literal c
+  , litBranches    :: !(Map Literal c)
     -- ^ Map from literal to case subtree.
-  , catchallBranch :: Maybe c
+  , catchallBranch :: !(Maybe c)
     -- ^ (Possibly additional) catch-all clause.
-  , fallThrough :: Maybe Bool
+  , fallThrough :: !(Maybe Bool)
     -- ^ (if True) In case of non-canonical argument use catchallBranch.
-  , lazyMatch :: Bool
+  , lazyMatch :: !Bool
     -- ^ Lazy pattern match. Requires single (non-copattern) branch with no lit
     --   branches and no catch-all.
   }
@@ -64,13 +64,13 @@ type CompiledClauses = CompiledClauses' Term
 -- | Case tree with bodies.
 
 data CompiledClauses' a
-  = Case (Arg Int) (Case (CompiledClauses' a))
+  = Case !(Arg Int) !(Case (CompiledClauses' a))
     -- ^ @Case n bs@ stands for a match on the @n@-th argument
     -- (counting from zero) with @bs@ as the case branches.
     -- If the @n@-th argument is a projection, we have only 'conBranches'
     -- with arity 0.
-  | Done_ (CCDone a)
-  | Fail [Arg ArgName]
+  | Done_ !(CCDone a)
+  | Fail ![Arg ArgName]
     -- ^ Absurd case. Add the free variables here as well so we can build correct
     --   number of lambdas for strict backends. (#4280)
   deriving (Functor, Traversable, Foldable, Show, Generic)
@@ -85,9 +85,9 @@ data CompiledClauses' a
 --   The @no@ is the number of the original 'Clause' this case tree leaf comes from.
 --   @mr@ tells whether this body contains calls to the mutually recursive functions.
 data CCDone a = CCDone
-  { ccClauseNumber    :: ClauseNumber
-  , ccClauseRecursive :: ClauseRecursive
-  , ccBoundVars       :: [Arg ArgName]
+  { ccClauseNumber    :: !ClauseNumber
+  , ccClauseRecursive :: !ClauseRecursive
+  , ccBoundVars       :: ![Arg ArgName]
   , ccBody            :: a
   }
   deriving (Functor, Traversable, Foldable, Show, Generic)

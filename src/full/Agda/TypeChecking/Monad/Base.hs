@@ -153,6 +153,9 @@ import Agda.Utils.Update
 import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.VarSet qualified as VarSet
 import Agda.Utils.Atomic
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictWriter qualified as Strict
+import Agda.Utils.StrictState  qualified as Strict
 
 import Agda.Utils.Impossible
 
@@ -212,6 +215,9 @@ instance ReadTCState m => ReadTCState (MaybeT m)
 instance ReadTCState m => ReadTCState (ReaderT r m)
 instance ReadTCState m => ReadTCState (StateT s m)
 instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m)
+instance ReadTCState m => ReadTCState (Strict.ReaderT r m)
+instance ReadTCState m => ReadTCState (Strict.StateT s m)
+instance (Monoid w, ReadTCState m) => ReadTCState (Strict.WriterT w m)
 
 instance Show TCState where
   show _ = "TCSt{}"
@@ -2528,7 +2534,11 @@ data Definition = Defn
     --   in the type.
   , defLanguage       :: !Language
     -- ^ The language used for the definition.
-  , theDef            :: Defn
+  , defMightContainMetas :: !Bool
+    -- ^ If this is 'False', the definition doesn't contain metavariables. If 'True', the definition
+    -- may or may not contain metavariables. This field is updated by 'TypeChecking.DeadCode', and
+    -- it's used to avoid unnecessary 'instantiateFull' on the definition before serialization.
+  , theDef               :: Defn
   }
     deriving (Show, Generic)
 
@@ -2555,24 +2565,25 @@ lensTheDef f d = f (theDef d) <&> \ df -> d { theDef = df }
 defaultDefn ::
   ArgInfo -> QName -> Type -> Language -> Defn -> Definition
 defaultDefn info x t lang def = Defn
-  { defArgInfo        = info
-  , defName           = x
-  , defType           = t
-  , defPolarity       = []
-  , defArgOccurrences = []
+  { defArgInfo           = info
+  , defName              = x
+  , defType              = t
+  , defPolarity          = []
+  , defArgOccurrences    = []
   , defGeneralizedParams = []
-  , defDisplay        = defaultDisplayForm x
-  , defMutual         = 0
-  , defCompiledRep    = noCompiledRep
-  , defInstance       = Nothing
-  , defCopy           = False
-  , defMatchable      = Set.empty
-  , defNoCompilation  = False
-  , defInjective      = False
-  , defCopatternLHS   = False
-  , defBlocked        = NotBlocked ReallyNotBlocked ()
-  , defLanguage       = lang
-  , theDef            = def
+  , defDisplay           = defaultDisplayForm x
+  , defMutual            = 0
+  , defCompiledRep       = noCompiledRep
+  , defInstance          = Nothing
+  , defCopy              = False
+  , defMatchable         = Set.empty
+  , defNoCompilation     = False
+  , defInjective         = False
+  , defCopatternLHS      = False
+  , defBlocked           = NotBlocked ReallyNotBlocked ()
+  , defLanguage          = lang
+  , defMightContainMetas = True
+  , theDef               = def
   }
 
 instance Pretty Polarity where
@@ -5839,10 +5850,10 @@ enableCaching = optCaching <$> pragmaOptions
 
 -- | Environment of the reduce monad.
 data ReduceEnv = ReduceEnv
-  { redEnv  :: TCEnv    -- ^ Read only access to environment.
-  , redSt   :: TCState  -- ^ Read only access to state (signature, metas...).
-  , redSess :: SessionState -- ^ Read only access to the *session* state (module - source maps, etc)
-  , redPred :: Maybe (MetaId -> ReduceM Bool)
+  { redEnv  :: !TCEnv    -- ^ Read only access to environment.
+  , redSt   :: !TCState  -- ^ Read only access to state (signature, metas...).
+  , redSess :: !SessionState -- ^ Read only access to the *session* state (module - source maps, etc)
+  , redPred :: !(Maybe (MetaId -> ReduceM Bool))
     -- ^ An optional predicate that is used by 'instantiate'' and
     -- 'instantiateFull'': meta-variables are only instantiated if
     -- they satisfy this predicate.
@@ -5870,18 +5881,24 @@ reduceSt :: Lens' ReduceEnv TCState
 reduceSt f s = f (redSt s) <&> \ e -> s { redSt = e }
 {-# INLINE reduceSt #-}
 
-newtype ReduceM a = ReduceM { unReduceM :: ReduceEnv -> a }
---  deriving (Functor, Applicative, Monad)
+newtype ReduceM a = ReduceM# { unReduceM :: ReduceEnv -> a }
 
+pattern ReduceM :: (ReduceEnv -> a) -> ReduceM a
+pattern ReduceM f <- ReduceM# f where
+  ReduceM f = ReduceM# (oneShot \ !e -> f e)
+{-# INLINE ReduceM #-}
+{-# COMPLETE ReduceM #-}
+
+{-# INLINE unKleisli #-}
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
-unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
+unKleisli f = ReduceM \env x -> unReduceM (f x) env
 
 onReduceEnv :: (ReduceEnv -> ReduceEnv) -> ReduceM a -> ReduceM a
-onReduceEnv f (ReduceM m) = ReduceM (m . f)
+onReduceEnv f (ReduceM m) = ReduceM \e -> m $! f e
 {-# INLINE onReduceEnv #-}
 
 fmapReduce :: (a -> b) -> ReduceM a -> ReduceM b
-fmapReduce f (ReduceM m) = ReduceM $ \ e -> f $! m e
+fmapReduce f (ReduceM m) = ReduceM \e -> f $! m e
 {-# INLINE fmapReduce #-}
 
 -- Andreas, 2021-05-12, issue #5379:
@@ -5889,7 +5906,7 @@ fmapReduce f (ReduceM m) = ReduceM $ \ e -> f $! m e
 -- from left to right, for the sake of printing
 -- debug messages in order.
 apReduce :: ReduceM (a -> b) -> ReduceM a -> ReduceM b
-apReduce (ReduceM f) (ReduceM x) = ReduceM $ \ e ->
+apReduce (ReduceM f) (ReduceM x) = ReduceM \e ->
   let g = f e
       a = x e
   in  g `pseq` a `pseq` g a
@@ -5901,7 +5918,7 @@ apReduce (ReduceM f) (ReduceM x) = ReduceM $ \ e ->
 -- unsafePerformIO, we need to force results that later
 -- computations do not depend on, otherwise we lose debug messages.
 thenReduce :: ReduceM a -> ReduceM b -> ReduceM b
-thenReduce (ReduceM x) (ReduceM y) = ReduceM $ \ e -> x e `pseq` y e
+thenReduce (ReduceM x) (ReduceM y) = ReduceM \e -> x e `pseq` y e
 {-# INLINE thenReduce #-}
 
 
@@ -5955,6 +5972,13 @@ instance ReadTCState ReduceM where
   getSessionState = ReduceM redSess
 
   locallyTCState l f = onReduceEnv $ mapRedSt $ over l f
+
+instance ExpandCase a => ExpandCase (ReduceM a) where
+  type Result (ReduceM a) = Result a
+  {-# INLINE expand #-}
+  expand k =
+    ReduceM (oneShot \ ~r ->
+     expand @a (oneShot \deflateA -> let r' = r in k (oneShot \act -> deflateA (unReduceM act r'))))
 
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = TCM $ \ r e -> do
@@ -6021,6 +6045,9 @@ instance MonadReduce m => MonadReduce (MaybeT m)
 instance MonadReduce m => MonadReduce (ReaderT r m)
 instance MonadReduce m => MonadReduce (StateT w m)
 instance (Monoid w, MonadReduce m) => MonadReduce (WriterT w m)
+instance MonadReduce m => MonadReduce (Strict.ReaderT r m)
+instance MonadReduce m => MonadReduce (Strict.StateT w m)
+instance (Monoid w, MonadReduce m) => MonadReduce (Strict.WriterT w m)
 instance MonadReduce m => MonadReduce (BlockT m)
 
 ---------------------------------------------------------------------------
@@ -6048,6 +6075,9 @@ instance MonadTCEnv m => MonadTCEnv (MaybeT m)
 instance MonadTCEnv m => MonadTCEnv (ReaderT r m)
 instance MonadTCEnv m => MonadTCEnv (StateT s m)
 instance (Monoid w, MonadTCEnv m) => MonadTCEnv (WriterT w m)
+instance MonadTCEnv m => MonadTCEnv (Strict.ReaderT r m)
+instance MonadTCEnv m => MonadTCEnv (Strict.StateT s m)
+instance (Monoid w, MonadTCEnv m) => MonadTCEnv (Strict.WriterT w m)
 
 instance MonadTCEnv m => MonadTCEnv (ListT m) where
   localTC = mapListT . localTC
@@ -6090,9 +6120,13 @@ instance MonadTCState m => MonadTCState (ListT m)
 instance MonadTCState m => MonadTCState (ExceptT err m)
 instance MonadTCState m => MonadTCState (ReaderT r m)
 instance MonadTCState m => MonadTCState (StateT s m)
+instance (Monoid w, MonadTCState m) => MonadTCState (WriterT w m)
 instance MonadTCState m => MonadTCState (ChangeT m)
 instance MonadTCState m => MonadTCState (IdentityT m)
-instance (Monoid w, MonadTCState m) => MonadTCState (WriterT w m)
+instance MonadTCState m => MonadTCState (Strict.ReaderT r m)
+instance MonadTCState m => MonadTCState (Strict.StateT s m)
+instance (Monoid w, MonadTCState m) => MonadTCState (Strict.WriterT w m)
+
 
 {-# INLINE getsTC #-}
 -- ** @TCState@ accessors (no lenses)
@@ -6503,6 +6537,9 @@ instance MonadTCM tcm => MonadTCM (MaybeT tcm)
 instance MonadTCM tcm => MonadTCM (ReaderT r tcm)
 instance MonadTCM tcm => MonadTCM (StateT s tcm)
 instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm)
+instance MonadTCM tcm => MonadTCM (Strict.ReaderT r tcm)
+instance MonadTCM tcm => MonadTCM (Strict.StateT s tcm)
+instance (Monoid w, MonadTCM tcm) => MonadTCM (Strict.WriterT w tcm)
 
 -- | We store benchmark statistics in an IORef.
 --   This enables benchmarking pure computation, see
@@ -6715,8 +6752,8 @@ instance KillRange InstanceInfo where
   killRange (InstanceInfo a b) = killRangeN InstanceInfo a b
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs gpars displ mut compiled inst copy ma nc inj copat blk lang def) =
-    killRangeN Defn ai name t pols occs gpars displ mut compiled inst copy ma nc inj copat blk lang def
+  killRange (Defn ai name t pols occs gpars displ mut compiled inst copy ma nc inj copat blk lang hasmetas def) =
+    killRangeN Defn ai name t pols occs gpars displ mut compiled inst copy ma nc inj copat blk lang hasmetas def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NumGeneralizableArgs where

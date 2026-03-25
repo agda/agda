@@ -19,6 +19,7 @@ module Agda.Utils.StrictState (
 
 import Control.Monad.Reader (MonadReader(..))
 import Control.Monad.State (MonadState(..))
+import Control.Monad.Except (MonadError(..))
 import Control.Monad.Trans (MonadTrans(..))
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Monad.Trans.Control (MonadTransControl(..))
@@ -160,6 +161,12 @@ instance MonadReader r m => MonadReader r (StateT s m) where
   ask = lift ask
   {-# INLINE local #-}
   local = \f (StateT ma) -> StateT (oneShot \s -> local f (ma s))
+
+instance MonadError e m => MonadError e (StateT s m) where
+  {-# INLINE throwError #-}
+  throwError = lift . throwError
+  {-# INLINE catchError #-}
+  catchError m h = StateT (oneShot \s -> runStateT# m s `catchError` \e -> runStateT# (h e) s)
 
 {-# INLINE execStateT #-}
 execStateT :: Monad m => StateT s m a -> s -> m s

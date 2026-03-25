@@ -278,6 +278,7 @@ common language
     ghc-options:
       -fexpose-all-unfoldings
       -fspecialise-aggressively
+      -fstg-lift-lams
 
   if flag(use-xdg-data-home)
     cpp-options:
@@ -912,6 +913,7 @@ library
       Agda.Utils.Map1
       Agda.Utils.Maybe
       Agda.Utils.Maybe.Strict
+      Agda.Utils.Maybe.Unboxable
       Agda.Utils.Memo
       Agda.Utils.MinimalArray.Lifted
       Agda.Utils.MinimalArray.MutableLifted
@@ -997,7 +999,7 @@ executable agda
   if !arch(wasm32)
     ghc-options:
       -threaded
-      "-with-rtsopts=-I0 -N1"
+      "-with-rtsopts=-I0 -N1 -qb0"
   else
     ghc-options: -with-rtsopts=-I0
 

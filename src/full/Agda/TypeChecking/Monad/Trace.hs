@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# LANGUAGE MagicHash #-}
 
 module Agda.TypeChecking.Monad.Trace where
 
@@ -31,6 +32,10 @@ import Agda.TypeChecking.Warnings (warning)
 import Agda.Utils.Function
 import Agda.Utils.Monad
 import Agda.Utils.Null
+
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictWriter qualified as Strict
+import Agda.Utils.StrictState  qualified as Strict
 
 ---------------------------------------------------------------------------
 -- * Trace
@@ -134,6 +139,15 @@ instance MonadTrace m => MonadTrace (StateT s m) where
 
 instance (MonadTrace m, Monoid w) => MonadTrace (WriterT w m) where
   traceClosureCall c f = WriterT $ traceClosureCall c $ runWriterT f
+
+instance MonadTrace m => MonadTrace (Strict.ReaderT r m) where
+  traceClosureCall c f = Strict.ReaderT $ \r -> traceClosureCall c $ Strict.runReaderT f r
+
+instance MonadTrace m => MonadTrace (Strict.StateT s m) where
+  traceClosureCall c f = Strict.StateT (traceClosureCall c . Strict.runStateT# f)
+
+instance (MonadTrace m, Monoid w) => MonadTrace (Strict.WriterT w m) where
+  traceClosureCall c (Strict.WriterT f) = Strict.WriterT $ traceClosureCall c f
 
 instance MonadTrace m => MonadTrace (ExceptT e m) where
   traceClosureCall c f = ExceptT $ traceClosureCall c $ runExceptT f

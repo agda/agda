@@ -10,6 +10,7 @@ module Agda.Syntax.Scope.Operator
 
 import Prelude hiding ( (||) )
 
+import Control.Monad
 import Data.Bifunctor
 import Data.Either (partitionEithers)
 import Data.Foldable
@@ -43,11 +44,11 @@ import Agda.Utils.Impossible
 
 -- | Looking up all name parts of a QName.
 namePartScopeLookup :: QName -> ScopeInfo -> [Map Name (List1 AbstractName)]
-namePartScopeLookup q scope = inAllScopes ++ imports
+namePartScopeLookup q scope = inAllScopes ++! imports
   where
     -- 1. Finding a name in the current scope and its parents.
     inAllScopes :: [Map Name (List1 AbstractName)]
-    inAllScopes = concatMap (findName q) allScopes
+    inAllScopes = concatMap' (findName q) allScopes
 
     -- 2. Finding a name in the imports belonging to an initial part of the qualifier.
     imports :: [Map Name (List1 AbstractName)]
@@ -56,8 +57,7 @@ namePartScopeLookup q scope = inAllScopes ++ imports
           -- splitName X.Y.Z = [(X, Y.Z), (X.Y, Z)]
           splitName :: QName -> [(QName, QName)]
           splitName (QName x)  = []
-          splitName (Qual x q) =
-            (QName x, q) : [ (Qual x m, r) | (m, r) <- splitName q ]
+          splitName (Qual x q) = ((QName x, q):) $! map' (\(m, r) -> (Qual x m, r)) (splitName q)
 
       (m, x) <- splitName q
       s <- allScopes
@@ -68,7 +68,7 @@ namePartScopeLookup q scope = inAllScopes ++ imports
     moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
 
     allScopes :: [Scope]
-    allScopes = current : map moduleScope (scopeParents current) where
+    allScopes = (current :) $! map' moduleScope (scopeParents current) where
       current = moduleScope $ scope ^. scopeCurrent
 
     findName :: QName -> Scope -> [Map Name (List1 AbstractName)]
@@ -78,8 +78,8 @@ namePartScopeLookup q scope = inAllScopes ++ imports
         (_, ns) <- scopeNameSpaces s
         maybeToList $ Map.lookup n (nsNameParts ns)
       Qual x q -> do
-        m <- amodName . fst <$> findNameInScope x s
-        let ss = restrictPrivate <$> (Map.lookup m $ scope ^. scopeModules)
+        m <- amodName . fst <$!> findNameInScope x s
+        let ss = restrictPrivate <$!> (Map.lookup m $ scope ^. scopeModules)
         s' <- maybeToList ss
         findName q s'
 
@@ -153,7 +153,7 @@ getOperatorScope names scope = let
 
   in if null namePartLookups && not hasLocalOp
     then OpScope False (Map.fromListWith (flip List1.union) fullNameLookups) locals
-    else OpScope True  (Map.fromListWith (flip List1.union) (fullNameLookups ++ namePartLookups)) locals
+    else OpScope True  (Map.fromListWith (flip List1.union) (fullNameLookups ++! namePartLookups)) locals
 
 
 -- | Compute all defined names in scope and their fixities/notations.
@@ -161,7 +161,7 @@ getOperatorScope names scope = let
 -- fixities/notations. Then we 'mergeNotations'. (See issue 1194.)
 getDefinedNames' :: (AbstractName -> Bool) -> OperatorScope -> [List1 NewNotation]
 getDefinedNames' f (OpScope _ names _) =
-  [ mergeNotations $ fmap (namesToNotation x . A.qnameName . anameName) ds
+  [ mergeNotations $ List1.map' (namesToNotation x . A.qnameName . anameName) ds
   | (x, ds) <- Map.toList names
   , any f ds
   ]
@@ -210,12 +210,11 @@ localNames k top opScope@(OpScope _ _ locals) = do
     , "defs     = " ++ prettyShow defs
     , "locals   = " ++ prettyShow locals
     ]
-  let localNots  = map localOp locals
-      notLocal   = not . hasElem (map notaName localNots) . notaName
-      otherNots  = concatMap (List1.filter notLocal) defs
-  return $ second (map useDefaultFixity) $ split $ localNots ++ otherNots
+  let localNots  = map' localOp locals
+      notLocal   = not . hasElem (map' notaName localNots) . notaName
+      otherNots  = concatMap' (List1.filter' notLocal) defs
+  return $! second (map' useDefaultFixity) $ split $ localNots ++! otherNots
   where
     localOp (x, y) = namesToNotation (QName x) y
-    split          = partitionEithers . concatMap opOrNot
-    opOrNot n      = Left (notaName n) :
-                     [Right n | not (null (notation n))]
+    split          = partitionEithers' . concatMap' opOrNot
+    opOrNot n      = (Left (notaName n) :) $! [Right n | not (null (notation n))]
