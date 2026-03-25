@@ -24,8 +24,6 @@ import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
-import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Null

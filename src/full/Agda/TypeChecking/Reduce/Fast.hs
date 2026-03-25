@@ -127,7 +127,7 @@ compactDef :: BuiltinEnv -> Definition -> RewriteRules -> ReduceM CompactDef
 compactDef bEnv def rewr = do
 
   shouldReduce <- shouldReduceDef (defName def)
-  allowed <- asksTC envAllowedReductions
+  allowed <- viewTC eAllowedReductions
 
   let isConOrProj = case theDef def of
         Constructor{} -> True
@@ -899,7 +899,7 @@ reduceTm rEnv bEnv !constInfo normalisation = compileAndRun . traceDoc "-- fast 
                                     HMap.lookup m remoteMetas
     partialDefs    = runReduce getPartialDefs
     rewriteRules f = cdefRewriteRules (constInfo f)
-    callByNeed     = envCallByNeed (redEnv rEnv) && not (optCallByName $ redSt rEnv ^. stPragmaOptions)
+    callByNeed     = (redEnv rEnv ^. eCallByNeed) && not (optCallByName $ redSt rEnv ^. stPragmaOptions)
     iview          = runReduce intervalView'
 
     runReduce :: ReduceM a -> a
@@ -1337,7 +1337,7 @@ reduceTm rEnv bEnv !constInfo normalisation = compileAndRun . traceDoc "-- fast 
 
         -- Matching complete. Compute the environment for the body and switch to the Eval state.
         FDone (CCDone _ mr xs body) -> do
-          let allowedReductions = envAllowedReductions (redEnv rEnv)
+          let allowedReductions = redEnv rEnv ^. eAllowedReductions
           let undo = stuckMatch (NotBlocked ReallyNotBlocked ()) stack ctrl
           let abort =
                   couldBeRecursive mr

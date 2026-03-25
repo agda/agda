@@ -20,7 +20,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Function
-import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
@@ -58,7 +57,7 @@ checkQuantity' x def = do
         ]
       return Nothing -- Abundant definitions can be used in any context.
     dq -> do
-      q <- viewTC eQuantity
+      q <- viewTC eQuantityZeroHardCompile
       reportSDoc "tc.irr" 50 $ vcat
         [ "declaration quantity =" <+> text (show dq)
         , "context     quantity =" <+> text (show q)

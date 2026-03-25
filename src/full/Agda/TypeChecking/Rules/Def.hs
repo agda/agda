@@ -1278,7 +1278,7 @@ checkWhere wh@(A.WhereDecls whmod whNamed mds) ret = do
         -- If we are in erased context, mark the module as erased.
         e <- case e of
           NotErased oo -> do
-            asksTC envQuantity >>= \case
+            viewTC eQuantity >>= \case
               Quantity0 o -> do
                 unless (oo == QωInferred) $
                   setCurrentRange oo $ warning $ PlentyInHardCompileTimeMode oo
@@ -1293,9 +1293,8 @@ checkWhere wh@(A.WhereDecls whmod whNamed mds) ret = do
         withCurrentModule m ret
       _ -> __IMPOSSIBLE__
   where
-    whereEnv e = e
-      { envCheckingWhere       = if whNamed then C.SomeWhere_ else C.AnyWhere_
-      }
+    whereEnv = set' eCheckingWhere (if whNamed then C.SomeWhere_ else C.AnyWhere_)
+
     -- #2897: We can't handle named where-modules in refined contexts.
     ensureNoNamedWhereInRefinedContext Nothing = return ()
     ensureNoNamedWhereInRefinedContext (Just m) = traceCall (CheckNamedWhere m) $ do
@@ -1342,4 +1341,4 @@ newSection e m gtel@(A.GeneralizeTel _ tel) cont = do
 atClause :: QName -> Int -> Type -> Maybe Substitution -> A.SpineClause -> TCM a -> TCM a
 atClause name i t sub cl ret = do
   clo <- buildClosure ()
-  localTC (\ e -> e { envClause = IPClause name i t sub cl clo }) ret
+  localTC (set eClause (IPClause name i t sub cl clo)) ret

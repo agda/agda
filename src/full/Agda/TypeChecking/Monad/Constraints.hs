@@ -15,6 +15,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Debug
 
+import Agda.Utils.List
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Tuple ((&&&))
@@ -24,8 +25,8 @@ solvingProblem pid = solvingProblems (Set.singleton pid)
 
 solvingProblems :: MonadConstraint m => Set ProblemId -> m a -> m a
 solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on problems " ++ show (Set.toList pids)) $ do
-  x <- localTC (\e -> e { metaEnv = (metaEnv e){ envActiveProblems = pids `Set.union` envActiveProblems (metaEnv e) }}) m
-  Fold.forM_ pids $ \ pid -> do
+  x <- localTC (over eActiveProblems (pids `Set.union`)) m
+  Fold.forM_ pids \pid -> do
     ifNotM (isProblemSolved pid)
         (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
       $ {- else -} do
@@ -41,7 +42,7 @@ isProblemCompletelySolved = isProblemSolved' True
 
 isProblemSolved' :: (MonadTCEnv m, ReadTCState m) => Bool -> ProblemId -> m Bool
 isProblemSolved' completely pid =
-  and2M (not . Set.member pid <$> asksTC (envActiveProblems . metaEnv))
+  and2M (not . Set.member pid <$> viewTC eActiveProblems)
         (not . any belongsToUs <$> getAllConstraints)
   where
     belongsToUs c
@@ -72,13 +73,13 @@ takeConstraints f = do
   (takeAsleep, keepAsleep) <- List.partition f <$> useTC stSleepingConstraints
   modifyAwakeConstraints    $ const keepAwake
   modifySleepingConstraints $ const keepAsleep
-  return $ takeAwake ++ takeAsleep
+  return $! takeAwake ++! takeAsleep
 
 putConstraintsToSleep :: MonadConstraint m => (ProblemConstraint -> Bool) -> m ()
 putConstraintsToSleep sleepy = do
   awakeOnes <- useR stAwakeConstraints
   let (gotoSleep, stayAwake) = List.partition sleepy awakeOnes
-  modifySleepingConstraints $ (++ gotoSleep)
+  modifySleepingConstraints $ (++! gotoSleep)
   modifyAwakeConstraints    $ const stayAwake
 
 putAllConstraintsToSleep :: MonadConstraint m => m ()
@@ -97,8 +98,8 @@ holdConstraints p m = do
   stAwakeConstraints    `setTCLens` stillAwake
   stSleepingConstraints `setTCLens` stillAsleep
   let restore = do
-        stAwakeConstraints    `modifyTCLens` (holdAwake ++)
-        stSleepingConstraints `modifyTCLens` (holdAsleep ++)
+        stAwakeConstraints    `modifyTCLens` (holdAwake ++!)
+        stSleepingConstraints `modifyTCLens` (holdAsleep ++!)
   catchError (m <* restore) (\ err -> restore *> throwError err)
 
 takeAwakeConstraint :: MonadConstraint m => m (Maybe ProblemConstraint)
@@ -112,7 +113,7 @@ takeAwakeConstraint' p = do
   case break p cs of
     (_, [])       -> return Nothing
     (cs0, c : cs) -> do
-      modifyAwakeConstraints $ const (cs0 ++ cs)
+      modifyAwakeConstraints $ const (cs0 ++! cs)
       return $ Just c
 
 getAllConstraints :: ReadTCState m => m Constraints
@@ -123,10 +124,11 @@ getAllConstraints = do
 withConstraint :: MonadConstraint m => (Constraint -> m a) -> ProblemConstraint -> m a
 withConstraint f (PConstr pids _ c) = do
   -- We should preserve the problem stack and the isSolvingConstraint flag
-  (pids', isSolving) <- asksTC $ (envActiveProblems &&& envSolvingConstraints) . metaEnv
-  enterClosure c $ \c ->
-    localTC (\e -> e {metaEnv = (metaEnv e){ envActiveProblems = pids', envSolvingConstraints = isSolving }}) $
-    solvingProblems pids (f c)
+  pids'     <- viewTC eActiveProblems
+  isSolving <- viewTC eSolvingConstraints
+  enterClosure c \c ->
+    localTC (set eActiveProblems pids' . set eSolvingConstraints isSolving) $
+      solvingProblems pids (f c)
 
 buildProblemConstraint
   :: (MonadTCEnv m, ReadTCState m)
@@ -140,7 +142,7 @@ buildProblemConstraint_ = buildProblemConstraint Set.empty
 
 buildConstraint :: Blocker -> Constraint -> TCM ProblemConstraint
 buildConstraint unblock c = do
-  pids <- asksTC (envActiveProblems . metaEnv)
+  pids <- viewTC eActiveProblems
   buildProblemConstraint pids unblock c
 
 -- | Monad service class containing methods for adding and solving
@@ -225,14 +227,14 @@ isBlockingConstraint = \case
 
 -- | Start solving constraints
 nowSolvingConstraints :: MonadTCEnv m => m a -> m a
-nowSolvingConstraints = localTC $ \e -> e { metaEnv = (metaEnv e){envSolvingConstraints = True }}
+nowSolvingConstraints = localTC (set eSolvingConstraints True)
 
 isSolvingConstraints :: MonadTCEnv m => m Bool
-isSolvingConstraints = asksTC (envSolvingConstraints . metaEnv)
+isSolvingConstraints = viewTC eSolvingConstraints
 
 -- | Add constraint if the action raises a pattern violation
 catchConstraint :: MonadConstraint m => Constraint -> m () -> m ()
-catchConstraint c = catchPatternErr $ \ unblock -> addConstraint unblock c
+catchConstraint c = catchPatternErr \unblock -> addConstraint unblock c
 
 isInstanceConstraint :: Constraint -> Bool
 isInstanceConstraint FindInstance{} = True

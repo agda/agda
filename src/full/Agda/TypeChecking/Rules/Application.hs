@@ -444,7 +444,7 @@ checkHeadApplication cmp e t hd args = do
   defaultResult' :: Maybe (ArgRanges -> Args -> Type -> TCM Args) -> TCM Term
   defaultResult' mk = do
     (f, t0) <- inferHead hd
-    expandLast <- asksTC envExpandLast
+    expandLast <- viewTC eExpandLast
     checkArguments cmp expandLast hd args t0 t $ \ st@(ACState cas _fun t1 checkedTarget) -> do
       let check :: Maybe (TCM Args)
           check = do
@@ -1043,7 +1043,7 @@ checkConstructorApplication cmp org t c hd args = do
            -- drop the parameter arguments
                args' = dropArgs pnames args
            -- check the non-parameter arguments
-           expandLast <- asksTC envExpandLast
+           expandLast <- viewTC eExpandLast
            checkArguments cmp expandLast hd args' ctype' t \ st@(ACState _ _ t' targetCheck) -> do
              reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
                [ text "es     =" <+> prettyTCM es

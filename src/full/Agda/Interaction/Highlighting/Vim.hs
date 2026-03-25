@@ -22,7 +22,6 @@ import Agda.TypeChecking.Monad
 import Agda.Utils.IO.UTF8 qualified as UTF8
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import Agda.Utils.List1 qualified as List1
-import Agda.Utils.Tuple
 
 vimFile :: FilePath -> FilePath
 vimFile file =

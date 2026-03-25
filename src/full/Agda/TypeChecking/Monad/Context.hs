@@ -37,7 +37,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List ((!!!), downFrom)
+import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -59,7 +59,7 @@ import Agda.Utils.Impossible
 --   the checkpoints. Use @updateContext@ instead.
 {-# INLINE unsafeModifyContext #-}
 unsafeModifyContext :: MonadTCEnv tcm => (Context -> Context) -> tcm a -> tcm a
-unsafeModifyContext f = localTC $ \e -> e {tcContext = (tcContext e) {envContext = f $ envContext (tcContext e) }}
+unsafeModifyContext f = localTC (over eContext f)
 
 {-# INLINE modifyContextInfo #-}
 -- | Modify the 'Dom' part of context entries.
@@ -127,11 +127,9 @@ checkpoint sub k = do
       , "old substs =" <+> prCps cps
       , "new substs =" <?> prCps cps'
       ]
-  x <- flip localTC k $ \ env -> env {tcContext = (tcContext env)
-    { envCurrentCheckpoint = chkpt
-    , envCheckpoints       = Map.insert chkpt IdS $
-                              fmap (applySubst sub) (envCheckpoints (tcContext env))
-    }}
+  x <- localTC (  set eCurrentCheckpoint chkpt
+                . over eCheckpoints (Map.insert chkpt IdS . fmap (applySubst sub)))
+               k
   unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
     newChkpts <- useTC stModuleCheckpoints
     reportS "tc.cxt.checkpoint" 105 $ nest 2 $
@@ -343,7 +341,7 @@ withShadowingNameTCM x f = do
         Just shadows -> do
           reportS "tc.cxt.shadowing" 80 $
             "names shadowing" <+> pretty x <+> ": " <+>
-            prettyList_ (map pretty $ toList shadows)
+            prettyList_ (map' pretty $ toList shadows)
           modifyTCLens stShadowingNames $ Map.insertWith (<>) x shadows
         Nothing      -> return ()
 
@@ -502,9 +500,9 @@ extendReduceEnv x !a !env =
                           cn = C.Name noRange InScope (C.stringNameParts x')
                       in Name nid cn cn noRange noFixity' False
       !re           = redEnv env
-      !ec           = envContext $ tcContext re
+      !ec           = re ^. eContext
       !ec'          = CxExtendVar n a ec
-      !re'          = re {tcContext = (tcContext re){envContext = ec'}}
+      !re'          = re & eContext .~ ec'
   in env {redEnv = re', redSt = tcs'}
 
 {-# INLINE underAbsReduceM #-}
@@ -561,7 +559,7 @@ mapAbstraction_ = mapAbstraction __DUMMY_DOM__
 {-# SPECIALIZE getLetBindings :: TCM [(Name, LetBinding)] #-}
 getLetBindings :: MonadTCEnv tcm => tcm [(Name, LetBinding)]
 getLetBindings = do
-  bs <- asksTC (envLetBindings . modalEnv)
+  bs <- viewTC eLetBindings
   forM (Map.toList bs) $ \ (n, o) -> (,) n <$> getOpen o
 
 -- | Add a let bound variable.
@@ -571,8 +569,7 @@ defaultAddLetBinding' :: (ReadTCState m, MonadTCEnv m)
   -> Origin -> Name -> Term -> Dom Type -> m a -> m a
 defaultAddLetBinding' isAxiom o x v t ret = do
     vt <- makeOpen $ LetBinding isAxiom o v t
-    flip localTC ret $ \e -> e {
-      modalEnv =  (modalEnv e){envLetBindings = Map.insert x vt $ envLetBindings (modalEnv e) }}
+    localTC (over eLetBindings (Map.insert x vt)) ret
 
 -- | Add a let bound variable.
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
@@ -587,23 +584,21 @@ addLetAxiom info o x v t0 ret = addLetBinding' YesAxiom o x v (defaultArgDom inf
 {-# SPECIALIZE removeLetBinding :: Name -> TCM a -> TCM a #-}
 -- | Remove a let bound variable.
 removeLetBinding :: MonadTCEnv m => Name -> m a -> m a
-removeLetBinding x =
-  localTC $ \ e -> e {modalEnv = (modalEnv e){ envLetBindings = Map.delete x (envLetBindings (modalEnv e))}}
+removeLetBinding x = localTC (over eLetBindings (Map.delete x))
 
 {-# SPECIALIZE removeLetBindingsFrom :: Name -> TCM a -> TCM a #-}
 -- | Remove a let bound variable and all let bindings introduced after it. For instance before
 --   printing its body to avoid folding the binding itself, or using bindings defined later.
 --   Relies on the invariant that names introduced later are sorted after earlier names.
 removeLetBindingsFrom :: MonadTCEnv m => Name -> m a -> m a
-removeLetBindingsFrom x =
-  localTC $ \ e -> e {modalEnv = (modalEnv e){ envLetBindings = fst $ Map.split x (envLetBindings (modalEnv e))}}
+removeLetBindingsFrom x = localTC (over eLetBindings (fst . Map.split x))
 
 -- * Querying the context
 
 -- | Get the current context.
 {-# SPECIALIZE getContext :: TCM Context #-}
 getContext :: MonadTCEnv m => m Context
-getContext = asksTC (envContext . tcContext)
+getContext = viewTC eContext
 
 -- | Get the size of the current context.
 {-# SPECIALIZE getContextSize :: TCM Nat #-}
@@ -632,15 +627,15 @@ getContextArgs :: (MonadTCEnv m) => m Args
 getContextArgs = contextArgs <$> getContext
 
 contextArgs :: Context -> Args
-contextArgs = map (\(i,x) -> var i <$ argFromDom x) . contextVars
+contextArgs = map' (\(i,x) -> var i <$ argFromDom x) . contextVars
 
 -- | Generate @[var (n - 1), ..., var 0]@ for all declarations in the context.
 {-# SPECIALIZE getContextTerms :: TCM [Term] #-}
 getContextTerms :: (MonadTCEnv m) => m [Term]
-getContextTerms = map unArg <$> getContextArgs
+getContextTerms = map' unArg <$> getContextArgs
 
 contextTerms :: Context -> [Term]
-contextTerms = map unArg . contextArgs
+contextTerms = map' unArg . contextArgs
 
 -- | Get the current context as a 'Telescope'.
 {-# SPECIALIZE getContextTelescope :: TCM Telescope #-}
@@ -663,10 +658,10 @@ getContextNames' :: (MonadTCEnv m) => m [Name]
 getContextNames' = contextNames' <$> getContext
 
 contextNames :: Context -> [Name]
-contextNames = map (unDom . snd) . contextVars
+contextNames = map' (unDom . snd) . contextVars
 
 contextNames' :: Context -> [Name]
-contextNames' = map (unDom . snd) . contextVars'
+contextNames' = map' (unDom . snd) . contextVars'
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
@@ -684,7 +679,7 @@ lookupBV n = do
         ctx <- getContext
         __IMPOSSIBLE_VERBOSE__ $ unwords
           [ "de Bruijn index out of scope:", show n
-          , "in context", prettyShow $ map ctxEntryName $ cxEntries ctx
+          , "in context", prettyShow $ map' ctxEntryName $ cxEntries ctx
           ]
   caseMaybeM (lookupBV' n) failure return
 
@@ -720,7 +715,7 @@ nameOfBV n = ctxEntryName <$> lookupBV n
 getVarInfo :: (MonadDebug m, MonadFail m, MonadTCEnv m) => Name -> m (Term, Dom Type)
 getVarInfo x =
     do  ctx <- getContextVars'
-        def <- asksTC (envLetBindings . modalEnv)
+        def <- viewTC eLetBindings
         case List.findIndex ((== x) . unDom . snd) ctx of
             Just n -> do
                 t <- domOfBV n

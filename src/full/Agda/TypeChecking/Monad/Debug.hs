@@ -121,7 +121,7 @@ defaultGetProfileOptions :: HasOptions m => m ProfileOptions
 defaultGetProfileOptions = optProfiling <$> pragmaOptions
 
 defaultIsDebugPrinting :: MonadTCEnv m => m Bool
-defaultIsDebugPrinting = asksTC (envIsDebugPrinting . coldEnv)
+defaultIsDebugPrinting = viewTC eIsDebugPrinting
 
 defaultNowDebugPrinting :: MonadTCEnv m => m a -> m a
 defaultNowDebugPrinting = locallyTC eIsDebugPrinting $ const True

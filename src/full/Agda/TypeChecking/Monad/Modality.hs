@@ -29,7 +29,6 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Env
 
 import Agda.Utils.Function
-import Agda.Utils.Lens
 import Agda.Utils.Monad
 
 -- | data 'Relevance'
@@ -60,7 +59,7 @@ workOnTypes' experimental
   . applyQuantityToJudgement zeroQuantity
   . applyPolarityToContext (withStandardLock UnusedPolarity)
   . typeLevelReductions
-  . localTC (\ e -> e {modalEnv = (modalEnv e){ envWorkingOnTypes = True }})
+  . localTC (set eWorkingOnTypes True)
 
 applyPolarityToContext :: (MonadTCEnv tcm, LensModalPolarity p) => p -> tcm a -> tcm a
 applyPolarityToContext p = localTC
@@ -119,7 +118,7 @@ applyRelevanceToContextFunBody thing cont =
 applyQuantityToJudgement ::
   (MonadTCEnv tcm, LensQuantity q) => q -> tcm a -> tcm a
 applyQuantityToJudgement =
-  localTC . over eQuantity . composeQuantity . getQuantity
+  localTC . over eQuantityZeroHardCompile . composeQuantity . getQuantity
 
 -- | Apply inverse composition with the given cohesion to the typing context.
 applyCohesionToContext :: (MonadTCEnv tcm, LensCohesion m) => m -> tcm a -> tcm a
@@ -179,8 +178,8 @@ applyModalityToContextOnly m = localTC
 -- Precondition: The relevance component must not be 'Relevant'.
 applyModalityToJudgementOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
 applyModalityToJudgementOnly m =
-  localTC $ over eRelevance (composeRelevance (getRelevance m)) .
-            over eQuantity  (composeQuantity  (getQuantity m))
+  localTC $ over eRelevance                (composeRelevance (getRelevance m)) .
+            over eQuantityZeroHardCompile  (composeQuantity  (getQuantity m))
 
 -- | Like 'applyModalityToContext', but only act on context (for Relevance) if
 --   @--irrelevant-projections@.

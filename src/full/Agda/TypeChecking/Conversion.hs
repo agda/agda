@@ -571,7 +571,7 @@ compareAtom cmp t m n =
     whenProfile Profile.Conversion $ tick "compare by reduction"
     -- Are we currently defining mutual functions? Which?
     currentMutuals <-
-      maybe (pure Set.empty) (mutualNames <.> lookupMutualBlock) =<< asksTC (envMutualBlock . coldEnv)
+      maybe (pure Set.empty) (mutualNames <.> lookupMutualBlock) =<< viewTC eMutualBlock
 
     -- Andreas: what happens if I cut out the eta expansion here?
     -- Answer: Triggers issue 245, does not resolve 348
@@ -2168,7 +2168,7 @@ forallFaceMaps t kb k = do
         sub <- getModuleParameterSub m
         reportSDoc "conv.forall" 30 $ vcat
           [ text (replicate 10 '-')
-          , prettyTCM (envCurrentModule $ coldEnv $ clEnv cl)
+          , prettyTCM (view eCurrentModule $ clEnv cl)
           -- , prettyTCM (envLetBindings $ clEnv cl)
           , prettyTCM tel -- (toTelescope $ envContext $ clEnv cl)
           , prettyTCM sigma

@@ -67,7 +67,6 @@ import Agda.Termination.TermCheck
 
 import Agda.Utils.Function ( applyUnless, applyWhen )
 import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
@@ -181,7 +180,7 @@ checkDecl d = setCurrentRange d $ do
                                     -- envMutualBlock is set correctly.
                                     -- Apparently not.
                                     verboseS "tc.decl.mutual" 70 $ do
-                                      current <- asksTC envMutualBlock
+                                      current <- viewTC eMutualBlock
                                       unless (Just blockId == current) $ do
                                         reportS "" 0
                                           [ "mutual block id discrepancy for " ++! prettyShow x
@@ -216,7 +215,7 @@ checkDecl d = setCurrentRange d $ do
         reportSDoc "tc.unquote.data" 20 $ "Checking unquoteDecl data" <+> prettyTCM x
         Nothing <$ unquoteTop (x:cs) e
 
-    whenNothingM (asksTC envMutualBlock) $ do
+    whenNothingM (viewTC eMutualBlock) $ do
 
       -- Syntax highlighting.
       highlight_ DontHightlightModuleContents d
@@ -231,7 +230,7 @@ checkDecl d = setCurrentRange d $ do
         locallyTCState stInstanceHack (const True) $
           wakeupConstraints_   -- solve emptiness and instance constraints
 
-        checkingWhere <- asksTC envCheckingWhere
+        checkingWhere <- viewTC eCheckingWhere
         solveSizeConstraints $ if checkingWhere /= NoWhere_ then DontDefaultToInfty else DefaultToInfty
         wakeupConstraints_   -- Size solver might have unblocked some constraints
 
@@ -267,7 +266,7 @@ checkDecl d = setCurrentRange d $ do
       let
         k1 = localTC (set lensIsAbstract (anyIsAbstract abs))
       k2 <- case jointOpacity abs of
-        UniqueOpaque i     -> pure $ localTC $ \env -> env { envCurrentOpaqueId = Just i }
+        UniqueOpaque i     -> pure $ localTC (set eCurrentOpaqueId (Just i))
         NoOpaque           -> pure id
         DifferentOpaque hs -> __IMPOSSIBLE__
       k1 (k2 cont)
@@ -286,7 +285,7 @@ mutualChecks mi d mid names = do
     checkPositivity_ mi names
   -- Andreas, 2013-02-27: check termination before injectivity,
   -- to avoid making the injectivity checker loop.
-  localTC (\ e -> e { envMutualBlock = Just mid }) $
+  localTC (set eMutualBlock (Just mid)) $
     checkTermination_ d
   revisitRecordPatternTranslation nameList -- Andreas, 2016-11-19 issue #2308
 
@@ -513,7 +512,7 @@ checkInjectivity_ names = Bench.billTo [Bench.Injectivity] $ do
               d { funInv = inv }
 
       _ -> do
-        abstr <- asksTC envAbstractMode
+        abstr <- viewTC eAbstractMode
         reportSLn "tc.inj.check" 40 $
           "we are in " ++! show abstr ++! " and " ++
              prettyShow q ++! " is abstract or not a function, thus, not considered for injectivity"
@@ -739,7 +738,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   traceCall (IsType_ e) $ do -- need Range for error message
     -- Andreas, 2016-06-21, issue #2054
     -- Do not default size metas to ∞ in local type signatures
-    checkingWhere <- asksTC envCheckingWhere
+    checkingWhere <- viewTC eCheckingWhere
     solveSizeConstraints $ if checkingWhere /= NoWhere_ then DontDefaultToInfty else DefaultToInfty
 
 -- | Type check a primitive function declaration.

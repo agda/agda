@@ -34,7 +34,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
   ( absBody, apply, sort, applyE )
 
-import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 

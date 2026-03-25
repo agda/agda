@@ -57,7 +57,7 @@ instance MonadConstraint TCM where
 
 addConstraintTCM :: Blocker -> Constraint -> TCM ()
 addConstraintTCM unblock c = do
-      pids <- asksTC $ envActiveProblems . metaEnv
+      pids <- viewTC eActiveProblems
       reportSDoc "tc.constr.add" 20 $ hsep
         [ "adding constraint"
         , prettyTCM . PConstr pids unblock =<< buildClosure c
@@ -123,13 +123,13 @@ wakeConstraintsTCM wake = do
 -- | Add all constraints belonging to the given problem to the current problem(s).
 stealConstraintsTCM :: ProblemId -> TCM ()
 stealConstraintsTCM pid = do
-  current <- asksTC $ envActiveProblems . metaEnv
+  current <- viewTC eActiveProblems
   reportSLn "tc.constr.steal" 50 $ "problem " ++ show (Set.toList current) ++ " is stealing problem " ++ show pid ++ "'s constraints!"
   -- Add current to any constraint in pid.
   let rename pc@(PConstr pids u c) | Set.member pid pids = PConstr (Set.union current pids) u c
                                    | otherwise           = pc
   -- We should never steal from an active problem.
-  whenM (Set.member pid <$> asksTC (envActiveProblems . metaEnv)) __IMPOSSIBLE__
+  whenM (Set.member pid <$> viewTC eActiveProblems) __IMPOSSIBLE__
   modifyAwakeConstraints    $ List.map rename
   modifySleepingConstraints $ List.map rename
 
@@ -257,7 +257,7 @@ solveConstraintTCM :: Constraint -> TCM ()
 solveConstraintTCM c = do
     whenProfile Profile.Constraints $ liftTCM $ tick "attempted-constraints"
     verboseBracket "tc.constr.solve" 20 "solving constraint" $ do
-      pids <- asksTC $ envActiveProblems . metaEnv
+      pids <- viewTC eActiveProblems
       reportSDoc "tc.constr.solve.constr" 20 $ text (show $ Set.toList pids) <+> prettyTCM c
       solveConstraint_ c
 
@@ -271,7 +271,7 @@ solveConstraint_ (IsEmpty r t)              = ensureEmptyType r t
 solveConstraint_ (CheckSizeLtSat t)         = checkSizeLtSat t
 solveConstraint_ (UnquoteTactic tac hole goal) = unquoteTactic tac hole goal
 solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these have their own unblocking logic (for now)
-  ifM (isFrozen m `or2M` (not <$> asksTC (envAssignMetas . metaEnv))) (do
+  ifM (isFrozen m `or2M` (not <$> viewTC eAssignMetas)) (do
         reportSDoc "tc.constr.unblock" 15 $ hsep ["not unblocking", prettyTCM m, "because",
                                                   ifM (isFrozen m) "it's frozen" "meta assignments are turned off"]
         addConstraint alwaysUnblock $ UnBlock m) $ do

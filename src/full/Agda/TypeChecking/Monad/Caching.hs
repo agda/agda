@@ -27,7 +27,6 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 
 import qualified Agda.Utils.BiMap as BiMap
-import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Null (empty)
 

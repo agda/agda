@@ -191,7 +191,7 @@ applyToMetas skip term typ = do
 
 localVarCount :: SM Int
 localVarCount = do
-  top <- asks $ length . envContext . searchTopEnv
+  top <- asks $ length . view eContext . searchTopEnv
   cur <- length <$> getContext
   pure $ cur - top
 
@@ -377,7 +377,7 @@ qnameToComponent cost qname = do
 -- | Turn the let bindings of the current 'TCEnv' into components.
 getLetVars :: forall tcm. (MonadFresh CompId tcm, MonadTCM tcm) => Cost -> tcm [Open Component]
 getLetVars cost = do
-  bindings <- asksTC envLetBindings
+  bindings <- viewTC eLetBindings
   mapM makeComp $ Map.toAscList bindings
   where
     makeComp :: (Name, Open LetBinding) -> tcm (Open Component)

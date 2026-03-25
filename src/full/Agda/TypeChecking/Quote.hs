@@ -23,7 +23,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Impossible
-import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Size
 import Agda.Utils.Maybe.Strict qualified as Strict

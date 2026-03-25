@@ -15,17 +15,17 @@ import Agda.TypeChecking.Monad.State
 import Agda.Utils.Null
 
 noMutualBlock :: TCM a -> TCM a
-noMutualBlock = localTC $ \e -> e { coldEnv = (coldEnv e){ envMutualBlock = Nothing }}
+noMutualBlock = localTC (set eMutualBlock Nothing)
 
 -- | Pass the current mutual block id
 --   or create a new mutual block if we are not already inside on.
 inMutualBlock :: (MutualId -> TCM a) -> TCM a
 inMutualBlock m = do
-  mi <- asksTC (envMutualBlock . coldEnv)
+  mi <- viewTC eMutualBlock
   case mi of
     Nothing -> do
       i <- fresh
-      localTC (\ e -> e {coldEnv = (coldEnv e){ envMutualBlock = Just i} }) $ m i
+      localTC (set eMutualBlock (Just i)) $ m i
     -- Don't create a new mutual block if we're already inside one.
     Just i -> m i
 
@@ -53,7 +53,7 @@ setMutualBlock m@(MutualId i) x = do
 -- | Get the current mutual block, if any, otherwise a fresh mutual
 -- block is returned.
 currentOrFreshMutualBlock :: TCM MutualId
-currentOrFreshMutualBlock = maybe fresh return =<< asksTC (envMutualBlock . coldEnv)
+currentOrFreshMutualBlock = maybe fresh return =<< viewTC eMutualBlock
 
 lookupMutualBlock :: ReadTCState tcm => MutualId -> tcm MutualBlock
 lookupMutualBlock (MutualId i) =

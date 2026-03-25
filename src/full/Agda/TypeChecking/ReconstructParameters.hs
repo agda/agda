@@ -25,7 +25,6 @@ import Agda.TypeChecking.Datatypes
 
 import Agda.Utils.Either
 import Agda.Utils.Function (applyWhen)
-import Agda.Utils.Lens
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible

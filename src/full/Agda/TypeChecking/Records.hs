@@ -457,7 +457,7 @@ isEtaRecord r = do
   isRecord r >>= \case
     Just r | isEtaRecordDef r -> do
      constructorQ <- getQuantity <$> getConstInfo (conName (_recConHead r))
-     currentQ     <- viewTC eQuantity
+     currentQ     <- viewTC eQuantityZeroHardCompile
      return $ constructorQ `moreQuantity` currentQ
     _ -> return False
 

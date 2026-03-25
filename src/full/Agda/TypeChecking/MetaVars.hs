@@ -52,7 +52,6 @@ import Agda.TypeChecking.MetaVars.Occurs
 
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Function
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -145,7 +144,7 @@ assignTermTCM' x tel v = do
       , nest 2 $ "tel =" <+> prettyList_ (map' (text . unArg) tel)
       ]
      -- verify (new) invariants
-    whenM (not <$> asksTC (envAssignMetas . metaEnv)) __IMPOSSIBLE__
+    whenM (not <$> viewTC eAssignMetas) __IMPOSSIBLE__
 
     whenProfile Profile.Metas $ liftTCM $ return () {-tickMax "max-open-metas" . (fromIntegral . size) =<< getOpenMetas-}
     updateMetaVarTCM x $ \ mv ->
@@ -430,9 +429,10 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
   Just x -> do
     -- Get the context Γ in which the meta was created.
     MetaVar
-      { mvInfo = MetaInfo{ miClosRange = Closure{ clEnv = TCEnv{ tcContext = TCContext {envContext = gamma }}}}
+      { mvInfo = MetaInfo{ miClosRange = Closure{ clEnv = view eContext -> gamma }}
       , mvPermutation = p
       } <- fromMaybe __IMPOSSIBLE__ <$> lookupLocalMeta' x
+
     -- Get the current context Δ.
     delta <- getContext
     -- A bit hazardous:
@@ -678,7 +678,7 @@ problemType (DisambiguateConstructor (ConstructorDisambiguationData _ _ _ t) _) 
 --   Don't do anything if the meta-variable is a blocked term.
 etaExpandMetaTCM :: [MetaClass] -> MetaId -> TCM ()
 etaExpandMetaTCM kinds m =
- whenM ((not <$> isFrozen m) `and2M` asksTC (envAssignMetas . metaEnv) `and2M` isEtaExpandable kinds m) $ do
+ whenM ((not <$> isFrozen m) `and2M` viewTC eAssignMetas `and2M` isEtaExpandable kinds m) $ do
   verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++! prettyShow m) $ do
     let waitFor b = do
           reportSDoc "tc.meta.eta" 20 $ do
@@ -780,7 +780,7 @@ etaExpandBlocked (Blocked b t)  = do
 assignWrapper :: (MonadMetaSolver m)
               => CompareDirection -> MetaId -> Elims -> Term -> m () -> m ()
 assignWrapper dir x es v doAssign = do
-  ifNotM (asksTC $ envAssignMetas . metaEnv) dontAssign $ {- else -} do
+  ifNotM (viewTC eAssignMetas) dontAssign $ {- else -} do
     reportSDoc "tc.meta.assign" 10 $ do
       "term" <+> prettyTCM (MetaV x es) <+> text (":" ++! prettyShow dir) <+> prettyTCM v
     nowSolvingConstraints doAssign `finally` solveAwakeConstraints
@@ -1905,7 +1905,7 @@ tryAddBoundary dir x iid args v target = do
 --
 openMetasToPostulates :: TCM ()
 openMetasToPostulates = do
-  m <- asksTC $ envCurrentModule . coldEnv
+  m <- viewTC eCurrentModule
 
   -- Go through all open metas.
   ms <- MapS.assocs <$> useTC stOpenMetaStore

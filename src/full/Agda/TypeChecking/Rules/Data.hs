@@ -1729,7 +1729,7 @@ fitsIn dataOrRecord con uc forceds conT s = do
   -- noConstraints $ s' `leqSort` s
 
   whenM withoutKOption $ do
-    q <- viewTC eQuantity
+    q <- viewTC eQuantityZeroHardCompile
     -- Don't want to check polarities for the constructor's type,
     -- only for its argument telescope!
     applyPolarityToContext (withStandardLock UnusedPolarity) $

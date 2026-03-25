@@ -762,11 +762,11 @@ constraintsHighlighting ms cs =
   -- get ranges of interesting unsolved constraints
   rs = (`mapMaybe` (map theConstraint cs)) $ \case
     Closure{ clValue = IsEmpty r t           } -> Just r
-    Closure{ clEnv = e, clValue = ValueCmp{} } -> Just $ getRange (envRange $ coldEnv e)
-    Closure{ clEnv = e, clValue = ElimCmp{}  } -> Just $ getRange (envRange $ coldEnv e)
-    Closure{ clEnv = e, clValue = SortCmp{}  } -> Just $ getRange (envRange $ coldEnv e)
-    Closure{ clEnv = e, clValue = LevelCmp{} } -> Just $ getRange (envRange $ coldEnv e)
-    Closure{ clEnv = e, clValue = CheckSizeLtSat{} } -> Just $ getRange (envRange $ coldEnv e)
+    Closure{ clEnv = e, clValue = ValueCmp{} } -> Just $! getRange (view eRange e)
+    Closure{ clEnv = e, clValue = ElimCmp{}  } -> Just $! getRange (view eRange e)
+    Closure{ clEnv = e, clValue = SortCmp{}  } -> Just $! getRange (view eRange e)
+    Closure{ clEnv = e, clValue = LevelCmp{} } -> Just $! getRange (view eRange e)
+    Closure{ clEnv = e, clValue = CheckSizeLtSat{} } -> Just $! getRange (view eRange e)
     _ -> Nothing
 
 

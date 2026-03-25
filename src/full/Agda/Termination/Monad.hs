@@ -46,7 +46,6 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Benchmark as B
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List    ( hasElem )
 import Agda.Utils.ListInf ( ListInf )
 import Agda.Utils.ListInf qualified as ListInf

@@ -58,7 +58,6 @@ import qualified Agda.Benchmarking as Benchmark
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 
 import Agda.Utils.List
-import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
@@ -149,7 +148,7 @@ initialInstanceCandidates blockOverlap instTy = do
             nest 2 $ vcat (map' debugCandidate fields)
 
       -- get let bindings
-      env <- asksTC $ envLetBindings . modalEnv
+      env <- viewTC eLetBindings
       env <- mapM (traverse getOpen) $ Map.toList env
       let lets = [ Candidate LocalCandidate v t DefaultOverlap
                  | (_, LetBinding _isAxiom _origin v Dom{domInfo = info, unDom = t}) <- env
@@ -213,7 +212,7 @@ initialInstanceCandidates blockOverlap instTy = do
         recursive = useTC stConsideringInstance
         hack      = useTC stInstanceHack
         enabled   = useTC (stPragmaOptions . lensOptExperimentalLazyInstances . lensCollapseDefault)
-        mutual    = caseMaybeM (asksTC $ envMutualBlock . coldEnv) (pure mempty) \ mb ->
+        mutual    = caseMaybeM (viewTC eMutualBlock) (pure mempty) \ mb ->
           mutualNames <$> lookupMutualBlock mb
 
       andM

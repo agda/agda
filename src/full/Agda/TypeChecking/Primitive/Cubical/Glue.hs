@@ -36,7 +36,6 @@ import Agda.TypeChecking.Primitive.Base
   , SigmaKit(..), getSigmaKit
   )
 
-import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 

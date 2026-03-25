@@ -32,7 +32,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Constraints () -- instance MonadConstrai
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Conversion.Errors
 
-import Agda.Utils.Functor
 import Agda.Utils.List as List
 import Agda.Utils.List1 (pattern (:|))
 import Agda.Utils.ListInf (ListInf, pattern (:<))
@@ -395,7 +394,7 @@ compareSizeViews cmp s1' s2' = do
 --   Failing is required if we speculatively test several alternatives.
 giveUp :: (MonadConversion m) => Comparison -> Type -> Term -> Term -> m ()
 giveUp cmp size u v =
-  ifM (asksTC (envAssignMetas . metaEnv))
+  ifM (viewTC eAssignMetas)
     {-then-} (do
       -- TODO: compute proper blocker
       unblock <- unblockOnAnyMetaIn <$> instantiateFull [u, v]
@@ -543,7 +542,7 @@ oldComputeSizeConstraints [] = return [] -- special case to avoid maximum []
 oldComputeSizeConstraints cs = catMaybes <$> mapM oldComputeSizeConstraint leqs
   where
     -- get the constraints plus contexts they are defined in
-    gammas       = map' (envContext . tcContext . clEnv . theConstraint) cs
+    gammas       = map' (view eContext . clEnv . theConstraint) cs
     ls           = map' (clValue . theConstraint) cs
     -- compute the longest context (common water level)
     ns           = map' size gammas

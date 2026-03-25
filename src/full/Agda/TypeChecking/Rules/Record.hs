@@ -40,7 +40,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
 import Agda.Utils.Boolean
 import Agda.Utils.Function ( applyWhen )
-import Agda.Utils.Lens
 import Agda.Utils.List1 (pattern (:|) )
 import Agda.Utils.Monad
 import Agda.Utils.Null

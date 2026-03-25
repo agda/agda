@@ -1140,9 +1140,9 @@ createInterfaceIsolated ::
 createInterfaceIsolated x file msrc = do
       cleanCachedLog
 
-      ms          <- asksTC envImportStack
-      range       <- asksTC envRange
-      call        <- asksTC envCall
+      ms          <- viewTC eImportStack
+      range       <- viewTC eRange
+      call        <- viewTC eCall
       vs          <- getVisitedModules
       ds          <- getDecodedModules
       opts        <- stPersistentOptions . stPersistentState <$> getTC
@@ -1164,15 +1164,14 @@ createInterfaceIsolated x file msrc = do
            -- The cache should not be used for an imported module, and it
            -- should be restored after the module has been type-checked
            freshTCM $
-             localTC (\e -> e
-                              -- Andreas, 2014-08-18:
-                              -- Preserve the range of import statement
-                              -- for reporting termination errors in
-                              -- imported modules:
-                            { envRange              = range
-                            , envCall               = call
-                            , envImportStack        = ms
-                            }) $ do
+             localTC (
+                -- Andreas, 2014-08-18:
+                -- Preserve the range of import statement
+                -- for reporting termination errors in
+                -- imported modules:
+                        set eRange range
+                      . set eCall call
+                      . set eImportStack ms) do
                setDecodedModules ds
                setCommandLineOptions opts
                setVisitedModules vs
@@ -1211,7 +1210,7 @@ chaseMsg
   -> Maybe String         -- ^ Optionally: the file name.
   -> TCM ()
 chaseMsg kind x file = do
-  indentation <- (`replicate` ' ') <$> asksTC (pred . length . envImportStack)
+  indentation <- (`replicate` ' ') <$> asksTC (pred . length . view eImportStack)
   traceImports <- optTraceImports <$> commandLineOptions
   let maybeFile = caseMaybe file "." $ \ f -> " (" ++ f ++ ")."
       vLvl | kind == "Checking"
@@ -1318,7 +1317,7 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
       reportWarningsForModule mname $ tcWarnings classified
       when (null (nonFatalErrors classified)) $ chaseMsg "Finished" mname Nothing
 
-  withMsgs $ Bench.billTo [Bench.TopModule mname] $ localTC (\ e -> e { envCurrentPath = Just sfi }) do
+  withMsgs $ Bench.billTo [Bench.TopModule mname] $ localTC (set eCurrentPath (Just sfi)) do
 
     reportSLn "import.iface.create" 5 $
       "Creating interface for " ++ prettyShow mname ++ "..."
@@ -1347,8 +1346,8 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
     localTC (\env -> env { envSyntacticEqualityFuel = syntactic }) $ do
 
     verboseS "import.iface.create" 15 $ do
-      nestingLevel      <- asksTC (pred . length . envImportStack)
-      highlightingLevel <- asksTC envHighlightingLevel
+      nestingLevel      <- asksTC (pred . length . view eImportStack)
+      highlightingLevel <- viewTC eHighlightingLevel
       reportSLn "import.iface.create" 15 $ unlines
         [ "  nesting      level: " ++ show nestingLevel
         , "  highlighting level: " ++ show highlightingLevel

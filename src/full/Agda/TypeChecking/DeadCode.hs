@@ -21,7 +21,6 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad
 
 import Agda.Utils.Impossible
-import Agda.Utils.Lens
 import Agda.Utils.List
 import qualified Agda.Utils.List1 as List1
 

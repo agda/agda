@@ -51,7 +51,6 @@ import Agda.TypeChecking.Primitive.Cubical.Base
 import Agda.Utils.Either
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null

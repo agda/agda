@@ -131,7 +131,7 @@ giveExpr force mii mi e = do
     t' <- t `piApplyM` permute (takeP (length ctx) $ mvPermutation mv) ctx
     traceCall (CheckExprCall CmpLeq e t') $ do
       reportSDoc "interaction.give" 20 $ do
-        a <- asksTC envAbstractMode
+        a <- viewTC eAbstractMode
         TP.hsep
           [ TP.text ("give(" ++ show a ++ "): instantiated meta type =")
           , prettyTCM t'
@@ -183,7 +183,7 @@ redoChecks (Just ii) = do
     IPNoClause -> return ()
     IPClause{ipcQName = f} -> do
       mb <- defMutual <$> getConstInfo f
-      terErrs <- localTC (\ e -> e { envMutualBlock = Just mb }) $ termMutual []
+      terErrs <- localTC (set eMutualBlock (Just mb)) $ termMutual []
       List1.unlessNull terErrs $ warning . TerminationIssue
   -- TODO redo positivity check!
 
@@ -978,7 +978,7 @@ metaHelperType norm ii rng s = withInteractionId ii do
       , "cxt  =" TP.<+> prettyTCM cxtNames
       ]
     cxtArgs <- getContextArgs
-    enclosingFunctionName <- ipcQName . envClause <$> getEnv
+    enclosingFunctionName <- ipcQName . view eClause <$> getEnv
     a0      <- (`piApply` cxtArgs) <$> (getMetaType =<< lookupInteractionId ii)
 
     -- Konstantin, 2022-10-23: We don't want to print section parameters in helper type.
@@ -987,7 +987,7 @@ metaHelperType norm ii rng s = withInteractionId ii do
     let contextForAbstracting = cxTake (size ctx - freeVars) ctx
 
     -- Andreas, 2019-10-11: I actually prefer pi-types over ->.
-    let runInPrintingEnvironment = localTC (\e -> e { envPrintDomainFreePi = True, envPrintMetasBare = True })
+    let runInPrintingEnvironment = localTC (set ePrintDomainFreePi True . set ePrintMetasBare True)
                                  . escapeContext impossible (length contextForAbstracting)
                                  . withoutPrintingGeneralization
                                  . dontFoldLetBindings
@@ -1141,7 +1141,7 @@ contextOfMeta ii norm = withInteractionId ii $ do
     cxt <- getContext
     let localVars = flattenContext cxt
     -- List of let-bindings.
-    letVars <- Map.toAscList <$> asksTC envLetBindings
+    letVars <- Map.toAscList <$> viewTC eLetBindings
     -- Reify the types and filter out bindings without a name.
     (++) <$> forMaybeM localVars mkVar
          <*> forMaybeM letVars mkLet

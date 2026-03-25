@@ -30,7 +30,6 @@ import Agda.Interaction.Library
 import Agda.TypeChecking.Monad as TCM
 
 import Agda.Utils.FileName
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1          ( pattern (:|) )
 import Agda.Utils.Maybe

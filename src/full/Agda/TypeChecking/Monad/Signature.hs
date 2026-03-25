@@ -94,7 +94,7 @@ setHardCompileTimeModeIfErased
 setHardCompileTimeModeIfErased erased =
   localTC
     $ applyWhen (isErased erased) (set eHardCompileTimeMode True)
-    . over eQuantity (`composeQuantity` asQuantity erased)
+    . over eQuantityZeroHardCompile (`composeQuantity` asQuantity erased)
 
 -- | If the quantity is \"erased\", then hard compile-time mode is
 -- enabled when the continuation is run.
@@ -121,7 +121,7 @@ setRunTimeModeUnlessInHardCompileTimeMode
   -> TCM a
 setRunTimeModeUnlessInHardCompileTimeMode c =
   ifM (viewTC eHardCompileTimeMode) c $
-  localTC (over eQuantity $ mapQuantity (`addQuantity` topQuantity)) c
+  localTC (over eQuantityZeroHardCompile $ mapQuantity (`addQuantity` topQuantity)) c
 
 -- | Use hard compile-time mode in the continuation if the first
 -- argument is @'Erased' something@. Use run-time mode if the first
@@ -1448,27 +1448,27 @@ alwaysMakeAbstract d =
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
 {-# SPECIALIZE inAbstractMode :: TCM a -> TCM a #-}
 inAbstractMode :: MonadTCEnv m => m a -> m a
-inAbstractMode = localTC $ \e -> e { coldEnv = (coldEnv e){ envAbstractMode = AbstractMode }}
+inAbstractMode = localTC (set eAbstractMode AbstractMode)
 
 -- | Not in abstract mode. All abstract definitions are opaque.
 {-# SPECIALIZE inConcreteMode :: TCM a -> TCM a #-}
 inConcreteMode :: MonadTCEnv m => m a -> m a
-inConcreteMode = localTC $ \e -> e { coldEnv = (coldEnv e){ envAbstractMode = ConcreteMode }}
+inConcreteMode = localTC (set eAbstractMode ConcreteMode)
 
 -- | Ignore abstract mode. All abstract definitions are transparent.
 ignoreAbstractMode :: MonadTCEnv m => m a -> m a
-ignoreAbstractMode = localTC $ \e -> e { coldEnv = (coldEnv e){ envAbstractMode = IgnoreAbstractMode }}
+ignoreAbstractMode = localTC (set eAbstractMode IgnoreAbstractMode)
 
 -- | Go under the given opaque block. The unfolding set will turn opaque
 -- definitions transparent.
 {-# SPECIALIZE underOpaqueId :: OpaqueId -> TCM a -> TCM a #-}
 underOpaqueId :: MonadTCEnv m => OpaqueId -> m a -> m a
-underOpaqueId i = localTC $ \e -> e { coldEnv = (coldEnv e) {envCurrentOpaqueId = Just i }}
+underOpaqueId i = localTC (set eCurrentOpaqueId (Just i))
 
 -- | Outside of any opaque blocks.
 {-# SPECIALIZE notUnderOpaque :: TCM a -> TCM a #-}
 notUnderOpaque :: MonadTCEnv m => m a -> m a
-notUnderOpaque = localTC $ \e -> e { coldEnv = (coldEnv e ){envCurrentOpaqueId = Nothing }}
+notUnderOpaque = localTC (set eCurrentOpaqueId Nothing)
 
 -- | Enter the reducibility environment associated with a definition:
 -- The environment will have the same concreteness as the name, and we

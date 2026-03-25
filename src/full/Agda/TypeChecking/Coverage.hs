@@ -1372,7 +1372,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
             YesEta{} -> True
             NoEta{}  -> False
 
-  erased <- hasQuantity0 <$> viewTC eQuantity
+  erased <- hasQuantity0 <$> viewTC eQuantityZeroHardCompile
   reportSLn "tc.cover.split" 60 $ "We are in erased context = " ++! show erased
   let erasedError reason =
         throwError . ErasedDatatype reason =<<

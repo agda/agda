@@ -26,7 +26,6 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Term
 
-import Agda.Utils.Lens
 import Agda.Utils.Null
 
 -- | The type of @∞@.

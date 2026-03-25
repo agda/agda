@@ -157,7 +157,6 @@ import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
-import Agda.Utils.Lens
 import Agda.Utils.List
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
@@ -746,7 +745,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
       let err' = case err of
                    TypeError{tcErrClosErr = cl} ->
                      -- Remove the 'when' part from the error since it's most like the same as ours.
-                     err{ tcErrClosErr = cl{ clEnv = (clEnv cl) {coldEnv = (coldEnv (clEnv cl)){ envCall = Nothing } } }}
+                     err { tcErrClosErr = cl{ clEnv = (clEnv cl) & eCall .~ Nothing }}
                    _ -> err
           telList = telToList genTel
           names   = map' (fst . unDom) telList

@@ -2099,8 +2099,8 @@ instance LensIsAbstract TCEnv where
      -- Andreas, 2019-08-19
      -- Using $! to prevent space leaks like #1829.
      -- This can crash when trying to get IsAbstract from IgnoreAbstractMode.
-    (f $! fromMaybe __IMPOSSIBLE__ (aModeToDef $ envAbstractMode (coldEnv env)))
-    <&> \ a -> env {coldEnv = (coldEnv env) {envAbstractMode = aDefToMode a}}
+    (f $! fromMaybe __IMPOSSIBLE__ (aModeToDef $ env ^. eAbstractMode))
+    <&> \a -> env & eAbstractMode .~ aDefToMode a
 
 instance LensIsAbstract (Closure a) where
   lensIsAbstract = lensTCEnv . lensIsAbstract
@@ -2110,10 +2110,9 @@ instance LensIsAbstract MetaInfo where
 
 instance LensIsOpaque TCEnv where
   lensIsOpaque f env =
-    (f $! case envCurrentOpaqueId (coldEnv env) of { Just x -> OpaqueDef x ; Nothing -> TransparentDef })
-    <&> \case { OpaqueDef x    -> env {coldEnv = (coldEnv env) {envCurrentOpaqueId = Just x}}
-              ; TransparentDef -> env {coldEnv = (coldEnv env) {envCurrentOpaqueId = Nothing}}
-              }
+    (f $! case env ^. eCurrentOpaqueId of { Just x -> OpaqueDef x ; Nothing -> TransparentDef })
+    <&> \case OpaqueDef x    -> env & eCurrentOpaqueId .~ Just x
+              TransparentDef -> env & eCurrentOpaqueId .~ Nothing
 
 ----------------------------------------------------------------------------------------------------
 -- ** Interaction meta variables
@@ -3647,7 +3646,7 @@ locallyReduceAllDefs :: MonadTCEnv m => m a -> m a
 locallyReduceAllDefs = locallyReduceDefs reduceAllDefs
 
 shouldReduceDef :: (MonadTCEnv m) => QName -> m Bool
-shouldReduceDef f = asksTC (envReduceDefs . coldEnv) <&> \case
+shouldReduceDef f = viewTC eReduceDefs <&> \case
   OnlyReduceDefs defs -> f `Set.member` defs
   DontReduceDefs defs -> not $ f `Set.member` defs
 
@@ -3663,7 +3662,7 @@ locallyReconstructed :: MonadTCEnv m => m a -> m a
 locallyReconstructed = locallyTC eReconstructed . const $ True
 
 isReconstructed :: (MonadTCEnv m) => m Bool
-isReconstructed = asksTC (envReconstructed . coldEnv)
+isReconstructed = viewTC eReconstructed
 
 -- | Primitives
 
@@ -4082,8 +4081,8 @@ ifTopLevelAndHighlightingLevelIsOr ::
   MonadTCEnv tcm => HighlightingLevel -> Bool -> tcm () -> tcm ()
 ifTopLevelAndHighlightingLevelIsOr l b m = do
   e <- askTC
-  when (envHighlightingLevel (coldEnv e) >= l || b) $
-    case (envImportStack (coldEnv e)) of
+  when ((e ^. eHighlightingLevel) >= l || b) $
+    case e ^. eImportStack of
       -- Below the main module.
       (_:_:_) -> pure ()
       -- In or before the top-level module.
@@ -4181,7 +4180,7 @@ data ColdEnv = ColdEnv {
   , envCheckingWhere       :: C.WhereClause_
         -- ^ Have we stepped into the where-declarations of a clause?
         --   Everything under a @where@ will be checked with this flag on.
-  , envUnquoteProblem      :: Maybe ProblemId
+  , envUnquoteProblem      :: !(Maybe ProblemId)
     -- ^ If inside a `runUnquoteM` call, stores the top-level problem id assigned to the
     --   invokation. We use this to decide which instance constraints originate from the
     --   current call and which come from the outside, for the purpose of a
@@ -4366,217 +4365,311 @@ initColdEnv = ColdEnv {
 initEnv :: TCEnv
 initEnv = TCEnv {
     envSyntacticEqualityFuel = Strict.Nothing
-  , envTCContext                = initTCContext
-  , envMetaEnv                  = initMetaEnv
-  , envModalEnv                 = initModalEnv
-  , envColdEnv                  = initColdEnv
+  , envTCContext             = initTCContext
+  , envMetaEnv               = initMetaEnv
+  , envModalEnv              = initModalEnv
+  , envColdEnv               = initColdEnv
   }
 
 
 -- * e-prefixed lenses
 ----------------------------------------------------------------------------------------------------
 
+{-# INLINE eUnquoteProblem #-}
+eUnquoteProblem :: Lens' TCEnv (Maybe ProblemId)
+eUnquoteProblem = \f e ->
+  f (envUnquoteProblem (envColdEnv e)) <&> \ !x -> e {envColdEnv = (envColdEnv e){envUnquoteProblem = x}}
+
+{-# INLINE eClause #-}
+eClause :: Lens' TCEnv IPClause
+eClause = \f e ->
+  f (envClause (envColdEnv e)) <&> \ !x -> e {envColdEnv = (envColdEnv e){envClause = x}}
+
+{-# INLINE eSyntacticEqualityFuel #-}
+eSyntacticEqualityFuel :: Lens' TCEnv (Strict.Maybe Int)
+eSyntacticEqualityFuel = \f e ->
+  f (envSyntacticEqualityFuel e) <&> \ !x -> e {envSyntacticEqualityFuel = x}
+
+{-# INLINE eCurrentOpaqueId #-}
+eCurrentOpaqueId :: Lens' TCEnv (Maybe OpaqueId)
+eCurrentOpaqueId = \f e ->
+  f (envCurrentOpaqueId (envColdEnv e)) <&> \ !x -> e {envColdEnv = (envColdEnv e){envCurrentOpaqueId = x}}
+
+{-# INLINE eContext #-}
 eContext :: Lens' TCEnv Context
-eContext f e = f (envContext (envTCContext e)) <&> \ !x -> e {envTCContext = (envTCContext e){envContext = x}}
+eContext = \f e ->
+  f (envContext (envTCContext e)) <&> \ !x -> e {envTCContext = (envTCContext e){envContext = x}}
 
+{-# INLINE eLetBindings #-}
 eLetBindings :: Lens' TCEnv LetBindings
-eLetBindings f e = f (envLetBindings (modalEnv e)) <&> \ !x -> e {modalEnv = (modalEnv e){envLetBindings = x}}
+eLetBindings = \f e ->
+  f (envLetBindings (envModalEnv e)) <&> \ !x -> e {envModalEnv = (envModalEnv e){envLetBindings = x}}
 
+{-# INLINE eCurrentModule #-}
 eCurrentModule :: Lens' TCEnv ModuleName
-eCurrentModule f e = f (envCurrentModule (coldEnv e)) <&> \ !x -> e {coldEnv = (coldEnv e){envCurrentModule = x}}
+eCurrentModule = \f e ->
+  f (envCurrentModule (envColdEnv e)) <&> \ !x -> e {envColdEnv = (envColdEnv e){envCurrentModule = x}}
 
+{-# INLINE eCurrentPath #-}
 eCurrentPath :: Lens' TCEnv (Maybe FileId)
-eCurrentPath f e = f (envCurrentPath $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envCurrentPath = x }}
+eCurrentPath = \f e ->
+  f (envCurrentPath $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envCurrentPath = x }}
 
+{-# INLINE eAnonymousModules #-}
 eAnonymousModules :: Lens' TCEnv [(ModuleName, Nat)]
-eAnonymousModules f e = f (envAnonymousModules $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e) {envAnonymousModules = x }}
+eAnonymousModules = \f e ->
+  f (envAnonymousModules $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e) {envAnonymousModules = x }}
 
+{-# INLINE eImportStack #-}
 eImportStack :: Lens' TCEnv [TopLevelModuleName]
-eImportStack f e = f (envImportStack $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envImportStack = x }}
+eImportStack = \f e ->
+  f (envImportStack $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envImportStack = x }}
 
+{-# INLINE eMutualBlock #-}
 eMutualBlock :: Lens' TCEnv (Maybe MutualId)
-eMutualBlock f e = f (envMutualBlock $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envMutualBlock = x }}
+eMutualBlock = \f e ->
+  f (envMutualBlock $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envMutualBlock = x }}
 
+{-# INLINE eTerminationCheck #-}
 eTerminationCheck :: Lens' TCEnv (TerminationCheck ())
-eTerminationCheck f e = f (envTerminationCheck $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e) { envTerminationCheck = x }}
+eTerminationCheck = \f e ->
+  f (envTerminationCheck $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e) { envTerminationCheck = x }}
 
+{-# INLINE eCoverageCheck #-}
 eCoverageCheck :: Lens' TCEnv CoverageCheck
-eCoverageCheck f e = f (envCoverageCheck $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envCoverageCheck = x }}
+eCoverageCheck = \f e ->
+  f (envCoverageCheck $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envCoverageCheck = x }}
 
+{-# INLINE eMakeCase #-}
 eMakeCase :: Lens' TCEnv Bool
-eMakeCase f e = f (envMakeCase $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envMakeCase = x }}
+eMakeCase = \f e ->
+  f (envMakeCase $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envMakeCase = x }}
 
+{-# INLINE eSolvingConstraints #-}
 eSolvingConstraints :: Lens' TCEnv Bool
-eSolvingConstraints f e = f (envSolvingConstraints $ metaEnv e) <&> \ !x -> e {metaEnv = (metaEnv e){envSolvingConstraints = x }}
+eSolvingConstraints = \f e ->
+  f (envSolvingConstraints $ envMetaEnv e) <&> \ !x -> e {envMetaEnv = (envMetaEnv e){envSolvingConstraints = x }}
 
+{-# INLINE eCheckingWhere #-}
 eCheckingWhere :: Lens' TCEnv C.WhereClause_
-eCheckingWhere f e = f (envCheckingWhere $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envCheckingWhere = x }}
+eCheckingWhere = \f e ->
+  f (envCheckingWhere $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envCheckingWhere = x }}
 
+{-# INLINE eWorkingOnTypes #-}
 eWorkingOnTypes :: Lens' TCEnv Bool
-eWorkingOnTypes f e = f (envWorkingOnTypes $ modalEnv e) <&> \ !x -> e {modalEnv = (modalEnv e){ envWorkingOnTypes = x }}
+eWorkingOnTypes = \f e ->
+  f (envWorkingOnTypes $ envModalEnv e) <&> \ !x -> e {envModalEnv = (envModalEnv e){ envWorkingOnTypes = x }}
 
+{-# INLINE eAssignMetas #-}
 eAssignMetas :: Lens' TCEnv Bool
-eAssignMetas f e = f (envAssignMetas $ metaEnv e) <&> \ !x -> e { metaEnv = (metaEnv e) {envAssignMetas = x }}
+eAssignMetas = \f e ->
+  f (envAssignMetas $ envMetaEnv e) <&> \ !x -> e { envMetaEnv = (envMetaEnv e) {envAssignMetas = x }}
 
+{-# INLINE eActiveProblems #-}
 eActiveProblems :: Lens' TCEnv (Set ProblemId)
-eActiveProblems f e = f (envActiveProblems $ metaEnv e) <&> \ !x -> e {metaEnv = (metaEnv e){ envActiveProblems = x }}
+eActiveProblems = \f e ->
+  f (envActiveProblems $ envMetaEnv e) <&> \ !x -> e {envMetaEnv = (envMetaEnv e){ envActiveProblems = x }}
 
+{-# INLINE eAbstractMode #-}
 eAbstractMode :: Lens' TCEnv AbstractMode
-eAbstractMode f e = f (envAbstractMode $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envAbstractMode = x }}
+eAbstractMode = \f e ->
+  f (envAbstractMode $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envAbstractMode = x }}
 
+{-# INLINE eRelevance #-}
 eRelevance :: Lens' TCEnv Relevance
-eRelevance f e = f (envRelevance $ modalEnv e) <&> \ !x -> e {modalEnv = (modalEnv e){ envRelevance = x }}
+eRelevance = \f e ->
+  f (envRelevance $ envModalEnv e) <&> \ !x -> e {envModalEnv = (envModalEnv e){ envRelevance = x }}
 
--- TODO: this should be the raw field lens, the fancy version should be renamed to something else
-
--- {-# INLINE eQuantity #-}
--- -- | Note that this lens does not satisfy all lens laws: If hard
--- -- compile-time mode is enabled, then quantities other than zero are
--- -- replaced by '__IMPOSSIBLE__'.
--- eQuantity :: Lens' TCEnv Quantity
--- eQuantity f e =
---   if envHardCompileTimeMode (coldEnv e)
---   then f (check (envQuantity (modalEnv e))) <&>
---        \ !x -> e { modalEnv = (modalEnv e){ envQuantity = check x }}
---   else f (envQuantity (modalEnv e)) <&> \ !x -> e { modalEnv = (modalEnv e){ envQuantity = x }}
---   where
---   check q
---     | hasQuantity0 q = q
---     | otherwise      = __IMPOSSIBLE__
-
+{-# INLINE eHardCompileTimeMode #-}
 eHardCompileTimeMode :: Lens' TCEnv Bool
-eHardCompileTimeMode f e =
+eHardCompileTimeMode = \f e ->
   f (envHardCompileTimeMode $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envHardCompileTimeMode = x }}
 
+{-# INLINE eSplitOnStrict #-}
 eSplitOnStrict :: Lens' TCEnv Bool
-eSplitOnStrict f e =
+eSplitOnStrict = \f e ->
   f (envSplitOnStrict $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envSplitOnStrict = x }}
 
+{-# INLINE eDisplayFormsEnabled #-}
 eDisplayFormsEnabled :: Lens' TCEnv Bool
-eDisplayFormsEnabled f e =
+eDisplayFormsEnabled = \f e ->
   f (envDisplayFormsEnabled $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envDisplayFormsEnabled = x }}
 
+{-# INLINE eFoldLetBindings #-}
 eFoldLetBindings :: Lens' TCEnv Bool
-eFoldLetBindings f e =
+eFoldLetBindings = \f e ->
   f (envFoldLetBindings $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envFoldLetBindings = x }}
 
+{-# INLINE eRange #-}
 eRange :: Lens' TCEnv Range
-eRange f e = f (envRange $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envRange = x }}
+eRange = \f e -> f (envRange $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envRange = x }}
 
+{-# INLINE eHighlightingRange #-}
 eHighlightingRange :: Lens' TCEnv Range
-eHighlightingRange f e =
+eHighlightingRange = \f e ->
   f (envHighlightingRange $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envHighlightingRange = x }}
 
+{-# INLINE eCall #-}
 eCall :: Lens' TCEnv (Maybe (Closure Call))
-eCall f e = f (envCall $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envCall = x }}
+eCall = \f e -> f (envCall $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envCall = x }}
 
+{-# INLINE eHighlightingLevel #-}
 eHighlightingLevel :: Lens' TCEnv HighlightingLevel
-eHighlightingLevel f e =
+eHighlightingLevel = \f e ->
   f (envHighlightingLevel $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envHighlightingLevel = x }}
 
+{-# INLINE eHighlightingMethod #-}
 eHighlightingMethod :: Lens' TCEnv HighlightingMethod
-eHighlightingMethod f e =
+eHighlightingMethod = \f e ->
   f (envHighlightingMethod $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envHighlightingMethod = x }}
 
+{-# INLINE eExpandLast #-}
 eExpandLast :: Lens' TCEnv ExpandHidden
-eExpandLast f e =
+eExpandLast = \f e ->
   f (envExpandLast $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envExpandLast = x }}
 
+{-# INLINE eExpandLastBool #-}
 eExpandLastBool :: Lens' TCEnv Bool
-eExpandLastBool f e =
+eExpandLastBool = \f e ->
   f (isExpandLast $ envExpandLast $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envExpandLast = toExpandLast x }}
 
+{-# INLINE eAppDef #-}
 eAppDef :: Lens' TCEnv (Maybe QName)
-eAppDef f e =
+eAppDef = \f e ->
   f (envAppDef $ envTCContext e) <&> \ x -> e {envTCContext = (envTCContext e){ envAppDef = x }}
 
+{-# INLINE eSimplification #-}
 eSimplification :: Lens' TCEnv Simplification
-eSimplification f e =
+eSimplification = \f e ->
   f (envSimplification $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envSimplification = x }}
 
+{-# INLINE eAllowedReductions #-}
 eAllowedReductions :: Lens' TCEnv AllowedReductions
-eAllowedReductions f e =
-  f (envAllowedReductions $ modalEnv e) <&> \ x -> e {modalEnv = (modalEnv e) {envAllowedReductions = x }}
+eAllowedReductions = \f e ->
+  f (envAllowedReductions $ envModalEnv e) <&> \ x -> e {envModalEnv = (envModalEnv e) {envAllowedReductions = x }}
 
+{-# INLINE eReduceDefs #-}
 eReduceDefs :: Lens' TCEnv ReduceDefs
-eReduceDefs f e =
+eReduceDefs = \f e ->
   f (envReduceDefs $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envReduceDefs = x }}
 
+{-# INLINE eReduceDefsPair #-}
 eReduceDefsPair :: Lens' TCEnv (Bool, [QName])
-eReduceDefsPair f e =
+eReduceDefsPair = \f e ->
   f (fromReduceDefs $ envReduceDefs $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envReduceDefs = toReduceDefs x }}
 
+{-# INLINE eReconstructed #-}
 eReconstructed :: Lens' TCEnv Bool
-eReconstructed f e =
+eReconstructed = \f e ->
   f (envReconstructed $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envReconstructed = x }}
 
+{-# INLINE eInjectivityDepth #-}
 eInjectivityDepth :: Lens' TCEnv Int
-eInjectivityDepth f e =
+eInjectivityDepth = \f e ->
   f (envInjectivityDepth $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envInjectivityDepth = x }}
 
+{-# INLINE eCompareBlocked #-}
 eCompareBlocked :: Lens' TCEnv Bool
-eCompareBlocked f e =
+eCompareBlocked = \f e ->
   f (envCompareBlocked $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envCompareBlocked = x }}
 
+{-# INLINE ePrintDomainFreePi #-}
 ePrintDomainFreePi :: Lens' TCEnv Bool
-ePrintDomainFreePi f e =
+ePrintDomainFreePi = \f e ->
   f (envPrintDomainFreePi $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envPrintDomainFreePi = x }}
 
+{-# INLINE ePrintMetasBare #-}
 ePrintMetasBare :: Lens' TCEnv Bool
-ePrintMetasBare f e =
+ePrintMetasBare = \f e ->
   f (envPrintMetasBare $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envPrintMetasBare = x }}
 
+{-# INLINE eInsideDotPattern #-}
 eInsideDotPattern :: Lens' TCEnv Bool
-eInsideDotPattern f e =
+eInsideDotPattern = \f e ->
   f (envInsideDotPattern $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envInsideDotPattern = x }}
 
+{-# INLINE eUnquoteFlags #-}
 eUnquoteFlags :: Lens' TCEnv UnquoteFlags
-eUnquoteFlags f e =
+eUnquoteFlags = \f e ->
   f (envUnquoteFlags $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envUnquoteFlags = x }}
 
+{-# INLINE eInstanceDepth #-}
 eInstanceDepth :: Lens' TCEnv Int
-eInstanceDepth f e =
+eInstanceDepth = \f e ->
   f (envInstanceDepth $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envInstanceDepth = x }}
 
+{-# INLINE eIsDebugPrinting #-}
 eIsDebugPrinting :: Lens' TCEnv Bool
-eIsDebugPrinting f e =
+eIsDebugPrinting = \f e ->
   f (envIsDebugPrinting $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envIsDebugPrinting = x }}
 
+{-# INLINE ePrintingPatternLambdas #-}
 ePrintingPatternLambdas :: Lens' TCEnv [QName]
-ePrintingPatternLambdas f e =
+ePrintingPatternLambdas = \f e ->
   f (envPrintingPatternLambdas $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envPrintingPatternLambdas = x }}
 
+{-# INLINE eCallByNeed #-}
 eCallByNeed :: Lens' TCEnv Bool
-eCallByNeed f e =
+eCallByNeed = \f e ->
   f (envCallByNeed $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envCallByNeed = x }}
 
+{-# INLINE eCurrentCheckpoint #-}
 eCurrentCheckpoint :: Lens' TCEnv CheckpointId
-eCurrentCheckpoint f e =
+eCurrentCheckpoint = \f e ->
   f (envCurrentCheckpoint $ envTCContext e) <&> \ x -> e {envTCContext = (envTCContext e){ envCurrentCheckpoint = x }}
 
+{-# INLINE eCheckpoints #-}
 eCheckpoints :: Lens' TCEnv (Map CheckpointId Substitution)
-eCheckpoints f e =
+eCheckpoints = \f e ->
   f (envCheckpoints $ envTCContext e) <&> \ x -> e {envTCContext = (envTCContext e){ envCheckpoints = x }}
 
+{-# INLINE eGeneralizeMetas #-}
 eGeneralizeMetas :: Lens' TCEnv DoGeneralize
-eGeneralizeMetas f e =
+eGeneralizeMetas = \f e ->
   f (envGeneralizeMetas $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envGeneralizeMetas = x }}
 
+{-# INLINE eGeneralizedVars #-}
 eGeneralizedVars :: Lens' TCEnv (Map QName GeneralizedValue)
-eGeneralizedVars f e =
+eGeneralizedVars = \f e ->
   f (envGeneralizedVars $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envGeneralizedVars = x }}
 
+{-# INLINE eActiveBackendName #-}
 eActiveBackendName :: Lens' TCEnv (Maybe BackendName)
-eActiveBackendName f e =
+eActiveBackendName = \f e ->
   f (envActiveBackendName $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envActiveBackendName = x }}
 
+{-# INLINE eConflComputingOverlap #-}
 eConflComputingOverlap :: Lens' TCEnv Bool
-eConflComputingOverlap f e =
+eConflComputingOverlap = \f e ->
   f (envConflComputingOverlap $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envConflComputingOverlap = x }}
 
+{-# INLINE eCurrentlyElaborating #-}
 eCurrentlyElaborating :: Lens' TCEnv Bool
-eCurrentlyElaborating f e =
+eCurrentlyElaborating = \f e ->
   f (envCurrentlyElaborating $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envCurrentlyElaborating = x }}
+
+{-# INLINE eQuantity #-}
+eQuantity :: Lens' TCEnv Quantity
+eQuantity = \f e ->
+  f (envQuantity $ envModalEnv e) <&> \ x -> e {envModalEnv = (envModalEnv e){ envQuantity = x }}
+
+----------------------------------------------------------------------------------------------------
+
+
+
+{-# INLINE eQuantityZeroHardCompile #-}
+-- | Note that this lens does not satisfy all lens laws: If hard
+-- compile-time mode is enabled, then quantities other than zero are
+-- replaced by '__IMPOSSIBLE__'.
+eQuantityZeroHardCompile :: Lens' TCEnv Quantity
+eQuantityZeroHardCompile f e = undefined
+  if e ^. eHardCompileTimeMode
+    then f (check (e ^. eQuantity)) <&> \ !x -> e & eQuantity .~ check x
+    else f (e ^. eQuantity) <&> \ !x -> e & eQuantity .~ x
+  where
+  check q
+    | hasQuantity0 q = q
+    | otherwise      = __IMPOSSIBLE__
 
 ----------------------------------------------------------------------------------------------------
 
@@ -4605,7 +4698,7 @@ eUnquoteNormalise = eUnquoteFlags . unquoteNormalise
 currentModality :: MonadTCEnv m => m Modality
 currentModality = do
   r <- viewTC eRelevance
-  q <- viewTC eQuantity
+  q <- viewTC eQuantityZeroHardCompile
   return Modality
     { modRelevance = r
     , modPolarity  = defaultPolarity
@@ -6484,7 +6577,7 @@ instance (CatchIO m, MonadIO m) => MonadFail (TCMT m) where
 
 instance MonadIO m => MonadIO (TCMT m) where
   liftIO m = TCM $ \ s env -> do
-    liftIO $ wrap s (envRange $ envColdEnv env) $ do
+    liftIO $ wrap s (env ^. eRange) $ do
       x <- m
       x `seq` return x
     where

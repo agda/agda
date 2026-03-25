@@ -178,7 +178,7 @@ withCurrentFile :: ReplM a -> ReplM a
 withCurrentFile cont = do
   mpath <- gets currentFile
   i <- traverse idFromFile mpath
-  localTC (\ e -> e { envCurrentPath = i }) cont
+  localTC (set eCurrentPath i) cont
 
 loadFile :: ReplM () -> [String] -> ReplM ()
 loadFile reload [file] = do

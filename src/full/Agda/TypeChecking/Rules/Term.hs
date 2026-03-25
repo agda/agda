@@ -173,10 +173,10 @@ isType_ e = traceCall (IsType_ e) $ do
       let s0 = jMetaType . mvJudgement $ mv
       -- Andreas, 2016-10-14, issue #2257
       -- The meta was created in a context of length @n@.
-      let n  = length . envContext . clEnv . miClosRange . mvInfo $ mv
+      let n  = length . view eContext . clEnv . miClosRange . mvInfo $ mv
       (vs, rest) <- splitAt' n <$> getContextArgs
 
-      let oldCxtNames = map' nameCanonical $ contextNames' $ envContext
+      let oldCxtNames = map' nameCanonical $ contextNames' $ view eContext
                       $ clEnv $ miClosRange $ mvInfo $ mv
 
       newCxtNames <- map' nameCanonical <$> getContextNames'
@@ -928,7 +928,7 @@ checkExtendedLambda cmp i di erased qname cs e t = do
               { defMutual = j }
         checkFunDef' t info (Just $ ExtLamInfo lamMod False empty) Nothing di qname $
           List1.toList cs
-        whenNothingM (asksTC envMutualBlock) $
+        whenNothingM (viewTC eMutualBlock) $
           -- Andrea 10-03-2018: Should other checks be performed here too? e.g. termination/positivity/..
           checkIApplyConfluence_ qname
         return $! Def qname $! map' Apply args
@@ -1092,7 +1092,7 @@ checkRecordExpression cmp mfs e@(A.Rec kwr _r _) t origin = do
       -- Record expressions corresponding to erased record
       -- constructors can only be used in compile-time mode.
       constructorQ <- getQuantity <$> getConstInfo (conName con)
-      currentQ     <- viewTC eQuantity
+      currentQ     <- viewTC eQuantityZeroHardCompile
       unless (constructorQ `moreQuantity` currentQ) $ typeError RecordIsErased
 
       -- Andreas, 2018-09-06, issue #3122.
@@ -1314,7 +1314,7 @@ checkRecordWhere cmp kwr ei update decls fs e t = do
         -- bindings are actually in the context when the binding is
         -- processed, and use *those*, rather than the full set of
         -- `let`-bindings that would otherwise be available.
-        lets <- Map.keysSet <$> asksTC envLetBindings
+        lets <- Map.keysSet <$> viewTC eLetBindings
         let
           restore = locallyTC eLetBindings (`Map.restrictKeys` lets)
           -- Unlike 'checkLetBinding' which sometimes needs to
@@ -1573,7 +1573,7 @@ checkExpr' cmp e t =
         , not (hiddenLambdaOrHole h e)
         = do
       let proceed = doInsert (setOrigin Inserted info) $ absName b
-      expandHidden <- asksTC envExpandLast
+      expandHidden <- viewTC eExpandLast
       -- If we skip the lambda insertion for an introduction,
       -- we will hit a dead end, so proceed no matter what.
       if definitelyIntroduction then proceed else
@@ -1960,7 +1960,7 @@ checkLetBinding' b@(A.LetPatBind i ai p e) ret = do
         [ "p (A) =" <+> prettyA p
         , "t     =" <+> prettyTCM t
         , "cxtRel=" <+> do pretty =<< viewTC eRelevance
-        , "cxtQnt=" <+> do pretty =<< viewTC eQuantity
+        , "cxtQnt=" <+> do pretty =<< viewTC eQuantityZeroHardCompile
         ]
       ]
     fvs <- getContextSize
@@ -1973,7 +1973,7 @@ checkLetBinding' b@(A.LetPatBind i ai p e) ret = do
         [ "p (I) =" <+> prettyTCM p
         , "delta =" <+> prettyTCM delta
         , "cxtRel=" <+> do pretty =<< viewTC eRelevance
-        , "cxtQnt=" <+> do pretty =<< viewTC eQuantity
+        , "cxtQnt=" <+> do pretty =<< viewTC eQuantityZeroHardCompile
         ]
       reportSDoc "tc.term.let.pattern" 80 $ nest 2 $ vcat
         [ "p (I) =" <+> (text . show) p

@@ -48,7 +48,6 @@ import Agda.Compiler.Treeless.Unused
 
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

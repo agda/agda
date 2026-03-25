@@ -48,7 +48,12 @@ s ^. l = getConst (l Const s)
 {-# INLINE set #-}
 -- | Set inner part @i@ of structure @o@ as designated by @Lens' o i@.
 set :: ASetter s t a b -> b -> s -> t
-set l = over l . const
+set l = \b -> over l (\_ -> b)
+
+{-# INLINE set' #-}
+-- | Strictly set inner part @i@ of structure @o@ as designated by @Lens' o i@.
+set' :: ASetter s t a b -> b -> s -> t
+set' l = \ !b -> over l (\_ -> b)
 
 {-# INLINE (.~) #-}
 infixr 4 .~
@@ -58,17 +63,30 @@ infixr 4 .~
 {-# INLINE over #-}
 -- | Modify inner part @i@ of structure @o@ using a function @i -> i@.
 over :: ASetter s t a b -> (a -> b) -> s -> t
-over l f s = runIdentity $ l (Identity . f) s
+over l = \f s -> runIdentity (l (Identity . f) s)
+
+{-# INLINE over' #-}
+-- | Strictly modify inner part @i@ of structure @o@ using a function @i -> i@.
+over' :: ASetter s t a b -> (a -> b) -> s -> t
+over' l = \f s -> runIdentity (l (\x -> Identity $! f x) s)
+
+infixr 4 %~
+(%~) :: ASetter s t a b -> (a -> b) -> s -> t
+(%~) = over
+
+infixr 4 %~!
+(%~!) :: ASetter s t a b -> (a -> b) -> s -> t
+(%~!) = over'
 
 {-# INLINE iso #-}
 -- | Build a lens out of an isomorphism.
 iso :: (o -> i) -> (i -> o) -> Lens' o i
-iso get set f = fmap set . f . get
+iso get set = \f -> fmap set . f . get
 
 {-# INLINE lens #-}
 -- | Build a lens from a getter and a setter.
 lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
-lens sa sbt afb s = sbt s <$> afb (sa s)
+lens sa sbt = \afb s -> sbt s <$> afb (sa s)
 
 {-# INLINE lensProduct #-}
 -- | Only sound if the lenses are disjoint!
