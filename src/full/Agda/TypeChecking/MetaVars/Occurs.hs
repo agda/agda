@@ -117,7 +117,7 @@ initOccursCheck m mv = modifyOccursCheckDefs . const =<<
        "initOccursCheck: we do not look into definitions"
      return Set.empty
    else do
-    mb <- asksTC envMutualBlock >>= \case
+    mb <- asksTC (envMutualBlock . coldEnv) >>= \case
       Nothing -> return Set.empty
       Just b  -> do
         ds <- mutualNames <$> lookupMutualBlock b
@@ -249,7 +249,7 @@ metaCheck m = do
       , "and quantity"
       , text . show $ getQuantity mmod
       ]
-    allowAssign <- asksTC envAssignMetas
+    allowAssign <- asksTC $ envAssignMetas . metaEnv
     -- Jesper, 2020-11-10: if we encounter a metavariable that is
     -- unusable because of its modality (e.g. irrelevant or erased) we
     -- try to *promote* the meta to the required modality, by creating
@@ -270,7 +270,7 @@ metaCheck m = do
           patternViolation $ unblockOnMeta m
     when (mvFrozen mv == Frozen)             $ fail "meta is frozen"
     unless (isOpenMeta $ mvInstantiation mv) $ fail "meta is already solved"
-    unlessM (asksTC envAssignMetas)          $ fail "assigning metas is not allowed here"
+    unlessM (asksTC $ envAssignMetas . metaEnv)          $ fail "assigning metas is not allowed here"
     -- Jesper, 2023-09-03, issue #6759: When --lossy-unification is enabled,
     -- we already lose the guarantee that we only throw an error when a
     -- problem is really unsolvable in favor of taking the "obvious" solution.
@@ -973,7 +973,7 @@ killArgs kills _
   | not (or kills) = return NothingToPrune  -- nothing to kill
 killArgs kills m = do
   mv <- lookupLocalMeta m
-  allowAssign <- asksTC envAssignMetas
+  allowAssign <- asksTC $ envAssignMetas . metaEnv
   if mvFrozen mv == Frozen || not allowAssign then return PrunedNothing else do
       -- Andreas 2011-04-26, we allow pruning in MetaV and MetaS
       let a = jMetaType $ mvJudgement mv

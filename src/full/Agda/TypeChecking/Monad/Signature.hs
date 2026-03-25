@@ -1448,27 +1448,27 @@ alwaysMakeAbstract d =
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
 {-# SPECIALIZE inAbstractMode :: TCM a -> TCM a #-}
 inAbstractMode :: MonadTCEnv m => m a -> m a
-inAbstractMode = localTC $ \e -> e { envAbstractMode = AbstractMode }
+inAbstractMode = localTC $ \e -> e { coldEnv = (coldEnv e){ envAbstractMode = AbstractMode }}
 
 -- | Not in abstract mode. All abstract definitions are opaque.
 {-# SPECIALIZE inConcreteMode :: TCM a -> TCM a #-}
 inConcreteMode :: MonadTCEnv m => m a -> m a
-inConcreteMode = localTC $ \e -> e { envAbstractMode = ConcreteMode }
+inConcreteMode = localTC $ \e -> e { coldEnv = (coldEnv e){ envAbstractMode = ConcreteMode }}
 
 -- | Ignore abstract mode. All abstract definitions are transparent.
 ignoreAbstractMode :: MonadTCEnv m => m a -> m a
-ignoreAbstractMode = localTC $ \e -> e { envAbstractMode = IgnoreAbstractMode }
+ignoreAbstractMode = localTC $ \e -> e { coldEnv = (coldEnv e){ envAbstractMode = IgnoreAbstractMode }}
 
 -- | Go under the given opaque block. The unfolding set will turn opaque
 -- definitions transparent.
 {-# SPECIALIZE underOpaqueId :: OpaqueId -> TCM a -> TCM a #-}
 underOpaqueId :: MonadTCEnv m => OpaqueId -> m a -> m a
-underOpaqueId i = localTC $ \e -> e { envCurrentOpaqueId = Just i }
+underOpaqueId i = localTC $ \e -> e { coldEnv = (coldEnv e) {envCurrentOpaqueId = Just i }}
 
 -- | Outside of any opaque blocks.
 {-# SPECIALIZE notUnderOpaque :: TCM a -> TCM a #-}
 notUnderOpaque :: MonadTCEnv m => m a -> m a
-notUnderOpaque = localTC $ \e -> e { envCurrentOpaqueId = Nothing }
+notUnderOpaque = localTC $ \e -> e { coldEnv = (coldEnv e ){envCurrentOpaqueId = Nothing }}
 
 -- | Enter the reducibility environment associated with a definition:
 -- The environment will have the same concreteness as the name, and we

@@ -213,7 +213,7 @@ makeEnv scope = do
                  noScopeCheck b || isNameInScope q scope -> return [(b, q)]
         _                                                -> return []
   ctxVars <- getContextNames'
-  letVars <- Map.keys <$> asksTC envLetBindings
+  letVars <- Map.keys <$> asksTC (envLetBindings . modalEnv)
   let vars = ctxVars ++ letVars
 
   -- pick concrete names for in-scope names now so we don't

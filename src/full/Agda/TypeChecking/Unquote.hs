@@ -110,7 +110,7 @@ runUnquoteM m = do
   cxt <- getContext
   s   <- getTC
   pid <- fresh  -- Create a fresh problem for the unquote call. Used in tcSolveInstances.
-  z   <- localTC (\ e -> e { envUnquoteProblem = Just pid })
+  z   <- localTC (\ e -> e {coldEnv = (coldEnv e){ envUnquoteProblem = Just pid }})
        $ solvingProblem pid
        $ unpackUnquoteM m cxt (Clean, s)
   case z of
@@ -1150,8 +1150,8 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcSolveInstances = liftTCM $ do
       locallyTCState stPostponeInstanceSearch (const False) $ do
         -- Steal instance constraints (TODO: not all!)
-        current <- asksTC envActiveProblems
-        topPid  <- fromMaybe __IMPOSSIBLE__ <$> asksTC envUnquoteProblem
+        current <- asksTC (envActiveProblems . metaEnv)
+        topPid  <- fromMaybe __IMPOSSIBLE__ <$> asksTC (envUnquoteProblem . coldEnv)
         let steal pc@(PConstr pids u c)
               | isInstance pc
               , Set.member topPid pids = PConstr (Set.union current pids) u c

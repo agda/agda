@@ -598,7 +598,7 @@ slowReduceTerm v = do
                  $ unfoldDefinitionE reduceB' (Con c ci []) (conName c) es
           traverse reduceNat v
       Sort s   -> done
-      Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
+      Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC (envAllowedReductions . modalEnv))
                     {- then -} (fmap levelTm <$> reduceB' l)
                     {- else -} done
       Pi _ _     -> done
@@ -675,7 +675,7 @@ unfoldDefinitionStep v0 f es =
   traceSDoc "tc.reduce" 90 ("unfoldDefinitionStep v0" <+> pretty v0) $ do
   info <- getConstInfo f
   rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
-  allowed <- asksTC envAllowedReductions
+  allowed <- asksTC (envAllowedReductions . modalEnv)
   prp <- runBlocked $ isPropM $ defType info
   defOk <- shouldReduceDef f
   let def = theDef info
@@ -832,7 +832,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
   case v of
     Def f es -> do
 
-      abstractMode <- envAbstractMode <$> askTC
+      abstractMode <- envAbstractMode . coldEnv <$> askTC
       isAbstract <- not <$> hasAccessibleDef f
       traceSLn "tc.inj.reduce" 50 (
         "reduceHead: we are in " ++! show abstractMode ++! "; " ++! prettyShow f ++!
@@ -899,7 +899,7 @@ appDef_ f v0 cls mcc rewr args = appDefE_ f v0 cls mcc rewr $ map' (fmap Apply) 
 
 appDefE_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE_ f v0 cls mcc rewr args =
-  localTC (\ e -> e { envAppDef = Just f }) $
+  localTC (\ e -> e {tcContext = (tcContext e){ envAppDef = Just f }}) $
   maybe (appDefE'' v0 cls rewr args)
         (\cc -> appDefE v0 cc rewr args) mcc
 
@@ -923,7 +923,7 @@ appDef' f v cls rewr args = appDefE' f v cls rewr $ map' (fmap Apply) args
 
 appDefE' :: QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE' f v cls rewr es =
-  localTC (\ e -> e { envAppDef = Just f }) $
+  localTC (\ e -> e {tcContext = (tcContext e){  envAppDef = Just f }}) $
   appDefE'' v cls rewr es
 
 -- | Expects @'envAppDef' = Just f@ in 'TCEnv' to be able to report @'MissingClauses' f@.
@@ -941,7 +941,7 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
         -- Andrea(s), 2014-12-05:  We return 'MissingClauses' here, since this
         -- is the most conservative reason.
         [] -> do
-          f <- fromMaybe __IMPOSSIBLE__ <$> asksTC envAppDef
+          f <- fromMaybe __IMPOSSIBLE__ <$> asksTC (envAppDef . tcContext)
           rewrite (NotBlocked (MissingClauses f) ()) (applyE v) rewr es
         cl : cls -> do
           let pats = namedClausePats cl
@@ -950,7 +950,7 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
               nvars = size $ clauseTel cl
           -- if clause is underapplied, skip to next clause
           if length es < npats then goCls cls es else do
-            allowedReductions <- asksTC envAllowedReductions
+            allowedReductions <- asksTC (envAllowedReductions . modalEnv)
             let (es0, es1) = splitAt' npats es
             (m, es0) <- matchCopatterns pats es0
             let es = es0 ++! es1

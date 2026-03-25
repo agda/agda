@@ -570,7 +570,8 @@ compareAtom cmp t m n =
                              ]
     whenProfile Profile.Conversion $ tick "compare by reduction"
     -- Are we currently defining mutual functions? Which?
-    currentMutuals <- maybe (pure Set.empty) (mutualNames <.> lookupMutualBlock) =<< asksTC envMutualBlock
+    currentMutuals <-
+      maybe (pure Set.empty) (mutualNames <.> lookupMutualBlock) =<< asksTC (envMutualBlock . coldEnv)
 
     -- Andreas: what happens if I cut out the eta expansion here?
     -- Answer: Triggers issue 245, does not resolve 348
@@ -863,7 +864,7 @@ compareDom cmp0
         -- We only need to require a1 == a2 if b2 is dependent
         -- If it's non-dependent it doesn't matter what we add to the context.
       let name = suggests [ Suggestion b1 , Suggestion b2 ]
-      addConversionContext (ConvCod dom name) $ addContext (name, dom) $ connt
+      addConversionContext (ConvCod dom name) $ addContext (name, dom) $ cont
       stealConstraints pid
         -- Andreas, 2013-05-15 Now, comparison of codomains is not
         -- blocked any more by getting stuck on domains.
@@ -2167,7 +2168,7 @@ forallFaceMaps t kb k = do
         sub <- getModuleParameterSub m
         reportSDoc "conv.forall" 30 $ vcat
           [ text (replicate 10 '-')
-          , prettyTCM (envCurrentModule $ clEnv cl)
+          , prettyTCM (envCurrentModule $ coldEnv $ clEnv cl)
           -- , prettyTCM (envLetBindings $ clEnv cl)
           , prettyTCM tel -- (toTelescope $ envContext $ clEnv cl)
           , prettyTCM sigma

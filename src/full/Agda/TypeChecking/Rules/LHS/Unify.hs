@@ -248,7 +248,7 @@ unifyIndices' linv tel flex a us vs = Bench.billTo [Bench.UnifyIndices] $ case (
         let output = mconcat [output | (UnificationStep _ _ output,_) <- log ]
         let ps = applySubst (unifyProof output) $ teleNamedArgs (eqTel initialState)
         let getTauInv = do
-              strict     <- asksTC envSplitOnStrict
+              strict     <- asksTC $ envSplitOnStrict . coldEnv
               cubicalCompatible <- cubicalCompatibleOption
               withoutK <- withoutKOption
               case linv of
@@ -536,7 +536,7 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
     -- Check definitional equality of u and v
     isReflexive <- addContext (varTel s) $ pureEqualTermB a u v
     withoutK <- withoutKOption
-    splitOnStrict <- asksTC envSplitOnStrict
+    splitOnStrict <- asksTC $ envSplitOnStrict . coldEnv
     case isReflexive of
       Left block   -> return $ UnifyBlocked block
       Right False  -> return $ UnifyStuck []

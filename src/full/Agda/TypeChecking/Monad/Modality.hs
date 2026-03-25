@@ -60,7 +60,7 @@ workOnTypes' experimental
   . applyQuantityToJudgement zeroQuantity
   . applyPolarityToContext (withStandardLock UnusedPolarity)
   . typeLevelReductions
-  . localTC (\ e -> e { envWorkingOnTypes = True })
+  . localTC (\ e -> e {modalEnv = (modalEnv e){ envWorkingOnTypes = True }})
 
 applyPolarityToContext :: (MonadTCEnv tcm, LensModalPolarity p) => p -> tcm a -> tcm a
 applyPolarityToContext p = localTC

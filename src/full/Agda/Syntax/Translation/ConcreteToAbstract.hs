@@ -1324,7 +1324,7 @@ scopeCheckNiceModule
 scopeCheckNiceModule r p e name tel checkDs = do
     -- Andreas, 2025-03-29: clear @envCheckingWhere@
     -- We are no longer directly in a @where@ block if we enter a module.
-    localTC (\ env -> env{ envCheckingWhere = C.NoWhere_ }) $
+    localTC (\e -> e {coldEnv = (coldEnv e){ envCheckingWhere = C.NoWhere_ }}) $
       checkWrappedModules p (splitModuleTelescope tel)
   where
     -- Andreas, 2013-12-10:
@@ -1620,11 +1620,11 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
   safeButNotBuiltin <- and2M
     -- NB: BlockArguments allow bullet-point style argument lists using @do@, hehe!
     do pure isSafe
-    do not <$> do isBuiltinModuleWithSafePostulates . fromMaybe __IMPOSSIBLE__ =<< asksTC envCurrentPath
+    do not <$> do isBuiltinModuleWithSafePostulates . fromMaybe __IMPOSSIBLE__ =<< asksTC (envCurrentPath . coldEnv)
 
   -- We need to pass the fixities to the nicifier for clause grouping.
   fixs <- useScope scopeFixities
-  niceEnv <- NiceEnv safeButNotBuiltin <$> asksTC envCheckingWhere
+  niceEnv <- NiceEnv safeButNotBuiltin <$> asksTC (envCheckingWhere . coldEnv)
 
   -- Run nicifier.
   let (result, warns) = runNice niceEnv $ niceDeclarations fixs ds
@@ -1931,7 +1931,8 @@ instance ToAbstract NiceDeclaration where
     -- We record in the environment whether we are scope checking an
     -- abstract definition.  This way, we can propagate this attribute
     -- the extended lambdas.
-    applyWhenJust (niceHasAbstract d) (\ a -> localTC $ \ e -> e { envAbstractMode = aDefToMode a }) $
+    applyWhenJust (niceHasAbstract d)
+                  (\ a -> localTC $ \ e -> e {coldEnv = (coldEnv e){ envAbstractMode = aDefToMode a }}) $
     case d of
 
   -- Axiom (actual postulate)
@@ -2261,7 +2262,7 @@ instance ToAbstract NiceDeclaration where
       -- Generate the identifier for this block:
       oid    <- fresh
       -- Record the parent unfolding block, if any:
-      parent <- asksTC envCurrentOpaqueId
+      parent <- asksTC $ envCurrentOpaqueId . coldEnv
 
       let r = getRange d
       stOpaqueBlocks `modifyTCLens` Map.insert oid OpaqueBlock
@@ -2273,7 +2274,7 @@ instance ToAbstract NiceDeclaration where
         }
 
       -- Keep going!
-      localTC (\e -> e { envCurrentOpaqueId = Just oid }) $ do
+      localTC (\e -> e {coldEnv = (coldEnv e){ envCurrentOpaqueId = Just oid} }) $ do
         out <- catMaybes <$> traverse toAbstract decls
         unless (any interestingOpaqueDecl out) $ setCurrentRange kwr $ warning UselessOpaque
         -- Andreas, 2025-12-12
@@ -2700,7 +2701,7 @@ checkAllowedAxiom :: ArgInfo -> A.QName -> ScopeM ()
 checkAllowedAxiom info x = whenM
   (andM [ pure $ getOrigin info /= Inserted
         , Lens.getSafeMode <$> commandLineOptions
-        , not <$> (isBuiltinModuleWithSafePostulates . fromMaybe __IMPOSSIBLE__ =<< asksTC envCurrentPath)
+        , not <$> (isBuiltinModuleWithSafePostulates . fromMaybe __IMPOSSIBLE__ =<< asksTC (envCurrentPath . coldEnv))
         ])
   (warning $ SafeFlagPostulate x)
 
@@ -2720,7 +2721,7 @@ interestingOpaqueDecl _ = False
 -- | Add a 'QName' to the set of declarations /contained in/ the current
 -- opaque block.
 unfoldFunction :: A.QName -> ScopeM ()
-unfoldFunction qn = asksTC envCurrentOpaqueId >>= \case
+unfoldFunction qn = asksTC (envCurrentOpaqueId . coldEnv) >>= \case
   Just id -> do
     let go Nothing   = __IMPOSSIBLE__
         go (Just ob) = Just ob{ opaqueDecls = qn `HashSet.insert` opaqueDecls ob }
@@ -2729,7 +2730,7 @@ unfoldFunction qn = asksTC envCurrentOpaqueId >>= \case
 
 -- | Look up the current opaque identifier as a value in 'IsOpaque'.
 contextIsOpaque :: ScopeM IsOpaque
-contextIsOpaque =  maybe TransparentDef OpaqueDef <$> asksTC envCurrentOpaqueId
+contextIsOpaque =  maybe TransparentDef OpaqueDef <$> asksTC (envCurrentOpaqueId . coldEnv)
 
 updateDefInfoOpacity :: DefInfo -> ScopeM DefInfo
 updateDefInfoOpacity di = (\a -> di { Info.defOpaque = a }) <$> contextIsOpaque
@@ -2738,8 +2739,8 @@ updateDefInfoOpacity di = (\a -> di { Info.defOpaque = a }) <$> contextIsOpaque
 -- affected by opacity, but only if we are actually in an Opaque block.
 notAffectedByOpaque :: ScopeM a -> ScopeM a
 notAffectedByOpaque k = do
-  whenM ((NoWhere_ ==) <$> asksTC envCheckingWhere) $
-    whenJustM (asksTC envCurrentOpaqueId) \ _ ->
+  whenM ((NoWhere_ ==) <$> asksTC (envCheckingWhere . coldEnv)) $
+    whenJustM (asksTC $ envCurrentOpaqueId . coldEnv) \ _ ->
       warning NotAffectedByOpaque
   notUnderOpaque k
 
@@ -3358,7 +3359,7 @@ whereToAbstract r wh inner = do
       -- Named where-modules do not default to private.
       whereToAbstract1 r e (Just (m, a)) ds inner
   where
-  enter = localTC \ env -> env { envCheckingWhere = C.whereClause_ wh }
+  enter = localTC \ e -> e {coldEnv = (coldEnv e){ envCheckingWhere = C.whereClause_ wh }}
   ret = (,A.noWhereDecls) <$> inner
   warnEmptyWhere = do
     setCurrentRange r $ warning EmptyWhere

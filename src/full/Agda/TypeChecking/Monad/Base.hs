@@ -9,6 +9,7 @@ module Agda.TypeChecking.Monad.Base
   ( module Agda.TypeChecking.Monad.Base
   , module Agda.TypeChecking.Monad.Base.Types
   , module X
+  , module Agda.Utils.Lens
   , HasOptions (..)
   , RecordFieldWarning
   , UselessPublicReason(..)
@@ -159,9 +160,9 @@ import Agda.Utils.StrictState  qualified as Strict
 
 import Agda.Utils.Impossible
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * Type checking state
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 data TCState = TCSt
   { stPersistentState :: !PersistentTCState
@@ -1197,7 +1198,7 @@ instance FreshName C.Name where
     i <- fresh
     pure $ Name i c c noRange noFixity' False
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * Module Checkpoints
 --
 -- During the course of typechecking, we often need to bounce between wildly
@@ -1242,7 +1243,7 @@ instance FreshName C.Name where
 -- monotonically, so whenever a checkpoint goes out of scope, we can do batch updates of
 -- checkpoint ids by walking back along the stack of module names until we hit the checkpoint
 -- we are looking for.
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | A stack of module checkpoints for the current module.
 --
@@ -1265,9 +1266,9 @@ instance Pretty ModuleCheckpoints where
   pretty (ModuleCheckpointsSection mchkpts mnames chkpt) =
     (pretty mchkpts <> comma) <+> parens (pretty mnames <+> colon <+> pretty chkpt)
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * Associating concrete names to an abstract name
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | A monad that has read and write access to the stConcreteNames
 --   part of the TCState. Basically, this is a synonym for `MonadState
@@ -1314,9 +1315,9 @@ instance (MonadStConcreteNames m, Monoid w) => MonadStConcreteNames (WriterT w m
     ((x,ns'),w) <- runWriterT $ runStateT m ns
     return ((x,w),ns')
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * File handling
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 instance GetFileId FileDictWithBuiltins where
   getFileId = getFileId . fileDictBuilder
@@ -1345,9 +1346,9 @@ topLevelModuleFilePath :: HasCallStack => ModuleToSource -> TopLevelModuleName -
 topLevelModuleFilePath (ModuleToSource dict m2s) m =
   getIdFile dict $ srcFileId $ Map.findWithDefault __IMPOSSIBLE__ m m2s
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * Interface
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 
 -- | Distinguishes between type-checked and scope-checked interfaces
@@ -1483,9 +1484,9 @@ iFullHash i = combineHashes $ iSourceHash i : List.map snd (iImportedModules i)
 intSignature :: Lens' Interface Signature
 intSignature f i = f (iSignature i) <&> \s -> i { iSignature = s }
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Closure
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 data Closure a = Closure
   { clSignature         :: Signature
@@ -1520,9 +1521,9 @@ buildClosure x = do
     cps   <- useR stModuleCheckpoints
     return $ Closure sig env scope cps x
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Constraints
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 type Constraints = [ProblemConstraint]
 
@@ -1733,9 +1734,9 @@ instance Pretty CompareAs where
   pretty AsSizes       = ":" <+> text "Size"
   pretty AsTypes       = empty
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * Open things
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | A thing tagged with the context it came from. Also keeps the substitution from previous
 --   checkpoints. This lets us handle the case when an open thing was created in a context that we
@@ -1754,11 +1755,11 @@ instance Pretty a => Pretty (Open a) where
   prettyPrec p (OpenThing cp env _ x) = mparens (p > 9) $
     "OpenThing" <+> pretty cp <+> pretty (Map.toList env) <?> prettyPrec 10 x
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * Judgements
 --
 -- Used exclusively for typing of meta variables.
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | Parametrized since it is used without MetaId when creating a new meta.
 data Judgement a
@@ -1777,9 +1778,9 @@ instance Pretty a => Pretty (Judgement a) where
     pretty (HasType a cmp t) = hsep [ pretty a, ":"    , pretty t ]
     pretty (IsSort  a t)     = hsep [ pretty a, ":sort", pretty t ]
 
------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------
 -- ** Generalizable variables
------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------
 
 data DoGeneralize
   = YesGeneralizeVar  -- ^ Generalize because it is a generalizable variable.
@@ -1797,9 +1798,9 @@ data GeneralizedValue = GeneralizedValue
   , genvalType       :: Type
   } deriving (Show, Generic)
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Meta variables
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | Information about local meta-variables.
 
@@ -2114,9 +2115,9 @@ instance LensIsOpaque TCEnv where
               ; TransparentDef -> env {coldEnv = (coldEnv env) {envCurrentOpaqueId = Nothing}}
               }
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Interaction meta variables
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | Interaction points are created by the scope checker who sets the range.
 --   The meta variable is created by the type checker and then hooked up to the
@@ -2175,9 +2176,9 @@ instance Eq IPClause where
   IPClause x i _ _ _ _ == IPClause x' i' _ _ _ _ = x == x' && i == i'
   _                    == _                      = False
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Signature
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 data Signature = Sig
       { _sigSections     :: Sections
@@ -3762,9 +3763,9 @@ defForced d = case theDef d of
     Primitive{}                 -> []
     PrimitiveSort{}             -> []
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Injectivity
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 type FunctionInverse = FunctionInverse' Clause
 type InversionMap c = Map TermHead [c]
@@ -3789,9 +3790,9 @@ instance Pretty TermHead where
     VarHead i   -> text ("VarHead " ++ show i)
     UnknownHead -> "UnknownHead"
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Mutual blocks
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 newtype MutualId = MutualId Word32
   deriving (Eq, Ord, Show, Num, Enum, NFData)
@@ -3812,9 +3813,9 @@ data MutualBlock = MutualBlock
 instance Null MutualBlock where
   empty = MutualBlock empty empty
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Statistics
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | 'Statistics' is a collection of arbitrary string counters. The keys
 -- that can be found in the map depend on what profiling options were
@@ -3840,9 +3841,9 @@ instance Null Statistics where
 instance Monoid Statistics where
   mempty = empty
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Trace
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 data Call
   = CheckClause Type A.SpineClause
@@ -3972,9 +3973,9 @@ instance HasRange Call where
     getRange ModuleContents                      = noRange
     getRange (CheckIApplyConfluence e _ _ _ _ _) = getRange e
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Instance table
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | Records information about the instances in the signature. Does not
 -- deal with local instances.
@@ -4019,9 +4020,9 @@ itableCounts f s = f (_itableCounts s) <&> \x -> s { _itableCounts = x }
 --   unresolved instances and we'll deal with it later.
 type TempInstanceTable = (InstanceTable , Set QName)
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Builtin things
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 data BuiltinSort
   = SortUniv Univ
@@ -4068,9 +4069,9 @@ data Builtin pf
             -- ^ @BUILTIN REWRITE@.  We can have several rewrite relations.
     deriving (Show, Functor, Foldable, Traversable, Generic)
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * Highlighting levels
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | @ifTopLevelAndHighlightingLevelIs l b m@ runs @m@ when we're
 -- type-checking the top-level module (or before we've started doing
@@ -4097,12 +4098,12 @@ ifTopLevelAndHighlightingLevelIs ::
 ifTopLevelAndHighlightingLevelIs l =
   ifTopLevelAndHighlightingLevelIsOr l False
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * Type checking environment
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 data TCEnv = TCEnv {
-    syntacticEqualityFuel :: !(Strict.Maybe Int)
+    envSyntacticEqualityFuel :: !(Strict.Maybe Int)
     -- ^ If this counter is 'Strict.Nothing', then
     -- syntactic equality checking is unrestricted. If it
     -- is zero, then syntactic equality checking is not
@@ -4111,11 +4112,12 @@ data TCEnv = TCEnv {
     -- the counter is decreased in the failure
     -- continuation of
     -- 'Agda.TypeChecking.SyntacticEquality.checkSyntacticEquality'.
-  , tcContext :: !TCContext
-  , metaEnv   :: !MetaEnv
-  , modalEnv  :: !ModalEnv
-  , coldEnv   :: !ColdEnv
+  , envTCContext :: !TCContext
+  , envMetaEnv   :: !MetaEnv
+  , envModalEnv  :: !ModalEnv
+  , envColdEnv   :: !ColdEnv
   } deriving Generic
+
 
 data TCContext = TCContext {
     envContext           :: !Context
@@ -4125,7 +4127,11 @@ data TCContext = TCContext {
   , envCheckpoints       :: !(Map CheckpointId Substitution)
     -- ^ Keeps the substitution from each previous checkpoint to
     --   the current context.
+  , envAppDef :: Maybe QName
+        -- ^ We are reducing an application of this function.
+        -- (For tracking of incomplete matches.)
   } deriving Generic
+
 
 data MetaEnv = MetaEnv {
     envAssignMetas         :: !Bool
@@ -4134,6 +4140,7 @@ data MetaEnv = MetaEnv {
     -- ^ Are we currently in the process of solving active constraints?
   , envActiveProblems      :: !(Set ProblemId)
   } deriving Generic
+
 
 data ModalEnv = ModalEnv {
     envRelevance           :: !Relevance
@@ -4148,6 +4155,7 @@ data ModalEnv = ModalEnv {
   , envWorkingOnTypes      :: !Bool
     -- ^ Are we working on types? Turned on by 'workOnTypes'.
   } deriving Generic
+
 
 data ColdEnv = ColdEnv {
     envCurrentModule       :: ModuleName
@@ -4215,9 +4223,6 @@ data ColdEnv = ColdEnv {
         -- ^ When type-checking an alias f=e, we do not want
         -- to insert hidden arguments in the end, because
         -- these will become unsolved metas.
-  , envAppDef :: Maybe QName
-        -- ^ We are reducing an application of this function.
-        -- (For tracking of incomplete matches.)
   , envSimplification :: !Simplification
         -- ^ Did we encounter a simplification (proper match)
         --   during the current reduction process?
@@ -4265,7 +4270,7 @@ data ColdEnv = ColdEnv {
   , envActiveBackendName :: !(Maybe BackendName)
         -- ^ Is some backend active at the moment, and if yes, which?
         --   NB: we only store the 'BackendName' here, otherwise
-        --   @instance Data TCEnv@ is not derivable.
+        --   @instance Data TEnv@ is not derivable.
         --   The actual backend can be obtained from the name via 'stBackends'.
   , envConflComputingOverlap :: !Bool
         -- ^ Are we currently computing the overlap between
@@ -4280,11 +4285,13 @@ data ColdEnv = ColdEnv {
         -- checker (for unfolding control).
   } deriving Generic
 
+
 initTCContext :: TCContext
 initTCContext = TCContext {
     envContext             = CxEmpty
   , envCurrentCheckpoint   = 0
   , envCheckpoints         = Map.singleton 0 IdS
+  , envAppDef              = Nothing
   }
 
 initMetaEnv :: MetaEnv
@@ -4335,7 +4342,6 @@ initColdEnv = ColdEnv {
                 , envHighlightingLevel      = None
                 , envHighlightingMethod     = Indirect
                 , envExpandLast             = ExpandLast
-                , envAppDef                 = Nothing
                 , envSimplification         = NoSimplification
                 , envReduceDefs             = reduceAllDefs
                 , envReconstructed          = False
@@ -4359,39 +4365,19 @@ initColdEnv = ColdEnv {
 
 initEnv :: TCEnv
 initEnv = TCEnv {
-    syntacticEqualityFuel = Strict.Nothing
-  , tcContext             = initTCContext
-  , metaEnv               = initMetaEnv
-  , modalEnv              = initModalEnv
-  , coldEnv               = initColdEnv
+    envSyntacticEqualityFuel = Strict.Nothing
+  , envTCContext                = initTCContext
+  , envMetaEnv                  = initMetaEnv
+  , envModalEnv                 = initModalEnv
+  , envColdEnv                  = initColdEnv
   }
 
 
-class LensTCEnv a where
-  lensTCEnv :: Lens' a TCEnv
-
-instance LensTCEnv TCEnv where
-  lensTCEnv = id
-
-data UnquoteFlags = UnquoteFlags
-  { _unquoteNormalise :: Bool }
-  deriving Generic
-
-defaultUnquoteFlags :: UnquoteFlags
-defaultUnquoteFlags = UnquoteFlags
-  { _unquoteNormalise = False }
-
-unquoteNormalise :: Lens' UnquoteFlags Bool
-unquoteNormalise f e = f (_unquoteNormalise e) <&> \ x -> e { _unquoteNormalise = x }
-
-eUnquoteNormalise :: Lens' TCEnv Bool
-eUnquoteNormalise = eUnquoteFlags . unquoteNormalise
-
 -- * e-prefixed lenses
-------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 eContext :: Lens' TCEnv Context
-eContext f e = f (envContext (tcContext e)) <&> \ !x -> e {tcContext = (tcContext e){envContext = x}}
+eContext f e = f (envContext (envTCContext e)) <&> \ !x -> e {envTCContext = (envTCContext e){envContext = x}}
 
 eLetBindings :: Lens' TCEnv LetBindings
 eLetBindings f e = f (envLetBindings (modalEnv e)) <&> \ !x -> e {modalEnv = (modalEnv e){envLetBindings = x}}
@@ -4441,130 +4427,177 @@ eAbstractMode f e = f (envAbstractMode $ coldEnv e) <&> \ !x -> e {coldEnv = (co
 eRelevance :: Lens' TCEnv Relevance
 eRelevance f e = f (envRelevance $ modalEnv e) <&> \ !x -> e {modalEnv = (modalEnv e){ envRelevance = x }}
 
-{-# INLINE eQuantity #-}
--- | Note that this lens does not satisfy all lens laws: If hard
--- compile-time mode is enabled, then quantities other than zero are
--- replaced by '__IMPOSSIBLE__'.
-eQuantity :: Lens' TCEnv Quantity
-eQuantity f e =
-  if envHardCompileTimeMode (coldEnv e)
-  then f (check (envQuantity (modalEnv e))) <&>
-       \ !x -> e { modalEnv = (modalEnv e){ envQuantity = check x }}
-  else f (envQuantity (modalEnv e)) <&> \ !x -> e { modalEnv = (modalEnv e){ envQuantity = x }}
-  where
-  check q
-    | hasQuantity0 q = q
-    | otherwise      = __IMPOSSIBLE__
+-- TODO: this should be the raw field lens, the fancy version should be renamed to something else
+
+-- {-# INLINE eQuantity #-}
+-- -- | Note that this lens does not satisfy all lens laws: If hard
+-- -- compile-time mode is enabled, then quantities other than zero are
+-- -- replaced by '__IMPOSSIBLE__'.
+-- eQuantity :: Lens' TCEnv Quantity
+-- eQuantity f e =
+--   if envHardCompileTimeMode (coldEnv e)
+--   then f (check (envQuantity (modalEnv e))) <&>
+--        \ !x -> e { modalEnv = (modalEnv e){ envQuantity = check x }}
+--   else f (envQuantity (modalEnv e)) <&> \ !x -> e { modalEnv = (modalEnv e){ envQuantity = x }}
+--   where
+--   check q
+--     | hasQuantity0 q = q
+--     | otherwise      = __IMPOSSIBLE__
 
 eHardCompileTimeMode :: Lens' TCEnv Bool
 eHardCompileTimeMode f e =
-  f (envHardCompileTimeMode $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envHardCompileTimeMode = x }}
+  f (envHardCompileTimeMode $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envHardCompileTimeMode = x }}
 
 eSplitOnStrict :: Lens' TCEnv Bool
-eSplitOnStrict f e = f (envSplitOnStrict $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envSplitOnStrict = x }}
+eSplitOnStrict f e =
+  f (envSplitOnStrict $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envSplitOnStrict = x }}
 
 eDisplayFormsEnabled :: Lens' TCEnv Bool
 eDisplayFormsEnabled f e =
-  f (envDisplayFormsEnabled $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envDisplayFormsEnabled = x }}
+  f (envDisplayFormsEnabled $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envDisplayFormsEnabled = x }}
 
 eFoldLetBindings :: Lens' TCEnv Bool
 eFoldLetBindings f e =
-  f (envFoldLetBindings $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envFoldLetBindings = x }}
+  f (envFoldLetBindings $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envFoldLetBindings = x }}
 
 eRange :: Lens' TCEnv Range
-eRange f e = f (envRange $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envRange = x }}
+eRange f e = f (envRange $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envRange = x }}
 
 eHighlightingRange :: Lens' TCEnv Range
 eHighlightingRange f e =
-  f (envHighlightingRange $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envHighlightingRange = x }}
+  f (envHighlightingRange $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envHighlightingRange = x }}
 
 eCall :: Lens' TCEnv (Maybe (Closure Call))
-eCall f e = f (envCall $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envCall = x }}
+eCall f e = f (envCall $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envCall = x }}
 
 eHighlightingLevel :: Lens' TCEnv HighlightingLevel
 eHighlightingLevel f e =
-  f (envHighlightingLevel $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envHighlightingLevel = x }}
+  f (envHighlightingLevel $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envHighlightingLevel = x }}
 
 eHighlightingMethod :: Lens' TCEnv HighlightingMethod
 eHighlightingMethod f e =
-  f (envHighlightingMethod $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envHighlightingMethod = x }}
+  f (envHighlightingMethod $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envHighlightingMethod = x }}
 
 eExpandLast :: Lens' TCEnv ExpandHidden
-eExpandLast f e = f (envExpandLast $ coldEnv e) <&> \ !x -> e {coldEnv = (coldEnv e){ envExpandLast = x }}
+eExpandLast f e =
+  f (envExpandLast $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envExpandLast = x }}
 
 eExpandLastBool :: Lens' TCEnv Bool
 eExpandLastBool f e =
-  f (isExpandLast $ envExpandLast $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envExpandLast = toExpandLast x }}
+  f (isExpandLast $ envExpandLast $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envExpandLast = toExpandLast x }}
 
 eAppDef :: Lens' TCEnv (Maybe QName)
-eAppDef f e = f (envAppDef $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envAppDef = x }}
+eAppDef f e =
+  f (envAppDef $ envTCContext e) <&> \ x -> e {envTCContext = (envTCContext e){ envAppDef = x }}
 
 eSimplification :: Lens' TCEnv Simplification
-eSimplification f e = f (envSimplification $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envSimplification = x }}
+eSimplification f e =
+  f (envSimplification $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envSimplification = x }}
 
 eAllowedReductions :: Lens' TCEnv AllowedReductions
-eAllowedReductions f e = f (envAllowedReductions $ modalEnv e) <&> \ x -> e {modalEnv = (modalEnv e) {envAllowedReductions = x }}
+eAllowedReductions f e =
+  f (envAllowedReductions $ modalEnv e) <&> \ x -> e {modalEnv = (modalEnv e) {envAllowedReductions = x }}
 
 eReduceDefs :: Lens' TCEnv ReduceDefs
-eReduceDefs f e = f (envReduceDefs $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envReduceDefs = x }}
+eReduceDefs f e =
+  f (envReduceDefs $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envReduceDefs = x }}
 
 eReduceDefsPair :: Lens' TCEnv (Bool, [QName])
-eReduceDefsPair f e = f (fromReduceDefs $ envReduceDefs $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envReduceDefs = toReduceDefs x }}
+eReduceDefsPair f e =
+  f (fromReduceDefs $ envReduceDefs $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envReduceDefs = toReduceDefs x }}
 
 eReconstructed :: Lens' TCEnv Bool
-eReconstructed f e = f (envReconstructed $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envReconstructed = x }}
+eReconstructed f e =
+  f (envReconstructed $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envReconstructed = x }}
 
 eInjectivityDepth :: Lens' TCEnv Int
-eInjectivityDepth f e = f (envInjectivityDepth $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envInjectivityDepth = x }}
+eInjectivityDepth f e =
+  f (envInjectivityDepth $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envInjectivityDepth = x }}
 
 eCompareBlocked :: Lens' TCEnv Bool
-eCompareBlocked f e = f (envCompareBlocked $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envCompareBlocked = x }}
+eCompareBlocked f e =
+  f (envCompareBlocked $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envCompareBlocked = x }}
 
 ePrintDomainFreePi :: Lens' TCEnv Bool
-ePrintDomainFreePi f e = f (envPrintDomainFreePi $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envPrintDomainFreePi = x }}
+ePrintDomainFreePi f e =
+  f (envPrintDomainFreePi $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envPrintDomainFreePi = x }}
 
 ePrintMetasBare :: Lens' TCEnv Bool
-ePrintMetasBare f e = f (envPrintMetasBare $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envPrintMetasBare = x }}
+ePrintMetasBare f e =
+  f (envPrintMetasBare $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envPrintMetasBare = x }}
 
 eInsideDotPattern :: Lens' TCEnv Bool
-eInsideDotPattern f e = f (envInsideDotPattern $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envInsideDotPattern = x }}
+eInsideDotPattern f e =
+  f (envInsideDotPattern $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envInsideDotPattern = x }}
 
 eUnquoteFlags :: Lens' TCEnv UnquoteFlags
-eUnquoteFlags f e = f (envUnquoteFlags $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envUnquoteFlags = x }}
+eUnquoteFlags f e =
+  f (envUnquoteFlags $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envUnquoteFlags = x }}
 
 eInstanceDepth :: Lens' TCEnv Int
-eInstanceDepth f e = f (envInstanceDepth $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envInstanceDepth = x }}
+eInstanceDepth f e =
+  f (envInstanceDepth $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envInstanceDepth = x }}
 
 eIsDebugPrinting :: Lens' TCEnv Bool
-eIsDebugPrinting f e = f (envIsDebugPrinting $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envIsDebugPrinting = x }}
+eIsDebugPrinting f e =
+  f (envIsDebugPrinting $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envIsDebugPrinting = x }}
 
 ePrintingPatternLambdas :: Lens' TCEnv [QName]
-ePrintingPatternLambdas f e = f (envPrintingPatternLambdas $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envPrintingPatternLambdas = x }}
+ePrintingPatternLambdas f e =
+  f (envPrintingPatternLambdas $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envPrintingPatternLambdas = x }}
 
 eCallByNeed :: Lens' TCEnv Bool
-eCallByNeed f e = f (envCallByNeed $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envCallByNeed = x }}
+eCallByNeed f e =
+  f (envCallByNeed $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envCallByNeed = x }}
 
 eCurrentCheckpoint :: Lens' TCEnv CheckpointId
 eCurrentCheckpoint f e =
-  f (envCurrentCheckpoint $ tcContext e) <&> \ x -> e {tcContext = (tcContext e){ envCurrentCheckpoint = x }}
+  f (envCurrentCheckpoint $ envTCContext e) <&> \ x -> e {envTCContext = (envTCContext e){ envCurrentCheckpoint = x }}
 
 eCheckpoints :: Lens' TCEnv (Map CheckpointId Substitution)
-eCheckpoints f e = f (envCheckpoints $ tcContext e) <&> \ x -> e {tcContext = (tcContext e){ envCheckpoints = x }}
+eCheckpoints f e =
+  f (envCheckpoints $ envTCContext e) <&> \ x -> e {envTCContext = (envTCContext e){ envCheckpoints = x }}
 
 eGeneralizeMetas :: Lens' TCEnv DoGeneralize
-eGeneralizeMetas f e = f (envGeneralizeMetas $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envGeneralizeMetas = x }}
+eGeneralizeMetas f e =
+  f (envGeneralizeMetas $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envGeneralizeMetas = x }}
 
 eGeneralizedVars :: Lens' TCEnv (Map QName GeneralizedValue)
-eGeneralizedVars f e = f (envGeneralizedVars $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envGeneralizedVars = x }}
+eGeneralizedVars f e =
+  f (envGeneralizedVars $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envGeneralizedVars = x }}
 
 eActiveBackendName :: Lens' TCEnv (Maybe BackendName)
-eActiveBackendName f e = f (envActiveBackendName $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envActiveBackendName = x }}
+eActiveBackendName f e =
+  f (envActiveBackendName $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envActiveBackendName = x }}
 
 eConflComputingOverlap :: Lens' TCEnv Bool
-eConflComputingOverlap f e = f (envConflComputingOverlap $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envConflComputingOverlap = x }}
+eConflComputingOverlap f e =
+  f (envConflComputingOverlap $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envConflComputingOverlap = x }}
 
 eCurrentlyElaborating :: Lens' TCEnv Bool
-eCurrentlyElaborating f e = f (envCurrentlyElaborating $ coldEnv e) <&> \ x -> e {coldEnv = (coldEnv e){ envCurrentlyElaborating = x }}
+eCurrentlyElaborating f e =
+  f (envCurrentlyElaborating $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envCurrentlyElaborating = x }}
+
+----------------------------------------------------------------------------------------------------
+
+class LensTCEnv a where
+  lensTCEnv :: Lens' a TCEnv
+
+instance LensTCEnv TCEnv where
+  lensTCEnv = id
+
+data UnquoteFlags = UnquoteFlags { _unquoteNormalise :: Bool }
+  deriving Generic
+
+defaultUnquoteFlags :: UnquoteFlags
+defaultUnquoteFlags = UnquoteFlags
+  { _unquoteNormalise = False }
+
+unquoteNormalise :: Lens' UnquoteFlags Bool
+unquoteNormalise f e = f (_unquoteNormalise e) <&> \ x -> e { _unquoteNormalise = x }
+
+eUnquoteNormalise :: Lens' TCEnv Bool
+eUnquoteNormalise = eUnquoteFlags . unquoteNormalise
 
 {-# SPECIALISE currentModality :: TCM Modality #-}
 -- | The current modality.
@@ -4580,9 +4613,9 @@ currentModality = do
     , modCohesion  = unitCohesion
     }
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Let bindings
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 type LetBindings = Map Name (Open LetBinding)
 
@@ -4602,9 +4635,9 @@ data IsAxiom
   | NoAxiom
   deriving (Eq, Show, Generic)
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Abstract mode
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 data AbstractMode
   = AbstractMode        -- ^ Abstract things in the current module can be accessed.
@@ -4621,9 +4654,9 @@ aModeToDef AbstractMode = Just AbstractDef
 aModeToDef ConcreteMode = Just ConcreteDef
 aModeToDef _ = Nothing
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Opaque blocks
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | A block of opaque definitions.
 data OpaqueBlock = OpaqueBlock
@@ -4659,9 +4692,9 @@ instance Eq OpaqueBlock where
 instance Hashable OpaqueBlock where
   hashWithSalt s = hashWithSalt s . opaqueId
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Insertion of implicit arguments
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 data ExpandHidden
   = ExpandLast      -- ^ Add implicit arguments in the end until type is no longer hidden 'Pi'.
@@ -4704,9 +4737,9 @@ instance Free Candidate where
 instance HasOverlapMode Candidate where
   lensOverlapMode f x = f (candidateOverlap x) <&> \m -> x{ candidateOverlap = m }
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Checking arguments
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 data CheckedArg = CheckedArg
   { caElim        :: Elim
@@ -4730,9 +4763,9 @@ data ArgsCheckState a = ACState
   }
   deriving Show
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * Type checking warnings (aka non-fatal errors)
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | A non-fatal error is an error which does not prevent us from
 -- checking the document further and interacting with the user.
@@ -5170,9 +5203,9 @@ instance Eq TCWarning where
 instance Ord TCWarning where
   compare = compare `on` tcWarningRange &&& tcWarningString
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * Type checking errors
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | Information about a call.
 
@@ -5823,14 +5856,14 @@ data TCErr
 
 instance Show TCErr where
   show = \case
-    TypeError _ _ e      -> prettyShow (envRange $ coldEnv $ clEnv e) ++ ": " ++ show (clValue e)
+    TypeError _ _ e      -> prettyShow (envRange $ envColdEnv $ clEnv e) ++ ": " ++ show (clValue e)
     ParserError e        -> prettyShow e
     GenericException msg -> msg
     IOException _ r e    -> prettyShow r ++ ": " ++ showIOException e
     PatternErr{}         -> "Pattern violation (you shouldn't see this)"
 
 instance HasRange TCErr where
-  getRange (TypeError _ _ cl)  = envRange $ coldEnv $ clEnv cl
+  getRange (TypeError _ _ cl)  = envRange $ envColdEnv $ clEnv cl
   getRange (ParserError e)     = getRange e
   getRange GenericException{}  = noRange
   getRange (IOException _ r _) = r
@@ -5848,9 +5881,9 @@ instance Null WarningsAndNonFatalErrors where
   null (WarningsAndNonFatalErrors ws errs) = null ws && null errs
   empty = WarningsAndNonFatalErrors empty empty
 
------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------
 -- * Accessing options
------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------
 
 instance MonadIO m => HasOptions (TCMT m) where
   pragmaOptions = useTC stPragmaOptions
@@ -5889,9 +5922,9 @@ enableCaching :: HasOptions m => m Bool
 enableCaching = optCaching <$> pragmaOptions
 {-# INLINE enableCaching #-}
 
------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------
 -- * The reduce monad
------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------
 
 -- | Environment of the reduce monad.
 data ReduceEnv = ReduceEnv
@@ -6095,9 +6128,9 @@ instance MonadReduce m => MonadReduce (Strict.StateT w m)
 instance (Monoid w, MonadReduce m) => MonadReduce (Strict.WriterT w m)
 instance MonadReduce m => MonadReduce (BlockT m)
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * Monad with read-only 'TCEnv'
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | @MonadTCEnv@ made into its own dedicated service class.
 --   This allows us to use 'MonadReader' for 'ReaderT' extensions of @TCM@.
@@ -6140,9 +6173,9 @@ viewTC l = asksTC (^. l)
 locallyTC :: MonadTCEnv m => Lens' TCEnv a -> (a -> a) -> m b -> m b
 locallyTC l = localTC . over l
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * Monad with mutable 'TCState'
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | @MonadTCState@ made into its own dedicated service class.
 --   This allows us to use 'MonadState' for 'StateT' extensions of @TCM@.
@@ -6319,9 +6352,9 @@ modifySession l f = stateSessionLens l $ pure . f
 setSession :: ModifySession m => Lens' SessionState a -> a -> m ()
 setSession l v = modifySession l (const v)
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- ** Monad with capability to block a computation
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 class Monad m => MonadBlock m where
 
@@ -6365,9 +6398,9 @@ instance MonadBlock m => MonadBlock (ReaderT e m) where
 
 instance MonadFileId m => MonadFileId (BlockT m)
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * Type checking monad transformer
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | The type checking monad transformer.
 -- Adds readonly 'TCEnv' and mutable 'TCState'.
@@ -6451,7 +6484,7 @@ instance (CatchIO m, MonadIO m) => MonadFail (TCMT m) where
 
 instance MonadIO m => MonadIO (TCMT m) where
   liftIO m = TCM $ \ s env -> do
-    liftIO $ wrap s (envRange $ coldEnv env) $ do
+    liftIO $ wrap s (envRange $ envColdEnv env) $ do
       x <- m
       x `seq` return x
     where
@@ -6686,9 +6719,9 @@ forkTCM m = do
   e <- askTC
   liftIO $ void $ forkIO $ void $ runTCM e s m
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * Interaction Callback
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | Callback fuction to call when there is a response
 --   to give to the interactive frontend.
@@ -6730,9 +6763,9 @@ defaultInteractionOutputCallback = \case
   Resp_DoneAborting {}      -> __IMPOSSIBLE__
   Resp_DoneExiting {}       -> __IMPOSSIBLE__
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * Names for generated definitions
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 -- | Base name for patterns in telescopes
 patternInTeleName :: String
@@ -6770,9 +6803,9 @@ generalizedFieldName = ".generalizedField-"
 getGeneralizedFieldName :: A.QName -> Maybe String
 getGeneralizedFieldName = List.stripPrefix generalizedFieldName . prettyShow . nameConcrete . qnameName
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- * KillRange instances
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 instance KillRange Signature where
   killRange (Sig secs defs rews inst) = killRangeN Sig secs defs rews inst
@@ -6915,9 +6948,9 @@ instance KillRange DisplayTerm where
 instance KillRange (Closure a) where
   killRange = id
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 -- NFData instances
----------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 
 instance NFData NumGeneralizableArgs where
   rnf NoGeneralizableArgs       = ()

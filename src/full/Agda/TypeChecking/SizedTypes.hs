@@ -395,7 +395,7 @@ compareSizeViews cmp s1' s2' = do
 --   Failing is required if we speculatively test several alternatives.
 giveUp :: (MonadConversion m) => Comparison -> Type -> Term -> Term -> m ()
 giveUp cmp size u v =
-  ifM (asksTC envAssignMetas)
+  ifM (asksTC (envAssignMetas . metaEnv))
     {-then-} (do
       -- TODO: compute proper blocker
       unblock <- unblockOnAnyMetaIn <$> instantiateFull [u, v]
@@ -543,10 +543,10 @@ oldComputeSizeConstraints [] = return [] -- special case to avoid maximum []
 oldComputeSizeConstraints cs = catMaybes <$> mapM oldComputeSizeConstraint leqs
   where
     -- get the constraints plus contexts they are defined in
-    gammas       = map (envContext . clEnv . theConstraint) cs
-    ls           = map (clValue . theConstraint) cs
+    gammas       = map' (envContext . tcContext . clEnv . theConstraint) cs
+    ls           = map' (clValue . theConstraint) cs
     -- compute the longest context (common water level)
-    ns           = map size gammas
+    ns           = map' size gammas
     waterLevel   = maximum ns
     -- lift all constraints to live in the longest context
     -- (assuming this context is an extension of the shorter ones)

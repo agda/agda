@@ -196,7 +196,7 @@ instance Reify MetaId where
 
     reifyWhen = reifyWhenE
     reify x = do
-      b <- asksTC envPrintMetasBare
+      b <- asksTC (envPrintMetasBare . coldEnv)
       mvar <- lookupLocalMeta x
       let mi  = mvInfo mvar
       let mi' = Info.MetaInfo
@@ -462,9 +462,9 @@ reifyPathPConstAsPath x es = return (x,es)
 -- | Check if the term matches an existing let-binding, in that case use the corresponding variable,
 --   otherwise reify using the continuation.
 tryReifyAsLetBinding :: MonadReify m => Term -> m Expr -> m Expr
-tryReifyAsLetBinding v fallback = ifM (asksTC $ not . envFoldLetBindings) fallback $ do
+tryReifyAsLetBinding v fallback = ifM (asksTC $ not . envFoldLetBindings . coldEnv) fallback $ do
   letBindings <- do
-    binds  <- asksTC (Map.toAscList . envLetBindings)
+    binds  <- asksTC (Map.toAscList . envLetBindings . modalEnv)
     opened <- forM binds $ \ (name, open) -> (,name) <$> getOpen open
     return [ (body, name) | (LetBinding _isAxiom UserWritten body _, name) <- opened, not $ isNoName name ]  -- Only fold user-written lets
   matchingBindings <- filterM (\t -> checkSyntacticEquality v (fst t) (\_ _ -> return True) (\_ _ -> return False)) letBindings
@@ -480,7 +480,7 @@ reifyTerm ::
    -> m Expr
 reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
   -- Jesper 2018-11-02: If 'PrintMetasBare', drop all meta eliminations.
-  metasBare <- asksTC envPrintMetasBare
+  metasBare <- asksTC (envPrintMetasBare . coldEnv)
   reportS "reify.term" 80 $ "reifyTerm v0 = " <+> pretty v0
   v <- instantiate v0 >>= \case
     I.MetaV x _ | metasBare -> return $ I.MetaV x []
@@ -661,7 +661,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
         -- We can omit the domain type if it doesn't have any free variables
         -- and it's mentioned in the target type.
         domainFree a b = do
-          df <- asksTC envPrintDomainFreePi
+          df <- asksTC (envPrintDomainFreePi . coldEnv)
           return $ df && freeIn 0 b && closed a
 
         skipGeneralizedParameter :: ArgInfo -> m Bool

@@ -64,11 +64,11 @@ type Stack = [Frame]
 match' :: Stack -> ReduceM (Reduced (Blocked Elims) Term)
 match' ((c, es, patch) : stack) = do
   let no blocking es = return $! NoReduction $! blocking $! patch $! map'' ignoreReduced es
-      yes t          = flip YesReduction t <$!> asksTC envSimplification
+      yes t          = flip YesReduction t <$!> asksTC (envSimplification . coldEnv)
 
   -- TODO: make this local to Done
-  allowedReductions <- asksTC envAllowedReductions
-  fun <- fromMaybe __IMPOSSIBLE__ <$> asksTC envAppDef
+  allowedReductions <- asksTC (envAllowedReductions . modalEnv)
+  fun <- fromMaybe __IMPOSSIBLE__ <$> asksTC (envAppDef . tcContext)
   def <- getConstInfo fun
 
   do
@@ -208,7 +208,7 @@ match' ((c, es, patch) : stack) = do
 
 -- If we reach the empty stack, then pattern matching was incomplete
 match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
-  caseMaybeM (asksTC envAppDef) __IMPOSSIBLE__ $ \ f -> do
+  caseMaybeM (asksTC (envAppDef . tcContext)) __IMPOSSIBLE__ $ \ f -> do
     pds <- getPartialDefs
     if f `elem` pds
     then return (NoReduction $ NotBlocked (MissingClauses f) [])

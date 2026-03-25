@@ -130,7 +130,7 @@ instance MonadMetaSolver m => MonadMetaSolver (ReaderT r m) where
 dontAssignMetas :: (MonadTCEnv m, MonadDebug m) => m a -> m a
 dontAssignMetas cont = do
   reportSLn "tc.meta" 45 $ "don't assign metas"
-  localTC (\ env -> env { envAssignMetas = False }) cont
+  localTC (\ e -> e { metaEnv = (metaEnv e){ envAssignMetas = False} }) cont
 
 -- | Is the meta-variable from another top-level module?
 
@@ -604,7 +604,7 @@ connectInteractionPoint
   :: MonadInteractionPoints m
   => InteractionId -> MetaId -> m ()
 connectInteractionPoint ii mi = do
-  ipCl <- asksTC envClause
+  ipCl <- asksTC (envClause . coldEnv)
   m <- useR stInteractionPoints
   let ip = InteractionPoint { ipRange = __IMPOSSIBLE__, ipMeta = Just mi, ipSolved = False, ipClause = ipCl, ipBoundary = IPBoundary mempty }
   -- The interaction point needs to be present already, we just set the meta.

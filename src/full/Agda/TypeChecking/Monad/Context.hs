@@ -59,7 +59,7 @@ import Agda.Utils.Impossible
 --   the checkpoints. Use @updateContext@ instead.
 {-# INLINE unsafeModifyContext #-}
 unsafeModifyContext :: MonadTCEnv tcm => (Context -> Context) -> tcm a -> tcm a
-unsafeModifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
+unsafeModifyContext f = localTC $ \e -> e {tcContext = (tcContext e) {envContext = f $ envContext (tcContext e) }}
 
 {-# INLINE modifyContextInfo #-}
 -- | Modify the 'Dom' part of context entries.
@@ -127,11 +127,11 @@ checkpoint sub k = do
       , "old substs =" <+> prCps cps
       , "new substs =" <?> prCps cps'
       ]
-  x <- flip localTC k $ \ env -> env
+  x <- flip localTC k $ \ env -> env {tcContext = (tcContext env)
     { envCurrentCheckpoint = chkpt
     , envCheckpoints       = Map.insert chkpt IdS $
-                              fmap (applySubst sub) (envCheckpoints env)
-    }
+                              fmap (applySubst sub) (envCheckpoints (tcContext env))
+    }}
   unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
     newChkpts <- useTC stModuleCheckpoints
     reportS "tc.cxt.checkpoint" 105 $ nest 2 $
@@ -502,9 +502,9 @@ extendReduceEnv x !a !env =
                           cn = C.Name noRange InScope (C.stringNameParts x')
                       in Name nid cn cn noRange noFixity' False
       !re           = redEnv env
-      !ec           = envContext re
+      !ec           = envContext $ tcContext re
       !ec'          = CxExtendVar n a ec
-      !re'          = re {envContext = ec'}
+      !re'          = re {tcContext = (tcContext re){envContext = ec'}}
   in env {redEnv = re', redSt = tcs'}
 
 {-# INLINE underAbsReduceM #-}
@@ -561,7 +561,7 @@ mapAbstraction_ = mapAbstraction __DUMMY_DOM__
 {-# SPECIALIZE getLetBindings :: TCM [(Name, LetBinding)] #-}
 getLetBindings :: MonadTCEnv tcm => tcm [(Name, LetBinding)]
 getLetBindings = do
-  bs <- asksTC envLetBindings
+  bs <- asksTC (envLetBindings . modalEnv)
   forM (Map.toList bs) $ \ (n, o) -> (,) n <$> getOpen o
 
 -- | Add a let bound variable.
@@ -571,7 +571,8 @@ defaultAddLetBinding' :: (ReadTCState m, MonadTCEnv m)
   -> Origin -> Name -> Term -> Dom Type -> m a -> m a
 defaultAddLetBinding' isAxiom o x v t ret = do
     vt <- makeOpen $ LetBinding isAxiom o v t
-    flip localTC ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
+    flip localTC ret $ \e -> e {
+      modalEnv =  (modalEnv e){envLetBindings = Map.insert x vt $ envLetBindings (modalEnv e) }}
 
 -- | Add a let bound variable.
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
@@ -586,21 +587,23 @@ addLetAxiom info o x v t0 ret = addLetBinding' YesAxiom o x v (defaultArgDom inf
 {-# SPECIALIZE removeLetBinding :: Name -> TCM a -> TCM a #-}
 -- | Remove a let bound variable.
 removeLetBinding :: MonadTCEnv m => Name -> m a -> m a
-removeLetBinding x = localTC $ \ e -> e { envLetBindings = Map.delete x (envLetBindings e) }
+removeLetBinding x =
+  localTC $ \ e -> e {modalEnv = (modalEnv e){ envLetBindings = Map.delete x (envLetBindings (modalEnv e))}}
 
 {-# SPECIALIZE removeLetBindingsFrom :: Name -> TCM a -> TCM a #-}
 -- | Remove a let bound variable and all let bindings introduced after it. For instance before
 --   printing its body to avoid folding the binding itself, or using bindings defined later.
 --   Relies on the invariant that names introduced later are sorted after earlier names.
 removeLetBindingsFrom :: MonadTCEnv m => Name -> m a -> m a
-removeLetBindingsFrom x = localTC $ \ e -> e { envLetBindings = fst $ Map.split x (envLetBindings e) }
+removeLetBindingsFrom x =
+  localTC $ \ e -> e {modalEnv = (modalEnv e){ envLetBindings = fst $ Map.split x (envLetBindings (modalEnv e))}}
 
 -- * Querying the context
 
 -- | Get the current context.
 {-# SPECIALIZE getContext :: TCM Context #-}
 getContext :: MonadTCEnv m => m Context
-getContext = asksTC envContext
+getContext = asksTC (envContext . tcContext)
 
 -- | Get the size of the current context.
 {-# SPECIALIZE getContextSize :: TCM Nat #-}
@@ -717,7 +720,7 @@ nameOfBV n = ctxEntryName <$> lookupBV n
 getVarInfo :: (MonadDebug m, MonadFail m, MonadTCEnv m) => Name -> m (Term, Dom Type)
 getVarInfo x =
     do  ctx <- getContextVars'
-        def <- asksTC envLetBindings
+        def <- asksTC (envLetBindings . modalEnv)
         case List.findIndex ((== x) . unDom . snd) ctx of
             Just n -> do
                 t <- domOfBV n

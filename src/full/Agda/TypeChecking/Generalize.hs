@@ -746,7 +746,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
       let err' = case err of
                    TypeError{tcErrClosErr = cl} ->
                      -- Remove the 'when' part from the error since it's most like the same as ours.
-                     err{ tcErrClosErr = cl{ clEnv = (clEnv cl) { envCall = Nothing } } }
+                     err{ tcErrClosErr = cl{ clEnv = (clEnv cl) {coldEnv = (coldEnv (clEnv cl)){ envCall = Nothing } } }}
                    _ -> err
           telList = telToList genTel
           names   = map' (fst . unDom) telList

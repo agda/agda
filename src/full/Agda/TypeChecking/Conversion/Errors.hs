@@ -295,10 +295,10 @@ addConversionContext ext cont = cont `catchError` \case
   TypeError loc st cl'@Closure{ clValue = ConversionError_ conv@ConversionError{ convErrCtx = Floating ctx } } -> do
     let
       zip   = ext ctx
-      old_c = envCall (clEnv cl')
+      old_c = envCall $ coldEnv $ clEnv cl'
     cl <- buildClosure $ ConversionError_ $! conv { convErrCtx = Floating zip }
     zip `seq` old_c `seq` throwError $ TypeError loc st cl
-      { clEnv = (clEnv cl) { envCall = old_c }
+      { clEnv = (clEnv cl) {coldEnv = (coldEnv (clEnv cl)){ envCall = old_c }}
       }
   err -> throwError err
 

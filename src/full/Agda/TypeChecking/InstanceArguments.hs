@@ -149,7 +149,7 @@ initialInstanceCandidates blockOverlap instTy = do
             nest 2 $ vcat (map' debugCandidate fields)
 
       -- get let bindings
-      env <- asksTC envLetBindings
+      env <- asksTC $ envLetBindings . modalEnv
       env <- mapM (traverse getOpen) $ Map.toList env
       let lets = [ Candidate LocalCandidate v t DefaultOverlap
                  | (_, LetBinding _isAxiom _origin v Dom{domInfo = info, unDom = t}) <- env
@@ -213,7 +213,7 @@ initialInstanceCandidates blockOverlap instTy = do
         recursive = useTC stConsideringInstance
         hack      = useTC stInstanceHack
         enabled   = useTC (stPragmaOptions . lensOptExperimentalLazyInstances . lensCollapseDefault)
-        mutual    = caseMaybeM (asksTC envMutualBlock) (pure mempty) \ mb ->
+        mutual    = caseMaybeM (asksTC $ envMutualBlock . coldEnv) (pure mempty) \ mb ->
           mutualNames <$> lookupMutualBlock mb
 
       andM

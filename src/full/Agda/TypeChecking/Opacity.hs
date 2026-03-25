@@ -156,13 +156,13 @@ isAccessibleDef :: TCEnv -> TCState -> Definition -> Bool
 -- getting the original definition (for inConcreteOrAbstractMode), and
 -- for "normalise ignoring abstract" interactively.
 isAccessibleDef env state defn
-  | envAbstractMode env == IgnoreAbstractMode = True
+  | envAbstractMode (coldEnv env) == IgnoreAbstractMode = True
 
 -- Otherwise, actually apply the reducibility rules..
 isAccessibleDef env state defn =
   let
     -- Reducibility rules for abstract definitions:
-    concretise def = case envAbstractMode env of
+    concretise def = case envAbstractMode (coldEnv env) of
       -- Being outside an abstract block has no effect on concreteness
       ConcreteMode       -> def
 
@@ -174,7 +174,7 @@ isAccessibleDef env state defn =
         dropLastModule (MName ms) = MName $ initWithDefault __IMPOSSIBLE__ ms
         dropAnon       (MName ms) = MName $ List.dropWhileEnd isNoName ms
 
-        current = dropAnon $ envCurrentModule env
+        current = dropAnon $ envCurrentModule $ coldEnv env
 
         modname = case theDef defn of
           -- Hack to make abstract constructors work properly. The constructors
@@ -189,7 +189,7 @@ isAccessibleDef env state defn =
 
     -- Reducibility rule for opaque definitions: If we are operating
     -- under an unfolding block,
-    clarify def = case envCurrentOpaqueId env of
+    clarify def = case envCurrentOpaqueId $ coldEnv env of
       Just oid ->
         let
           block = fromMaybe __IMPOSSIBLE__ $ Map.lookup oid (view stOpaqueBlocks state)

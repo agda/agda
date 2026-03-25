@@ -161,7 +161,7 @@ instance PrettyTCM TCErr where
     -- Benchmark info during printing errors.
     TypeError loc s e -> withTCState (const s) $ do
       reportSLn "error" 2 $ "Error raised at " ++ prettyShow loc
-      let r = envRange $ clEnv e
+      let r = envRange $ coldEnv $ clEnv e
       vcat
         [ hsep
           [ if null r then empty else prettyTCM r <> ":"
@@ -169,7 +169,7 @@ instance PrettyTCM TCErr where
           , brackets (text $ typeErrorString $ clValue e)
           ]
         , prettyTCM e
-        , prettyTCM (envCall $ clEnv e)
+        , prettyTCM (envCall $ coldEnv $ clEnv e)
         ]
     ParserError err   -> pretty err
     GenericException msg -> fwords msg
@@ -974,7 +974,7 @@ instance PrettyTCM TypeError where
           vcat
             [ "Perhaps you meant to write"
             , nest 2 ("'" <> pretty (notSoNiceDeclarations d) <> "'")
-            , ("at" <+> (pretty . envRange =<< askTC)) <> "?"
+            , ("at" <+> (pretty . envRange . coldEnv =<< askTC)) <> "?"
             , fsep $ concat
               [ [ "In", dataOrRecord ]
               , pwords "definitions separate from their"
