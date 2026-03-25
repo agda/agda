@@ -79,6 +79,7 @@ typeErrorName = \case
   CannotGeneralizeEtaExpandable                              {} -> CannotGeneralizeEtaExpandable_
   CannotGenerateHCompClause                                  {} -> CannotGenerateHCompClause_
   CannotGenerateTransportClause                              {} -> CannotGenerateTransportClause_
+  CannotGenerateTransportLocalRewrite                        {} -> CannotGenerateTransportLocalRewrite_
   CannotResolveAmbiguousPatternSynonym                       {} -> CannotResolveAmbiguousPatternSynonym_
   CannotRewriteByNonEquation                                 {} -> CannotRewriteByNonEquation_
   CannotSolveSizeConstraints                                 {} -> CannotSolveSizeConstraints_

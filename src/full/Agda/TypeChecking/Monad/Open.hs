@@ -3,6 +3,7 @@ module Agda.TypeChecking.Monad.Open
         ( makeOpen
         , getOpen
         , tryGetOpen
+        , tryGetOpenRew
         , isClosed
         ) where
 
@@ -36,6 +37,20 @@ getOpen :: (TermSubst a, MonadTCEnv m) => Open a -> m a
 getOpen (OpenThing cp _ _ x) = do
   sub <- checkpointSubstitution cp
   return $ applySubst sub x
+
+-- | Try to extract the value from an open local rewrite rule.
+--   The checkpoint at which it was created must be in scope.
+tryGetOpenRew :: (MonadTCEnv m)
+  => (Substitution -> m RewriteRule)
+       -- ^ Action to take if the substitution fails
+  -> Open RewriteRule
+       -- ^ The rewrite rule we are trying to open
+  -> m RewriteRule
+tryGetOpenRew fallback (OpenThing cp _ _ rew) = do
+  sub <- checkpointSubstitution cp
+  case applySubstLocalRewrite sub rew of
+    Nothing   -> fallback sub
+    Just rew' -> return rew'
 
 -- | Extract the value from an open term. If the checkpoint is no longer in scope use the provided
 --   function to pull the object to the most recent common checkpoint. The function is given the

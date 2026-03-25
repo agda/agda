@@ -45,6 +45,7 @@ import qualified Data.HashMap.Strict as HMap
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Map.Strict as MapS
+import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Text (Text)
@@ -73,6 +74,7 @@ import Agda.Utils.Float
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Memo (memoUnsafeInt)
 import Agda.Utils.Monad
 import Agda.Utils.Null (empty, null)
 import Agda.Utils.Functor
@@ -113,8 +115,10 @@ data BuiltinEnv = BuiltinEnv
   , bPrimForce, bPrimErase  :: Maybe QName }
 
 -- | Compute a 'CompactDef' from a regular definition.
-compactDef :: BuiltinEnv -> Definition -> RewriteRules -> ReduceM CompactDef
-compactDef bEnv def rewr = do
+compactDef ::
+     BuiltinEnv -> Definition -> Bool -> RewriteRules
+  -> ReduceM CompactDef
+compactDef bEnv def copatterns rewr = do
 
   -- WARNING: don't use isPropM here because it relies on reduction,
   -- which causes an infinite loop.
@@ -134,7 +138,7 @@ compactDef bEnv def rewr = do
           , isConOrProj && ProjectionReductions `SmallSet.member` allowed
           , isInlineFun (theDef def) && InlineReductions `SmallSet.member` allowed
           , definitelyNonRecursive_ (theDef def) && or
-            [ defCopatternLHS def && CopatternReductions `SmallSet.member` allowed
+            [ copatterns && CopatternReductions `SmallSet.member` allowed
             , FunctionReductions `SmallSet.member` allowed
             ]
           ]
@@ -456,13 +460,20 @@ fastReduce' norm v = do
 
       bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
                           bPrimForce = force, bPrimErase = erase }
-  rwr <- optRewriting <$> pragmaOptions
+  rwr    <- anyRewritingOption
+  rwrLoc <- localRewritingOption
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f
-    rewr <- if rwr then instantiateRewriteRules =<< getRewriteRulesFor f
+    copatterns <- if rwr then defCopatternLHS f info
+                         else return $ defCopatternLHS' info
+    rewr <- if rwr then getAllRewriteRulesForDefHead f
                    else return []
-    compactDef bEnv info rewr
-  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm v
+    compactDef bEnv info copatterns rewr
+  localRewr <- unKleisli $ \x ->
+    if rwrLoc then getAllRewriteRulesForVarHead x else return []
+
+  ReduceM $ \ redEnv ->
+    reduceTm redEnv bEnv (memoQName constInfo) (memoUnsafeInt localRewr) norm v
 
 -- * Closures
 
@@ -815,11 +826,12 @@ unusedPointer = Pure (Closure (Value $ notBlocked ())
 
 -- | Evaluating a term in the abstract machine. It gets the type checking state and environment in
 --   the 'ReduceEnv' argument, some precomputed built-in mappings in 'BuiltinEnv', the memoised
---   'getConstInfo' function, a couple of flags (allow non-terminating function unfolding, and
---   whether rewriting is enabled), and a term to reduce. The result is the weak-head normal form of
---   the term with an attached blocking tag.
-reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> Term -> Blocked Term
-reduceTm rEnv bEnv !constInfo normalisation =
+--   'getConstInfo' function, a memoised function to lookup local rewrite rules, and a term to
+--   reduce. The result is the weak-head normal form of the term with an attached blocking tag.
+reduceTm ::
+     ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> (Nat -> RewriteRules)
+  -> Normalisation -> Term -> Blocked Term
+reduceTm rEnv bEnv !constInfo !localRewr normalisation =
     compileAndRun . traceDoc "-- fast reduce --"
   where
     -- Helpers to get information from the ReduceEnv.
@@ -939,7 +951,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
         Var x []   ->
           evalIApplyAM spine ctrl $
           case lookupEnv x env of
-            Nothing -> runAM (evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl)
+            Nothing -> rewriteAM $ evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl
             Just p  -> evalPointerAM p spine ctrl
 
         -- Case: lambda. Perform the beta reduction if applied. Otherwise it's a value.
@@ -1355,6 +1367,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
       where rewr = case t of
                      Def f []   -> rewriteRules f
                      Con c _ [] -> rewriteRules (conName c)
+                     Var x _    -> localRewr x
                      _          -> __IMPOSSIBLE__
     rewriteAM _ =
       __IMPOSSIBLE__
