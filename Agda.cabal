@@ -939,6 +939,7 @@ library
       Agda.Utils.RangeMap
       Agda.Utils.SemiRing
       Agda.Utils.Semigroup
+      Agda.Utils.Sequence
       Agda.Utils.Serialize
       Agda.Utils.Set
       Agda.Utils.Set1

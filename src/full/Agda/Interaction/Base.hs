@@ -437,6 +437,9 @@ instance Read a => Read (Interval' a) where
         exact "Interval"
         liftA3 Interval readParse readParse readParse
 
+instance Read IntervalWithoutFile' where
+  readsPrec p x = map (\(PackIWF -> !x, y) -> (x, y)) (readsPrec p x)
+
 instance Read AbsolutePath where
     readsPrec = parseToReadsPrec $ do
         exact "mkAbsolute"

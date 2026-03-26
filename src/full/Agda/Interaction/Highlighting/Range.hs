@@ -16,7 +16,7 @@ import Agda.Utils.Range
 -- | Converts a 'P.Range' to a 'Ranges'.
 
 rToR :: P.Range -> Ranges
-rToR r = Ranges (map iToR (P.rangeIntervals r))
+rToR r = Ranges (map (iToR . P.unpackIWF) (P.rangeIntervals r))
   where
   iToR (P.Interval () P.Pn'{ P.posPos = pos1 } P.Pn'{ P.posPos = pos2 }) =
     Range { from = fromIntegral pos1, to = fromIntegral pos2 }
