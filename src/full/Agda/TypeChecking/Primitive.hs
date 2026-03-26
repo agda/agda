@@ -688,7 +688,7 @@ primLockUniv' = do
 
 primNoMatch :: TCM PrimitiveImpl
 primNoMatch = do
-  t <- ePi "a" (el primLevel) $
+  t <- hPi "a" (el primLevel) $
        hPi "A" (pure $ sort $ varSort 0) $
        (el (pure $ var 0) --> el (pure $ var 0))
 
