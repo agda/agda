@@ -1081,7 +1081,7 @@ compareElims pols0 fors0 a v els01 els02 =
           mlvl <- tryMaybe primLevel
           let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
               freeInCoDom _         = False
-              dependent () = (Just (unEl b) /= mlvl) && freeInCoDom codom
+              dependent = (Just (unEl b) /= mlvl) && freeInCoDom codom
                 -- Level-polymorphism (x : Level) -> ... does not count as dependency here
                    -- NB: we could drop the free variable test and still be sound.
                    -- It is a trade-off between the administrative effort of
@@ -1089,46 +1089,65 @@ compareElims pols0 fors0 a v els01 els02 =
                    -- Apparently, it is believed that checking free vars is cheaper.
                    -- Andreas, 2013-05-15
 
-          -- compare arg1 and arg2
-          pid <- addConversionContext (\z -> ConvApply v codom (Arg info z) els1 els2) $
-            newProblem_ $ applyModalityToContext info
-            if isForced for then
-              reportSLn "tc.conv.elim" 40 $ "argument is forced"
-            else if isIrrelevant info then do
-              reportSLn "tc.conv.elim" 40 $ "argument is irrelevant"
-              compareIrrelevant b (unArg arg1) (unArg arg2)
-            else do
-              reportSLn "tc.conv.elim" 40 $ "argument has polarity " ++ show pol
-              compareWithPol pol (flip compareTerm b) (unArg arg1) (unArg arg2)
+          if dependent then do
 
-          -- if comparison got stuck and function type is dependent, block arg
-          solved <- isProblemSolved pid
-          reportSLn "tc.conv.elim" 40 $ "solved = " ++ show solved
-          arg <- if dependent () && not solved
-                 then applyModalityToContext info $ do
-                  reportSDoc "tc.conv.elims" 50 $ vcat $
-                    [ "Trying antiUnify:"
-                    , nest 2 $ "b    =" <+> prettyTCM b
-                    , nest 2 $ "arg1 =" <+> prettyTCM arg1
-                    , nest 2 $ "arg2 =" <+> prettyTCM arg2
-                    ]
-                  arg <- (arg1 $>) <$> antiUnify pid b (unArg arg1) (unArg arg2)
-                  reportSDoc "tc.conv.elims" 50 $ hang "Anti-unification:" 2 (prettyTCM arg)
-                  reportSDoc "tc.conv.elims" 70 $ nest 2 $ "raw:" <+> pretty arg
-                  return arg
-                 else return arg1
-          -- continue, possibly with blocked instantiation
-          () <- compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
-          -- any left over constraints of arg are associated to the comparison
-          reportSLn "tc.conv.elim" 40 $ "stealing constraints from problem " ++ show pid
-          stealConstraints pid
-          {- Stealing solves this issue:
+            -- compare arg1 and arg2
+            pid <- addConversionContext (\z -> ConvApply v codom (Arg info z) els1 els2) $
+              newProblem_ $ applyModalityToContext info $
+              if isForced for then
+                reportSLn "tc.conv.elim" 40 $ "argument is forced"
+              else if isIrrelevant info then do
+                reportSLn "tc.conv.elim" 40 $ "argument is irrelevant"
+                compareIrrelevant b (unArg arg1) (unArg arg2)
+              else do
+                reportSLn "tc.conv.elim" 40 $ "argument has polarity " ++ show pol
+                compareWithPol pol (flip compareTerm b) (unArg arg1) (unArg arg2)
 
-             Does not create enough blocked tc-problems,
-             see test/fail/DontPrune.
-             (There are remaining problems which do not show up as yellow.)
-             Need to find a way to associate pid also to result of compareElims.
-          -}
+            -- if comparison got stuck, block arg
+            solved <- isProblemSolved pid
+            reportSLn "tc.conv.elim" 40 $ "solved = " ++ show solved
+            arg <- if not solved then
+                    applyModalityToContext info $ do
+                      reportSDoc "tc.conv.elims" 50 $ vcat $
+                        [ "Trying antiUnify:"
+                        , nest 2 $ "b    =" <+> prettyTCM b
+                        , nest 2 $ "arg1 =" <+> prettyTCM arg1
+                        , nest 2 $ "arg2 =" <+> prettyTCM arg2
+                        ]
+                      arg <- (arg1 $>) <$> antiUnify pid b (unArg arg1) (unArg arg2)
+                      reportSDoc "tc.conv.elims" 50 $ hang "Anti-unification:" 2 (prettyTCM arg)
+                      reportSDoc "tc.conv.elims" 70 $ nest 2 $ "raw:" <+> pretty arg
+                      return arg
+                   else return arg1
+            -- continue, possibly with blocked instantiation
+            () <- compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
+            -- any left over constraints of arg are associated to the comparison
+            reportSLn "tc.conv.elim" 40 $ "stealing constraints from problem " ++ show pid
+            stealConstraints pid
+            {- Stealing solves this issue:
+
+               Does not create enough blocked tc-problems,
+               see test/fail/DontPrune.
+               (There are remaining problems which do not show up as yellow.)
+               Need to find a way to associate pid also to result of compareElims.
+            -}
+
+          else do
+            -- compare arg1 and arg2
+            addConversionContext (\z -> ConvApply v codom (Arg info z) els1 els2) $
+              applyModalityToContext info $
+                if isForced for then
+                  reportSLn "tc.conv.elim" 40 $ "argument is forced"
+                else if isIrrelevant info then do
+                  reportSLn "tc.conv.elim" 40 $ "argument is irrelevant"
+                  compareIrrelevant b (unArg arg1) (unArg arg2)
+                else do
+                  reportSLn "tc.conv.elim" 40 $ "argument has polarity " ++ show pol
+                  compareWithPol pol (flip compareTerm b) (unArg arg1) (unArg arg2)
+
+            -- continue
+            compareElims pols fors (codom `lazyAbsApp` unArg arg1) (apply v [arg1]) els1 els2
+
         a -> do
           reportSDoc "impossible" 10 $
             "unexpected type when comparing apply eliminations " <+> prettyTCM a

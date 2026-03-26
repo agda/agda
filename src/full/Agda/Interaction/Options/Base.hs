@@ -310,7 +310,7 @@ optForcing                   :: PragmaOptions -> Bool
 optProjectionLike            :: PragmaOptions -> Bool
 -- | 'optErasure' is implied by 'optEraseRecordParameters'.
 --   'optErasure' is also implied by an explicitly given `--erased-matches`.
-  optErasure                   :: PragmaOptions -> Bool
+optErasure                   :: PragmaOptions -> Bool
 optErasedMatches             :: PragmaOptions -> Bool
 optEraseRecordParameters     :: PragmaOptions -> Bool
 optRewriting                 :: PragmaOptions -> Bool
