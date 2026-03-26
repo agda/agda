@@ -1,1 +1,1 @@
---only-scope-checking --js
+--only-scope-checking --js --js-es6
