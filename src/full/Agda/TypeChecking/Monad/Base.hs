@@ -4662,7 +4662,7 @@ eQuantity = \f e ->
 -- compile-time mode is enabled, then quantities other than zero are
 -- replaced by '__IMPOSSIBLE__'.
 eQuantityZeroHardCompile :: Lens' TCEnv Quantity
-eQuantityZeroHardCompile f e = undefined
+eQuantityZeroHardCompile f e =
   if e ^. eHardCompileTimeMode
     then f (check (e ^. eQuantity)) <&> \ !x -> e & eQuantity .~ check x
     else f (e ^. eQuantity) <&> \ !x -> e & eQuantity .~ x
