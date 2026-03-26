@@ -264,6 +264,7 @@ instance Pretty Exp where
   prettyPrec p n (String s)     = "\"" <> unescapes (T.unpack s) <> "\""
   prettyPrec p n (Char c)       = "\"" <> unescapes [c] <> "\""
   prettyPrec p n (Integer x)    = "agdaRTS.primIntegerFromString(\"" <> text (show x) <> "\")"
+  prettyPrec p n (Int x)        = text $ show x
   prettyPrec p n (Double x)     = text $ show x
   prettyPrec p (n, min, ms) (Lambda x e) = mparens (p > 2) $
     mparens (x /= 1) (punctuate "," (pretties (n + x, min, ms) (map LocalId [x-1, x-2 .. 0])))
@@ -278,6 +279,30 @@ instance Pretty Exp where
   prettyPrec p n (BinOp e op f) = parens $ prettyPrec 17 n e <> " " <> text op <> " " <> prettyPrec 17 n f
   prettyPrec p n (Const c)      = text c
   prettyPrec p n (PlainJS js)   = text js
+  prettyPrec p n (IIFE s)       = parens (parens mempty <+> "=>" <+> braces (pretty n s)) <> "()"
+
+instance Pretty Stmt where
+  pretty n (Return e) = "return" <> " " <> pretty n e <> ";"
+
+  pretty (d, min, ms) (Switch e alts mdef) =
+    "switch" <+> parens (pretty (d, min, ms) e) <+> "{"
+    $+$ indent (vcat (map (prettyAlt (d, min, ms)) alts ++ prettyDefault (d, min, ms) mdef))
+    $+$ "}"
+    where
+      prettyAlt ctx (tag, stmt) =
+        "case" <> " " <> text (show tag) <> ":" <+> braces (pretty ctx stmt)
+      prettyDefault _ Nothing = []
+      prettyDefault ctx (Just s) = ["default:" <+> braces (pretty ctx s)]
+
+  pretty (d, min, ms) (VarDecl numVars es body) =
+    "let" <> " " <> punctuate ","
+      [ pretty (d + numVars, min, ms) (LocalId i) <+> "=" <+> pretty (d, min, ms) e
+      | (i, e) <- zip [numVars - 1, numVars - 2 .. 0] es ]
+    <> ";" $+$ pretty (d + numVars, min, ms) body
+
+  pretty n (Block ss) = vcat (map (pretty n) ss)
+
+  pretty n (ExprStmt e) = pretty n e <> ";"
 
 block :: (Nat, Bool, JSModuleStyle) -> Exp -> Doc
 block n e = mparens (doNest e) $ prettyPrec 2 n e

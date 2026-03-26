@@ -87,11 +87,6 @@ disabledTests =
   -- recursive pattern-matching lambdas was disabled.
   disable "Compiler/MAlonzo_.*/simple/Issue2918$" :
   -----------------------------------------------------------------------------
-  -- The following test cases fail (at least at the time of writing)
-  -- for the JS backend.
-  disable "Compiler/JS_Optimized/simple/ModuleReexport" :
-  disable "Compiler/JS_MinifiedOptimized/simple/ModuleReexport" :
-  -----------------------------------------------------------------------------
   -- The following test cases are GHC backend specific and thus disabled on JS.
   disable "Compiler/JS_.*/simple/Issue2821" :
   disable "Compiler/JS_.*/simple/Issue2879-.*" :
@@ -112,14 +107,15 @@ fdebugTestFilter =
 -- This list was crafted using
 --    grep -RP '(?<!-- ){-# OPTIONS.* -v' | grep Compiler/
 --  and screening the results (e.g. for comments)
-  [ disable "Compiler/simple/UnusedArguments"
-  , disable "Compiler/simple/EraseRefl"
-  , disable "Compiler/simple/InlineRecursive"
-  , disable "Compiler/simple/Word"
-  , disable "Compiler/simple/CompileNumbers"
-  , disable "Compiler/simple/CaseOnCase"
-  , disable "Compiler/simple/CompareNat"
-  , disable "Compiler/simple/CompileCatchAll"
+  [ disable "Compiler/.*/simple/UnusedArguments"
+  , disable "Compiler/.*/simple/EraseRefl"
+  , disable "Compiler/.*/simple/InlineRecursive"
+  , disable "Compiler/.*/simple/Word"
+  , disable "Compiler/.*/simple/CompileNumbers"
+  , disable "Compiler/.*/simple/CaseOnCase"
+  , disable "Compiler/.*/simple/CompareNat"
+  , disable "Compiler/.*/simple/CompileCatchAll"
+  , disable "Compiler/.*/simple/CompilePrimSeq"
   ]
   where disable = RFInclude
 
