@@ -61,10 +61,25 @@ import Agda.Utils.Impossible
 -- * Function type domain
 ---------------------------------------------------------------------------
 
+-- | Local rewrite rules are either user-written or introduced via "smart with"
+--   abstractions
+data LocalRewriteOrigin = LRewUserWritten | LRewSmartWith
+  deriving (Show, Generic, Enum, Bounded)
+
+lrewUserWritten :: LocalRewriteOrigin -> Bool
+lrewUserWritten LRewUserWritten = True
+lrewUserWritten LRewSmartWith   = False
+
+lrewSmartWith :: LocalRewriteOrigin -> Bool
+lrewSmartWith LRewSmartWith   = True
+lrewSmartWith LRewUserWritten = False
+
 data RewDom' t = RewDom
-  { rewDomEq  :: LocalEquation' t
+  { rewDomOrigin :: LocalRewriteOrigin
+    -- ^ Rewrite rule originates from a with-abstraction
+  , rewDomEq     :: LocalEquation' t
     -- ^ Elaborated "@rewrite" equation
-  , rewDomRew :: Maybe RewriteRule
+  , rewDomRew    :: Maybe RewriteRule
     -- ^ "@rewrite" equation transformed into a directed rewrite rule.
     --
     -- @Nothing@ iff invalidated by a substitution. If we are checking
@@ -189,7 +204,7 @@ instance HasRange a => HasRange (Dom' t a) where
   getRange = getRange . unDom
 
 instance KillRange t => KillRange (RewDom' t) where
-  killRange (RewDom eq rew) = killRangeN RewDom eq rew
+  killRange (RewDom o eq rew) = killRangeN (RewDom o) eq rew
 
 instance (KillRange t, KillRange a) => KillRange (Dom' t a) where
   killRange (Dom info x t b r a) = killRangeN Dom info x t b r a
@@ -215,7 +230,7 @@ instance LensLock (Dom' t e) where
 
 instance LensRewriteAnn (Dom' t e) where
   getRewriteAnn = getRewriteAnn . getArgInfo
-  setRewriteAnn = mapRewriteAnn . setRewriteAnn
+  setRewriteAnn = mapArgInfo . setRewriteAnn
 
 instance LensLocalEquation (Dom e) where
   getLocalEq = domEq
@@ -1995,4 +2010,5 @@ instance NFData NLPSort
 instance NFData RewriteHead
 instance NFData LocalEquation
 instance NFData RewriteRule
+instance NFData LocalRewriteOrigin
 instance NFData RewDom

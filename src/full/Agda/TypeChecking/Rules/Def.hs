@@ -570,6 +570,21 @@ data WithFunctionProblemData = WithFunctionProblemData
     , wfCallSubst    :: Substitution                     -- ^ Substitution to generate call for the parent.
     , wfLetBindings  :: Map Name LetBinding              -- ^ The let-bindings in scope of the parent (in the parent context).
     }
+  | SmartWithFunctionProblemData
+    { wfParentName   :: QName                            -- ^ Parent function name.
+    , wfName         :: QName                            -- ^ With function name.
+    , wfParentType   :: Type                             -- ^ Type of the parent function.
+    , wfParentTel    :: Telescope                        -- ^ Context of the parent patterns.
+    -- , wfBeforeTel    :: Telescope                        -- ^ Types of arguments to the with function before the with expressions (for "smart with" this is just the permuted parent telescope)
+    , wfExprs        :: List1 (Arg (Term, EqualityView)) -- ^ With and rewrite expressions and their types.
+    , wfRHSType      :: Type                             -- ^ Type of the right hand side.
+    , wfParentPats   :: [NamedArg DeBruijnPattern]       -- ^ Parent patterns.
+    , wfParentParams :: Nat                              -- ^ Number of module parameters in parent patterns
+    , wfPermParent   :: Permutation                      -- ^ Permutation reordering variables in the parent pattern
+    , wfClauses      :: List1 A.Clause                   -- ^ The given clauses for the with function
+    , wfCallSubst    :: Substitution                     -- ^ Substitution to generate call for the parent.
+    , wfLetBindings  :: Map Name LetBinding              -- ^ The let-bindings in scope of the parent (in the parent context).
+    }
 
 checkSystemCoverage
   :: QName
@@ -1050,9 +1065,23 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
         [ text "rewrite"
         , "  rhs' = " <> (text . show) rhs'
         ]
-      checkWithRHS x qname t lhsResult (singleton $ defaultArg (withExpr, withType)) $ singleton cl
+      checkWithRHS x qname t lhsResult
+        (singleton $ defaultArg (withExpr, withType)) (singleton cl)
 
-checkWithRHS
+checkWithRHS ::
+     QName                             -- ^ Name of function.
+  -> QName                             -- ^ Name of the with-function.
+  -> Type                              -- ^ Type of function.
+  -> LHSResult                         -- ^ Result of type-checking patterns
+  -> List1 (Arg (Term, EqualityView))  -- ^ Expressions and types of with-expressions.
+  -> List1 A.Clause                    -- ^ With-clauses to check.
+  -> TCM (Maybe Term, WithFunctionProblem)
+                                -- Note: as-bindings already bound (in checkClause)
+checkWithRHS x qname t lhsResult vtys cs = ifM smartWithOption
+  {- else -} (checkSmartWithRHS x qname t lhsResult vtys cs)
+  {- then -} (checkDumbWithRHS x qname t lhsResult vtys cs)
+
+checkDumbWithRHS
   :: QName                             -- ^ Name of function.
   -> QName                             -- ^ Name of the with-function.
   -> Type                              -- ^ Type of function.
@@ -1061,7 +1090,7 @@ checkWithRHS
   -> List1 A.Clause                    -- ^ With-clauses to check.
   -> TCM (Maybe Term, WithFunctionProblem)
                                 -- Note: as-bindings already bound (in checkClause)
-checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0 cs =
+checkDumbWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0 cs =
   verboseBracket "tc.with.top" 25 "checkWithRHS" $ do
     Bench.billTo [Bench.Typing, Bench.With] $ do
         withArgs <- withArguments vtys0
@@ -1150,9 +1179,142 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
 
         return (v, WithFunction (WithFunctionProblemData x aux t delta delta1 delta2 vtys t' ps npars perm' perm finalPerm cs argsS lets))
 
+checkSmartWithRHS ::
+     QName                             -- ^ Name of function.
+  -> QName                             -- ^ Name of the with-function.
+  -> Type                              -- ^ Type of function.
+  -> LHSResult                         -- ^ Result of type-checking patterns
+  -> List1 (Arg (Term, EqualityView))  -- ^ Expressions and types of with-expressions.
+  -> List1 A.Clause                    -- ^ With-clauses to check.
+  -> TCM (Maybe Term, WithFunctionProblem)
+                                -- Note: as-bindings already bound (in checkClause)
+checkSmartWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0 cs =
+  verboseBracket "tc.with.top" 25 "checkSmartWithRHS" $ do
+    Bench.billTo [Bench.Typing, Bench.With] $ do
+        withArgs <- smartWithArguments vtys0
+        let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
+
+        reportSDoc "tc.with.top" 30 $ vcat $
+          -- declared locally because we do not want to use the unzip'd thing!
+          let (vs, as) = List1.unzipWith unArg vtys0 in
+          [ "vs (before normalization) =" <+> prettyTCM vs
+          , "as (before normalization) =" <+> prettyTCM as
+          ]
+        reportSDoc "tc.with.top" 45 $ vcat $
+          -- declared locally because we do not want to use the unzip'd thing!
+          let (vs, as) = List1.unzipWith unArg vtys0 in
+          [ "vs (before norm., raw) =" <+> pretty vs
+          ]
+        vtys0 <- normalise vtys0
+
+        -- Andreas, 2012-09-17: for printing delta,
+        -- we should remove it from the context first
+        reportSDoc "tc.with.top" 25 $ escapeContext impossible (size delta) $ vcat
+          [ "delta  =" <+> prettyTCM delta
+          ]
+        reportSDoc "tc.with.top" 25 $ vcat $
+          -- declared locally because we do not want to use the unzip'd thing!
+          let (vs, as) = List1.unzipWith unArg vtys0 in
+          [ "vs     =" <+> prettyTCM vs
+          , "as     =" <+> prettyTCM as
+          -- , "perm   =" <+> text (show perm)
+          ]
+
+        -- Create the body of the original function
+
+        let v = Nothing -- generated by checkWithFunction
+
+        TelV delta' t' <- telViewUpToPath (size ps) t
+        let t' = piApply t $ fmap (fmap $ patternToTerm . namedThing) ps
+
+        -- Andreas, 2013-02-26 add with-name to signature for printing purposes
+        addConstant aux =<< do
+          lang <- getLanguage
+          useTerPragma =<<
+            defaultDefn defaultArgInfo aux __DUMMY_TYPE__ lang <$>
+              emptyFunction
+
+        -- Only inherit user-written let bindings from parent clauses. Others, like @-patterns,
+        -- should not be carried over.
+        lets <- Map.filter ((== UserWritten) . letOrigin) <$> (traverse getOpen =<< viewTC eLetBindings)
+
+        us <- getContextTerms
+        let argsS = parallelS $ reverse $
+              us ++! map' unArg (List1.toList withArgs)
+
+        return (v, WithFunction (SmartWithFunctionProblemData x aux t delta vtys0 t' ps npars perm cs argsS lets))
+
 -- | Invoked in empty context.
 checkWithFunction :: [Name] -> WithFunctionProblem -> TCM (Maybe Term)
 checkWithFunction _ NoWithFunction = return Nothing
+checkWithFunction cxtNames (WithFunction (SmartWithFunctionProblemData f aux t delta vtys b qs npars perm cs argsS lets)) = do
+  reportSDoc "tc.with.top" 10 $ vcat
+    [ "checkWithFunction (smart)"
+    , nest 2 $ vcat $
+      let (vs, as) = List1.unzipWith unArg vtys in
+      [ "delta  =" <+> prettyTCM delta
+      , "t      =" <+> prettyTCM t
+      , "as     =" <+> do addContext delta $ prettyTCM as
+      , "vs     =" <+> do addContext delta $ prettyTCM vs
+      , "b      =" <+> do addContext delta $ prettyTCM b
+      , "qs     =" <+> do addContext delta $ prettyTCMPatternList qs
+      , "perm   =" <+> text (show perm)
+      ]
+    ]
+
+  -- TODO: Should we flush instance constraints (#7882)?
+
+  (b', (nwithargs, nwithpats))
+    <- addContext delta $ smartWithFunctionType vtys b
+  let withFunType = delta `abstract` b'
+
+  reportSDoc "rewriting" 30 $ "I guess printing the type is what is breaking..."
+  reportSDoc "tc.with.type" 10 $ sep [ "with-function type:", nest 2 $ prettyTCM withFunType ]
+  reportSDoc "tc.with.type" 50 $ sep [ "with-function type:", nest 2 $ pretty withFunType ]
+
+  -- Δ, ws ⊢ withSub : Δ
+  let withSub :: Substitution
+      withSub = let as = fmap (snd . unArg) vtys in
+                wkS (countSmartWithArgs as) idS
+
+  reportSDoc "rewriting" 30 $ "AND HERE!"
+
+  call_in_parent <- do
+    (TelV tel _,bs) <- telViewUpToPathBoundary' (nwithargs + size delta) withFunType
+    return $ argsS `applySubst` Def aux (teleElims tel bs)
+
+  reportSDoc "tc.with.top" 20 $ addContext delta $ "with function call" <+> prettyTCM call_in_parent
+
+  reportSDoc "rewriting" 30 $ "AND HERE AS WLL!"
+
+  -- TODO: Display forms
+  -- df <- inTopContext $ makeOpen =<< withDisplayForm f aux delta1 delta2 nwithargs qs perm' perm
+
+  addConstant aux =<< do
+    lang <- getLanguage
+    fun  <- emptyFunction
+    useTerPragma $
+      (defaultDefn defaultArgInfo aux withFunType lang fun)
+        { defDisplay = [] }
+
+  reportSDoc "rewriting" 30 $ "AND HERE..."
+
+  -- Construct the body for the with function
+  cs <- return $ fmap (A.lhsToSpine) cs
+  cs <- buildWithFunction cxtNames f aux t delta qs npars withSub perm (size delta) nwithpats cs
+  cs <- return $ fmap (A.spineToLhs) cs
+
+  reportSDoc "rewriting" 30 $ "I DOUBT WE GET HERE..."
+
+  -- #4833: inherit abstract mode from parent
+  abstr <- defAbstract <$> ignoreAbstractMode (getConstInfo f)
+
+  -- Check the with function
+  let info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess abstr (getRange cs)
+  ai <- defArgInfo <$> getConstInfo f
+  checkFunDefS withFunType ai Nothing (WithFunction (f, withSub, lets)) info aux $ List1.toList cs
+  return $ Just $ call_in_parent
+
 checkWithFunction cxtNames (WithFunction (WithFunctionProblemData f aux t delta delta1 delta2 vtys b qs npars perm' perm finalPerm cs argsS lets)) = do
   let -- Δ₁ ws Δ₂ ⊢ withSub : Δ′    (where Δ′ is the context of the parent lhs)
       withSub :: Substitution

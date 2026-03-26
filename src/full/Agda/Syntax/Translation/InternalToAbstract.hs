@@ -1650,7 +1650,11 @@ instance Reify I.Telescope where
 instance Reify i => Reify (Dom i) where
     type ReifiesTo (Dom i) = Arg (ReifiesTo i)
 
-    reify d = Arg (d ^. dInfo) <$> reify (unDom d)
+    reify d = Arg (mapRewriteAnn updateRewAnn $ d ^. dInfo) <$> reify (unDom d)
+      where
+        updateRewAnn = \case
+          IsRewrite r s | invalidRew d -> IsRewrite r RewInvalidated
+          rew           -> rew
     {-# INLINE reify #-}
 
 instance Reify Context where

@@ -53,6 +53,7 @@ import Agda.Utils.Null (empty)
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Update
+import Agda.Utils.CallStack (HasCallStack)
 
 
 import Agda.Utils.StrictReader qualified as Strict
@@ -69,6 +70,26 @@ import Agda.Utils.Impossible
 {-# INLINE unsafeModifyContext #-}
 unsafeModifyContext :: MonadTCEnv tcm => (Context -> Context) -> tcm a -> tcm a
 unsafeModifyContext f = localTC (over eContext f)
+
+-- | Turn a context into a flat telescope: all entries live in the whole context.
+-- @
+--    (Γ : Context) -> [Type Γ]
+-- @
+flattenContext :: Context -> [ContextEntry]
+flattenContext = loop 1 [] . cxEntries
+  where
+    loop n tel []       = tel
+    loop n tel (ce:ctx) = loop (n + 1) (raise n ce : tel) ctx
+
+-- | Remove all local rewrite rules (unsafe!)
+clearLocalRewriteRules :: MonadAddContext tcm => tcm a -> tcm a
+clearLocalRewriteRules = locallyTC eLocalRewriteRules (const empty)
+
+-- | Remove and re-add all local rewrite rules
+refreshLocalRewriteRules :: MonadAddContext tcm => tcm a -> tcm a
+refreshLocalRewriteRules ret = clearLocalRewriteRules $ do
+  doms <- mapMaybe (rewDom . ceType) . flattenContext <$> getContext
+  foldr addRewDom ret doms
 
 {-# INLINE modifyContextInfo #-}
 -- | Modify the 'Dom' part of context entries.
@@ -107,7 +128,9 @@ unsafeEscapeContext n = unsafeModifyContext $ cxDrop n
 
 {-# INLINE escapeContext #-}
 -- | Delete the last @n@ bindings from the context. Any occurrences of
--- these variables are replaced with the given @err@.
+--   these variables are replaced with the given @err@.
+--
+--   Does not (currently) delete local rewrite rules
 escapeContext :: MonadAddContext m => Impossible -> Int -> m a -> m a
 escapeContext err n = updateContext (strengthenS err n) $ cxDrop n
 
@@ -274,7 +297,7 @@ class MonadTCEnv m => MonadAddContext m where
   --   Chooses an unused 'Name'.
   --
   --   Warning: Does not update module parameter substitution!
-  addCtx :: Name -> Dom Type -> m a -> m a
+  addCtx :: HasCallStack => Name -> Dom Type -> m a -> m a
 
   -- | Add a let bound variable to the context
   addLetBinding' ::
@@ -284,16 +307,18 @@ class MonadTCEnv m => MonadAddContext m where
   -- | Adds a local rewrite rule to the context
   addLocalRewrite :: RewriteRule -> m a -> m a
 
-  -- | Update the context.
+  -- | Update the context
   --   Requires a substitution that transports things living in the old context
-  --   to the new.
-  updateContext :: Substitution -> (Context -> Context) -> m a -> m a
+  --   to the new and also needs to know whether local rewrite rules
+  --   should be refreshed.
+  updateContext' ::
+    RefreshRews -> Substitution -> (Context -> Context) -> m a -> m a
 
   withFreshName :: Range -> ArgName -> (Name -> m a) -> m a
 
   {-# INLINE addCtx #-}
   default addCtx
-    :: (MonadAddContext n, MonadTransControl t, t n ~ m)
+    :: (MonadAddContext n, MonadTransControl t, t n ~ m, HasCallStack)
     => Name -> Dom Type -> m a -> m a
   addCtx x a = liftThrough $ addCtx x a
 
@@ -309,11 +334,11 @@ class MonadTCEnv m => MonadAddContext m where
     => RewriteRule -> m a -> m a
   addLocalRewrite r = liftThrough $ addLocalRewrite r
 
-  {-# INLINE updateContext #-}
-  default updateContext
+  {-# INLINE updateContext' #-}
+  default updateContext'
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
-    => Substitution -> (Context -> Context) -> m a -> m a
-  updateContext sub f = liftThrough $ updateContext sub f
+    => RefreshRews -> Substitution -> (Context -> Context) -> m a -> m a
+  updateContext' r sub f = liftThrough $ updateContext' r sub f
 
   {-# INLINE withFreshName #-}
   default withFreshName
@@ -324,13 +349,22 @@ class MonadTCEnv m => MonadAddContext m where
       withFreshName r x $ run . cont
     restoreT $ return st
 
+-- | Update the context
+--   Requires a substitution that transports things living in the old context
+--   to the new.
+--   Assumes the substitution does not invalidate any local rewrite rules.
+{-# INLINE updateContext #-}
+updateContext :: MonadAddContext m
+  => Substitution -> (Context -> Context) -> m a -> m a
+updateContext = updateContext' RetainRews
+
 {-# INLINE defaultAddCtx #-}
 -- | Default implementation of addCtx in terms of updateContext
-defaultAddCtx :: MonadAddContext m => Name -> Dom Type -> m a -> m a
+defaultAddCtx :: (MonadAddContext m, HasCallStack) => Name -> Dom Type -> m a -> m a
 defaultAddCtx x a ret = applyWhenJust (rewDom a) addRewDom $
   updateContext (raiseS 1) (CxExtendVar x a) ret
 
-addRewDom :: MonadAddContext m => RewDom -> m a -> m a
+addRewDom :: (MonadAddContext m, HasCallStack) => RewDom -> m a -> m a
 addRewDom rew = case rewDomRew rew of
   Just r  -> addLocalRewrite r
   Nothing -> __IMPOSSIBLE__
@@ -355,7 +389,7 @@ instance MonadAddContext m => MonadAddContext (ListT m) where
   addCtx x a             = liftListT $ addCtx x a
   addLetBinding' isAxiom o x u a = liftListT $ addLetBinding' isAxiom o x u a
   addLocalRewrite r      = liftListT $ addLocalRewrite r
-  updateContext sub f    = liftListT $ updateContext sub f
+  updateContext' r sub f = liftListT $ updateContext' r sub f
   withFreshName r x cont = ListT $ withFreshName r x $ runListT . cont
 
 instance MonadAddContext TCM where
@@ -365,14 +399,16 @@ instance MonadAddContext TCM where
   {-# INLINE addLetBinding' #-}
   addLetBinding' isAxiom o x u a ret = defaultAddLetBinding' isAxiom o x u a ret
 
-  {-# INLINE updateContext #-}
-  updateContext !sub !f !act = unsafeModifyContext f (checkpoint sub act)
-
   {-# INLINE addLocalRewrite #-}
   addLocalRewrite = defaultAddLocalRewrite
 
-  {-# INLINE withFreshName #-}
+  {-# INLINE updateContext' #-}
+  updateContext' r !sub !f !ret = do
+    unsafeModifyContext f $ checkpoint sub $
+      applyWhen (refreshRews r) refreshLocalRewriteRules ret
+
   withFreshName r x m = freshName r x >>= m
+  {-# INLINE withFreshName #-}
 
 {-# INLINE defaultAddLocalRewrite #-}
 -- | Adds a rewrite rule to the local typechecking environment
@@ -396,7 +432,7 @@ addRecordNameContext dom ret = do
 
 -- | Various specializations of @addCtx@.
 class AddContext b where
-  addContext :: (MonadAddContext m) => b -> m a -> m a
+  addContext :: (MonadAddContext m, HasCallStack) => b -> m a -> m a
   contextSize :: b -> Nat
 
 -- | Wrapper to tell 'addContext' not to mark names as
@@ -567,24 +603,23 @@ underAbsReduceM_ :: Abs a -> (a -> ReduceM b) -> ReduceM b
 underAbsReduceM_ = underAbsReduceM __DUMMY_DOM__
 
 -- | Go under an abstraction.  Do not extend context in case of 'NoAbs'.
-{-# INLINE underAbstraction  #-}
-underAbstraction :: (Subst a, MonadAddContext m) => Dom Type -> Abs a -> (a -> m b) -> m b
+{-# SPECIALIZE underAbstraction :: Subst a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
+underAbstraction :: (Subst a, MonadAddContext m, HasCallStack) => Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstraction = underAbstraction' id
 
-{-# INLINE underAbstraction' #-}
-underAbstraction' :: (Subst a, MonadAddContext m, AddContext (name, Dom Type)) =>
+underAbstraction' :: (Subst a, MonadAddContext m, AddContext (name, Dom Type), HasCallStack) =>
                      (String -> name) -> Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstraction' _ _ (NoAbs _ v) k = k v
 underAbstraction' wrap t a k = underAbstractionAbs' wrap t a k
 
 {-# INLINE underAbstractionAbs #-}
 -- | Go under an abstraction, treating 'NoAbs' as 'Abs'.
-underAbstractionAbs :: (Subst a, MonadAddContext m) => Dom Type -> Abs a -> (a -> m b) -> m b
+underAbstractionAbs :: (Subst a, MonadAddContext m, HasCallStack) => Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstractionAbs = underAbstractionAbs' id
 
 {-# INLINE underAbstractionAbs' #-}
 underAbstractionAbs'
-  :: (Subst a, MonadAddContext m, AddContext (name, Dom Type))
+  :: (Subst a, MonadAddContext m, AddContext (name, Dom Type), HasCallStack)
   => (String -> name) -> Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstractionAbs' wrap t a k =
   addContext (wrap $ realName $ absName a, t) $ k $ absBody a
@@ -737,7 +772,7 @@ lookupBV' :: MonadTCEnv m => Nat -> m (Maybe ContextEntry)
 lookupBV' n = lookupBV_ n <$> getContext
 
 {-# SPECIALIZE lookupBV :: Nat -> TCM ContextEntry #-}
-lookupBV :: (MonadDebug m, MonadTCEnv m) => Nat -> m ContextEntry
+lookupBV :: (MonadDebug m, MonadTCEnv m, HasCallStack) => Nat -> m ContextEntry
 lookupBV n = do
   let failure = do
         ctx <- getContext
@@ -757,11 +792,11 @@ ctxEntryType :: ContextEntry -> Type
 ctxEntryType = unDom . ctxEntryDom
 
 {-# SPECIALIZE domOfBV :: Nat -> TCM (Dom Type) #-}
-domOfBV :: (MonadDebug m, MonadTCEnv m) => Nat -> m (Dom Type)
+domOfBV :: (MonadDebug m, MonadTCEnv m, HasCallStack) => Nat -> m (Dom Type)
 domOfBV n = ctxEntryDom <$> lookupBV n
 
 {-# SPECIALIZE typeOfBV :: Nat -> TCM Type #-}
-typeOfBV :: (MonadDebug m, MonadTCEnv m) => Nat -> m Type
+typeOfBV :: (MonadDebug m, MonadTCEnv m, HasCallStack) => Nat -> m Type
 typeOfBV i = unDom <$> domOfBV i
 
 {-# SPECIALIZE nameOfBV' :: Nat -> TCM (Maybe Name) #-}
@@ -799,3 +834,41 @@ getVarInfo x =
                       -- it is apparently caught during a "refine".
                       -- TODO: It would be worthwhile investigating who wants to access
                       -- an out-of-scope variable.
+
+--  * Dropping rewrite annotations
+
+-- | Should we drop only invalidated local rewrite rules or all of them?
+data DropStrategy = DropInvalid | DropAll
+
+class DropRewDoms a where
+  -- | Drops rewrite annotations ('RewDom's) following the specified
+  --   'DropStrategy'
+  --   @addContext (dropRews DropInvalid x)@ should never fail
+  dropRewDoms :: DropStrategy -> a -> a
+
+instance DropRewDoms (Maybe RewDom) where
+  dropRewDoms DropAll     = const Nothing
+  dropRewDoms DropInvalid = (=<<) $ \case
+    RewDom _ _ Nothing -> Nothing
+    d                  -> Just d
+
+instance DropRewDoms (Dom a) where
+  dropRewDoms s = dRew %~ dropRewDoms s
+
+instance DropRewDoms a => DropRewDoms (Abs a) where
+  dropRewDoms s a = a { unAbs = dropRewDoms s (unAbs a) }
+
+instance DropRewDoms (Tele (Dom a)) where
+  dropRewDoms s EmptyTel         = EmptyTel
+  dropRewDoms s (ExtendTel x xs) =
+    ExtendTel (dropRewDoms s x) (dropRewDoms s xs)
+
+-- | Safely adds to the context by first dropping any invalidated annotations
+--   (e.g. local rewrite rules)
+--
+--   Note that dropping such annotations might break some other invariants
+--   (i.e. the context might no longer typecheck). Therefore, this function
+--   should be used carefully (e.g. for pretty-printing it should be fine)
+addContextSafe :: (MonadAddContext m, AddContext b, DropRewDoms b)
+  => b -> m a -> m a
+addContextSafe = addContext . dropRewDoms DropInvalid

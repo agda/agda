@@ -3,7 +3,7 @@
 module Agda.TypeChecking.Coverage.SplitPattern
   ( SplitPattern, SplitPatVar(..)
   , fromSplitPattern, fromSplitPatterns, toSplitPatterns
-  , toSplitPSubst, applySplitPSubst
+  , toSplitPSubst, applySplitPSubst, fromSplitPSubst
   , isTrivialPattern
   ) where
 

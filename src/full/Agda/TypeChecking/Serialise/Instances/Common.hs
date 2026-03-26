@@ -563,11 +563,13 @@ instance EmbPrj Lock where
   value _ = malformed
 
 instance EmbPrj RewriteAnn where
-  icod_ IsNotRewrite  = pure 0
-  icod_ (IsRewrite _) = pure 1
+  icod_ IsNotRewrite                 = pure 0
+  icod_ (IsRewrite _ RewFine)        = pure 1
+  icod_ (IsRewrite _ RewInvalidated) = pure 2
 
   value 0 = pure IsNotRewrite
-  value 1 = pure $ IsRewrite noRange
+  value 1 = pure $ IsRewrite noRange RewFine
+  value 2 = pure $ IsRewrite noRange RewInvalidated
   value _ = malformed
 
 instance EmbPrj Origin where

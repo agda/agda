@@ -1129,27 +1129,29 @@ instance Subst RewriteHead where
   applySubst rho (RewVarHead x) = RewVarHead $ fromMaybe __IMPOSSIBLE__ $
     deBruijnView $ lookupS rho x
 
+applyRenLocalRewrite :: AnySubstitution -> RewriteRule -> RewriteRule
+applyRenLocalRewrite (AnySub rho) (RewriteRule gamma f ps rhs b) =
+  RewriteRule (applySubst rho gamma)
+              (applySubst rho f)
+               (applySubst rho' ps)
+              (applySubst rho' rhs)
+              (applySubst rho' b)
+  where
+    rho' :: DeBruijn a => Substitution' a
+    rho' = liftS (size gamma) rho
+
 -- | Substitution on local rewrite rules is partial.
 applySubstLocalRewrite :: DeBruijn a
   => Substitution' a -> RewriteRule -> Maybe RewriteRule
-applySubstLocalRewrite rho rew@(RewriteRule gamma f ps rhs b) =
+applySubstLocalRewrite rho rew =
   case toRenOn (freeVarSet rew) rho of
-    Just (AnySub rho') -> do
-      let rho'' :: DeBruijn a => Substitution' a
-          rho'' = liftS (size gamma) rho'
-
-      Just $ RewriteRule (applySubst rho' gamma)
-                                 (applySubst rho' f)
-                                 (applySubst rho'' ps)
-                                  (applySubst rho'' rhs)
-                                 (applySubst rho'' b)
-    Nothing            -> Nothing
+    Just rho' -> Just $ applyRenLocalRewrite rho' rew
+    Nothing   -> Nothing
 
 instance Subst a => Subst (RewDom' a) where
   type SubstArg (RewDom' a) = SubstArg a
-  applySubst rho (RewDom eq rew) =
-    RewDom (applySubst rho eq)
-          (applySubstLocalRewrite rho =<< rew)
+  applySubst rho (RewDom o eq rew) =
+    RewDom o (applySubst rho eq) (applySubstLocalRewrite rho =<< rew)
 
 instance Subst a => Subst (Blocked a) where
   type SubstArg (Blocked a) = SubstArg a
@@ -1737,6 +1739,7 @@ deriving instance Eq NLPType
 deriving instance Eq NLPSort
 deriving instance Eq LocalEquation
 deriving instance Eq RewriteRule
+deriving instance Eq LocalRewriteOrigin
 deriving instance Eq RewDom
 deriving instance Eq (DomInfo Term)
 
@@ -1747,6 +1750,7 @@ deriving instance Ord NLPat
 deriving instance Ord LocalEquation
 deriving instance Ord RewriteHead
 deriving instance Ord RewriteRule
+deriving instance Ord LocalRewriteOrigin
 deriving instance Ord RewDom
 deriving instance Ord (DomInfo Term)
 

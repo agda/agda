@@ -69,8 +69,17 @@ insertImplicitPatternsT exh            ps a = do
          , nest 2 $ "ps  = " <+> do
              brackets $ fsep $ punctuate comma $ map prettyA ps
          , nest 2 $ "tel = " <+> prettyTCM tel
-         , nest 2 $ "b   = " <+> addContext tel (prettyTCM b)
+         , nest 2 $ "b   = " <+> prettyTCM b
          ]
+  -- TODO: Figure out whether we should make sure not to give this function
+  -- invalidated telescopes
+  -- reportSDoc "tc.lhs.imp" 20 $
+  --   vcat [ "insertImplicitPatternsT"
+  --        , nest 2 $ "ps  = " <+> do
+  --            brackets $ fsep $ punctuate comma $ map prettyA ps
+  --        , nest 2 $ "tel = " <+> prettyTCM tel
+  --        , nest 2 $ "b   = " <+> addContext tel (prettyTCM b)
+  --        ]
   reportSDoc "tc.lhs.imp" 70 $
     vcat [ "insertImplicitPatternsT"
          , nest 2 $ "ps  = " <+> (text . show) ps

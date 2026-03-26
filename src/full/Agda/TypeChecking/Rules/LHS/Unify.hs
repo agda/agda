@@ -122,7 +122,10 @@ module Agda.TypeChecking.Rules.LHS.Unify
   , UnificationResult'(..)
   , NoLeftInv(..)
   , unifyIndices'
-  , unifyIndices ) where
+  , unifyIndices
+  , recheckLocalRewrites
+  , recheckLocalRewritesType
+  , substTelRecheck ) where
 
 import Prelude hiding (null)
 
@@ -160,6 +163,7 @@ import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Unify.Types
 import Agda.TypeChecking.Rules.LHS.Unify.LeftInverse
 
+import Agda.Utils.Applicative (forA)
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -171,11 +175,13 @@ import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.Size
 import Agda.Utils.Singleton
+import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.VarSet qualified as VarSet
 import Agda.Utils.StrictWriter
 import Agda.Utils.StrictState
 
 import Agda.Utils.Impossible
+import Agda.TypeChecking.Rewriting (checkLocalRewriteRule)
 
 
 -- | Result of 'unifyIndices'.
@@ -185,8 +191,19 @@ type UnificationResult = UnificationResult'
   , [NamedArg DeBruijnPattern] -- @ps@    s.t. @tel ⊢ ps    : eqTel @
   )
 
+-- | Like 'FullUnificationResult' but with a guarantee that local rewrite
+--   rules in the telescope are valid.
+type RefreshedUnificationResult = UnificationResult'
+  ( Telescope                  -- @tel@
+  , PatternSubstitution        -- @sigma@ s.t. @tel ⊢ sigma : varTel@
+  , [NamedArg DeBruijnPattern] -- @ps@    s.t. @tel ⊢ ps    : eqTel @
+  , TCM (Either NoLeftInv (Substitution, Substitution)) -- (τ,leftInv)
+  )
+
 type FullUnificationResult = UnificationResult'
   ( Telescope                  -- @tel@
+  , RefreshRews                -- Have local rewrite rules in @tel@ been
+                               -- invalidated?
   , PatternSubstitution        -- @sigma@ s.t. @tel ⊢ sigma : varTel@
   , [NamedArg DeBruijnPattern] -- @ps@    s.t. @tel ⊢ ps    : eqTel @
   , TCM (Either NoLeftInv (Substitution, Substitution)) -- (τ,leftInv)
@@ -223,14 +240,34 @@ unifyIndices linv tel flex a us vs =
 
 unifyIndices'
   :: Maybe NoLeftInv -- ^ Do we have a reason for not computing a left inverse?
+  -> Telescope       -- ^ @gamma@
+  -> FlexibleVars    -- ^ @flex@
+  -> Type            -- ^ @a@
+  -> Args            -- ^ @us@
+  -> Args            -- ^ @vs@RefreshedUnificationResult
+  -> TCM RefreshedUnificationResult
+unifyIndices' linv tel flex a us vs = do
+  u <- unifyIndices'' linv tel flex a us vs
+  forA u \(a,b,c,d,e) -> do
+    reportSDoc "rewriting" 30 $ "TEST 1"
+    a' <- if refreshRews b
+      then do
+        reportSDoc "rewriting" 30 $ "Refreshing local rewrite rules..."
+        recheckLocalRewrites a
+      else pure a
+    pure (a',c,d,e)
+
+unifyIndices''
+  :: Maybe NoLeftInv -- ^ Do we have a reason for not computing a left inverse?
   -> Telescope     -- ^ @gamma@
   -> FlexibleVars  -- ^ @flex@
   -> Type          -- ^ @a@
   -> Args          -- ^ @us@
   -> Args          -- ^ @vs@
   -> TCM FullUnificationResult
-unifyIndices' linv tel flex a us vs = Bench.billTo [Bench.UnifyIndices] $ case (us, vs) of
-  ([], []) -> pure $ Unifies (tel, idS, [], pure $ Right (idS, raiseS 1))
+unifyIndices'' linv tel flex a us vs = Bench.billTo [Bench.UnifyIndices] $ case (us, vs) of
+  ([], []) -> pure $
+    Unifies (tel, RetainRews, idS, [], pure $ Right (idS, raiseS 1))
   _        -> do
     reportSDoc "tc.lhs.unify" 10 $
       sep [ "unifyIndices"
@@ -259,8 +296,54 @@ unifyIndices' linv tel flex a us vs = Bench.billTo [Bench.UnifyIndices] $ case (
                   | withoutK          -> pure (Left NoCubical)
                   | otherwise         -> pure (Left WithKEnabled)
         reportSDoc "tc.lhs.unify" 20 $ "ps:" <+> pretty ps
-        return (varTel s, unifySubst output, ps, getTauInv)
+        return (varTel s, unifyRefreshRews output, unifySubst output, ps, getTauInv)
 
+-- | Recheck all local rewrite rules in a type
+--
+--   TODO: Is this actually useful?
+recheckLocalRewritesType :: Type -> TCM Type
+recheckLocalRewritesType t = do
+  TelV tel b <- telView t
+  tel' <- recheckLocalRewrites tel
+  pure $ tel `abstract` b
+
+-- Applies the substitution and then rechecks the local rewrite rules
+-- TODO: Ideally we would only recheck when local rewrite rules are invalidated
+-- but I am not sure whether the check should be inside here or externally
+substTelRecheck :: Substitution -> Telescope -> TCM Telescope
+substTelRecheck s tel = do
+  recheckLocalRewrites $ applySubst s tel
+
+-- | Recheck all local rewrite rules in a telescope
+--
+--   It would probably be better to track exactly which local rewrite rules get
+--   invalidated and recheck only those but for now we will take the simple
+--   approach.
+--   Note that the 'rewDomRew' being 'Just ...' is not a guarantee the rewrite
+--   is still valid, only that substitution didn't *have* to invalidate it
+--   (non-injective renamings can still invalidate local rewrites).
+recheckLocalRewrites :: Telescope -> TCM Telescope
+recheckLocalRewrites EmptyTel        = pure EmptyTel
+recheckLocalRewrites (ExtendTel x xs) = do
+  x'  <- go x
+  xs' <- underAbstraction x' xs recheckLocalRewrites
+  pure $ ExtendTel x' (xs $> xs')
+  where
+    go :: Dom Type -> TCM (Dom Type)
+    go d = do
+      rd' <- forA (rewDom d) \rd -> do
+        cxt <- getContext
+        -- TODO: Names/sane error messages
+        let s = LocalRewrite cxt Nothing (unDom d)
+        recheckRewDom s rd
+      pure $ dRew .~ rd' $ d
+
+-- | Recheck a local rewrite rule
+recheckRewDom :: RewriteSource -> RewDom -> TCM RewDom
+recheckRewDom s d = do
+  rew' <- checkLocalRewriteRule (rewDomOrigin d) s (rewDomEq d)
+  unless (isJust rew') __IMPOSSIBLE__
+  pure $ d { rewDomRew = rew' }
 
 type UnifyStrategy = UnifyState -> ListT TCM UnifyStep
 
@@ -688,10 +771,13 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
   recd <- fromMaybe __IMPOSSIBLE__ <$> isRecord d
   -- We don't eta-expand variables which occur in local rewrite rules
   -- In principle, I think we could handle this safely, but it is tricky
-  localRew <- localRewritingOption
-  if localRew && i `VarSet.member` inRewVars (varTel s)
-  then pure $ UnifyStuck [UnifyVarInRewriteEta (varTel s) i]
-  else do
+  --
+  -- TODO: Do we need to recheck local rewrite rules if we eta-expand an
+  -- allowedMatchRewVar? (I think we probably do...)
+  stk <- (&&) <$> anyLocalRewritingOption <*>
+    (VarSet.member i <$> disallowedMatchRewVars (varTel s))
+  if stk
+  then pure $ UnifyStuck [UnifyVarInRewriteEta (varTel s) i] else do
   let delta = _recTel recd `apply` pars
       c     = _recConHead recd
   let nfields         = size delta
@@ -850,9 +936,16 @@ solutionStep retry s
         fmap var $ VarSet.toAscList $ inRewVars $ varTel s)
     ]
 
-  localRew <- localRewritingOption
-  if localRew && i `VarSet.member` inRewVars (varTel s)
-  then pure $ UnifyStuck [UnifyVarInRewrite (varTel s) a i u]
+  -- TODO: Tidy this stuff
+  localRew <- anyLocalRewritingOption
+  stk <- if localRew && i `VarSet.member` inRewVars (varTel s) then do
+      badMatch <- VarSet.member i <$> disallowedMatchRewVars (varTel s)
+      if badMatch
+      then pure True
+      else tellUnifyRefreshRews $> False
+    else pure False
+
+  if stk then return $ UnifyStuck [UnifyVarInRewrite (varTel s) a i u]
   else do
 
   -- Check that the type of the variable is equal to the type of the equation
@@ -899,6 +992,7 @@ solutionStep retry s
   -- This also ought to take care of the need for a usableCohesion check.
   if not (getCohesion eqmod `moreCohesion` getCohesion varmod) then return $ UnifyStuck [] else do
 
+  reportSDoc "rewriting" 30 $ "Test 1: " <> prettyTCM s
   case equalTypes of
     Left block  -> return $ UnifyBlocked block
     Right False -> return $ UnifyStuck []
@@ -912,9 +1006,11 @@ solutionStep retry s
         Nothing ->
           return $! UnifyStuck [UnifyRecursiveEq (varTel s) a i u]
         Just (s', sub, perm) -> do
+          reportSDoc "rewriting" 30 $ "Test 2: " <> prettyTCM s'
           let rho = sub `composeS` dotSub
           tellUnifySubst rho
           let (s'', sigma) = solveEq k (applyPatSubst rho u) s'
+          reportSDoc "rewriting" 30 $ "Test 3: " <> prettyTCM s''
           tellUnifyProof sigma
           tellUnifySolutionPerm perm
           return $ Unifies s''
@@ -1023,3 +1119,11 @@ patternBindingForcedVars forced v = do
           -- It would be if we had reduced to `constructorForm`,
           -- however, turning a `LitNat` into constructors would only result in churn,
           -- since literals have no variables that could be bound.
+
+-- | Variables that occur in local rewrite rules which we are not allowed to
+--   match on
+disallowedMatchRewVars :: HasOptions m => Telescope -> m VarSet
+disallowedMatchRewVars tel = do
+  ifM localRewriteMatchesOption
+  {- then -} (pure VarSet.empty)
+  {- else -} (pure $ inUserRewVars tel)

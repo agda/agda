@@ -64,16 +64,6 @@ flattenRevTel tel = loop (size tel) [] tel
     loop ix acc (ExtendTel a (NoAbs _ tel)) = loop ix (raise ix a : acc) tel
 {-# SPECIALIZE flattenRevTel :: Telescope -> [Dom Type] #-}
 
--- | Turn a context into a flat telescope: all entries live in the whole context.
--- @
---    (Γ : Context) -> [Type Γ]
--- @
-flattenContext :: Context -> [ContextEntry]
-flattenContext = loop 1 [] . cxEntries
-  where
-    loop n tel []       = tel
-    loop n tel (ce:ctx) = loop (n + 1) (raise n ce : tel) ctx
-
 -- | Order a flattened telescope in the correct dependency order: Γ ->
 --   Permutation (Γ -> Γ~)
 --
@@ -449,14 +439,12 @@ telViewUpTo' n p t = do
           -- Force the name to avoid retaining the rest of b.
       let !bn = absName b in
       absV a bn <$> do
-        underAbstractionAbs (dropInvalidRew a) b $
+        -- We drop invalidated local rewrite rules
+        -- Note that the returned telescope might still contain invalidated
+        -- rewrite rules so adding the telescope to the context might fail
+        underAbstractionAbs (dropRewDoms DropInvalid a) b $
           \b -> telViewUpTo' (n - 1) p b
     _ -> return $ TelV EmptyTel t
-  where
-    -- We drop invalidated local rewrite rules
-    -- Note that the returned telescope might still contain invalidated
-    -- rewrite rules so adding the telescope to the context might fail
-    dropInvalidRew a = if invalidRew a then a & dRew .~ Nothing else a
 
 -- | Returns Nothing if there are invalidated local rewrite rules present in
 --   the telescope
@@ -804,3 +792,9 @@ foldrTelescopeM f b = go
     go EmptyTel = b
     go (ExtendTel a tel) =
       f ((absName tel,) <$> a) $ underAbstraction a tel go
+
+-- | Drop rewrite annotations on a nested pi-type using 'telView'
+dropRewDomsType :: DropStrategy -> Type -> TCM Type
+dropRewDomsType s t = do
+  TelV tel b <- telView t
+  pure $ dropRewDoms s tel `abstract` b

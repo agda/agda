@@ -346,8 +346,10 @@ instance EmbPrj RewriteRule where
 
   value = valueN RewriteRule
 
+instance EmbPrj LocalRewriteOrigin
+
 instance EmbPrj RewDom where
-  icod_ (RewDom a b) = icodeN' RewDom a b
+  icod_ (RewDom a b c) = icodeN' RewDom a b c
 
   value = valueN RewDom
 

@@ -62,6 +62,7 @@ import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.MetaVars (smartWithRewDoms)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Conversion
@@ -253,13 +254,55 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
 
   pure $ GlobalRewriteRule q g f ps  rhs b False top
 
-checkLocalRewriteRule ::
-  RewriteSource -> LocalEquation -> TCM (Maybe RewriteRule)
-checkLocalRewriteRule s eq = runMaybeT $
+-- | Checks for termination and confluence of a smart with rewrite rules
+--   w.r.t. other smart with rewrite rules in the context
+--
+--   Assumes LHS of rewrite rule is neutral and telescope of rewrite rule
+--   is empty
+occursCheckSmartWithRewriteRule ::
+  RewriteRule -> TCM Bool
+occursCheckSmartWithRewriteRule r = do
+  tel  <- getContextTelescope
+  let eqs = rewDomEq <$> smartWithRewDoms tel
+  -- Invariant: LHS of new local rewrite rule should not occur on the RHS of
+  -- itself, or the LHS/RHS of any prior local rewrite rule
+  --
+  -- We can check this by rewriting the LHS to a fresh variable and doing
+  -- an occurs check (rewriting to a fresh variable should never unblock
+  -- any other reductions).
+  let toCheck = rewRHS r : (lEqLHS <$> eqs) ++ (lEqRHS <$> eqs)
+
+  let freshVar = 0
+  let freshDom = defaultDom $ rewType r
+  let toFresh  = (applyRenLocalRewrite (AnySub $ raiseS 1) r)
+        { rewRHS = var freshVar }
+
+  fmap (not . or) $ forM toCheck \t -> do
+    t' <- addContext freshDom $ addLocalRewrite toFresh $ reduce $ raise 1 t
+    reportSDoc "rewriting" 30 $ "Occurs checking rewrite rule:"
+    reportSDoc "rewriting" 30 $ nest 2 $ addContext freshDom $
+      "toFresh =" <+> prettyTCM toFresh
+    reportSDoc "rewriting" 30 $ nest 2 $
+      "t =" <+> prettyTCM t
+    reportSDoc "rewriting" 30 $ nest 2 $ addContext freshDom $
+      "t' =" <+> prettyTCM t'
+    let fvs = freeVarSet t'
+    pure $ freshVar `VarSet.member` fvs
+
+checkLocalRewriteRule :: LocalRewriteOrigin -> RewriteSource -> LocalEquation
+  -> TCM (Maybe RewriteRule)
+checkLocalRewriteRule o s eq = runMaybeT $
   -- For now, we fail if the local rewrite rule contains metas ANYWHERE
   -- I think it should be possible to do better than this, but it is hard
   Set1.ifNull (allMetas Set.singleton eq)
-  {- then -} (checkRewriteRule' eq s)
+  {- then -} (do
+    rew <- checkRewriteRule' eq s
+    when (lrewSmartWith o) $
+      -- TODO: We should also check that the LHS is neutral, but maybe that
+      -- should go inside checkRewriteRule'...
+      unlessM (lift $ occursCheckSmartWithRewriteRule rew) $
+        illegalRule s SmartWithOccursFail
+    pure rew)
   {- else -} (illegalRule s . ContainsUnsolvedMetaVariables)
 
 checkRewriteRule' :: LocalEquation -> RewriteSource -> MaybeT TCM RewriteRule
@@ -419,8 +462,8 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
       v' <- reduce v
       let fail :: MaybeT TCM a
           fail = do
-            reportSDoc "rewriting" 20 $ "v  = " <+> text (show v)
-            reportSDoc "rewriting" 20 $ "v' = " <+> text (show v')
+            reportSDoc "rewriting" 20 $ "v  = " <+> prettyTCM v
+            reportSDoc "rewriting" 20 $ "v' = " <+> prettyTCM v'
             illegalRule s $ LHSReduces v v'
       es' <- case (f, v') of
         (RewDefHead f, Def f' es')   | f == f'            -> return es'

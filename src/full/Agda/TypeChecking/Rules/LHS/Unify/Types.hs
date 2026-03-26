@@ -125,8 +125,8 @@ instance PrettyTCM UnifyState where
   prettyTCM state = "UnifyState" $$ nest 2 (vcat $
     [ "variable tel:  " <+> prettyTCM gamma
     , "flexible vars: " <+> pshow (map flexVarF $ flexVars state)
-    , "equation tel:  " <+> addContext gamma (prettyTCM delta)
-    , "equations:     " <+> addContext gamma (prettyList_ (zipWith prettyEquality (eqLHS state) (eqRHS state)))
+    , "equation tel:  " <+> addContextSafe gamma (prettyTCM delta)
+    , "equations:     " <+> addContextSafe gamma (prettyList_ (zipWith prettyEquality (eqLHS state) (eqRHS state)))
     ])
     where
       flexVarF fi = (flexVar fi, flexForced fi)
@@ -448,6 +448,11 @@ data UnifyOutput = UnifyOutput
     -- For solution steps, the dependency-preserving reordering of varΓ generated
     -- by instantiateTelescope (used by LeftInverse). Works on de Bruijn levels.
   , unifySolutionPerm :: Maybe Permutation
+  , unifyRefreshRews :: RefreshRews
+  -- ^ Does the unification substitution invalidate any local rewrite rules?
+  --   If so, we need to refresh them.
+  --   This should only ever happen if "--local-rewrite-matches" is enabled
+  --   (or "--smart-with", once it is implemented)
   }
 
 instance Semigroup UnifyOutput where
@@ -455,10 +460,11 @@ instance Semigroup UnifyOutput where
     { unifySubst = unifySubst y `composeS` unifySubst x
     , unifyProof = unifyProof y `composeS` unifyProof x
     , unifySolutionPerm = unifySolutionPerm x <|> unifySolutionPerm y
+    , unifyRefreshRews = unifyRefreshRews x <> unifyRefreshRews y
     }
 
 instance Monoid UnifyOutput where
-  mempty  = UnifyOutput IdS IdS Nothing
+  mempty  = UnifyOutput IdS IdS Nothing mempty
   mappend = (<>)
 
 type UnifyLogT m a = WriterT UnifyLog' m a
@@ -473,6 +479,10 @@ tellUnifyProof sub = tell $ mempty { unifyProof = sub }
 
 tellUnifySolutionPerm :: MonadWriter UnifyOutput m => Permutation -> m ()
 tellUnifySolutionPerm perm = tell $ mempty { unifySolutionPerm = Just perm }
+
+tellUnifyRefreshRews :: MonadWriter UnifyOutput m => m ()
+tellUnifyRefreshRews =
+  tell $ mempty { unifyRefreshRews = RefreshRews }
 
 writeUnifyLog ::
   MonadWriter UnifyLog' m => (UnifyLogEntry, UnifyState) -> m ()

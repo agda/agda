@@ -467,7 +467,7 @@ fastReduce' norm v = do
       bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
                           bPrimForce = force, bPrimErase = erase }
   rwr    <- rewritingOption
-  rwrLoc <- localRewritingOption
+  rwrLoc <- anyLocalRewritingOption
 
   constInfo <- case rwr || rwrLoc of -- András 2026-04-06: TODO more fine-grained choice
     True -> memoQName <$!> unKleisli \f -> do

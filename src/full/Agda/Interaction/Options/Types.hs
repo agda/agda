@@ -156,6 +156,11 @@ data PragmaOptions = PragmaOptions
       -- ^ Can rewrite rules be added and used?
   , _optLocalRewriting            :: WithDefault 'False
       -- ^ Can local rewrite rules be added and used?
+  , _optLocalRewriteMatches       :: WithDefault 'False
+      -- ^ Allows matching on variables which occur in local rewrite rules
+  , _optSmartWith                 :: WithDefault 'False
+      -- ^ Change elaboration of with-abstraction, using local rewrite rules
+      --   to support dependent elimination as opposed to generalisation
   , _optCubical                   :: Maybe Cubical
   , _optGuarded                   :: WithDefault 'False
   , _optFirstOrder                :: WithDefault 'False

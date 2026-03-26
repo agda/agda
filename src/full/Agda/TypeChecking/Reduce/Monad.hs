@@ -20,6 +20,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.Impossible
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
@@ -42,15 +43,17 @@ instance MonadAddContext ReduceM where
 
   addLetBinding' = defaultAddLetBinding'
 
-  {-# INLINE updateContext #-}
-  updateContext rho f ret = withFreshR \chkpt ->
-    localTC (  over' eContext f
-             . set eCurrentCheckpoint chkpt
-             . over eCheckpoints (Map.insert chkpt IdS . fmap (applySubst rho)))
-            ret
 
   addLocalRewrite = defaultAddLocalRewrite
 
+  {-# INLINE updateContext' #-}
+  -- We should never refresh local rewrite rules inside 'ReduceM'
+  updateContext' RefreshRews rho f ret = __IMPOSSIBLE__
+  updateContext' RetainRews  rho f ret = withFreshR $ \ chkpt ->
+    localTC ( over' eContext f
+            . set eCurrentCheckpoint chkpt
+            . over eCheckpoints (Map.insert chkpt IdS . fmap (applySubst rho)))
+            ret
         -- let-bindings keep track of own their context
 
 instance MonadDebug ReduceM where

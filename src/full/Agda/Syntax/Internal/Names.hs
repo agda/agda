@@ -347,7 +347,7 @@ instance NamesIn RewriteRule where
     namesAndMetasIn' sg (a, b, c, d, e)
 
 instance NamesIn a => NamesIn (RewDom' a) where
-  namesAndMetasIn' sg (RewDom a b) =
+  namesAndMetasIn' sg (RewDom _ a b) =
     namesAndMetasIn' sg (a, b)
 
 instance (NamesIn b) => NamesIn (HashMap a b) where

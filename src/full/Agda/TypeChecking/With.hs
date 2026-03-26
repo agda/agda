@@ -172,6 +172,33 @@ withFunctionType delta1 vtys delta2 b bndry = addContext delta1 $ do
 
   return (d1wd2b, (nwithargs, nwithpats))
 
+smartWithFunctionType ::
+     List1 (Arg (Term, EqualityView))   -- ^ with and rewrite-expressions and their type.
+  -> Type                               -- ^ type of rhs.
+  -> TCM (Type, (Nat1, Nat))
+smartWithFunctionType vtys b = do
+  b' <- foldrM piSmartAbstract b vtys
+
+  let nwithargs = countSmartWithArgs $ fmap (snd . unArg) vtys
+  let nwithpats = countSmartWithPats vtys
+
+  return (b', (nwithargs, nwithpats))
+
+-- | Count the number of arguments introduced into the type of the with-function.
+countSmartWithArgs :: (Functor f, Foldable f) => f EqualityView -> Nat1
+countSmartWithArgs = sum . fmap countArgs
+  where
+    countArgs OtherType{}    = 2
+    countArgs IdiomType{}    = __IMPOSSIBLE__
+    countArgs EqualityType{} = 4
+
+countSmartWithPats :: (Functor f, Foldable f)
+  => f (Arg (Term, EqualityView)) -> Nat1
+countSmartWithPats = sum . fmap \case
+    Arg ai (_, OtherType   {}) -> if visible ai then 1 else 0
+    Arg ai (_, IdiomType   {}) -> __IMPOSSIBLE__
+    Arg ai (_, EqualityType{}) -> if visible ai then 2 else __IMPOSSIBLE__
+
 -- | Count the number of arguments introduced into the type of the with-function.
 countWithArgs :: (Functor f, Foldable f) => f EqualityView -> Nat1
 countWithArgs = sum . fmap countArgs
@@ -212,6 +239,19 @@ withArguments vtys = do
           (v, IdiomType t) -> do
             mkRefl <- getRefl
             return $ v :| mkRefl (defaultArg v) : []
+
+smartWithArguments :: List1 (Arg (Term, EqualityView)) -> TCM (List1 (Arg Term))
+smartWithArguments vtys = do
+  refl <- getRefl
+  sconcat <$> do
+    forM vtys $ \ (Arg info ts) -> do
+      fmap (Arg info) <$> do
+        case ts of
+          (v, OtherType a) -> do
+            return $ v :| refl (Arg info v) : []
+          (prf, eqt@(EqualityType _r _s _eq _pars _t v _v')) -> do
+            return $ unArg v :| refl v : prf : refl (Arg info prf) : []
+          (v, IdiomType t) -> __IMPOSSIBLE__
 
 -- | Compute the clauses for the with-function given the original patterns.
 buildWithFunction
@@ -291,19 +331,6 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
     permuteNamedDots (A.Clause lhs strippedPats rhs wh catchall) =
       A.Clause lhs (applySubst withSub strippedPats) rhs wh catchall
 
-
--- The arguments of @stripWithClausePatterns@ are documented
--- at its type signature.
--- The following is duplicate information, but may help reading the examples below.
---
--- [@Δ@]   context bound by lhs of original function.
--- [@f@]   name of @with@-function.
--- [@t@]   type of the original function.
--- [@qs@]  internal patterns for original function.
--- [@np@]  number of module parameters in @qs@
--- [@π@]   permutation taking @vars(qs)@ to @support(Δ)@.
--- [@ps@]  patterns in with clause (eliminating type @t@).
--- [@ps'@] patterns for with function (presumably of type @Δ@).
 
 {-| @stripWithClausePatterns cxtNames parent f t Δ qs np π ps = ps'@
 
@@ -388,9 +415,16 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
     , nest 2 $ "perm= " <+> text (show perm)
     ]
 
+  -- We drop all local rewrite rules from the type so we don't need to recheck
+  -- them in 'strip'
+  -- This should be safe, because by the time we reach the parts of the type
+  -- that require local rewrite rules, we will have substituted those
+  -- variables for ones in 'delta'
+  t' <- dropRewDomsType DropAll t
+
   -- Andreas, 2015-11-09 Issue 1710: self starts with parent-function, not with-function!
   (ps', strippedPats) <- runWriterT $ addContext delta $
-    strip (Def parent []) t psi qs
+    strip (Def parent []) t' psi qs
   unless (null strippedPats) $ reportSDoc "tc.with.strip" 50 $ nest 2 $
     "strippedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
   let psp = permute perm ps'
@@ -631,6 +665,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
                  , "np  = " <+> text (show np)
                  , "us  = " <+> prettyList (map prettyTCM us)
                  , "us' = " <+> prettyList (map prettyTCM $ take np us)
+                 , "b   = " <+> prettyTCM b
                  ]
 
           -- TODO Andrea: preserve IApplyP patterns in v, see _boundary?

@@ -84,6 +84,7 @@ module Agda.TypeChecking.Free
     , setRelInIgnoring
     , flexRigToBlocker
     , inRewVars, theRewVars
+    , inUserRewVars, inSmartWithRewVars
     ) where
 
 import Prelude hiding (null)
@@ -521,21 +522,38 @@ allVars = filterVarMap (\_ -> True)
 
 -- | Returns the variables that correspond to local rewrite rules.
 theRewVars :: Telescope -> VarSet
-theRewVars = fst . allRewVars
+theRewVars tel = case allRewVars tel of
+  (xs, _, _) -> xs
 
 -- | Returns all variables that occur in local rewrite rules.
 inRewVars :: Telescope -> VarSet
-inRewVars = snd . allRewVars
+inRewVars tel = VarSet.union (inUserRewVars tel) (inSmartWithRewVars tel)
 
--- | Returns two sets of variables: the first set contains all variables
---   corresponding to local rewrite rules, and the second set includes all
---   variables which occur in those rewrite rules.
-allRewVars :: Telescope -> (VarSet, VarSet)
-allRewVars EmptyTel        = (VarSet.empty, VarSet.empty)
+-- | Returns all variables that occur in user-written rewrite rules.
+inUserRewVars :: Telescope -> VarSet
+inUserRewVars tel = case allRewVars tel of
+  (_, xs, _) -> xs
+
+-- | Returns all variables that occur in generated (smart with) rewrite rules
+inSmartWithRewVars :: Telescope -> VarSet
+inSmartWithRewVars tel = case allRewVars tel of
+  (_, _, xs) -> xs
+
+-- | Returns three sets of variables: the first set contains all variables
+--   corresponding to local rewrite rules, while the second and third sets
+--   include all variables which occur in those rewrite rules, partitioned by
+--   whether the rewrite rule was user-written or generated.
+allRewVars :: Telescope -> (VarSet, VarSet, VarSet)
+allRewVars EmptyTel        = (VarSet.empty, VarSet.empty, VarSet.empty)
 allRewVars (ExtendTel a b) =
-  fromMaybe (VarSet.empty, VarSet.empty)
-    (go . fromMaybe __IMPOSSIBLE__ . rewDomRew <$> rewDom a)
+  maybe (VarSet.empty, VarSet.empty, VarSet.empty)
+        go (rewDom a)
   <> (allRewVars $ unAbs b)
   where
-    go r =
-      (VarSet.singleton $ size b, VarSet.weaken (size b + 1) $ freeVarSet r)
+    go r = do
+      let fvs         = VarSet.weaken (size b + 1) $ freeVarSet $
+                        fromMaybe __IMPOSSIBLE__ $ rewDomRew r
+      let userWritten = lrewUserWritten $ rewDomOrigin r
+      let inUser      = if userWritten then fvs else VarSet.empty
+      let inWith      = if userWritten then VarSet.empty else fvs
+      (VarSet.singleton $ size b, inUser, inWith)

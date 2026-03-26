@@ -791,8 +791,12 @@ assignWrapper dir x es v doAssign = do
           reportSLn "tc.meta.assign" 10 "don't assign metas"
           patternViolation alwaysUnblock  -- retry again when we are allowed to instantiate metas
 
-allRewDoms :: Tele (Dom Type) -> [RewDom]
+allRewDoms :: Telescope -> [RewDom]
 allRewDoms = mapMaybe rewDom . flattenTel
+
+-- | Invariant: Smart with rewrite domains should have empty rewrite telescopes
+smartWithRewDoms :: Telescope -> [RewDom]
+smartWithRewDoms = filter (lrewSmartWith . rewDomOrigin) . allRewDoms
 
 -- | Gets the set of variables constrained by local rewrite rules
 --
@@ -801,10 +805,11 @@ allRewDoms = mapMaybe rewDom . flattenTel
 --   appear outside the pattern fragment after rewriting arguments, but if the
 --   argument is constrained in the meta's context, we know it is uniquely
 --   determined up to defeq and can proceed.
-rewConstrained :: Tele (Dom Type) -> TCM VarSet
-rewConstrained tel = localRewritingOption >>= \case
-  True  -> pure $! foldMap (rewConstrained' . fromMaybe __IMPOSSIBLE__ . rewDomRew) $! allRewDoms tel
-  False -> pure mempty
+rewConstrained :: Telescope -> TCM VarSet
+rewConstrained tel = ifM anyLocalRewritingOption
+{- then -} (pure $! foldMap
+  (rewConstrained' . fromMaybe __IMPOSSIBLE__ . rewDomRew) $! allRewDoms tel)
+{- else -} (pure mempty)
   where
     rewConstrained' :: RewriteRule -> VarSet
     rewConstrained' (RewriteRule EmptyTel (RewVarHead x) [] _ _) =

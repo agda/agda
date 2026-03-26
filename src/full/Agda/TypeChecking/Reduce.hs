@@ -362,10 +362,10 @@ instance Instantiate RewriteRule where
       <*> instantiate' e
 
 instance Instantiate RewDom where
-  instantiate' (RewDom a b) =
-    RewDom
-      <$> instantiate' a
-      <*> instantiate' b
+  instantiate' (RewDom a b c) =
+    RewDom a
+      <$> instantiate' b
+      <*> instantiate' c
 
 ---------------------------------------------------------------------------
 -- * Reduction to weak head normal form.
@@ -635,7 +635,7 @@ slowReduceTerm v = do
                     {- else -} done
       Pi _ _     -> done
       Lit _      -> done
-      Var x es   -> localRewritingOption >>= \case
+      Var x es   -> anyLocalRewritingOption >>= \case
                       True  -> reduceIApply (rewriteVarApp x es) es
                       False -> reduceIApply done es
       Lam _ _    -> done
@@ -1841,10 +1841,10 @@ instance InstantiateFull RewriteRule where
       <*!> instantiateFull' e
 
 instance InstantiateFull RewDom where
-  instantiateFull' (RewDom a b) =
-    RewDom
-      <$!> instantiateFull' a
-      <*!> instantiateFull' b
+  instantiateFull' (RewDom a b c) =
+    RewDom a
+      <$!> instantiateFull' b
+      <*!> instantiateFull' c
 
 instance InstantiateFull DisplayForm where
   instantiateFull' (Display n ps v) = uncurry (Display n) <$!> instantiateFull' (ps, v)

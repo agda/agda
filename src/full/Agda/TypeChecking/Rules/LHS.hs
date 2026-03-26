@@ -91,12 +91,13 @@ import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
-import Agda.Utils.Tuple
 import Agda.Utils.StrictReader
 import Agda.Utils.StrictWriter
+import Agda.Utils.Tuple
+import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
-import Agda.TypeChecking.Free (anyFreeVar, freeIn)
+import Agda.TypeChecking.Free (anyFreeVar, freeIn, inRewVars)
 
 -- | Are we checking the LHS of a let-pattern binding or a function clause?
 data LetOrClause
@@ -832,7 +833,10 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
 
         newCxt <- computeLHSContext vars delta
 
-        updateContext paramSub (const newCxt) $ do
+        -- TODO: We should avoid refreshing rewrite rules when we don't need to
+        -- (LHS unification computes this anyway so we might as well take
+        -- advantage)
+        updateContext' RefreshRews paramSub (const newCxt) $ do
 
           reportSDoc "tc.lhs.top" 10 $ "bound pattern variables"
           reportSDoc "tc.lhs.top" 60 $ nest 2 $ "context = " <+> (pretty =<< getContextTelescope)
@@ -1063,6 +1067,18 @@ checkLHS mf = updateModality checkLHS_ where
       -- in order to split, v must be a variable.
       i <- liftTCM $ addContext tel $ ifJustM (isEtaVar v a) return $
              softTypeError $ SplitOnNonVariable v a
+
+      -- TODO: Remember if we need to refresh local rewrite rules and pass to
+      -- splitCon/splitLit etc...
+      -- r <- if i `VarSet.member` inRewVars tel
+      --   then do
+      --     badMatch <- VarSet.member i <$> disallowedMatchRewVars (varTel s)
+      --     if badMatch
+      --     then pure RefreshRews
+      --     -- TODO: Throw a type error here, or maybe __IMPOSSIBLE__,
+      --     -- depending on whether we want to support local rewrite rules #
+      --     -- outside of modules with '--no-local-rewrite-matches'
+      --   else pure RetainRews
 
       let pos = size tel - (i + 1)
           (delta1, tel'@(ExtendTel dom adelta2)) = splitTelescopeAt pos tel -- TODO:: tel' defined but not used
@@ -1557,9 +1573,12 @@ checkLHS mf = updateModality checkLHS_ where
           -- compute final context and substitution
           let crho    = ConP c cpi $ applySubst rho0 $ (telePatterns gamma boundary)
               rho3    = consS crho rho1
-              delta2' = applyPatSubst rho3 delta2
-              delta'  = delta1' `abstract` delta2'
               rho     = liftS (size delta2) rho3
+
+          delta2' <- addContext delta1' $ liftTCM $
+            substTelRecheck (fromPatternSubstitution rho3) delta2
+
+          let delta'  = delta1' `abstract` delta2'
 
           reportSDoc "tc.lhs.top" 20 $ addContext delta1' $ nest 2 $ vcat
             [ "crho    =" <+> prettyTCM crho

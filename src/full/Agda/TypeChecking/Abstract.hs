@@ -34,6 +34,7 @@ import Agda.Utils.List
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
+import Agda.TypeChecking.Rules.Term (checkRewDom)
 
 -- | @abstractType r a v b[v] = b@ where @v : a@.
 abstractType ::
@@ -65,6 +66,121 @@ piAbstractTerm info v a b = do
         , nest 2 $ "from" <+> (text . show) b
         , nest 2 $ "-->" <+> (text . show) fun ]
   return fun
+
+piSmartAbstract :: Arg (Term, EqualityView) -> Type -> TCM Type
+piSmartAbstract (Arg info (v, OtherType a)) b = do
+  let aDom = setArgInfo info $ defaultDom ("w", a)
+
+  eqDom <- addContext aDom $ do
+    -- manufacture the type @v ≡ w@
+    eqName <- primEqualityName
+    eqTy <- defType <$> getConstInfo eqName
+    TelV eqTel _ <- telView eqTy
+    tel <- newTelMeta (telFromList $ dropEnd 3 $ telToList eqTel)
+    let eq' = Def eqName $ map Apply
+                 $ map (setHiding Hidden) tel
+                 ++ [ setHiding Hidden $ defaultArg $ raise 1 $ unEl a
+                    , defaultArg (raise 1 v)
+                    , defaultArg (var 0)
+                    ]
+    -- Unlike ordinary with abstraction, we do not recheck the with function
+    -- type later, so we need to infer the sort now!
+    s <- newSortMeta
+    let eqTy = El s eq'
+    checkType eqTy
+
+    let r = IsRewrite empty RewFine
+    let eqDom' = setRewriteAnn r $ setHiding Hidden $
+          defaultDom ("eq", eqTy)
+    rd <- checkRewDom LRewSmartWith Nothing r eqTy
+    pure $ (dRew .~ rd) eqDom'
+
+  pure $ mkPi aDom $ mkPi eqDom $ raise 2 b
+piSmartAbstract (Arg info (v, IdiomType a)) b = __IMPOSSIBLE__ -- TODO
+piSmartAbstract (Arg info (prf,
+  EqualityViewType eqt@(EqualityTypeData r _ _ _ (Arg _ a) (Arg vInfo v) _))) b = do
+  s <- sortOf a
+  let prfTy = equalityUnview eqt
+  let vTy   = El s a
+
+  let aDom = setArgInfo info $ defaultDom ("w", vTy)
+
+  primEqName       <- primEqualityName
+  primEqTy         <- defType <$> getConstInfo primEqName
+  TelV primEqTel _ <- telView primEqTy
+
+  eqDom <- addContext aDom $ do
+    -- manufacture the type @v ≡ w@
+    tel <- newTelMeta (telFromList $ dropEnd 3 $ telToList primEqTel)
+    let eq' = Def primEqName $ map Apply
+                 $ map (setHiding Hidden) tel
+                 ++ [ setHiding Hidden $ defaultArg $ raise 1 a
+                    , defaultArg (raise 1 v)
+                    , defaultArg (var 0)
+                    ]
+    -- Unlike ordinary with abstraction, we do not recheck the with function
+    -- type later, so we need to infer the sort now!
+    s <- newSortMeta
+    let eqTy = El s eq'
+    checkType eqTy
+
+    let r = IsRewrite empty RewFine
+    let eqDom' = setRewriteAnn r $ setHiding Hidden $
+          defaultDom ("w-eq", eqTy)
+    rd <- checkRewDom LRewSmartWith Nothing r eqTy
+    pure $ (dRew .~ rd) eqDom'
+
+  let pDom = setArgInfo info $ defaultDom ("prf", raise 2 prfTy)
+
+  eqpDom <- addContext [aDom, eqDom, pDom] $ do
+    -- manufacture the type @prf ≡ refl@
+    tel <- newTelMeta (telFromList $ dropEnd 3 $ telToList primEqTel)
+    let eq' = Def primEqName $ map Apply
+                $ map (setHiding Hidden) tel
+                ++ [ setHiding Hidden $ defaultArg $ raise 3 $ unEl prfTy
+                    , defaultArg (raise 3 prf)
+                    , defaultArg (var 0)
+                    ]
+    -- Unlike ordinary with abstraction, we do not recheck the with function
+    -- type later, so we need to infer the sort now!
+    s <- newSortMeta
+    let eqTy = El s eq'
+    checkType eqTy
+
+    let r = IsRewrite empty RewFine
+    let eqDom' = setRewriteAnn r $ setHiding Hidden $
+          defaultDom ("prf-eq", eqTy)
+    rd <- checkRewDom LRewSmartWith Nothing r eqTy
+    pure $ (dRew .~ rd) eqDom'
+
+  pure $ mkPi aDom $ mkPi eqDom $ mkPi pDom $ mkPi eqpDom $ raise 4 b
+
+
+  --  __IMPOSSIBLE__ -- TODO
+
+-- = do
+--   s <- sortOf a
+--   let prfTy :: Type
+--       prfTy = equalityUnview eqt
+--       vTy   = El s a
+--   -- Andreas, 2025-07-03, issue #7973
+--   -- We alert the user when the lhs of the equality proof could not be abstracted
+--   -- but not when the equality proof itself could not be abstracted.
+--   -- Only the former means that the rewrite did not fire.
+--   b <- abstractType empty prfTy prf b  -- @empty@ means do not warn
+--   b <- addContext ("w" :: String, defaultDom prfTy) $
+--          -- Passing range @r@ here means warn if abstraction failed to abstract anything.
+--          abstractType r (raise 1 vTy) (unArg $ raise 1 v) b
+--   return . funType "lhs" vTy . funType "equality" eqTy' . swap01 $ b
+--   where
+--     funType str a = mkPi $ setArgInfo info $ defaultDom (str, a)
+--     -- Abstract the lhs (@a@) of the equality only.
+--     eqt1 :: EqualityTypeData
+--     eqt1  = raise 1 eqt
+--     eqTy' :: Type
+--     eqTy' = equalityUnview $ eqt1{ _eqtLhs = _eqtLhs eqt1 $> var 0 }
+
+
 
 -- | @piAbstract (v, a) b[v] = (w : a) -> b[w]@
 --

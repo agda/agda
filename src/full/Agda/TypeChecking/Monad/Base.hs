@@ -5554,6 +5554,7 @@ illegalRewriteWarningName = \case
   BeforeMutualFunctionDefinition{}     -> RewriteBeforeMutualFunctionDefinition_
   DuplicateRewriteRule                 -> DuplicateRewriteRule_
   LocalRewriteOutsideTelescope         -> LocalRewriteOutsideTelescope_
+  SmartWithOccursFail{}                -> SmartWithOccursFail_
 
 -- | Should warnings of that type be serialized?
 --
@@ -6186,6 +6187,22 @@ data InductionAndEta = InductionAndEta
   , recordEtaEquality :: EtaEquality
   } deriving (Show, Generic)
 
+-- | Should we refresh local rewrite rules (i.e. they might have been
+--   invalidated)
+data RefreshRews = RefreshRews | RetainRews
+
+instance Semigroup RefreshRews where
+  RefreshRews <> _ = RefreshRews
+  RetainRews  <> i = i
+
+instance Monoid RefreshRews where
+  mappend = (<>)
+  mempty  = RetainRews
+
+refreshRews :: RefreshRews -> Bool
+refreshRews RefreshRews = True
+refreshRews RetainRews  = False
+
 -- | Source of the rewrite rule
 --   Parameterised by the info for global rewrite rules (it is convenient
 --   to remember the definition during checking, but when serialising we just
@@ -6221,6 +6238,8 @@ data IllegalRewriteRuleReason
   | BeforeMutualFunctionDefinition QName
   | DuplicateRewriteRule
   | LocalRewriteOutsideTelescope
+  | SmartWithOccursFail
+  -- ^ TODO: Make this error message not awful
     deriving (Show, Generic)
 
 -- | Boolean flag whether a name is ambiguous.
@@ -6354,9 +6373,21 @@ localRewritingOption :: HasOptions m => m Bool
 localRewritingOption = optLocalRewriting <$> pragmaOptions
 {-# INLINE localRewritingOption #-}
 
+smartWithOption :: HasOptions m => m Bool
+smartWithOption = optSmartWith <$> pragmaOptions
+{-# INLINE smartWithOption #-}
+
+anyLocalRewritingOption :: HasOptions m => m Bool
+anyLocalRewritingOption = (||) <$> localRewritingOption <*> smartWithOption
+{-# INLINE anyLocalRewritingOption #-}
+
+localRewriteMatchesOption :: HasOptions m => m Bool
+localRewriteMatchesOption = optLocalRewriteMatches <$> pragmaOptions
+{-# INLINE localRewriteMatchesOption #-}
+
 -- | Local or global rewriting is enabled
 anyRewritingOption :: HasOptions m => m Bool
-anyRewritingOption = (||) <$> rewritingOption <*> localRewritingOption
+anyRewritingOption = (||) <$> rewritingOption <*> anyLocalRewritingOption
 {-# INLINE anyRewritingOption #-}
 
 

@@ -2032,9 +2032,16 @@ prettyLock a = (pretty (getLock a) <+>)
 -- * Rewrite arguments
 ---------------------------------------------------------------------------
 
+-- | Status of the local rewrite rule
+data RewState
+  = RewInvalidated -- ^ The local rewrite rule has been invalidated by a
+                   --   substitution
+  | RewFine        -- ^ Every other case (e.g. not checked yet)
+  deriving (Show, Generic)
+
 data RewriteAnn
   = IsNotRewrite
-  | IsRewrite Range
+  | IsRewrite Range RewState
   deriving (Show, Generic)
 
 defaultRewrite :: RewriteAnn
@@ -2042,13 +2049,13 @@ defaultRewrite = IsNotRewrite
 
 instance HasRange RewriteAnn where
   getRange = \case
-    IsRewrite r  -> r
-    IsNotRewrite -> noRange
+    IsRewrite r _ -> r
+    IsNotRewrite  -> noRange
 
 instance SetRange RewriteAnn where
   setRange r = \case
-    IsRewrite _  -> IsRewrite r
-    IsNotRewrite -> IsNotRewrite
+    IsRewrite _ s -> IsRewrite r s
+    IsNotRewrite  -> IsNotRewrite
 
 instance KillRange RewriteAnn where
   killRange = setRange noRange
@@ -2064,12 +2071,13 @@ instance Null RewriteAnn where
 
 instance NFData RewriteAnn where
   rnf IsNotRewrite  = ()
-  rnf (IsRewrite _) = ()
+  rnf (IsRewrite {}) = ()
 
 instance Pretty RewriteAnn where
   pretty = \case
-    (IsRewrite _) -> "@rewrite"
-    IsNotRewrite  -> empty
+    (IsRewrite _ RewInvalidated) -> "@rewrite (invalidated!)"
+    (IsRewrite _ RewFine)        -> "@rewrite"
+    IsNotRewrite                 -> empty
 
 class LensRewriteAnn a where
 
@@ -2098,7 +2106,7 @@ instance LensRewriteAnn (Arg t) where
 
 isRewrite :: LensRewriteAnn a => a -> Bool
 isRewrite a = case getRewriteAnn a of
-  IsRewrite _  -> True
+  IsRewrite{}  -> True
   IsNotRewrite -> False
 
 ignoreRew :: Monad m => LensRewriteAnn a => (RewriteAnn  -> m ()) -> a -> m a

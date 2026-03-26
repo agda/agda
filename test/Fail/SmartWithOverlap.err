@@ -1,0 +1,21 @@
+SmartWithOverlap.agda:15.1-19.24: warning: -W[no]SmartWithOccursFail
+_ : not b ≡ w  is not a legal rewrite rule, since the LHS occurs on
+the RHS or in an earlier 'smart with' rewrite rule
+when checking that the clause
+SmartWithOverlap.with-8 b true with not b
+SmartWithOverlap.with-8 b true | true = 42
+  where
+    mutual
+      syntax bad ...
+      postulate bad : true ≡ false
+      bad = refl
+SmartWithOverlap.with-8 b true | false = 42
+has type (b w : Bool) {@rewrite eq : not (not b) ≡ w} → Nat
+
+SmartWithOverlap.agda:18.15-19: error: [UnequalTerms]
+The terms
+  true
+and
+  false
+are not equal at type Bool
+when checking that the expression refl has type true ≡ false

@@ -168,7 +168,7 @@ lockAttributeTable = concat
 --   Of course, we might want to add aliases
 rewriteAttributeTable :: [(String, RewriteAnn)]
 rewriteAttributeTable =
-  [ ("rewrite" , IsRewrite noRange)
+  [ ("rewrite" , IsRewrite noRange RewFine)
   ]
 
 -- | Concrete syntax for all attributes.

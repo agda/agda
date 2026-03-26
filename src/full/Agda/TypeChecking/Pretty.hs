@@ -678,7 +678,7 @@ instance PrettyTCM RewriteRule where
     ]
 
 instance PrettyTCM RewDom where
-  prettyTCM (RewDom e r) = fsep
+  prettyTCM (RewDom o e r) = fsep
     [ prettyTCM e
     , if isJust r then "(rewrite present)" else "(rewrite invalidated)"
     ]

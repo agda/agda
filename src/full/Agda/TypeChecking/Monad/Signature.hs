@@ -1064,10 +1064,9 @@ justTheRule (GlobalRewriteRule _ g q ps rhs t isClause _)
 getAllRewriteRulesForDefHead :: (HasConstInfo m, ReadTCState m) => QName -> m RewriteRules
 getAllRewriteRulesForDefHead f = do
   globals <- catMaybes . fmap justTheRule <$> (instantiateRewriteRules =<< getGlobalRewriteRulesFor f)
-  localRewritingOption >>= \case
-    True  -> do locals <- getLocalRewriteRulesFor (RewDefHead f)
-                pure $! globals ++! locals
-    False -> pure globals
+  ifNotM anyLocalRewritingOption (pure globals) $ do
+    locals <- getLocalRewriteRulesFor $ RewDefHead f
+    pure $! globals ++! locals
 
 -- | A local rewrite rule forces us to consider the definition as defined
 --   by copatterns (see #3812 for an example case with global rewrite rules)
@@ -1081,12 +1080,10 @@ rewUsesCopatterns h =
 -- | Is this a function defined by copatterns?
 --   Accounts for local rewrite rules
 defCopatternLHS :: HasConstInfo m => QName -> Definition -> m Bool
-defCopatternLHS f d = localRewritingOption >>= \case
-  True -> do
+defCopatternLHS f d =
+  ifNotM anyLocalRewritingOption (pure $! defCopatternLHS' d) $ do
     rewForces <- rewUsesCopatterns $ RewDefHead f
     pure $! defCopatternLHS' d || rewForces
-  False ->
-    pure $! defCopatternLHS' d
 
 {-# INLINE getAllRewriteRulesForVarHead #-}
 getAllRewriteRulesForVarHead :: HasConstInfo m
@@ -1126,24 +1123,22 @@ defaultGetGlobalRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
 defaultGetLocalRewriteRulesFor ::
      (ReadTCState m, MonadTCEnv m, MonadDebug m, HasOptions m)
   => RewriteHead -> m RewriteRules
-defaultGetLocalRewriteRulesFor h = localRewritingOption >>= \case
-  False -> pure []
-  True  -> do
-    ifNotM (shouldReduceDef' h) (return []) $ do
-      m <- runMaybeT . lookup h =<< viewTC eLocalRewriteRules
-      pure $ fromMaybe [] m
-    where
-      shouldReduceDef' (RewDefHead f) = shouldReduceDef f
-      shouldReduceDef' (RewVarHead _) = pure True
+defaultGetLocalRewriteRulesFor h = ifNotM anyLocalRewritingOption (pure []) $ do
+  ifNotM (shouldReduceDef' h) (return []) $ do
+    m <- runMaybeT . lookup h =<< viewTC eLocalRewriteRules
+    pure $ fromMaybe [] m
+  where
+    shouldReduceDef' (RewDefHead f) = shouldReduceDef f
+    shouldReduceDef' (RewVarHead _) = pure True
 
-      lookup h m = do
-        rews  <- MaybeT $ pure $ lookup' h m
-        lift $ traverse (tryGetOpenRew fallback) rews
+    lookup h m = do
+      rews  <- MaybeT $ pure $ lookup' h m
+      lift $ traverse (tryGetOpenRew fallback) rews
 
-      fallback = __IMPOSSIBLE_VERBOSE__ . show
+    fallback = __IMPOSSIBLE_VERBOSE__ . show
 
-      lookup' (RewDefHead f) = HMap.lookup   f . defHeadedRews
-      lookup' (RewVarHead x) = IntMap.lookup x . varHeadedRews
+    lookup' (RewDefHead f) = HMap.lookup   f . defHeadedRews
+    lookup' (RewVarHead x) = IntMap.lookup x . varHeadedRews
 
 -- | If the 'Bool' parameter is 'True', get the rules in scope,
 --   otherwise, get *all* rules unfiltered.

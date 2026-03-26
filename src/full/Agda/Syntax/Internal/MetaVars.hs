@@ -34,7 +34,7 @@ instance AllMetas Level     where allMetas f   = allMetas f . Level
 instance AllMetas PlusLevel where allMetas f l = allMetas f (Max 0 [l])
 
 instance (TermLike a, AllMetas a) => AllMetas (RewDom' a) where
-  allMetas f (RewDom a b) = allMetas f (a, b)
+  allMetas f (RewDom _ a b) = allMetas f (a, b)
 
 instance (TermLike a, AllMetas a) => AllMetas (LocalEquation' a) where
   allMetas f (LocalEquation a b c d) = allMetas f (a, b, c, d)

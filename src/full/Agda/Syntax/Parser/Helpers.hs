@@ -560,7 +560,7 @@ patternSynArgs = mapM \ x -> do
           ArgInfo _ _ _ _ (Annotation (IsLock _) _) ->
             abort $ noAnn "Lock"
 
-          ArgInfo _ _ _ _ (Annotation _ (IsRewrite _)) ->
+          ArgInfo _ _ _ _ (Annotation _ (IsRewrite{})) ->
             abort $ noAnn "Rewrite"
 
           ArgInfo _ (Modality r q c p) _ _ _
@@ -698,7 +698,7 @@ toAttribute r e = do
 -- | Updates 'parseAttributes' and returns an @rewrite attribute
 rewAttribute :: Range -> Parser (Maybe Attr)
 rewAttribute r = fmap Just $ theAttribute $
-  Attr r "rewrite" (RewriteAttribute $ IsRewrite r)
+  Attr r "rewrite" (RewriteAttribute $ IsRewrite r RewFine)
 
 -- | Updates 'parseAttributes' and returns the attribute
 theAttribute :: Attr -> Parser Attr
