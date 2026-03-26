@@ -922,6 +922,7 @@ data PrimitiveId
   | PrimMetaToNat
   | PrimMetaToNatInjective
   | PrimLockUniv
+  | PrimNoMatch
   deriving (Show, Eq, Ord, Bounded, Enum, Generic)
 
 instance NFData PrimitiveId
@@ -1059,12 +1060,13 @@ instance IsBuiltin PrimitiveId where
     PrimMetaToNat                         -> "primMetaToNat"
     PrimMetaToNatInjective                -> "primMetaToNatInjective"
     PrimLockUniv                          -> "primLockUniv"
+    PrimNoMatch                           -> "primNoMatch"
 
 builtinSubOut,
   builtinIMin, builtinIMax, builtinINeg,
   builtinGlue, builtin_glue, builtin_unglue, builtin_glueU, builtin_unglueU,
   builtinFaceForall, builtinComp, builtinPOr,
-  builtinTrans,  builtinHComp, builtinLockUniv
+  builtinTrans,  builtinHComp, builtinLockUniv, builtinNoMatch
   :: PrimitiveId
 builtinIMin                              = PrimIMin
 builtinIMax                              = PrimIMax
@@ -1081,6 +1083,7 @@ builtinPOr                               = PrimPOr
 builtinTrans                             = PrimTrans
 builtinHComp                             = PrimHComp
 builtinLockUniv                          = PrimLockUniv
+builtinNoMatch                           = PrimNoMatch
 
 -- | Lookup a primitive by its identifier.
 primitiveById :: String -> Maybe PrimitiveId
