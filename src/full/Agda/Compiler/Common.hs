@@ -34,6 +34,9 @@ import Agda.Utils.List
 import Agda.Utils.List1          ( pattern (:|) )
 import Agda.Utils.Maybe
 import Agda.Utils.WithDefault    ( lensCollapseDefault )
+import Agda.Utils.Tuple.Strict (Pair(..))
+import Agda.Utils.Tuple.Strict qualified as Strict
+import Agda.Utils.Maybe.Strict qualified as Strict
 
 import Agda.Utils.Impossible
 
@@ -68,7 +71,7 @@ doCompile' f isMain i = do
   alreadyDone <- gets (Set.member (iModuleName i))
   if alreadyDone then return mempty else do
     imps <- lift $
-      map miInterface . catMaybes <$>
+      map' miInterface . catMaybes <$>
         mapM (getVisitedModule . fst) (iImportedModules i)
     ri <- mconcat <$> mapM (doCompile' f NotMain) imps
     lift $ setInterface i
@@ -80,14 +83,14 @@ setInterface :: Interface -> TCM ()
 setInterface i = do
   opts <- getsTC (stPersistentOptions . stPersistentState)
   setCommandLineOptions opts
-  mapM_ setOptionsFromPragma (iDefaultPragmaOptions i ++ iFilePragmaOptions i)
+  mapM_ setOptionsFromPragma (iDefaultPragmaOptions i ++! iFilePragmaOptions i)
   -- One could perhaps make the following command lazy. Note, however,
   -- that it doesn't suffice to replace setTCLens' with setTCLens,
   -- because the stPreImportedModules field is strict.
   stImportedModules `setTCLens'`
-    Set.fromList (map fst (iImportedModules i))
+    Set.fromList (map' fst (iImportedModules i))
   stCurrentModule `setTCLens'`
-    Just (iModuleName i, iTopLevelModuleName i)
+    Strict.Just (iModuleName i :!: iTopLevelModuleName i)
 
 curIF :: ReadTCState m => m Interface
 curIF = do
@@ -95,7 +98,7 @@ curIF = do
   maybe __IMPOSSIBLE__ miInterface <$> getVisitedModule name
 
 curMName :: ReadTCState m => m TopLevelModuleName
-curMName = maybe __IMPOSSIBLE__ snd <$> useTC stCurrentModule
+curMName = Strict.maybe __IMPOSSIBLE__ Strict.snd <$> useTC stCurrentModule
 
 curDefs :: ReadTCState m => m Definitions
 curDefs = HMap.filter (not . defNoCompilation) . (^. sigDefinitions) . iSignature <$> curIF
@@ -116,7 +119,7 @@ compileDir = do
 
 repl :: [String] -> String -> String
 repl subs = go where
-  go ('<':'<':c:'>':'>':s) | 0 <= i && i < length subs = subs !! i ++ go s
+  go ('<':'<':c:'>':'>':s) | 0 <= i && i < length subs = subs !! i ++! go s
      where i = ord c - ord '0'
   go (c:s) = c : go s
   go []    = []
@@ -153,7 +156,7 @@ inCompilerEnv checkResult cont = do
     -- Unfortunately, a pragma option is stored in the interface file as
     -- just a list of strings, thus, the solution is a bit of hack:
     -- We match on whether @["--no-main"]@ is one of the stored options.
-    let iFilePragmaStrings = map pragmaStrings . iFilePragmaOptions
+    let iFilePragmaStrings = map' pragmaStrings . iFilePragmaOptions
     when (["--no-main"] `elem` iFilePragmaStrings mainI) $
       setTCLens (stPragmaOptions . lensOptCompileMain . lensCollapseDefault) False
 
@@ -173,7 +176,7 @@ inCompilerEnv checkResult cont = do
     recomputeInverseScope
     ignoreAbstractMode cont
   -- keep generated warnings
-  let newWarnings = stPostTCWarnings $  stPostScopeState $ s
+  let newWarnings = s ^. stTCWarnings
   stTCWarnings `setTCLens` newWarnings
   return a
 
@@ -181,11 +184,11 @@ topLevelModuleName ::
   ReadTCState m => ModuleName -> m TopLevelModuleName
 topLevelModuleName m = do
   -- Interfaces of visited modules.
-  visited <- map miInterface . Map.elems <$> getVisitedModules
+  visited <- map' miInterface . Map.elems <$> getVisitedModules
   -- find the module with the longest matching prefix to m
   let is = sortBy (compare `on` (length . mnameToList . iModuleName)) $
-           filter (\i -> mnameToList (iModuleName i) `isPrefixOf`
-                         mnameToList m)
+           filter' (\i -> mnameToList (iModuleName i) `isPrefixOf`
+                          mnameToList m)
              visited
   case is of
     (i : _) -> return (iTopLevelModuleName i)

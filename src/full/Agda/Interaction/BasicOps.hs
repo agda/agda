@@ -92,6 +92,9 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.String
 import Agda.Utils.WithDefault ( WithDefault'(Value) )
+import Agda.Utils.Tuple.Strict (Pair(..))
+import Agda.Utils.Tuple.Strict qualified as Strict
+import Agda.Utils.Maybe.Strict qualified as Strict
 
 import Agda.Utils.Impossible
 
@@ -1335,7 +1338,7 @@ atTopLevel m = inConcreteMode $ do
   let err = __IMPOSSIBLE__
     -- Andreas, 2024-08-03: cannot trigger this error:
     -- let err = genericError "The file has not been loaded yet."
-  caseMaybeM (useTC stCurrentModule) err $ \(current, topCurrent) -> do
+  Strict.caseMaybeM (useTC stCurrentModule) err $ \(current :!: topCurrent) -> do
     caseMaybeM (getVisitedModule topCurrent) __IMPOSSIBLE__ $ \ mi -> do
       let scope = iInsideScope $ miInterface mi
       tel <- lookupSection current

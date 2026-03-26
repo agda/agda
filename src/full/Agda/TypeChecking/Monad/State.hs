@@ -50,6 +50,9 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
 import Agda.Utils.Lens
+import Agda.Utils.Tuple.Strict (Pair(..))
+import Agda.Utils.Tuple.Strict qualified as Strict
+import Agda.Utils.Maybe.Strict qualified as Strict
 
 import Agda.Utils.Impossible
 import qualified Control.Monad.Catch as Catch
@@ -478,8 +481,8 @@ currentTopLevelModule ::
   (MonadTCEnv m, ReadTCState m) => m (Maybe TopLevelModuleName)
 currentTopLevelModule = do
   useR stCurrentModule >>= \case
-    Just (_, top) -> return (Just top)
-    Nothing       -> listToMaybe <$> viewTC eImportStack
+    Strict.Just (_ :!: top) -> return (Just top)
+    Strict.Nothing          -> listToMaybe <$> viewTC eImportStack
 
 -- | Use a different top-level module for a computation. Used when generating
 --   names for imported modules.

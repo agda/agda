@@ -79,10 +79,7 @@ saturateOpaqueBlocks = entry where
 
     reportSDoc "tc.opaque.sat.full" 50 $ text "Saturated opaque blocks:" $+$ pretty blocks
 
-    modifyTC' $ \st -> st { stPostScopeState = (stPostScopeState st)
-      { stPostOpaqueBlocks = blocks
-      , stPostOpaqueIds    = names'
-      } }
+    modifyTC' (set stOpaqueBlocks blocks . set stOpaqueIds names')
 
   -- Actually compute the closure.
   computeClosure

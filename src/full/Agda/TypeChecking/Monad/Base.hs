@@ -157,6 +157,7 @@ import Agda.Utils.Atomic
 import Agda.Utils.StrictReader qualified as Strict
 import Agda.Utils.StrictWriter qualified as Strict
 import Agda.Utils.StrictState  qualified as Strict
+import Agda.Utils.Tuple.Strict qualified as Strict
 
 import Agda.Utils.Impossible
 
@@ -302,20 +303,43 @@ type ConcreteNames = Map Name (List1 C.Name)
 type ShadowingNames = Map Name (Set1 RawName)
 type UsedNames = Map RawName (Set1 RawName)
 
-data PostScopeState = PostScopeState
+
+data PostNamesCheckpoints = PostNamesCheckpoints {
+    stPostUsedNames           :: !UsedNames
+    -- ^ Map keeping track for each name root (= name w/o numeric
+    -- suffixes) what names with the same root have been used during a
+    -- TC computation. This information is used to build the
+    -- @ShadowingNames@ map.
+  , stPostShadowingNames      :: !ShadowingNames
+    -- ^ Map keeping track for each (abstract) name the list of all
+    -- (raw) names that it could maybe be shadowed by.
+  , stPostModuleCheckpoints   :: !ModuleCheckpoints
+    -- ^ For each module remember the checkpoint corresponding to the orignal
+    --   context of the module parameters.
+  , stPostFreshCheckpointId   :: !CheckpointId
+  } deriving (Generic)
+
+data PostMetaState = PostMetaState {
+    stPostFreshMetaId         :: !MetaId
+  , stPostFreshProblemId      :: !ProblemId
+  , stPostOpenMetaStore       :: !LocalMetaStore
+    -- ^ Used for open meta-variables.
+  , stPostSolvedMetaStore     :: !LocalMetaStore
+    -- ^ Used for local, instantiated meta-variables.
+  , stPostAwakeConstraints    :: !Constraints
+  , stPostSleepingConstraints :: !Constraints
+  } deriving (Generic)
+
+
+
+data PostColdState = PostColdState
   { stPostSyntaxInfo          :: !HighlightingInfo
     -- ^ Highlighting info.
   , stPostDisambiguatedNames  :: !DisambiguatedNames
     -- ^ Disambiguation carried out by the type checker.
     --   Maps position of first name character to disambiguated @'A.QName'@
     --   for each @'A.AmbiguousQName'@ already passed by the type checker.
-  , stPostOpenMetaStore       :: !LocalMetaStore
-    -- ^ Used for open meta-variables.
-  , stPostSolvedMetaStore     :: !LocalMetaStore
-    -- ^ Used for local, instantiated meta-variables.
   , stPostInteractionPoints   :: !InteractionPoints -- scope checker first
-  , stPostAwakeConstraints    :: !Constraints
-  , stPostSleepingConstraints :: !Constraints
   , stPostDirty               :: !Bool -- local
     -- ^ Dirty when a constraint is added, used to prevent pointer update.
     -- Currently unused.
@@ -327,44 +351,26 @@ data PostScopeState = PostScopeState
   , stPostSignature           :: !Signature
     -- ^ Declared identifiers of the current file.
     --   These will be serialized after successful type checking.
-  , stPostModuleCheckpoints   :: !ModuleCheckpoints
-    -- ^ For each module remember the checkpoint corresponding to the orignal
-    --   context of the module parameters.
   , stPostImportsDisplayForms :: !DisplayForms
     -- ^ Display forms we add for imported identifiers
   , stPostForeignCode         :: !BackendForeignCode
     -- ^ @{-\# FOREIGN \#-}@ code that should be included in the compiled output.
     -- Does not include code for imported modules.
-  , stPostCurrentModule       ::
-      !(Maybe (ModuleName, TopLevelModuleName))
+  , stPostCurrentModule       :: !(Strict.Maybe (Strict.Pair ModuleName TopLevelModuleName))
     -- ^ The current module is available after it has been type
     -- checked.
-
-  , stPostPendingInstances :: !(Set QName)
-
-  , stPostTemporaryInstances :: !(Set QName)
-
+  , stPostPendingInstances    :: !(Set QName)
+  , stPostTemporaryInstances  :: !(Set QName)
   , stPostConcreteNames       :: !ConcreteNames
     -- ^ Map keeping track of concrete names assigned to each abstract name
     --   (can be more than one name in case the first one is shadowed)
-  , stPostUsedNames           :: !UsedNames
-    -- ^ Map keeping track for each name root (= name w/o numeric
-    -- suffixes) what names with the same root have been used during a
-    -- TC computation. This information is used to build the
-    -- @ShadowingNames@ map.
-  , stPostShadowingNames      :: !ShadowingNames
-    -- ^ Map keeping track for each (abstract) name the list of all
-    -- (raw) names that it could maybe be shadowed by.
   , stPostStatistics          :: !Statistics
     -- ^ Counters to collect various statistics about meta variables etc.
     --   Only for current file.
   , stPostTCWarnings          :: !(Set TCWarning)
   , stPostMutualBlocks        :: !MutualBlocks
   , stPostLocalBuiltins       :: !BuiltinThings
-  , stPostFreshMetaId         :: !MetaId
   , stPostFreshMutualId       :: !MutualId
-  , stPostFreshProblemId      :: !ProblemId
-  , stPostFreshCheckpointId   :: !CheckpointId
   , stPostFreshInt            :: !Int
   , stPostFreshNameId         :: !NameId
   , stPostFreshOpaqueId       :: !OpaqueId
@@ -377,16 +383,24 @@ data PostScopeState = PostScopeState
     --   Best set to True only for calls to pretty*/reify to limit unwanted reductions.
   , stPostLocalPartialDefs    :: !(Set QName)
     -- ^ Local partial definitions, to be stored in the @Interface@
-  , stPostOpaqueBlocks        :: Map OpaqueId OpaqueBlock
+  , stPostOpaqueBlocks        :: !(Map OpaqueId OpaqueBlock)
     -- ^ Associates opaque identifiers to their actual blocks.
-  , stPostOpaqueIds           :: Map QName OpaqueId
+  , stPostOpaqueIds           :: !(Map QName OpaqueId)
     -- ^ Associates each opaque QName to the block it was defined in.
   , stPostInstanceHack        :: !Bool
     -- ^ Is this a context where we should always try every possible
     -- instance candidate? Used to support "inert improvement", see
     -- @shouldBlockOverlap@ in InstanceArguments.
-  }
-  deriving (Generic)
+  } deriving (Generic)
+
+
+
+data PostScopeState = PostScopeState {
+    stPostNamesCheckpoints :: !PostNamesCheckpoints
+  , stPostMetaState        :: !PostMetaState
+  , stPostColdState        :: !PostColdState
+  } deriving (Generic)
+
 
 -- | A part of the state that grows monotonically over the whole Agda session.
 -- Shared between all threads, and never reset.
@@ -534,34 +548,43 @@ initPreScopeState = PreScopeState
   , stPreUnusedImportsState   = empty
   }
 
-initPostScopeState :: PostScopeState
-initPostScopeState = PostScopeState
-  { stPostSyntaxInfo             = mempty
-  , stPostDisambiguatedNames     = IntMap.empty
+
+initPostNamesCheckpoints :: PostNamesCheckpoints
+initPostNamesCheckpoints = PostNamesCheckpoints
+  { stPostUsedNames              = Map.empty
+  , stPostShadowingNames         = Map.empty
+  , stPostModuleCheckpoints      = ModuleCheckpointsTop
+  , stPostFreshCheckpointId      = 1
+  }
+
+initPostMetaState :: PostMetaState
+initPostMetaState = PostMetaState
+  { stPostFreshMetaId            = initialMetaId
+  , stPostFreshProblemId         = 1
   , stPostOpenMetaStore          = Map.empty
   , stPostSolvedMetaStore        = Map.empty
-  , stPostInteractionPoints      = empty
   , stPostAwakeConstraints       = []
   , stPostSleepingConstraints    = []
+  }
+
+initPostColdState :: PostColdState
+initPostColdState = PostColdState
+  { stPostSyntaxInfo             = mempty
+  , stPostDisambiguatedNames     = IntMap.empty
+  , stPostInteractionPoints      = empty
   , stPostDirty                  = False
   , stPostOccursCheckDefs        = Set.empty
   , stPostSignature              = emptySignature
-  , stPostModuleCheckpoints      = ModuleCheckpointsTop
   , stPostImportsDisplayForms    = HMap.empty
   , stPostCurrentModule          = empty
   , stPostPendingInstances       = Set.empty
   , stPostTemporaryInstances     = Set.empty
   , stPostConcreteNames          = Map.empty
-  , stPostUsedNames              = Map.empty
-  , stPostShadowingNames         = Map.empty
   , stPostStatistics             = empty
   , stPostTCWarnings             = empty
   , stPostMutualBlocks           = empty
   , stPostLocalBuiltins          = Map.empty
-  , stPostFreshMetaId            = initialMetaId
   , stPostFreshMutualId          = 0
-  , stPostFreshProblemId         = 1
-  , stPostFreshCheckpointId      = 1
   , stPostFreshInt               = 0
   , stPostFreshNameId            = NameId 0 noModuleNameHash
   , stPostFreshOpaqueId          = OpaqueId 0 noModuleNameHash
@@ -574,6 +597,13 @@ initPostScopeState = PostScopeState
   , stPostOpaqueIds              = Map.empty
   , stPostForeignCode            = Map.empty
   , stPostInstanceHack           = False
+  }
+
+initPostScopeState :: PostScopeState
+initPostScopeState = PostScopeState
+  { stPostNamesCheckpoints = initPostNamesCheckpoints
+  , stPostMetaState        = initPostMetaState
+  , stPostColdState        = initPostColdState
   }
 
 initStateIO :: IO TCState
@@ -705,118 +735,198 @@ lensNameCopies f s = f (stPreNameCopies s) <&> \ x -> s { stPreNameCopies = x }
 lensUnusedImportsState :: Lens' PreScopeState UnusedImportsState
 lensUnusedImportsState f s = f (stPreUnusedImportsState s) <&> \ !x -> s { stPreUnusedImportsState = x }
 
+{-# INLINE lensImportedDisplayForms #-}
+lensImportedDisplayForms :: Lens' PreScopeState DisplayForms
+lensImportedDisplayForms = \f s -> f (stPreImportedDisplayForms s) <&> \ x -> s {stPreImportedDisplayForms = x}
+
+
 -- ** Components of PostScopeState
 
+{-# INLINE lensCurrentModule #-}
+lensCurrentModule :: Lens' PostScopeState (Strict.Maybe (Strict.Pair ModuleName TopLevelModuleName))
+lensCurrentModule = \f s ->
+  f (stPostCurrentModule $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostCurrentModule = x}}
+
+{-# INLINE lensForeignCode #-}
 lensForeignCode :: Lens' PostScopeState BackendForeignCode
-lensForeignCode f s = f (stPostForeignCode s ) <&> \ x -> s { stPostForeignCode = x }
+lensForeignCode = \f s ->
+  f (stPostForeignCode $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostForeignCode = x}}
 
+{-# INLINE lensLocalPartialDefs #-}
 lensLocalPartialDefs :: Lens' PostScopeState (Set QName)
-lensLocalPartialDefs f s = f (stPostLocalPartialDefs s) <&> \ x -> s { stPostLocalPartialDefs = x }
+lensLocalPartialDefs = \f s ->
+  f (stPostLocalPartialDefs $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostLocalPartialDefs = x}}
 
+{-# INLINE lensFreshNameId #-}
 lensFreshNameId :: Lens' PostScopeState NameId
-lensFreshNameId f s = f (stPostFreshNameId s) <&> \ x -> s { stPostFreshNameId = x }
+lensFreshNameId = \f s ->
+  f (stPostFreshNameId $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostFreshNameId = x}}
 
+{-# INLINE lensFreshOpaqueId #-}
 lensFreshOpaqueId :: Lens' PostScopeState OpaqueId
-lensFreshOpaqueId f s = f (stPostFreshOpaqueId s) <&> \ x -> s { stPostFreshOpaqueId = x }
+lensFreshOpaqueId = \f s ->
+  f (stPostFreshOpaqueId $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostFreshOpaqueId = x}}
 
+{-# INLINE lensOpaqueBlocks #-}
 lensOpaqueBlocks :: Lens' PostScopeState (Map OpaqueId OpaqueBlock)
-lensOpaqueBlocks f s = f (stPostOpaqueBlocks s) <&> \ x -> s { stPostOpaqueBlocks = x }
+lensOpaqueBlocks = \f s ->
+  f (stPostOpaqueBlocks $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostOpaqueBlocks = x}}
 
+{-# INLINE lensOpaqueIds #-}
 lensOpaqueIds :: Lens' PostScopeState (Map QName OpaqueId)
-lensOpaqueIds f s = f (stPostOpaqueIds s) <&> \ x -> s { stPostOpaqueIds = x }
+lensOpaqueIds = \f s ->
+  f (stPostOpaqueIds $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostOpaqueIds = x}}
 
+{-# INLINE lensSyntaxInfo #-}
 lensSyntaxInfo :: Lens' PostScopeState HighlightingInfo
-lensSyntaxInfo f s = f (stPostSyntaxInfo s) <&> \ x -> s { stPostSyntaxInfo = x }
+lensSyntaxInfo = \f s ->
+  f (stPostSyntaxInfo $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostSyntaxInfo = x}}
 
+{-# INLINE lensDisambiguatedNames #-}
 lensDisambiguatedNames :: Lens' PostScopeState DisambiguatedNames
-lensDisambiguatedNames f s = f (stPostDisambiguatedNames s) <&> \ x -> s { stPostDisambiguatedNames = x }
+lensDisambiguatedNames = \f s ->
+  f (stPostDisambiguatedNames $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostDisambiguatedNames = x}}
 
+{-# INLINE lensOpenMetaStore #-}
 lensOpenMetaStore :: Lens' PostScopeState LocalMetaStore
-lensOpenMetaStore f s = f (stPostOpenMetaStore s) <&> \ x -> s { stPostOpenMetaStore = x }
+lensOpenMetaStore = \f s ->
+  f (stPostOpenMetaStore $ stPostMetaState s) <&> \ x -> s { stPostMetaState = (stPostMetaState s) {stPostOpenMetaStore = x}}
 
+{-# INLINE lensSolvedMetaStore #-}
 lensSolvedMetaStore :: Lens' PostScopeState LocalMetaStore
-lensSolvedMetaStore f s = f (stPostSolvedMetaStore s) <&> \ x -> s { stPostSolvedMetaStore = x }
+lensSolvedMetaStore = \f s ->
+  f (stPostSolvedMetaStore $ stPostMetaState s) <&> \ x -> s { stPostMetaState = (stPostMetaState s) {stPostSolvedMetaStore = x}}
 
+{-# INLINE lensInteractionPoints #-}
 lensInteractionPoints :: Lens' PostScopeState InteractionPoints
-lensInteractionPoints f s = f (stPostInteractionPoints s) <&> \ x -> s { stPostInteractionPoints = x }
+lensInteractionPoints = \f s ->
+  f (stPostInteractionPoints $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostInteractionPoints = x}}
 
+{-# INLINE lensAwakeConstraints #-}
 lensAwakeConstraints :: Lens' PostScopeState Constraints
-lensAwakeConstraints f s = f (stPostAwakeConstraints s) <&> \ x -> s { stPostAwakeConstraints = x }
+lensAwakeConstraints = \f s ->
+  f (stPostAwakeConstraints $ stPostMetaState s) <&> \ x -> s { stPostMetaState = (stPostMetaState s) {stPostAwakeConstraints = x}}
 
+{-# INLINE lensSleepingConstraints #-}
 lensSleepingConstraints :: Lens' PostScopeState Constraints
-lensSleepingConstraints f s = f (stPostSleepingConstraints s) <&> \ x -> s { stPostSleepingConstraints = x }
+lensSleepingConstraints = \f s ->
+  f (stPostSleepingConstraints $ stPostMetaState s) <&> \ x -> s { stPostMetaState = (stPostMetaState s) {stPostSleepingConstraints = x}}
 
+{-# INLINE lensDirty #-}
 lensDirty :: Lens' PostScopeState Bool
-lensDirty f s = f (stPostDirty s) <&> \ x -> s { stPostDirty = x }
+lensDirty = \f s ->
+  f (stPostDirty $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostDirty = x}}
 
+{-# INLINE lensOccursCheckDefs #-}
 lensOccursCheckDefs :: Lens' PostScopeState (Set QName)
-lensOccursCheckDefs f s = f (stPostOccursCheckDefs s) <&> \ x -> s { stPostOccursCheckDefs = x }
+lensOccursCheckDefs = \f s ->
+  f (stPostOccursCheckDefs $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostOccursCheckDefs = x}}
 
+{-# INLINE lensSignature #-}
 lensSignature :: Lens' PostScopeState Signature
-lensSignature f s = f (stPostSignature s) <&> \ x -> s { stPostSignature = x }
+lensSignature = \f s ->
+  f (stPostSignature $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostSignature = x}}
 
+{-# INLINE lensModuleCheckpoints #-}
 lensModuleCheckpoints :: Lens' PostScopeState ModuleCheckpoints
-lensModuleCheckpoints f s = f (stPostModuleCheckpoints s) <&> \ x -> s { stPostModuleCheckpoints = x }
+lensModuleCheckpoints = \f s ->
+  f (stPostModuleCheckpoints $ stPostNamesCheckpoints s) <&> \ x -> s { stPostNamesCheckpoints = (stPostNamesCheckpoints s) {stPostModuleCheckpoints = x}}
 
+{-# INLINE lensImportsDisplayForms #-}
 lensImportsDisplayForms :: Lens' PostScopeState DisplayForms
-lensImportsDisplayForms f s = f (stPostImportsDisplayForms s) <&> \ x -> s { stPostImportsDisplayForms = x }
+lensImportsDisplayForms = \f s ->
+  f (stPostImportsDisplayForms $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostImportsDisplayForms = x}}
 
-lensImportedDisplayForms :: Lens' PreScopeState DisplayForms
-lensImportedDisplayForms f s = f (stPreImportedDisplayForms s) <&> \ x -> s { stPreImportedDisplayForms = x }
-
+{-# INLINE lensTemporaryInstances #-}
 lensTemporaryInstances :: Lens' PostScopeState (Set QName)
-lensTemporaryInstances f s = f (stPostTemporaryInstances s) <&> \ x -> s { stPostTemporaryInstances = x }
+lensTemporaryInstances = \f s ->
+  f (stPostTemporaryInstances $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostTemporaryInstances = x}}
 
+{-# INLINE lensConcreteNames #-}
 lensConcreteNames :: Lens' PostScopeState ConcreteNames
-lensConcreteNames f s = f (stPostConcreteNames s) <&> \ x -> s { stPostConcreteNames = x }
+lensConcreteNames = \f s ->
+  f (stPostConcreteNames $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostConcreteNames = x}}
 
+{-# INLINE lensUsedNames #-}
 lensUsedNames :: Lens' PostScopeState UsedNames
-lensUsedNames f s = f (stPostUsedNames s) <&> \ x -> s { stPostUsedNames = x }
+lensUsedNames = \f s ->
+  f (stPostUsedNames $ stPostNamesCheckpoints s) <&> \ x -> s { stPostNamesCheckpoints = (stPostNamesCheckpoints s) {stPostUsedNames = x}}
 
+{-# INLINE lensShadowingNames #-}
 lensShadowingNames :: Lens' PostScopeState ShadowingNames
-lensShadowingNames f s = f (stPostShadowingNames s) <&> \ x -> s { stPostShadowingNames = x }
+lensShadowingNames = \f s ->
+  f (stPostShadowingNames $ stPostNamesCheckpoints s) <&> \ x -> s { stPostNamesCheckpoints = (stPostNamesCheckpoints s) {stPostShadowingNames = x}}
 
+{-# INLINE lensStatistics #-}
 lensStatistics :: Lens' PostScopeState Statistics
-lensStatistics f s = f (stPostStatistics s) <&> \ x -> s { stPostStatistics = x }
+lensStatistics = \f s ->
+  f (stPostStatistics $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostStatistics = x}}
 
+{-# INLINE lensTCWarnings #-}
 lensTCWarnings :: Lens' PostScopeState (Set TCWarning)
-lensTCWarnings f s = f (stPostTCWarnings s) <&> \ x -> s { stPostTCWarnings = x }
+lensTCWarnings = \f s ->
+  f (stPostTCWarnings $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostTCWarnings = x}}
 
+{-# INLINE lensMutualBlocks #-}
 lensMutualBlocks :: Lens' PostScopeState MutualBlocks
-lensMutualBlocks f s = f (stPostMutualBlocks s) <&> \ x -> s { stPostMutualBlocks = x }
+lensMutualBlocks = \f s ->
+  f (stPostMutualBlocks $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostMutualBlocks = x}}
 
+{-# INLINE lensLocalBuiltins #-}
 lensLocalBuiltins :: Lens' PostScopeState BuiltinThings
-lensLocalBuiltins f s = f (stPostLocalBuiltins s) <&> \ x -> s { stPostLocalBuiltins = x }
+lensLocalBuiltins = \f s ->
+  f (stPostLocalBuiltins $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostLocalBuiltins = x}}
 
+{-# INLINE lensFreshMetaId #-}
 lensFreshMetaId :: Lens' PostScopeState MetaId
-lensFreshMetaId f s = f (stPostFreshMetaId s) <&> \ x -> s { stPostFreshMetaId = x }
+lensFreshMetaId = \f s ->
+  f (stPostFreshMetaId $ stPostMetaState s) <&> \ x -> s { stPostMetaState = (stPostMetaState s) {stPostFreshMetaId = x}}
 
+{-# INLINE lensFreshMutualId #-}
 lensFreshMutualId :: Lens' PostScopeState MutualId
-lensFreshMutualId f s = f (stPostFreshMutualId s) <&> \ x -> s { stPostFreshMutualId = x }
+lensFreshMutualId = \f s ->
+  f (stPostFreshMutualId $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostFreshMutualId = x}}
 
+{-# INLINE lensFreshProblemId #-}
 lensFreshProblemId :: Lens' PostScopeState ProblemId
-lensFreshProblemId f s = f (stPostFreshProblemId s) <&> \ x -> s { stPostFreshProblemId = x }
+lensFreshProblemId = \f s ->
+  f (stPostFreshProblemId $ stPostMetaState s) <&> \ x -> s { stPostMetaState = (stPostMetaState s) {stPostFreshProblemId = x}}
 
+{-# INLINE lensFreshCheckpointId #-}
 lensFreshCheckpointId :: Lens' PostScopeState CheckpointId
-lensFreshCheckpointId f s = f (stPostFreshCheckpointId s) <&> \ x -> s { stPostFreshCheckpointId = x }
+lensFreshCheckpointId = \f s ->
+  f (stPostFreshCheckpointId $ stPostNamesCheckpoints s) <&> \ x -> s { stPostNamesCheckpoints = (stPostNamesCheckpoints s) {stPostFreshCheckpointId = x}}
 
+{-# INLINE lensFreshInt #-}
 lensFreshInt :: Lens' PostScopeState Int
-lensFreshInt f s = f (stPostFreshInt s) <&> \ x -> s { stPostFreshInt = x }
+lensFreshInt = \f s ->
+  f (stPostFreshInt $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostFreshInt = x}}
 
+{-# INLINE lensAreWeCaching #-}
 lensAreWeCaching :: Lens' PostScopeState Bool
-lensAreWeCaching f s = f (stPostAreWeCaching s) <&> \x -> s { stPostAreWeCaching = x }
+lensAreWeCaching = \f s ->
+  f (stPostAreWeCaching $ stPostColdState s) <&> \x -> s { stPostColdState = (stPostColdState s) {stPostAreWeCaching = x}}
 
+{-# INLINE lensPostponeInstanceSearch #-}
 lensPostponeInstanceSearch :: Lens' PostScopeState Bool
-lensPostponeInstanceSearch f s = f (stPostPostponeInstanceSearch s) <&> \ x -> s { stPostPostponeInstanceSearch = x }
+lensPostponeInstanceSearch = \f s ->
+  f (stPostPostponeInstanceSearch $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostPostponeInstanceSearch = x}}
 
+{-# INLINE lensConsideringInstance #-}
 lensConsideringInstance :: Lens' PostScopeState Bool
-lensConsideringInstance f s = f (stPostConsideringInstance s) <&> \ x -> s { stPostConsideringInstance = x }
+lensConsideringInstance = \f s ->
+  f (stPostConsideringInstance $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostConsideringInstance = x}}
 
+{-# INLINE lensInstantiateBlocking #-}
 lensInstantiateBlocking :: Lens' PostScopeState Bool
-lensInstantiateBlocking f s = f (stPostInstantiateBlocking s) <&> \ x -> s { stPostInstantiateBlocking = x }
+lensInstantiateBlocking = \f s ->
+  f (stPostInstantiateBlocking $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostInstantiateBlocking = x}}
 
+{-# INLINE lensInstanceHack #-}
 lensInstanceHack :: Lens' PostScopeState Bool
-lensInstanceHack f s = f (stPostInstanceHack s) <&> \ x -> s { stPostInstanceHack = x }
+lensInstanceHack = \f s ->
+  f (stPostInstanceHack $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostInstanceHack = x}}
+
 
 -- * @st@-prefixed lenses
 ------------------------------------------------------------------------
@@ -985,36 +1095,20 @@ stImportsDisplayForms = lensPostScopeState . lensImportsDisplayForms
 stWarningSet :: Lens' TCState (Set WarningName)
 stWarningSet = stPragmaOptions . lensOptWarningMode . warningSet
 
--- | Note that the lens is \"strict\".
+stCurrentModule :: Lens' TCState (Strict.Maybe (Strict.Pair ModuleName TopLevelModuleName))
+stCurrentModule = lensPostScopeState . lensCurrentModule
 
-stCurrentModule ::
-  Lens' TCState (Maybe (ModuleName, TopLevelModuleName))
-stCurrentModule f s =
-  f (stPostCurrentModule (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState =
-             (stPostScopeState s)
-               {stPostCurrentModule = case x of
-                  Nothing         -> Nothing
-                  Just (!m, !top) -> Just (m, top)}}
-
--- TODO: turn this into a composition of shallow lenses
-
--- lensCurrentModule :: Lens' PostScopeState (Maybe (ModuleName, TopLevelModuleName))
--- lensCurrentModule f s = f (stPostCurrentModule s) <&> \ x -> s { stPostCurrentModule = x }
-
--- -- | Note that the lens is \"strict\".
-
--- stCurrentModule :: Lens' TCState (Maybe (ModuleName, TopLevelModuleName))
--- stCurrentModule = lensPostScopeState . lensCurrentModule . fmap (fmap \ (!m, !top) -> (m, top))
-
+{-# INLINE stInstanceDefs #-}
 stInstanceDefs :: Lens' TCState TempInstanceTable
-stInstanceDefs f s =
+stInstanceDefs = \f s ->
   f ( s ^. stSignature . sigInstances
-    , stPostPendingInstances (stPostScopeState s)
+    , stPostPendingInstances (stPostColdState (stPostScopeState s))
     )
-  <&> \(t, x) ->
+  <&> \(!t, !x) ->
     set (stSignature . sigInstances) t
-      (s { stPostScopeState = (stPostScopeState s) { stPostPendingInstances = x }})
+      (s { stPostScopeState = (stPostScopeState s) {
+           stPostColdState = (stPostColdState (stPostScopeState s)){
+               stPostPendingInstances = x }}})
 
 stTemporaryInstances :: Lens' TCState (Set QName)
 stTemporaryInstances = lensPostScopeState . lensTemporaryInstances
@@ -7066,8 +7160,10 @@ instance NFData PreScopeState
 -- | This instance could be optimised, some things are guaranteed to
 -- be forced.
 
+instance NFData PostNamesCheckpoints
+instance NFData PostMetaState
+instance NFData PostColdState
 instance NFData PostScopeState
-
 instance NFData TCState
 instance NFData DisambiguatedName
 instance NFData MutualBlock
