@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
 
 {- | Modality.
 
@@ -43,6 +44,15 @@ hideAndRelParams = hideOrKeepInstance . mapRelevance shapeIrrelevantToIrrelevant
 
 -- * Operations on 'Context'.
 
+{-# NOINLINE workOnTypesTEST #-}
+-- | Modify the context whenever going from the l.h.s. (term side)
+--   of the typing judgement to the r.h.s. (type side).
+workOnTypesTEST :: TCM a -> TCM a
+workOnTypesTEST cont = do
+  allowed <- optExperimentalIrrelevance <$> pragmaOptions
+  verboseBracket "tc.irr" 60 "workOnTypes" $ workOnTypes' allowed cont
+
+{-# INLINE workOnTypes #-}
 -- | Modify the context whenever going from the l.h.s. (term side)
 --   of the typing judgement to the r.h.s. (type side).
 workOnTypes :: (MonadTCEnv m, HasOptions m, MonadDebug m)
@@ -51,6 +61,8 @@ workOnTypes cont = do
   allowed <- optExperimentalIrrelevance <$> pragmaOptions
   verboseBracket "tc.irr" 60 "workOnTypes" $ workOnTypes' allowed cont
 
+
+{-# INLINE workOnTypes' #-}
 -- | Internal workhorse, expects value of --experimental-irrelevance flag
 --   as argument.
 workOnTypes' :: (MonadTCEnv m) => Bool -> m a -> m a
@@ -140,7 +152,7 @@ splittableCohesion a = do
   pure (usableCohesion c) `and2M` (pure (c /= Flat) `or2M` do optFlatSplit <$> pragmaOptions)
 
 
-{-# SPECIALIZE applyModalityToContext :: Modality -> TCM a -> TCM a #-}
+{-# INLINE applyModalityToContext #-}
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
 --   in an irrelevant function argument otherwise irrelevant variables
@@ -156,6 +168,7 @@ applyModalityToContext thing =
       | otherwise         -> applyModalityToContextOnly   m
                            . applyModalityToJudgementOnly m
 
+{-# INLINE applyModalityToContextOnly #-}
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
 --   in an irrelevant function argument otherwise irrelevant variables
@@ -172,6 +185,7 @@ applyModalityToContextOnly m = localTC
   . over eLetBindings
       (Map.map . fmap . onLetBindingType $ inverseApplyModalityButNotQuantity m)
 
+{-# INLINE applyModalityToJudgementOnly #-}
 -- | Apply the relevance and quantity components of the modality to
 -- the modality annotation of the (typing/equality) judgement.
 --

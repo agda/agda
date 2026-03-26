@@ -42,8 +42,8 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import Data.Maybe
-import Data.Map (Map)
-import qualified Data.Map as Map -- hiding (singleton, null, empty)
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map -- hiding (singleton, null, empty)
 import Data.Sequence (Seq)
 import Data.Set (Set, toList, fromList)
 import qualified Data.Set as Set -- hiding (singleton, null, empty)
@@ -60,7 +60,9 @@ import qualified Data.Text.Lazy as TL
 import Data.Semigroup (Sum, Max)
 
 import GHC.Generics (Generic)
-import GHC.Exts (oneShot)
+import GHC.Exts (oneShot, MutVar#, RealWorld)
+import GHC.IORef (IORef(..))
+import GHC.STRef (STRef(..))
 
 import System.IO (hFlush, stdout)
 
@@ -6558,13 +6560,17 @@ instance MonadFileId m => MonadFileId (BlockT m)
 
 -- | The type checking monad transformer.
 -- Adds readonly 'TCEnv' and mutable 'TCState'.
-newtype TCMT m a = TCM# { unTCM :: Strict.IORef TCState -> TCEnv -> m a }
+newtype TCMT m a = TCM# { unTCM# :: MutVar# RealWorld TCState -> TCEnv -> m a }
 
 pattern TCM :: (Strict.IORef TCState -> TCEnv -> m a) -> TCMT m a
-pattern TCM f <- TCM# f where
-  TCM f = TCM# (oneShot \s -> oneShot \e -> f s e)
+pattern TCM f <- TCM# ((\f (Strict.StrictIORef (IORef (STRef r))) e -> f r e) -> f) where
+  TCM f = TCM# (oneShot \s -> oneShot \ !e -> f (Strict.StrictIORef (IORef (STRef s))) e)
 {-# INLINE TCM #-}
 {-# COMPLETE TCM #-}
+
+{-# INLINE unTCM #-}
+unTCM :: TCMT m a -> Strict.IORef TCState -> TCEnv -> m a
+unTCM (TCM f) = f
 
 -- | Type checking monad.
 type TCM = TCMT IO

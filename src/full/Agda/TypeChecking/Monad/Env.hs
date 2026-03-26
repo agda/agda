@@ -21,6 +21,7 @@ import Agda.Utils.Impossible
 currentModule :: MonadTCEnv m => m ModuleName
 currentModule = viewTC eCurrentModule
 
+{-# INLINE withCurrentModule #-}
 -- | Set the name of the current module.
 withCurrentModule :: (MonadTCEnv m) => ModuleName -> m a -> m a
 withCurrentModule m = localTC $ set eCurrentModule m
@@ -39,11 +40,13 @@ getAnonymousVariables m = do
   ms <- viewTC eAnonymousModules
   return $ sum [ n | (m', n) <- ms, mnameToList m' `List.isPrefixOf` mnameToList m ]
 
+{-# INLINE withAnonymousModule #-}
 -- | Add variables bound by an anonymous module.
 withAnonymousModule :: ModuleName -> Nat -> TCM a -> TCM a
 withAnonymousModule m n =
   localTC $ over eAnonymousModules \ms -> (m, n) : ms
 
+{-# INLINE withEnv #-}
 -- | Set the current environment to the given
 withEnv :: MonadTCEnv m => TCEnv -> m a -> m a
 withEnv env = localTC \env0 ->
@@ -54,29 +57,33 @@ withEnv env = localTC \env0 ->
 getEnv :: TCM TCEnv
 getEnv = askTC
 
+{-# INLINE withHighlightingLevel #-}
 -- | Set highlighting level
 withHighlightingLevel :: HighlightingLevel -> TCM a -> TCM a
 withHighlightingLevel h = localTC $ set eHighlightingLevel h
 
+{-# INLINE doExpandLast #-}
 -- | Restore setting for 'ExpandLast' to default.
 doExpandLast :: TCM a -> TCM a
 doExpandLast = localTC $ over eExpandLast setExpand where
     setExpand ReallyDontExpandLast = ReallyDontExpandLast
     setExpand _                    = ExpandLast
 
+{-# INLINE dontExpandLast #-}
 dontExpandLast :: TCM a -> TCM a
 dontExpandLast = localTC $ set eExpandLast DontExpandLast
 
+{-# INLINE reallyDontExpandLast #-}
 reallyDontExpandLast :: TCM a -> TCM a
 reallyDontExpandLast = localTC $ set eExpandLast ReallyDontExpandLast
 
 -- | If the reduced did a proper match (constructor or literal pattern),
 --   then record this as simplification step.
-{-# SPECIALIZE performedSimplification :: TCM a -> TCM a #-}
+{-# INLINE performedSimplification #-}
 performedSimplification :: MonadTCEnv m => m a -> m a
 performedSimplification = localTC $ set eSimplification YesSimplification
 
-{-# SPECIALIZE performedSimplification' :: Simplification -> TCM a -> TCM a #-}
+{-# INLINE performedSimplification' #-}
 performedSimplification' :: MonadTCEnv m => Simplification -> m a -> m a
 performedSimplification' simpl = localTC $ over' eSimplification (simpl <>)
 
@@ -89,31 +96,38 @@ getSimplification = viewTC eSimplification
 updateAllowedReductions :: (AllowedReductions -> AllowedReductions) -> TCEnv -> TCEnv
 updateAllowedReductions = over eAllowedReductions
 
+{-# INLINE modifyAllowedReductions #-}
 modifyAllowedReductions :: MonadTCEnv m => (AllowedReductions -> AllowedReductions) -> m a -> m a
 modifyAllowedReductions = localTC . updateAllowedReductions
 
+{-# INLINE putAllowedReductions #-}
 putAllowedReductions :: MonadTCEnv m => AllowedReductions -> m a -> m a
 putAllowedReductions = modifyAllowedReductions . const
 
+{-# INLINE onlyReduceProjections #-}
 -- | Reduce @Def f vs@ only if @f@ is a projection.
 onlyReduceProjections :: MonadTCEnv m => m a -> m a
 onlyReduceProjections = modifyAllowedReductions $ SmallSet.intersection $
   SmallSet.singleton ProjectionReductions
 
+{-# INLINE allowAllReductions #-}
 -- | Allow all reductions except for non-terminating functions (default).
 allowAllReductions :: MonadTCEnv m => m a -> m a
 allowAllReductions = putAllowedReductions allReductions
 
+{-# INLINE allowNonTerminatingReductions #-}
 -- | Allow all reductions including non-terminating functions.
 allowNonTerminatingReductions :: MonadTCEnv m => m a -> m a
 allowNonTerminatingReductions = putAllowedReductions reallyAllReductions
 
+{-# INLINE onlyReduceTypes #-}
 -- | Allow all reductions when reducing types. Otherwise only allow
 --   inlined functions to be unfolded.
 onlyReduceTypes :: MonadTCEnv m => m a -> m a
 onlyReduceTypes = modifyAllowedReductions $ SmallSet.intersection $
   SmallSet.fromList [TypeLevelReductions, InlineReductions]
 
+{-# INLINE typeLevelReductions #-}
 -- | Update allowed reductions when working on types
 typeLevelReductions :: MonadTCEnv m => m a -> m a
 typeLevelReductions = modifyAllowedReductions $ \reds -> if
@@ -125,16 +139,19 @@ typeLevelReductions = modifyAllowedReductions $ \reds -> if
 
 -- * Concerning 'envInsideDotPattern'
 
+{-# INLINE insideDotPattern #-}
 insideDotPattern :: TCM a -> TCM a
 insideDotPattern = localTC $ set eInsideDotPattern True
 
 isInsideDotPattern :: TCM Bool
 isInsideDotPattern = viewTC eInsideDotPattern
 
+{-# INLINE callByName #-}
 -- | Don't use call-by-need evaluation for the given computation.
 callByName :: TCM a -> TCM a
 callByName = localTC $ set eCallByNeed False
 
+{-# INLINE dontFoldLetBindings #-}
 -- | Don't fold let bindings when printing. This is a bit crude since it disables any folding of let
 --   bindings at all. In many cases it's better to use `removeLetBinding` before printing to drop
 --   the let bindings that should not be folded.

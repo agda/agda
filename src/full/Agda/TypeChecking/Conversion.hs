@@ -457,10 +457,17 @@ compareTerm' cmp a m n =
               | Just q == mp -> compareTermOnFace cmp (unArg phi) asFn m n
           _                  -> equalFun s (unEl asFn) m n
 
+    equalFun _ (Pi dom@Dom{domInfo = info} b) (Lam _ m) (Lam _ n) = do
+      whenProfile Profile.Conversion $ tick "compare at function type"
+      let name = suggests [ Suggestion b , Suggestion m , Suggestion n ]
+      addConversionContext (ConvLam dom (void b) name)
+        $ addContext (name, dom)
+        $ compareTerm cmp (absBody b) (absBody m) (absBody n)
+
     equalFun _ (Pi dom@Dom{domInfo = info} b) m n = do
       whenProfile Profile.Conversion $ tick "compare at function type"
       let
-        (m', n') = raise 1 (m,n) `apply` [Arg info $ var 0]
+        (m', n') = let !v = var 0 in raise 1 (m,n) `apply` [Arg info v]
         name     = suggests [ Suggestion b , Suggestion m , Suggestion n ]
       addConversionContext (ConvLam dom (void b) name)
         $ addContext (name, dom)
@@ -1074,7 +1081,7 @@ compareElims pols0 fors0 a v els01 els02 =
           mlvl <- tryMaybe primLevel
           let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
               freeInCoDom _         = False
-              dependent = (Just (unEl b) /= mlvl) && freeInCoDom codom
+              dependent () = (Just (unEl b) /= mlvl) && freeInCoDom codom
                 -- Level-polymorphism (x : Level) -> ... does not count as dependency here
                    -- NB: we could drop the free variable test and still be sound.
                    -- It is a trade-off between the administrative effort of
@@ -1097,7 +1104,7 @@ compareElims pols0 fors0 a v els01 els02 =
           -- if comparison got stuck and function type is dependent, block arg
           solved <- isProblemSolved pid
           reportSLn "tc.conv.elim" 40 $ "solved = " ++ show solved
-          arg <- if dependent && not solved
+          arg <- if dependent () && not solved
                  then applyModalityToContext info $ do
                   reportSDoc "tc.conv.elims" 50 $ vcat $
                     [ "Trying antiUnify:"

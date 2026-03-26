@@ -291,7 +291,11 @@ addConversionContext
   -> m a
     -- ^ Generally, a recursive call to the conversion checker
   -> m a
-addConversionContext ext cont = cont `catchError` \case
+addConversionContext ext cont = cont `catchError` catchConversionContext ext
+
+{-# SPECIALIZE NOINLINE catchConversionContext :: (ConversionZipper -> ConversionZipper) -> TCErr -> TCM a #-}
+catchConversionContext :: MonadTCError m => (ConversionZipper -> ConversionZipper) -> TCErr -> m a
+catchConversionContext ext = \case
   TypeError loc st cl'@Closure{ clValue = ConversionError_ conv@ConversionError{ convErrCtx = Floating ctx } } -> do
     let
       !zip   = ext ctx

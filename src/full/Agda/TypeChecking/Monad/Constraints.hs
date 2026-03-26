@@ -20,9 +20,11 @@ import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Tuple ((&&&))
 
+{-# INLINE solvingProblem #-}
 solvingProblem :: MonadConstraint m => ProblemId -> m a -> m a
 solvingProblem pid = solvingProblems (Set.singleton pid)
 
+{-# INLINE solvingProblems #-}
 solvingProblems :: MonadConstraint m => Set ProblemId -> m a -> m a
 solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on problems " ++ show (Set.toList pids)) $ do
   x <- localTC (over eActiveProblems (pids `Set.union`)) m

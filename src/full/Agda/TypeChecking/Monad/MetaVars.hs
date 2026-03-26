@@ -149,9 +149,9 @@ nextLocalMeta = useR stFreshMetaId
 -- | Pairs of local meta-stores.
 
 data LocalMetaStores = LocalMetaStores
-  { openMetas :: LocalMetaStore
+  { openMetas   :: !LocalMetaStore
     -- ^ A 'MetaStore' containing open meta-variables.
-  , solvedMetas :: LocalMetaStore
+  , solvedMetas :: !LocalMetaStore
     -- ^ A 'MetaStore' containing instantiated meta-variables.
   }
 
@@ -173,18 +173,17 @@ metasCreatedBy m = do
       (_, Just m,  ms) -> MapS.insert next m ms
 
 -- | Find information about the given local meta-variable, if any.
-
+{-# SPECIALIZE lookupLocalMeta' :: MetaId -> TCM (Maybe MetaVariable) #-}
 lookupLocalMeta' :: ReadTCState m => MetaId -> m (Maybe MetaVariable)
 lookupLocalMeta' m = do
-  mv <- lkup <$> useR stSolvedMetaStore
-  case mv of
+  tc <- getTCState
+  case MapS.lookup m (tc ^. stSolvedMetaStore) of
     mv@Just{} -> return mv
-    Nothing   -> lkup <$> useR stOpenMetaStore
-  where
-  lkup = MapS.lookup m
+    Nothing   -> pure $! MapS.lookup m (tc ^. stOpenMetaStore)
 
 -- | Find information about the given local meta-variable.
 
+{-# SPECIALIZE lookupLocalMeta :: MetaId -> TCM MetaVariable #-}
 lookupLocalMeta ::
   (HasCallStack, MonadDebug m, ReadTCState m) =>
   MetaId -> m MetaVariable
