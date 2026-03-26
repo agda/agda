@@ -104,16 +104,17 @@ escapeContext err n = updateContext (strengthenS err n) $ cxDrop n
 
 -- * Manipulating checkpoints --
 
-{-# SPECIALIZE checkpoint :: Substitution -> TCM a -> TCM a #-} -- TODO factor & INLINE
+{-# INLINE checkpoint #-} -- TODO factor & INLINE
 -- | Add a new checkpoint. Do not use directly!
-checkpoint
-  :: (MonadDebug tcm, MonadTCM tcm, MonadFresh CheckpointId tcm, ReadTCState tcm)
-  => Substitution -> tcm a -> tcm a
+checkpoint :: Substitution -> TCM a -> TCM a
 checkpoint sub k = do
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 $ "New checkpoint {"
-  old  <- viewTC eCurrentCheckpoint
-  oldChkpts <- useTC stModuleCheckpoints
-  chkpt <- fresh
+  old <- viewTC eCurrentCheckpoint
+  tc <- getTC
+  let oldChkpts = tc ^. stModuleCheckpoints
+  let chkpt     = tc ^. freshLens
+  putTC $! tc & freshLens .~ (nextFresh' chkpt)
+
   unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
     cxt <- getContextTelescope
     cps <- viewTC eCheckpoints
@@ -128,9 +129,11 @@ checkpoint sub k = do
       , "old substs =" <+> prCps cps
       , "new substs =" <?> prCps cps'
       ]
+
   x <- localTC (  set eCurrentCheckpoint chkpt
                 . over eCheckpoints (Map.insert chkpt IdS . fmap (applySubst sub)))
                k
+
   unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
     newChkpts <- useTC stModuleCheckpoints
     reportS "tc.cxt.checkpoint" 105 $ nest 2 $
@@ -164,7 +167,7 @@ checkpoint sub k = do
 -- | Add a module checkpoint for the provided @ModuleName@.
 {-# SPECIALIZE setModuleCheckpoint :: ModuleName -> CheckpointId -> TCM () #-}
 setModuleCheckpoint :: (MonadTCState m) => ModuleName -> CheckpointId -> m ()
-setModuleCheckpoint mname newChkpt =
+setModuleCheckpoint !mname !newChkpt =
   modifyTCLens' stModuleCheckpoints \case
       (ModuleCheckpointsSection chkpts mnames chkpt) | chkpt == newChkpt ->
         ModuleCheckpointsSection chkpts (Set.insert mname mnames) chkpt
@@ -173,7 +176,7 @@ setModuleCheckpoint mname newChkpt =
 -- | Set every module checkpoint in the checkpoint stack to the provided @CheckpointId@.
 {-# SPECIALIZE setAllModuleCheckpoints :: CheckpointId -> TCM () #-}
 setAllModuleCheckpoints :: (MonadTCState m) => CheckpointId -> m ()
-setAllModuleCheckpoints chkpt =
+setAllModuleCheckpoints !chkpt =
   modifyTCLens' stModuleCheckpoints \case
     ModuleCheckpointsTop -> ModuleCheckpointsTop
     ModuleCheckpointsSection chkpts siblings _ -> setAll siblings chkpts
@@ -184,9 +187,9 @@ setAllModuleCheckpoints chkpt =
 
 -- | Unwind the current module checkpoint stack until we reach a target @CheckpointId@,
 --   and place the checkpoints onto the provided @ModuleCheckpoints@ stack.
-{-# SPECIALIZE unwindModuleCheckpointsOnto :: CheckpointId -> ModuleCheckpoints -> TCM () #-}
+{-# SPECIALIZE NOINLINE unwindModuleCheckpointsOnto :: CheckpointId -> ModuleCheckpoints -> TCM () #-} -- TODO
 unwindModuleCheckpointsOnto :: (MonadTCState m) => CheckpointId -> ModuleCheckpoints -> m ()
-unwindModuleCheckpointsOnto unwindTo oldChkpts =
+unwindModuleCheckpointsOnto !unwindTo !oldChkpts =
   -- We know that the checkpoints in the stack are sorted,
   -- so we can do a preliminary check to see if there's
   -- any work to be done.
@@ -313,42 +316,89 @@ instance MonadAddContext m => MonadAddContext (ListT m) where
   updateContext sub f    = liftListT $ updateContext sub f
   withFreshName r x cont = ListT $ withFreshName r x $ runListT . cont
 
+-- -- {-# INLINE withShadowingNameTCM #-} -- TODO factor & inline
+-- -- | Run the given TCM action, and register the given variable as
+-- --   being shadowed by all the names with the same root that are added
+-- --   to the context during this TCM action.
+-- withShadowingNameTCM :: Name -> TCM b -> TCM b
+-- withShadowingNameTCM x = \f -> do
+--   reportS "tc.cxt.shadowing" 80 $ "registered" <+> pretty x <+> "for shadowing"
+--   oldstate <- getTC
+--   let oldnames = oldstate ^. stUsedNames
+--   f <- putTC $! oldState & stUsedNames .~ mempty
+--   result   <- f
+--   newstate <- getTC
+--   let newnames = newstate ^. stUsedNames
+--   let allnames = Map.unionWith (<>) oldnames newnames
+
+--   when (isInScope x == InScope) $ tellUsedName x
+
+--   (result , useds) <- listenUsedNames f
+--   reportSLn "tc.cxt.shadowing" 90 $ "all used names: " ++ show useds
+--   tellShadowing x useds
+--   return result
+
+--     where
+--       listenUsedNames f = do
+--         origUsedNames <- useTC stUsedNames
+--         setTCLens stUsedNames Map.empty
+--         result <- f
+--         newUsedNames <- useTC stUsedNames
+--         setTCLens stUsedNames $ Map.unionWith (<>) origUsedNames newUsedNames
+--         return (result , newUsedNames)
+
+--       tellUsedName x = do
+--         let concreteX = nameConcrete x
+--             rawX      = nameToRawName concreteX
+--             rootX     = nameRoot concreteX
+--         modifyTCLens (stUsedNames . key rootX) $
+--           Just . (Set1.insertSet rawX) . Set1.toSet'
+
+--       tellShadowing x useds = case Map.lookup (nameRoot $ nameConcrete x) useds of
+--         Just shadows -> do
+--           reportS "tc.cxt.shadowing" 80 $
+--             "names shadowing" <+> pretty x <+> ": " <+>
+--             prettyList_ (map' pretty $ toList shadows)
+--           modifyTCLens stShadowingNames $ Map.insertWith (<>) x shadows
+--         Nothing      -> return ()
+
 -- {-# INLINE withShadowingNameTCM #-} -- TODO factor & inline
 -- | Run the given TCM action, and register the given variable as
 --   being shadowed by all the names with the same root that are added
 --   to the context during this TCM action.
 withShadowingNameTCM :: Name -> TCM b -> TCM b
-withShadowingNameTCM x = \f -> do
-  reportS "tc.cxt.shadowing" 80 $ "registered" <+> pretty x <+> "for shadowing"
-  when (isInScope x == InScope) $ tellUsedName x
-  (result , useds) <- listenUsedNames f
-  reportSLn "tc.cxt.shadowing" 90 $ "all used names: " ++ show useds
-  tellShadowing x useds
-  return result
+withShadowingNameTCM x f = f
+-- withShadowingNameTCM x = \f -> do
+--   reportS "tc.cxt.shadowing" 80 $ "registered" <+> pretty x <+> "for shadowing"
+--   when (isInScope x == InScope) $ tellUsedName x
+--   (result , useds) <- listenUsedNames f
+--   reportSLn "tc.cxt.shadowing" 90 $ "all used names: " ++ show useds
+--   tellShadowing x useds
+--   return result
 
-    where
-      listenUsedNames f = do
-        origUsedNames <- useTC stUsedNames
-        setTCLens stUsedNames Map.empty
-        result <- f
-        newUsedNames <- useTC stUsedNames
-        setTCLens stUsedNames $ Map.unionWith (<>) origUsedNames newUsedNames
-        return (result , newUsedNames)
+--     where
+--       listenUsedNames f = do
+--         Lazy origUsedNames <- useTC stUsedNames
+--         setTCLens stUsedNames (Lazy Map.empty)
+--         result <- f
+--         Lazy newUsedNames <- useTC stUsedNames
+--         setTCLens stUsedNames $ Lazy (Map.unionWith (<>) origUsedNames newUsedNames)
+--         return (result , newUsedNames)
 
-      tellUsedName x = do
-        let concreteX = nameConcrete x
-            rawX      = nameToRawName concreteX
-            rootX     = nameRoot concreteX
-        modifyTCLens (stUsedNames . key rootX) $
-          Just . (Set1.insertSet rawX) . Set1.toSet'
+--       tellUsedName x = do
+--         let concreteX = nameConcrete x
+--             rawX      = nameToRawName concreteX
+--             rootX     = nameRoot concreteX
+--         modifyTCLens stUsedNames \(Lazy ns) ->
+--           Lazy (ns & key rootX %~ Just . Set1.insertSet rawX . Set1.toSet')
 
-      tellShadowing x useds = case Map.lookup (nameRoot $ nameConcrete x) useds of
-        Just shadows -> do
-          reportS "tc.cxt.shadowing" 80 $
-            "names shadowing" <+> pretty x <+> ": " <+>
-            prettyList_ (map' pretty $ toList shadows)
-          modifyTCLens stShadowingNames $ Map.insertWith (<>) x shadows
-        Nothing      -> return ()
+--       tellShadowing x useds = case Map.lookup (nameRoot $ nameConcrete x) useds of
+--         Just shadows -> do
+--           reportS "tc.cxt.shadowing" 80 $
+--             "names shadowing" <+> pretty x <+> ": " <+>
+--             prettyList_ (map' pretty $ toList shadows)
+--           modifyTCLens stShadowingNames $ Lazy . Map.insertWith (<>) x shadows . unLazy
+--         Nothing      -> return ()
 
 {-# NOINLINE addCtxTEST #-}
 addCtxTEST :: Name -> Dom Type -> TCM a -> TCM a

@@ -298,22 +298,10 @@ data DisambiguatedName = DisambiguatedName NameKind A.QName
 
 -- | Name from file position of occurrence to disambiguation.
 type DisambiguatedNames = IntMap DisambiguatedName
-
 type ConcreteNames = Map Name (List1 C.Name)
-type ShadowingNames = Map Name (Set1 RawName)
-type UsedNames = Map RawName (Set1 RawName)
-
 
 data PostNamesCheckpoints = PostNamesCheckpoints {
-    stPostUsedNames           :: !UsedNames
-    -- ^ Map keeping track for each name root (= name w/o numeric
-    -- suffixes) what names with the same root have been used during a
-    -- TC computation. This information is used to build the
-    -- @ShadowingNames@ map.
-  , stPostShadowingNames      :: !ShadowingNames
-    -- ^ Map keeping track for each (abstract) name the list of all
-    -- (raw) names that it could maybe be shadowed by.
-  , stPostModuleCheckpoints   :: !ModuleCheckpoints
+    stPostModuleCheckpoints   :: !ModuleCheckpoints
     -- ^ For each module remember the checkpoint corresponding to the orignal
     --   context of the module parameters.
   , stPostFreshCheckpointId   :: !CheckpointId
@@ -329,8 +317,6 @@ data PostMetaState = PostMetaState {
   , stPostAwakeConstraints    :: !Constraints
   , stPostSleepingConstraints :: !Constraints
   } deriving (Generic)
-
-
 
 data PostColdState = PostColdState
   { stPostSyntaxInfo          :: !HighlightingInfo
@@ -392,7 +378,6 @@ data PostColdState = PostColdState
     -- instance candidate? Used to support "inert improvement", see
     -- @shouldBlockOverlap@ in InstanceArguments.
   } deriving (Generic)
-
 
 
 data PostScopeState = PostScopeState {
@@ -551,9 +536,7 @@ initPreScopeState = PreScopeState
 
 initPostNamesCheckpoints :: PostNamesCheckpoints
 initPostNamesCheckpoints = PostNamesCheckpoints
-  { stPostUsedNames              = Map.empty
-  , stPostShadowingNames         = Map.empty
-  , stPostModuleCheckpoints      = ModuleCheckpointsTop
+  { stPostModuleCheckpoints      = ModuleCheckpointsTop
   , stPostFreshCheckpointId      = 1
   }
 
@@ -847,16 +830,6 @@ lensConcreteNames :: Lens' PostScopeState ConcreteNames
 lensConcreteNames = \f s ->
   f (stPostConcreteNames $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostConcreteNames = x}}
 
-{-# INLINE lensUsedNames #-}
-lensUsedNames :: Lens' PostScopeState UsedNames
-lensUsedNames = \f s ->
-  f (stPostUsedNames $ stPostNamesCheckpoints s) <&> \ x -> s { stPostNamesCheckpoints = (stPostNamesCheckpoints s) {stPostUsedNames = x}}
-
-{-# INLINE lensShadowingNames #-}
-lensShadowingNames :: Lens' PostScopeState ShadowingNames
-lensShadowingNames = \f s ->
-  f (stPostShadowingNames $ stPostNamesCheckpoints s) <&> \ x -> s { stPostNamesCheckpoints = (stPostNamesCheckpoints s) {stPostShadowingNames = x}}
-
 {-# INLINE lensStatistics #-}
 lensStatistics :: Lens' PostScopeState Statistics
 lensStatistics = \f s ->
@@ -1115,12 +1088,6 @@ stTemporaryInstances = lensPostScopeState . lensTemporaryInstances
 
 stConcreteNames :: Lens' TCState ConcreteNames
 stConcreteNames = lensPostScopeState . lensConcreteNames
-
-stUsedNames :: Lens' TCState UsedNames
-stUsedNames = lensPostScopeState . lensUsedNames
-
-stShadowingNames :: Lens' TCState ShadowingNames
-stShadowingNames = lensPostScopeState . lensShadowingNames
 
 stStatistics :: Lens' TCState Statistics
 stStatistics = lensPostScopeState . lensStatistics
@@ -4217,7 +4184,7 @@ data TCContext = TCContext {
   , envCurrentCheckpoint :: !CheckpointId
     -- ^ Checkpoints track the evolution of the context as we go
     -- under binders or refine it by pattern matching.
-  , envCheckpoints       :: !(Map CheckpointId Substitution)
+  , envCheckpoints       :: (Map CheckpointId Substitution)
     -- ^ Keeps the substitution from each previous checkpoint to
     --   the current context.
   , envAppDef :: Maybe QName

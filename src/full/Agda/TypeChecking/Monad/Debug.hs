@@ -300,9 +300,15 @@ reportResult _ _ _ = id
 {-# INLINE reportResult #-}
 #endif
 
+#ifdef DEBUG
 unlessDebugPrinting :: MonadDebug m => m () -> m ()
 unlessDebugPrinting = unlessM isDebugPrinting
 {-# INLINE unlessDebugPrinting #-}
+#else
+unlessDebugPrinting :: MonadDebug m => m () -> m ()
+unlessDebugPrinting _ = pure ()
+{-# INLINE unlessDebugPrinting #-}
+#endif
 
 -- | Debug print some lines if the verbosity level for the given
 --   'VerboseKey' is at least 'VerboseLevel'.
