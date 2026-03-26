@@ -400,9 +400,6 @@ The command which arrived last is stored first in the list.")
   "The Agda buffer.
 Note that this variable is not buffer-local.")
 
-(defvar agda2-in-agda2-file-buffer nil
-  "Was `agda2-file-buffer' active when `agda2-output-filter' started?
-Note that this variable is not buffer-local.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; agda2-mode
@@ -685,9 +682,7 @@ reloaded from `agda2-highlighting-file', unless
   ;; extract the fontified text and kill the temp buffer; so when Agda
   ;; finally answers, the temp buffer is long gone.
   (when (buffer-live-p agda2-file-buffer)
-  (setq agda2-in-agda2-file-buffer
-        (and agda2-file-buffer
-             (equal (current-buffer) agda2-file-buffer)))
+
   (let (;; The input lines in the current chunk.
         (lines (split-string chunk "\n"))
 
@@ -2178,12 +2173,15 @@ invoked."
 FILEPOS should have the form (FILE . POSITION).
 
 If `agda2-highlight-in-progress' is nil, then nothing happens.
-Otherwise, if the current buffer is the one that is connected to
-the Agda process, then point is moved to POSITION in
-FILE (assuming that the FILE is readable). Otherwise point is
-moved to the given position in the buffer visiting the file, if
-any, and in every window displaying the buffer, but the window
-configuration and the selected window are not changed."
+
+If there is a buffer already visiting FILE that is displayed in
+some windows, then the point is updated to POSITION in all of those
+windows.
+
+If there is a buffer visiting FILE that is not displayed in any windows,
+then update the point, but do not display it.
+
+If there is no buffer visiting FILE, do nothing."
   (declare (agda2-command (cons)))
   (when (and agda2-highlight-in-progress
              (consp filepos)
@@ -2194,8 +2192,16 @@ configuration and the selected window are not changed."
     ;; the current marker onto Xref' stack to make it seem like a Xref
     ;; jump.
     (xref-push-marker-stack)
-    (set-buffer (find-file-noselect (car filepos)))
-    (goto-char (cdr filepos))))
+    (if-let* ((buffer (find-buffer-visiting (car filepos))))
+        (if-let* ((windows (get-buffer-window-list buffer 'no-minibuffer 'all-frames)))
+            ;; Buffer is visible, update points in all windows.
+            (dolist (window windows)
+              (with-selected-window window
+                (goto-char (cdr filepos))))
+          ;; Buffer exists, but is not visible.
+          ;; We do not display the buffer here, as can be jarring for slow loads.
+          ;; See https://github.com/agda/agda/pull/8458#issuecomment-4032442448
+          (goto-char (cdr filepos))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implicit arguments
