@@ -93,6 +93,10 @@ extra-source-files:
     stack-9.6.7.yaml
     stack-9.4.8.yaml
     stack-9.2.8.yaml
+    src/main/main.c
+    src/main/agda/cpu_info.c
+    src/main/agda/cpu_info.h
+    src/main/agda/hidden.h
     -- Agda's data files, embedded by module Agda.Setup.
     -- Keep in sync with the list in Agda.Setup.DataFiles and below.
     src/data/emacs-mode/agda-input.el
@@ -994,13 +998,19 @@ executable agda
       -- except for the Prelude.
     , base
   default-language: Haskell2010
-  -- If someone installs Agda with the setuid bit set, then the
-  -- presence of +RTS may be a security problem (see GHC bug #3910).
-  -- However, we sometimes recommend people to use +RTS to control
-  -- Agda's memory usage, so we want this functionality enabled by
-  -- default.
+
+  -- This instructs GHC not to generate a C main function, but rather
+  -- rely on the hand-written C main in the file: src/main/main.c
+  --
+  -- One consequence of having a hand-written C main function is that
+  -- the GHC RTS cannot be configured via Cabal, but must be configured
+  -- directly from the C main.
   ghc-options:
-    -rtsopts
+    -no-hs-main
+
+  c-sources:
+    src/main/agda/cpu_info.c
+    src/main/main.c
 
   -- The threaded RTS by default starts a major GC after a program has
   -- been idle for 0.3 s. This feature turned out to be annoying, so
@@ -1008,9 +1018,6 @@ executable agda
   if !arch(wasm32)
     ghc-options:
       -threaded
-      "-with-rtsopts=-I0 -N1"
-  else
-    ghc-options: -with-rtsopts=-I0
 
 -- agda-mode executable
 ---------------------------------------------------------------------------
