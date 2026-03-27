@@ -1,0 +1,7 @@
+TestOptions
+  { forCompilers =
+      [ (JS ES6 NonOptimized, CompilerOptions {extraAgdaArgs = []})
+      ]
+  , runtimeOptions = []
+  , executeProg = True
+  }
