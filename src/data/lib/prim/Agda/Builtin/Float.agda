@@ -62,10 +62,10 @@ primitive
     primFloatRound = function(x) {
         x = agdaRTS._primFloatRound(x);
         if (x === null) {
-            return z_jAgda_Agda_Builtin_Maybe["Maybe"]["nothing"];
+            return z_jAgda_Agda_Builtin_Maybe["module Maybe"]["nothing"];
         }
         else {
-            return z_jAgda_Agda_Builtin_Maybe["Maybe"]["just"](x);
+            return z_jAgda_Agda_Builtin_Maybe["module Maybe"]["just"](x);
         }
     };
 #-}
@@ -73,10 +73,10 @@ primitive
     primFloatFloor = function(x) {
         x = agdaRTS._primFloatFloor(x);
         if (x === null) {
-            return z_jAgda_Agda_Builtin_Maybe["Maybe"]["nothing"];
+            return z_jAgda_Agda_Builtin_Maybe["module Maybe"]["nothing"];
         }
         else {
-            return z_jAgda_Agda_Builtin_Maybe["Maybe"]["just"](x);
+            return z_jAgda_Agda_Builtin_Maybe["module Maybe"]["just"](x);
         }
     };
 #-}
@@ -84,10 +84,10 @@ primitive
     primFloatCeiling = function(x) {
         x = agdaRTS._primFloatCeiling(x);
         if (x === null) {
-            return z_jAgda_Agda_Builtin_Maybe["Maybe"]["nothing"];
+            return z_jAgda_Agda_Builtin_Maybe["module Maybe"]["nothing"];
         }
         else {
-            return z_jAgda_Agda_Builtin_Maybe["Maybe"]["just"](x);
+            return z_jAgda_Agda_Builtin_Maybe["module Maybe"]["just"](x);
         }
     };
 #-}
@@ -101,10 +101,10 @@ primitive
     primFloatDecode = function(x) {
         x = agdaRTS._primFloatDecode(x);
         if (x === null) {
-            return z_jAgda_Agda_Builtin_Maybe["Maybe"]["nothing"];
+            return z_jAgda_Agda_Builtin_Maybe["module Maybe"]["nothing"];
         }
         else {
-            return z_jAgda_Agda_Builtin_Maybe["Maybe"]["just"](
+            return z_jAgda_Agda_Builtin_Maybe["module Maybe"]["just"](
                 z_jAgda_Agda_Builtin_Sigma["_,_"](x.mantissa)(x.exponent));
         }
     };
@@ -114,10 +114,10 @@ primitive
         return function (y) {
             x = agdaRTS.uprimFloatEncode(x, y);
             if (x === null) {
-                return z_jAgda_Agda_Builtin_Maybe["Maybe"]["nothing"];
+                return z_jAgda_Agda_Builtin_Maybe["module Maybe"]["nothing"];
             }
             else {
-                return z_jAgda_Agda_Builtin_Maybe["Maybe"]["just"](x);
+                return z_jAgda_Agda_Builtin_Maybe["module Maybe"]["just"](x);
             }
         }
     };
