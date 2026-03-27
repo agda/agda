@@ -52,8 +52,9 @@ instance MonadConstraint TCM where
   solveSomeAwakeConstraints = solveSomeAwakeConstraintsTCM
   wakeConstraints           = wakeConstraintsTCM
   stealConstraints          = stealConstraintsTCM
-  modifyAwakeConstraints    = modifyTC . mapAwakeConstraints
-  modifySleepingConstraints = modifyTC . mapSleepingConstraints
+
+  {-# INLINE modifyConstraints #-}
+  modifyConstraints f g     = modifyTC $ mapAwakeConstraints f . mapSleepingConstraints g
 
 addConstraintTCM :: Blocker -> Constraint -> TCM ()
 addConstraintTCM unblock c = do
@@ -114,7 +115,7 @@ wakeConstraintsTCM wake = do
     "waking up         " ++ show (List.map (Set.toList . constraintProblems) wakeup) ++ "\n" ++
     "  still sleeping: " ++ show (List.map (Set.toList . constraintProblems) sleepin)
   putTC $!
-    mapAwakeConstraints (++ wakeup) $ -- TODO: quadratic append!!
+    mapAwakeConstraints (++! wakeup) $ -- TODO: quadratic append!!
       mapSleepingConstraints (const sleepin) tc
   where
     checkWakeUp c = case wake c of

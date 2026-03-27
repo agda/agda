@@ -22,7 +22,14 @@ import Agda.Utils.Tuple ((&&&))
 
 {-# INLINE solvingProblem #-}
 solvingProblem :: MonadConstraint m => ProblemId -> m a -> m a
-solvingProblem pid = solvingProblems (Set.singleton pid)
+solvingProblem pid m = verboseBracket "tc.constr.solve" 50 ("working on problem " ++ show pid) $ do
+  x <- localTC (over eActiveProblems (Set.insert pid)) m
+  ifNotM (isProblemSolved pid)
+      (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
+    $ {- else -} do
+      reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was solved!"
+      wakeConstraints (wakeIfBlockedOnProblem pid . constraintUnblocker)
+  return x
 
 {-# INLINE solvingProblems #-}
 solvingProblems :: MonadConstraint m => Set ProblemId -> m a -> m a
@@ -54,7 +61,7 @@ isProblemSolved' completely pid =
 
 {-# SPECIALIZE getConstraintsForProblem :: ProblemId -> TCM Constraints #-}
 getConstraintsForProblem :: ReadTCState m => ProblemId -> m Constraints
-getConstraintsForProblem pid = List.filter (Set.member pid . constraintProblems) <$> getAllConstraints
+getConstraintsForProblem pid = filter' (Set.member pid . constraintProblems) <$> getAllConstraints
 
 -- | Get the awake constraints
 getAwakeConstraints :: ReadTCState m => m Constraints
@@ -63,26 +70,24 @@ getAwakeConstraints = useR stAwakeConstraints
 -- danger...
 dropConstraints :: MonadConstraint m => (ProblemConstraint -> Bool) -> m ()
 dropConstraints crit = do
-  let filt = List.filter $ not . crit
-  modifySleepingConstraints filt
-  modifyAwakeConstraints    filt
+  let filt = filter' $ not . crit
+  modifyConstraints filt filt
 
 -- | Takes out all constraints matching given filter.
 --   Danger!  The taken constraints need to be solved or put back at some point.
 takeConstraints :: MonadConstraint m => (ProblemConstraint -> Bool) -> m Constraints
 takeConstraints f = do
-  (takeAwake , keepAwake ) <- List.partition f <$> useTC stAwakeConstraints
-  (takeAsleep, keepAsleep) <- List.partition f <$> useTC stSleepingConstraints
-  modifyAwakeConstraints    $ const keepAwake
-  modifySleepingConstraints $ const keepAsleep
+  tc <- getTCState
+  let (takeAwake , keepAwake ) = partition' f $ tc ^. stAwakeConstraints
+  let (takeAsleep, keepAsleep) = partition' f $ tc ^. stSleepingConstraints
+  modifyConstraints (const keepAwake) (const keepAsleep)
   return $! takeAwake ++! takeAsleep
 
 putConstraintsToSleep :: MonadConstraint m => (ProblemConstraint -> Bool) -> m ()
 putConstraintsToSleep sleepy = do
   awakeOnes <- useR stAwakeConstraints
-  let (gotoSleep, stayAwake) = List.partition sleepy awakeOnes
-  modifySleepingConstraints $ (++! gotoSleep)
-  modifyAwakeConstraints    $ const stayAwake
+  let (!gotoSleep, !stayAwake) = partition' sleepy awakeOnes
+  modifyConstraints (const stayAwake) (++! gotoSleep)
 
 putAllConstraintsToSleep :: MonadConstraint m => m ()
 putAllConstraintsToSleep = putConstraintsToSleep (const True)
@@ -172,9 +177,16 @@ class ( MonadTCEnv m
 
   stealConstraints :: ProblemId -> m ()
 
-  modifyAwakeConstraints :: (Constraints -> Constraints) -> m ()
+  -- | Modify both awake (first argument) and sleeping (second argument) constraints.
+  modifyConstraints :: (Constraints -> Constraints) -> (Constraints -> Constraints) -> m ()
 
+  {-# INLINE modifyAwakeConstraints #-}
+  modifyAwakeConstraints :: (Constraints -> Constraints) -> m ()
+  modifyAwakeConstraints f = modifyConstraints f id
+
+  {-# INLINE modifySleepingConstraints #-}
   modifySleepingConstraints  :: (Constraints -> Constraints) -> m ()
+  modifySleepingConstraints f = modifyConstraints id f
 
 instance MonadConstraint m => MonadConstraint (ReaderT e m) where
   addConstraint             = (lift .) . addConstraint
@@ -182,9 +194,8 @@ instance MonadConstraint m => MonadConstraint (ReaderT e m) where
   solveConstraint           = lift . solveConstraint
   solveSomeAwakeConstraints = (lift .) . solveSomeAwakeConstraints
   stealConstraints          = lift . stealConstraints
-  modifyAwakeConstraints    = lift . modifyAwakeConstraints
-  modifySleepingConstraints = lift . modifySleepingConstraints
-  wakeConstraints = lift . wakeConstraints
+  modifyConstraints         = (lift .) . modifyConstraints
+  wakeConstraints           = lift . wakeConstraints
 
 -- | Add new a constraint
 addConstraint' :: Blocker -> Constraint -> TCM ()
@@ -193,11 +204,12 @@ addConstraint' = addConstraintTo stSleepingConstraints
 addAwakeConstraint' :: Blocker -> Constraint -> TCM ()
 addAwakeConstraint' = addConstraintTo stAwakeConstraints
 
+{-# INLINE addConstraintTo #-}
 addConstraintTo :: Lens' TCState Constraints -> Blocker -> Constraint -> TCM ()
 addConstraintTo bucket unblock c = do
     pc <- buildConstraint unblock c
-    stDirty `setTCLens` True
-    bucket `modifyTCLens` (pc :)
+    tc <- getTCState
+    putTC $! tc & stDirty .~ True & bucket %~ (pc :)
 
 -- | A problem is considered solved if there are no unsolved blocking constraints belonging to it.
 --   There's no really good principle for what constraints are blocking and which are not, but the

@@ -135,8 +135,7 @@ instance PureTCM m => MonadConstraint (PureConversionT m) where
   solveSomeAwakeConstraints _ _ = return ()
   wakeConstraints _ = return ()
   stealConstraints _ = return ()
-  modifyAwakeConstraints _ = patternViolation alwaysUnblock  -- TODO: does this happen?
-  modifySleepingConstraints _ = patternViolation alwaysUnblock  -- TODO: does this happen?
+  modifyConstraints _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?
 
 instance PureTCM m => MonadMetaSolver (PureConversionT m) where
   newMeta' _ _ _ _ _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?
