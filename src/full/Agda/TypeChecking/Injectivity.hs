@@ -42,8 +42,6 @@ module Agda.TypeChecking.Injectivity where
 
 import Control.Applicative
 import Control.Monad.Except       ( MonadError )
-import Control.Monad.State        ( evalStateT, MonadState, gets, put )
-import Control.Monad.Reader       ( runReaderT, MonadReader, ask )
 import Control.Monad.Trans.Maybe  ( MaybeT(MaybeT), runMaybeT )
 
 import qualified Data.Map as Map
@@ -80,7 +78,9 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Syntax.Common.Pretty ( prettyShow )
-import qualified Agda.Interaction.Options.ProfileOptions as Profile
+import Agda.Interaction.Options.ProfileOptions qualified as Profile
+import Agda.Utils.StrictReader
+import Agda.Utils.StrictState
 
 import Agda.Utils.Impossible
 
@@ -329,7 +329,7 @@ data InvView = Inv QName [Elim] (InversionMap Clause)
              | NoInv
 
 -- | Precondition: The first term must be blocked on the given meta and the second must be neutral.
-useInjectivity :: MonadConversion m => CompareDirection -> Blocker -> CompareAs -> Term -> Term -> m ()
+useInjectivity :: CompareDirection -> Blocker -> CompareAs -> Term -> Term -> TCM ()
 useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
   inv <- functionInverse blk
   -- Injectivity might cause non-termination for unsatisfiable constraints
@@ -399,9 +399,7 @@ useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
 
 -- | The second argument should be a blocked application and the third argument
 --   the inverse of the applied function.
-invertFunction
-  :: MonadConversion m
-  => Comparison -> Term -> InvView -> TermHead -> m () -> m () -> (Term -> m ()) -> m ()
+invertFunction :: Comparison -> Term -> InvView -> TermHead -> TCM () -> TCM () -> (Term -> TCM ()) -> TCM ()
 invertFunction _ _ NoInv _ fallback _ _ = fallback
 invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     fTy <- defType <$> getConstInfo f

@@ -22,6 +22,7 @@ import Control.Monad.State (MonadState(..))
 import Control.Monad.Except (MonadError(..))
 import Control.Monad.Trans (MonadTrans(..))
 import Control.Monad.IO.Class (MonadIO(..))
+import Control.Monad.Writer.Class (MonadWriter(..))
 import Control.Monad.Trans.Control (MonadTransControl(..))
 import Data.Strict.Tuple
 import GHC.Exts (oneShot)
@@ -152,6 +153,10 @@ instance MonadTransControl (StateT s) where
     {-# INLINE restoreT #-}
     restoreT msa = StateT \_ -> msa
 
+instance MonadFail m => MonadFail (StateT s m) where
+  {-# INLINE fail #-}
+  fail str = StateT \_ -> fail str
+
 instance MonadIO m => MonadIO (StateT s m) where
   {-# INLINE liftIO #-}
   liftIO ma = lift (liftIO ma)
@@ -161,6 +166,20 @@ instance MonadReader r m => MonadReader r (StateT s m) where
   ask = lift ask
   {-# INLINE local #-}
   local = \f (StateT ma) -> StateT (oneShot \s -> local f (ma s))
+
+instance MonadWriter w m => MonadWriter w (StateT s m) where
+  {-# INLINE writer #-}
+  writer = lift . writer
+  {-# INLINE tell #-}
+  tell   = lift . tell
+  {-# INLINE listen #-}
+  listen = \m -> StateT (oneShot \s -> do
+    ((a :!: s'),w) <- listen (runStateT# m s)
+    return $ ((a, w) :!: s'))
+  {-# INLINE pass #-}
+  pass = \m -> StateT (oneShot \s -> pass $ do
+    ((a, f) :!: s') <- runStateT# m s
+    return ((a :!: s'), f))
 
 instance MonadError e m => MonadError e (StateT s m) where
   {-# INLINE throwError #-}

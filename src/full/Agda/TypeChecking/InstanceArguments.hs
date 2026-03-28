@@ -39,7 +39,7 @@ import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookupName', AllowAmbiguousNames(..))
 
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Conversion.Pure (pureEqualTermB)
+import Agda.TypeChecking.Conversion.Pure (pureBlockOrEqualTerm)
 import Agda.TypeChecking.Errors () --instance only
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Monad
@@ -844,7 +844,7 @@ dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSam
           verboseBracket "tc.instance" 30 "dropSameCandidates: " $ do
           reportSDoc "tc.instance" 30 $ sep [ prettyTCM v <+> "==", nest 2 $ prettyTCM v' ]
           a <- uncurry piApplyM =<< ((,) <$> getMetaType m <*> getContextArgs)
-          pureEqualTermB a v v' <&> \case
+          pureBlockOrEqualTerm a v v' <&> \case
             Left{}  -> False
             Right b -> b
 

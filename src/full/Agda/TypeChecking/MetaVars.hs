@@ -70,19 +70,37 @@ import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Impossible
 
 instance MonadMetaSolver TCM where
-  newMeta' = newMetaTCM'
-  assignV dir x args v t = assignWrapper dir x (map' Apply args) v $ assign dir x args v t
-  assignTerm' = assignTermTCM'
-  etaExpandMeta = etaExpandMetaTCM
-  updateMetaVar = updateMetaVarTCM
+  newMeta' inst frozen mi p perm j = ifImpureConv (newMetaTCM' inst frozen mi p perm j) $
+    patternViolation alwaysUnblock -- TODO: does this happen?
 
-  -- Right now we roll back the full state when aborting.
-  -- TODO: only roll back the metavariables
-  speculateMetas fallback m = do
-    (a, s) <- localTCStateSaving m
-    case a of
-      KeepMetas     -> putTC s
-      RollBackMetas -> fallback
+  assignV dir x args v t = ifImpureConv (assignWrapper dir x (map Apply args) v $ assign dir x args v t) $ do
+    bv <- isBlocked v
+    let blocker = caseMaybe bv id unblockOnEither $ unblockOnMeta x
+    patternViolation blocker
+
+  assignTerm' m tel v = ifImpureConv (assignTermTCM' m tel v) $ do
+    bv <- isBlocked v
+    let blocker = caseMaybe bv id unblockOnEither $ unblockOnMeta m
+    patternViolation blocker
+
+  etaExpandMeta x y = ifImpureConv (etaExpandMetaTCM x y) $
+    return ()
+
+  updateMetaVar x y = ifImpureConv (updateMetaVarTCM x y) $
+    patternViolation alwaysUnblock -- TODO: does this happen?
+
+  {-# INLINE speculateMetas #-}
+   -- Right now we roll back the full state when aborting.
+   -- TODO: only roll back the metavariables
+  speculateMetas fallback m = ifImpureConv
+    (do (a, s) <- localTCStateSaving m
+        case a of
+          KeepMetas     -> putTC s
+          RollBackMetas -> fallback)
+    (m >>= \case
+      KeepMetas     -> return ()
+      RollBackMetas -> fallback)
+
 
 -- | Find position of a value in a list.
 --   Used to change metavar argument indices during assignment.

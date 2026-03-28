@@ -650,7 +650,7 @@ makeSearchOptions norm options ii = do
 dumbUnifier :: Type -> Type -> SM ()
 dumbUnifier t1 t2 = bench [Bench.UnifyIndices] $ do
   updateStat incTypeEqChecks
-  noConstraints (equalType t2 t1)
+  noConstraints (lift $ equalType t2 t1)
 
 ------------------------------------------------------------------------
 -- * Debugging

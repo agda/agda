@@ -126,16 +126,14 @@ module Agda.TypeChecking.Rules.LHS.Unify
 
 import Prelude hiding (null)
 
-import Control.Monad.State  ( gets, modify, evalStateT )
-import Control.Monad.Writer ( WriterT(..), MonadWriter(..) )
 import Control.Monad.Except ( runExceptT )
 
 -- import Data.Semigroup ( All(..) )
-import qualified Data.List as List
-import qualified Data.IntMap as IntMap
+import Data.List qualified as List
+import Data.IntMap qualified as IntMap
 import Data.IntMap (IntMap)
 
-import qualified Agda.Benchmarking as Bench
+import Agda.Benchmarking qualified as Bench
 
 import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
@@ -143,13 +141,13 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
-import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Conversion.Pure (pureEqualTermB, pureEqualTypeB)
+import Agda.TypeChecking.Monad.Benchmark qualified as Bench
+import Agda.TypeChecking.Conversion.Pure (pureBlockOrEqualTerm, pureBlockOrEqualType)
 import Agda.TypeChecking.Constraints ()
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Reduce
-import qualified Agda.TypeChecking.Patterns.Match as Match
+import Agda.TypeChecking.Patterns.Match qualified as Match
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -173,7 +171,9 @@ import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.Size
 import Agda.Utils.Singleton
-import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.VarSet qualified as VarSet
+import Agda.Utils.StrictWriter
+import Agda.Utils.StrictState
 
 import Agda.Utils.Impossible
 
@@ -262,9 +262,7 @@ unifyIndices' linv tel flex a us vs = Bench.billTo [Bench.UnifyIndices] $ case (
         return (varTel s, unifySubst output, ps, getTauInv)
 
 
-
 type UnifyStrategy = UnifyState -> ListT TCM UnifyStep
-
 
 --UNUSED Liang-Ting Chen 2019-07-16
 --leftToRightStrategy :: UnifyStrategy
@@ -534,7 +532,7 @@ skipIrrelevantStrategy k s = do
 unifyStep :: UnifyState -> UnifyStep -> UnifyStepT TCM (UnificationResult' UnifyState)
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
     -- Check definitional equality of u and v
-    isReflexive <- addContext (varTel s) $ pureEqualTermB a u v
+    isReflexive <- addContext (varTel s) $ lift $ pureBlockOrEqualTerm a u v
     withoutK <- withoutKOption
     splitOnStrict <- viewTC eSplitOnStrict
     case isReflexive of
@@ -783,12 +781,11 @@ unifyStep s (TypeConInjectivity k d us vs) = do
 data RetryNormalised = RetryNormalised | DontRetryNormalised
   deriving (Eq, Show)
 
-solutionStep
-  :: (PureTCM m, MonadWriter UnifyOutput m)
-  => RetryNormalised
+solutionStep ::
+     RetryNormalised
   -> UnifyState
   -> UnifyStep
-  -> m (UnificationResult' UnifyState)
+  -> WriterT UnifyOutput TCM (UnificationResult' UnifyState)
 solutionStep retry s
   step@Solution{ solutionAt   = k
                , solutionType = dom@Dom{ unDom = a }
@@ -806,7 +803,7 @@ solutionStep retry s
   let forcedVars | inMakeCase = IntMap.empty
                  | otherwise  = IntMap.fromList [ (flexVar fi, getModality fi) | fi <- flexVars s,
                                                                                  flexForced fi == Forced ]
-  (p, bound) <- patternBindingForcedVars forcedVars u
+  (p, bound) <- lift $ patternBindingForcedVars forcedVars u
 
   -- To maintain the invariant that each variable in varTel is bound exactly once in the pattern
   -- substitution we need to turn the bound variables in `p` into dot patterns in the rest of the
@@ -819,7 +816,7 @@ solutionStep retry s
   -- patternBindingForcedVars).
   let updModality md vars tel
         | IntMap.null vars = tel
-        | otherwise        = telFromList $ zipWith upd (downFrom $ size tel) (telToList tel)
+        | otherwise        = telFromList $ zipWith' upd (downFrom $ size tel) (telToList tel)
         where
           upd i a | Just md' <- IntMap.lookup i vars = setModality (composeModality md md') a
                   | otherwise                        = a
@@ -838,7 +835,7 @@ solutionStep retry s
   equalTypes <- addContext (varTel s) $ do
     reportSDoc "tc.lhs.unify" 45 $ "Equation type: " <+> prettyTCM a
     reportSDoc "tc.lhs.unify" 45 $ "Variable type: " <+> prettyTCM a'
-    pureEqualTypeB a a'
+    lift $ pureBlockOrEqualType a a'
 
   -- The conditions on the relevances are as follows (see #2640):
   -- - If the type of the equation is relevant, then the solution must be
@@ -948,7 +945,7 @@ unify s strategy = do
 
 -- | Turn a term into a pattern while binding as many of the given forced variables as possible (in
 --   non-forced positions).
-patternBindingForcedVars :: PureTCM m => IntMap Modality -> Term -> m (DeBruijnPattern, IntMap Modality)
+patternBindingForcedVars :: IntMap Modality -> Term -> TCM (DeBruijnPattern, IntMap Modality)
 patternBindingForcedVars forced v = do
   let v' = precomputeFreeVars_ v
   runWriterT (evalStateT (go unitModality v') forced)

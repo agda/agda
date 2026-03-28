@@ -25,7 +25,7 @@ import qualified Control.Exception as E
 import qualified Control.Monad.Catch as Catch
 import Control.Monad.Except         ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class       ( MonadIO(..) )
-import Control.Monad.State          ( MonadState(..), modify, StateT(..), runStateT )
+import Control.Monad.State          ( MonadState(..), modify, StateT(..), runStateT, evalStateT )
 import Control.Monad.Reader         ( MonadReader(..), ReaderT(..), runReaderT )
 import Control.Monad.Writer         ( WriterT(..), runWriterT )
 import Control.Monad.Trans          ( MonadTrans(..), lift )
@@ -1390,7 +1390,10 @@ class Monad m => MonadStConcreteNames m where
   modifyConcreteNames = runStConcreteNames . modify
 
 instance MonadStConcreteNames TCM where
-  runStConcreteNames m = stateTCLensM stConcreteNames $ runStateT m
+  runStConcreteNames m =
+    ifImpureConv (stateTCLensM stConcreteNames $ runStateT m) $ do
+      concNames <- useR stConcreteNames
+      evalStateT m concNames
 
 -- | The concrete names get lost in case of an exception.
 instance MonadStConcreteNames m => MonadStConcreteNames (ExceptT e m) where
@@ -2456,7 +2459,7 @@ data NLPat
     -- ^ Matches @(x : A) → B@
   | PSort NLPSort
     -- ^ Matches a sort of the given shape.
-  | PBoundVar {-# UNPACK #-} !Int PElims
+  | PBoundVar !Int PElims
     -- ^ Matches @x es@ where x is a lambda-bound variable
   | PTerm Term
     -- ^ Matches the term modulo β (ideally βη).
@@ -4459,6 +4462,18 @@ envCurrentlyElaborating = mkFlag 15
 envWorkingOnTypes :: Lens' Flags64 Bool
 envWorkingOnTypes = mkFlag 16
 
+-- | Are we doing pure conversion?
+{-# INLINE envPureConversion #-}
+envPureConversion :: Lens' Flags64 Bool
+envPureConversion = mkFlag 17
+
+-- | Choose between behavior in pure conversion and impure conversion.
+--   The first branch is the impure case.
+ifImpureConv :: TCM a -> TCM a -> TCM a
+ifImpureConv impure pure = viewTC ePureConversion >>= \case
+  True -> pure
+  _    -> impure
+{-# INLINE ifImpureConv #-}
 
 -- Initial environment
 ----------------------------------------------------------------------------------------------------
@@ -4481,6 +4496,7 @@ initEnvFlags = Flags64 0
   & envDisplayFormsEnabled   .~ True
   & envFoldLetBindings       .~ True
   & envMakeCase              .~ False
+  & envPureConversion        .~ False
 
 initTCContext :: TCContext
 initTCContext = TCContext {
@@ -4821,6 +4837,10 @@ eCurrentlyElaborating = mkEnvFlag 15
 {-# INLINE eWorkingOnTypes #-}
 eWorkingOnTypes :: Lens' TCEnv Bool
 eWorkingOnTypes = mkEnvFlag 16
+
+{-# INLINE ePureConversion #-}
+ePureConversion :: Lens' TCEnv Bool
+ePureConversion = mkEnvFlag 17
 
 
 ----------------------------------------------------------------------------------------------------

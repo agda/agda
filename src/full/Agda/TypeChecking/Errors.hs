@@ -96,7 +96,6 @@ import Agda.Utils.String    ( rtrim )
 
 import Agda.Utils.Impossible
 import Agda.TypeChecking.Conversion.Errors
-import Agda.TypeChecking.Conversion.Pure (pureEqualType)
 
 ---------------------------------------------------------------------------
 -- * Top level function

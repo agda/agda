@@ -6,7 +6,6 @@ import Prelude hiding (null)
 
 import Control.Applicative ((<|>))
 import Control.Monad
-import Control.Monad.Writer (WriterT(..), MonadWriter(..))
 
 import Data.Foldable (toList)
 import Data.DList (DList)
@@ -31,7 +30,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
-
+import Agda.Utils.StrictWriter
 import Agda.Utils.Impossible
 
 ----------------------------------------------------
@@ -479,5 +478,5 @@ writeUnifyLog ::
   MonadWriter UnifyLog' m => (UnifyLogEntry, UnifyState) -> m ()
 writeUnifyLog x = tell (singleton x) -- UnifyOutput IdS IdS [x]
 
-runUnifyLogT :: Functor m => UnifyLogT m a -> m (a, UnifyLog)
+runUnifyLogT :: Monad m => UnifyLogT m a -> m (a, UnifyLog)
 runUnifyLogT m = second toList <$> runWriterT m

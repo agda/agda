@@ -671,7 +671,7 @@ instance PrettyTCM ConversionError where
         HdmTypes x -> Just x
         _          -> Nothing
     case tys of
-      FailAsTermsOf lhs_t rhs_t -> runBlocked (pureEqualType lhs_t rhs_t) >>= \case
+      FailAsTermsOf lhs_t rhs_t -> pureBlockOrEqualTypePureTCM lhs_t rhs_t >>= \case
         Right True -> vcat
           [ "The terms", nest 2 (pure d1)
           , "and",       nest 2 (pure d2)
