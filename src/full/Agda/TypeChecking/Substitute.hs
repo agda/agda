@@ -46,7 +46,7 @@ import Agda.TypeChecking.Substitute.DeBruijn
 
 import Agda.Utils.Either
 import Agda.Utils.Empty
-import Agda.Utils.Function (applyWhen, applyUnless)
+import Agda.Utils.Function (applyWhen, applyUnless, ($$!))
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
@@ -876,8 +876,8 @@ applySubstTerm rho t    = coerce $ case coerce t of
     MetaV x es  -> MetaV x $! subE rho es
     Lit l       -> Lit l
     Level l     -> levelTm $ sub @(Level' t) rho l
-    Pi a b      -> (Pi $ sub @(Dom' t (Type'' t t)) rho a) $ sub @(Abs (Type'' t t)) rho b
-    -- Pi a b      -> (Pi $! subPiDom rho a) $! subPiCod rho b
+    Pi a b      -> Pi (sub @(Dom' t (Type'' t t)) rho a) (sub @(Abs (Type'' t t)) rho b)
+    -- Pi a b      -> Pi (subPiDom rho a) (subPiCod rho b)
     Sort s      -> Sort (sub @(Sort' t) rho s)
     DontCare mv -> dontCare (sub @t rho mv)
     Dummy s es  -> Dummy s $! subE rho es
@@ -894,14 +894,14 @@ applySubstTerm rho t    = coerce $ case coerce t of
    -- subPiDom :: Substitution' t -> Dom Type -> Dom Type
    -- subPiDom rho (Dom i n f t (El s a)) =
    --   let !i' = setFreeVariables unknownFreeVariables i in
-   --   Dom i' n f (sub @(Maybe t) rho t) $! El (sub @(Sort' t) rho s) (sub @t rho a)
+   --   Dom i' n f $$! (sub @(Maybe t) rho t) $$! (El $$! sub @(Sort' t) rho s $$! sub @t rho a)
 
    -- subPiCod :: Substitution' t -> Abs Type -> Abs Type
    -- subPiCod rho (Abs x (El s a)) =
    --   let !rho' = liftS 1 rho in
-   --   Abs x $! El (sub @(Sort' t) rho' s) (sub @t rho' a)
+   --   Abs x $$! (El $$! sub @(Sort' t) rho' s $$! sub @t rho' a)
    -- subPiCod rho (NoAbs x (El s a)) =
-   --   NoAbs x $! El (sub @(Sort' t) rho s) (sub @t rho a)
+   --   NoAbs x $! (El $$! sub @(Sort' t) rho s $$! sub @t rho a)
 
    subE :: Substitution' t -> Elims -> Elims
    subE rho []     = []
@@ -960,11 +960,11 @@ instance Subst a => Subst (Level' a) where
   type SubstArg (Level' a) = SubstArg a
   applySubst rho (Max n as) = Max n $! go rho as where
     go rho []              = []
-    go rho (Plus x y : as) = (Plus x (applySubst rho y):) $! go rho as
+    go rho (Plus x y : as) = (:) $$! (Plus x $$! applySubst rho y) $$! go rho as
 
 instance Subst a => Subst (PlusLevel' a) where
   type SubstArg (PlusLevel' a) = SubstArg a
-  applySubst rho (Plus n l) = Plus n $ applySubst rho l
+  applySubst rho (Plus n l) = Plus n $! applySubst rho l
 
 instance Subst Name where
   type SubstArg Name = Term
@@ -1145,7 +1145,7 @@ instance Subst a => Subst (Arg a) where
   applySubst rho (Arg i t) =
     let !i' | getFreeVariables i == unknownFreeVariables = i
             | otherwise = setFreeVariables unknownFreeVariables i
-    in Arg i' (applySubst rho t)
+    in Arg i' $$! applySubst rho t
 
 instance Subst a => Subst (Named name a) where
   type SubstArg (Named name a) = SubstArg a
@@ -1158,7 +1158,7 @@ instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Dom' a b) where
   applySubst rho (Dom i n f t e) =
     let !i' | getFreeVariables i == unknownFreeVariables = i
             | otherwise = setFreeVariables unknownFreeVariables i
-    in Dom i' n f (applySubst rho t) (applySubst rho e)
+    in Dom i' n f $$! applySubst rho t $$! applySubst rho e
   {-# INLINABLE applySubst #-}
 
 instance Subst LetBinding where
@@ -1171,6 +1171,7 @@ instance Subst ContextEntry where
 
 instance Subst a => Subst (Maybe a) where
   type SubstArg (Maybe a) = SubstArg a
+  applySubst rho ma = applySubst rho <$!> ma
 
 instance Subst a => Subst [a] where
   type SubstArg [a] = SubstArg a
