@@ -3380,7 +3380,7 @@ newtype Constr a = Constr a
 
 -- | A "problem" consists of a set of constraints and the same constraint can be part of multiple
 --   problems.
-newtype ProblemId = ProblemId Nat
+newtype ProblemId = ProblemId Word64
   deriving (Eq, Ord, Enum, Real, Integral, Num, NFData)
 
 -- This particular Show instance is ok because of the Num instance.
