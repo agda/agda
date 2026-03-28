@@ -37,7 +37,8 @@ import Control.Parallel             ( pseq )
 
 import Data.Array (Ix)
 import Data.Function (on)
-import Data.Word (Word64, Word32)
+import Data.Bits
+import Data.Word
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
@@ -318,24 +319,22 @@ data PostMetaState = PostMetaState {
     -- ^ Used for local, instantiated meta-variables.
   , stPostAwakeConstraints    :: !Constraints
   , stPostSleepingConstraints :: !Constraints
+  , stPostOccursCheckDefs     :: !(Set QName) -- local
+    -- ^ Definitions to be considered during occurs check.
+    --   Initialized to the current mutual block before the check.
+    --   During occurs check, we remove definitions from this set
+    --   as soon we have checked them.
   } deriving (Generic)
 
 data PostColdState = PostColdState
-  { stPostSyntaxInfo          :: !HighlightingInfo
+  { stPostFlags               :: !Flags64
+  , stPostSyntaxInfo          :: !HighlightingInfo
     -- ^ Highlighting info.
   , stPostDisambiguatedNames  :: !DisambiguatedNames
     -- ^ Disambiguation carried out by the type checker.
     --   Maps position of first name character to disambiguated @'A.QName'@
     --   for each @'A.AmbiguousQName'@ already passed by the type checker.
   , stPostInteractionPoints   :: !InteractionPoints -- scope checker first
-  , stPostDirty               :: !Bool -- local
-    -- ^ Dirty when a constraint is added, used to prevent pointer update.
-    -- Currently unused.
-  , stPostOccursCheckDefs     :: !(Set QName) -- local
-    -- ^ Definitions to be considered during occurs check.
-    --   Initialized to the current mutual block before the check.
-    --   During occurs check, we remove definitions from this set
-    --   as soon we have checked them.
   , stPostSignature           :: !Signature
     -- ^ Declared identifiers of the current file.
     --   These will be serialized after successful type checking.
@@ -362,32 +361,56 @@ data PostColdState = PostColdState
   , stPostFreshInt            :: !Int
   , stPostFreshNameId         :: !NameId
   , stPostFreshOpaqueId       :: !OpaqueId
-  , stPostAreWeCaching        :: !Bool
-  , stPostPostponeInstanceSearch :: !Bool
-  , stPostConsideringInstance :: !Bool
-  , stPostInstantiateBlocking :: !Bool
-    -- ^ Should we instantiate away blocking metas?
-    --   This can produce ill-typed terms but they are often more readable. See issue #3606.
-    --   Best set to True only for calls to pretty*/reify to limit unwanted reductions.
   , stPostLocalPartialDefs    :: !(Set QName)
     -- ^ Local partial definitions, to be stored in the @Interface@
   , stPostOpaqueBlocks        :: !(Map OpaqueId OpaqueBlock)
     -- ^ Associates opaque identifiers to their actual blocks.
   , stPostOpaqueIds           :: !(Map QName OpaqueId)
     -- ^ Associates each opaque QName to the block it was defined in.
-  , stPostInstanceHack        :: !Bool
-    -- ^ Is this a context where we should always try every possible
-    -- instance candidate? Used to support "inert improvement", see
-    -- @shouldBlockOverlap@ in InstanceArguments.
   } deriving (Generic)
 
+-- Flags
+----------------------------------------------------------------------------------------------------
+
+-- ^ Dirty when a constraint is added, used to prevent pointer update.
+-- Currently unused.
+{-# INLINE stPostDirty #-}
+stPostDirty :: Lens' Flags64 Bool
+stPostDirty = mkFlag 0
+
+{-# INLINE stPostAreWeCaching #-}
+stPostAreWeCaching :: Lens' Flags64 Bool
+stPostAreWeCaching = mkFlag 1
+
+{-# INLINE stPostPostponeInstanceSearch #-}
+stPostPostponeInstanceSearch :: Lens' Flags64 Bool
+stPostPostponeInstanceSearch = mkFlag 2
+
+{-# INLINE stPostConsideringInstance #-}
+stPostConsideringInstance :: Lens' Flags64 Bool
+stPostConsideringInstance = mkFlag 3
+
+-- | Should we instantiate away blocking metas?
+--   This can produce ill-typed terms but they are often more readable. See issue #3606.
+--   Best set to True only for calls to pretty*/reify to limit unwanted reductions.
+{-# INLINE stPostInstantiateBlocking #-}
+stPostInstantiateBlocking :: Lens' Flags64 Bool
+stPostInstantiateBlocking = mkFlag 4
+
+{-# INLINE stPostInstanceHack #-}
+-- ^ Is this a context where we should always try every possible
+-- instance candidate? Used to support "inert improvement", see
+-- @shouldBlockOverlap@ in InstanceArguments.
+stPostInstanceHack :: Lens' Flags64 Bool
+stPostInstanceHack = mkFlag 5
+
+----------------------------------------------------------------------------------------------------
 
 data PostScopeState = PostScopeState {
     stPostNamesCheckpoints :: !PostNamesCheckpoints
   , stPostMetaState        :: !PostMetaState
   , stPostColdState        :: !PostColdState
   } deriving (Generic)
-
 
 -- | A part of the state that grows monotonically over the whole Agda session.
 -- Shared between all threads, and never reset.
@@ -550,15 +573,24 @@ initPostMetaState = PostMetaState
   , stPostSolvedMetaStore        = Map.empty
   , stPostAwakeConstraints       = []
   , stPostSleepingConstraints    = []
+  , stPostOccursCheckDefs        = Set.empty
   }
+
+initPostFlags :: Flags64
+initPostFlags = Flags64 0
+  & stPostDirty                  .~ False
+  & stPostAreWeCaching           .~ False
+  & stPostPostponeInstanceSearch .~ False
+  & stPostConsideringInstance    .~ False
+  & stPostInstantiateBlocking    .~ False
+  & stPostInstanceHack           .~ False
 
 initPostColdState :: PostColdState
 initPostColdState = PostColdState
-  { stPostSyntaxInfo             = mempty
+  { stPostFlags                  = initPostFlags
+  , stPostSyntaxInfo             = mempty
   , stPostDisambiguatedNames     = IntMap.empty
   , stPostInteractionPoints      = empty
-  , stPostDirty                  = False
-  , stPostOccursCheckDefs        = Set.empty
   , stPostSignature              = emptySignature
   , stPostImportsDisplayForms    = HMap.empty
   , stPostCurrentModule          = empty
@@ -573,15 +605,10 @@ initPostColdState = PostColdState
   , stPostFreshInt               = 0
   , stPostFreshNameId            = NameId 0 noModuleNameHash
   , stPostFreshOpaqueId          = OpaqueId 0 noModuleNameHash
-  , stPostAreWeCaching           = False
-  , stPostPostponeInstanceSearch = False
-  , stPostConsideringInstance    = False
-  , stPostInstantiateBlocking    = False
   , stPostLocalPartialDefs       = Set.empty
   , stPostOpaqueBlocks           = Map.empty
   , stPostOpaqueIds              = Map.empty
   , stPostForeignCode            = Map.empty
-  , stPostInstanceHack           = False
   }
 
 initPostScopeState :: PostScopeState
@@ -797,15 +824,10 @@ lensSleepingConstraints :: Lens' PostScopeState Constraints
 lensSleepingConstraints = \f s ->
   f (stPostSleepingConstraints $ stPostMetaState s) <&> \ x -> s { stPostMetaState = (stPostMetaState s) {stPostSleepingConstraints = x}}
 
-{-# INLINE lensDirty #-}
-lensDirty :: Lens' PostScopeState Bool
-lensDirty = \f s ->
-  f (stPostDirty $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostDirty = x}}
-
 {-# INLINE lensOccursCheckDefs #-}
 lensOccursCheckDefs :: Lens' PostScopeState (Set QName)
 lensOccursCheckDefs = \f s ->
-  f (stPostOccursCheckDefs $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostOccursCheckDefs = x}}
+  f (stPostOccursCheckDefs $ stPostMetaState s) <&> \ x -> s { stPostMetaState = (stPostMetaState s) {stPostOccursCheckDefs = x}}
 
 {-# INLINE lensSignature #-}
 lensSignature :: Lens' PostScopeState Signature
@@ -877,30 +899,51 @@ lensFreshInt :: Lens' PostScopeState Int
 lensFreshInt = \f s ->
   f (stPostFreshInt $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostFreshInt = x}}
 
+
+-- Flags
+----------------------------------------------------------------------------------------------------
+
+{-# INLINE mkPostFlag #-}
+mkPostFlag :: Int -> Lens' PostScopeState Bool
+mkPostFlag i = \f s ->
+  let old = getFlag i (stPostFlags (stPostColdState s)) in
+  f old <&> \b ->
+    -- avoiding copy on unchanged flags
+    if b == old then s else
+      s {stPostColdState = (stPostColdState s) {
+       stPostFlags = setFlag i b (stPostFlags (stPostColdState s))}}
+
+-- ^ Dirty when a constraint is added, used to prevent pointer update.
+-- Currently unused.
+{-# INLINE lensDirty #-}
+lensDirty :: Lens' PostScopeState Bool
+lensDirty = mkPostFlag 0
+
 {-# INLINE lensAreWeCaching #-}
 lensAreWeCaching :: Lens' PostScopeState Bool
-lensAreWeCaching = \f s ->
-  f (stPostAreWeCaching $ stPostColdState s) <&> \x -> s { stPostColdState = (stPostColdState s) {stPostAreWeCaching = x}}
+lensAreWeCaching = mkPostFlag 1
 
 {-# INLINE lensPostponeInstanceSearch #-}
 lensPostponeInstanceSearch :: Lens' PostScopeState Bool
-lensPostponeInstanceSearch = \f s ->
-  f (stPostPostponeInstanceSearch $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostPostponeInstanceSearch = x}}
+lensPostponeInstanceSearch = mkPostFlag 2
 
 {-# INLINE lensConsideringInstance #-}
 lensConsideringInstance :: Lens' PostScopeState Bool
-lensConsideringInstance = \f s ->
-  f (stPostConsideringInstance $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostConsideringInstance = x}}
+lensConsideringInstance = mkPostFlag 3
 
+-- | Should we instantiate away blocking metas?
+--   This can produce ill-typed terms but they are often more readable. See issue #3606.
+--   Best set to True only for calls to pretty*/reify to limit unwanted reductions.
 {-# INLINE lensInstantiateBlocking #-}
 lensInstantiateBlocking :: Lens' PostScopeState Bool
-lensInstantiateBlocking = \f s ->
-  f (stPostInstantiateBlocking $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostInstantiateBlocking = x}}
+lensInstantiateBlocking = mkPostFlag 4
 
 {-# INLINE lensInstanceHack #-}
+-- ^ Is this a context where we should always try every possible
+-- instance candidate? Used to support "inert improvement", see
+-- @shouldBlockOverlap@ in InstanceArguments.
 lensInstanceHack :: Lens' PostScopeState Bool
-lensInstanceHack = \f s ->
-  f (stPostInstanceHack $ stPostColdState s) <&> \ x -> s { stPostColdState = (stPostColdState s) {stPostInstanceHack = x}}
+lensInstanceHack = mkPostFlag 5
 
 
 -- * @st@-prefixed lenses
@@ -4161,25 +4204,36 @@ ifTopLevelAndHighlightingLevelIs l =
   ifTopLevelAndHighlightingLevelIsOr l False
 
 ----------------------------------------------------------------------------------------------------
+-- * Boolean flag storage
+----------------------------------------------------------------------------------------------------
+
+newtype Flags64 = Flags64 Word64 deriving (Eq, Generic, NFData)
+
+{-# INLINE mkFlag #-}
+mkFlag :: Int -> Lens' Flags64 Bool
+mkFlag !i = \f fs -> f (getFlag i fs) <&> \x -> setFlag i x fs
+
+{-# INLINE setFlag #-}
+setFlag :: Int -> Bool -> Flags64 -> Flags64
+setFlag i b (Flags64 fs) =
+  if b then Flags64 (unsafeShiftL 1 i .|. fs)
+       else Flags64 (complement (unsafeShiftL 1 i) .&. fs)
+
+{-# INLINE getFlag #-}
+getFlag :: Int -> Flags64 -> Bool
+getFlag !i (Flags64 !fs) = toEnum (fromIntegral (unsafeShiftR fs i .&. 1))
+
+----------------------------------------------------------------------------------------------------
 -- * Type checking environment
 ----------------------------------------------------------------------------------------------------
 
 data TCEnv = TCEnv {
-    envSyntacticEqualityFuel :: !(Strict.Maybe Int)
-    -- ^ If this counter is 'Strict.Nothing', then
-    -- syntactic equality checking is unrestricted. If it
-    -- is zero, then syntactic equality checking is not
-    -- run at all. If it is a positive number, then
-    -- syntactic equality checking is allowed to run, but
-    -- the counter is decreased in the failure
-    -- continuation of
-    -- 'Agda.TypeChecking.SyntacticEquality.checkSyntacticEquality'.
-  , envTCContext :: !TCContext
-  , envMetaEnv   :: !MetaEnv
-  , envModalEnv  :: !ModalEnv
-  , envColdEnv   :: !ColdEnv
+    envTCContext      :: !TCContext
+  , envActiveProblems :: !(Set ProblemId)
+  , envModalEnv       :: !ModalEnv
+  , envFlags          :: !Flags64
+  , envColdEnv        :: !ColdEnv
   } deriving Generic
-
 
 data TCContext = TCContext {
     envContext           :: !Context
@@ -4194,16 +4248,6 @@ data TCContext = TCContext {
         -- (For tracking of incomplete matches.)
   } deriving Generic
 
-
-data MetaEnv = MetaEnv {
-    envAssignMetas         :: !Bool
-    -- ^ Are we allowed to assign metas?
-  , envSolvingConstraints  :: !Bool
-    -- ^ Are we currently in the process of solving active constraints?
-  , envActiveProblems      :: !(Set ProblemId)
-  } deriving Generic
-
-
 data ModalEnv = ModalEnv {
     envRelevance           :: !Relevance
     -- ^ Are we checking an irrelevant argument? (=@Irrelevant@)
@@ -4214,13 +4258,20 @@ data ModalEnv = ModalEnv {
     -- Then runtime-irrelevant things are usable.
   , envLetBindings         :: !LetBindings
   , envAllowedReductions   :: !AllowedReductions
-  , envWorkingOnTypes      :: !Bool
-    -- ^ Are we working on types? Turned on by 'workOnTypes'.
   } deriving Generic
 
 
 data ColdEnv = ColdEnv {
     envCurrentModule       :: ModuleName
+  , envSyntacticEqualityFuel :: !(Strict.Maybe Int)
+    -- ^ If this counter is 'Strict.Nothing', then
+    -- syntactic equality checking is unrestricted. If it
+    -- is zero, then syntactic equality checking is not
+    -- run at all. If it is a positive number, then
+    -- syntactic equality checking is allowed to run, but
+    -- the counter is decreased in the failure
+    -- continuation of
+    -- 'Agda.TypeChecking.SyntacticEquality.checkSyntacticEquality'.
   , envCurrentPath         :: Maybe FileId
     -- ^ The path to the file that is currently being
     -- type-checked.  'Nothing' if we do not have a file
@@ -4236,11 +4287,10 @@ data ColdEnv = ColdEnv {
     --   length, in the module dependency graph, of the shortest path
     --   from the top-level module; it depends on in which order Agda
     --   chooses to chase dependencies.
-  , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
+  , envMutualBlock         :: !(Maybe MutualId)       -- ^ the current (if any) mutual block
   , envTerminationCheck    :: !(TerminationCheck ())  -- ^ are we inside the scope of a termination pragma
   , envCoverageCheck       :: !CoverageCheck          -- ^ are we inside the scope of a coverage pragma
-  , envMakeCase            :: !Bool                   -- ^ are we inside a make-case (if so, ignore forcing analysis in unifier)
-  , envCheckingWhere       :: C.WhereClause_
+  , envCheckingWhere       :: !C.WhereClause_
         -- ^ Have we stepped into the where-declarations of a clause?
         --   Everything under a @where@ will be checked with this flag on.
   , envUnquoteProblem      :: !(Maybe ProblemId)
@@ -4254,20 +4304,6 @@ data ColdEnv = ColdEnv {
         --   or the body of a non-abstract definition this is true.
         --   To prevent information about abstract things leaking
         --   outside the module.
-  , envHardCompileTimeMode :: !Bool
-        -- ^ Is the \"hard\" compile-time mode enabled? In
-        -- this mode the quantity component of the environment
-        -- is always zero, and every new definition is treated
-        -- as erased.
-  , envSplitOnStrict       :: !Bool
-        -- ^ Are we currently case-splitting on a strict
-        --   datatype (i.e. in SSet)? If yes, the
-        --   pattern-matching unifier will solve reflexive
-        --   equations even --without-K.
-  , envDisplayFormsEnabled :: !Bool
-        -- ^ Sometimes we want to disable display forms.
-  , envFoldLetBindings :: !Bool
-        -- ^ Fold let-bindings when printing terms (default: True)
   , envRange :: Range
   , envHighlightingRange :: Range
         -- ^ Interactive highlighting uses this range rather
@@ -4289,42 +4325,19 @@ data ColdEnv = ColdEnv {
         -- ^ Did we encounter a simplification (proper match)
         --   during the current reduction process?
   , envReduceDefs :: !ReduceDefs
-  , envReconstructed :: !Bool
   , envInjectivityDepth :: !Int
         -- ^ Injectivity can cause non-termination for unsolvable contraints
         --   (#431, #3067). Keep a limit on the nesting depth of injectivity
         --   uses.
-  , envCompareBlocked :: !Bool
-        -- ^ When @True@, the conversion checker will consider
-        --   all term constructors as injective, including
-        --   blocked function applications and metas. Warning:
-        --   this should only be used when not assigning any
-        --   metas (e.g. when @envAssignMetas@ is @False@ or
-        --   when running @pureEqualTerms@) or else we get
-        --   non-unique meta solutions.
-  , envPrintDomainFreePi :: !Bool
-        -- ^ When @True@, types will be omitted from printed pi types if they
-        --   can be inferred.
-  , envPrintMetasBare :: !Bool
-        -- ^ When @True@, throw away meta numbers and meta elims.
-        --   This is used for reifying terms for feeding into the
-        --   user's source code, e.g., for the interaction tactics @solveAll@.
-  , envInsideDotPattern :: !Bool
-        -- ^ Used by the scope checker to make sure that certain forms
-        --   of expressions are not used inside dot patterns: extended
-        --   lambdas and let-expressions.
   , envUnquoteFlags :: !UnquoteFlags
   , envInstanceDepth :: !Int
       -- ^ Until we get a termination checker for instance search (#1743) we
       --   limit the search depth to ensure termination.
-  , envIsDebugPrinting :: !Bool
   , envPrintingPatternLambdas :: [QName]
         -- ^ #3004: pattern lambdas with copatterns may refer to themselves. We
         --   don't have a good story for what to do in this case, but at least
         --   printing shouldn't loop. Here we keep track of which pattern lambdas
         --   we are currently in the process of printing.
-  , envCallByNeed :: !Bool
-        -- ^ Use call-by-need evaluation for reductions.
   , envGeneralizeMetas :: !DoGeneralize
         -- ^ Should new metas generalized over.
   , envGeneralizedVars :: !(Map QName GeneralizedValue)
@@ -4334,12 +4347,6 @@ data ColdEnv = ColdEnv {
         --   NB: we only store the 'BackendName' here, otherwise
         --   @instance Data TEnv@ is not derivable.
         --   The actual backend can be obtained from the name via 'stBackends'.
-  , envConflComputingOverlap :: !Bool
-        -- ^ Are we currently computing the overlap between
-        --   two rewrite rules for the purpose of confluence checking?
-  , envCurrentlyElaborating :: !Bool
-        -- ^ Are we currently in the process of executing an
-        --   elaborate-and-give interactive command?
   , envCurrentOpaqueId :: !(Maybe OpaqueId)
         -- ^ Unique identifier of the opaque block we are
         -- currently under, if any. Used by the scope checker
@@ -4347,6 +4354,133 @@ data ColdEnv = ColdEnv {
         -- checker (for unfolding control).
   } deriving Generic
 
+-- Bool Flags
+----------------------------------------------------------------------------------------------------
+
+{-# INLINE envReconstructed #-}
+envReconstructed :: Lens' Flags64 Bool
+envReconstructed = mkFlag 0
+
+-- | When @True@, the conversion checker will consider
+--   all term constructors as injective, including
+--   blocked function applications and metas. Warning:
+--   this should only be used when not assigning any
+--   metas (e.g. when @envAssignMetas@ is @False@ or
+--   when running @pureEqualTerms@) or else we get
+--   non-unique meta solutions.
+{-# INLINE envCompareBlocked #-}
+envCompareBlocked :: Lens' Flags64 Bool
+envCompareBlocked = mkFlag 1
+
+-- | When @True@, types will be omitted from printed pi types if they
+--   can be inferred.
+{-# INLINE envPrintDomainFreePi #-}
+envPrintDomainFreePi :: Lens' Flags64 Bool
+envPrintDomainFreePi = mkFlag 2
+
+-- | When @True@, throw away meta numbers and meta elims.
+--   This is used for reifying terms for feeding into the
+--   user's source code, e.g., for the interaction tactics @solveAll@.
+{-# INLINE envPrintMetasBare #-}
+envPrintMetasBare :: Lens' Flags64 Bool
+envPrintMetasBare = mkFlag 3
+
+-- | Used by the scope checker to make sure that certain forms
+--   of expressions are not used inside dot patterns: extended
+--   lambdas and let-expressions.
+{-# INLINE envInsideDotPattern #-}
+envInsideDotPattern :: Lens' Flags64 Bool
+envInsideDotPattern = mkFlag 4
+
+{-# INLINE envIsDebugPrinting #-}
+envIsDebugPrinting :: Lens' Flags64 Bool
+envIsDebugPrinting = mkFlag 5
+
+-- | Use call-by-need evaluation for reductions.
+{-# INLINE envCallByNeed #-}
+envCallByNeed :: Lens' Flags64 Bool
+envCallByNeed = mkFlag 6
+
+-- | are we inside a make-case (if so, ignore forcing analysis in unifier)
+{-# INLINE envMakeCase #-}
+envMakeCase :: Lens' Flags64 Bool
+envMakeCase = mkFlag 7
+
+-- | Are we currently in the process of solving active constraints?
+{-# INLINE envSolvingConstraints #-}
+envSolvingConstraints :: Lens' Flags64 Bool
+envSolvingConstraints = mkFlag 8
+
+-- | Are we allowed to assign metas?
+{-# INLINE envAssignMetas #-}
+envAssignMetas :: Lens' Flags64 Bool
+envAssignMetas = mkFlag 9
+
+-- | Is the \"hard\" compile-time mode enabled? In
+-- this mode the quantity component of the environment
+-- is always zero, and every new definition is treated
+-- as erased.
+{-# INLINE envHardCompileTimeMode #-}
+envHardCompileTimeMode :: Lens' Flags64 Bool
+envHardCompileTimeMode = mkFlag 10
+
+-- | Are we currently case-splitting on a strict
+--   datatype (i.e. in SSet)? If yes, the
+--   pattern-matching unifier will solve reflexive
+--   equations even --without-K.
+{-# INLINE envSplitOnStrict #-}
+envSplitOnStrict :: Lens' Flags64 Bool
+envSplitOnStrict = mkFlag 11
+
+-- | Sometimes we want to disable display forms.
+{-# INLINE envDisplayFormsEnabled #-}
+envDisplayFormsEnabled :: Lens' Flags64 Bool
+envDisplayFormsEnabled = mkFlag 12
+
+-- | Fold let-bindings when printing terms (default: True)
+{-# INLINE envFoldLetBindings #-}
+envFoldLetBindings :: Lens' Flags64 Bool
+envFoldLetBindings = mkFlag 13
+
+-- | Are we currently computing the overlap between
+--   two rewrite rules for the purpose of confluence checking?
+{-# INLINE envConflComputingOverlap #-}
+envConflComputingOverlap :: Lens' Flags64 Bool
+envConflComputingOverlap = mkFlag 14
+
+-- | Are we currently in the process of executing an
+--   elaborate-and-give interactive command?
+{-# INLINE envCurrentlyElaborating #-}
+envCurrentlyElaborating :: Lens' Flags64 Bool
+envCurrentlyElaborating = mkFlag 15
+
+-- | Are we working on types? Turned on by 'workOnTypes'.
+{-# INLINE envWorkingOnTypes #-}
+envWorkingOnTypes :: Lens' Flags64 Bool
+envWorkingOnTypes = mkFlag 16
+
+
+-- Initial environment
+----------------------------------------------------------------------------------------------------
+
+initEnvFlags :: Flags64
+initEnvFlags = Flags64 0
+  & envAssignMetas           .~ True
+  & envSolvingConstraints    .~ False
+  & envReconstructed         .~ False
+  & envCompareBlocked        .~ False
+  & envPrintDomainFreePi     .~ False
+  & envPrintMetasBare        .~ False
+  & envInsideDotPattern      .~ False
+  & envIsDebugPrinting       .~ False
+  & envCallByNeed            .~ True
+  & envConflComputingOverlap .~ False
+  & envCurrentlyElaborating  .~ False
+  & envHardCompileTimeMode   .~ False
+  & envSplitOnStrict         .~ False
+  & envDisplayFormsEnabled   .~ True
+  & envFoldLetBindings       .~ True
+  & envMakeCase              .~ False
 
 initTCContext :: TCContext
 initTCContext = TCContext {
@@ -4356,35 +4490,27 @@ initTCContext = TCContext {
   , envAppDef              = Nothing
   }
 
-initMetaEnv :: MetaEnv
-initMetaEnv = MetaEnv {
-    envAssignMetas         = True
-  , envSolvingConstraints  = False
-  , envActiveProblems      = Set.empty
-  }
-
 initModalEnv :: ModalEnv
 initModalEnv = ModalEnv {
     envRelevance           = unitRelevance
   , envQuantity            = unitQuantity
   , envLetBindings         = Map.empty
   , envAllowedReductions   = allReductions
-  , envWorkingOnTypes      = False
   }
 
 initColdEnv :: ColdEnv
 initColdEnv = ColdEnv {
-                  envCurrentModule       = noModuleName
-                , envCurrentPath         = Nothing
-                , envAnonymousModules    = []
-                , envImportStack         = []
-                , envMutualBlock         = Nothing
-                , envTerminationCheck    = TerminationCheck
-                , envCoverageCheck       = YesCoverageCheck
-                , envMakeCase            = False
-                , envCheckingWhere       = C.NoWhere_
-                , envUnquoteProblem      = Nothing
-                , envAbstractMode        = ConcreteMode
+                  envCurrentModule         = noModuleName
+                , envCurrentPath           = Nothing
+                , envSyntacticEqualityFuel = Strict.Nothing
+                , envAnonymousModules      = []
+                , envImportStack           = []
+                , envMutualBlock           = Nothing
+                , envTerminationCheck      = TerminationCheck
+                , envCoverageCheck         = YesCoverageCheck
+                , envCheckingWhere         = C.NoWhere_
+                , envUnquoteProblem        = Nothing
+                , envAbstractMode          = ConcreteMode
   -- Andreas, 2013-02-21:  This was 'AbstractMode' until now.
   -- However, top-level checks for mutual blocks, such as
   -- constructor-headedness, should not be able to look into
@@ -4393,10 +4519,6 @@ initColdEnv = ColdEnv {
   -- The initial mode should be 'ConcreteMode', ensuring you
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
-                , envHardCompileTimeMode    = False
-                , envSplitOnStrict          = False
-                , envDisplayFormsEnabled    = True
-                , envFoldLetBindings        = True
                 , envRange                  = noRange
                 , envHighlightingRange      = noRange
                 , envClause                 = IPNoClause
@@ -4406,32 +4528,23 @@ initColdEnv = ColdEnv {
                 , envExpandLast             = ExpandLast
                 , envSimplification         = NoSimplification
                 , envReduceDefs             = reduceAllDefs
-                , envReconstructed          = False
                 , envInjectivityDepth       = 0
-                , envCompareBlocked         = False
-                , envPrintDomainFreePi      = False
-                , envPrintMetasBare         = False
-                , envInsideDotPattern       = False
                 , envUnquoteFlags           = defaultUnquoteFlags
                 , envInstanceDepth          = 0
-                , envIsDebugPrinting        = False
                 , envPrintingPatternLambdas = []
-                , envCallByNeed             = True
                 , envGeneralizeMetas        = NoGeneralize
                 , envGeneralizedVars        = Map.empty
                 , envActiveBackendName      = Nothing
-                , envConflComputingOverlap  = False
-                , envCurrentlyElaborating   = False
                 , envCurrentOpaqueId        = Nothing
                 }
 
 initEnv :: TCEnv
 initEnv = TCEnv {
-    envSyntacticEqualityFuel = Strict.Nothing
-  , envTCContext             = initTCContext
-  , envMetaEnv               = initMetaEnv
-  , envModalEnv              = initModalEnv
-  , envColdEnv               = initColdEnv
+    envTCContext      = initTCContext
+  , envFlags          = initEnvFlags
+  , envActiveProblems = Set.empty
+  , envModalEnv       = initModalEnv
+  , envColdEnv        = initColdEnv
   }
 
 
@@ -4451,7 +4564,7 @@ eClause = \f e ->
 {-# INLINE eSyntacticEqualityFuel #-}
 eSyntacticEqualityFuel :: Lens' TCEnv (Strict.Maybe Int)
 eSyntacticEqualityFuel = \f e ->
-  f (envSyntacticEqualityFuel e) <&> \ !x -> e {envSyntacticEqualityFuel = x}
+  f (envSyntacticEqualityFuel (envColdEnv e)) <&> \ !x -> e {envColdEnv = (envColdEnv e) {envSyntacticEqualityFuel = x}}
 
 {-# INLINE eCurrentOpaqueId #-}
 eCurrentOpaqueId :: Lens' TCEnv (Maybe OpaqueId)
@@ -4503,35 +4616,15 @@ eCoverageCheck :: Lens' TCEnv CoverageCheck
 eCoverageCheck = \f e ->
   f (envCoverageCheck $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envCoverageCheck = x }}
 
-{-# INLINE eMakeCase #-}
-eMakeCase :: Lens' TCEnv Bool
-eMakeCase = \f e ->
-  f (envMakeCase $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envMakeCase = x }}
-
-{-# INLINE eSolvingConstraints #-}
-eSolvingConstraints :: Lens' TCEnv Bool
-eSolvingConstraints = \f e ->
-  f (envSolvingConstraints $ envMetaEnv e) <&> \ !x -> e {envMetaEnv = (envMetaEnv e){envSolvingConstraints = x }}
-
 {-# INLINE eCheckingWhere #-}
 eCheckingWhere :: Lens' TCEnv C.WhereClause_
 eCheckingWhere = \f e ->
   f (envCheckingWhere $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envCheckingWhere = x }}
 
-{-# INLINE eWorkingOnTypes #-}
-eWorkingOnTypes :: Lens' TCEnv Bool
-eWorkingOnTypes = \f e ->
-  f (envWorkingOnTypes $ envModalEnv e) <&> \ !x -> e {envModalEnv = (envModalEnv e){ envWorkingOnTypes = x }}
-
-{-# INLINE eAssignMetas #-}
-eAssignMetas :: Lens' TCEnv Bool
-eAssignMetas = \f e ->
-  f (envAssignMetas $ envMetaEnv e) <&> \ !x -> e { envMetaEnv = (envMetaEnv e) {envAssignMetas = x }}
-
 {-# INLINE eActiveProblems #-}
 eActiveProblems :: Lens' TCEnv (Set ProblemId)
 eActiveProblems = \f e ->
-  f (envActiveProblems $ envMetaEnv e) <&> \ !x -> e {envMetaEnv = (envMetaEnv e){ envActiveProblems = x }}
+  f (envActiveProblems e) <&> \ !x -> e { envActiveProblems = x }
 
 {-# INLINE eAbstractMode #-}
 eAbstractMode :: Lens' TCEnv AbstractMode
@@ -4542,26 +4635,6 @@ eAbstractMode = \f e ->
 eRelevance :: Lens' TCEnv Relevance
 eRelevance = \f e ->
   f (envRelevance $ envModalEnv e) <&> \ !x -> e {envModalEnv = (envModalEnv e){ envRelevance = x }}
-
-{-# INLINE eHardCompileTimeMode #-}
-eHardCompileTimeMode :: Lens' TCEnv Bool
-eHardCompileTimeMode = \f e ->
-  f (envHardCompileTimeMode $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envHardCompileTimeMode = x }}
-
-{-# INLINE eSplitOnStrict #-}
-eSplitOnStrict :: Lens' TCEnv Bool
-eSplitOnStrict = \f e ->
-  f (envSplitOnStrict $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envSplitOnStrict = x }}
-
-{-# INLINE eDisplayFormsEnabled #-}
-eDisplayFormsEnabled :: Lens' TCEnv Bool
-eDisplayFormsEnabled = \f e ->
-  f (envDisplayFormsEnabled $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envDisplayFormsEnabled = x }}
-
-{-# INLINE eFoldLetBindings #-}
-eFoldLetBindings :: Lens' TCEnv Bool
-eFoldLetBindings = \f e ->
-  f (envFoldLetBindings $ envColdEnv e) <&> \ !x -> e {envColdEnv = (envColdEnv e){ envFoldLetBindings = x }}
 
 {-# INLINE eRange #-}
 eRange :: Lens' TCEnv Range
@@ -4621,35 +4694,10 @@ eReduceDefsPair :: Lens' TCEnv (Bool, [QName])
 eReduceDefsPair = \f e ->
   f (fromReduceDefs $ envReduceDefs $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envReduceDefs = toReduceDefs x }}
 
-{-# INLINE eReconstructed #-}
-eReconstructed :: Lens' TCEnv Bool
-eReconstructed = \f e ->
-  f (envReconstructed $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envReconstructed = x }}
-
 {-# INLINE eInjectivityDepth #-}
 eInjectivityDepth :: Lens' TCEnv Int
 eInjectivityDepth = \f e ->
   f (envInjectivityDepth $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envInjectivityDepth = x }}
-
-{-# INLINE eCompareBlocked #-}
-eCompareBlocked :: Lens' TCEnv Bool
-eCompareBlocked = \f e ->
-  f (envCompareBlocked $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envCompareBlocked = x }}
-
-{-# INLINE ePrintDomainFreePi #-}
-ePrintDomainFreePi :: Lens' TCEnv Bool
-ePrintDomainFreePi = \f e ->
-  f (envPrintDomainFreePi $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envPrintDomainFreePi = x }}
-
-{-# INLINE ePrintMetasBare #-}
-ePrintMetasBare :: Lens' TCEnv Bool
-ePrintMetasBare = \f e ->
-  f (envPrintMetasBare $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envPrintMetasBare = x }}
-
-{-# INLINE eInsideDotPattern #-}
-eInsideDotPattern :: Lens' TCEnv Bool
-eInsideDotPattern = \f e ->
-  f (envInsideDotPattern $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envInsideDotPattern = x }}
 
 {-# INLINE eUnquoteFlags #-}
 eUnquoteFlags :: Lens' TCEnv UnquoteFlags
@@ -4661,20 +4709,10 @@ eInstanceDepth :: Lens' TCEnv Int
 eInstanceDepth = \f e ->
   f (envInstanceDepth $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envInstanceDepth = x }}
 
-{-# INLINE eIsDebugPrinting #-}
-eIsDebugPrinting :: Lens' TCEnv Bool
-eIsDebugPrinting = \f e ->
-  f (envIsDebugPrinting $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envIsDebugPrinting = x }}
-
 {-# INLINE ePrintingPatternLambdas #-}
 ePrintingPatternLambdas :: Lens' TCEnv [QName]
 ePrintingPatternLambdas = \f e ->
   f (envPrintingPatternLambdas $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envPrintingPatternLambdas = x }}
-
-{-# INLINE eCallByNeed #-}
-eCallByNeed :: Lens' TCEnv Bool
-eCallByNeed = \f e ->
-  f (envCallByNeed $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envCallByNeed = x }}
 
 {-# INLINE eCurrentCheckpoint #-}
 eCurrentCheckpoint :: Lens' TCEnv CheckpointId
@@ -4701,20 +4739,89 @@ eActiveBackendName :: Lens' TCEnv (Maybe BackendName)
 eActiveBackendName = \f e ->
   f (envActiveBackendName $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envActiveBackendName = x }}
 
-{-# INLINE eConflComputingOverlap #-}
-eConflComputingOverlap :: Lens' TCEnv Bool
-eConflComputingOverlap = \f e ->
-  f (envConflComputingOverlap $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envConflComputingOverlap = x }}
-
-{-# INLINE eCurrentlyElaborating #-}
-eCurrentlyElaborating :: Lens' TCEnv Bool
-eCurrentlyElaborating = \f e ->
-  f (envCurrentlyElaborating $ envColdEnv e) <&> \ x -> e {envColdEnv = (envColdEnv e){ envCurrentlyElaborating = x }}
-
 {-# INLINE eQuantity #-}
 eQuantity :: Lens' TCEnv Quantity
 eQuantity = \f e ->
   f (envQuantity $ envModalEnv e) <&> \ x -> e {envModalEnv = (envModalEnv e){ envQuantity = x }}
+
+----------------------------------------------------------------------------------------------------
+
+{-# INLINE mkEnvFlag #-}
+mkEnvFlag :: Int -> Lens' TCEnv Bool
+mkEnvFlag i = \f s ->
+  let old = getFlag i (envFlags s) in
+  f old <&> \b ->
+    -- avoiding copy on unchanged flags
+    if b == old then s else s {envFlags = setFlag i b (envFlags s)}
+
+{-# INLINE eReconstructed #-}
+eReconstructed :: Lens' TCEnv Bool
+eReconstructed = mkEnvFlag 0
+
+{-# INLINE eCompareBlocked #-}
+eCompareBlocked :: Lens' TCEnv Bool
+eCompareBlocked = mkEnvFlag 1
+
+{-# INLINE ePrintDomainFreePi #-}
+ePrintDomainFreePi :: Lens' TCEnv Bool
+ePrintDomainFreePi = mkEnvFlag 2
+
+{-# INLINE ePrintMetasBare #-}
+ePrintMetasBare :: Lens' TCEnv Bool
+ePrintMetasBare = mkEnvFlag 3
+
+{-# INLINE eInsideDotPattern #-}
+eInsideDotPattern :: Lens' TCEnv Bool
+eInsideDotPattern = mkEnvFlag 4
+
+{-# INLINE eIsDebugPrinting #-}
+eIsDebugPrinting :: Lens' TCEnv Bool
+eIsDebugPrinting = mkEnvFlag 5
+
+{-# INLINE eCallByNeed #-}
+eCallByNeed :: Lens' TCEnv Bool
+eCallByNeed = mkEnvFlag 6
+
+{-# INLINE eMakeCase #-}
+eMakeCase :: Lens' TCEnv Bool
+eMakeCase = mkEnvFlag 7
+
+{-# INLINE eSolvingConstraints #-}
+eSolvingConstraints :: Lens' TCEnv Bool
+eSolvingConstraints = mkEnvFlag 8
+
+{-# INLINE eAssignMetas #-}
+eAssignMetas :: Lens' TCEnv Bool
+eAssignMetas = mkEnvFlag 9
+
+{-# INLINE eHardCompileTimeMode #-}
+eHardCompileTimeMode :: Lens' TCEnv Bool
+eHardCompileTimeMode = mkEnvFlag 10
+
+{-# INLINE eSplitOnStrict #-}
+eSplitOnStrict :: Lens' TCEnv Bool
+eSplitOnStrict = mkEnvFlag 11
+
+{-# INLINE eDisplayFormsEnabled #-}
+eDisplayFormsEnabled :: Lens' TCEnv Bool
+eDisplayFormsEnabled = mkEnvFlag 12
+
+{-# INLINE eFoldLetBindings #-}
+eFoldLetBindings :: Lens' TCEnv Bool
+eFoldLetBindings = mkEnvFlag 13
+
+{-# INLINE eConflComputingOverlap #-}
+eConflComputingOverlap :: Lens' TCEnv Bool
+eConflComputingOverlap = mkEnvFlag 14
+
+{-# INLINE eCurrentlyElaborating #-}
+eCurrentlyElaborating :: Lens' TCEnv Bool
+eCurrentlyElaborating = mkEnvFlag 15
+
+{-# INLINE eWorkingOnTypes #-}
+eWorkingOnTypes :: Lens' TCEnv Bool
+eWorkingOnTypes = mkEnvFlag 16
+
 
 ----------------------------------------------------------------------------------------------------
 
@@ -7217,7 +7324,6 @@ instance NFData HighlightingMethod
 instance NFData TCContext
 instance NFData ColdEnv
 instance NFData ModalEnv
-instance NFData MetaEnv
 instance NFData TCEnv
 instance NFData LetBinding
 instance NFData UnquoteFlags

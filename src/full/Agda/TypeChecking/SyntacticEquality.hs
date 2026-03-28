@@ -29,7 +29,7 @@ import Control.Monad.Trans      ( lift )
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Monad  (TCM, ReduceM(..), MonadReduce(..), TCEnv(..), MonadTCEnv(..))
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
@@ -84,10 +84,9 @@ checkSyntacticEquality u v s f =
   {-else-} (uncurry f =<< instantiate (u, v))
   where
   decreaseFuel env =
-    case envSyntacticEqualityFuel env of
+    case env ^. eSyntacticEqualityFuel of
       Strict.Nothing -> env
-      Strict.Just n  ->
-        env { envSyntacticEqualityFuel = Strict.Just (pred n) }
+      Strict.Just n  -> env & eSyntacticEqualityFuel .~ Strict.Just (pred n)
 
 -- | Syntactic equality check for terms without checking remaining fuel.
 checkSyntacticEquality'
@@ -105,8 +104,8 @@ checkSyntacticEquality' u v s f = do
 
 syntacticEqualityFuelRemains :: MonadReduce m => m Bool
 syntacticEqualityFuelRemains = do
-  fuel <- envSyntacticEqualityFuel <$> askTC
-  return $ case fuel of
+  fuel <- viewTC eSyntacticEqualityFuel
+  return $! case fuel of
     Strict.Nothing -> True
     Strict.Just n  -> n > 0
 

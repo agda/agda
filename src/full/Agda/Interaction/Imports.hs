@@ -1344,7 +1344,7 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
     setOptionsFromSourcePragmas checkConsistency src
     checkAttributes (srcAttributes src)
     syntactic <- optSyntacticEquality <$> pragmaOptions
-    localTC (\env -> env { envSyntacticEqualityFuel = syntactic }) $ do
+    localTC (set eSyntacticEqualityFuel syntactic) $ do
 
     verboseS "import.iface.create" 15 $ do
       nestingLevel      <- asksTC (pred . length . view eImportStack)
