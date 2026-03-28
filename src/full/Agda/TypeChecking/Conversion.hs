@@ -1078,16 +1078,22 @@ compareElims pols0 fors0 a v els01 els02 =
       case unEl a of
         (Pi (Dom{domInfo = info, unDom = b}) codom) -> do
           reportSLn "tc.conv.elim" 40 $ "type is a function type"
-          mlvl <- tryMaybe primLevel
-          let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
-              freeInCoDom _         = False
-              dependent = (Just (unEl b) /= mlvl) && freeInCoDom codom
-                -- Level-polymorphism (x : Level) -> ... does not count as dependency here
-                   -- NB: we could drop the free variable test and still be sound.
-                   -- It is a trade-off between the administrative effort of
-                   -- creating a blocking and traversing a term for free variables.
-                   -- Apparently, it is believed that checking free vars is cheaper.
-                   -- Andreas, 2013-05-15
+
+          dependent <- do
+            let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
+                freeInCoDom _         = False
+
+            if freeInCoDom codom then do
+              mlvl <- tryMaybe primLevel
+              -- Level-polymorphism (x : Level) -> ... does not count as dependency here
+              -- NB: we could drop the free variable test and still be sound.
+              -- It is a trade-off between the administrative effort of
+              -- creating a blocking and traversing a term for free variables.
+              -- Apparently, it is believed that checking free vars is cheaper.
+              -- Andreas, 2013-05-15
+              pure $! Just (unEl b) /= mlvl
+            else
+              pure False
 
           if dependent then do
 
