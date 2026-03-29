@@ -465,15 +465,19 @@ cover infermissing f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
 
         mtv <- (traverse . traverse) (telViewUpToPath n_extra) $ clauseType cl
         let ty = (fmap . fmap) ((parallelS (reverse $ map namedArg extra) `composeS` liftS n_extra s `applyPatSubst`) . theCore) mtv
+        let body = (`applyE` patternsToElims extra) . (s `applyPatSubst`) <$> clauseBody cl
+        let pats = (s `applySubst` ps) ++ extra
 
         reportSDoc "tc.cover.applyCl" 40 $ "new ty =" <+> pretty ty
+        reportSDoc "tc.cover.applyCl" 40 $ "new pats =" <+> pretty pats
+        reportSDoc "tc.cover.applyCl" 40 $ "new body =" <+> pretty body
 
         return $
              Clause { clauseLHSRange  = clauseLHSRange cl
                     , clauseFullRange = clauseFullRange cl
                     , clauseTel       = tel
-                    , namedClausePats = (s `applySubst` ps) ++ extra
-                    , clauseBody      = (`applyE` patternsToElims extra) . (s `applyPatSubst`) <$> clauseBody cl
+                    , namedClausePats = pats
+                    , clauseBody      = body
                     , clauseType      = ty
                     , clauseCatchall    = clauseCatchall cl
                     , clauseRecursive   = clauseRecursive cl
@@ -549,7 +553,7 @@ cover infermissing f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
             , nest 2 $ vcat
               [ "n   = " <+> text (show n)
               , "scs = " <+> prettyTCM scs
-              , "ps  = " <+> prettyTCMPatternList (fromSplitPatterns ps)
+              , "ps  = " <+> inTopContext (addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps)
               ]
             ]
           let trees' = zipWith (second . etaRecordSplits (unArg n) ps) trees scs
