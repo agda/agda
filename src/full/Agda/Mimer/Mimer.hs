@@ -496,7 +496,7 @@ tryLamAbs goal goalType branch =
           reportSDoc "mimer.lam" 40 $ "  bodyType = " <+> prettyTCM bodyType
           bodyType <- bench [Bench.Reduce] $ reduce bodyType -- TODO: Good place to reduce?
           reportSDoc "mimer.lam" 40 $ "  bodyType (reduced) = " <+> prettyTCM bodyType
-          (metaId', metaTerm) <- bench [Bench.Free] $ newValueMeta DontRunMetaOccursCheck CmpLeq bodyType
+          (metaId', metaTerm) <- bench [Bench.Free] $ lift $ newValueMeta DontRunMetaOccursCheck CmpLeq bodyType
           reportSDoc "mimer.lam" 40 $ "  metaId' = " <+> prettyTCM metaId'
           env <- askTC
           return (metaId', bodyType, metaTerm, env)

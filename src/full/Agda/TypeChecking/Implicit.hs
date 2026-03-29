@@ -69,12 +69,11 @@ splitImplicitBinderT narg ty = do
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
 --   and @expand@ holds on the hiding info of its domain.
 
-implicitArgs
-  :: (PureTCM m, MonadMetaSolver m, MonadTCM m)
-  => Int               -- ^ @n@, the maximum number of implicts to be inserted.
+implicitArgs ::
+     Int               -- ^ @n@, the maximum number of implicts to be inserted.
   -> (Hiding -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
   -> Type              -- ^ The (function) type @t@ we are eliminating.
-  -> m (Args, Type)    -- ^ The eliminating arguments and the remaining type.
+  -> TCM (Args, Type)    -- ^ The eliminating arguments and the remaining type.
 implicitArgs n expand t = first (map' (fmap namedThing)) <$> do
   implicitNamedArgs n (\ h _x -> expand h) t
 
@@ -82,12 +81,11 @@ implicitArgs n expand t = first (map' (fmap namedThing)) <$> do
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
 --   and @expand@ holds on the hiding and name info of its domain.
 
-implicitNamedArgs
-  :: (PureTCM m, MonadMetaSolver m, MonadTCM m)
-  => Int                          -- ^ @n@, the maximum number of implicts to be inserted.
+implicitNamedArgs ::
+     Int                          -- ^ @n@, the maximum number of implicts to be inserted.
   -> (Hiding -> ArgName -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
   -> Type                         -- ^ The (function) type @t@ we are eliminating.
-  -> m (NamedArgs, Type)          -- ^ The eliminating arguments and the remaining type.
+  -> TCM (NamedArgs, Type)          -- ^ The eliminating arguments and the remaining type.
 implicitNamedArgs n expand t0 = do
   (ncas, t) <- implicitCheckedArgs n expand t0
   let (ns, cas) = List.unzipWith (\ (Named n ca) -> (n, ca)) ncas
@@ -111,11 +109,11 @@ noHeadConstraint (CheckedArg _ range Just{} ) = do
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
 --   and @expand@ holds on the hiding and name info of its domain.
 
-implicitCheckedArgs :: (PureTCM m, MonadMetaSolver m, MonadTCM m)
-  => Int                          -- ^ @n@, the maximum number of implicts to be inserted.
+implicitCheckedArgs ::
+     Int                          -- ^ @n@, the maximum number of implicts to be inserted.
   -> (Hiding -> ArgName -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
   -> Type                         -- ^ The (function) type @t@ we are eliminating.
-  -> m ([Named_ CheckedArg], Type)-- ^ The eliminating arguments and the remaining type.
+  -> TCM ([Named_ CheckedArg], Type)-- ^ The eliminating arguments and the remaining type.
 implicitCheckedArgs 0 expand t0 = return ([], t0)
 implicitCheckedArgs n expand t0 = do
     t0' <- reduce t0
@@ -166,13 +164,12 @@ makeLockConstraint funType u =
 -- | Create a metavariable of 'MetaKind'.
 
 newMetaArg
-  :: (PureTCM m, MonadMetaSolver m)
-  => MetaKind   -- ^ Kind of meta.
+  :: MetaKind   -- ^ Kind of meta.
   -> ArgInfo    -- ^ Rrelevance of meta.
   -> ArgName    -- ^ Name suggestion for meta.
   -> Comparison -- ^ Check (@CmpLeq@) or infer (@CmpEq@) the type.
   -> Type       -- ^ Type of meta.
-  -> m (MetaId, Term)  -- ^ The created meta as id and as term.
+  -> TCM (MetaId, Term)  -- ^ The created meta as id and as term.
 newMetaArg kind info x cmp a = do
   prp <- runBlocked $ isPropM a
   let irrelevantIfProp =
@@ -180,7 +177,7 @@ newMetaArg kind info x cmp a = do
   applyModalityToContext info $ irrelevantIfProp $
     newMeta (argNameToString x) kind a
   where
-    newMeta :: MonadMetaSolver m => String -> MetaKind -> Type -> m (MetaId, Term)
+    newMeta :: String -> MetaKind -> Type -> TCM (MetaId, Term)
     newMeta n = \case
       InstanceMeta    -> newInstanceMeta n
       UnificationMeta -> newNamedValueMeta RunMetaOccursCheck n cmp

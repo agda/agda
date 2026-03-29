@@ -53,7 +53,11 @@ instance MonadConstraint TCM where
     patternViolation alwaysUnblock -- TODO: does this happen?
 
   solveSomeAwakeConstraints s f = ifImpureConv (solveSomeAwakeConstraintsTCM s f) $ return ()
+
+  {-# INLINE wakeConstraints #-}
   wakeConstraints w             = ifImpureConv (wakeConstraintsTCM w)  $ return ()
+
+  {-# INLINE stealConstraints #-}
   stealConstraints w            = ifImpureConv (stealConstraintsTCM w) $ return ()
 
   {-# INLINE modifyConstraints #-}
@@ -112,6 +116,7 @@ addConstraintTCM unblock c = do
           return $ simplifyLevelConstraint c $ fmap clValue lvlcs
       | otherwise = return Nothing
 
+{-# INLINE wakeConstraintsTCM #-}
 wakeConstraintsTCM :: (ProblemConstraint-> WakeUp) -> TCM ()
 wakeConstraintsTCM wake = do
   tc <- getTC

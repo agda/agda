@@ -50,9 +50,12 @@ isProblemCompletelySolved :: (MonadTCEnv m, ReadTCState m) => ProblemId -> m Boo
 isProblemCompletelySolved = isProblemSolved' True
 
 isProblemSolved' :: (MonadTCEnv m, ReadTCState m) => Bool -> ProblemId -> m Bool
-isProblemSolved' completely pid =
-  and2M (not . Set.member pid <$> viewTC eActiveProblems)
-        (not . any belongsToUs <$> getAllConstraints)
+isProblemSolved' completely pid = do
+  active <- viewTC eActiveProblems
+  tc     <- getTCState
+  pure $!    not (Set.member pid active)
+          && not (any belongsToUs (tc ^. stAwakeConstraints))
+          && not (any belongsToUs (tc ^. stSleepingConstraints))
   where
     belongsToUs c
       | Set.notMember pid (constraintProblems c)         = False
@@ -87,7 +90,7 @@ putConstraintsToSleep :: MonadConstraint m => (ProblemConstraint -> Bool) -> m (
 putConstraintsToSleep sleepy = do
   awakeOnes <- useR stAwakeConstraints
   let (!gotoSleep, !stayAwake) = partition' sleepy awakeOnes
-  modifyConstraints (const stayAwake) (++! gotoSleep)
+  modifyConstraints (const stayAwake) (++! gotoSleep) -- TODO: quadratic append!
 
 putAllConstraintsToSleep :: MonadConstraint m => m ()
 putAllConstraintsToSleep = putConstraintsToSleep (const True)
@@ -100,13 +103,12 @@ data ConstraintStatus = AwakeConstraint | SleepingConstraint
 --   by events that would normally trigger a wakeup call.
 holdConstraints :: (ConstraintStatus -> ProblemConstraint -> Bool) -> TCM a -> TCM a
 holdConstraints p m = do
-  (holdAwake, stillAwake)   <- List.partition (p AwakeConstraint)    <$> useTC stAwakeConstraints
-  (holdAsleep, stillAsleep) <- List.partition (p SleepingConstraint) <$> useTC stSleepingConstraints
-  stAwakeConstraints    `setTCLens` stillAwake
-  stSleepingConstraints `setTCLens` stillAsleep
-  let restore = do
-        stAwakeConstraints    `modifyTCLens` (holdAwake ++!)
-        stSleepingConstraints `modifyTCLens` (holdAsleep ++!)
+  tc <- getTCState
+  let (!holdAwake,  !stillAwake)  = partition' (p AwakeConstraint)    $ tc ^. stAwakeConstraints
+  let (!holdAsleep, !stillAsleep) = partition' (p SleepingConstraint) $ tc ^. stSleepingConstraints
+  modifyTC' $ set stAwakeConstraints stillAwake . set stSleepingConstraints stillAsleep
+  let restore = modifyTC' $ over stAwakeConstraints (holdAwake ++!)
+                          . over stSleepingConstraints (holdAsleep ++!)
   catchError (m <* restore) (\ err -> restore *> throwError err)
 
 takeAwakeConstraint :: MonadConstraint m => m (Maybe ProblemConstraint)
@@ -126,7 +128,7 @@ takeAwakeConstraint' p = do
 getAllConstraints :: ReadTCState m => m Constraints
 getAllConstraints = do
   s <- getTCState
-  return $ s ^. stAwakeConstraints ++ s ^. stSleepingConstraints
+  return $! s ^. stAwakeConstraints ++! s ^. stSleepingConstraints
 
 withConstraint :: MonadConstraint m => (Constraint -> m a) -> ProblemConstraint -> m a
 withConstraint f (PConstr pids _ c) = do
@@ -246,6 +248,7 @@ nowSolvingConstraints = localTC (set eSolvingConstraints True)
 isSolvingConstraints :: MonadTCEnv m => m Bool
 isSolvingConstraints = viewTC eSolvingConstraints
 
+{-# INLINE catchConstraint #-}
 -- | Add constraint if the action raises a pattern violation
 catchConstraint :: MonadConstraint m => Constraint -> m () -> m ()
 catchConstraint c = catchPatternErr \unblock -> addConstraint unblock c

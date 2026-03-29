@@ -493,7 +493,7 @@ applyToMetasG maxArgs comp = do
 
 createMeta :: Type -> SM (MetaId, Term)
 createMeta typ = do
-  (metaId, metaTerm) <- newValueMeta DontRunMetaOccursCheck CmpLeq typ
+  (metaId, metaTerm) <- lift $ newValueMeta DontRunMetaOccursCheck CmpLeq typ
   verboseS "mimer.stats" 20 $ updateStat incMetasCreated
   reportSDoc "mimer.components" 80 $ do
     "Created meta-variable (type in context):" <+> pretty metaTerm <+> ":" <+> (pretty =<< getMetaTypeInContext metaId)

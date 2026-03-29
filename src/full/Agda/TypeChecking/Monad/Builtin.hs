@@ -171,13 +171,13 @@ getBuiltinName_ x =
 --       Def f [] -> Just f
 --       _        -> Nothing
 
-{-# INLINABLE getBuiltin #-}
+{-# SPECIALIZE getBuiltin :: BuiltinId -> TCM Term #-}
 getBuiltin :: (HasBuiltins m, MonadTCError m)
            => BuiltinId -> m Term
 getBuiltin x =
   fromMaybeM (typeError $ NoBindingForBuiltin x) $ getBuiltin' x
 
-{-# INLINABLE getBuiltin' #-}
+{-# SPECIALIZE getBuiltin' :: BuiltinId -> TCM (Maybe Term) #-}
 -- | Returns 'Nothing' if built-in is not bound or bound to a 'Prim'.
 getBuiltin' :: HasBuiltins m => BuiltinId -> m (Maybe Term)
 getBuiltin' x = (getBuiltin =<<) <$> getBuiltinThing (BuiltinName x)
@@ -187,7 +187,7 @@ getBuiltin' x = (getBuiltin =<<) <$> getBuiltinThing (BuiltinName x)
       Prim{}                    -> Nothing
       BuiltinRewriteRelations{} -> __IMPOSSIBLE__
 
-{-# INLINABLE getPrimitive' #-}
+{-# SPECIALIZE getPrimitive' :: PrimitiveId -> TCM (Maybe PrimFun)  #-}
 -- | Returns 'Nothing' if primitive is not bound or bound to a 'Builtin'.
 getPrimitive' :: HasBuiltins m => PrimitiveId -> m (Maybe PrimFun)
 getPrimitive' x = (getPrim =<<) <$> getBuiltinThing (PrimitiveName x)

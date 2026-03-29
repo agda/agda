@@ -6355,7 +6355,9 @@ runReduceM m = TCM $ \ r e -> do
   --   return $! unReduceM m (ReduceEnv e s)
 
 instance MonadTCEnv ReduceM where
+  {-# INLINE askTC #-}
   askTC   = ReduceM redEnv
+  {-# INLINE localTC #-}
   localTC = onReduceEnv . mapRedEnv
 
 -- Andrea comments (https://github.com/agda/agda/issues/1829#issuecomment-522312084):
@@ -6702,6 +6704,12 @@ unTCM (TCM f) = f
 -- | Type checking monad.
 type TCM = TCMT IO
 
+instance ExpandCase (TCM a) where
+  type Result (TCM a) = IO a
+  {-# INLINE expand #-}
+  expand k = TCM# (oneShot \s -> oneShot \ !e -> k (oneShot (\(TCM# act) -> act s e)))
+
+
 -- 9.14 cannot do this specialization with {-# LANGUAGE DeepSubsumption #-}
 -- https://gitlab.haskell.org/ghc/ghc/-/issues/26349
 -- #if __GLASGOW_HASKELL__ < 914
@@ -6765,7 +6773,7 @@ instance Monad m => Monad (TCMT m) where
     (>>=)  = bindTCMT; {-# INLINE (>>=) #-}
     (>>)   = (*>); {-# INLINE (>>) #-}
 
-instance (CatchIO m, MonadIO m) => MonadFail (TCMT m) where
+instance MonadFail TCM where
   fail = internalError
   {-# INLINE fail #-}
 
@@ -6797,8 +6805,10 @@ instance MonadIO m => ReadTCState (TCMT m) where
     readAtomic mv
 
 instance MonadBlock TCM where
+  {-# inline patternViolation #-}
   patternViolation b = throwError (PatternErr b)
-  catchPatternErr handle v =
+  {-# INLINE catchPatternErr #-}
+  catchPatternErr = \handle v ->
        catchError_ v \case
             -- Not putting s (which should really be the what's already there) makes things go
             -- a lot slower (+20% total time on standard library). How is that possible??
@@ -6807,19 +6817,20 @@ instance MonadBlock TCM where
            PatternErr u -> handle u
            err -> throwError err
 
-instance (CatchIO m, MonadIO m) => MonadError TCErr (TCMT m) where
+instance MonadError TCErr TCM where
+  {-# INLINE throwError #-}
   throwError = liftIO . E.throwIO
-  catchError m h = TCM $ \ r e -> do  -- now we are in the monad m
+  {-# INLINE catchError #-}
+  catchError m h = TCM \r e -> do  -- now we are in the monad m
     oldState <- liftIO $ Strict.readIORef r
-    unTCM m r e `catchIO` \err -> do
+    unTCM m r e `E.catch` \err -> do
       -- Reset the state, but do not forget changes to the persistent
       -- component. Not for pattern violations.
       case err of
         PatternErr{} -> return ()
-        _            ->
-          liftIO $ do
-            newState <- Strict.readIORef r
-            Strict.writeIORef r oldState { stPersistentState = stPersistentState newState }
+        _            -> do
+          newState <- Strict.readIORef r
+          Strict.writeIORef r oldState { stPersistentState = stPersistentState newState }
       unTCM (h err) r e
 
 -- | Like 'catchError', but resets the state completely before running the handler.
@@ -6860,12 +6871,14 @@ instance {-# OVERLAPPABLE #-} (MonadIO m, Null a) => Null (TCMT m a) where
   empty = return empty
   null  = __IMPOSSIBLE__
 
+{-# INLINE catchError_ #-}
 -- | Preserve the state of the failing computation.
 catchError_ :: TCM a -> (TCErr -> TCM a) -> TCM a
-catchError_ m h = TCM $ \r e ->
+catchError_ m h = TCM \r e ->
   unTCM m r e
   `E.catch` \err -> unTCM (h err) r e
 
+{-# INLINE finally_ #-}
 -- | Execute a finalizer even when an exception is thrown.
 --   Does not catch any errors.
 --   In case both the regular computation and the finalizer

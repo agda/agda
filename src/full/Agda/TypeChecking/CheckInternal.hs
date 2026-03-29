@@ -347,7 +347,7 @@ checkSpine action a hd es cmp t = do
     , "is a subtype of"
     , prettyTCM t
     ]
-  coerceSize (compareType cmp) (hd es) t' t
+  coerceSize cmp (hd es) t' t
   return $ hd es'
 
 instance CheckInternal Sort where

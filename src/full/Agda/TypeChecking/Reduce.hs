@@ -70,6 +70,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import qualified Agda.Utils.SmallSet as SmallSet
+import Agda.Utils.ExpandCase
 
 import Agda.Utils.Impossible
 
@@ -146,17 +147,21 @@ blockAny bs = blockedOn block $ fmap ignoreBlocking bs
         blocker NotBlocked{}  = []
         blocker (Blocked b _) = [b]
 
-{-# SPECIALIZE blockOnError :: Blocker -> TCM a -> TCM a #-}
+{-# NOINLINE blockOnError' #-}
+blockOnError' :: Blocker -> TCErr -> TCM a
+blockOnError' blocker = \case
+  TypeError{}         -> throwError $ PatternErr blocker
+  PatternErr blocker' -> throwError $ PatternErr $ unblockOnEither blocker blocker'
+  GenericException{}  -> __IMPOSSIBLE__
+  err@IOException{}   -> throwError err
+  ParserError{}       -> __IMPOSSIBLE__
+
+{-# INLINE blockOnError #-}
 -- | Run the given computation but turn any errors into blocked computations with the given blocker
-blockOnError :: MonadError TCErr m => Blocker -> m a -> m a
-blockOnError blocker f
-  | blocker == neverUnblock = f
-  | otherwise               = f `catchError` \case
-    TypeError{}         -> throwError $ PatternErr blocker
-    PatternErr blocker' -> throwError $ PatternErr $ unblockOnEither blocker blocker'
-    GenericException{}  -> __IMPOSSIBLE__
-    err@IOException{}   -> throwError err
-    ParserError{}       -> __IMPOSSIBLE__
+blockOnError :: Blocker -> TCM a -> TCM a
+blockOnError !blocker !f = expand \ret ->
+  if blocker == neverUnblock then ret f
+                             else ret $ f `catchError` blockOnError' blocker
 
 -- | Instantiate something.
 --   Results in an open meta variable or a non meta.

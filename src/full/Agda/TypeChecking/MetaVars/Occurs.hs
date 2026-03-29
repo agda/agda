@@ -758,12 +758,11 @@ instance Occurs a => Occurs (Dom a) where
 --   If any of the meta args @vs@ is matchable, e.g., is a constructor term,
 --   we cannot prune, because the offending variables could be removed by
 --   reduction for a suitable instantiation of the meta variable.
-prune
-  :: (PureTCM m, MonadMetaSolver m)
-  => MetaId         -- ^ Meta to prune.
+prune ::
+     MetaId         -- ^ Meta to prune.
   -> Args           -- ^ Arguments to meta variable.
   -> (Nat -> Bool)  -- ^ Test for allowed variable (de Bruijn index).
-  -> m PruneResult
+  -> TCM PruneResult
 prune m' vs xs = do
   caseEitherM (runExceptT $ mapM ((hasBadRigid xs) . unArg) vs)
     (const $ return PrunedNothing) $ \ kills -> do
@@ -785,11 +784,10 @@ prune m' vs xs = do
 --   @hasBadRigid xs v = Nothing@ means that
 --   we cannot prune at all as one of the meta args is matchable.
 --   (See issue 1147.)
-hasBadRigid
-  :: PureTCM m
-  => (Nat -> Bool)      -- ^ Test for allowed variable (de Bruijn index).
+hasBadRigid ::
+     (Nat -> Bool)      -- ^ Test for allowed variable (de Bruijn index).
   -> Term               -- ^ Argument of meta variable.
-  -> ExceptT () m Bool  -- ^ Exception if argument is matchable.
+  -> ExceptT () TCM Bool  -- ^ Exception if argument is matchable.
 hasBadRigid xs t = do
   -- We fail if we encounter a matchable argument.
   let failure = throwError ()
@@ -967,7 +965,7 @@ data PruneResult
 
 -- | @killArgs [k1,...,kn] X@ prunes argument @i@ from metavar @X@ if @ki==True@.
 --   Pruning is carried out whenever > 0 arguments can be pruned.
-killArgs :: (MonadMetaSolver m) => [Bool] -> MetaId -> m PruneResult
+killArgs :: [Bool] -> MetaId -> TCM PruneResult
 killArgs kills _
   | not (or kills) = return NothingToPrune  -- nothing to kill
 killArgs kills m = do
@@ -1092,13 +1090,12 @@ reallyNotFreeIn xs a = do
 
 -- | Instantiate a meta variable with a new one that only takes
 --   the arguments which are not pruneable.
-performKill
-  :: MonadMetaSolver m
-  => [Arg Bool]    -- ^ Arguments to old meta var in left to right order
+performKill ::
+     [Arg Bool]    -- ^ Arguments to old meta var in left to right order
                    --   with @Bool@ indicating whether they can be pruned.
   -> MetaId        -- ^ The old meta var to receive pruning.
   -> Type          -- ^ The pruned type of the new meta var.
-  -> m ()
+  -> TCM ()
 performKill kills m a = do
   mv <- lookupLocalMeta m
   when (mvFrozen mv == Frozen) __IMPOSSIBLE__

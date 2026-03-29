@@ -100,12 +100,12 @@ checkConfluenceOfClauses confChk f = do
         | noMetas (rewPats rew) = return True
         | otherwise             = False <$ do warning $ ConfluenceCheckingIncompleteBecauseOfMeta f
   rews <- filterM noMetasInPats rews
-  let matchables = map getMatchables rews
+  let matchables = map' getMatchables rews
   reportSDoc "rewriting.confluence" 30 $
-    "Function" <+> prettyTCM f <+> "has matchable symbols" <+> prettyList_ (map prettyTCM matchables)
+    "Function" <+> prettyTCM f <+> "has matchable symbols" <+> prettyList_ (map' prettyTCM matchables)
   modifySignature $ setMatchableSymbols f $ concat matchables
   let hasRules g = not . null <$> getRewriteRulesFor g
-  forM_ (zip rews matchables) $ \(rew,ms) ->
+  forM_ (zip' rews matchables) $ \(rew,ms) ->
     unlessNullM (filterM hasRules ms) $ \_ -> do
       checkConfluenceOfRules confChk [rew]
 
@@ -213,10 +213,10 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
         let n = min (size es1) (size es2)
             (es1' , es1r) = splitAt n es1
             (es2' , es2r) = splitAt n es2
-            esr           = es1r ++ es2r
+            esr           = es1r ++! es2r
 
-            lhs1 = hd $ es1' ++ esr
-            lhs2 = hd $ es2' ++ esr
+            lhs1 = hd $ es1' ++! esr
+            lhs2 = hd $ es2' ++! esr
 
             -- Use type of rewrite rule with the most eliminations
             a | null es1r = a2
@@ -243,7 +243,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
 
           return (rhs1 , rhs2)
 
-        whenJust maybeCriticalPair $ uncurry (checkCriticalPair a hd (es1' ++ esr))
+        whenJust maybeCriticalPair $ uncurry (checkCriticalPair a hd (es1' ++! esr))
 
     -- Check confluence between two rules that overlap at a subpattern,
     -- e.g. @f ps[g qs] --> a@ and @g qs' --> b@.
@@ -304,7 +304,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
             (es1' , es1r) = splitAt n es1
 
         let lhs1 = applySubst sub1 $ hdf $ plug $ hdg es1
-            lhs2 = applySubst sub1 $ hdf $ plug $ hdg $ es2 ++ es1r
+            lhs2 = applySubst sub1 $ hdf $ plug $ hdg $ es2 ++! es1r
             a    = applySubst sub1 $ rewType rew1
 
         reportSDoc "rewriting.confluence" 20 $ sep
@@ -352,7 +352,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
 
       reportSDoc "rewriting.confluence" 30 $ sep
         [ "Abstracting over metas: "
-        , prettyList_ (map (text . show) ms)
+        , prettyList_ (map' (text . show) ms)
         ]
       (gamma , (a,es,rhs1,rhs2)) <- fromMaybe __IMPOSSIBLE__ <$>
         abstractOverMetas ms (a,es,rhs1,rhs2)
@@ -391,12 +391,12 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
                 onlyReduceTypes (nonLinMatch delta (t , hd) ps es) >>= \case
                   Left _    -> return False
                   Right sub -> do
-                    let us = applySubst sub $ map var $ downFrom $ size delta
+                    let us = applySubst sub $ map' var $ downFrom $ size delta
                         as = applySubst sub $ flattenTel delta
                     reportSDoc "rewriting.confluence.global" 35 $
-                      applyUnless (null us) (<+> ("with instantiation" <+> prettyList_ (map prettyTCM us))) $
+                      applyUnless (null us) (<+> ("with instantiation" <+> prettyList_ (map' prettyTCM us))) $
                         prettyTCM (hd es) <+> "is an instance of the LHS of rule" <+> prettyTCM q
-                    ok <- allDistinctVars $ zip us as
+                    ok <- allDistinctVars $ zip' us as
                     when ok $ reportSDoc "rewriting.confluence.global" 30 $
                       "It is equal to the LHS of rewrite rule" <+> prettyTCM q
                     return ok
@@ -419,7 +419,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
       -- First element in the list is the "best reduct" @ρ(u)@
       (rhou,vs) <- fromMaybe __IMPOSSIBLE__ . uncons <$> allParallelReductions u
       reportSDoc "rewriting.confluence" 40 $ ("rho(" <> prettyTCM u <> ") =") <+> prettyTCM rhou
-      reportSDoc "rewriting.confluence" 40 $ ("S(" <> prettyTCM u <> ") =") <+> prettyList_ (map prettyTCM vs)
+      reportSDoc "rewriting.confluence" 40 $ ("S(" <> prettyTCM u <> ") =") <+> prettyList_ (map' prettyTCM vs)
       -- If present, last element is always equal to u
       caseMaybe (initLast vs) (return ()) $ \(vs',u') -> do
         unless (u == u') __IMPOSSIBLE__
@@ -454,12 +454,12 @@ sortRulesOfSymbol f = do
   where
     sortRules :: PureTCM m => [RewriteRule] -> m [RewriteRule]
     sortRules rs = do
-      ordPairs <- deleteLoops . Set.fromList . map (rewName *** rewName) <$>
+      ordPairs <- deleteLoops . Set.fromList . map' (rewName *** rewName) <$>
         filterM (uncurry $ flip moreGeneralLHS) [(r1,r2) | r1 <- rs, r2 <- rs]
       let perm = fromMaybe __IMPOSSIBLE__ $
                    topoSort (\r1 r2 -> (rewName r1,rewName r2) `Set.member` ordPairs) rs
       reportSDoc "rewriting.confluence.sort" 50 $ "sorted rules: " <+>
-        prettyList_ (map (prettyTCM . rewName) $ permute perm rs)
+        prettyList_ (map' (prettyTCM . rewName) $ permute perm rs)
       return $ permute perm rs
 
     moreGeneralLHS :: PureTCM m => RewriteRule -> RewriteRule -> m Bool
@@ -504,12 +504,12 @@ sameRuleName = (==) `on` rewName
 
 -- | Get both clauses and rewrite rules for the given symbol
 getAllRulesFor :: (HasConstInfo m, ReadTCState m, MonadFresh NameId m) => QName -> m [RewriteRule]
-getAllRulesFor f = (++) <$> getRewriteRulesFor f <*> getClausesAsRewriteRules f
+getAllRulesFor f = (++!) <$> getRewriteRulesFor f <*> getClausesAsRewriteRules f
 
 -- | Build a substitution that replaces all variables in the given
 --   telescope by fresh metavariables.
-makeMetaSubst :: (MonadMetaSolver m) => Telescope -> m Substitution
-makeMetaSubst gamma = parallelS . reverse . map unArg <$> newTelMeta gamma
+makeMetaSubst :: Telescope -> TCM Substitution
+makeMetaSubst gamma = parallelS . reverse . map' unArg <$> newTelMeta gamma
 
 computingOverlap :: (MonadTCEnv m) => m a -> m a
 computingOverlap = locallyTC eConflComputingOverlap $ const True
@@ -577,7 +577,7 @@ topLevelReductions hd es = do
     Left block -> empty
     -- Matching succeeded
     Right sub -> do
-      let vs = map (lookupS sub) $ [0..(size gamma-1)]
+      let vs = map' (lookupS sub) $ [0..(size gamma-1)]
       sub' <- parallelS <$> parReduce vs
       es1' <- parReduce es1
       let w = (applySubst sub' rhs) `applyE` es1'
@@ -639,7 +639,7 @@ abstractOverMetas ms x = do
 
     -- Construct telescope (still containing the metas)
     let n     = size ms'
-        gamma = unflattenTel' n ns $ map defaultDom as
+        gamma = unflattenTel' n ns $ map' defaultDom as
 
     -- Replace metas by variables
     let metaIndex x = (n-1-) <$> elemIndex x ms'
@@ -739,14 +739,14 @@ forceEtaExpansion a v (e:es) = case e of
     Defn{ defType = ra, theDef = RecordDefn rdef } <- getConstInfo r
     pars <- newArgsMeta ra
     s <- ra `piApplyM` pars >>= \s -> ifIsSort s return __IMPOSSIBLE__
-    equalType a $ El s (Def r $ map Apply pars)
+    equalType a $ El s (Def r $ map' Apply pars)
 
     -- Eta-expand v at record type r, and get field corresponding to f
     (_ , c , ci , fields) <- etaExpandRecord_ r pars rdef v
-    let fs        = map argFromDom $ _recFields rdef
-        i         = fromMaybe __IMPOSSIBLE__ $ elemIndex f $ map unArg fs
+    let fs        = map' argFromDom $ _recFields rdef
+        i         = fromMaybe __IMPOSSIBLE__ $ elemIndex f $ map' unArg fs
         fContent  = unArg $ fromMaybe __IMPOSSIBLE__ $ fields !!! i
-        fUpdate w = Con c ci $ map Apply $ updateAt i (w <$) fields
+        fUpdate w = Con c ci $ map' Apply $ updateAt i (w <$) fields
 
     -- Get type of field corresponding to f
     ~(Just (El _ (Pi b c))) <- getDefType f =<< reduce a

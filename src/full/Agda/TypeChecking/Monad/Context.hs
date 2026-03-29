@@ -353,14 +353,14 @@ withShadowingNameTCM x f = f
 --           modifyTCLens stShadowingNames $ Lazy . Map.insertWith (<>) x shadows . unLazy
 --         Nothing      -> return ()
 
-{-# NOINLINE addCtxTEST #-}
-addCtxTEST :: Name -> Dom Type -> TCM a -> TCM a
-addCtxTEST x a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
-    defaultAddCtx x a ret
+-- {-# NOINLINE addCtxTEST #-}
+-- addCtxTEST :: Name -> Dom Type -> TCM a -> TCM a
+-- addCtxTEST x a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
+--     defaultAddCtx x a ret
 
 instance MonadAddContext TCM where
   {-# INLINE addCtx #-}
-  addCtx x a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
+  addCtx !x !a !ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
     defaultAddCtx x a ret
 
   {-# INLINE addLetBinding' #-}
@@ -368,7 +368,7 @@ instance MonadAddContext TCM where
     defaultAddLetBinding' isAxiom o x u a ret
 
   {-# INLINE updateContext #-}
-  updateContext sub f = unsafeModifyContext f . checkpoint sub
+  updateContext !sub !f !act = unsafeModifyContext f (checkpoint sub act)
 
   {-# INLINE withFreshName #-}
   withFreshName r x m = freshName r x >>= m
@@ -404,97 +404,113 @@ instance AddContext ContextEntry where
   contextSize _ = 1
 
 instance AddContext (Name, Dom Type) where
-  addContext = uncurry addCtx; {-# INLINE addContext #-}
+  {-# INLINE addContext #-}
+  addContext = uncurry addCtx;
   contextSize _ = 1
-{-# SPECIALIZE addContext :: (Name, Dom Type) -> TCM a -> TCM a #-}
 
 instance AddContext (Dom (Name, Type)) where
+  {-# INLINE addContext #-}
   addContext = addContext . distributeF
   contextSize _ = 1
 
 instance AddContext (Dom (String, Type)) where
+  {-# INLINE addContext #-}
   addContext = addContext . distributeF
   contextSize _ = 1
 
 instance AddContext ([Name], Dom Type) where
+  {-# INLINE addContext #-}
   addContext (xs, dom) = addContext (bindsToTel' id xs dom)
   contextSize (xs, _) = length xs
 
 instance AddContext (List1 Name, Dom Type) where
+  {-# INLINE addContext #-}
   addContext (xs, dom) = addContext (bindsToTel'1 id xs dom)
   contextSize (xs, _) = length xs
 
 instance AddContext ([WithHiding Name], Dom Type) where
+  {-# INLINE addContext #-}
   addContext ([]    , dom) = id
   addContext (x : xs, dom) = addContext (x :| xs, dom)
   contextSize (xs, _) = length xs
 
 instance AddContext (List1 (WithHiding Name), Dom Type) where
+  {-# INLINE addContext #-}
   addContext (WithHiding h x :| xs, dom) =
     addContext (x , mapHiding (mappend h) dom) .
     addContext (xs, raise 1 dom)
   contextSize (xs, _) = length xs
 
 instance AddContext ([Arg Name], Type) where
-  addContext (xs, t) = addContext ((map . fmap) unnamed xs :: [NamedArg Name], t)
+  {-# INLINE addContext #-}
+  addContext (xs, t) = addContext ((map' . fmap) unnamed xs :: [NamedArg Name], t)
   contextSize (xs, _) = length xs
 
 instance AddContext (List1 (Arg Name), Type) where
+  {-# INLINE addContext #-}
   addContext (xs, t) = addContext ((fmap . fmap) unnamed xs :: List1 (NamedArg Name), t)
   contextSize (xs, _) = length xs
 
 instance AddContext ([NamedArg Name], Type) where
+  {-# INLINE addContext #-}
   addContext ([], _)     = id
   addContext (x : xs, t) = addContext (x :| xs, t)
   contextSize (xs, _) = length xs
 
 instance AddContext (List1 (NamedArg Name), Type) where
+  {-# INLINE addContext #-}
   addContext (x :| xs, t) =
     addContext (namedArg x, t <$ domFromNamedArgName x) .
     addContext (xs, raise 1 t)
   contextSize (xs, _) = length xs
 
 instance AddContext ([Dom Name], Type) where
+  {-# INLINE addContext #-}
   addContext ([], _)     = id
   addContext (x : xs, t) = addContext (x :| xs, t)
   contextSize (xs, _) = length xs
 
 instance AddContext (List1 (Dom Name), Type) where
+  {-# INLINE addContext #-}
   addContext (x :| xs, t) =
     addContext (unDom x, x $> t) .
     addContext (xs, raise 1 t)
   contextSize (xs, _) = length xs
 
 instance AddContext (String, Dom Type) where
+  {-# INLINE addContext #-}
   addContext (s, dom) ret =
     withFreshName noRange s $ \x -> addCtx (setNotInScope x) dom ret
   contextSize _ = 1
-{-# SPECIALIZE addContext :: (String, Dom Type) -> TCM a -> TCM a #-}
 
 instance AddContext (Text, Dom Type) where
+  {-# INLINE addContext #-}
   addContext (s, dom) ret = addContext (T.unpack s, dom) ret
   contextSize _ = 1
-{-# SPECIALIZE addContext :: (Text, Dom Type) -> TCM a -> TCM a #-}
 
 instance AddContext (KeepNames String, Dom Type) where
+  {-# INLINE addContext #-}
   addContext (KeepNames s, dom) ret =
     withFreshName noRange s $ \ x -> addCtx x dom ret
   contextSize _ = 1
-{-# SPECIALIZE addContext :: (KeepNames String, Dom Type) -> TCM a -> TCM a #-}
 
 instance AddContext (Dom Type) where
+  {-# INLINE addContext #-}
   addContext dom = addContext ("_" :: String, dom)
   contextSize _ = 1
 
 instance AddContext Name where
+  {-# INLINE addContext #-}
   addContext x = addContext (x, __DUMMY_DOM__)
   contextSize _ = 1
 
 instance {-# OVERLAPPING #-} AddContext String where
+  {-# INLINE addContext #-}
   addContext s = addContext (s, __DUMMY_DOM__)
   contextSize _ = 1
 
 instance AddContext (KeepNames Telescope) where
+  {-# INLINE addContext #-}
   addContext (KeepNames tel) ret = loop tel where
     loop EmptyTel          = ret
     loop (ExtendTel t tel) = underAbstraction' KeepNames t tel loop
@@ -502,6 +518,7 @@ instance AddContext (KeepNames Telescope) where
 {-# SPECIALIZE addContext :: KeepNames Telescope -> TCM a -> TCM a #-}
 
 instance AddContext Telescope where
+  {-# INLINE addContext #-}
   addContext tel ret = loop tel where
     loop EmptyTel          = ret
     loop (ExtendTel t tel) = underAbstraction' id t tel loop

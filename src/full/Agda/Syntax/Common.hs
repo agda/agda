@@ -627,6 +627,12 @@ data Modality = Modality
       -- ^ Polarity annotations (strictly positive, ...)
   } deriving (Eq, Ord, Show, Generic)
 
+{-# NOINLINE noinlineEqModality #-}
+-- | Non-inlined equality that's sometimes useful to prevent GHC from ballooning code size.
+noinlineEqModality :: Modality -> Modality -> Bool
+noinlineEqModality (Modality a b c d) (Modality a' b' c' d') =
+  a == a' && b == b' && c == c' && d == d'
+
 -- | Dominance ordering.
 instance PartialOrd Modality where
   comparable (Modality r q c p) (Modality r' q' c' p') = comparable (r, (q, (c, p))) (r', (q', (c', p')))
