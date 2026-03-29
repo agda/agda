@@ -13,6 +13,7 @@ import Control.Monad.Except (MonadError(..))
 import Control.Monad.State (MonadState(..))
 import Control.Monad.Trans.Class (MonadTrans(..))
 import Control.Monad.IO.Class (MonadIO(..))
+import Control.Monad.Writer.Class (MonadWriter(..))
 import Control.Monad.Trans.Control (MonadTransControl(..))
 import Agda.Utils.ExpandCase
 
@@ -107,6 +108,16 @@ instance MonadError e m => MonadError e (ReaderT r m) where
   {-# INLINE catchError #-}
   catchError m h =
     ReaderT (oneShot \r -> catchError (runReaderT m r) (\e -> runReaderT (h e) r))
+
+instance MonadWriter w m => MonadWriter w (ReaderT r m) where
+  {-# INLINE writer #-}
+  writer = lift . writer
+  {-# INLINE tell #-}
+  tell   = lift . tell
+  {-# INLINE listen #-}
+  listen = \(ReaderT m) -> ReaderT (oneShot \r -> listen (m r))
+  {-# INLINE pass #-}
+  pass   = \(ReaderT m) -> ReaderT (oneShot \r -> pass (m r))
 
 ----------------------------------------------------------------------------------------------------
 

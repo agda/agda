@@ -44,6 +44,7 @@ import Agda.Utils.CallStack
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.List1 (List1)
 import Agda.Utils.Null
 import Agda.Utils.Size
@@ -499,7 +500,7 @@ data Clause = Clause
   deriving (Show, Generic)
 
 clausePats :: Clause -> [Arg DeBruijnPattern]
-clausePats = map (fmap namedThing) . namedClausePats
+clausePats = map' (fmap namedThing) . namedClausePats
 
 instance HasRange Clause where
   getRange = clauseLHSRange
@@ -948,7 +949,7 @@ tmSSort t = SSet $ atomicLevel t
 
 -- | Given a constant @m@ and level @l@, compute @m + l@
 levelPlus :: Integer -> Level -> Level
-levelPlus m (Max n as) = Max (m + n) $ map pplus as
+levelPlus m (Max n as) = Max (m + n) $ map' pplus as
   where pplus (Plus n l) = Plus (m + n) l
 
 levelSuc :: Level -> Level
@@ -1028,7 +1029,7 @@ telFromList = telFromList' id
 -- | Convert a telescope to its list form.
 telToList :: Tele (Dom t) -> [Dom (ArgName,t)]
 telToList EmptyTel                    = []
-telToList (ExtendTel arg (Abs x tel)) = fmap (x,) arg : telToList tel
+telToList (ExtendTel arg (Abs x tel)) = (fmap (x,) arg :) $! telToList tel
 telToList (ExtendTel _    NoAbs{}   ) = __IMPOSSIBLE__
 
 -- | Lens to edit a 'Telescope' as a list.
@@ -1040,7 +1041,7 @@ class TelToArgs a where
   telToArgs :: a -> [Arg ArgName]
 
 instance TelToArgs ListTel where
-  telToArgs = map $ \ dom -> Arg (domInfo dom) (fst $ unDom dom)
+  telToArgs = map' \dom -> Arg (domInfo dom) (fst $ unDom dom)
 
 instance TelToArgs Telescope where
   telToArgs = telToArgs . telToList
@@ -1437,16 +1438,16 @@ instance Pretty a => Pretty (Substitution' a) where
       t :# rho           -> mparens (p > 2) $
                             sep [ pr 2 rho <> ",", prettyPrec 3 t ]
       Strengthen _ n rho -> mparens (p > 9) $
-                            text ("strS " ++ show n) <+> pr 10 rho
+                            text ("strS " ++! show n) <+> pr 10 rho
       Wk n rho           -> mparens (p > 9) $
-                            text ("wkS " ++ show n) <+> pr 10 rho
+                            text ("wkS " ++! show n) <+> pr 10 rho
       Lift n rho         -> mparens (p > 9) $
-                            text ("liftS " ++ show n) <+> pr 10 rho
+                            text ("liftS " ++! show n) <+> pr 10 rho
 
 instance Pretty Term where
   prettyPrec p v =
     case v of
-      Var x els -> text ("@" ++ show x) `pApp` els
+      Var x els -> text ("@" ++! show x) `pApp` els
       Lam ai b   ->
         mparens (p > 0) $
         sep [ "λ" <+> prettyHiding ai id (text . absName $ b) <+> "->"
@@ -1470,7 +1471,7 @@ instance Pretty Term where
         DummyBrave hd -> pretty hd `pApp` es
     where
       pApp d els = mparens (not (null els) && p > 9) $
-                   sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
+                   sep [d, nest 2 $ fsep (map' (prettyPrec 10) els)]
 
 instance Pretty t => Pretty (Abs t) where
   pretty (Abs   x t) = "Abs"   <+> (text x <> ".") <+> pretty t
@@ -1500,7 +1501,7 @@ instance Pretty ClauseRecursive where
 instance Pretty Clause where
   pretty Clause{clauseTel = tel, namedClausePats = ps, clauseBody = b, clauseType = t} =
     sep [ pretty tel <+> "|-"
-        , nest 2 $ sep [ fsep (map (prettyPrec 10) ps) <+> "="
+        , nest 2 $ sep [ fsep (map' (prettyPrec 10) ps) <+> "="
                        , nest 2 $ pBody b t ] ]
     where
       pBody Nothing _ = "(absurd)"
@@ -1523,7 +1524,7 @@ instance Pretty Level where
       []  -> prettyN
       [a] | n == 0 -> prettyPrec p a
       _   -> mparens (p > 9) $ List.foldr1 (\a b -> "lub" <+> a <+> b) $
-        [ prettyN | n > 0 ] ++ map (prettyPrec 10) as
+        [ prettyN | n > 0 ] ++! map' (prettyPrec 10) as
     where
       prettyN = prettyPrecLevelSucs p n (const "lzero")
 
@@ -1535,7 +1536,7 @@ instance Pretty Sort where
     case s of
       Univ u (ClosedLevel n) -> text $ suffix n $ showUniv u
       Univ u l -> mparens (p > 9) $ text (showUniv u) <+> prettyPrec 10 l
-      Inf u n -> text $ suffix n $ showUniv u ++ "ω"
+      Inf u n -> text $ suffix n $ showUniv u ++! "ω"
       SizeUniv -> "SizeUniv"
       LockUniv -> "LockUniv"
       LevelUniv -> "LevelUniv"
@@ -1550,25 +1551,25 @@ instance Pretty Sort where
       DefS d es  -> prettyPrec p $ Def d es
       DummyS s   -> parens $ text s
    where
-     suffix n = applyWhen (n /= 0) (++ show n)
+     suffix n = applyWhen (n /= 0) (++! show n)
 
 instance Pretty Type where
   prettyPrec p (El _ a) = prettyPrec p a
 
 instance Pretty DBPatVar where
-  prettyPrec _ x = text $ patVarNameToString (dbPatVarName x) ++ "@" ++ show (dbPatVarIndex x)
+  prettyPrec _ x = text $ patVarNameToString (dbPatVarName x) ++! "@" ++! show (dbPatVarIndex x)
 
 instance Pretty a => Pretty (Pattern' a) where
   prettyPrec n (VarP _o x)   = prettyPrec n x
   prettyPrec _ (DotP _o t)   = "." <> prettyPrec 10 t
   prettyPrec n (ConP c i nps)= mparens (n > 0 && not (null nps)) $
-    (lazy <> pretty (conName c)) <+> fsep (map (prettyPrec 10) ps)
-    where ps = map (fmap namedThing) nps
+    (lazy <> pretty (conName c)) <+> fsep (map' (prettyPrec 10) ps)
+    where ps = map' (fmap namedThing) nps
           lazy | conPLazy i = "~"
                | otherwise  = empty
   prettyPrec n (DefP _o q nps)= mparens (n > 0 && not (null nps)) $
-    pretty q <+> fsep (map (prettyPrec 10) ps)
-    where ps = map (fmap namedThing) nps
+    pretty q <+> fsep (map' (prettyPrec 10) ps)
+    where ps = map' (fmap namedThing) nps
   -- -- Version with printing record type:
   -- prettyPrec _ (ConP c i ps) = (if b then braces else parens) $ prTy $
   --   text (show $ conName c) <+> fsep (map (pretty . namedArg) ps)
@@ -1576,7 +1577,7 @@ instance Pretty a => Pretty (Pattern' a) where
   --     b = maybe False (== ConOSystem) $ conPRecord i
   --     prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> ":" <+> pretty t
   prettyPrec _ (LitP _ l)    = pretty l
-  prettyPrec _ (ProjP _o q)  = text ("." ++ prettyShow q)
+  prettyPrec _ (ProjP _o q)  = text ("." ++! prettyShow q)
   prettyPrec n (IApplyP _o _ _ x) = prettyPrec n x
 --  prettyPrec n (IApplyP _o u0 u1 x) = text "@[" <> prettyPrec 0 u0 <> text ", " <> prettyPrec 0 u1 <> text "]" <> prettyPrec n x
 

@@ -12,7 +12,6 @@ import Prelude hiding (null, zip, zipWith)
 
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Except   ( MonadError(..) )
-import Control.Monad.Reader   ( MonadReader(..), ReaderT(..) )
 
 import Data.DList ( DList )
 import Data.DList qualified as DL
@@ -46,7 +45,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Benchmark as B
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.List    ( hasElem )
+import Agda.Utils.List
 import Agda.Utils.ListInf ( ListInf )
 import Agda.Utils.ListInf qualified as ListInf
 import Agda.Utils.Maybe
@@ -57,6 +56,7 @@ import Agda.Utils.Singleton
 import Agda.Utils.VarSet  ( VarSet )
 import Agda.Utils.VarSet  qualified as VarSet
 import Agda.Utils.Zip     () -- for zip, zipWith instance
+import Agda.Utils.StrictReader
 
 import Agda.Utils.Impossible
 
@@ -81,11 +81,11 @@ data TerEnv = TerEnv
 
   -- First part: options, configuration.
 
-  { terSizeSuc :: Maybe QName
+  { terSizeSuc :: !(Maybe QName)
     -- ^ The name of size successor, if any.
-  , terSharp   :: Maybe QName
+  , terSharp   :: !(Maybe QName)
     -- ^ The name of the delay constructor (sharp), if any.
-  , terCutOff  :: CutOff
+  , terCutOff  :: !CutOff
     -- ^ Depth at which to cut off the structural order.
 
   -- Second part: accumulated info during descent into decls./term.
@@ -99,16 +99,16 @@ data TerEnv = TerEnv
   , terUserNames :: Set QName
     -- ^ The list of name actually appearing in the file (abstract syntax).
     --   Excludes the internally generated functions.
-  , terHaveInlinedWith :: Bool
+  , terHaveInlinedWith :: !Bool
     -- ^ Does the actual clause result from with-inlining?
     --   (If yes, it may be ill-typed.)
-  , terTarget  :: Target
+  , terTarget  :: !Target
     -- ^ Target type of the function we are currently termination checking.
     --   Only the constructors of 'Target' are considered guarding.
-  , terMaskArgs :: ListInf Bool
+  , terMaskArgs :: !(ListInf Bool)
     -- ^ Only consider the 'notMasked' 'False' arguments for establishing termination.
     --   See issue #1023.
-  , terMaskResult :: Bool
+  , terMaskResult :: !Bool
     -- ^ Only consider guardedness if 'False' (not masked).
   , _terSizeDepth :: Int  -- lazy by intention!
     -- ^ How many @SIZELT@ relations do we have in the context
@@ -123,13 +123,13 @@ data TerEnv = TerEnv
   , terGuarded :: !Guarded
     -- ^ The current guardedness status.  Changes as we go deeper into the term.
     --   Updated during call graph extraction, hence strict.
-  , terUseSizeLt :: Bool
+  , terUseSizeLt :: !Bool
     -- ^ When extracting usable size variables during construction of the call
     --   matrix, can we take the variable for use with SIZELT constraints from the context?
     --   Yes, if we are under an inductive constructor.
     --   No, if we are under a record constructor.
     --   (See issue #1015).
-  , terUsableVars :: VarSet
+  , terUsableVars :: !VarSet
     -- ^ Pattern variables that can be compared to argument variables using SIZELT.
   }
 
@@ -302,7 +302,7 @@ terGetPatterns :: TerM (MaskedDeBruijnPatterns)
 terGetPatterns = do
   n   <- terAsks terPatternsRaise
   mps <- terAsks terPatterns
-  return $ if n == 0 then mps else map (fmap (raise n)) mps
+  return $ if n == 0 then mps else map' (fmap (raise n)) mps
 
 terSetPatterns :: MaskedDeBruijnPatterns -> TerM a -> TerM a
 terSetPatterns ps = terLocal $ \ e -> e { terPatterns = ps }
@@ -353,10 +353,10 @@ terSetUseSizeLt = terModifyUseSizeLt . const
 withUsableVars :: UsableSizeVars a => a -> TerM b -> TerM b
 withUsableVars pats m = do
   vars <- usableSizeVars pats
-  reportSLn "term.size" 70 $ "usableSizeVars = " ++ show vars
+  reportSLn "term.size" 70 $ "usableSizeVars = " ++! show vars
   reportSDoc "term.size" 20 $ if null vars then "no usuable size vars" else
     "the size variables amoung these variables are usable: " <+>
-      sep (map (prettyTCM . var) $ VarSet.toAscList vars)
+      sep (map' (prettyTCM . var) $ VarSet.toAscList vars)
   terSetUsableVars vars $ m
 
 -- | Set 'terUseSizeLt' when going under constructor @c@.
@@ -372,8 +372,8 @@ conUseSizeLt c m = do
 projUseSizeLt :: QName -> TerM a -> TerM a
 projUseSizeLt q m = do
   co <- isCoinductiveProjection False q
-  reportSLn "term.size" 20 $ applyUnless co ("not " ++) $
-    "using SIZELT vars after projection " ++ prettyShow q
+  reportSLn "term.size" 20 $ applyUnless co ("not " ++!) $
+    "using SIZELT vars after projection " ++! prettyShow q
   terSetUseSizeLt co m
 
 -- | For termination checking purposes flat should not be considered a
@@ -417,7 +417,7 @@ elimNotCoinductive e = case isProjElim e of
 --   @
 isCoinductiveProjection :: MonadTCM tcm => Bool -> QName -> tcm Bool
 isCoinductiveProjection mustBeRecursive q = liftTCM $ do
-  reportSLn "term.guardedness" 40 $ "checking isCoinductiveProjection " ++ prettyShow q
+  reportSLn "term.guardedness" 40 $ "checking isCoinductiveProjection " ++! prettyShow q
   flat <- fmap nameOfFlat <$> coinductionKit
   -- yes for ♭
   if Just q == flat then return True else do
@@ -427,17 +427,17 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
         caseMaybeM (isRecord r) __IMPOSSIBLE__ $ \ rdef -> do
           -- no for inductive or non-recursive record
           if _recInduction rdef /= Just CoInductive then return False else do
-            reportSLn "term.guardedness" 40 $ prettyShow q ++ " is coinductive; record type is " ++ prettyShow r
+            reportSLn "term.guardedness" 40 $ prettyShow q ++! " is coinductive; record type is " ++! prettyShow r
             if not mustBeRecursive then return True else do
-              reportSLn "term.guardedness" 40 $ prettyShow q ++ " must be recursive"
+              reportSLn "term.guardedness" 40 $ prettyShow q ++! " must be recursive"
               if notSafeRecRecursive rdef then return False else do
-                reportSLn "term.guardedness" 40 $ prettyShow q ++ " has been declared recursive, doing actual check now..."
+                reportSLn "term.guardedness" 40 $ prettyShow q ++! " has been declared recursive, doing actual check now..."
                 -- TODO: the following test for recursiveness of a projection should be cached.
                 -- E.g., it could be stored in the @Projection@ component.
                 -- Now check if type of field mentions mutually recursive symbol.
                 -- Get the type of the field by dropping record parameters and record argument.
                 let TelV tel core = telView' (defType pdef)
-                    (pars, tel') = splitAt n $ telToList tel
+                    (pars, tel') = splitAt' n $ telToList tel
                     mut = fromMaybe __IMPOSSIBLE__ $ _recMutual rdef
                 -- Check if any recursive symbols appear in the record type.
                 -- Q (2014-07-01): Should we normalize the type?
@@ -445,19 +445,19 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
                 -- See issue #1899.
                 reportSDoc "term.guardedness" 40 $ inTopContext $ sep
                   [ "looking for recursive occurrences of"
-                  , sep (map prettyTCM mut)
+                  , sep (map' prettyTCM mut)
                   , "in"
                   , addContext pars $ prettyTCM (telFromList tel')
                   , "and"
                   , addContext tel $ prettyTCM core
                   ]
                 when (null mut) __IMPOSSIBLE__
-                names <- anyDefs (mut `hasElem`) (map (snd . unDom) tel', core)
+                names <- anyDefs (Set.fromList mut) (map' (snd . unDom) tel', core)
                 reportSDoc "term.guardedness" 40 $
-                  "found" <+> if null names then "none" else sep (map prettyTCM $ Set.toList names)
+                  "found" <+> if null names then "none" else sep (map' prettyTCM $ Set.toList names)
                 return $ not $ null names
       _ -> do
-        reportSLn "term.guardedness" 40 $ prettyShow q ++ " is not a proper projection"
+        reportSLn "term.guardedness" 40 $ prettyShow q ++! " is not a proper projection"
         return False
   where
   -- Andreas, 2018-02-24, issue #2975, example:
@@ -609,7 +609,7 @@ instance Monoid CallPath where
 -- | Only show intermediate nodes.  (Drop last 'CallInfo').
 instance Pretty CallPath where
   pretty cis0 = if null cis then empty else
-    P.hsep (map (\ ci -> arrow P.<+> P.pretty ci) cis) P.<+> arrow
+    P.hsep (map' (\ ci -> arrow P.<+> P.pretty ci) cis) P.<+> arrow
     where
       cis   = init (callInfos cis0)
       arrow = "-->"
@@ -656,7 +656,7 @@ instance TerSetSizeDepth ListTel where
 instance PrettyTCM CallPath where
   prettyTCM cp = hsep $
     prettyTCM (callPathStart cp) :
-    map (\ (CallInfo g _) -> "-->" <+> prettyTCM g) (callInfos cp)
+    map' (\ (CallInfo g _) -> "-->" <+> prettyTCM g) (callInfos cp)
 
 instance PrettyTCM CallMatrix where
   prettyTCM (CallMatrix m) = pretty m
@@ -665,10 +665,10 @@ instance PrettyTCM cinfo => PrettyTCM (CallMatrixAug cinfo) where
   prettyTCM (CallMatrixAug m cinfo) = prettyTCM cinfo $$ (nest 4 $ prettyTCM m)
 
 instance PrettyTCM cinfo => PrettyTCM (CMSet cinfo) where
-  prettyTCM = vcat . punctuate "\n" . map prettyTCM . CallMatrix.toList
+  prettyTCM = vcat . punctuate "\n" . map' prettyTCM . CallMatrix.toList
 
 instance PrettyTCM cinfo => PrettyTCM (CallGraph.Call cinfo) where
   prettyTCM = prettyTCM . callMatrixSet
 
 instance PrettyTCM cinfo => PrettyTCM (CallGraph cinfo) where
-  prettyTCM = vcat . map prettyTCM . CallGraph.toList
+  prettyTCM = vcat . map' prettyTCM . CallGraph.toList
