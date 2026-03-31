@@ -184,7 +184,7 @@ headSymbol' v = do
 --   which one (index from the left).
 topLevelArg :: Clause -> Int -> Maybe TermHead
 topLevelArg Clause{ namedClausePats = ps } i =
-  case [ n | (n, VarP _ (DBPatVar _ j)) <- zip [0..] $ map namedArg ps, i == j ] of
+  case [ n | (n, VarP _ (DBPatVar _ j)) <- zip' [0..] $ map' namedArg ps, i == j ] of
     []    -> Nothing
     [n]   -> Just (VarHead n)
     _:_:_ -> __IMPOSSIBLE__
@@ -254,7 +254,7 @@ checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
     for (Map.toList hdMap) $ \ (h, uc) ->
       text (prettyShow h) <+> "-->" <+>
       case uc of
-        [c] -> prettyTCM $ map namedArg $ namedClausePats c
+        [c] -> prettyTCM $ map' namedArg $ namedClausePats c
         _   -> "(multiple clauses)"
   return $ Inverse hdMap
 
@@ -358,8 +358,8 @@ useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
           reportSDoc "tc.inj.use" 20 $ vcat
             [ fsep (pwords "comparing application of injective function" ++ [prettyTCM f] ++
                   pwords "at")
-            , nest 2 $ fsep $ punctuate comma $ map prettyTCM blkArgs
-            , nest 2 $ fsep $ punctuate comma $ map prettyTCM neuArgs
+            , nest 2 $ fsep $ punctuate comma $ map' prettyTCM blkArgs
+            , nest 2 $ fsep $ punctuate comma $ map' prettyTCM neuArgs
             , nest 2 $ "and type" <+> prettyTCM fTy
             ]
           fs  <- getForcedArgs f
@@ -406,7 +406,7 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     reportSDoc "tc.inj.use" 20 $ vcat
       [ "inverting injective function" <?> hsep [prettyTCM f, ":", prettyTCM fTy]
       , "for" <?> pretty hd
-      , nest 2 $ "args =" <+> prettyList (map prettyTCM blkArgs)
+      , nest 2 $ "args =" <+> prettyList (map' prettyTCM blkArgs)
       ]                         -- Clauses with unknown heads are also possible candidates
     case fromMaybe [] $ Map.lookup hd hdMap <> Map.lookup UnknownHead hdMap of
       [] -> err
@@ -415,12 +415,12 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
           let ps   = clausePats cl
               perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
           -- These are what dot patterns should be instantiated at
-          ms <- map unArg <$> newTelMeta tel
+          ms <- map' unArg <$> newTelMeta tel
           reportSDoc "tc.inj.invert" 20 $ vcat
-            [ "meta patterns" <+> prettyList (map prettyTCM ms)
+            [ "meta patterns" <+> prettyList (map' prettyTCM ms)
             , "  perm =" <+> text (show perm)
             , "  tel  =" <+> prettyTCM tel
-            , "  ps   =" <+> prettyList (map (text . prettyShow) ps)
+            , "  ps   =" <+> prettyList (map' (text . prettyShow) ps)
             ]
           -- and this is the order the variables occur in the patterns
           let msAux = permute (invertP __IMPOSSIBLE__ $ compactP perm) ms
@@ -485,8 +485,8 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     metaPat (DotP _ v)       = dotP v
     metaPat (VarP _ _)       = nextMeta
     metaPat (IApplyP{})      = nextMeta
-    metaPat (ConP c mt args) = Con c (fromConPatternInfo mt) . map Apply <$> metaArgs args
-    metaPat (DefP o q args)  = Def q . map Apply <$> metaArgs args
+    metaPat (ConP c mt args) = Con c (fromConPatternInfo mt) . map' Apply <$> metaArgs args
+    metaPat (DefP o q args)  = Def q . map' Apply <$> metaArgs args
     metaPat (LitP _ l)       = return $ Lit l
     metaPat ProjP{}          = __IMPOSSIBLE__
 
