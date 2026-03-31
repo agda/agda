@@ -4,5 +4,4 @@ The type
 is not a subtype of
   ⊥
 when checking that the expression
-transp (λ i₁ → isC1 (transp (λ j → D tt) (~ i₁) c1)) i0 tt has type
-⊥
+transp (λ i → isC1 (transp (λ j → D tt) (~ i) c1)) i0 tt has type ⊥
