@@ -103,39 +103,56 @@
         # Use a debug-enabled build by default.
         Agda = hpkgs.Agda-debug;
 
+        # Work around https://github.com/NixOS/nixpkgs/issues/130556
+        Agda-dev = hlib.enableCabalFlag "ignore-build-tool-depends" hpkgs.Agda;
+
         # Development environment with tools for hacking on agda
         Agda-dev-shell = hpkgs.shellFor {
           # Which haskell packages to prepare a dev env for
-          packages = h: [h.Agda];
+          packages = h: [h.Agda-dev];
           # Extra software to provide in the dev shell
           nativeBuildInputs = [
-              # Tools for building agda
-              pkgs.cabal-install
-              pkgs.haskell-language-server
-              pkgs.icu
-              hpkgs.fix-whitespace
+            # Tools for building agda
 
-              # Tools for building/testing WASM
-              ghc-wasm.packages.wasm32-wasi-ghc-9_10
-              ghc-wasm.packages.wasm32-wasi-cabal-9_10
-              ghc-wasm.packages.wasmtime
+            # Work around https://github.com/NixOS/nixpkgs/issues/130556
+            (pkgs.symlinkJoin {
+              name = "cabal";
+              paths = [ pkgs.cabal-install ];
+              buildInputs = [ pkgs.makeWrapper ];
+              postBuild = ''
+                  wrapProgram $out/bin/cabal \
+                  --add-flags "-fignore-build-tool-depends"
+                '';
+            })
+            pkgs.haskell-language-server
+            pkgs.icu
+            hpkgs.fix-whitespace
 
-              # Tools for building the agda docs
-              (pkgs.python3.withPackages (py3pkgs: [
-                py3pkgs.sphinx
-                py3pkgs.sphinx-rtd-theme
-              ]))
-              (pkgs.texliveBasic.withPackages (texpkgs: with texpkgs; [
-                collection-fontsrecommended
-                collection-mathscience
-                collection-latexextra
-                collection-fontsextra
-                collection-binextra
-              ]))
+            # Alex and happy
+            pkgs.happy
+            pkgs.alex
 
-              # Tools for running the agda test-suite
-              pkgs.nodejs_22
-            ];
+            # Tools for building/testing WASM
+            ghc-wasm.packages.wasm32-wasi-ghc-9_10
+            ghc-wasm.packages.wasm32-wasi-cabal-9_10
+            ghc-wasm.packages.wasmtime
+
+            # Tools for building the agda docs
+            (pkgs.python3.withPackages (py3pkgs: [
+              py3pkgs.sphinx
+              py3pkgs.sphinx-rtd-theme
+            ]))
+            (pkgs.texliveBasic.withPackages (texpkgs: with texpkgs; [
+              collection-fontsrecommended
+              collection-mathscience
+              collection-latexextra
+              collection-fontsextra
+              collection-binextra
+            ]))
+
+            # Tools for running the agda test-suite
+            pkgs.nodejs_22
+          ];
 
           # Include an offline-usable `hoogle` command
           # pre-loaded with all the haskell dependencies

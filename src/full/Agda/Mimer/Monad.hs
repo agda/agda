@@ -365,6 +365,13 @@ qnameToComponent cost qname = do
         c@Constructor{}    -> (Con (conSrcCon c) ConOCon [], conPars c - length mParams)
         Axiom{}            -> def
         GeneralizableVar{} -> def
+        f@Function{}
+          | Right proj <- funProjection f
+          , projIndex proj > 0 ->
+            let totalToDrop = projIndex proj - 1
+                term        = Def qname $ map Apply $ drop totalToDrop mParams
+                stillToDrop = max 0 $ totalToDrop - length mParams
+            in  (term , stillToDrop)
         Function{}         -> def
         Datatype{}         -> def
         Record{}           -> def
