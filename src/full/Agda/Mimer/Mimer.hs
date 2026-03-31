@@ -307,7 +307,7 @@ prepareComponents goal branch = withBranchAndGoal branch goal $ do
 checkInternalComponent :: Component -> SM ()
 checkInternalComponent comp = do
   reportSDoc "mimer.components" 40 $ "double-checking component" <+> prettyTCM comp
-  checkInternal (compTerm comp) CmpLeq (compType comp)
+  lift $ checkInternal (compTerm comp) CmpLeq (compType comp)
 
 genComponents :: SM [(Component, [Component])]
 genComponents = do
