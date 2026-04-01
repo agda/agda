@@ -92,7 +92,7 @@ getSimplification = viewTC eSimplification
 
 -- * Controlling reduction.
 
-  -- | Lens for 'AllowedReductions'.
+-- | Lens for 'AllowedReductions'.
 updateAllowedReductions :: (AllowedReductions -> AllowedReductions) -> TCEnv -> TCEnv
 updateAllowedReductions = over eAllowedReductions
 

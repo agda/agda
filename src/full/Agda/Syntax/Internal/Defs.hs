@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
-{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
+-- {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
 
 -- | Extract used definitions from terms.
 
@@ -23,14 +23,14 @@ getDefListNoMetas a =
 -- Thus, this is not an instance of @foldTerm@.
 class GetDefs a where
 
--- | @getDefs lookup emb a@ extracts all used definitions
---   (functions, data/record types) from @a@, embedded into a monoid via @emb@.
---   Instantiations of meta variables are obtained via @lookup@.
---
---   Typical monoid instances would be @Endo [QName]@ or @Set QName@. Do not use @[QName]@
---   because of obvious quadratic slowdown.
---   Note that @emb@ can also choose to discard a used definition
---   by mapping to the unit of the monoid.
+  -- | @getDefs lookup emb a@ extracts all used definitions
+  --   (functions, data/record types) from @a@, embedded into a monoid via @emb@.
+  --   Instantiations of meta variables are obtained via @lookup@.
+  --
+  --   Typical monoid instances would be @Endo [QName]@ or @Set QName@. Do not use @[QName]@
+  --   because of obvious quadratic slowdown.
+  --   Note that @emb@ can also choose to discard a used definition
+  --   by mapping to the unit of the monoid.
   getDefs :: (Monoid m, ExpandCase m) => (MetaId -> Maybe Term) -> (QName -> m) -> a -> m
 
   -- {-# INLINE getDefs #-}
