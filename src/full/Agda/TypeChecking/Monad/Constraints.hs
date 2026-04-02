@@ -62,6 +62,18 @@ isProblemSolved' completely pid = do
       | isBlockingConstraint (clValue $ theConstraint c) = True
       | otherwise                                        = completely -- Ignore non-blocking unless `completely`
 
+isProblemSolved'' :: ProblemId -> TCM Bool
+isProblemSolved'' pid = do
+  active <- viewTC eActiveProblems
+  tc     <- getTCState
+  pure $!    not (any belongsToUs (tc ^. stAwakeConstraints))
+          && not (any belongsToUs (tc ^. stSleepingConstraints))
+  where
+    belongsToUs c
+      | Set.notMember pid (constraintProblems c)         = False
+      | isBlockingConstraint (clValue $ theConstraint c) = True
+      | otherwise                                        = False
+
 {-# SPECIALIZE getConstraintsForProblem :: ProblemId -> TCM Constraints #-}
 getConstraintsForProblem :: ReadTCState m => ProblemId -> m Constraints
 getConstraintsForProblem pid = filter' (Set.member pid . constraintProblems) <$> getAllConstraints

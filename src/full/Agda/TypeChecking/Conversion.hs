@@ -1063,7 +1063,7 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
           reportSLn "tc.conv.elim" 40 $ "type is a function type"
 
           dependent <- do
-            let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
+            let freeInCoDom (Abs _ c) = True -- 0 `freeInIgnoringSorts` c
                 freeInCoDom _         = False
 
             expand \ret -> if freeInCoDom codom then ret do
@@ -1082,7 +1082,7 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
 
             -- compare arg1 and arg2
             pid <- addConversionContext (\z -> ConvApply v codom (Arg info z) els1 els2) $
-              newProblem_ $ applyModalityToContext info $
+              newProblemDontWake_ $ applyModalityToContext info $
               expand \ret -> if isForced for then ret $
                 reportSLn "tc.conv.elim" 40 $ "argument is forced"
               else ret $ expand \ret -> if isIrrelevant info then ret do
@@ -1093,7 +1093,7 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
                 compareWithPol pol (flip compareTerm b) (unArg arg1) (unArg arg2)
 
             -- if comparison got stuck, block arg
-            solved <- isProblemSolved pid
+            solved <- isProblemSolved'' pid
             reportSLn "tc.conv.elim" 40 $ "solved = " ++ show solved
             arg <- expand \ret -> if not solved then ret do
                     applyModalityToContext info $ do
@@ -1110,16 +1110,19 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
                    else ret $ return arg1
             -- continue, possibly with blocked instantiation
             () <- compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
-            -- any left over constraints of arg are associated to the comparison
-            reportSLn "tc.conv.elim" 40 $ "stealing constraints from problem " ++ show pid
-            stealConstraints pid
-            {- Stealing solves this issue:
 
-               Does not create enough blocked tc-problems,
-               see test/fail/DontPrune.
-               (There are remaining problems which do not show up as yellow.)
-               Need to find a way to associate pid also to result of compareElims.
-            -}
+            expand \ret -> if not solved then ret do
+              -- any left over constraints of arg are associated to the comparison
+              reportSLn "tc.conv.elim" 40 $ "stealing constraints from problem " ++ show pid
+              stealConstraints pid
+              {- Stealing solves this issue:
+
+                 Does not create enough blocked tc-problems,
+                 see test/fail/DontPrune.
+                 (There are remaining problems which do not show up as yellow.)
+                 Need to find a way to associate pid also to result of compareElims.
+              -}
+            else ret $ pure ()
 
           else ret do
             -- compare arg1 and arg2

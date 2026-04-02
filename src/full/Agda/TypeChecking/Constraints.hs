@@ -209,6 +209,19 @@ newProblem_
   => m a -> m ProblemId
 newProblem_ action = fst <$> newProblem action
 
+{-# INLINE newProblemDontWake_ #-}
+-- | Create a fresh problem for the given action. Don't wake problems after the action finishes.
+newProblemDontWake_
+  :: (MonadFresh ProblemId m, MonadConstraint m)
+  => m a -> m ProblemId
+newProblemDontWake_ action = do
+  pid <- fresh
+  -- Don't get distracted by other constraints while working on the problem
+  _ <- nowSolvingConstraints $
+         verboseBracket "tc.constr.solve" 50 ("working on problem " ++ show pid) $
+           localTC (over eActiveProblems (Set.insert pid)) action
+  pure pid
+
 ifNoConstraints :: TCM a -> (a -> TCM b) -> (ProblemId -> a -> TCM b) -> TCM b
 ifNoConstraints check ifNo ifCs = do
   (pid, x) <- newProblem check
