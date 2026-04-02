@@ -155,10 +155,6 @@ addRewriteRules qs = do
   whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> do
     -- Warn if --cubical is enabled
     whenJustM cubicalOption $ \_ -> warning ConfluenceForCubicalNotSupported
-    -- Global confluence checker requires rules to be sorted
-    -- according to the generality of their lhs
-    when (confChk == GlobalConfluenceCheck) $
-      forM_ (nubOn id $ map grHead rews) sortRulesOfSymbol
     checkConfluenceOfRules confChk rews
     reportSDoc "rewriting" 10 $
       "done checking confluence of rules" <+>
