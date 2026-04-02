@@ -333,6 +333,10 @@ compareTerm' !cmp !a !m !n =
                 -- to trigger a reduction.
                 isNeutral (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
                   not <$> usesCopatterns q -- a def by copattern can reduce if projected
+                isNeutral (NotBlocked r (Var i _)) = do
+                  -- Local rewrite rules can also make a variable applications
+                  -- reduce if projected
+                  not <$> rewUsesCopatterns (RewVarHead i)
                 isNeutral _                   = return True
 
                 -- Amy, 2024-01-29: Is this blocked application headed by one of the
@@ -545,6 +549,18 @@ compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
 computeElimHeadType :: QName -> Elims -> Elims -> TCM Type
 computeElimHeadType f [] es' = computeDefType f es'
 computeElimHeadType f es _   = computeDefType f es
+
+-- | Compute the type of a rewrite rule head. For projection-like
+--   functions, this requires inferring the type of the principal argument,
+--   using the eliminations.
+computeRewHeadType :: MonadConversion m
+  => Int          -- Size of the "rewrite rule telescope"
+  -> RewriteHead  -- Rewrite rule head we want to compute the type of
+  -> Elims        -- Eliminations
+  -> Elims        -- Alternative eliminations, used if the first is empty
+  -> m Type
+computeRewHeadType telSize (RewDefHead f) es es' = computeElimHeadType f es es'
+computeRewHeadType telSize (RewVarHead x) es es' = typeOfBV $ x + telSize
 
 -- | Syntax directed equality on atomic values
 --
@@ -839,6 +855,11 @@ compareDom cmp0
      | not $ sameCohesion (getCohesion  dom1) (getCohesion  dom2) -> err
      | not $ samePolarity (getModalPolarity dom1) (getModalPolarity dom2) -> err
      | not $ domIsFinite dom1 == domIsFinite dom2 -> err
+     -- We compare both rewrite annotations AND the actual rewDoms to properly
+     -- handle the case where we have use a rewrite annotation outside of a
+     -- module telescope and continued trying to typecheck
+     | not $  getRewriteAnn dom1   == getRewriteAnn dom2
+           && isJust (rewDom dom1) == isJust (rewDom dom2) -> err
      | otherwise -> do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
@@ -1059,7 +1080,7 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
       a <- abortIfBlocked a
       reportSLn "tc.conv.elim" 40 $ "type is not blocked"
       case unEl a of
-        (Pi (Dom{domInfo = info, unDom = b}) codom) -> do
+        (Pi dom@(Dom{domInfo = info, unDom = b}) codom) -> do
           reportSLn "tc.conv.elim" 40 $ "type is a function type"
 
           dependent <- do
@@ -1082,7 +1103,7 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
 
             -- compare arg1 and arg2
             pid <- addConversionContext (\z -> ConvApply v codom (Arg info z) els1 els2) $
-              newProblemDontWake_ $ applyModalityToContext info $
+              newProblemDontWake_ $ applyDomToContext dom $
               expand \ret -> if isForced for then ret $
                 reportSLn "tc.conv.elim" 40 $ "argument is forced"
               else ret $ expand \ret -> if isIrrelevant info then ret do
@@ -1096,7 +1117,7 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
             solved <- isProblemSolved'' pid
             reportSLn "tc.conv.elim" 40 $ "solved = " ++ show solved
             arg <- expand \ret -> if not solved then ret do
-                    applyModalityToContext info $ do
+                    applyDomToContext dom info $ do
                       reportSDoc "tc.conv.elims" 50 $ vcat $
                         [ "Trying antiUnify:"
                         , nest 2 $ "b    =" <+> prettyTCM b
@@ -1127,7 +1148,7 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
           else ret do
             -- compare arg1 and arg2
             addConversionContext (\z -> ConvApply v codom (Arg info z) els1 els2) $
-              applyModalityToContext info $
+              applyDomToContext dom $
                 expand \ret -> if isForced for then ret $
                   reportSLn "tc.conv.elim" 40 $ "argument is forced"
                 else ret $ expand \ret -> if isIrrelevant info then ret do

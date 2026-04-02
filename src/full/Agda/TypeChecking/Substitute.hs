@@ -48,6 +48,7 @@ import Agda.Utils.Either
 import Agda.Utils.Empty
 import Agda.Utils.Function (applyWhen, applyUnless, ($$!))
 import Agda.Utils.Functor
+import Agda.Utils.Impossible
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -58,9 +59,9 @@ import Agda.Utils.Permutation
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Zip
-
-import Agda.Utils.Impossible
 
 
 {-# INLINE applyTermE #-}
@@ -271,24 +272,24 @@ instance TermSubst a => Apply (Tele a) where
 
 instance Apply Definition where
   apply (Defn info x t pol occ gpars df m c inst copy ma nc inj copat blk lang hasm d) args =
-    Defn info x (piApply t args) (apply pol args) (apply occ args) (drop (length args) gpars) df m c inst copy ma nc inj copat blk lang hasm (apply d args)
+    Defn info x (piApply t args) (apply pol args) (apply occ args) (drop (length args) gpars)
+         df m c inst copy ma nc inj copat blk lang hasm (apply d args)
 
   applyE t es = apply t $ mustAllApplyElims es
 
-instance Apply RewriteRule where
+instance Apply GlobalRewriteRule where
   apply r args =
-    let newContext = apply (rewContext r) args
-        sub        = liftS (size newContext) $ parallelS $
-                       reverse $ map' (PTerm . unArg) args
-    in RewriteRule
-       { rewName    = rewName r
-       , rewContext = newContext
-       , rewHead    = rewHead r
-       , rewPats    = applySubst sub (rewPats r)
-       , rewRHS     = applyNLPatSubst sub (rewRHS r)
-       , rewType    = applyNLPatSubst sub (rewType r)
-       , rewFromClause = rewFromClause r
-       , rewTopModule  = rewTopModule r
+    let newContext = apply (grContext r) args
+        sub        = liftS (size newContext) $ parallelS $ reverse' $ map' (PTerm . unArg) args
+    in GlobalRewriteRule
+       { grName    = grName r
+       , grContext = newContext
+       , grHead    = grHead r
+       , grPats    = applySubst sub (grPats r)
+       , grRHS     = applyNLPatSubst sub (grRHS r)
+       , grType    = applyNLPatSubst sub (grType r)
+       , grFromClause = grFromClause r
+       , grTopModule  = grTopModule r
        }
 
   applyE t es = apply t $ mustAllApplyElims es
@@ -668,9 +669,9 @@ instance Abstract Definition where
 -- | @tel ⊢ (Γ ⊢ lhs ↦ rhs : t)@ becomes @tel, Γ ⊢ lhs ↦ rhs : t)@
 --   we do not need to change lhs, rhs, and t since they live in Γ.
 --   See 'Abstract Clause'.
-instance Abstract RewriteRule where
-  abstract tel (RewriteRule q gamma f ps rhs t c top) =
-    RewriteRule q (abstract tel gamma) f ps rhs t c top
+instance Abstract GlobalRewriteRule where
+  abstract tel (GlobalRewriteRule q gamma f ps rhs t c top) =
+    GlobalRewriteRule q (abstract tel gamma) f ps rhs t c top
 
 instance {-# OVERLAPPING #-} Abstract [Occ.Occurrence] where
   abstract tel []  = []
@@ -861,6 +862,40 @@ renamingR p@(Perm n is) = xs ++# raiseS n
 renameP :: Subst a => Impossible -> Permutation -> a -> a
 renameP err p = applySubst (renaming err p)
 
+-- | Polymorphic substitution
+--   I.e. Substitutions which can be applied to any 'a' where
+--   'DeBruijn (SubstArg a)'
+--   Used to encode not-necessarily-surjective renamings ('Permutation' is
+--   always assumed to be surjective)
+data AnySubstitution = AnySub
+  { getSub :: forall a. DeBruijn a => Substitution' a }
+
+-- | Attempts to convert a substitution into a renaming. Returns Nothing if
+--   any of the variables in the set are mapped to non-variable terms.
+--   Variables not in the set are strengthened-away.
+--   Returns a polymorphic substitution.
+toRenOn :: DeBruijn a => VarSet -> Substitution' a -> Maybe AnySubstitution
+toRenOn vars rho = go 0 rho
+  where
+    go x IdS        = Just $ AnySub $ IdS
+    go x (EmptyS i) = Just $ AnySub $ EmptyS i
+    go x (t :# rho) = do
+      AnySub rho' <- go (x + 1) rho
+      if x `VarSet.member` vars
+      then do
+        y <- deBruijnView t
+        Just $ AnySub $ deBruijnVar y :# rho'
+      else Just $ AnySub $ Strengthen __IMPOSSIBLE__ 1 rho'
+    go x (Strengthen i n rho) = do
+      AnySub rho' <- go (x + n) rho
+      Just $ AnySub $ Strengthen i n rho'
+    go x (Wk n rho) = do
+      AnySub rho' <- go x rho
+      Just $ AnySub $ Wk n rho'
+    go x (Lift n rho) = do
+      AnySub rho' <- go (x + n) rho
+      Just $ AnySub $ Lift n rho'
+
 instance EndoSubst a => Subst (Substitution' a) where
   type SubstArg (Substitution' a) = a
   applySubst rho sgm = composeS rho sgm
@@ -994,17 +1029,21 @@ instance DeBruijn BraveTerm where
   deBruijnVar = BraveTerm . deBruijnVar
   deBruijnView = deBruijnView . unBrave
 
+-- This instance is a bit of a hack. Whether a variable ought to be mapped to
+-- a PVar or a PBoundVar is dependent on context, but here we always assume
+-- PVar.
 instance DeBruijn NLPat where
   deBruijnVar i = PVar MaybeSing i []
   deBruijnView = \case
-    PVar s i [] -> Just i
-    PVar{}      -> Nothing
-    PDef{}      -> Nothing
-    PLam{}      -> Nothing
-    PPi{}       -> Nothing
-    PSort{}     -> Nothing
-    PBoundVar{} -> Nothing -- or... ?
-    PTerm{}     -> Nothing -- or... ?
+    PVar s i []    -> Just i
+    PVar{}         -> Nothing
+    PDef{}         -> Nothing
+    PLam{}         -> Nothing
+    PPi{}          -> Nothing
+    PSort{}        -> Nothing
+    PBoundVar i [] -> Just i
+    PBoundVar{}    -> Nothing -- or... ?
+    PTerm{}        -> Nothing -- or... ?
 
 applyNLPatSubst :: TermSubst a => Substitution' NLPat -> a -> a
 applyNLPatSubst = applySubst . fmap nlPatToTerm
@@ -1022,6 +1061,10 @@ applyNLPatSubst = applySubst . fmap nlPatToTerm
 applyNLSubstToDom :: SubstWith NLPat a => Substitution' NLPat -> Dom a -> Dom a
 applyNLSubstToDom rho dom = applySubst rho <$> dom{ domTactic = applyNLPatSubst rho $ domTactic dom }
 
+-- Assume substitution maps the given variable to a variable
+lookupSVar ::  EndoSubst a => Substitution' a -> Nat -> Maybe Nat
+lookupSVar sub x = deBruijnView $ lookupS sub x
+
 instance Subst NLPat where
   type SubstArg NLPat = NLPat
   applySubst rho = \case
@@ -1030,7 +1073,9 @@ instance Subst NLPat where
     PLam i u       -> PLam i $ applySubst rho u
     PPi a b        -> PPi (applyNLSubstToDom rho a) (applySubst rho b)
     PSort s        -> PSort $ applySubst rho s
-    PBoundVar i es -> PBoundVar i $! applySubst rho es
+    -- Bound variables should only ever be substituted for other bound
+    -- variables
+    PBoundVar i es -> PBoundVar (fromMaybe __IMPOSSIBLE__ $ lookupSVar rho i) $! applySubst rho es
     PTerm u        -> PTerm $ applyNLPatSubst rho u
 
     where
@@ -1058,15 +1103,52 @@ instance Subst NLPSort where
     PLevelUniv -> PLevelUniv
     PIntervalUniv -> PIntervalUniv
 
-instance Subst RewriteRule where
-  type SubstArg RewriteRule = NLPat
-  applySubst rho (RewriteRule q gamma f ps rhs t c top) =
-    RewriteRule q (applyNLPatSubst rho gamma)
+instance Subst GlobalRewriteRule where
+  type SubstArg GlobalRewriteRule = NLPat
+  applySubst rho (GlobalRewriteRule q gamma f ps rhs t c top) =
+    GlobalRewriteRule q (applyNLPatSubst rho gamma)
                 f (applySubst (liftS n rho) ps)
                   (applyNLPatSubst (liftS n rho) rhs)
                   (applyNLPatSubst (liftS n rho) t)
                   c top
     where n = size gamma
+
+instance Subst a => Subst (LocalEquation' a) where
+  type SubstArg (LocalEquation' a) = SubstArg a
+  applySubst rho (LocalEquation gamma lhs rhs t) =
+    LocalEquation (applySubst rho gamma)
+                  (applySubst rho' lhs)
+                  (applySubst rho' rhs)
+                  (applySubst rho' t)
+    where rho' = liftS (size gamma) rho
+
+instance Subst RewriteHead where
+  type SubstArg RewriteHead = Term
+  applySubst rho (RewDefHead f) = RewDefHead f
+  applySubst rho (RewVarHead x) = RewVarHead $ fromMaybe __IMPOSSIBLE__ $
+    deBruijnView $ lookupS rho x
+
+-- | Substitution on local rewrite rules is partial.
+applySubstLocalRewrite :: DeBruijn a
+  => Substitution' a -> RewriteRule -> Maybe RewriteRule
+applySubstLocalRewrite rho rew@(RewriteRule gamma f ps rhs b) =
+  case toRenOn (freeVarSet rew) rho of
+    Just (AnySub rho') -> do
+      let rho'' :: DeBruijn a => Substitution' a
+          rho'' = liftS (size gamma) rho'
+
+      Just $ RewriteRule (applySubst rho' gamma)
+                                 (applySubst rho' f)
+                                 (applySubst rho'' ps)
+                                  (applySubst rho'' rhs)
+                                 (applySubst rho'' b)
+    Nothing            -> Nothing
+
+instance Subst a => Subst (RewDom' a) where
+  type SubstArg (RewDom' a) = SubstArg a
+  applySubst rho (RewDom eq rew) =
+    RewDom (applySubst rho eq)
+          (applySubstLocalRewrite rho =<< rew)
 
 instance Subst a => Subst (Blocked a) where
   type SubstArg (Blocked a) = SubstArg a
@@ -1116,6 +1198,7 @@ instance Subst Constraint where
     CheckMetaInst m          -> CheckMetaInst m
     CheckType t              -> CheckType (rf t)
     UsableAtModality cc ms mod m -> UsableAtModality cc (rf ms) mod (rf m)
+    RewConstraint e          -> RewConstraint (rf e)
     where
       {-# INLINE rf #-}
       rf :: forall a. TermSubst a => a -> a
@@ -1140,6 +1223,7 @@ instance Subst a => Subst (Abs a) where
   applySubst rho (NoAbs x a) = NoAbs x (applySubst rho a)
 
 instance Subst a => Subst (Arg a) where
+  {-# INLINE applySubst #-}
   type SubstArg (Arg a) = SubstArg a
   applySubst IdS arg       = arg
   applySubst rho (Arg i t) =
@@ -1149,17 +1233,18 @@ instance Subst a => Subst (Arg a) where
 
 instance Subst a => Subst (Named name a) where
   type SubstArg (Named name a) = SubstArg a
+  {-# INLINE applySubst #-}
   applySubst rho = fmap (applySubst rho)
 
 instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Dom' a b) where
   type SubstArg (Dom' a b) = SubstArg a
 
+  {-# INLINE apllySubst #-}
   applySubst IdS dom = dom
-  applySubst rho (Dom i n f t e) =
+  applySubst rho (Dom i n f t rw e) =
     let !i' | getFreeVariables i == unknownFreeVariables = i
             | otherwise = setFreeVariables unknownFreeVariables i
-    in Dom i' n f $$! applySubst rho t $$! applySubst rho e
-  {-# INLINABLE applySubst #-}
+    in Dom i' n f $$! applySubst rho t $$! applySubst rho rw $$! applySubst rho e
 
 instance Subst LetBinding where
   type SubstArg LetBinding = Term
@@ -1642,6 +1727,22 @@ instance (Ord a) => Ord (Elim' a) where
   Proj{}   `compare` _        = LT
   _        `compare` Proj{}   = GT
 
+deriving instance Eq DefSing
+deriving instance Eq NLPat
+deriving instance Eq NLPType
+deriving instance Eq NLPSort
+deriving instance Eq LocalEquation
+deriving instance Eq RewriteRule
+deriving instance Eq RewDom
+
+deriving instance Ord DefSing
+deriving instance Ord NLPSort
+deriving instance Ord NLPType
+deriving instance Ord NLPat
+deriving instance Ord LocalEquation
+deriving instance Ord RewriteHead
+deriving instance Ord RewriteRule
+deriving instance Ord RewDom
 
 ---------------------------------------------------------------------------
 -- * Sort stuff

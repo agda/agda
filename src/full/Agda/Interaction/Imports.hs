@@ -42,6 +42,7 @@ import Control.Monad.IO.Class      ( MonadIO(..) )
 import Control.Monad.State         ( MonadState(..), execStateT )
 import Control.Monad.Trans.Maybe
 import Control.Concurrent
+import Control.DeepSeq
 
 import Data.Either
 import Data.Monoid
@@ -354,13 +355,13 @@ mergeInterface i = do
         else do
           reportSDoc "" 1 $ P.vcat $ map (P.nest 2) $
             "Checking confluence of imported rewrite rules" :
-            map (("-" P.<+>) . prettyTCM . rewName) rews
+            map (("-" P.<+>) . prettyTCM . grName) rews
 
       -- Andreas, 2025-06-28, PR #7934 and issue #7969:
       -- Global confluence checker requires rules to be sorted
       -- according to the generality of their lhs
       when (confChk == GlobalConfluenceCheck) $
-        forM_ (nubOn id $ map rewHead rews) sortRulesOfSymbol
+        forM_ (nubOn id $ map grHead rews) sortRulesOfSymbol
 
       -- #8273: We need to ensure the module we are importing is considered
       -- imported when checking confluence.
@@ -493,6 +494,8 @@ data TCWorkers = Workers
     -- worker to signal completion (or failure).
   , workerModules    :: !(IORef DecodedModules)
     -- ^ The shared 'DecodedModules' where workers can put their results.
+  , workerStarted    :: !(IORef Int)
+    -- ^ How many threads have actually started their work. Used for progress reporting.
   }
 
 -- | If the user has asked for it, prepare the type checker for loading
@@ -515,10 +518,29 @@ wantsParallelChecking = fmap optParallelChecking commandLineOptions >>= \case
 
     threads <- liftIO $ newMVar mempty
     results <- liftIO . newIORef =<< getDecodedModules
+    started <- liftIO $ newIORef 0
     pure Workers
       { workerThreads    = threads
       , workerModules    = results
+      , workerStarted    = started
       }
+
+-- | Gets the prefix string to use for reporting the progress message
+-- (Checking, Loading, etc.) for the module this worker is responsible
+-- for.
+-- As a side-effect, updates the 'workerStarted' count.
+thisWorkerPrefix :: TCWorkers -> TCM String
+thisWorkerPrefix workers = do
+  -- In general, we don't know ahead-of-time how many modules we will
+  -- end up checking (e.g. with --build-library, this fluctuates), but
+  -- the number of modules for which we have a result slot is a pretty
+  -- good estimate.
+  sz <- show . HMap.size <$> liftIO (readMVar (workerThreads workers))
+  me <- liftIO $ atomicModifyIORef (workerStarted workers) \n -> (n + 1, show (n + 1))
+  let
+    pad = replicate (length sz - length me) ' '
+    out = "(" <> pad <> me <> "/" <> sz <> ") "
+  out `deepseq` pure out
 
 -- | Type-check the given module, using a 'TCWorkers' instance to check
 -- its imports in parallel.
@@ -641,7 +663,9 @@ chaseModule workers mod main msrc = do
         -- around to actually scope checking the import.
         sequence_ (appEndo imports [])
 
-        mi <- getInterface mod main (Just src)
+        prefix <- thisWorkerPrefix workers
+        mi <- locallyTC eChasePrefix (const (Just prefix)) $
+          getInterface mod main (Just src)
 
         -- After we're done, update the shared DecodedModules map and
         -- signal our completion.
@@ -1140,8 +1164,8 @@ createInterfaceIsolated ::
   -> TCM ModuleInfo
 createInterfaceIsolated x file msrc = do
       cleanCachedLog
-
       ms          <- viewTC eImportStack
+      pref        <- viewTC eChasePrefix
       range       <- viewTC eRange
       call        <- viewTC eCall
       vs          <- getVisitedModules
@@ -1172,7 +1196,9 @@ createInterfaceIsolated x file msrc = do
                 -- imported modules:
                         set eRange range
                       . set eCall call
-                      . set eImportStack ms) do
+                      . set eImportStack ms
+                      . set eChasePrefix pref
+                     ) do
                setDecodedModules ds
                setCommandLineOptions opts
                setVisitedModules vs
@@ -1211,7 +1237,9 @@ chaseMsg
   -> Maybe String         -- ^ Optionally: the file name.
   -> TCM ()
 chaseMsg kind x file = do
-  indentation <- (`replicate` ' ') <$> asksTC (pred . length . view eImportStack)
+  indentation <- asksTC envChasePrefix >>= \case
+    Just pref -> pure pref
+    Nothing   -> (`replicate` ' ') <$> viewTC (pred . length . eImportStack)
   traceImports <- optTraceImports <$> commandLineOptions
   let maybeFile = caseMaybe file "." $ \ f -> " (" ++ f ++ ")."
       vLvl | kind == "Checking"

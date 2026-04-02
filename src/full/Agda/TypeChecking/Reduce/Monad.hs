@@ -42,11 +42,15 @@ instance MonadAddContext ReduceM where
 
   addLetBinding' = defaultAddLetBinding'
 
+  {-# INLINE updateContext #-}
   updateContext rho f ret = withFreshR \chkpt ->
     localTC (  over' eContext f
              . set eCurrentCheckpoint chkpt
              . over eCheckpoints (Map.insert chkpt IdS . fmap (applySubst rho)))
             ret
+
+  addLocalRewrite = defaultAddLocalRewrite
+
         -- let-bindings keep track of own their context
 
 instance MonadDebug ReduceM where
@@ -77,7 +81,8 @@ instance MonadDebug ReduceM where
   nowDebugPrinting  = defaultNowDebugPrinting
 
 instance HasConstInfo ReduceM where
-  getRewriteRulesFor = defaultGetRewriteRulesFor
+  getGlobalRewriteRulesFor = defaultGetGlobalRewriteRulesFor
+  getLocalRewriteRulesFor  = defaultGetLocalRewriteRulesFor
   getConstInfo' q = do
     ReduceEnv env st _ _ <- askR
     defaultGetConstInfo st env q

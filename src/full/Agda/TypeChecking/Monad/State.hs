@@ -271,7 +271,7 @@ withSignature sig m = do
 addRewriteRulesFor ::
      QName
        -- ^ Head symbol of rewrite rules
-  -> RewriteRules
+  -> GlobalRewriteRules
        -- ^ Rewrite rules
   -> [QName]
        -- ^ Matchable symbols
@@ -283,7 +283,7 @@ addRewriteRulesFor f rews matchables = do
 updateDefsForRewrites ::
      QName
         -- ^ Head symbol of rewrite rules
-  -> RewriteRules
+  -> GlobalRewriteRules
         -- ^ Rewrites
   -> [QName]
         -- ^ Matchable symbols
@@ -299,9 +299,7 @@ updateDefsForRewrites f rews matchables
       setNotInjective def            = def
 
       setCopatternLHS =
-        updateDefCopatternLHS (|| any hasProjectionPattern rews)
-
-      hasProjectionPattern rew = any (isJust . isProjElim) $ rewPats rew
+        updateDefCopatternLHS (|| any grHasProjectionPattern rews)
 
 setMatchableSymbols ::
      QName
@@ -377,7 +375,7 @@ updateCompiledClauses f def@Function{ funCompiled = cc} = def { funCompiled = f 
 updateCompiledClauses f _                              = __IMPOSSIBLE__
 
 updateDefCopatternLHS :: (Bool -> Bool) -> Definition -> Definition
-updateDefCopatternLHS f def@Defn{ defCopatternLHS = b } = def { defCopatternLHS = f b }
+updateDefCopatternLHS f def@Defn{ defCopatternLHS' = b } = def { defCopatternLHS' = f b }
 
 updateDefBlocked :: (Blocked_ -> Blocked_) -> Definition -> Definition
 updateDefBlocked f def@Defn{ defBlocked = b } = def { defBlocked = f b }

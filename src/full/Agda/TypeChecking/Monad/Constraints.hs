@@ -252,6 +252,7 @@ isBlockingConstraint = \case
   CheckType{}           -> True
   CheckLockedVars{}     -> True
   UsableAtModality{}    -> True
+  RewConstraint{}       -> True
 
 -- | Start solving constraints
 nowSolvingConstraints :: MonadTCEnv m => m a -> m a

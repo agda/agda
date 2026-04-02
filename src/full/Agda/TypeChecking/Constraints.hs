@@ -32,6 +32,7 @@ import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
 import {-# SOURCE #-} Agda.TypeChecking.Lock
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal ( checkType )
+import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 
 import Agda.Utils.CallStack ( withCurrentCallStack )
 import Agda.Utils.List
@@ -338,6 +339,7 @@ solveConstraint_ (CheckDataSort q s)    = checkDataSort q s
 solveConstraint_ (CheckMetaInst m)      = checkMetaInst m
 solveConstraint_ (CheckType t)          = checkType t
 solveConstraint_ (UsableAtModality cc ms mod t) = usableAtModality' ms cc mod t
+solveConstraint_ (RewConstraint eq)     = checkRewConstraint eq
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem = \case

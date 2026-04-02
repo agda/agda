@@ -283,8 +283,8 @@ instance Instantiate Sort where
       _            -> __IMPOSSIBLE__
     s -> return s
 
-instance (Instantiate t, Instantiate e) => Instantiate (Dom' t e) where
-    instantiate' (Dom i n b tac x) = Dom i n b <$> instantiate' tac <*> instantiate' x
+instance Instantiate e => Instantiate (Dom e) where
+    instantiate' (Dom i n b tac rew x) = Dom i n b <$> instantiate' tac <*> instantiate' rew <*> instantiate' x
 
 instance Instantiate a => Instantiate (Closure a) where
     instantiate' cl = do
@@ -320,6 +320,7 @@ instance Instantiate Constraint where
   instantiate' c@CheckMetaInst{}    = return c
   instantiate' (CheckType t)        = CheckType <$> instantiate' t
   instantiate' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> instantiate' ms <*> instantiate' t
+  instantiate' (RewConstraint e)    = RewConstraint <$> instantiate' e
 
 instance Instantiate CompareAs where
   instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
@@ -341,6 +342,29 @@ instance Instantiate EqualityView where
     <*> instantiate' t
     <*> instantiate' a
     <*> instantiate' b
+
+instance Instantiate LocalEquation where
+  instantiate' (LocalEquation a b c d) =
+    LocalEquation
+      <$> instantiate' a
+      <*> instantiate' b
+      <*> instantiate' c
+      <*> instantiate' d
+
+instance Instantiate RewriteRule where
+  instantiate' (RewriteRule a b c d e) =
+    RewriteRule
+      <$> instantiate' a
+      <*> pure b
+      <*> pure c
+      <*> instantiate' d
+      <*> instantiate' e
+
+instance Instantiate RewDom where
+  instantiate' (RewDom a b) =
+    RewDom
+      <$> instantiate' a
+      <*> instantiate' b
 
 ---------------------------------------------------------------------------
 -- * Reduction to weak head normal form.
@@ -608,7 +632,7 @@ slowReduceTerm v = do
                     {- else -} done
       Pi _ _     -> done
       Lit _      -> done
-      Var _ es   -> reduceIApply done es
+      Var x es   -> reduceIApply (rewriteVarApp x es) es
       Lam _ _    -> done
       DontCare _ -> done
       Dummy{}    -> done
@@ -630,7 +654,23 @@ slowReduceTerm v = do
               w              -> let !arg = Apply $! defaultArg w in Con c ci [arg]
       reduceNat v = return v
 
--- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
+rewriteVarApp :: Nat -> Elims -> ReduceM (Blocked Term)
+rewriteVarApp x es = do
+  r <- rewriteVarAppStep x es
+  case r of
+    NoReduction v    -> return v
+    YesReduction _ v -> reduceB' v
+
+rewriteVarAppStep :: Nat -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+rewriteVarAppStep x es = do
+  rewr <- getAllRewriteRulesForVarHead x
+  when (not $ null rewr) $
+    reportSDoc "rewriting" 30 $
+      "Trying to rewrite variable application" <+> prettyTCM (Var x es)
+  rewrite (NotBlocked ReallyNotBlocked ())
+          (Var x) rewr es
+
+-- Andreas, 2013-03-20 recursive invocations of unfoldCorecursion
 -- need also to instantiate metas, see Issue 826.
 unfoldCorecursionE :: Elim -> ReduceM (Blocked Elim)
 unfoldCorecursionE (Proj o p)           = notBlocked . Proj o <$> getOriginalProjection p
@@ -678,17 +718,18 @@ unfoldDefinitionStep :: Term -> QName -> Elims -> ReduceM (Reduced (Blocked Term
 unfoldDefinitionStep v0 f es =
   {-# SCC "reduceDef" #-} do
   traceSDoc "tc.reduce" 90 ("unfoldDefinitionStep v0" <+> pretty v0) $ do
-  info <- getConstInfo f
-  rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
+  info    <- getConstInfo f
+  rewr    <- getAllRewriteRulesForDefHead f
   allowed <- viewTC eAllowedReductions
-  prp <- runBlocked $ isPropM $ defType info
-  defOk <- shouldReduceDef f
+  prp     <- runBlocked $ isPropM $ defType info
+  defOk   <- shouldReduceDef f
   let def = theDef info
       v   = v0 `applyE` es
       -- Non-terminating functions
       -- (i.e., those that failed the termination check)
       -- and delayed definitions
       -- are not unfolded unless explicitly permitted.
+
       dontUnfold =
           (defNonterminating info && SmallSet.notMember NonTerminatingReductions allowed)
         -- defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed
@@ -696,6 +737,7 @@ unfoldDefinitionStep v0 f es =
         || (isIrrelevant info)
         || (not defOk)
       copatterns = defCopatternLHS info
+
   case def of
     Constructor{conSrcCon = c} -> do
       let hd = Con (c `withRangeOf` f) ConOSystem
@@ -752,7 +794,10 @@ unfoldDefinitionStep v0 f es =
           mredToBlocked (MaybeRed NotReduced  e) = notBlocked e
           mredToBlocked (MaybeRed (Reduced b) e) = e <$ b
 
-    reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> ReduceM (Reduced (Blocked Term) Term)
+    reduceNormalE ::
+         Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause]
+      -> Maybe CompiledClauses -> RewriteRules
+      -> ReduceM (Reduced (Blocked Term) Term)
     reduceNormalE v0 f es dontUnfold def mcc rewr = {-# SCC "reduceNormal" #-} do
       traceSDoc "tc.reduce" 90 ("reduceNormalE v0 =" <+> pretty v0) $ do
       case (def,rewr) of
@@ -898,10 +943,13 @@ unfoldInlined v = do
 
 -- | Apply a definition using the compiled clauses, or fall back to
 --   ordinary clauses if no compiled clauses exist.
-appDef_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
+appDef_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses
+        -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
 appDef_ f v0 cls mcc rewr args = appDefE_ f v0 cls mcc rewr $ map' (fmap Apply) args
 
-appDefE_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE_ ::
+     QName -> Term -> [Clause] -> Maybe CompiledClauses -> RewriteRules
+  -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE_ f v0 cls mcc rewr args =
   localTC (set eAppDef (Just f)) $
   maybe (appDefE'' v0 cls rewr args)
@@ -912,7 +960,9 @@ appDefE_ f v0 cls mcc rewr args =
 appDef :: Term -> CompiledClauses -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
 appDef v cc rewr args = appDefE v cc rewr $ map' (fmap Apply) args
 
-appDefE :: Term -> CompiledClauses -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE ::
+     Term -> CompiledClauses -> RewriteRules -> MaybeReducedElims
+  -> ReduceM (Reduced (Blocked Term) Term)
 appDefE v cc rewr es = do
   traceSDoc "tc.reduce" 90 ("appDefE v = " <+> pretty v) $ do
   r <- matchCompiledE cc es
@@ -924,13 +974,17 @@ appDefE v cc rewr es = do
 appDef' :: QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
 appDef' f v cls rewr args = appDefE' f v cls rewr $ map' (fmap Apply) args
 
-appDefE' :: QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE' ::
+     QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedElims
+  -> ReduceM (Reduced (Blocked Term) Term)
 appDefE' f v cls rewr es =
   localTC (set eAppDef (Just f)) $
   appDefE'' v cls rewr es
 
 -- | Expects @'envAppDef' = Just f@ in 'TCEnv' to be able to report @'MissingClauses' f@.
-appDefE'' :: Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE'' ::
+     Term -> [Clause] -> RewriteRules -> MaybeReducedElims
+  -> ReduceM (Reduced (Blocked Term) Term)
 appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v) $ do
   goCls cls $ map' ignoreReduced es
   where
@@ -992,6 +1046,12 @@ instance Reduce Telescope where
 instance Reduce ProblemConstraint where
   reduce' (PConstr p u c) = PConstr p u <$> reduce' c
 
+instance Reduce LocalEquation where
+  reduce' (LocalEquation g t u a) = do
+    g' <- reduce' g
+    (t', u', a') <- addContext g' $ reduce' (t, u, a)
+    return $ LocalEquation g' t' u' a'
+
 instance Reduce Constraint where
   reduce' (ValueCmp cmp t u v) = do
     (t,u,v) <- reduce' (t,u,v)
@@ -1018,6 +1078,7 @@ instance Reduce Constraint where
   reduce' c@CheckMetaInst{}     = return c
   reduce' (CheckType t)         = CheckType <$> reduce' t
   reduce' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> reduce' ms <*> reduce' t
+  reduce' (RewConstraint e)     = RewConstraint <$> reduce' e
 
 instance Reduce CompareAs where
   reduce' (AsTermsOf a) = AsTermsOf <$> reduce' a
@@ -1159,6 +1220,12 @@ instance (Subst a, Simplify a) => Simplify (Tele a) where
 instance Simplify ProblemConstraint where
   simplify' (PConstr pid unblock c) = PConstr pid unblock <$> simplify' c
 
+instance Simplify LocalEquation where
+  simplify' (LocalEquation g t u a) = do
+    g' <- simplify' g
+    (t', u', a') <- addContext g' $ simplify (t, u, a)
+    return $ LocalEquation g' t' u' a'
+
 instance Simplify Constraint where
   simplify' (ValueCmp cmp t u v) = do
     (t,u,v) <- simplify' (t,u,v)
@@ -1185,6 +1252,7 @@ instance Simplify Constraint where
   simplify' c@CheckMetaInst{}     = return c
   simplify' (CheckType t)         = CheckType <$> simplify' t
   simplify' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> simplify' ms <*> simplify' t
+  simplify' (RewConstraint e)     = RewConstraint <$> simplify' e
 
 instance Simplify CompareAs where
   simplify' (AsTermsOf a) = AsTermsOf <$> simplify' a
@@ -1345,6 +1413,12 @@ instance (Subst a, Normalise a) => Normalise (Tele a) where
 instance Normalise ProblemConstraint where
   normalise' (PConstr pid unblock c) = PConstr pid unblock <$> normalise' c
 
+instance Normalise LocalEquation where
+  normalise' (LocalEquation g t u a) = do
+    g' <- normalise g
+    (t', u', a') <- addContext g' $ normalise (t, u, a)
+    return $ LocalEquation g' t' u' a'
+
 instance Normalise Constraint where
   normalise' (ValueCmp cmp t u v) = do
     (t,u,v) <- normalise' (t,u,v)
@@ -1371,6 +1445,7 @@ instance Normalise Constraint where
   normalise' c@CheckMetaInst{}     = return c
   normalise' (CheckType t)         = CheckType <$> normalise' t
   normalise' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> normalise' ms <*> normalise' t
+  normalise' (RewConstraint e)     = RewConstraint <$> normalise' e
 
 instance Normalise CompareAs where
   normalise' (AsTermsOf a) = AsTermsOf <$> normalise' a
@@ -1583,8 +1658,10 @@ instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
     instantiateFull' a@(Abs x _) = Abs x <$!> underAbstraction_ a instantiateFull'
     instantiateFull' (NoAbs x a) = NoAbs x <$!> instantiateFull' a
 
-instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
-    instantiateFull' (Dom i n b tac x) = Dom i n b <$!> instantiateFull' tac <*!> instantiateFull' x
+
+instance InstantiateFull e => InstantiateFull (Dom e) where
+    instantiateFull' (Dom i n b tac rew x) =
+      Dom i n b <$!> instantiateFull' tac <*!> instantiateFull' rew <*!> instantiateFull' x
 
 instance InstantiateFull Context where
   instantiateFull' (Context es) = Context <$!> instantiateFull' es
@@ -1645,6 +1722,7 @@ instance InstantiateFull Constraint where
     c@CheckMetaInst{}   -> return c
     CheckType t         -> CheckType <$!> instantiateFull' t
     UsableAtModality cc ms mod t -> flip (UsableAtModality cc) mod <$!> instantiateFull' ms <*!> instantiateFull' t
+    RewConstraint e     -> RewConstraint <$!> instantiateFull' e
 
 instance InstantiateFull CompareAs where
   instantiateFull' (AsTermsOf a) = AsTermsOf <$!> instantiateFull' a
@@ -1695,9 +1773,9 @@ instance InstantiateFull NLPSort where
   instantiateFull' PLevelUniv = return PLevelUniv
   instantiateFull' PIntervalUniv = return PIntervalUniv
 
-instance InstantiateFull RewriteRule where
-  instantiateFull' (RewriteRule q gamma f ps rhs t c top) =
-    RewriteRule q
+instance InstantiateFull GlobalRewriteRule where
+  instantiateFull' (GlobalRewriteRule q gamma f ps rhs t c top) =
+    GlobalRewriteRule q
       <$!> instantiateFull' gamma
       <*!> pure f
       <*!> instantiateFull' ps
@@ -1705,6 +1783,29 @@ instance InstantiateFull RewriteRule where
       <*!> instantiateFull' t
       <*!> pure c
       <*!> pure top
+
+instance InstantiateFull LocalEquation where
+  instantiateFull' (LocalEquation a b c d) =
+    LocalEquation
+      <$!> instantiateFull' a
+      <*!> instantiateFull' b
+      <*!> instantiateFull' c
+      <*!> instantiateFull' d
+
+instance InstantiateFull RewriteRule where
+  instantiateFull' (RewriteRule a b c d e) =
+    RewriteRule
+      <$!> instantiateFull' a
+      <*!> pure b
+      <*!> instantiateFull' c
+      <*!> instantiateFull' d
+      <*!> instantiateFull' e
+
+instance InstantiateFull RewDom where
+  instantiateFull' (RewDom a b) =
+    RewDom
+      <$!> instantiateFull' a
+      <*!> instantiateFull' b
 
 instance InstantiateFull DisplayForm where
   instantiateFull' (Display n ps v) = uncurry (Display n) <$!> instantiateFull' (ps, v)

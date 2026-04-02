@@ -54,6 +54,7 @@ import qualified Data.HashMap.Strict as HMap
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Map.Strict as MapS
+import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Text (Text)
@@ -83,6 +84,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Maybe.Unboxable
+import Agda.Utils.Memo (memoUnsafeInt)
 import Agda.Utils.Monad
 import Agda.Utils.Null (empty, null)
 import Agda.Utils.Functor
@@ -123,8 +125,10 @@ data BuiltinEnv = BuiltinEnv
   , bPrimForce, bPrimErase  :: Maybe QName }
 
 -- | Compute a 'CompactDef' from a regular definition.
-compactDef :: BuiltinEnv -> Definition -> RewriteRules -> ReduceM CompactDef
-compactDef bEnv def rewr = do
+compactDef ::
+     BuiltinEnv -> Definition -> Bool -> RewriteRules
+  -> ReduceM CompactDef
+compactDef bEnv def copatterns rewr = do
 
   shouldReduce <- shouldReduceDef (defName def)
   allowed <- viewTC eAllowedReductions
@@ -150,7 +154,6 @@ compactDef bEnv def rewr = do
              -- which causes an infinite loop.
           && (not $ isProp $ getSort $ defType def)
           && (not (isIrrelevant def))
-
 
   cdefn <-
     case theDef def of
@@ -464,13 +467,20 @@ fastReduce' norm v = do
 
       bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
                           bPrimForce = force, bPrimErase = erase }
-  rwr <- optRewriting <$> pragmaOptions
+  rwr    <- anyRewritingOption
+  rwrLoc <- localRewritingOption
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f
-    rewr <- if rwr then instantiateRewriteRules =<< getRewriteRulesFor f
+    copatterns <- if rwr then defCopatternLHS f info
+                         else return $ defCopatternLHS' info
+    rewr <- if rwr then getAllRewriteRulesForDefHead f
                    else return []
-    compactDef bEnv info rewr
-  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm v
+    compactDef bEnv info copatterns rewr
+  localRewr <- unKleisli $ \x ->
+    if rwrLoc then getAllRewriteRulesForVarHead x else return []
+
+  ReduceM $ \ redEnv ->
+    reduceTm redEnv bEnv (memoQName constInfo) (memoUnsafeInt localRewr) norm v
 
 
 -- * Closures
@@ -881,11 +891,12 @@ unusedPointer = Pure (Closure (Value $ notBlocked ())
 
 -- | Evaluating a term in the abstract machine. It gets the type checking state and environment in
 --   the 'ReduceEnv' argument, some precomputed built-in mappings in 'BuiltinEnv', the memoised
---   'getConstInfo' function, a couple of flags (allow non-terminating function unfolding, and
---   whether rewriting is enabled), and a term to reduce. The result is the weak-head normal form of
---   the term with an attached blocking tag.
-reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> Term -> Blocked Term
-reduceTm rEnv bEnv !constInfo normalisation = compileAndRun . traceDoc "-- fast reduce --"
+--   'getConstInfo' function, a memoised function to lookup local rewrite rules, and a term to
+--   reduce. The result is the weak-head normal form of the term with an attached blocking tag.
+reduceTm ::
+     ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> (Nat -> RewriteRules)
+  -> Normalisation -> Term -> Blocked Term
+reduceTm rEnv bEnv !constInfo !localRewr normalisation = compileAndRun . traceDoc "-- fast reduce --"
   where
     -- Helpers to get information from the ReduceEnv.
     localMetas     = redSt rEnv ^. stSolvedMetaStore
@@ -1039,7 +1050,7 @@ reduceTm rEnv bEnv !constInfo normalisation = compileAndRun . traceDoc "-- fast 
           evalIApplyAM spine ctrl $
           lookupEnv x env
             (\p -> evalPointerAM p spine ctrl)
-            (\_ -> runEval (evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl))
+            (\_ -> rewriteEval $ evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl
 
         -- Case: lambda. Perform the beta reduction if applied. Otherwise it's a value.
         Lam h b ->
@@ -1477,6 +1488,7 @@ reduceTm rEnv bEnv !constInfo normalisation = compileAndRun . traceDoc "-- fast 
       where rewr = case t of
                      Def f []   -> rewriteRules f
                      Con c _ [] -> rewriteRules (conName c)
+                     Var x _    -> localRewr x
                      _          -> __IMPOSSIBLE__
     rewriteEval _ = __IMPOSSIBLE__
 

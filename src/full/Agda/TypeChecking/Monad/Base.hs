@@ -1101,7 +1101,7 @@ stOccursCheckDefs = lensPostScopeState . lensOccursCheckDefs
 stSignature :: Lens' TCState Signature
 stSignature = lensPostScopeState . lensSignature
 
-stRewriteRules :: Lens' TCState RewriteRuleMap
+stRewriteRules :: Lens' TCState GlobalRewriteRuleMap
 stRewriteRules = stSignature . sigRewriteRules
 
 stModuleCheckpoints :: Lens' TCState ModuleCheckpoints
@@ -1702,6 +1702,9 @@ data Constraint
   | UsableAtModality WhyCheckModality (Maybe Sort) Modality Term
     -- ^ Is the term usable at the given modality?
     -- This check should run if the @Sort@ is @Nothing@ or @isFibrant@.
+  | RewConstraint LocalEquation
+    -- ^ Does the local rewrite rule hold definitionally at the call-site?
+    --   Essentially a 'ValueCmp' but with a more specific error message
   deriving (Show, Generic)
 
 -- It's important to have a proper range for constraints that can remain unsolved
@@ -1726,6 +1729,7 @@ instance HasRange Constraint where
   getRange UnquoteTactic{}       = noRange
   getRange CheckLockedVars{}     = noRange
   getRange UsableAtModality{}    = noRange
+  getRange RewConstraint{}       = noRange
 
 instance Free Constraint where
   freeVars c = expand \ret -> case c of
@@ -1748,9 +1752,15 @@ instance Free Constraint where
     CheckMetaInst m             -> ret $ mempty
     CheckType t                 -> ret $ freeVars t
     UsableAtModality _ ms mod t -> ret $ freeVars (ms, t)
+    RewConstraint e             -> ret $ freeVars e
 
 {-# SPECIALIZE closed :: Constraint -> Bool #-}
 {-# SPECIALIZE freeVarSet :: Constraint -> VarSet #-}
+
+instance TermLike LocalEquation where
+  foldTerm f (LocalEquation g t u a) = foldTerm f (g, t, u, a)
+
+  traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
 instance TermLike Constraint where
   foldTerm f = \case
@@ -1773,6 +1783,7 @@ instance TermLike Constraint where
       CheckMetaInst m        -> mempty
       CheckType t            -> foldTerm f t
       UsableAtModality _ ms m t   -> foldTerm f (Sort <$> ms, t)
+      RewConstraint e        -> foldTerm f e
 
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
@@ -2011,6 +2022,7 @@ data RemoteMetaVariable = RemoteMetaVariable
 --   it did, it returns a handle to any unsolved constraints.
 data CheckedTarget = CheckedTarget (Maybe ProblemId)
                    | NotCheckedTarget
+  deriving Show
 
 data PrincipalArgTypeMetas = PrincipalArgTypeMetas
   { patmMetas     :: Args -- ^ metas created for hidden and instance arguments
@@ -2291,7 +2303,8 @@ instance Eq IPClause where
 data Signature = Sig
       { _sigSections     :: Sections
       , _sigDefinitions  :: Definitions
-      , _sigRewriteRules :: RewriteRuleMap  -- ^ The rewrite rules defined in this file.
+      , _sigRewriteRules :: GlobalRewriteRuleMap
+        -- ^ The rewrite rules defined in this file.
       , _sigInstances    :: InstanceTable
       }
   deriving (Show, Generic)
@@ -2313,14 +2326,14 @@ sigDefinitions f s =
 sigInstances :: Lens' Signature InstanceTable
 sigInstances f s = f (_sigInstances s) <&> \x -> s {_sigInstances = x}
 
-sigRewriteRules :: Lens' Signature RewriteRuleMap
+sigRewriteRules :: Lens' Signature GlobalRewriteRuleMap
 sigRewriteRules f s =
   f (_sigRewriteRules s) <&>
   \x -> s {_sigRewriteRules = x}
 
 type Sections    = Map ModuleName Section
 type Definitions = HashMap QName Definition
-type RewriteRuleMap = HashMap QName RewriteRules
+type GlobalRewriteRuleMap = HashMap QName GlobalRewriteRules
 type DisplayForms = HashMap QName (List1 LocalDisplayForm)
 
 {-# SPECIALIZE HMap.insert :: QName -> v -> HashMap QName v -> HashMap QName v #-}
@@ -2469,6 +2482,7 @@ type PElims = [Elim' NLPat]
 type instance TypeOf NLPat = Type
 type instance TypeOf [Elim' NLPat] = (Type, Elims -> Term)
 
+
 instance TermLike NLPat where
   traverseTermM f = \case
     p@PVar{}       -> return p
@@ -2490,35 +2504,12 @@ instance TermLike NLPat where
 
 instance AllMetas NLPat
 
-data NLPType = NLPType
-  { nlpTypeSort :: NLPSort
-  , nlpTypeUnEl :: NLPat
-  } deriving (Show, Generic)
-
 instance TermLike NLPType where
   traverseTermM f (NLPType s t) = NLPType <$> traverseTermM f s <*> traverseTermM f t
 
   foldTerm f (NLPType s t) = foldTerm f (s, t)
 
 instance AllMetas NLPType
-
-data NLPSort
-  = PUniv Univ NLPat
-  | PInf Univ Integer
-  | PSizeUniv
-  | PLockUniv
-  | PLevelUniv
-  | PIntervalUniv
-  deriving (Show, Generic)
-
-pattern PType, PProp, PSSet :: NLPat -> NLPSort
-pattern PType p = PUniv UType p
-pattern PProp p = PUniv UProp p
-pattern PSSet p = PUniv USSet p
-
-{-# COMPLETE
-  PType, PSSet, PProp, PInf,
-  PSizeUniv, PLockUniv, PLevelUniv, PIntervalUniv #-}
 
 instance TermLike NLPSort where
   traverseTermM f = \case
@@ -2539,26 +2530,51 @@ instance TermLike NLPSort where
 
 instance AllMetas NLPSort
 
-type RewriteRules = [RewriteRule]
+type GlobalRewriteRules = [GlobalRewriteRule]
 
 -- | Rewrite rules can be added independently from function clauses.
-data RewriteRule = RewriteRule
-  { rewName    :: QName      -- ^ Name of rewrite rule @q : Γ → f ps ≡ rhs@
-                             --   where @≡@ is the rewrite relation.
-  , rewContext :: Telescope  -- ^ @Γ@.
-  , rewHead    :: QName      -- ^ @f@.
-  , rewPats    :: PElims     -- ^ @Γ ⊢ f ps : t@.
-  , rewRHS     :: Term       -- ^ @Γ ⊢ rhs : t@.
-  , rewType    :: Type       -- ^ @Γ ⊢ t@.
-  , rewFromClause :: Bool    -- ^ Was this rewrite rule created from a clause in the definition of the function?
-  , rewTopModule  :: TopLevelModuleName
+data GlobalRewriteRule = GlobalRewriteRule
+  { grName    :: QName      -- ^ Name of rewrite rule @q : Γ → f ps ≡ rhs@
+                            --   where @≡@ is the rewrite relation.
+  , grContext :: Telescope  -- ^ @Γ@.
+  , grHead    :: QName      -- ^ @f@.
+  , grPats    :: PElims     -- ^ @Γ ⊢ f ps : t@.
+  , grRHS     :: Term       -- ^ @Γ ⊢ rhs : t@.
+  , grType    :: Type       -- ^ @Γ ⊢ t@.
+  , grFromClause :: Bool    -- ^ Was this rewrite rule created from a clause in
+                            --   the definition of the function?
+  , grTopModule  :: TopLevelModuleName
       -- ^ In which file is this rewrite rule defined?
-      --   This information is used to eliminate rewrite rules that happen to be in 'stImports'
-      --   but are not actually transitively imported.
+      --   This information is used to eliminate rewrite rules that happen to be
+      --   in 'stImports' but are not actually transitively imported.
 
       --   See issue #4343 (Andreas, 2025-06-05).
   }
     deriving (Show, Generic)
+
+grHasProjectionPattern :: GlobalRewriteRule -> Bool
+grHasProjectionPattern rew = any (isJust . isProjElim) $ grPats rew
+
+type RewriteRules = [RewriteRule]
+
+-- | Map from head symbols to local rewrite rules
+--   While the head symbols need to be eagerly updated to live in the current
+--   context, the rewrite rules do not. They instead each store a checkpoint id.
+data LocalRewriteRuleMap = LocalRewriteRuleMap
+  { defHeadedRews :: HashMap QName [Open RewriteRule]
+  , varHeadedRews :: IntMap [Open RewriteRule]
+  }
+    deriving (Show, Generic)
+
+lrewsDefHeaded :: Lens' LocalRewriteRuleMap (HashMap QName [Open RewriteRule])
+lrewsDefHeaded f rs = f (defHeadedRews rs) <&> \ rs' -> rs { defHeadedRews = rs' }
+
+lrewsVarHeaded :: Lens' LocalRewriteRuleMap (IntMap [Open RewriteRule])
+lrewsVarHeaded f rs = f (varHeadedRews rs) <&> \ rs' -> rs { varHeadedRews = rs' }
+
+instance Null LocalRewriteRuleMap where
+  empty                               = LocalRewriteRuleMap empty empty
+  null  (LocalRewriteRuleMap rs1 rs2) = null rs1 && null rs2
 
 -- | Information about an @instance@ definition.
 data InstanceInfo = InstanceInfo
@@ -2631,12 +2647,14 @@ data Definition = Defn
                          -- instantiation?
   , defMatchable      :: Set QName
     -- ^ The set of symbols with rewrite rules that match against this symbol
+    -- Does not account for local rewrite rules
   , defNoCompilation  :: Bool
     -- ^ should compilers skip this? Used for e.g. cubical's comp
   , defInjective      :: Bool
     -- ^ Should the def be treated as injective by the pattern matching unifier?
-  , defCopatternLHS   :: Bool
+  , defCopatternLHS'   :: Bool
     -- ^ Is this a function defined by copatterns?
+    -- Does not account for local rewrite rules
   , defBlocked        :: Blocked_
     -- ^ What blocking tag to use when we cannot reduce this def?
     --   Used when checking a function definition is blocked on a meta
@@ -3334,7 +3352,7 @@ instance Pretty Definition where
       , "defCopy           =" <?> pshow defCopy
       , "defMatchable      =" <?> pshow (Set.toList defMatchable)
       , "defInjective      =" <?> pshow defInjective
-      , "defCopatternLHS   =" <?> pshow defCopatternLHS
+      , "defCopatternLHS   =" <?> pshow defCopatternLHS'
       , "theDef            =" <?> pretty theDef ] <+> "}"
 
 instance Pretty Defn where
@@ -3995,13 +4013,14 @@ data Call
       Term   -- ^ (Simplified) Function applied to the patterns in this clause
       Term   -- ^ (Simplified) clause RHS
       Type   -- ^ (Simplified) clause type
+  | CheckLocalRewriteConstraint LocalEquation (Maybe (Closure Call))
   | ScopeCheckExpr C.Expr
   | ScopeCheckDeclaration NiceDeclaration
   | ScopeCheckLHS C.QName C.Pattern
   | NoHighlighting
   | ModuleContents  -- ^ Interaction command: show module contents.
   | SetRange Range  -- ^ used by 'setCurrentRange'
-  deriving Generic
+  deriving (Generic, Show)
 
 instance Pretty Call where
     pretty CheckClause{}             = "CheckClause"
@@ -4041,6 +4060,7 @@ instance Pretty Call where
     pretty NoHighlighting{}          = "NoHighlighting"
     pretty ModuleContents{}          = "ModuleContents"
     pretty CheckIApplyConfluence{}   = "ModuleContents"
+    pretty CheckLocalRewriteConstraint{} = "CheckLocalRewriteConstraint"
 
 instance HasRange Call where
     getRange (CheckClause _ c)                   = getRange c
@@ -4080,6 +4100,7 @@ instance HasRange Call where
     getRange NoHighlighting                      = noRange
     getRange ModuleContents                      = noRange
     getRange (CheckIApplyConfluence e _ _ _ _ _) = getRange e
+    getRange (CheckLocalRewriteConstraint _ _)   = noRange
 
 ----------------------------------------------------------------------------------------------------
 -- ** Instance table
@@ -4230,6 +4251,7 @@ getFlag !i (Flags64 !fs) = toEnum (fromIntegral (unsafeShiftR fs i .&. 1))
 -- * Type checking environment
 ----------------------------------------------------------------------------------------------------
 
+
 data TCEnv = TCEnv {
     envTCContext      :: !TCContext
   , envActiveProblems :: !(Set ProblemId)
@@ -4243,10 +4265,11 @@ data TCContext = TCContext {
   , envCurrentCheckpoint :: !CheckpointId
     -- ^ Checkpoints track the evolution of the context as we go
     -- under binders or refine it by pattern matching.
-  , envCheckpoints       :: (Map CheckpointId Substitution)
+  , envLocalRewriteRules :: LocalRewriteRuleMap
+  , envCheckpoints       :: Map CheckpointId Substitution
     -- ^ Keeps the substitution from each previous checkpoint to
     --   the current context.
-  , envAppDef :: Maybe QName
+  , envAppDef :: !(Maybe QName)
         -- ^ We are reducing an application of this function.
         -- (For tracking of incomplete matches.)
   } deriving Generic
@@ -4504,6 +4527,7 @@ initTCContext = TCContext {
   , envCurrentCheckpoint   = 0
   , envCheckpoints         = Map.singleton 0 IdS
   , envAppDef              = Nothing
+  , envLocalRewriteRules   = empty
   }
 
 initModalEnv :: ModalEnv
@@ -4516,43 +4540,18 @@ initModalEnv = ModalEnv {
 
 initColdEnv :: ColdEnv
 initColdEnv = ColdEnv {
-                  envCurrentModule         = noModuleName
-                , envCurrentPath           = Nothing
-                , envSyntacticEqualityFuel = Strict.Nothing
-                , envAnonymousModules      = []
-                , envImportStack           = []
-                , envMutualBlock           = Nothing
-                , envTerminationCheck      = TerminationCheck
-                , envCoverageCheck         = YesCoverageCheck
-                , envCheckingWhere         = C.NoWhere_
-                , envUnquoteProblem        = Nothing
-                , envAbstractMode          = ConcreteMode
-  -- Andreas, 2013-02-21:  This was 'AbstractMode' until now.
-  -- However, top-level checks for mutual blocks, such as
-  -- constructor-headedness, should not be able to look into
-  -- abstract definitions unless abstract themselves.
-  -- (See also discussion on issue 796.)
-  -- The initial mode should be 'ConcreteMode', ensuring you
-  -- can only look into abstract things in an abstract
-  -- definition (which sets 'AbstractMode').
-                , envRange                  = noRange
-                , envHighlightingRange      = noRange
-                , envClause                 = IPNoClause
-                , envCall                   = Nothing
-                , envHighlightingLevel      = None
-                , envHighlightingMethod     = Indirect
-                , envExpandLast             = ExpandLast
-                , envSimplification         = NoSimplification
-                , envReduceDefs             = reduceAllDefs
-                , envInjectivityDepth       = 0
-                , envUnquoteFlags           = defaultUnquoteFlags
-                , envInstanceDepth          = 0
-                , envPrintingPatternLambdas = []
-                , envGeneralizeMetas        = NoGeneralize
-                , envGeneralizedVars        = Map.empty
-                , envActiveBackendName      = Nothing
-                , envCurrentOpaqueId        = Nothing
-                }
+    envCurrentModule         = noModuleName
+  , envCurrentPath           = Nothing
+  , envSyntacticEqualityFuel = Strict.Nothing
+  , envAnonymousModules      = []
+  , envImportStack           = []
+  , envMutualBlock           = Nothing
+  , envTerminationCheck      = TerminationCheck
+  , envCoverageCheck         = YesCoverageCheck
+  , envCheckingWhere         = C.NoWhere_
+  , envUnquoteProblem        = Nothing
+  , envAbstractMode          = ConcreteMode
+  }
 
 initEnv :: TCEnv
 initEnv = TCEnv {
@@ -4734,6 +4733,11 @@ ePrintingPatternLambdas = \f e ->
 eCurrentCheckpoint :: Lens' TCEnv CheckpointId
 eCurrentCheckpoint = \f e ->
   f (envCurrentCheckpoint $ envTCContext e) <&> \ x -> e {envTCContext = (envTCContext e){ envCurrentCheckpoint = x }}
+
+{-# INLINE eLocalRewriteRules #-}
+eLocalRewriteRules :: Lens' TCEnv LocalRewriteRuleMap
+eLocalRewriteRules = \f e ->
+  f (envLocalRewriteRules $ envTCContext e) <&> \ x -> e {envTCContext = (envTCContext e){ envLocalRewriteRules = x }}
 
 {-# INLINE eCheckpoints #-}
 eCheckpoints :: Lens' TCEnv (Map CheckpointId Substitution)
@@ -5100,6 +5104,8 @@ data Warning
     -- ^ Auto-correcting cohesion pertaining to 'String' /from/ /to/.
   | FixingPolarity String PolarityModality PolarityModality
     -- ^ Auto-correcting polarity pertaining to 'String' /from/ /to/.
+  | IgnoringRew String RewriteAnn
+    -- ^ Auto-correcting rewrite pertaining to 'String' by ignoring it
   | IllformedAsClause String
     -- ^ If the user wrote something other than an unqualified name
     --   in the @as@ clause of an @import@ statement.
@@ -5181,7 +5187,7 @@ data Warning
     -- ^ Confluence checking with @--cubical@ might be incomplete.
   | NotARewriteRule C.QName IsAmbiguous
     -- ^ 'IllegalRewriteRule' detected during scope checking.
-  | IllegalRewriteRule QName IllegalRewriteRuleReason
+  | IllegalRewriteRule RewriteSource IllegalRewriteRuleReason
   | RewriteNonConfluent Term Term Term Doc
     -- ^ Confluence checker found critical pair and equality checking
     --   resulted in a type error
@@ -5195,6 +5201,9 @@ data Warning
   | RewriteMissingRule Term Term Term
     -- ^ The global confluence checker found a term @u@ that reduces
     --   to @v@, but @v@ does not reduce to @rho(u)@.
+  | InferredLocalRewrite MetaId Term
+    -- ^ Inferred that some meta should be solved with an @rewrite function
+    --   (We never infer local rewrite rules)
   | PragmaCompileErased BackendName QName
     -- ^ COMPILE directive for an erased symbol.
   | PragmaCompileList
@@ -5326,6 +5335,7 @@ warningName = \case
   FixingRelevance{}            -> FixingRelevance_
   FixingCohesion{}             -> FixingCohesion_
   FixingPolarity{}             -> FixingPolarity_
+  IgnoringRew{}                -> MisplacedRewrite_
   IllformedAsClause{}          -> IllformedAsClause_
   WrongInstanceDeclaration{}   -> WrongInstanceDeclaration_
   InstanceWithExplicitArg{}    -> InstanceWithExplicitArg_
@@ -5373,6 +5383,7 @@ warningName = \case
   RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
   RewriteAmbiguousRules{}      -> RewriteAmbiguousRules_
   RewriteMissingRule{}         -> RewriteMissingRule_
+  InferredLocalRewrite{}       -> InferredLocalRewrite_
   PragmaCompileErased{}        -> PragmaCompileErased_
   PragmaCompileList{}          -> PragmaCompileList_
   PragmaCompileMaybe{}         -> PragmaCompileMaybe_
@@ -5447,6 +5458,7 @@ illegalRewriteWarningName = \case
   BeforeFunctionDefinition             -> RewriteBeforeFunctionDefinition_
   BeforeMutualFunctionDefinition{}     -> RewriteBeforeMutualFunctionDefinition_
   DuplicateRewriteRule                 -> DuplicateRewriteRule_
+  LocalRewriteOutsideTelescope         -> LocalRewriteOutsideTelescope_
 
 -- | Should warnings of that type be serialized?
 --
@@ -5555,6 +5567,8 @@ data UnificationFailure
   | UnifyRecursiveEq Telescope Type Int Term          -- ^ Can't solve equation because variable occurs in (type of) lhs
   | UnifyReflexiveEq Telescope Type Term              -- ^ Can't solve reflexive equation because --without-K is enabled
   | UnifyUnusableModality Telescope Type Int Term Modality  -- ^ Can't solve equation because solution modality is less "usable"
+  | UnifyVarInRewrite Telescope Type Int Term         -- ^ Can't solve equation because variable occurs in a local rewrite rule
+  | UnifyVarInRewriteEta Telescope Int                -- ^ Can't eta-expand variable because variable occurs in a local rewrite rule
   deriving (Show, Generic)
 
 data UnquoteError
@@ -5784,6 +5798,9 @@ data TypeError
             -- ^ Attempt to pattern match in an abstraction of interval type.
         | PatternInSystem
             -- ^ Attempt to pattern or copattern match in a system.
+        | CannotGenerateTransportLocalRewrite QName
+            -- ^ Cannot generate transport for data or record type because there
+            --   is a local rewrite rule in the telescope.
     -- Data errors
         | UnexpectedParameter A.LamBinding
         | NoParameterOfName ArgName
@@ -6062,6 +6079,16 @@ data InductionAndEta = InductionAndEta
   , recordEtaEquality :: EtaEquality
   } deriving (Show, Generic)
 
+-- Source of the rewrite rule
+data RewriteSource
+  = GlobalRewrite Definition
+  | LocalRewrite Context (Maybe Name) Type
+  deriving (Show, Generic)
+
+isLocalRewrite :: RewriteSource -> Bool
+isLocalRewrite (LocalRewrite g r t) = True
+isLocalRewrite (GlobalRewrite d)    = False
+
 -- Reason, why rewrite rule is invalid
 data IllegalRewriteRuleReason
   = LHSNotDefinitionOrConstructor
@@ -6080,6 +6107,7 @@ data IllegalRewriteRuleReason
   | BeforeFunctionDefinition
   | BeforeMutualFunctionDefinition QName
   | DuplicateRewriteRule
+  | LocalRewriteOutsideTelescope
     deriving (Show, Generic)
 
 -- | Boolean flag whether a name is ambiguous.
@@ -6205,7 +6233,20 @@ enableCaching :: HasOptions m => m Bool
 enableCaching = optCaching <$> pragmaOptions
 {-# INLINE enableCaching #-}
 
-------------------------------------------------------------------------------------------------------
+rewritingOption :: HasOptions m => m Bool
+rewritingOption = optRewriting <$> pragmaOptions
+{-# INLINE rewritingOption #-}
+
+localRewritingOption :: HasOptions m => m Bool
+localRewritingOption = optLocalRewriting <$> pragmaOptions
+{-# INLINE localRewritingOption #-}
+
+-- | Local or global rewriting is enabled
+anyRewritingOption :: HasOptions m => m Bool
+anyRewritingOption = (||) <$> rewritingOption <*> localRewritingOption
+{-# INLINE anyRewritingOption #-}
+
+
 -- * The reduce monad
 ------------------------------------------------------------------------------------------------------
 
@@ -7119,7 +7160,7 @@ instance KillRange Sections where
 instance KillRange Definitions where
   killRange = fmap killRange
 
-instance KillRange RewriteRuleMap where
+instance KillRange GlobalRewriteRuleMap where
   killRange = fmap killRange
 
 instance KillRange Section where
@@ -7137,29 +7178,9 @@ instance KillRange Definition where
 instance KillRange NumGeneralizableArgs where
   killRange = id
 
-instance KillRange NLPat where
-  killRange (PVar s x y)    = killRangeN (PVar s) x y
-  killRange (PDef x y)      = killRangeN PDef x y
-  killRange (PLam x y)      = killRangeN PLam x y
-  killRange (PPi x y)       = killRangeN PPi x y
-  killRange (PSort x)       = killRangeN PSort x
-  killRange (PBoundVar x y) = killRangeN PBoundVar x y
-  killRange (PTerm x)       = killRangeN PTerm x
-
-instance KillRange NLPType where
-  killRange (NLPType s a) = killRangeN NLPType s a
-
-instance KillRange NLPSort where
-  killRange (PUniv u l) = killRangeN (PUniv u) l
-  killRange s@(PInf f n) = s
-  killRange PSizeUniv = PSizeUniv
-  killRange PLockUniv = PLockUniv
-  killRange PLevelUniv = PLevelUniv
-  killRange PIntervalUniv = PIntervalUniv
-
-instance KillRange RewriteRule where
-  killRange (RewriteRule q gamma f es rhs t c top) =
-    killRangeN RewriteRule q gamma f es rhs t c top
+instance KillRange GlobalRewriteRule where
+  killRange (GlobalRewriteRule q gamma f es rhs t c top) =
+    killRangeN GlobalRewriteRule q gamma f es rhs t c top
 
 instance KillRange CompiledRepresentation where
   killRange = id
@@ -7317,12 +7338,9 @@ instance NFData t => NFData (IPBoundary' t)
 instance NFData IPClause
 instance NFData DisplayForm
 instance NFData DisplayTerm
-instance NFData DefSing
-instance NFData NLPat
-instance NFData NLPType
-instance NFData NLPSort
-instance NFData RewriteRule
+instance NFData GlobalRewriteRule
 instance NFData InstanceInfo
+instance NFData LocalRewriteRuleMap
 instance NFData Definition
 instance NFData Polarity
 instance NFData IsForced
@@ -7379,6 +7397,7 @@ instance NFData ClashingName
 instance NFData InvalidFileNameReason
 instance NFData LHSOrPatSyn
 instance NFData InductionAndEta
+instance NFData RewriteSource
 instance NFData IllegalRewriteRuleReason
 instance NFData IncorrectTypeForRewriteRelationReason
 instance NFData GHCBackendError
@@ -7407,7 +7426,8 @@ instance NFData TypeCheckingProblem where
     CheckArgs a b c d e f _fun ->
       rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
     CheckProjAppToKnownPrincipalArg a b c d e f g h i j k ->
-      rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f `seq` rnf g `seq` rnf h `seq` rnf i `seq` rnf j `seq` rnf k
+      rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
+            `seq` rnf g `seq` rnf h `seq` rnf i `seq` rnf j `seq` rnf k
     CheckLambda a b c d ->
       rnf a `seq` rnf b `seq` rnf c `seq` rnf d
     DisambiguateConstructor a _fun ->

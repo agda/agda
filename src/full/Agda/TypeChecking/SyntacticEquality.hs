@@ -242,11 +242,12 @@ instance SynEq a => SynEq (Arg a) where
   synEq x y = expand \ret -> case (x, y) of
     ((Arg ai a), (Arg ai' a')) -> ret $ Arg <$$> synEq ai ai' <**> synEq a a'
 
--- Ignore the tactic.
+-- Ignore the tactic and elaborated rewrite.
 instance SynEq a => SynEq (Dom a) where
   synEq d d' = expand \ret -> case (d, d') of
-    (d@(Dom ai x f t a), d'@(Dom ai' x' f' _ a'))
-      | x == x'   -> ret $ Dom <$$> synEq ai ai' <**> pure2 x <**> synEq f f' <**> pure2 t <**> synEq a a'
+    (d@(Dom ai x f t r a), d'@(Dom ai' x' f' r' a'))
+      | x == x'   -> ret $ Dom <$$> synEq ai ai' <**> pure2 x <**> synEq f f'
+                               <**> pure2 t <**> pure (r, r') <**> synEq a a'
       | otherwise -> ret $ inequal (d, d')
 
 instance SynEq ArgInfo where
