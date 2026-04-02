@@ -7,13 +7,11 @@ import Control.Monad.State          ( StateT )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans          ( MonadTrans, lift )
 
+import Agda.Interaction.Options.HasOptions (HasOptions)
 import Agda.TypeChecking.Monad.Base (TCMT, Builtin, PrimFun)
 import Agda.Syntax.Builtin (SomeBuiltin)
 
-class ( Functor m
-      , Applicative m
-      , Monad m
-      ) => HasBuiltins m where
+class HasOptions m => HasBuiltins m where
   getBuiltinThing :: SomeBuiltin -> m (Maybe (Builtin PrimFun))
   default getBuiltinThing :: (MonadTrans t, HasBuiltins n, t n ~ m) => SomeBuiltin -> m (Maybe (Builtin PrimFun))
   getBuiltinThing = lift . getBuiltinThing

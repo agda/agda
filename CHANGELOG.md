@@ -299,6 +299,31 @@ Changes to type checker and other components defining the Agda language.
   With that change `--erasure` gets more akin to Cubical Agda that categorically
   refuses to infer lambdas (since they could construct either functions or paths).
 
+* **Breaking:** The level arguments of `Set`, `Prop` and `SSet` are
+  now erased if `--erasure` is enabled. Many level arguments in the
+  primitive/builtin modules are also erased, also when those modules
+  are imported from modules that do not use `--erasure`.
+
+  Many level arguments of primitives and builtins are now erased
+  unless the new option `--no-erased-levels-in-primitives` is used.
+  This option is both infective and coinfective (with an exception for
+  `Agda.Primitive`).
+
+  As a consequence of these changes the following code now type-checks:
+  ```agda
+  {-# OPTIONS --cubical-compatible --erasure #-}
+
+  open import Agda.Builtin.Equality
+
+  subst :
+    ∀ {@0 a p} {@0 A : Set a} {x y : A}
+    (P : A → Set p) → x ≡ y → P x → P y
+  subst _ refl p = p
+  ```
+
+  Note that these changes can affect code that uses reflection, even
+  if `--erasure` is not used.
+
 * (**BREAKING**): Instance search will no longer eta-expand non-instance
   (visible and hidden) variables of record type in the context to find
   instance fields ([PR #8367](https://github.com/agda/agda/pull/8367)).

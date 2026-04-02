@@ -5,8 +5,8 @@
 
 module TransColist where
 
+open import Agda.Builtin.Coinduction
 open import Common.Level
-open import Common.Coinduction
 
 -- From Relation.Binary.Core:
 ------------------------------------------------------------------------

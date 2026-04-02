@@ -202,8 +202,17 @@ give_ elaborating force ii e = do
   withInteractionId ii do
     setMetaOccursCheck mi DontRunMetaOccursCheck -- #589, #2710: Allow giving recursive solutions.
     applyWhen elaborating (locallyTC eCurrentlyElaborating $ const True) do
-      -- Andreas, 2025-05-02, issue #7842 reproduces this error
-      let err _blocker = typeError $ InteractionError $ CannotGive e
+      -- It is currently unclear if there is any reproducer for the
+      -- following error. Andreas Abel and I (NAD) discussed this, and
+      -- decided to use __IMPOSSIBLE__ here: if someone triggers this
+      -- error, then we might obtain a reproducer that can be put in
+      -- the test suite.
+      --
+      -- Old code and comment:
+      --
+      -- -- Andreas, 2025-05-02, issue #7842 reproduces this error
+      -- let err _blocker = typeError $ InteractionError $ CannotGive e
+      let err _blocker = __IMPOSSIBLE__
       catchPatternErr err do
         giveExpr force (Just ii) mi e
 

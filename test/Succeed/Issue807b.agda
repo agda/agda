@@ -2,7 +2,7 @@
 
 module Issue807b where
 
-open import Common.Coinduction
+open import Agda.Builtin.Coinduction
 
 data Unit : Set where
   unit : Unit

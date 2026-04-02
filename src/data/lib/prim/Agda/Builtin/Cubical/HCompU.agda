@@ -1,4 +1,5 @@
-{-# OPTIONS --cubical=no-glue --safe --no-sized-types --no-guardedness #-}
+{-# OPTIONS --cubical=no-glue --safe --no-sized-types --no-guardedness
+            --erasure #-}
 
 module Agda.Builtin.Cubical.HCompU where
 
@@ -12,7 +13,7 @@ open import Agda.Builtin.Cubical.Sub renaming (Sub to _[_↦_]; primSubOut to ou
 
 module Helpers where
     -- Homogeneous filling
-    hfill : ∀ {ℓ} {A : Set ℓ} {φ : I}
+    hfill : ∀ {@0 ℓ} {A : Set ℓ} {φ : I}
               (u : ∀ i → Partial φ A)
               (u0 : A [ φ ↦ u i0 ]) (i : I) → A
     hfill {φ = φ} u u0 i =
@@ -21,7 +22,7 @@ module Helpers where
             (outS u0)
 
     -- Heterogeneous filling defined using comp
-    fill : ∀ {ℓ : I → Level} (A : ∀ i → Set (ℓ i)) {φ : I}
+    fill : ∀ {@0 ℓ : I → Level} (A : ∀ i → Set (ℓ i)) {φ : I}
              (u : ∀ i → Partial φ (A i))
              (u0 : A i0 [ φ ↦ u i0 ]) →
              ∀ i →  A i
@@ -31,7 +32,7 @@ module Helpers where
                     ; (i = i0) → outS u0 })
            (outS {φ = φ} u0)
 
-    module _ {ℓ} {A : Set ℓ} where
+    module _ {@0 ℓ} {A : Set ℓ} where
       refl : {x : A} → x ≡ x
       refl {x = x} = λ _ → x
 
@@ -43,26 +44,28 @@ module Helpers where
            → PathP (λ i → B (p i)) (f x) (f y)
       cong f p = λ i → f (p i)
 
-    isContr : ∀ {ℓ} → Set ℓ → Set ℓ
+    isContr : ∀ {@0 ℓ} → Set ℓ → Set ℓ
     isContr A = Σ A \ x → (∀ y → x ≡ y)
 
-    fiber : ∀ {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} (f : A → B) (y : B) → Set (ℓ ⊔ ℓ')
+    fiber : ∀ {@0 ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} (f : A → B) (y : B) → Set (ℓ ⊔ ℓ')
     fiber {A = A} f y = Σ A \ x → f x ≡ y
 
 open Helpers
 
 
 primitive
-  prim^glueU : {la : Level} {φ : I} {T : I → Partial φ (Set la)}
+  prim^glueU : {@0 la : Level} {φ : I} {T : I → Partial φ (Set la)}
                  {A : Set la [ φ ↦ T i0 ]} →
-                 PartialP φ (T i1) → outS A → hcomp T (outS A)
-  prim^unglueU : {la : Level} {φ : I} {T : I → Partial φ (Set la)}
+                 PartialP φ (T i1) → outS {A = Set la} A →
+                 hcomp {A = Set la} T (outS {A = Set la} A)
+  prim^unglueU : {@0 la : Level} {φ : I} {T : I → Partial φ (Set la)}
                    {A : Set la [ φ ↦ T i0 ]} →
-                   hcomp T (outS A) → outS A
+                   hcomp {A = Set la} T (outS {A = Set la} A) →
+                   outS {A = Set la} A
   -- Needed for transp.
   primFaceForall : (I → I) → I
 
-transpProof : ∀ {l} → (e : I → Set l) → (φ : I) → (a : Partial φ (e i0)) → (b : e i1 [ φ ↦ (\ o → transp (\ i → e i) i0 (a o)) ] ) → fiber (transp (\ i → e i) i0) (outS b)
+transpProof : ∀ {@0 l} → (e : I → Set l) → (φ : I) → (a : Partial φ (e i0)) → (b : e i1 [ φ ↦ (\ o → transp (\ i → e i) i0 (a o)) ] ) → fiber (transp (\ i → e i) i0) (outS b)
 transpProof e φ a b = f , \ j → comp (\ i → e i) (\ i →
                                                \ { (φ = i1) → transp (\ j → e (j ∧ i)) (~ i) (a 1=1)
                                                  ; (j = i0) → transp (\ j → e (j ∧ i)) (~ i) f

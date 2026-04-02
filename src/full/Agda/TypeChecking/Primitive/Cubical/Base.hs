@@ -50,7 +50,8 @@ import Agda.Syntax.Common
   (Cubical(..), Arg(..), relevant, irrelevant, setRelevance, defaultArgInfo, hasQuantity0)
 
 import Agda.TypeChecking.Primitive.Base
-  (SigmaKit(..), (-->), nPi', pPi', (<@>), (<#>), (<..>), argN, getSigmaKit)
+  (SigmaKit(..), (-->), nPi', pPi', (<@>), (<#>), (<..>), (<#@>), argN,
+   getSigmaKit)
 
 import Agda.Syntax.Internal
 
@@ -287,13 +288,13 @@ combineSys' l ty xs = do
 
   let
     pOr l ty phi psi u0 u1 = pure tPOr
-      <#> l <@> phi <@> psi <#> ilam "o" (\ _ -> ty)
+      <#@> l <@> phi <@> psi <#> ilam "o" (\ _ -> ty)
       <@> u0 <@> u1
 
     -- In one pass, compute the disjunction of all the cofibrations and
     -- compute the primPOr expression.
     combine :: [(NamesT m Term, NamesT m Term)] -> NamesT m (Term, Term)
-    combine [] = (iz,) <$> (pure tEmpty <#> l <#> ilam "o" (\ _ -> ty))
+    combine [] = (iz,) <$> (pure tEmpty <#@> l <#> ilam "o" (\ _ -> ty))
     combine [(psi, u)] = (,) <$> psi <*> u
     combine ((psi, u):xs) = do
       (phi, c) <- combine xs
@@ -315,9 +316,9 @@ fiber la lb bA bB f b = do
   tPath <- getTerm "fiber" builtinPath
   kit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
   pure (Def (sigmaName kit) [])
-    <#> la <#> lb
+    <#@> la <#@> lb
     <@> bA
-    <@> lam "a" (\ a -> pure tPath <#> lb <#> bB <@> (f <@> a) <@> b)
+    <@> lam "a" (\ a -> pure tPath <#@> lb <#> bB <@> (f <@> a) <@> b)
 
 -- | Helper function for constructing the filler of a given composition
 -- problem.
@@ -332,7 +333,7 @@ hfill
   -> NamesT m Term
 hfill la bA phi u u0 i = do
   tHComp <- getTerm "hfill" builtinHComp
-  pure tHComp <#> la <#> bA <#> (imax phi (ineg i))
+  pure tHComp <#@> la <#> bA <#> (imax phi (ineg i))
     <@> lam "j" (\ j -> combineSys la bA
         [ (phi,    ilam "o" (\o -> u <@> (imin i j) <..> o))
         , (ineg i, ilam "o" (\_ -> u0))

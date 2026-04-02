@@ -1,10 +1,11 @@
+{-# OPTIONS --erasure #-}
 
 module _ where
 
 open import Common.Prelude
 open import Common.Equality
 
-primitive primForce : ∀ {a b} {A : Set a} {B : A → Set b} (x : A) → (∀ x → B x) → B x
+primitive primForce : ∀ {@0 a b} {A : Set a} {B : A → Set b} (x : A) → (∀ x → B x) → B x
 
 force = primForce
 

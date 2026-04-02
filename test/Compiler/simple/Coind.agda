@@ -1,11 +1,11 @@
 {-# OPTIONS --guardedness #-}
 module Coind where
 
+open import Agda.Builtin.Coinduction renaming (♯_ to sharp; ♭ to flat)
 open import Common.IO
 open import Common.Level
 open import Common.Nat
 open import Common.Unit
-open import Common.Coinduction renaming (♯_ to sharp; ♭ to flat)
 
 {-
 infix 1000 sharp_

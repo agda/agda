@@ -1310,6 +1310,13 @@ Erasure
 
      Default, opposite of :option:`--erase-record-parameters`.
 
+.. option:: --no-erased-levels-in-primitives
+
+     .. versionadded:: 2.9.0
+
+     Do not require that (most) level arguments of primitives and
+     builtins are erased.
+
 .. option:: --lossy-unification
 
      .. versionadded:: 2.6.4
@@ -2116,7 +2123,11 @@ Checking options for consistency
 --------------------------------
 
 Agda checks that options used in imported modules are consistent with
-each other.
+each other. (Exceptions are made for the primitive modules
+``Agda.Primitive`` and ``Agda.Primitive.Cubical``: no checks are made
+for ``Agda.Primitive``, and only
+:option:`--no-erased-levels-in-primitives` is considered for
+``Agda.Primitive.Cubical``.)
 
 An *infective* option is an option that if used in one module, must be
 used in all modules that depend on this module. The following options
@@ -2127,6 +2138,7 @@ are infective:
 * :option:`--erasure`
 * :option:`--flat-split`
 * :option:`--guarded`
+* :option:`--no-erased-levels-in-primitives`
 * :option:`--polarity`
 * :option:`--prop`
 * :option:`--rewriting`
@@ -2154,6 +2166,7 @@ be used in all modules that this module depends on. The following
 options are coinfective:
 
 * :option:`--level-universe`
+* :option:`--no-erased-levels-in-primitives`
 * :option:`--no-guardedness`
 * :option:`--no-sized-types`
 * :option:`--no-universe-polymorphism`
@@ -2205,6 +2218,7 @@ again, the source file is re-typechecked instead:
 * :option:`--local-confluence-check`
 * :option:`--lossy-unification`
 * :option:`--no-auto-inline`
+* :option:`--no-erased-levels-in-primitives`
 * :option:`--no-eta-equality`
 * :option:`--no-fast-reduce`
 * :option:`--no-forcing`

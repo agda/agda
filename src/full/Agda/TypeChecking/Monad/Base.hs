@@ -1359,9 +1359,6 @@ data ModuleInfo = ModuleInfo
     --   These might include warnings not stored in the interface itself,
     --   specifically unsolved interaction metas.
     --   See "Agda.Interaction.Imports"
-  , miPrimitive  :: Bool
-    -- ^ 'True' if the module is a primitive module, which should always
-    -- be importable.
   , miMode       :: ModuleCheckMode
     -- ^ The `ModuleCheckMode` used to create the `Interface`
   , miSourceFile :: SourceFile

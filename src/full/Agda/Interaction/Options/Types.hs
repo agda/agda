@@ -152,6 +152,8 @@ data PragmaOptions = PragmaOptions
       -- allowed for record types with η-equality.)
   , _optEraseRecordParameters     :: WithDefault 'False
       -- ^ Mark parameters of record modules as erased?
+  , _optErasedLevelsInPrims       :: WithDefault 'True
+      -- ^ Use erased levels in primitives/builtins?
   , _optRewriting                 :: WithDefault 'False
       -- ^ Can rewrite rules be added and used?
   , _optLocalRewriting            :: WithDefault 'False
