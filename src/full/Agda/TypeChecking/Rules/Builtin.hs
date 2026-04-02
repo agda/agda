@@ -22,6 +22,7 @@ import Agda.Interaction.Options.Base
 
 import Agda.Syntax.Abstract qualified as A
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Concrete.Name qualified as C
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
@@ -694,11 +695,20 @@ bindBuiltinUnit t = do
 
 bindBuiltinSigma :: Term -> TCM ()
 bindBuiltinSigma t = do
-  sigma <- fromMaybe __IMPOSSIBLE__ <$> getDef t
-  def <- theDef <$> getConstInfo sigma
-  case def of
-    Record { recFields = [fst,snd], recConHead = con } -> do
-      bindBuiltinName builtinSigma t
+  def <- getConstInfo =<< fromMaybe __IMPOSSIBLE__ <$> getDef t
+  case theDef def of
+    Record { recFields = [_fst, _snd], recTel = tel } -> do
+      -- The type of Sigma is @(a : Level) (b : Level) (A : Set a) (B : A -> Set b) -> Set _@. This is checked elsewhere.
+      -- The type of the constructor should be @(a : Level) (b : Level) (A : Set a) (B : A -> Set b) (fst : A) (snd : B fst) -> _@.
+      -- @fst@ should have type @A@.
+      -- @snd@ should have type @B fst@.
+      case map (snd . unDom) $ telToList tel of
+        -- [@0:Level, @1:Level, @2:Set@0, @3:(_:@0)->Set@2, @4:@1, @5:(@1 @0)]
+        [_lA, _lB, _sA, _sB, El _ (Var 1 []), El _ (Var 1 [Apply (Arg _ (Var 0 []))])] ->
+          bindBuiltinName builtinSigma t
+        tel' -> do
+          reportSLn "tc.builtin.sigma" 60 $ "constructor telescope = " ++ prettyShow tel'
+          typeError $ InvalidBuiltin $ "Builtin SIGMA: wrong field types"
     _ -> typeError $ InvalidBuiltin "Builtin SIGMA must be a record type with two fields"
 
 -- | Bind BUILTIN EQUALITY and BUILTIN REFL.
