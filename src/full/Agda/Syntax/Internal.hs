@@ -99,10 +99,12 @@ data Dom' t e = Dom
   } deriving (Show, Foldable, Traversable)
 
 instance Functor (Dom' t) where
-  fmap f = \(Dom a b c d e) -> Dom a b c d $! f e
+  {-# INLINE fmap #-}
+  fmap fn = \(Dom a b c d e f) -> Dom a b c d e $! fn f
 
 type Dom = Dom' Term
 
+{-# INLINE domEq #-}
 domEq :: Dom' t e -> Maybe (LocalEquation' t)
 domEq = fmap rewDomEq . rewDom
 

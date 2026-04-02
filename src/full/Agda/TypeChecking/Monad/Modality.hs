@@ -30,9 +30,9 @@ import Agda.TypeChecking.Monad.Constraints (MonadConstraint, solveConstraint)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Env
+import {-# SOURCE #-} Agda.TypeChecking.Rewriting (checkRewConstraint)
 
 import Agda.Utils.Function
-import Agda.Utils.Maybe (whenJust)
 import Agda.Utils.Monad
 import Agda.Utils.ExpandCase
 
@@ -148,14 +148,21 @@ splittableCohesion a = do
   let c = getCohesion a
   pure (usableCohesion c) `and2M` (pure (c /= Flat) `or2M` do optFlatSplit <$> pragmaOptions)
 
+{-# NOINLINE applyDomToContext' #-}
+applyDomToContext' :: RewDom' Term -> TCM ()
+applyDomToContext' r = checkRewConstraint (rewDomEq r)
+
+{-# INLINE applyDomToContext #-}
 -- | Apply modalities and equational constraints (local rewrite rules) to the
 --   context.
-applyDomToContext :: (MonadConstraint tcm) => Dom e -> tcm a -> tcm a
-applyDomToContext d ret =
-  applyModalityToContext d $ do
-    whenJust (domEq d) addRewConstraint
-    ret
+applyDomToContext :: Dom e -> TCM a -> TCM a
+applyDomToContext d act = do
+  expand \ret -> case rewDom d of
+    Nothing -> ret $ pure ()
+    Just c  -> ret $ applyDomToContext' c
+  applyModalityToContext d act
 
+{-# INLINE addRewConstraint #-}
 -- | Adds an equational constraint due to a local rewrite rule.
 addRewConstraint :: MonadConstraint tcm
   => LocalEquation -> tcm ()

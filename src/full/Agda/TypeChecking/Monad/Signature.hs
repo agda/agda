@@ -1069,7 +1069,7 @@ defaultGetLocalRewriteRulesFor ::
   => RewriteHead -> m RewriteRules
 defaultGetLocalRewriteRulesFor h =
   ifNotM (shouldReduceDef' h) (return []) $ do
-    m <- runMaybeT . lookup h =<< asksTC envLocalRewriteRules
+    m <- runMaybeT . lookup h =<< viewTC eLocalRewriteRules
     pure $ fromMaybe [] m
   where
     shouldReduceDef' (RewDefHead f) = shouldReduceDef f

@@ -736,7 +736,8 @@ unfoldDefinitionStep v0 f es =
         || (prp == Right True)
         || (isIrrelevant info)
         || (not defOk)
-      copatterns = defCopatternLHS info
+
+  copatterns <- defCopatternLHS f info
 
   case def of
     Constructor{conSrcCon = c} -> do

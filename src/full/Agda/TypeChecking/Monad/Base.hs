@@ -2432,57 +2432,6 @@ instance Pretty DisplayForm where
 defaultDisplayForm :: QName -> [LocalDisplayForm]
 defaultDisplayForm c = []
 
--- | NLPat might become definitionally singular (after a substitution)
-data DefSing
-  = NeverSing
-    -- ^ Never definitionally singular
-  | MaybeSing
-    -- ^ Might become definitionally singular after a substitution
-  | AlwaysSing
-    -- ^ Always definitionally singular (e.g. irrelevant or in |Prop|)
-  deriving (Show, Generic, Enum, Bounded)
-
-relToDefSing :: Relevance -> DefSing
-relToDefSing r = if isIrrelevant r then AlwaysSing else NeverSing
-
--- Only approximate if both sides are |NotDefSingIfInj| with non-empty
--- injective constraints
-minDefSing :: DefSing -> DefSing -> DefSing
-minDefSing s s' = toEnum $ fromEnum s `min` fromEnum s'
-
-maxDefSing :: DefSing -> DefSing -> DefSing
-maxDefSing s s' = toEnum $ fromEnum s `max` fromEnum s'
-
-isAlwaysSing :: DefSing -> Bool
-isAlwaysSing AlwaysSing = True
-isAlwaysSing _          = False
-
--- | Non-linear (non-constructor) first-order pattern.
-data NLPat
-  = PVar DefSing !Int [Arg Int]
-    -- ^ Matches anything (modulo non-linearity) that only contains bound
-    --   variables that occur in the given arguments.
-    --   Tracks the definitional singularity of the surrounding pattern (not
-    --   the type of the variable itself)
-  | PDef QName PElims
-    -- ^ Matches @f es@
-  | PLam ArgInfo (Abs NLPat)
-    -- ^ Matches @λ x → t@
-  | PPi (Dom NLPType) (Abs NLPType)
-    -- ^ Matches @(x : A) → B@
-  | PSort NLPSort
-    -- ^ Matches a sort of the given shape.
-  | PBoundVar !Int PElims
-    -- ^ Matches @x es@ where x is a lambda-bound variable
-  | PTerm Term
-    -- ^ Matches the term modulo β (ideally βη).
-  deriving (Show, Generic)
-type PElims = [Elim' NLPat]
-
-type instance TypeOf NLPat = Type
-type instance TypeOf [Elim' NLPat] = (Type, Elims -> Term)
-
-
 instance TermLike NLPat where
   traverseTermM f = \case
     p@PVar{}       -> return p
@@ -2706,7 +2655,7 @@ defaultDefn info x t lang def = Defn
   , defMatchable         = Set.empty
   , defNoCompilation     = False
   , defInjective         = False
-  , defCopatternLHS      = False
+  , defCopatternLHS'     = False
   , defBlocked           = NotBlocked ReallyNotBlocked ()
   , defLanguage          = lang
   , defMightContainMetas = True
@@ -4378,6 +4327,10 @@ data ColdEnv = ColdEnv {
         -- currently under, if any. Used by the scope checker
         -- (to associate definitions to blocks), and by the type
         -- checker (for unfolding control).
+  , envChasePrefix :: !(Maybe String)
+    -- ^ A string to be used as the prefix for module chasing
+    -- (Checking, Loading, etc.) messages. If unset, the length
+    -- of the import stack is used.
   } deriving Generic
 
 -- Bool Flags
@@ -4551,6 +4504,32 @@ initColdEnv = ColdEnv {
   , envCheckingWhere         = C.NoWhere_
   , envUnquoteProblem        = Nothing
   , envAbstractMode          = ConcreteMode
+  -- Andreas, 2013-02-21:  This was 'AbstractMode' until now.
+  -- However, top-level checks for mutual blocks, such as
+  -- constructor-headedness, should not be able to look into
+  -- abstract definitions unless abstract themselves.
+  -- (See also discussion on issue 796.)
+  -- The initial mode should be 'ConcreteMode', ensuring you
+  -- can only look into abstract things in an abstract
+  -- definition (which sets 'AbstractMode').
+  , envRange                  = noRange
+  , envHighlightingRange      = noRange
+  , envClause                 = IPNoClause
+  , envCall                   = Nothing
+  , envHighlightingLevel      = None
+  , envHighlightingMethod     = Indirect
+  , envExpandLast             = ExpandLast
+  , envSimplification         = NoSimplification
+  , envReduceDefs             = reduceAllDefs
+  , envInjectivityDepth       = 0
+  , envUnquoteFlags           = defaultUnquoteFlags
+  , envInstanceDepth          = 0
+  , envPrintingPatternLambdas = []
+  , envGeneralizeMetas        = NoGeneralize
+  , envGeneralizedVars        = Map.empty
+  , envActiveBackendName      = Nothing
+  , envCurrentOpaqueId        = Nothing
+  , envChasePrefix            = Nothing
   }
 
 initEnv :: TCEnv
@@ -4585,6 +4564,11 @@ eSyntacticEqualityFuel = \f e ->
 eCurrentOpaqueId :: Lens' TCEnv (Maybe OpaqueId)
 eCurrentOpaqueId = \f e ->
   f (envCurrentOpaqueId (envColdEnv e)) <&> \ !x -> e {envColdEnv = (envColdEnv e){envCurrentOpaqueId = x}}
+
+{-# INLINE eChasePrefix #-}
+eChasePrefix :: Lens' TCEnv (Maybe String)
+eChasePrefix = \f e ->
+  f (envChasePrefix (envColdEnv e)) <&> \ !x -> e {envColdEnv = (envColdEnv e){envChasePrefix = x}}
 
 {-# INLINE eContext #-}
 eContext :: Lens' TCEnv Context

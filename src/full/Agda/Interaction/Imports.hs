@@ -1237,9 +1237,9 @@ chaseMsg
   -> Maybe String         -- ^ Optionally: the file name.
   -> TCM ()
 chaseMsg kind x file = do
-  indentation <- asksTC envChasePrefix >>= \case
+  indentation <- viewTC eChasePrefix >>= \case
     Just pref -> pure pref
-    Nothing   -> (`replicate` ' ') <$> viewTC (pred . length . eImportStack)
+    Nothing   -> (`replicate` ' ') . pred . length <$> viewTC eImportStack
   traceImports <- optTraceImports <$> commandLineOptions
   let maybeFile = caseMaybe file "." $ \ f -> " (" ++ f ++ ")."
       vLvl | kind == "Checking"

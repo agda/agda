@@ -131,7 +131,7 @@ compactDef ::
 compactDef bEnv def copatterns rewr = do
 
   shouldReduce <- shouldReduceDef (defName def)
-  allowed <- viewTC eAllowedReductions
+  allowed      <- viewTC eAllowedReductions
 
   let isConOrProj = case theDef def of
         Constructor{} -> True
@@ -145,7 +145,7 @@ compactDef bEnv def copatterns rewr = do
                 || (isConOrProj && ProjectionReductions `SmallSet.member` allowed)
                 || (isInlineFun (theDef def) && InlineReductions `SmallSet.member` allowed)
                 || (definitelyNonRecursive_ (theDef def) && (
-                       (defCopatternLHS def && CopatternReductions `SmallSet.member` allowed)
+                       (copatterns && CopatternReductions `SmallSet.member` allowed)
                     || (FunctionReductions `SmallSet.member` allowed))
                    )
              )
@@ -984,6 +984,7 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation = compileAndRun . traceDo
     --  - Perform a beta step if lambda and application elimination in the spine
     --  - Perform a record beta step if record constructor and projection elimination in the spine
     runEval' s@(Eval cl@(Closure Unevaled t env spine) ctrl) = {-# SCC "runEval" #-}
+
       case t of
 
         -- Case: definition. Enter 'Match' state if defined function or shift to evaluating an
@@ -1050,20 +1051,19 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation = compileAndRun . traceDo
           evalIApplyAM spine ctrl $
           lookupEnv x env
             (\p -> evalPointerAM p spine ctrl)
-            (\_ -> rewriteEval $ evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl
+            (\_ -> rewriteEval $ evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl)
 
         -- Case: lambda. Perform the beta reduction if applied. Otherwise it's a value.
         Lam h b ->
           case spine of
-            [] -> runEval done
+            []            -> runEval done
             elim : spine' ->
-              case b of
-                Abs   _ b -> runEval (evalClosure b (getArg elim `extendEnv` env) spine' ctrl)
-                NoAbs _ b -> runEval (evalClosure b env spine' ctrl)
-          where
-            getArg (SApply _ v)    = v
-            getArg (SIApply _ _ v) = v
-            getArg SProj{}         = __IMPOSSIBLE__
+               let getArg (SApply _ v)    = v
+                   getArg (SIApply _ _ v) = v
+                   getArg SProj{}         = __IMPOSSIBLE__ in
+               case b of
+                 Abs   _ b -> runEval (evalClosure b (getArg elim `extendEnv` env) spine' ctrl)
+                 NoAbs _ b -> runEval (evalClosure b env spine' ctrl)
 
         -- Case: values. Literals and function types are already in weak-head normal form.
         -- We throw away the environment for literals mostly to make debug printing less verbose.

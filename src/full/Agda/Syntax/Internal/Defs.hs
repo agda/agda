@@ -114,7 +114,7 @@ instance GetDefs a => GetDefs (Arg a) where
 instance GetDefs a => GetDefs (Dom a) where
   {-# INLINE getDefs #-}
   getDefs ms ds d = expand \ret -> case d of
-    Dom _ _ _ _ t -> ret $ getDefs ms ds t
+    Dom _ _ _ _ _ t -> ret $ getDefs ms ds t
 
 instance GetDefs a => GetDefs (Abs a) where
   {-# INLINE getDefs #-}

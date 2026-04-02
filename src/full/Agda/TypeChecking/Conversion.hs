@@ -553,14 +553,14 @@ computeElimHeadType f es _   = computeDefType f es
 -- | Compute the type of a rewrite rule head. For projection-like
 --   functions, this requires inferring the type of the principal argument,
 --   using the eliminations.
-computeRewHeadType :: MonadConversion m
-  => Int          -- Size of the "rewrite rule telescope"
+computeRewHeadType ::
+     Int          -- Size of the "rewrite rule telescope"
   -> RewriteHead  -- Rewrite rule head we want to compute the type of
   -> Elims        -- Eliminations
   -> Elims        -- Alternative eliminations, used if the first is empty
-  -> m Type
-computeRewHeadType telSize (RewDefHead f) es es' = computeElimHeadType f es es'
-computeRewHeadType telSize (RewVarHead x) es es' = typeOfBV $ x + telSize
+  -> TCM Type
+computeRewHeadType !telSize (RewDefHead f) !es !es' = computeElimHeadType f es es'
+computeRewHeadType  telSize (RewVarHead x)  es  es' = typeOfBV $ x + telSize
 
 -- | Syntax directed equality on atomic values
 --
@@ -1117,17 +1117,17 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
             solved <- isProblemSolved'' pid
             reportSLn "tc.conv.elim" 40 $ "solved = " ++ show solved
             arg <- expand \ret -> if not solved then ret do
-                    applyDomToContext dom info $ do
-                      reportSDoc "tc.conv.elims" 50 $ vcat $
-                        [ "Trying antiUnify:"
-                        , nest 2 $ "b    =" <+> prettyTCM b
-                        , nest 2 $ "arg1 =" <+> prettyTCM arg1
-                        , nest 2 $ "arg2 =" <+> prettyTCM arg2
-                        ]
-                      arg <- (arg1 $>) <$> antiUnify pid b (unArg arg1) (unArg arg2)
-                      reportSDoc "tc.conv.elims" 50 $ hang "Anti-unification:" 2 (prettyTCM arg)
-                      reportSDoc "tc.conv.elims" 70 $ nest 2 $ "raw:" <+> pretty arg
-                      return arg
+                     applyDomToContext dom $ do
+                       reportSDoc "tc.conv.elims" 50 $ vcat $
+                         [ "Trying antiUnify:"
+                         , nest 2 $ "b    =" <+> prettyTCM b
+                         , nest 2 $ "arg1 =" <+> prettyTCM arg1
+                         , nest 2 $ "arg2 =" <+> prettyTCM arg2
+                         ]
+                       arg <- (arg1 $>) <$> antiUnify pid b (unArg arg1) (unArg arg2)
+                       reportSDoc "tc.conv.elims" 50 $ hang "Anti-unification:" 2 (prettyTCM arg)
+                       reportSDoc "tc.conv.elims" 70 $ nest 2 $ "raw:" <+> pretty arg
+                       return arg
                    else ret $ return arg1
             -- continue, possibly with blocked instantiation
             () <- compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2

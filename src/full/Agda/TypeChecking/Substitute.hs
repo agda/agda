@@ -280,7 +280,7 @@ instance Apply Definition where
 instance Apply GlobalRewriteRule where
   apply r args =
     let newContext = apply (grContext r) args
-        sub        = liftS (size newContext) $ parallelS $ reverse' $ map' (PTerm . unArg) args
+        sub        = liftS (size newContext) $ parallelS $ reverse $ map' (PTerm . unArg) args
     in GlobalRewriteRule
        { grName    = grName r
        , grContext = newContext
@@ -1239,7 +1239,7 @@ instance Subst a => Subst (Named name a) where
 instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Dom' a b) where
   type SubstArg (Dom' a b) = SubstArg a
 
-  {-# INLINE apllySubst #-}
+  {-# INLINE applySubst #-}
   applySubst IdS dom = dom
   applySubst rho (Dom i n f t rw e) =
     let !i' | getFreeVariables i == unknownFreeVariables = i
