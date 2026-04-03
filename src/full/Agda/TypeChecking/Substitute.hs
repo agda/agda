@@ -1059,7 +1059,8 @@ applyNLPatSubst = applySubst . fmap nlPatToTerm
       PBoundVar i es -> __IMPOSSIBLE__
 
 applyNLSubstToDom :: SubstWith NLPat a => Substitution' NLPat -> Dom a -> Dom a
-applyNLSubstToDom rho dom = applySubst rho <$> dom{ domTactic = applyNLPatSubst rho $ domTactic dom }
+applyNLSubstToDom rho dom =
+  applySubst rho <$> (dom & dTactic %~ applyNLPatSubst rho)
 
 -- Assume substitution maps the given variable to a variable
 lookupSVar ::  EndoSubst a => Substitution' a -> Nat -> Maybe Nat
@@ -1241,10 +1242,13 @@ instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Dom' a b) where
 
   {-# INLINE applySubst #-}
   applySubst IdS dom = dom
-  applySubst rho (Dom i n f t rw e) =
-    let !i' | getFreeVariables i == unknownFreeVariables = i
-            | otherwise = setFreeVariables unknownFreeVariables i
-    in Dom i' n f $$! applySubst rho t $$! applySubst rho rw $$! applySubst rho e
+  applySubst rho (Dom' inf@(DomInfo i n f t rw) e) =
+    let i' | getFreeVariables i == unknownFreeVariables = i
+           | otherwise = setFreeVariables unknownFreeVariables i in
+    let inf' | Nothing <- t, Nothing <- rw = inf
+             | otherwise = DomInfo i' n f (applySubst rho t) (applySubst rho rw) in
+    Dom' inf' $$! applySubst rho e
+    -- Dom i' n f $$! applySubst rho t $$! applySubst rho rw $$! applySubst rho e
 
 instance Subst LetBinding where
   type SubstArg LetBinding = Term
@@ -1543,7 +1547,7 @@ class TeleNoAbs a where
   teleNoAbs :: a -> Term -> Term
 
 instance TeleNoAbs ListTel where
-  teleNoAbs tel t = foldr (\ Dom{domInfo = ai, unDom = (x, _)} -> Lam ai . NoAbs x) t tel
+  teleNoAbs tel t = foldr (\ d -> Lam (d ^. dInfo) . NoAbs (fst (unDom d))) t tel
 
 instance TeleNoAbs Telescope where
   teleNoAbs tel = teleNoAbs $ telToList tel
@@ -1734,6 +1738,7 @@ deriving instance Eq NLPSort
 deriving instance Eq LocalEquation
 deriving instance Eq RewriteRule
 deriving instance Eq RewDom
+deriving instance Eq (DomInfo Term)
 
 deriving instance Ord DefSing
 deriving instance Ord NLPSort
@@ -1743,6 +1748,7 @@ deriving instance Ord LocalEquation
 deriving instance Ord RewriteHead
 deriving instance Ord RewriteRule
 deriving instance Ord RewDom
+deriving instance Ord (DomInfo Term)
 
 ---------------------------------------------------------------------------
 -- * Sort stuff

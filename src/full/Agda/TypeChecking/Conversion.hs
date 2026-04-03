@@ -439,20 +439,21 @@ compareTerm' !cmp !a !m !n =
     equalFun :: Sort -> Term -> Term -> Term -> TCM ()
     equalFun s a@(Pi dom b) m n | domIsFinite dom = do
        !mp <- fmap getPrimName <$> getBuiltin' builtinIsOne
-       let asFn = El s (Pi (dom { domIsFinite = False }) b)
+       let dom' = set dIsFinite False dom
+       let asFn = El s (Pi dom' b)
        case unEl $ unDom dom of
           Def q [Apply phi]
               | Just q == mp -> compareTermOnFace cmp (unArg phi) asFn m n
           _                  -> equalFun s (unEl asFn) m n
 
-    equalFun _ (Pi dom@Dom{domInfo = info} b) (Lam _ m) (Lam _ n) = do
+    equalFun _ (Pi dom@(view dInfo -> info) b) (Lam _ m) (Lam _ n) = do
       whenProfile Profile.Conversion $ tick "compare at function type"
       let name = suggests [ Suggestion b , Suggestion m , Suggestion n ]
       addConversionContext (ConvLam dom (void b) name)
         $ addContext (name, dom)
         $ compareTerm cmp (absBody b) (absBody m) (absBody n)
 
-    equalFun _ (Pi dom@Dom{domInfo = info} b) m n = do
+    equalFun _ (Pi dom@(view dInfo -> info) b) m n = do
       whenProfile Profile.Conversion $ tick "compare at function type"
       let
         (m', n') = let !v = var 0 in raise 1 (m,n) `apply` [Arg info v]
@@ -845,10 +846,8 @@ compareDom ::
   -> TCM ()       -- ^ Error continuation
   -> TCM ()       -- ^ Success continuation
   -> TCM ()
-compareDom cmp0
-  dom1@(Dom{domInfo = i1, unDom = a1})
-  dom2@(Dom{domInfo = i2, unDom = a2})
-  b1 b2 err cont = do
+compareDom cmp0 dom1@(unDom -> a1) dom2@(unDom -> a2) b1 b2 err cont = do
+  let i1 = dom1 ^. dInfo; i2 = dom2 ^. dInfo
   if | not $ sameHiding dom1 dom2 -> err
      | not $ (==)         (getRelevance dom1) (getRelevance dom2) -> err
      | not $ sameQuantity (getQuantity  dom1) (getQuantity  dom2) -> err
@@ -1080,7 +1079,8 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
       a <- abortIfBlocked a
       reportSLn "tc.conv.elim" 40 $ "type is not blocked"
       case unEl a of
-        (Pi dom@(Dom{domInfo = info, unDom = b}) codom) -> do
+        (Pi dom@(unDom -> b) codom) -> do
+          let info = dom ^. dInfo
           reportSLn "tc.conv.elim" 40 $ "type is a function type"
 
           dependent <- do
@@ -1103,7 +1103,7 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
 
             -- compare arg1 and arg2
             pid <- addConversionContext (\z -> ConvApply v codom (Arg info z) els1 els2) $
-              newProblemDontWake_ $ applyDomToContext dom $
+              newProblemDontWake_ $ applyModalityToContext info $
               expand \ret -> if isForced for then ret $
                 reportSLn "tc.conv.elim" 40 $ "argument is forced"
               else ret $ expand \ret -> if isIrrelevant info then ret do
@@ -1117,7 +1117,7 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
             solved <- isProblemSolved'' pid
             reportSLn "tc.conv.elim" 40 $ "solved = " ++ show solved
             arg <- expand \ret -> if not solved then ret do
-                     applyDomToContext dom $ do
+                     applyModalityToContext info $ do
                        reportSDoc "tc.conv.elims" 50 $ vcat $
                          [ "Trying antiUnify:"
                          , nest 2 $ "b    =" <+> prettyTCM b
@@ -1148,7 +1148,7 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
           else ret do
             -- compare arg1 and arg2
             addConversionContext (\z -> ConvApply v codom (Arg info z) els1 els2) $
-              applyDomToContext dom $
+              applyModalityToContext info $
                 expand \ret -> if isForced for then ret $
                   reportSLn "tc.conv.elim" 40 $ "argument is forced"
                 else ret $ expand \ret -> if isIrrelevant info then ret do
@@ -2216,7 +2216,8 @@ forallFaceMaps t kb k = do
       let t = foldr (\ x r -> and `apply` [argN x,argN r]) io ts
       ifBlocked t blocked unblocked
     addBindings [] m = m
-    addBindings ((CtxVar nm Dom{domInfo = info,unDom = ty},t):bs) m = addLetBinding info Inserted nm t ty (addBindings bs m)
+    addBindings ((CtxVar nm dom@(unDom -> ty),t):bs) m =
+      addLetBinding (dom ^. dInfo) Inserted nm t ty (addBindings bs m)
 
     substContextN :: Context -> [(Int,Term)] -> TCM (Context , Substitution)
     substContextN c [] = return (c, idS)

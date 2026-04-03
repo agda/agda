@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
-{-# OPTIONS_GHC -Wunused-matches #-}
+-- {-# OPTIONS_GHC -Wunused-matches #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
@@ -70,6 +70,72 @@ data RewDom' t = RewDom
 
 type RewDom = RewDom' Term
 
+data DomInfo t = DomInfo {
+    domInfoArgInfo  :: ArgInfo
+  , domInfoName     :: (Maybe NamedName)
+  -- ^ e.g. @x@ in @{x = y : A} -> B@.
+  , domInfoIsFinite :: Bool
+  -- ^ Is this a Π-type (False), or a partial type (True)?
+  , domInfoTactic   :: (Maybe t)
+  -- ^ "@tactic e".
+  , domInfoRew      :: (Maybe (RewDom' t))
+  -- ^ Elaborated "@rewrite" equation
+  --
+  -- Will only be present if domain annotated with "@rewrite" (@annRewrite@
+  -- is @IsRewrite@) AND the type successfully elaborated into a rewrite rule.
+  }
+
+instance Show t => Show (DomInfo t) where
+  show (DomInfo a b c d e) = show (a,b,c,d,e)
+
+{-# INLINE domInfo #-}
+domInfo :: Dom' t e -> ArgInfo
+domInfo d = domInfoArgInfo (domDomInfo d)
+
+{-# INLINE dInfo #-}
+dInfo :: Lens' (Dom' t e) ArgInfo
+dInfo = \f d ->
+  f (domInfo d) <&> \x -> d {domDomInfo = (domDomInfo d){domInfoArgInfo = x}}
+
+{-# INLINE domName #-}
+domName :: Dom' t e -> Maybe NamedName
+domName d = domInfoName (domDomInfo d)
+
+{-# INLINE dName #-}
+dName :: Lens' (Dom' t e) (Maybe NamedName)
+dName = \f d ->
+  f (domName d) <&> \x -> d {domDomInfo = (domDomInfo d){domInfoName = x}}
+
+{-# INLINE domIsFinite #-}
+domIsFinite :: Dom' t e -> Bool
+domIsFinite d =
+  domInfoIsFinite (domDomInfo d)
+
+{-# INLINE dIsFinite #-}
+dIsFinite :: Lens' (Dom' t e) Bool
+dIsFinite = \f d ->
+  f (domIsFinite d) <&> \x -> d {domDomInfo = (domDomInfo d){domInfoIsFinite = x}}
+
+{-# INLINE domTactic #-}
+domTactic :: Dom' t e -> Maybe t
+domTactic d =
+  domInfoTactic (domDomInfo d)
+
+{-# INLINE dTactic #-}
+dTactic :: Lens' (Dom' t e) (Maybe t)
+dTactic = \f d ->
+  f (domTactic d) <&> \x -> d {domDomInfo = (domDomInfo d){domInfoTactic = x}}
+
+{-# INLINE rewDom #-}
+rewDom :: Dom' t e -> Maybe (RewDom' t)
+rewDom d =
+  domInfoRew (domDomInfo d)
+
+{-# INLINE dRew #-}
+dRew :: Lens' (Dom' t e) (Maybe (RewDom' t))
+dRew = \f d ->
+  f (rewDom d) <&> \x -> d {domDomInfo = (domDomInfo d){domInfoRew = x}}
+
 -- | Similar to 'Arg', but we need to distinguish
 --   an irrelevance annotation in a function domain
 --   (the domain itself is not irrelevant!)
@@ -84,19 +150,15 @@ type RewDom = RewDom' Term
 --   tabulating the domain type.  Only supported in case the domain type
 --   is primIsOne, to obtain the correct equality for partial elements.
 --
-data Dom' t e = Dom
-  { domInfo   :: ArgInfo
-  , domName   :: Maybe NamedName  -- ^ e.g. @x@ in @{x = y : A} -> B@.
-  , domIsFinite :: Bool
-    -- ^ Is this a Π-type (False), or a partial type (True)?
-  , domTactic :: Maybe t        -- ^ "@tactic e".
-  , rewDom    :: Maybe (RewDom' t)
-    -- ^ Elaborated "@rewrite" equation
-    --
-    -- Will only be present if domain annotated with "@rewrite" (@annRewrite@
-    -- is @IsRewrite@) AND the type successfully elaborated into a rewrite rule.
-  , unDom     :: e
+data Dom' t e = Dom'
+  { domDomInfo :: !(DomInfo t)
+  , unDom      :: e
   } deriving (Show, Foldable, Traversable)
+
+pattern Dom :: ArgInfo -> Maybe NamedName -> Bool -> Maybe t -> Maybe (RewDom' t) -> e -> Dom' t e
+pattern Dom a b c d e f = Dom' (DomInfo a b c d e) f
+{-# INLINE Dom #-}
+{-# COMPLETE Dom #-}
 
 instance Functor (Dom' t) where
   {-# INLINE fmap #-}
@@ -111,8 +173,10 @@ domEq = fmap rewDomEq . rewDom
 -- | Is this Dom annotated as a local rewrite rule and if so, has the rewrite
 --   been invalidated due to a substitution?
 invalidRew :: Dom' t e -> Bool
-invalidRew Dom { rewDom = Just (RewDom { rewDomRew = Nothing }) } = True
-invalidRew _                                                      = False
+invalidRew d = case rewDom d of
+  Just (RewDom {rewDomRew = Nothing}) -> True
+  _                                   -> False
+
 
 instance Decoration (Dom' t) where
   traverseF f (Dom ai x t b r a) = Dom ai x t b r <$> f a
@@ -133,12 +197,13 @@ instance Eq a => Eq (Dom' t a) where
 
 instance LensNamed (Dom' t e) where
   type NameOf (Dom' t e) = NamedName
-  lensNamed f dom = f (domName dom) <&> \ nm -> dom { domName = nm }
+  {-# INLINE lensNamed #-}
+  lensNamed = \f dom ->
+    f (domName dom) <&> \ nm -> dom { domDomInfo = (domDomInfo dom){domInfoName = nm }}
 
 instance LensArgInfo (Dom' t e) where
   getArgInfo        = domInfo
-  setArgInfo ai dom = dom { domInfo = ai }
-  mapArgInfo f  dom = dom { domInfo = f $ domInfo dom }
+  setArgInfo ai dom = dom { domDomInfo = (domDomInfo dom) {domInfoArgInfo = ai} }
 
 instance LensLock (Dom' t e) where
   getLock = getLock . getArgInfo
@@ -167,10 +232,13 @@ instance LensCohesion  (Dom' t e) where
 instance LensModalPolarity (Dom' t e) where
 
 argFromDom :: Dom' t a -> Arg a
-argFromDom Dom{domInfo = i, unDom = a} = Arg i a
+argFromDom d = let !i = domInfo d in Arg i (unDom d)
 
 namedArgFromDom :: Dom' t a -> NamedArg a
-namedArgFromDom Dom{domInfo = i, domName = s, unDom = a} = Arg i $ Named s a
+namedArgFromDom d =
+  let !i = domInfo d
+      !s = domName d
+  in Arg i $ Named s (unDom d)
 
 -- The following functions are less general than they could be:
 -- @Dom@ could be replaced by @Dom' t@.
@@ -196,7 +264,8 @@ defaultArgDom :: ArgInfo -> a -> Dom a
 defaultArgDom info = defaultArgDomRew info Nothing
 
 defaultNamedArgDom :: ArgInfo -> String -> a -> Dom a
-defaultNamedArgDom info s x = (defaultArgDom info x) { domName = Just $ WithOrigin Inserted $ unranged s }
+defaultNamedArgDom info (unranged -> !s) x =
+  set lensNamed (Just $ WithOrigin Inserted s) (defaultArgDom info x)
 
 -- | Type of argument lists.
 --
@@ -1066,7 +1135,7 @@ type ListTel = ListTel' ArgName
 telFromList' :: (a -> ArgName) -> ListTel' a -> Telescope
 telFromList' f = List.foldr extTel EmptyTel
   where
-    extTel dom@Dom{unDom = (x, a)} = ExtendTel (dom{unDom = a}) . Abs (f x)
+    extTel dom@Dom'{unDom = (x, a)} = ExtendTel (dom{unDom = a}) . Abs (f x)
 
 -- | Convert a list telescope to a telescope.
 telFromList :: ListTel -> Telescope

@@ -120,25 +120,26 @@ implicitCheckedArgs n expand t0 = do
     reportSDoc "tc.term.args" 30 $ "implicitCheckedArgs" <+> prettyTCM t0'
     reportSDoc "tc.term.args" 80 $ "implicitCheckedArgs" <+> text (show t0')
     case unEl t0' of
-      Pi dom@Dom{domInfo = info, domTactic = mtac, unDom = a} b
-        | let x = bareNameWithDefault "_" dom, expand (getHiding info) x -> do
-          kind <- if hidden info then return UnificationMeta else do
+      Pi dom@(unDom -> a) b
+      -- Pi dom@Dom{domInfo = info, domTactic = mtac, unDom = a} b
+        | let x = bareNameWithDefault "_" dom, expand (getHiding (dom ^. dInfo)) x -> do
+          kind <- if hidden (dom ^. dInfo) then return UnificationMeta else do
             reportSDoc "tc.term.args.ifs" 15 $
               "inserting instance meta for type" <+> prettyTCM a
             reportSDoc "tc.term.args.ifs" 40 $ nest 2 $ vcat
               [ "x      = " <+> text (show x)
-              , "hiding = " <+> text (show $ getHiding info)
+              , "hiding = " <+> text (show $ getHiding (dom ^. dInfo))
               ]
 
             return InstanceMeta
           (_, v) <- newMetaArg kind x CmpLeq dom
-          whenJust mtac \ tac -> liftTCM do
+          whenJust (dom ^. dTactic) \ tac -> liftTCM do
             -- We don't need to do a full 'applyDomToContext' here.
             -- 'newMetaArg' already adds the local rewrite rule constraint
             applyModalityToContext dom $ unquoteTactic tac v a
           let name = Just $ WithOrigin Inserted $ unranged x
           mc <- liftTCM $ makeLockConstraint t0' v
-          let carg = CheckedArg{ caElim = Apply (Arg info v), caRange = empty, caConstraint = mc }
+          let carg = CheckedArg{ caElim = Apply (Arg (dom ^. dInfo) v), caRange = empty, caConstraint = mc }
           first (Named name carg :) <$> implicitCheckedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
 
@@ -150,12 +151,12 @@ implicitCheckedArgs n expand t0 = do
 makeLockConstraint :: Type -> Term -> TCM (Maybe (Abs Constraint))
 makeLockConstraint funType u =
   case funType of
-    El _ (Pi (Dom{ domInfo = info, domName = dname, unDom = a }) _) -> do
+    El _ (Pi dom@(unDom -> a) _) -> do
       let
-        x  = maybe "t" prettyShow dname
-        mc = case getLock info of
+        x  = maybe "t" prettyShow (dom ^. dName)
+        mc = case getLock (dom ^. dInfo) of
           IsLock{} -> Just $ Abs x $
-            CheckLockedVars (var 0) (raise 1 funType) (raise 1 $ Arg info u) (raise 1 a)
+            CheckLockedVars (var 0) (raise 1 funType) (raise 1 $ Arg (dom ^. dInfo) u) (raise 1 a)
           IsNotLock -> Nothing
       whenJust mc \ c -> do
         reportSDoc "tc.term.lock" 40 do

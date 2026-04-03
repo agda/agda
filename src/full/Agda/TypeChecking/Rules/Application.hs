@@ -773,8 +773,10 @@ checkArgumentsE'
         -- sFunType <- lift $ forcePi (getHiding info)
         --                  (maybe "_" rangedThing $ nameOf e) sFunType
         case unEl sFunType of
-          Pi dom@(Dom{domInfo = info', domName = dname, unDom = a}) b
-            | let name = bareNameWithDefault "_" dname,
+          Pi dom@(unDom -> a) b
+            | let info' = dom ^. dInfo,
+              let dname = dom ^. dName,
+              let name  = bareNameWithDefault "_" dname,
               sameHiding info info'
               && (visible info || maybe True (name ==) mx) -> do
                 whenJust (domEq dom) \eq ->
@@ -803,6 +805,7 @@ checkArgumentsE'
                 addCheckedArgs cargs ca $
                   checkArgumentsE' s{ sFunType = absApp b u }
             | otherwise -> do
+                let info' = dom ^. dInfo
                 reportSDoc "error" 10 $ nest 2 $ vcat
                   [ text $ "info      = " ++! show info
                   , text $ "info'     = " ++! show info'

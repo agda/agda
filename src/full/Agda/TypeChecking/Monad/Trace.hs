@@ -88,15 +88,18 @@ interestingCall = \case
 
 class (MonadTCEnv m, ReadTCState m) => MonadTrace m where
 
+  {-# INLINE traceCall #-}
   -- | Record a function call in the trace.
   traceCall :: Call -> m a -> m a
   traceCall call m = do
     cl <- buildClosure call
     traceClosureCall cl m
 
+  {-# INLINE traceCallM #-}
   traceCallM :: m Call -> m a -> m a
   traceCallM call m = flip traceCall m =<< call
 
+  {-# INLINE traceCallCPS #-}
   -- | Like 'traceCall', but resets 'envCall' and the current ranges to the
   --   previous values in the continuation.
   --

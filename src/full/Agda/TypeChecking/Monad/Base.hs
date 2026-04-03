@@ -4,6 +4,7 @@
 -- with GHC 9.14
 {-# LANGUAGE NoDeepSubsumption #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedTuples #-}
 
 module Agda.TypeChecking.Monad.Base
   ( module Agda.TypeChecking.Monad.Base
@@ -4220,7 +4221,7 @@ data TCContext = TCContext {
     --   the current context.
   , envAppDef :: !(Maybe QName)
         -- ^ We are reducing an application of this function.
-        -- (For tracking of incomplete matches.)
+        --  (For tracking of incomplete matches.)
   } deriving Generic
 
 data ModalEnv = ModalEnv {
@@ -4237,7 +4238,7 @@ data ModalEnv = ModalEnv {
 
 
 data ColdEnv = ColdEnv {
-    envCurrentModule       :: ModuleName
+    envCurrentModule         :: ModuleName
   , envSyntacticEqualityFuel :: !(Strict.Maybe Int)
     -- ^ If this counter is 'Strict.Nothing', then
     -- syntactic equality checking is unrestricted. If it
@@ -4479,8 +4480,8 @@ initTCContext = TCContext {
     envContext             = CxEmpty
   , envCurrentCheckpoint   = 0
   , envCheckpoints         = Map.singleton 0 IdS
-  , envAppDef              = Nothing
   , envLocalRewriteRules   = empty
+  , envAppDef              = Nothing
   }
 
 initModalEnv :: ModalEnv

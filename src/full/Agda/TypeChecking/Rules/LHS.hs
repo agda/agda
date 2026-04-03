@@ -326,7 +326,8 @@ problemAllVariables problem =
 -- Precondition: The problem has to be solved.
 
 noShadowingOfConstructors :: ProblemEq -> TCM ()
-noShadowingOfConstructors problem@(ProblemEq p _ (Dom{domInfo = info, unDom = El _ a})) =
+noShadowingOfConstructors problem@(ProblemEq p _ dom@(unDom -> El _ a)) = do
+  let info = dom ^. dInfo
   case p of
    A.WildP       {} -> return ()
    A.AbsurdP     {} -> return ()
@@ -391,7 +392,7 @@ noShadowingOfConstructors problem@(ProblemEq p _ (Dom{domInfo = info, unDom = El
 
 -- | Check that a dot pattern matches it's instantiation.
 checkDotPattern :: DotPattern -> TCM ()
-checkDotPattern (Dot e v dom@(Dom{unDom = a})) =
+checkDotPattern (Dot e v dom@(unDom -> a)) =
   traceCall (CheckDotPattern e v) $ do
   reportSDoc "tc.lhs.dot" 15 $
     sep [ "checking dot pattern"
@@ -1032,7 +1033,7 @@ checkLHS mf = updateModality checkLHS_ where
 
     splitArg :: ProblemEq -> ExceptT TCErr CheckLHSM (LHSState a)
     -- Split on constructor/literal pattern
-    splitArg (ProblemEq p v Dom{unDom = a}) = traceCall (CheckPattern p tel a) $ do
+    splitArg (ProblemEq p v (unDom -> a)) = traceCall (CheckPattern p tel a) $ do
 
       reportSDoc "tc.lhs.split" 30 $ sep
         [ "split looking at pattern"
@@ -1274,7 +1275,8 @@ checkLHS mf = updateModality checkLHS_ where
              -> Abs Telescope  -- The types of arguments after the one we split on
              -> Literal        -- The literal written by the user
              -> ExceptT TCErr CheckLHSM (LHSState a)
-    splitLit delta1 dom@Dom{domInfo = info, unDom = a} adelta2 lit = do
+    splitLit delta1 dom@(unDom -> a) adelta2 lit = do
+      let info = dom ^. dInfo
       let delta2 = absApp adelta2 (Lit lit)
           delta' = abstract delta1 delta2
           rho    = singletonS (size delta2) (litP lit)
@@ -1318,7 +1320,8 @@ checkLHS mf = updateModality checkLHS_ where
              -> Maybe AmbiguousQName  -- @Just c@ for a (possibly ambiguous) constructor @c@, or
                                       -- @Nothing@ for a record pattern
              -> ExceptT TCErr CheckLHSM (LHSState a)
-    splitCon delta1 dom@Dom{domInfo = info, unDom = a} adelta2 focusPat ambC = do
+    splitCon delta1 dom@(unDom -> a) adelta2 focusPat ambC = do
+      let info = dom ^. dInfo
       let delta2 = absBody adelta2
 
       reportSDoc "tc.lhs.split" 10 $ vcat

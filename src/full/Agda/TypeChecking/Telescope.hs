@@ -152,8 +152,9 @@ teleNamedArgs = map' namedArgFromDom . teleDoms
 --   Precondition: the two telescopes have the same length.
 tele2NamedArgs :: (DeBruijn a) => Telescope -> Telescope -> [NamedArg a]
 tele2NamedArgs tel0 tel =
-  [ Arg info (Named (Just $ WithOrigin Inserted $ unranged $ argNameToString argName) (deBruijnNamedVar varName i))
-  | (i, Dom{domInfo = info, unDom = (argName,_)}, Dom{unDom = (varName,_)}) <- zip3 (downFrom $ size l) l0 l ]
+  [ Arg (d1 ^. dInfo) (Named (Just $ WithOrigin Inserted $ unranged $ argNameToString (fst (unDom d1)))
+                             (deBruijnNamedVar (fst (unDom d2)) i))
+  | (i, d1, d2) <- zip3 (downFrom $ size l) l0 l ]
   where
   l  = telToList tel
   l0 = telToList tel0
@@ -454,7 +455,7 @@ telViewUpTo' n p t = do
     -- We drop invalidated local rewrite rules
     -- Note that the returned telescope might still contain invalidated
     -- rewrite rules so adding the telescope to the context might fail
-    dropInvalidRew a = if invalidRew a then a { rewDom = Nothing } else a
+    dropInvalidRew a = if invalidRew a then a & dRew .~ Nothing else a
 
 -- | Returns Nothing if there are invalidated local rewrite rules present in
 --   the telescope

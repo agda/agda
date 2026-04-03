@@ -1721,7 +1721,8 @@ bindParameters npars ps0@(par@(A.DomainFree _ arg) : ps) t ret = do
     NoSuchName x   -> setCurrentRange par $
       typeError $ NoParameterOfName x
   where
-    Pi dom@(Dom{domInfo = info', unDom = a}) b = unEl t -- TODO:: Defined but not used: info', a
+    Pi dom@(unDom -> a) b = unEl t -- TODO:: Defined but not used: info', a
+    info = dom ^. dInfo
     continue ps x = bindParameter npars ps x dom b ret
 
 bindParameter :: Int -> [A.LamBinding] -> Name -> Dom Type -> Abs Type -> (Telescope -> Type -> TCM a) -> TCM a

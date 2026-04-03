@@ -119,9 +119,9 @@ initialInstanceCandidates blockOverlap instTy = do
       reportSDoc "tc.instance.cands" 40 $ hang "Getting candidates from context" 2 (inTopContext $ prettyTCM $ PrettyContext ctx)
           -- Context variables with their types lifted to live in the full context
       let varsAndRaisedTypes = reverse $ zip' (contextTerms ctx) (flattenTel $ contextToTel ctx)
-          vars = [ Candidate LocalCandidate x t (infoOverlapMode info)
-                 | (x, Dom{domInfo = info, unDom = t}) <- varsAndRaisedTypes
-                 , isInstance info
+          vars = [ Candidate LocalCandidate x t (infoOverlapMode (dom ^. dInfo))
+                 | (x, dom@(unDom -> t)) <- varsAndRaisedTypes
+                 , isInstance (dom ^. dInfo)
                  ]
 
       -- {{}}-fields of variables are also candidates, as long as those
@@ -133,13 +133,13 @@ initialInstanceCandidates blockOverlap instTy = do
       let
         cxtAndTypes =
           [ (LocalCandidate, x, t)
-          | (x, Dom{domInfo = info, unDom = t}) <- varsAndRaisedTypes
-          , isInstance info || argInfoOrigin info == RecordSelf
+          | (x, dom@(unDom -> t)) <- varsAndRaisedTypes
+          , isInstance (dom ^. dInfo) || argInfoOrigin (dom ^. dInfo) == RecordSelf
           ]
       reportSDoc "tc.instance.cands" 40 $ "Getting candidates by eta-expanding context" $$ nest 2 (vcat
         [ prettyTCM x <+> colon <+> prettyTCM t $$ (nest 2 $ "origin: " <> text (show o) <> ", used: " <> text (show used))
-        | (x, Dom{domInfo = i, unDom = t }) <- varsAndRaisedTypes, let o = argInfoOrigin i
-        , let used = isInstance i || o == RecordSelf
+        | (x, dom@(unDom -> t)) <- varsAndRaisedTypes, let o = argInfoOrigin (dom ^. dInfo)
+        , let used = isInstance (dom ^. dInfo) || o == RecordSelf
         ])
       fields <- concat <$> mapM instanceFields (reverse cxtAndTypes)
       reportSDoc "tc.instance.fields" 30 $
@@ -151,9 +151,9 @@ initialInstanceCandidates blockOverlap instTy = do
       env <- viewTC eLetBindings
       env <- mapM (traverse getOpen) $ Map.toList env
       let lets = [ Candidate LocalCandidate v t DefaultOverlap
-                 | (_, LetBinding _isAxiom _origin v Dom{domInfo = info, unDom = t}) <- env
-                 , isInstance info
-                 , usableModality info
+                 | (_, LetBinding _isAxiom _origin v dom@(unDom -> t)) <- env
+                 , isInstance (dom ^. dInfo)
+                 , usableModality (dom ^. dInfo)
                  ]
       filterM (sameHead cls . candidateType) $ vars ++! fields ++! lets
 

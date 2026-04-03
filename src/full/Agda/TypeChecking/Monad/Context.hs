@@ -113,7 +113,11 @@ escapeContext err n = updateContext (strengthenS err n) $ cxDrop n
 
 -- * Manipulating checkpoints --
 
-{-# INLINE checkpoint #-} -- TODO factor & INLINE
+{-# NOINLINE checkpoint' #-}
+checkpoint' :: Substitution -> TCM a -> TCM a
+checkpoint' = checkpoint
+
+{-# INLINE checkpoint #-}
 -- | Add a new checkpoint. Do not use directly!
 --   Also updates head symbols of local rewrite rules with variable heads
 checkpoint :: Substitution -> TCM a -> TCM a
@@ -403,11 +407,13 @@ instance MonadAddContext TCM where
   {-# INLINE updateContext #-}
   updateContext !sub !f !act = unsafeModifyContext f (checkpoint sub act)
 
+  {-# INLINE addLocalRewrite #-}
   addLocalRewrite = defaultAddLocalRewrite
 
   {-# INLINE withFreshName #-}
   withFreshName r x m = freshName r x >>= m
 
+{-# INLINE defaultAddLocalRewrite #-}
 -- | Adds a rewrite rule to the local typechecking environment
 defaultAddLocalRewrite :: (MonadTCEnv m, ReadTCState m)
   => RewriteRule -> m a -> m a
@@ -419,6 +425,7 @@ defaultAddLocalRewrite rew ret = do
     RewDefHead f -> locallyTC (eLocalRewriteRules . lrewsDefHeaded)
       (HMap.insertWith mappend f [rew']) ret
 
+{-# INLINE addRecordNameContext #-}
 addRecordNameContext
   :: (MonadAddContext m, MonadFresh NameId m)
   => Dom Type -> m b -> m b

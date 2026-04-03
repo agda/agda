@@ -182,7 +182,7 @@ instance UsableRelevance a => UsableRelevance (Arg a) where
     in  usableRel (rel `composeRelevance` rel') u
 
 instance UsableRelevance a => UsableRelevance (Dom a) where
-  usableRel rel Dom{unDom = u} = usableRel rel u
+  usableRel rel d = usableRel rel (unDom d)
 
 instance (Subst a, UsableRelevance a) => UsableRelevance (Abs a) where
   usableRel rel abs = underAbstraction_ abs $ \u -> usableRel rel u
@@ -296,7 +296,7 @@ instance UsableModality a => UsableModality (Arg a) where
     in  usableMod (mod `composeModality` mod') u
 
 instance UsableModality a => UsableModality (Dom a) where
-  usableMod mod Dom{unDom = u} = usableMod mod u
+  usableMod mod d = usableMod mod (unDom d)
 
 usableAtModality' :: MonadConstraint TCM
   -- Note: This weird-looking constraint is to trick GHC into accepting

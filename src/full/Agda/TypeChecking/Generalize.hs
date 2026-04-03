@@ -643,7 +643,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         -- current context and generate fresh ones for the generalized variables in Θ.
         (newCxt, rΘ) <- do
           (rΔ, CxExtend _ rΓ) <- cxSplitAt i <$> getContext
-          let setName dom@(Dom {unDom = (s,ty)}) = CtxVar <$> freshName_ s <*> (pure $ dom $> ty)
+          let setName dom@(unDom -> (s,ty)) = CtxVar <$> freshName_ s <*> (pure $ dom $> ty)
           rΘ <- mapM setName $ reverse $ telToList _Θγ
           let rΔσ = zipWith' (\ name dom -> CtxVar name (snd <$> dom))
                             (map' ctxEntryName rΔ)
@@ -698,7 +698,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
                       permute (takeP n $ mvPermutation mv) $
                       downFrom n
       case [ i
-           | (i, CtxVar _ (Dom{unDom = (El _ (Def q _))})) <-
+           | (i, CtxVar _ ((unDom -> (El _ (Def q _))))) <-
              cxWithIndex (,) cxt
            , q == genRecName
            , i `VarSet.member` notPruned
@@ -885,7 +885,7 @@ createGenValue x = setCurrentRange x $ do
 
   -- Set up names of arg metas
   forM_ (zip3 [1..] (map' unArg args) (telToList argTel)) $ \ case
-    (i, MetaV m _, Dom{unDom = (x, _)}) -> do
+    (i, MetaV m _, unDom -> (x, _)) -> do
       let suf "_" = show i
           suf ""  = show i
           suf x   = x

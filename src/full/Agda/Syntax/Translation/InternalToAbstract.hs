@@ -602,8 +602,8 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
                     -- Andreas, 2012-09-18
                     -- If the first regular constructor argument is hidden,
                     -- we keep the parameters to avoid confusion.
-                    (Dom {domInfo = info} : _) | notVisible info -> do
-                      let us = for (drop n pars) $ \(Dom {domInfo = ai}) ->
+                    ((view dInfo -> info) : _) | notVisible info -> do
+                      let us = for (drop n pars) $ \(view dInfo -> ai) ->
                             -- setRelevance Relevant $
                             hideOrKeepInstance $ Arg ai underscore
                       apps h $ us ++! es -- Note: unless --show-implicit, @apps@ will drop @us@.
@@ -857,7 +857,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
               scope <- getScope
               let underscore = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
               let pad :: [NamedArg Expr]
-                  pad = for as $ \ (Dom{domInfo = ai, unDom = (x, _)}) ->
+                  pad = for as $ \ d -> let ai = d ^. dInfo; x = fst (unDom d) in
                     Arg ai $ Named (Just $ WithOrigin Inserted $ unranged x) underscore
                       -- TODO #3353 Origin from Dom?
 
@@ -1636,7 +1636,7 @@ instance Reify I.Telescope where
 instance Reify i => Reify (Dom i) where
     type ReifiesTo (Dom i) = Arg (ReifiesTo i)
 
-    reify (Dom{domInfo = info, unDom = i}) = Arg info <$> reify i
+    reify d = Arg (d ^. dInfo) <$> reify (unDom d)
     {-# INLINE reify #-}
 
 instance Reify Context where

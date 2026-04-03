@@ -878,7 +878,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
       where
         recons :: [(ArgName, Dom Type)] -> TCM [(ArgName, Dom Type)]
         recons []                        = return []
-        recons ((s, d@Dom {unDom=t}):ds) = do
+        recons ((s, d@(unDom -> t)):ds) = do
           t <- locallyReduceAllDefs $ reconstructParametersInType t
           let d' = d{unDom=t}
           ds' <- addContext (s, d') $ recons ds
@@ -981,7 +981,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         reconsTel :: Telescope -> TCM Telescope
         reconsTel EmptyTel = return EmptyTel
         reconsTel (ExtendTel _ NoAbs{}) = __IMPOSSIBLE__
-        reconsTel (ExtendTel (d@Dom{unDom=t}) ds@Abs{unAbs=ts}) = do
+        reconsTel (ExtendTel (d@(unDom->t)) ds@Abs{unAbs=ts}) = do
            t <- locallyReduceAllDefs $ reconstructParametersInType t
            let d' = d{unDom=t}
            ts' <- addContext d' $ reconsTel ts

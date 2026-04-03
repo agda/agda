@@ -949,7 +949,7 @@ checkModuleArity m tel = \case
 
     check1 :: Telescope -> NamedArg A.Expr -> [NamedArg A.Expr] -> TCM Telescope
     check1 EmptyTel _ _ = bad
-    check1 (ExtendTel dom@Dom{domInfo = info} btel) arg0@(Arg info' arg) args = do
+    check1 (ExtendTel dom@(view dInfo -> info) btel) arg0@(Arg info' arg) args = do
       let name = bareNameOf arg
           my   = bareNameOf dom
           tel  = absBody btel
@@ -977,7 +977,7 @@ addRewConstraints EmptyTel        = pure EmptyTel
 addRewConstraints (ExtendTel a b) = do
   whenJust (rewDom a) $ \r -> do
     addRewConstraint $ rewDomEq r
-  let a' = a { rewDom = Nothing }
+  let a' = a & dRew .~ Nothing
   b' <- underAbstraction a' b addRewConstraints
   pure $ ExtendTel a' b { unAbs = b' }
 
@@ -1135,7 +1135,7 @@ checkSectionApplication'
       -- Found last parameter: switch it to @Instance@.
       instFinal (ExtendTel dom (Abs n EmptyTel)) =
                  ExtendTel do' (Abs n EmptyTel)
-        where do' = makeInstance dom { domName = Just $ WithOrigin Inserted $ unranged "r" }
+        where do' = makeInstance (dom & dName .~ Just (WithOrigin Inserted $ unranged "r"))
       -- Otherwise, keep searchinf for last parameter:
       instFinal (ExtendTel arg (Abs n tel)) =
                  ExtendTel arg (Abs n (instFinal tel))

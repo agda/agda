@@ -1160,7 +1160,8 @@ contextOfMeta ii norm = withInteractionId ii $ do
 
   where
     mkVar :: ContextEntry -> TCM (Maybe ResponseContextEntry)
-    mkVar (CtxVar name Dom{ domInfo = ai, unDom = t }) = do
+    mkVar (CtxVar name dom@(unDom -> t)) = do
+      let ai = dom ^. dInfo
       if shouldHide ai name then return Nothing else Just <$> do
         let n = nameConcrete name
         x  <- abstractToConcrete_ name

@@ -350,8 +350,9 @@ newArgsMetaCtx'' :: MetaNameSuggestion -> Frozen -> Condition -> Type -> Telesco
 newArgsMetaCtx'' pref frozen condition (El s tm) tel perm ctx = do
   tm <- reduce tm
   case tm of
-    Pi dom@(Dom{domInfo = info, unDom = a}) codom | condition dom codom -> do
-      let mod  = getModality info
+    Pi dom@(unDom -> a) codom | condition dom codom -> do
+      let info = (dom ^. dInfo)
+          mod  = getModality (dom ^. dInfo)
           -- Issue #3031: It's not enough to applyModalityToContext, since most (all?)
           -- of the context lives in tel. Don't forget the arguments in ctx.
           tel' = telFromList $
@@ -1779,9 +1780,9 @@ inverseSubst' skip tel args = map' (first unArg) <$> loop (zip' args terms)
             | length fs == length es
             , hasQuantity0 info || all usableQuantity fs     -- Andreas, 2019-11-12/17, issue #4168b
             , irrProj || all isRelevant fs -> do
-              let aux (Arg _ v) Dom{domInfo = info', unDom = f} =
-                    (Arg ai v,) $ t `applyE` [Proj ProjSystem f]
+              let aux (Arg _ v) dom@(unDom -> f) = (Arg ai v,) $ t `applyE` [Proj ProjSystem f]
                     where
+                    info' = dom ^. dInfo
                     ai = ArgInfo
                       { argInfoHiding   = min (getHiding info) (getHiding info')
                       , argInfoModality = Modality

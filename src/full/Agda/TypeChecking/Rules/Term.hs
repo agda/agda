@@ -412,7 +412,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         NoOutputTypeName -> setCurrentRange e $
           warning . InstanceNoOutputTypeName =<< prettyTCM (A.mkTBind r ixs e)
 
-    let setTacRew tac rew dom = dom { domTactic = tac, rewDom = rew }
+    let setTacRew tac rew dom = dom & dTactic .~ tac & dRew .~ rew
         setTacRewTel tac rew EmptyTel            = EmptyTel
         setTacRewTel tac rew (ExtendTel dom tel) =
           ExtendTel (setTacRew tac rew dom) $
@@ -871,9 +871,11 @@ checkAbsurdLambda cmp i h e t =
   t <- instantiateFull t
   ifBlocked t (\ blocker t' -> postponeTypeCheckingProblem (CheckExpr cmp e t') blocker) $ \ _ t' -> do
     case unEl t' of
-      Pi dom@(Dom{domInfo = info', unDom = a}) b
-        | not (sameHiding h info') -> typeError $ WrongHidingInLambda t'
-        | otherwise -> blockTerm t' $ do
+      Pi dom@(unDom -> a) b -> do
+        let info' = dom ^. dInfo
+        if not (sameHiding h info') then
+          typeError $ WrongHidingInLambda t'
+        else blockTerm t' $ do
           ensureEmptyType (getRange i) a
           -- Add helper function
           aux <- makeAbsurdLambda (getRange i) dom b
@@ -1401,7 +1403,7 @@ checkRecordWhere cmp kwr ei update decls fs e t = do
             proj n = A.App (A.defaultAppInfo $ getRange ei) (A.Proj ProjSystem $ unambiguous n) (defaultNamedArg (A.Var name))
             fs' =
               [ Left (FieldAssignment fname (proj pname))
-              | (fname, Dom{unDom = pname}) <- zip cxs (_recFields defn)
+              | (fname, unDom -> pname) <- zip cxs (_recFields defn)
               , fname `Set.notMember` here_keys
               ]
 
@@ -1616,7 +1618,8 @@ checkExpr' cmp e t =
     -- Insert hidden lambda if all of the following conditions are met:
     -- type is a hidden function type, {x : A} -> B or {{x : A}} -> B
     -- expression is not a lambda with the appropriate hiding yet
-    | Pi (Dom{domInfo = info, unDom = a}) b <- unEl tReduced
+    | Pi dom@(unDom -> a) b <- unEl tReduced
+        , let info = dom ^. dInfo
         , let h = getHiding info
         , notVisible h
         -- expression is not a matching hidden lambda or question mark
@@ -1839,7 +1842,7 @@ checkKnownArgument arg [] _ = typeError $ InvalidProjectionParameter arg
 --           && (visible info || maybe True (absName b ==) (bareNameOf e)))
 checkKnownArgument arg (Arg _ v : vs) t = do
   -- Skip the arguments from vs that do not correspond to e
-  (dom@Dom{ unDom = a }, b) <- mustBePi t
+  (dom@(unDom -> a), b) <- mustBePi t
   if not $ fromMaybe __IMPOSSIBLE__ $ fittingNamedArg arg dom
     -- Continue with the next one
     then checkKnownArgument arg vs (b `absApp` v)

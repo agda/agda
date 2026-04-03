@@ -31,7 +31,8 @@ import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Name
          ( NameInScope(..), Name )
 import Agda.Syntax.Internal
-         ( telToList, Dom'(..), Dom, MetaId(..), ProblemId(..), Blocker(..), alwaysUnblock )
+         ( telToList, Dom'(..), Dom, MetaId(..), ProblemId(..), Blocker(..), alwaysUnblock,
+           domIsFinite, domInfo )
 import Agda.Syntax.Position
          ( Range, rangeIntervals, Interval'(..), Position'(..), noRange, posLine, posCol )
 import Agda.Syntax.Scope.Base

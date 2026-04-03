@@ -305,7 +305,7 @@ findFlexible i flex = List.find ((i ==) . flexVar) flex
 basicUnifyStrategy :: Int -> UnifyStrategy
 basicUnifyStrategy k s = do
   reportSDoc "tc.lhs.unify" 40 $ "trying basicUnifyStrategy"
-  Equal dom@Dom{unDom = a} u v <- eqUnLevel (getEquality k s)
+  Equal dom@(unDom -> a) u v <- eqUnLevel (getEquality k s)
     -- Andreas, 2019-02-23: reduce equality for the sake of isHom?
   ha <- fromMaybeMP $ isHom n a
   (mi, mj) <- addContext (varTel s) $ (,) <$> isEtaVar u ha <*> isEtaVar v ha
@@ -342,7 +342,7 @@ basicUnifyStrategy k s = do
 dataStrategy :: Int -> UnifyStrategy
 dataStrategy k s = do
   reportSDoc "tc.lhs.unify" 40 $ "trying dataStrategy"
-  Equal Dom{unDom = a} u v <- eqConstructorForm =<< eqUnLevel =<< getReducedEqualityUnraised k s
+  Equal (unDom -> a) u v <- eqConstructorForm =<< eqUnLevel =<< getReducedEqualityUnraised k s
   sortOk <- reduce (getSort a) <&> \case
     Type{} -> True
     Inf{}  -> True
@@ -374,7 +374,7 @@ dataStrategy k s = do
 checkEqualityStrategy :: Int -> UnifyStrategy
 checkEqualityStrategy k s = do
   reportSDoc "tc.lhs.unify" 40 $ "trying checkEqualityStrategy"
-  let Equal Dom{unDom = a} u v = getEquality k s
+  let Equal (unDom -> a) u v = getEquality k s
       n = eqCount s
   ha <- fromMaybeMP $ isHom n a
   return $ Deletion k ha u v
@@ -383,7 +383,7 @@ literalStrategy :: Int -> UnifyStrategy
 literalStrategy k s = do
   reportSDoc "tc.lhs.unify" 40 $ "trying literalStrategy"
   let n = eqCount s
-  Equal Dom{unDom = a} u v <- eqUnLevel $ getEquality k s
+  Equal (unDom -> a) u v <- eqUnLevel $ getEquality k s
   ha <- fromMaybeMP $ isHom n a
   (u, v) <- addContext (varTel s) $ reduce (u, v)
   case (u , v) of
@@ -395,7 +395,7 @@ literalStrategy k s = do
 etaExpandVarStrategy :: Int -> UnifyStrategy
 etaExpandVarStrategy k s = do
   reportSDoc "tc.lhs.unify" 40 $ "trying etaExpandVarStrategy"
-  Equal Dom{unDom = a} u v <- eqUnLevel =<< getReducedEquality k s
+  Equal (unDom -> a) u v <- eqUnLevel =<< getReducedEquality k s
   shouldEtaExpand u v a s `mplus` shouldEtaExpand v u a s
   where
     -- TODO: use IsEtaVar to check if the term is a variable
@@ -432,7 +432,7 @@ etaExpandEquationStrategy :: Int -> UnifyStrategy
 etaExpandEquationStrategy k s = do
   reportSDoc "tc.lhs.unify" 40 $ "trying etaExpandEquationStrategy"
   -- Andreas, 2019-02-23, re #3578, is the following reduce redundant?
-  Equal Dom{unDom = a} u v <- getReducedEqualityUnraised k s
+  Equal (unDom -> a) u v <- getReducedEqualityUnraised k s
   (d, pars) <- catMaybesMP $ addContext tel $ isEtaRecordType a
   guard =<< orM
     [ (Right True ==) <$> runBlocked (isSingletonRecord d pars)
@@ -462,7 +462,7 @@ simplifySizesStrategy :: Int -> UnifyStrategy
 simplifySizesStrategy k s = do
   reportSDoc "tc.lhs.unify" 40 $ "trying simplifySizesStrategy"
   isSizeName <- isSizeNameTest
-  Equal Dom{unDom = a} u v <- getReducedEquality k s
+  Equal (unDom -> a) u v <- getReducedEquality k s
   case unEl a of
     Def d _ -> do
       guard $ isSizeName d
@@ -632,7 +632,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
 
 
     UnifyStuck _ -> let n           = eqCount s
-                        Equal Dom{unDom = a} u v = getEquality k s
+                        Equal (unDom -> a) u v = getEquality k s
                     in return $ UnifyStuck [UnifyIndicesNotVars
                          (varTel s `abstract` eqTel s) a
                          (raise n u) (raise n v) (raise (n-k) ixs)]
@@ -792,7 +792,7 @@ solutionStep ::
   -> WriterT UnifyOutput TCM (UnificationResult' UnifyState)
 solutionStep retry s
   step@Solution{ solutionAt   = k
-               , solutionType = dom@Dom{ unDom = a }
+               , solutionType = dom@(unDom -> a)
                , solutionVar  = fi@FlexibleVar{ flexVar = i }
                , solutionTerm = u } = do
   let m = varCount s
@@ -850,7 +850,7 @@ solutionStep retry s
 
   -- Check that the type of the variable is equal to the type of the equation
   -- (not just a subtype), otherwise we cannot instantiate (see Issue 2407).
-  let dom'@Dom{ unDom = a' } = getVarType (m-1-i) s
+  let dom'@(unDom -> a') = getVarType (m-1-i) s
   equalTypes <- addContext (varTel s) $ do
     reportSDoc "tc.lhs.unify" 45 $ "Equation type: " <+> prettyTCM a
     reportSDoc "tc.lhs.unify" 45 $ "Variable type: " <+> prettyTCM a'
