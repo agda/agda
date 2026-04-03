@@ -1084,7 +1084,10 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
           reportSLn "tc.conv.elim" 40 $ "type is a function type"
 
           dependent <- do
-            let freeInCoDom (Abs _ c) = True -- 0 `freeInIgnoringSorts` c
+            -- András, 2026-04-03: skipping the freeInIgnoringSorts
+            -- is faster, but it causes "cubical" to loop when lossy unification
+            -- is on! TODO: figure out.
+            let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c -- True
                 freeInCoDom _         = False
 
             expand \ret -> if freeInCoDom codom then ret do
