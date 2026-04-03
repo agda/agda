@@ -1,0 +1,42 @@
+@startuml
+title agda-delta metasystem
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+package "agda-delta" {
+  component "autoprove.py\norchestrator" as autoprove
+  component "scheduler.py\nstrategy choice" as scheduler
+  component "guards.py\nstop policy" as guards
+  component "goal_index.py\nlemma retrieval" as goal_index
+  component "rewrite_db.py\nrewrite retrieval" as rewrite_db
+  component "learning.py\nadvisory ranking" as learning
+  component "file_graph.py\nproject traversal" as file_graph
+  component "agda_interact.py\ninteraction boundary" as interact
+  database "data/*.jsonl\ntraces + goal index" as data_store
+  file "data/rewrites.json" as rewrites
+}
+
+autoprove --> file_graph : project order
+autoprove --> scheduler : choose strategy
+autoprove --> guards : check stop conditions
+autoprove --> goal_index : retrieve lemmas
+autoprove --> rewrite_db : retrieve rewrites
+autoprove --> learning : rank candidates
+autoprove --> interact : load/goals/propose
+goal_index --> data_store : persist/load
+learning --> data_store : learn from traces
+rewrite_db --> rewrites : persist/load
+
+note right of interact
+Deterministic acceptance boundary.
+No learned component may promote truth.
+end note
+
+note bottom of autoprove
+Current deferred seam:
+richer goal-attribution and protocol coverage
+beyond the active replay/promote boundary.
+end note
+
+@enduml
