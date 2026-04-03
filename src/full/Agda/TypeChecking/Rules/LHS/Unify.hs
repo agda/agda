@@ -688,13 +688,16 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
   recd <- fromMaybe __IMPOSSIBLE__ <$> isRecord d
   -- We don't eta-expand variables which occur in local rewrite rules
   -- In principle, I think we could handle this safely, but it is tricky
-  if i `VarSet.member` inRewVars (varTel s)
-  then return $ UnifyStuck [UnifyVarInRewriteEta (varTel s) i] else do
+  localRew <- localRewritingOption
+  if localRew && i `VarSet.member` inRewVars (varTel s)
+  then pure $ UnifyStuck [UnifyVarInRewriteEta (varTel s) i]
+  else do
   let delta = _recTel recd `apply` pars
       c     = _recConHead recd
   let nfields         = size delta
       (varTel', rho)  = expandTelescopeVar (varTel s) (m-1-i) delta c
-      projectFlexible = [ FlexibleVar (getArgInfo fi) (flexForced fi) (projFlexKind j) (flexPos fi) (i + j) | j <- [0 .. nfields - 1] ]
+      projectFlexible = [ FlexibleVar (getArgInfo fi) (flexForced fi) (projFlexKind j) (flexPos fi) (i + j) |
+                          j <- [0 .. nfields - 1] ]
   tellUnifySubst $ rho
   return $ Unifies $ UState
     { varTel   = varTel'
@@ -844,8 +847,9 @@ solutionStep retry s
         fmap var $ VarSet.toAscList $ inRewVars $ varTel s)
     ]
 
-  if i `VarSet.member` inRewVars (varTel s)
-  then return $ UnifyStuck [UnifyVarInRewrite (varTel s) a i u]
+  localRew <- localRewritingOption
+  if localRew && i `VarSet.member` inRewVars (varTel s)
+  then pure $ UnifyStuck [UnifyVarInRewrite (varTel s) a i u]
   else do
 
   -- Check that the type of the variable is equal to the type of the equation

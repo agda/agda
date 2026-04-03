@@ -74,7 +74,7 @@ instance MonadMetaSolver TCM where
   newMeta' inst frozen mi p perm j = ifImpureConv (newMetaTCM' inst frozen mi p perm j) $
     patternViolation alwaysUnblock -- TODO: does this happen?
 
-  assignV dir x args v t = ifImpureConv (assignWrapper dir x (map Apply args) v $ assign dir x args v t) $ do
+  assignV dir x args v t = ifImpureConv (assignWrapper dir x (map' Apply args) v $ assign dir x args v t) $ do
     bv <- isBlocked v
     let blocker = caseMaybe bv id unblockOnEither $ unblockOnMeta x
     patternViolation blocker
@@ -801,9 +801,10 @@ allRewDoms = mapMaybe rewDom . flattenTel
 --   appear outside the pattern fragment after rewriting arguments, but if the
 --   argument is constrained in the meta's context, we know it is uniquely
 --   determined up to defeq and can proceed.
-rewConstrained :: Tele (Dom Type) -> VarSet
-rewConstrained =
-  foldMap (rewConstrained' . fromMaybe __IMPOSSIBLE__ . rewDomRew) . allRewDoms
+rewConstrained :: Tele (Dom Type) -> TCM VarSet
+rewConstrained tel = localRewritingOption >>= \case
+  True  -> pure $! foldMap (rewConstrained' . fromMaybe __IMPOSSIBLE__ . rewDomRew) $! allRewDoms tel
+  False -> pure mempty
   where
     rewConstrained' :: RewriteRule -> VarSet
     rewConstrained' (RewriteRule EmptyTel (RewVarHead x) [] _ _) =
@@ -1738,90 +1739,91 @@ inverseSubst' skip tel args = map' (first unArg) <$> loop (zip' args terms)
       , "  aborting assignment" ]
     throwError (CantInvert c)
   neutralArg = throwError NeutralArg
-  -- We need to identify arguments to the meta that are fully constrained by
-  -- local rewrite rules
-  -- These are simply ignored when building the inverse substitution
-  -- (analogously to irrelevant arguments)
-  constrained = rewConstrained tel
 
   isVarOrIrrelevant :: Res -> (Arg Term, Term) -> ExceptT InvertExcept TCM Res
-  isVarOrIrrelevant vars (Arg info v, Var x [])
-    | x `VarSet.member` constrained = do
-    lift $ reportSDoc "tc.meta.assign" 60 $ vcat
-            [ "argument is constrained by rewrite rule"
-            , "  arg = " <+> prettyTCM v
-            , "  var = " <+> prettyTCM (var x)
-            ]
-    return vars
   isVarOrIrrelevant vars (Arg info v, t) = do
-    let irr | isIrrelevant info = True
-            | DontCare{} <- v   = True
-            | otherwise         = False
-    ineg <- getPrimitiveName' builtinINeg
-    case stripDontCare v of
-      -- i := x
-      Var i [] -> return $! (Arg info i, t) `cons` vars
+    -- We need to identify arguments to the meta that are fully constrained by
+    -- local rewrite rules
+    -- These are simply ignored when building the inverse substitution
+    -- (analogously to irrelevant arguments)
+    constrained <- lift $ rewConstrained tel
+    case t of
+      Var x [] | x `VarSet.member` constrained -> do
+        lift $ reportSDoc "tc.meta.assign" 60 $ vcat
+                [ "argument is constrained by rewrite rule"
+                , "  arg = " <+> prettyTCM v
+                , "  var = " <+> prettyTCM (var x)
+                ]
+        return vars
+      _ -> do
+        let irr | isIrrelevant info = True
+                | DontCare{} <- v   = True
+                | otherwise         = False
+        ineg <- getPrimitiveName' builtinINeg
+        case stripDontCare v of
+          -- i := x
+          Var i [] -> return $! (Arg info i, t) `cons` vars
 
-      -- π i := x  try to eta-expand projection π away!
-      Var i es | Just qs <- mapM isProjElim es ->
-        throwError $ ProjVar $ ProjectedVar i qs
+          -- π i := x  try to eta-expand projection π away!
+          Var i es | Just qs <- mapM isProjElim es ->
+            throwError $ ProjVar $ ProjectedVar i qs
 
-      -- (i, j) := x  becomes  [i := fst x, j := snd x]
-      -- Andreas, 2013-09-17 but only if constructor is fully applied
-      tm@(Con c ci es) -> do
-        let fallback
-             | isIrrelevant info = return vars
-             | skip tm           = return vars
-             | otherwise         = failure tm
-        irrProj <- optIrrelevantProjections <$> pragmaOptions
-        lift (isEtaRecordConstructor $ conName c) >>= \case
-          -- Andreas, 2019-11-10, issue #4185: only for eta-records
-          Just (_, RecordData{ _recFields = fs })
-            | length fs == length es
-            , hasQuantity0 info || all usableQuantity fs     -- Andreas, 2019-11-12/17, issue #4168b
-            , irrProj || all isRelevant fs -> do
-              let aux (Arg _ v) dom@(unDom -> f) = (Arg ai v,) $ t `applyE` [Proj ProjSystem f]
-                    where
-                    info' = dom ^. dInfo
-                    ai = ArgInfo
-                      { argInfoHiding   = min (getHiding info) (getHiding info')
-                      , argInfoModality = Modality
-                        { modRelevance  = max (getRelevance info) (getRelevance info')
-                        , modQuantity   = max (getQuantity  info) (getQuantity  info')
-                        , modCohesion   = max (getCohesion  info) (getCohesion  info')
-                        , modPolarity   = addPolarity (getModalPolarity info) (getModalPolarity info') -- XXX
-                        }
-                      , argInfoOrigin   = min (getOrigin info) (getOrigin info')
-                      , argInfoFreeVariables = unknownFreeVariables
-                      , argInfoAnnotation    = argInfoAnnotation info'
-                      }
-                  vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-              res <- loop $ zipWith' aux vs fs
-              return $! res `append` vars
-            | otherwise -> fallback
-          _ -> fallback
+          -- (i, j) := x  becomes  [i := fst x, j := snd x]
+          -- Andreas, 2013-09-17 but only if constructor is fully applied
+          tm@(Con c ci es) -> do
+            let fallback
+                 | isIrrelevant info = return vars
+                 | skip tm           = return vars
+                 | otherwise         = failure tm
+            irrProj <- optIrrelevantProjections <$> pragmaOptions
+            lift (isEtaRecordConstructor $ conName c) >>= \case
+              -- Andreas, 2019-11-10, issue #4185: only for eta-records
+              Just (_, RecordData{ _recFields = fs })
+                | length fs == length es
+                , hasQuantity0 info || all usableQuantity fs     -- Andreas, 2019-11-12/17, issue #4168b
+                , irrProj || all isRelevant fs -> do
+                  let aux (Arg _ v) dom@(unDom -> f) = (Arg ai v,) $ t `applyE` [Proj ProjSystem f]
+                        where
+                        info' = dom ^. dInfo
+                        ai = ArgInfo
+                          { argInfoHiding   = min (getHiding info) (getHiding info')
+                          , argInfoModality = Modality
+                            { modRelevance  = max (getRelevance info) (getRelevance info')
+                            , modQuantity   = max (getQuantity  info) (getQuantity  info')
+                            , modCohesion   = max (getCohesion  info) (getCohesion  info')
+                            , modPolarity   = addPolarity (getModalPolarity info) (getModalPolarity info') -- XXX
+                            }
+                          , argInfoOrigin   = min (getOrigin info) (getOrigin info')
+                          , argInfoFreeVariables = unknownFreeVariables
+                          , argInfoAnnotation    = argInfoAnnotation info'
+                          }
+                      vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+                  res <- loop $ zipWith' aux vs fs
+                  return $! res `append` vars
+                | otherwise -> fallback
+              _ -> fallback
 
-      -- An irrelevant argument which is not an irrefutable pattern is dropped
-      _ | irr -> return vars
+          -- An irrelevant argument which is not an irrefutable pattern is dropped
+          _ | irr -> return vars
 
-      -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
-      -- from those that can only put somewhere as a whole ==> neutralArg
-      Var{}      -> neutralArg
+          -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
+          -- from those that can only put somewhere as a whole ==> neutralArg
+          Var{}      -> neutralArg
 
-      -- primINeg i := x becomes i := primINeg x
-      -- (primINeg is a definitional involution)
-      Def qn es | Just [Arg _ (Var i [])] <- allApplyElims es, Just qn == ineg ->
-        pure $ (Arg info i, Def qn [Apply (defaultArg t)]) `cons` vars
+          -- primINeg i := x becomes i := primINeg x
+          -- (primINeg is a definitional involution)
+          Def qn es | Just [Arg _ (Var i [])] <- allApplyElims es, Just qn == ineg ->
+            pure $ (Arg info i, Def qn [Apply (defaultArg t)]) `cons` vars
 
-      Def{}      -> neutralArg  -- Note that this Def{} is in normal form and might be prunable.
-      tm@Lam{}   -> failure tm
-      tm@Lit{}   -> failure tm
-      tm@MetaV{} -> failure tm
-      Pi{}       -> neutralArg
-      Sort{}     -> neutralArg
-      Level{}    -> neutralArg
-      DontCare{} -> __IMPOSSIBLE__ -- Ruled out by stripDontCare
-      Dummy s _  -> __IMPOSSIBLE_VERBOSE__ (show s)
+          Def{}      -> neutralArg  -- Note that this Def{} is in normal form and might be prunable.
+          tm@Lam{}   -> failure tm
+          tm@Lit{}   -> failure tm
+          tm@MetaV{} -> failure tm
+          Pi{}       -> neutralArg
+          Sort{}     -> neutralArg
+          Level{}    -> neutralArg
+          DontCare{} -> __IMPOSSIBLE__ -- Ruled out by stripDontCare
+          Dummy s _  -> __IMPOSSIBLE_VERBOSE__ (show s)
 
   -- managing an assoc list where duplicate indizes cannot be irrelevant vars
   append :: Res -> Res -> Res

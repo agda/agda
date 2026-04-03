@@ -467,20 +467,26 @@ fastReduce' norm v = do
 
       bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
                           bPrimForce = force, bPrimErase = erase }
-  rwr    <- anyRewritingOption
+  rwr    <- rewritingOption
   rwrLoc <- localRewritingOption
-  constInfo <- unKleisli $ \f -> do
-    info <- getConstInfo f
-    copatterns <- if rwr then defCopatternLHS f info
-                         else return $ defCopatternLHS' info
-    rewr <- if rwr then getAllRewriteRulesForDefHead f
-                   else return []
-    compactDef bEnv info copatterns rewr
-  localRewr <- unKleisli $ \x ->
-    if rwrLoc then getAllRewriteRulesForVarHead x else return []
 
-  ReduceM $ \ redEnv ->
-    reduceTm redEnv bEnv (memoQName constInfo) (memoUnsafeInt localRewr) norm v
+  constInfo <- case rwr || rwrLoc of -- András 2026-04-06: TODO more fine-grained choice
+    True -> memoQName <$!> unKleisli \f -> do
+      info <- getConstInfo f
+      copatterns <- defCopatternLHS f info
+      rewr <- getAllRewriteRulesForDefHead f
+      compactDef bEnv info copatterns rewr
+    False -> memoQName <$!> unKleisli \f -> do
+      info <- getConstInfo f
+      let copatterns = defCopatternLHS' info
+      compactDef bEnv info copatterns []
+
+  localRewr <- case rwrLoc of
+    True  -> memoUnsafeInt <$!> unKleisli getAllRewriteRulesForVarHead
+    False -> pure (\_ -> [])
+
+  ReduceM \redEnv ->
+    reduceTm redEnv bEnv constInfo localRewr norm v
 
 
 -- * Closures

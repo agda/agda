@@ -1002,20 +1002,21 @@ class ( Functor m
     :: (HasConstInfo n, MonadTrans t, m ~ t n)
     => RewriteHead -> m RewriteRules
   getLocalRewriteRulesFor = lift . getLocalRewriteRulesFor
-
 {-# SPECIALIZE getConstInfo :: HasCallStack => QName -> TCM Definition #-}
 
-getAllRewriteRulesForDefHead :: (HasConstInfo m, ReadTCState m)
-  => QName -> m RewriteRules
-getAllRewriteRulesForDefHead f =
-  mappend <$> (catMaybes . fmap justTheRule <$>
-                (instantiateRewriteRules =<< getGlobalRewriteRulesFor f)) <*>
-              getLocalRewriteRulesFor (RewDefHead f)
-  where
-    justTheRule :: GlobalRewriteRule -> Maybe RewriteRule
-    justTheRule (GlobalRewriteRule _ g q ps rhs t isClause _)
-      | isClause  = Nothing
-      | otherwise = pure $ RewriteRule g (RewDefHead q)  ps rhs t
+justTheRule :: GlobalRewriteRule -> Maybe RewriteRule
+justTheRule (GlobalRewriteRule _ g q ps rhs t isClause _)
+  | isClause  = Nothing
+  | otherwise = pure $ RewriteRule g (RewDefHead q)  ps rhs t
+
+{-# INLINE getAllRewriteRulesForDefHead #-}
+getAllRewriteRulesForDefHead :: (HasConstInfo m, ReadTCState m) => QName -> m RewriteRules
+getAllRewriteRulesForDefHead f = do
+  globals <- catMaybes . fmap justTheRule <$> (instantiateRewriteRules =<< getGlobalRewriteRulesFor f)
+  localRewritingOption >>= \case
+    True  -> do locals <- getLocalRewriteRulesFor (RewDefHead f)
+                pure $! globals ++! locals
+    False -> pure globals
 
 -- | A local rewrite rule forces us to consider the definition as defined
 --   by copatterns (see #3812 for an example case with global rewrite rules)
@@ -1025,13 +1026,18 @@ rewUsesCopatterns :: HasConstInfo m => RewriteHead -> m Bool
 rewUsesCopatterns h =
   any lrewHasProjectionPattern <$> getLocalRewriteRulesFor h
 
+{-# INLINE defCopatternLHS #-}
 -- | Is this a function defined by copatterns?
 --   Accounts for local rewrite rules
 defCopatternLHS :: HasConstInfo m => QName -> Definition -> m Bool
-defCopatternLHS f d = do
-  rewForces <- rewUsesCopatterns $ RewDefHead f
-  pure $ defCopatternLHS' d || rewForces
+defCopatternLHS f d = localRewritingOption >>= \case
+  True -> do
+    rewForces <- rewUsesCopatterns $ RewDefHead f
+    pure $! defCopatternLHS' d || rewForces
+  False ->
+    pure $! defCopatternLHS' d
 
+{-# INLINE getAllRewriteRulesForVarHead #-}
 getAllRewriteRulesForVarHead :: HasConstInfo m
   => Nat -> m RewriteRules
 getAllRewriteRulesForVarHead x = getLocalRewriteRulesFor $ RewVarHead x
@@ -1054,6 +1060,7 @@ getOriginalConstInfo q = do
         (getConstInfo q)
     _ -> return def
 
+{-# SPECIALIZE defaultGetGlobalRewriteRulesFor :: QName -> ReduceM GlobalRewriteRules #-}
 -- | Return the rewrite rules for the given head symbol that could be tried.
 --   Not categorically all rewrite rules are returned, e.g. none when
 --   reduction of the head symbol is disabled.
@@ -1064,25 +1071,28 @@ defaultGetGlobalRewriteRulesFor :: (ReadTCState m, MonadTCEnv m)
 defaultGetGlobalRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
   getFilteredGlobalRewriteRulesFor True q
 
+{-# SPECIALIZE defaultGetLocalRewriteRulesFor :: RewriteHead -> TCM RewriteRules #-}
 defaultGetLocalRewriteRulesFor ::
-  (ReadTCState m, MonadTCEnv m, MonadDebug m)
+     (ReadTCState m, MonadTCEnv m, MonadDebug m, HasOptions m)
   => RewriteHead -> m RewriteRules
-defaultGetLocalRewriteRulesFor h =
-  ifNotM (shouldReduceDef' h) (return []) $ do
-    m <- runMaybeT . lookup h =<< viewTC eLocalRewriteRules
-    pure $ fromMaybe [] m
-  where
-    shouldReduceDef' (RewDefHead f) = shouldReduceDef f
-    shouldReduceDef' (RewVarHead _) = pure True
+defaultGetLocalRewriteRulesFor h = localRewritingOption >>= \case
+  False -> pure []
+  True  -> do
+    ifNotM (shouldReduceDef' h) (return []) $ do
+      m <- runMaybeT . lookup h =<< viewTC eLocalRewriteRules
+      pure $ fromMaybe [] m
+    where
+      shouldReduceDef' (RewDefHead f) = shouldReduceDef f
+      shouldReduceDef' (RewVarHead _) = pure True
 
-    lookup h m = do
-      rews  <- MaybeT $ pure $ lookup' h m
-      lift $ traverse (tryGetOpenRew fallback) rews
+      lookup h m = do
+        rews  <- MaybeT $ pure $ lookup' h m
+        lift $ traverse (tryGetOpenRew fallback) rews
 
-    fallback = __IMPOSSIBLE_VERBOSE__ . show
+      fallback = __IMPOSSIBLE_VERBOSE__ . show
 
-    lookup' (RewDefHead f) = HMap.lookup   f . defHeadedRews
-    lookup' (RewVarHead x) = IntMap.lookup x . varHeadedRews
+      lookup' (RewDefHead f) = HMap.lookup   f . defHeadedRews
+      lookup' (RewVarHead x) = IntMap.lookup x . varHeadedRews
 
 -- | If the 'Bool' parameter is 'True', get the rules in scope,
 --   otherwise, get *all* rules unfiltered.

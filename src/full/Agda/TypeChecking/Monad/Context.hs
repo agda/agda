@@ -113,9 +113,9 @@ escapeContext err n = updateContext (strengthenS err n) $ cxDrop n
 
 -- * Manipulating checkpoints --
 
-{-# NOINLINE checkpoint' #-}
-checkpoint' :: Substitution -> TCM a -> TCM a
-checkpoint' = checkpoint
+-- {-# NOINLINE checkpoint' #-}
+-- checkpoint' :: Substitution -> TCM a -> TCM a
+-- checkpoint' = checkpoint
 
 {-# INLINE checkpoint #-}
 -- | Add a new checkpoint. Do not use directly!

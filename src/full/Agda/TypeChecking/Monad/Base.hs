@@ -639,14 +639,17 @@ initStateFromPersistentState s = TCSt
 
 -- ** Components of 'TCState'
 
+{-# INLINE lensPersistentState #-}
 lensPersistentState :: Lens' TCState PersistentTCState
-lensPersistentState f s = f (stPersistentState s) <&> \ x -> s { stPersistentState = x }
+lensPersistentState = \f s -> f (stPersistentState s) <&> \ x -> s { stPersistentState = x }
 
+{-# INLINE lensPreScopeState #-}
 lensPreScopeState :: Lens' TCState PreScopeState
-lensPreScopeState f s = f (stPreScopeState s) <&> \ x -> s { stPreScopeState = x }
+lensPreScopeState = \f s -> f (stPreScopeState s) <&> \ x -> s { stPreScopeState = x }
 
+{-# INLINE lensPostScopeState #-}
 lensPostScopeState :: Lens' TCState PostScopeState
-lensPostScopeState f s = f (stPostScopeState s) <&> \ x -> s { stPostScopeState = x }
+lensPostScopeState = \f s -> f (stPostScopeState s) <&> \ x -> s { stPostScopeState = x }
 
 -- ** Components of 'SessionState'
 
@@ -713,7 +716,8 @@ lensGeneralizedVars :: Lens' PreScopeState (Strict.Maybe (Set QName))
 lensGeneralizedVars f s = f (stPreGeneralizedVars s ) <&> \ x -> s { stPreGeneralizedVars = x }
 
 instance LensPragmaOptions PreScopeState where
-  lensPragmaOptions f s = f (stPrePragmaOptions s ) <&> \ x -> s { stPrePragmaOptions = x }
+  {-# INLINE lensPragmaOptions #-}
+  lensPragmaOptions = \f s -> f (stPrePragmaOptions s ) <&> \ x -> s { stPrePragmaOptions = x }
 
 lensImportedBuiltins :: Lens' PreScopeState BuiltinThings
 lensImportedBuiltins f s = f (stPreImportedBuiltins s ) <&> \ x -> s { stPreImportedBuiltins = x }
@@ -996,6 +1000,7 @@ stGeneralizedVars :: Lens' TCState (Maybe (Set QName))
 stGeneralizedVars = lensPreScopeState . lensGeneralizedVars . Strict.lensMaybeLazy
 
 instance LensPragmaOptions TCState where
+  {-# inline lensPragmaOptions #-}
   lensPragmaOptions = lensPreScopeState . lensPragmaOptions
 
 stPragmaOptions :: Lens' TCState PragmaOptions
@@ -2516,11 +2521,13 @@ data LocalRewriteRuleMap = LocalRewriteRuleMap
   }
     deriving (Show, Generic)
 
+{-# INLINE lrewsDefHeaded #-}
 lrewsDefHeaded :: Lens' LocalRewriteRuleMap (HashMap QName [Open RewriteRule])
-lrewsDefHeaded f rs = f (defHeadedRews rs) <&> \ rs' -> rs { defHeadedRews = rs' }
+lrewsDefHeaded = \f rs -> f (defHeadedRews rs) <&> \ rs' -> rs { defHeadedRews = rs' }
 
+{-# INLINE lrewsVarHeaded #-}
 lrewsVarHeaded :: Lens' LocalRewriteRuleMap (IntMap [Open RewriteRule])
-lrewsVarHeaded f rs = f (varHeadedRews rs) <&> \ rs' -> rs { varHeadedRews = rs' }
+lrewsVarHeaded = \f rs -> f (varHeadedRews rs) <&> \ rs' -> rs { varHeadedRews = rs' }
 
 instance Null LocalRewriteRuleMap where
   empty                               = LocalRewriteRuleMap empty empty
@@ -3722,6 +3729,7 @@ locallyReduceDefs = locallyTC eReduceDefs . const
 locallyReduceAllDefs :: MonadTCEnv m => m a -> m a
 locallyReduceAllDefs = locallyReduceDefs reduceAllDefs
 
+{-# INLINE shouldReduceDef #-}
 shouldReduceDef :: (MonadTCEnv m) => QName -> m Bool
 shouldReduceDef f = viewTC eReduceDefs <&> \case
   OnlyReduceDefs defs -> f `Set.member` defs

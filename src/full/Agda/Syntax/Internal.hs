@@ -1417,7 +1417,7 @@ headToTerm telStart (RewVarHead x) = Var (x + telStart)
 --   must be convertible in the calling context").
 --   Admits arbitrary substitution.
 data LocalEquation' t = LocalEquation
-  { lEqContext :: Tele (Dom' t (Type'' t t))
+  { lEqContext :: !(Tele (Dom' t (Type'' t t)))
   , lEqLHS     :: t
   , lEqRHS     :: t
   , lEqType    :: Type'' t t

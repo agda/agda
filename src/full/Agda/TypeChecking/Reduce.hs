@@ -558,12 +558,14 @@ instance (Reduce a, Reduce b,Reduce c) => Reduce (a,b,c) where
           xyz = (ignoreBlocking x , ignoreBlocking y , ignoreBlocking z)
       return $ blk $> xyz
 
+{-# INLINE reduceIApply #-}
 reduceIApply :: ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
 reduceIApply = reduceIApply' reduceB'
 
+{-# INLINE reduceIApply' #-}
 reduceIApply' :: (Term -> ReduceM (Blocked Term)) -> ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
 reduceIApply' red d (IApply x y r : es) = do
-  view <- intervalView'
+  view <- intervalView' -- András: TODO opt
   r <- reduceB' r
   -- We need to propagate the blocking information so that e.g.
   -- we postpone "someNeutralPath ?0 = a" rather than fail.
@@ -632,7 +634,9 @@ slowReduceTerm v = do
                     {- else -} done
       Pi _ _     -> done
       Lit _      -> done
-      Var x es   -> reduceIApply (rewriteVarApp x es) es
+      Var x es   -> localRewritingOption >>= \case
+                      True  -> reduceIApply (rewriteVarApp x es) es
+                      False -> reduceIApply done es
       Lam _ _    -> done
       DontCare _ -> done
       Dummy{}    -> done
@@ -752,18 +756,17 @@ unfoldDefinitionStep v0 f es =
     PrimitiveSort{ primSortSort = s } -> yesReduction NoSimplification $ Sort s `applyE` es
 
     _  -> do
-      if or
-          [ RecursiveReductions `SmallSet.member` allowed
-          , isJust (isProjection_ def) && ProjectionReductions `SmallSet.member` allowed
+      if
+             (RecursiveReductions `SmallSet.member` allowed)
+          || (isJust (isProjection_ def) && ProjectionReductions `SmallSet.member` allowed)
               -- Includes projection-like and irrelevant projections.
               -- Note: irrelevant projections lead to @dontUnfold@ and
               -- so are not actually unfolded.
-          , isInlineFun def && InlineReductions `SmallSet.member` allowed
-          , definitelyNonRecursive_ def && or
-            [ copatterns && CopatternReductions `SmallSet.member` allowed
-            , FunctionReductions `SmallSet.member` allowed
-            ]
-          ]
+          || (isInlineFun def && InlineReductions `SmallSet.member` allowed)
+          || (definitelyNonRecursive_ def && or
+               [ copatterns && CopatternReductions `SmallSet.member` allowed
+               , FunctionReductions `SmallSet.member` allowed
+               ])
         then
           reduceNormalE v0 f (map' notReduced es) dontUnfold
                        (defClauses info) (defCompiled info) rewr
