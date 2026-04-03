@@ -27,7 +27,7 @@ import Agda.Syntax.Common.Pretty
 import Agda.Syntax.TopLevelModuleName
 import Agda.TypeChecking.Monad.Base
 
-import Agda.Utils.List ( caseListM )
+import Agda.Utils.List
 import Agda.Utils.List1 qualified as List1
 import Agda.Utils.List2 qualified as List2
 import Agda.Utils.Singleton (singleton)
@@ -66,7 +66,7 @@ completeTransitiveImports vis ms old = if null ms then old else do
   let is = catMaybes $ (`Map.lookup` vis) <$> Set.toList ms
 
   -- The imports of these modules.
-  let imps = Set.unions $ map (Set.fromList . map fst . iImportedModules . miInterface) is
+  let imps = Set.unions $ map' (Set.fromList . map' fst . iImportedModules . miInterface) is
 
   -- Recurse on the new imports.
   completeTransitiveImports vis (imps `Set.difference` next) next
@@ -129,7 +129,7 @@ dropDecodedModule x = modifyTC $ \s ->
 --   worried about.
 checkForImportCycle :: TCM ()
 checkForImportCycle = do
-  caseListM (asksTC envImportStack) __IMPOSSIBLE__ $ \ m ms -> do
+  caseListM (viewTC eImportStack) __IMPOSSIBLE__ \m ms -> do
     when (m `elem` ms) $ typeError $ CyclicModuleDependency $
       List2.snoc (List1.fromListSafe __IMPOSSIBLE__ $ dropWhile (/= m) $ reverse ms) m
         -- NB: we know that ms contains m, so even after dropWhile the list is not empty.

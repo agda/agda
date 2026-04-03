@@ -228,8 +228,8 @@ instance EmbPrj InstanceInfo where
   value = valueN InstanceInfo
 
 instance EmbPrj Definition where
-  icod_ (Defn a b c d e f g h i j k l m n o blocked r s) =
-    icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o (ossify blocked) r s
+  icod_ (Defn a b c d e f g h i j k l m n o blocked r s t) =
+    icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o (ossify blocked) r s t
     where
       -- Andreas, 2024-01-02, issue #7044:
       -- After serialization, a definition can never be unblocked,

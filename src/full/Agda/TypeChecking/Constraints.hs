@@ -8,7 +8,6 @@ import Prelude hiding (null)
 
 import qualified Data.List as List
 import qualified Data.Set as Set
-import Data.Either
 
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty ( prettyShow )
@@ -36,6 +35,7 @@ import {-# SOURCE #-} Agda.TypeChecking.CheckInternal ( checkType )
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 
 import Agda.Utils.CallStack ( withCurrentCallStack )
+import Agda.Utils.List
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -47,74 +47,88 @@ import Agda.Utils.Impossible
 import Agda.Utils.Function (applyUnless)
 
 instance MonadConstraint TCM where
-  addConstraint             = addConstraintTCM
-  addAwakeConstraint        = addAwakeConstraint'
-  solveConstraint           = solveConstraintTCM
-  solveSomeAwakeConstraints = solveSomeAwakeConstraintsTCM
-  wakeConstraints           = wakeConstraintsTCM
-  stealConstraints          = stealConstraintsTCM
-  modifyAwakeConstraints    = modifyTC . mapAwakeConstraints
-  modifySleepingConstraints = modifyTC . mapSleepingConstraints
+  addConstraint u c = ifImpureConv (addConstraintTCM u c) $ patternViolation u
+  addAwakeConstraint u c  = ifImpureConv (addAwakeConstraint' u c) $ patternViolation u
+
+  solveConstraint c = ifImpureConv (solveConstraintTCM c) $
+    patternViolation alwaysUnblock -- TODO: does this happen?
+
+  solveSomeAwakeConstraints s f = ifImpureConv (solveSomeAwakeConstraintsTCM s f) $ return ()
+
+  {-# INLINE wakeConstraints #-}
+  wakeConstraints w             = ifImpureConv (wakeConstraintsTCM w)  $ return ()
+
+  {-# INLINE stealConstraints #-}
+  stealConstraints w            = ifImpureConv (stealConstraintsTCM w) $ return ()
+
+  {-# INLINE modifyConstraints #-}
+  modifyConstraints f g = ifImpureConv
+    (modifyTC (mapAwakeConstraints f . mapSleepingConstraints g))
+    (patternViolation alwaysUnblock) -- TODO: does this happen?
+
 
 addConstraintTCM :: Blocker -> Constraint -> TCM ()
 addConstraintTCM unblock c = do
-      pids <- asksTC envActiveProblems
-      reportSDoc "tc.constr.add" 20 $ hsep
-        [ "adding constraint"
-        , prettyTCM . PConstr pids unblock =<< buildClosure c
-        , "unblocker: " , prettyTCM unblock
-        ]
-      -- Jesper, 2022-10-22: We should never block on a meta that is
-      -- already solved.
-      forM_ (allBlockingMetas unblock) $ \ m ->
-        whenM (isInstantiatedMeta m) $ do
-          reportSDoc "tc.constr.add" 5 $ "Attempted to block on solved meta" <+> prettyTCM m
-          __IMPOSSIBLE__
-      -- Need to reduce to reveal possibly blocking metas
-      c <- reduce =<< instantiateFull c
-      caseMaybeM (simpl c) {-no-} (addConstraint' unblock c) $ {-yes-} \ cs -> do
-          reportSDoc "tc.constr.add" 20 $ "  simplified:" <+> prettyList (map prettyTCM cs)
-          mapM_ solveConstraint_ cs
-      -- The added constraint can cause instance constraints to be solved,
-      -- but only the constraints which aren’t blocked on an uninstantiated meta.
-      unless (isInstanceConstraint c) $
-         wakeConstraints' isWakeableInstanceConstraint
-    where
-      isWakeableInstanceConstraint :: ProblemConstraint -> WakeUp
-      isWakeableInstanceConstraint c =
-        case clValue $ theConstraint c of
-          FindInstance{}
-            | constraintUnblocker c == alwaysUnblock -> WakeUp
-          _ -> DontWakeUp Nothing
+  pids <- viewTC eActiveProblems
+  reportSDoc "tc.constr.add" 20 $ hsep
+    [ "adding constraint"
+    , prettyTCM . PConstr pids unblock =<< buildClosure c
+    , "unblocker: " , prettyTCM unblock
+    ]
+  -- Jesper, 2022-10-22: We should never block on a meta that is
+  -- already solved.
+  forM_ (allBlockingMetas unblock) $ \ m ->
+    whenM (isInstantiatedMeta m) $ do
+      reportSDoc "tc.constr.add" 5 $ "Attempted to block on solved meta" <+> prettyTCM m
+      __IMPOSSIBLE__
+  -- Need to reduce to reveal possibly blocking metas
+  c <- reduce =<< instantiateFull c
+  caseMaybeM (simpl c) {-no-} (addConstraint' unblock c) $ {-yes-} \ cs -> do
+      reportSDoc "tc.constr.add" 20 $ "  simplified:" <+> prettyList (map prettyTCM cs)
+      mapM_ solveConstraint_ cs
+  -- The added constraint can cause instance constraints to be solved,
+  -- but only the constraints which aren’t blocked on an uninstantiated meta.
+  unless (isInstanceConstraint c) $
+     wakeConstraints' isWakeableInstanceConstraint
+  where
+    isWakeableInstanceConstraint :: ProblemConstraint -> WakeUp
+    isWakeableInstanceConstraint c =
+      case clValue $ theConstraint c of
+        FindInstance{}
+          | constraintUnblocker c == alwaysUnblock -> WakeUp
+        _ -> DontWakeUp Nothing
 
-      isLvl LevelCmp{} = True
-      isLvl _          = False
+    isLvl LevelCmp{} = True
+    isLvl _          = False
 
-      -- Try to simplify a level constraint
-      simpl :: Constraint -> TCM (Maybe [Constraint])
-      simpl c
-        | isLvl c = do
-          -- Get all level constraints.
-          lvlcs <- instantiateFull =<< do
-            List.filter (isLvl . clValue) . map theConstraint <$> getAllConstraints
-          List1.ifNull lvlcs (return Nothing) $ {-else-} \ lvlcs -> do
-            reportSDoc "tc.constr.lvl" 40 $ vcat
-              [ "simplifying level constraint" <+> prettyTCM c
-              , nest 2 $ hang "using" 2 $ prettyTCM lvlcs
-              ]
-            -- Try to simplify @c@ using the other constraints.
-            return $ simplifyLevelConstraint c $ fmap clValue lvlcs
-        | otherwise = return Nothing
+    -- Try to simplify a level constraint
+    simpl :: Constraint -> TCM (Maybe [Constraint])
+    simpl c
+      | isLvl c = do
+        -- Get all level constraints.
+        lvlcs <- instantiateFull =<< do
+          List.filter (isLvl . clValue) . map theConstraint <$> getAllConstraints
+        List1.ifNull lvlcs (return Nothing) $ {-else-} \ lvlcs -> do
+          reportSDoc "tc.constr.lvl" 40 $ vcat
+            [ "simplifying level constraint" <+> prettyTCM c
+            , nest 2 $ hang "using" 2 $ prettyTCM lvlcs
+            ]
+          -- Try to simplify @c@ using the other constraints.
+          return $ simplifyLevelConstraint c $ fmap clValue lvlcs
+      | otherwise = return Nothing
 
+{-# INLINE wakeConstraintsTCM #-}
 wakeConstraintsTCM :: (ProblemConstraint-> WakeUp) -> TCM ()
 wakeConstraintsTCM wake = do
-  c <- useR stSleepingConstraints
-  let (wakeup, sleepin) = partitionEithers $ map checkWakeUp c
+  tc <- getTC
+  let c = tc ^. stSleepingConstraints
+  let (wakeup, sleepin) = partitionEithers' $ map' checkWakeUp c
   reportSLn "tc.constr.wake" 50 $
     "waking up         " ++ show (List.map (Set.toList . constraintProblems) wakeup) ++ "\n" ++
     "  still sleeping: " ++ show (List.map (Set.toList . constraintProblems) sleepin)
-  modifySleepingConstraints $ const sleepin
-  modifyAwakeConstraints (++ wakeup)
+  putTC $!
+    mapAwakeConstraints (++! wakeup) $ -- TODO: quadratic append!!
+      mapSleepingConstraints (const sleepin) tc
   where
     checkWakeUp c = case wake c of
       WakeUp              -> Left c
@@ -124,16 +138,15 @@ wakeConstraintsTCM wake = do
 -- | Add all constraints belonging to the given problem to the current problem(s).
 stealConstraintsTCM :: ProblemId -> TCM ()
 stealConstraintsTCM pid = do
-  current <- asksTC envActiveProblems
+  current <- viewTC eActiveProblems
   reportSLn "tc.constr.steal" 50 $ "problem " ++ show (Set.toList current) ++ " is stealing problem " ++ show pid ++ "'s constraints!"
   -- Add current to any constraint in pid.
   let rename pc@(PConstr pids u c) | Set.member pid pids = PConstr (Set.union current pids) u c
                                    | otherwise           = pc
   -- We should never steal from an active problem.
-  whenM (Set.member pid <$> asksTC envActiveProblems) __IMPOSSIBLE__
-  modifyAwakeConstraints    $ List.map rename
-  modifySleepingConstraints $ List.map rename
-
+  whenM (Set.member pid <$> viewTC eActiveProblems) __IMPOSSIBLE__
+  modifyTC $   mapAwakeConstraints    (map' rename)
+             . mapSleepingConstraints (map' rename)
 
 {-# SPECIALIZE noConstraints :: TCM a -> TCM a #-}
 -- | Error out with @'NonFatalErrors' 'UnsolvedConstraints'@
@@ -178,7 +191,7 @@ nonConstraining ::
   ) => m a -> m a
 nonConstraining = dontAssignMetas . noConstraints
 
-{-# SPECIALIZE newProblem :: TCM a -> TCM (ProblemId, a) #-}
+{-# INLINE newProblem #-}
 -- | Create a fresh problem for the given action.
 newProblem
   :: (MonadFresh ProblemId m, MonadConstraint m)
@@ -191,11 +204,24 @@ newProblem action = do
   solveAwakeConstraints
   return (pid, x)
 
-{-# SPECIALIZE newProblem_ :: TCM a -> TCM ProblemId #-}
+{-# INLINE newProblem_ #-}
 newProblem_
   :: (MonadFresh ProblemId m, MonadConstraint m)
   => m a -> m ProblemId
 newProblem_ action = fst <$> newProblem action
+
+{-# INLINE newProblemDontWake_ #-}
+-- | Create a fresh problem for the given action. Don't wake problems after the action finishes.
+newProblemDontWake_
+  :: (MonadFresh ProblemId m, MonadConstraint m)
+  => m a -> m ProblemId
+newProblemDontWake_ action = do
+  pid <- fresh
+  -- Don't get distracted by other constraints while working on the problem
+  _ <- nowSolvingConstraints $
+         verboseBracket "tc.constr.solve" 50 ("working on problem " ++ show pid) $
+           localTC (over eActiveProblems (Set.insert pid)) action
+  pure pid
 
 ifNoConstraints :: TCM a -> (a -> TCM b) -> (ProblemId -> a -> TCM b) -> TCM b
 ifNoConstraints check ifNo ifCs = do
@@ -258,7 +284,7 @@ solveConstraintTCM :: Constraint -> TCM ()
 solveConstraintTCM c = do
     whenProfile Profile.Constraints $ liftTCM $ tick "attempted-constraints"
     verboseBracket "tc.constr.solve" 20 "solving constraint" $ do
-      pids <- asksTC envActiveProblems
+      pids <- viewTC eActiveProblems
       reportSDoc "tc.constr.solve.constr" 20 $ text (show $ Set.toList pids) <+> prettyTCM c
       solveConstraint_ c
 
@@ -272,7 +298,7 @@ solveConstraint_ (IsEmpty r t)              = ensureEmptyType r t
 solveConstraint_ (CheckSizeLtSat t)         = checkSizeLtSat t
 solveConstraint_ (UnquoteTactic tac hole goal) = unquoteTactic tac hole goal
 solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these have their own unblocking logic (for now)
-  ifM (isFrozen m `or2M` (not <$> asksTC envAssignMetas)) (do
+  ifM (isFrozen m `or2M` (not <$> viewTC eAssignMetas)) (do
         reportSDoc "tc.constr.unblock" 15 $ hsep ["not unblocking", prettyTCM m, "because",
                                                   ifM (isFrozen m) "it's frozen" "meta assignments are turned off"]
         addConstraint alwaysUnblock $ UnBlock m) $ do

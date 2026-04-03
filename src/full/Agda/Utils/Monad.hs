@@ -271,6 +271,7 @@ scatterMP = (>>= foldA)
 -- | Finally for the 'Error' class. Errors in the finally part take
 -- precedence over prior errors.
 
+{-# INLINE finally #-}
 finally :: MonadError e m => m a -> m () -> m a
 first `finally` after = do
   r <- catchError (fmap Right first) (return . Left)
@@ -280,12 +281,12 @@ first `finally` after = do
     Right r -> return r
 
 -- | Try a computation, return 'Nothing' if an 'Error' occurs.
-
+{-# INLINE tryMaybe #-}
 tryMaybe :: (MonadError e m) => m a -> m (Maybe a)
 tryMaybe m = (Just <$> m) `catchError` \ _ -> return Nothing
 
 -- | Run a command, catch the exception and return it.
-
+{-# INLINE tryCatch #-}
 tryCatch :: (MonadError e m) => m () -> m (Maybe e)
 tryCatch m = (Nothing <$ m) `catchError` \ err -> return $ Just err
 
@@ -295,12 +296,13 @@ guardWithError :: MonadError e m => e -> Bool -> m ()
 guardWithError e b = if b then return () else throwError e
 
 -- | Handle errors thrown in 'ExceptT'.
-
+{-# INLINE catchExceptT #-}
 catchExceptT :: Monad m => ExceptT e m a -> (e -> m a) -> m a
 catchExceptT m h = either h return =<< runExceptT m
 
 -- State monad ------------------------------------------------------------
 
+{-# INLINE bracket_ #-}
 -- | Bracket without failure.  Typically used to preserve state.
 bracket_ :: Monad m
          => m a         -- ^ Acquires resource. Run first.

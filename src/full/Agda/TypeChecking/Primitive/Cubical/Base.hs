@@ -70,7 +70,7 @@ requireCubical'
   -> TCM ()
 requireCubical' wanted reason = do
   cubical         <- cubicalOption
-  inErasedContext <- hasQuantity0 <$> viewTC eQuantity
+  inErasedContext <- hasQuantity0 <$> viewTC eQuantityZeroHardCompile
   case cubical of
     Just CFull -> return ()
     Just CErased | wanted /= CFull || inErasedContext -> return ()

@@ -96,7 +96,6 @@ import Agda.Utils.String    ( rtrim )
 
 import Agda.Utils.Impossible
 import Agda.TypeChecking.Conversion.Errors
-import Agda.TypeChecking.Conversion.Pure (pureEqualType)
 
 ---------------------------------------------------------------------------
 -- * Top level function
@@ -161,7 +160,7 @@ instance PrettyTCM TCErr where
     -- Benchmark info during printing errors.
     TypeError loc s e -> withTCState (const s) $ do
       reportSLn "error" 2 $ "Error raised at " ++ prettyShow loc
-      let r = envRange $ clEnv e
+      let r = clEnv e ^. eRange
       vcat
         [ hsep
           [ if null r then empty else prettyTCM r <> ":"
@@ -169,7 +168,7 @@ instance PrettyTCM TCErr where
           , brackets (text $ typeErrorString $ clValue e)
           ]
         , prettyTCM e
-        , prettyTCM (envCall $ clEnv e)
+        , prettyTCM (clEnv e ^. eCall)
         ]
     ParserError err   -> pretty err
     GenericException msg -> fwords msg
@@ -974,7 +973,7 @@ instance PrettyTCM TypeError where
           vcat
             [ "Perhaps you meant to write"
             , nest 2 ("'" <> pretty (notSoNiceDeclarations d) <> "'")
-            , ("at" <+> (pretty . envRange =<< askTC)) <> "?"
+            , ("at" <+> (pretty . view eRange =<< askTC)) <> "?"
             , fsep $ concat
               [ [ "In", dataOrRecord ]
               , pwords "definitions separate from their"

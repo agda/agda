@@ -28,6 +28,9 @@ module Agda.Syntax.Position
     -- * Intervals
   , Interval
   , IntervalWithoutFile
+  , IntervalWithoutFile'
+  , pattern PackIWF
+  , unpackIWF
   , Interval'(Interval, iStart', iEnd')
   , intervalInvariant
   , iStart
@@ -274,6 +277,35 @@ posToInterval f p1 p2 = uncurry (Interval f) $ sortPair (p1, p2)
 iLength :: Interval' a -> Word32
 iLength i = posPos (iEnd i) - posPos (iStart i)
 
+-- | Tolerably efficient representation of 'IntervalWithoutFile'
+data IntervalWithoutFile' = IWF !Word64 !Word64 !Word64
+  deriving (Eq)
+
+instance NFData IntervalWithoutFile' where
+  rnf x = seq x ()
+
+instance Hashable IntervalWithoutFile' where
+  hashWithSalt h (IWF a b c) = fromIntegral $
+    fromIntegral h `combineWord` fromIntegral a
+                   `combineWord` fromIntegral b
+                   `combineWord` fromIntegral c
+
+pattern PackIWF :: IntervalWithoutFile -> IntervalWithoutFile'
+pattern PackIWF x <- ((\(IWF ps lc0 lc1) -> case splitW64 ps of
+   (p0, p1) -> Interval () (Pn' () p0 lc0) (Pn' () p1 lc1)) -> x) where
+  PackIWF (Interval _ (Pn' _ p0 lc0) (Pn' _ p1 lc1)) = IWF (packW64 p0 p1) lc0 lc1
+{-# INLINE PackIWF #-}
+{-# COMPLETE PackIWF #-}
+
+unpackIWF :: IntervalWithoutFile' -> IntervalWithoutFile
+unpackIWF (PackIWF x) = x
+
+instance Ord IntervalWithoutFile' where
+  compare (PackIWF x) (PackIWF y) = compare x y
+
+instance Show IntervalWithoutFile' where
+  showsPrec i (PackIWF x) = showsPrec i x
+
 -- | A range is a file name, plus a sequence of intervals, assumed to
 -- point to the given file. The intervals should be consecutive and
 -- separated.
@@ -281,9 +313,11 @@ iLength i = posPos (iEnd i) - posPos (iStart i)
 -- Note the invariant which ranges have to satisfy: 'rangeInvariant'.
 data Range' a
   = NoRange
-  | Range !a (Seq IntervalWithoutFile)
+  | Range !a (Seq IntervalWithoutFile')
   deriving
     (Show, Eq, Ord, Functor, Foldable, Traversable, Generic)
+
+-- TODO: custom Eq, Ord, Hashable using better Seq functions
 
 type Range = Range' SrcFile
 type RangeWithoutFile = Range' ()
@@ -307,18 +341,26 @@ instance Eq a => Monoid (Range' a) where
   mempty  = empty
   mappend = (<>)
 
+-- TODO: efficient Seq function
+
+-- | The intervals that make up the range. The intervals are
+-- consecutive and separated ('consecutiveAndSeparated').
+rangeIntervals' :: Range' a -> [IntervalWithoutFile']
+rangeIntervals' NoRange      = []
+rangeIntervals' (Range _ is) = Fold.toList is
+
 -- | The intervals that make up the range. The intervals are
 -- consecutive and separated ('consecutiveAndSeparated').
 rangeIntervals :: Range' a -> [IntervalWithoutFile]
 rangeIntervals NoRange      = []
-rangeIntervals (Range _ is) = Fold.toList is
+rangeIntervals (Range _ is) = map unpackIWF $ Fold.toList is
 
 -- | Turns a file name plus a list of intervals into a range.
 --
 -- Precondition: 'consecutiveAndSeparated'.
 intervalsToRange :: a -> [IntervalWithoutFile] -> Range' a
 intervalsToRange _ [] = NoRange
-intervalsToRange f is = Range f (Seq.fromList is)
+intervalsToRange f is = Range f (Seq.fromList $ map PackIWF is)
 
 -- | Are the intervals consecutive and separated, do they all point to
 -- the same file, and do they satisfy the interval invariant?
@@ -363,7 +405,7 @@ rightMargin :: Range -> Range
 rightMargin r@NoRange    = r
 rightMargin (Range f is) = case Seq.viewr is of
   Seq.EmptyR -> __IMPOSSIBLE__
-  _ Seq.:> Interval () _s e -> intervalToRange f (Interval () e e)
+  _ Seq.:> PackIWF (Interval () _s e) -> intervalToRange f (Interval () e e)
 
 -- | Wrapper to indicate that range should be printed.
 newtype PrintRange a = PrintRange a
@@ -650,14 +692,14 @@ posToRange p1 p2 =
 
 -- | Converts a file name and an interval to a range.
 intervalToRange :: a -> IntervalWithoutFile -> Range' a
-intervalToRange f i = Range f (Seq.singleton i)
+intervalToRange f i = Range f (Seq.singleton (PackIWF i))
 
 -- | Converts a range to an interval, if possible.
 rangeToIntervalWithFile :: Range' a -> Maybe (Interval' a)
 rangeToIntervalWithFile NoRange      = Nothing
 rangeToIntervalWithFile (Range f is) =
   case (Seq.viewl is, Seq.viewr is) of
-    (head Seq.:< _, _ Seq.:> last) -> Just $ Interval f (iStart head) (iEnd last)
+    (PackIWF head Seq.:< _, _ Seq.:> PackIWF last) -> Just $ Interval f (iStart head) (iEnd last)
     _ -> __IMPOSSIBLE__
 
 -- | Converts a range to an interval, if possible.
@@ -675,13 +717,14 @@ continuous r@(Range f _) =
 continuousPerLine :: Range' a -> Range' a
 continuousPerLine r@NoRange     = r
 continuousPerLine r@(Range f _) =
-  Range f (Seq.unfoldr step (rangeIntervals r))
+  Range f (Seq.unfoldr step (rangeIntervals' r))
   where
+  step :: [IntervalWithoutFile'] -> Maybe (IntervalWithoutFile', [IntervalWithoutFile'])
   step []  = Nothing
   step [i] = Just (i, [])
-  step (i : is@(j : js))
-    | sameLine  = step (fuseIntervals i j : js)
-    | otherwise = Just (i, is)
+  step (pi@(PackIWF i) : is@(PackIWF j : js))
+    | sameLine  = let !ij = PackIWF (fuseIntervals i j) in step (ij : js)
+    | otherwise = Just (pi, is)
     where
     sameLine = posLine (iEnd i) == posLine (iStart j)
 
@@ -718,11 +761,12 @@ fuseRanges NoRange       is2           = is2
 fuseRanges is1           NoRange       = is1
 fuseRanges (Range f is1) (Range _ is2) = Range f (fuse is1 is2)
   where
+  fuse :: Seq IntervalWithoutFile' -> Seq IntervalWithoutFile' -> Seq IntervalWithoutFile'
   fuse is1 is2 = case (Seq.viewl is1, Seq.viewr is1,
                        Seq.viewl is2, Seq.viewr is2) of
     (Seq.EmptyL, _, _, _) -> is2
     (_, _, Seq.EmptyL, _) -> is1
-    (s1 Seq.:< r1, l1 Seq.:> e1, s2 Seq.:< r2, l2 Seq.:> e2)
+    (PackIWF s1 Seq.:< r1, l1 Seq.:> PackIWF e1, PackIWF s2 Seq.:< r2, l2 Seq.:> PackIWF e2)
         -- Special cases.
       | iEnd e1 <  iStart s2 -> is1 Seq.>< is2
       | iEnd e2 <  iStart s1 -> is2 Seq.>< is1
@@ -737,18 +781,23 @@ fuseRanges (Range f is1) (Range _ is2) = Range f (fuse is1 is2)
 
   mergeTouching l e s r = l Seq.>< i Seq.<| r
     where
-    i = Interval () (iStart e) (iEnd s)
+    !i = PackIWF (Interval () (iStart e) (iEnd s))
 
   -- The following two functions could use binary search instead of
   -- linear.
-
-  outputLeftPrefix s1 r1 s2 is2 = s1 Seq.<| r1' Seq.>< fuse r1'' is2
+  outputLeftPrefix :: IntervalWithoutFile -> Seq IntervalWithoutFile' -> IntervalWithoutFile -> Seq IntervalWithoutFile'
+                   -> Seq IntervalWithoutFile'
+  outputLeftPrefix s1 r1 s2 is2 = s1' Seq.<| r1' Seq.>< fuse r1'' is2
     where
-    (r1', r1'') = Seq.spanl (\s -> iEnd s < iStart s2) r1
+    !s1' = PackIWF s1
+    (!r1', !r1'') = Seq.spanl (\(PackIWF s) -> iEnd s < iStart s2) r1
 
-  fuseSome s1 r1 s2 r2 = fuse r1' (fuseIntervals s1 s2 Seq.<| r2)
+  fuseSome :: IntervalWithoutFile -> Seq IntervalWithoutFile' -> IntervalWithoutFile -> Seq IntervalWithoutFile'
+           -> Seq IntervalWithoutFile'
+  fuseSome s1 r1 s2 r2 = fuse r1' (s12 Seq.<| r2)
     where
-    r1' = Seq.dropWhileL (\s -> iEnd s <= iEnd s2) r1
+    !s12 = PackIWF (fuseIntervals s1 s2)
+    !r1' = Seq.dropWhileL (\(PackIWF s) -> iEnd s <= iEnd s2) r1
 
 {-# INLINE fuseRange #-}
 -- | Precondition: The ranges must point to the same file (or be

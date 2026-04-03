@@ -14,6 +14,12 @@ import Data.String    ( fromString )       -- for RebindableSyntax, somehow not 
 
 import Agda.Utils.Boolean
 
+-- | Left-associative strict application.
+{-# INLINE ($$!) #-}
+infixl 9 $$!
+($$!) :: (a -> b) -> a -> b
+($$!) = \ !f !a -> f a
+
 -- | Repeat a state transition @f :: a -> (b, a)@ with output @b@
 --   while condition @cond@ on the output is true.
 --   Return all intermediate results and the final result
@@ -120,41 +126,35 @@ iterate' n f x
 -- * Iteration over Booleans.
 
 -- | @applyWhen b f a@ applies @f@ to @a@ when @b@.
-{-# SPECIALIZE applyWhen :: Bool -> (a -> a) -> (a -> a) #-}
 {-# INLINE applyWhen #-}
 applyWhen :: IsBool b => b -> (a -> a) -> a -> a
 applyWhen b f = if b then f else id
   -- Note: RebindableSyntax translates this if-then-else to ifThenElse of IsBool.
 
 -- | @applyUnless b f a@ applies @f@ to @a@ unless @b@.
-{-# SPECIALIZE applyUnless :: Bool -> (a -> a) -> (a -> a) #-}
 {-# INLINE applyUnless #-}
 applyUnless :: IsBool b => b -> (a -> a) -> a -> a
 applyUnless b f = if b then id else f
   -- Note: RebindableSyntax translates this if-then-else to ifThenElse of IsBool.
 
 -- | @applyWhenIts p f a@ applies @f@ to @a@ when @p a@.
-{-# SPECIALIZE applyWhenIts :: (a -> Bool) -> (a -> a) -> (a -> a) #-}
 {-# INLINE applyWhenIts #-}
 applyWhenIts :: IsBool b => (a -> b) -> (a -> a) -> a -> a
 applyWhenIts p f a = if p a then f a else a
   -- Note: RebindableSyntax translates this if-then-else to ifThenElse of IsBool.
 
 -- | @applyUnlessIts p f a@ applies @f@ to @a@ unless @p a@.
-{-# SPECIALIZE applyUnlessIts :: (a -> Bool) -> (a -> a) -> (a -> a) #-}
 {-# INLINE applyUnlessIts #-}
 applyUnlessIts :: IsBool b => (a -> b) -> (a -> a) -> a -> a
 applyUnlessIts p f a = if p a then a else f a
   -- Note: RebindableSyntax translates this if-then-else to ifThenElse of IsBool.
 
 -- | Monadic version of @applyWhen@
-{-# SPECIALIZE applyWhenM :: Monad m => m Bool -> (m a -> m a) -> m a -> m a #-}
 {-# INLINE applyWhenM #-}
 applyWhenM :: (IsBool b, Monad m) => m b -> (m a -> m a) -> m a -> m a
 applyWhenM mb f x = mb >>= \ b -> applyWhen b f x
 
 -- | Monadic version of @applyUnless@
-{-# SPECIALIZE applyUnlessM :: Monad m => m Bool -> (m a -> m a) -> m a -> m a #-}
 {-# INLINE applyUnlessM #-}
 applyUnlessM :: (IsBool b, Monad m) => m b -> (m a -> m a) -> m a -> m a
 applyUnlessM mb f x = mb >>= \ b -> applyUnless b f x

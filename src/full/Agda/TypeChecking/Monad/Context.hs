@@ -1,3 +1,4 @@
+-- {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
 
 module Agda.TypeChecking.Monad.Context where
 
@@ -41,7 +42,7 @@ import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
-import Agda.Utils.List ((!!!), downFrom)
+import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -53,13 +54,21 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Update
 
+
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictWriter qualified as Strict
+import Agda.Utils.StrictState  qualified as Strict
+
+import Agda.Utils.Impossible
+
+
 -- * Modifying the context
 
 -- | Modify a 'Context' in a computation.  Warning: does not update
 --   the checkpoints. Use @updateContext@ instead.
 {-# INLINE unsafeModifyContext #-}
 unsafeModifyContext :: MonadTCEnv tcm => (Context -> Context) -> tcm a -> tcm a
-unsafeModifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
+unsafeModifyContext f = localTC (over eContext f)
 
 {-# INLINE modifyContextInfo #-}
 -- | Modify the 'Dom' part of context entries.
@@ -68,7 +77,7 @@ modifyContextInfo f = unsafeModifyContext $ fmap $ \case
     (CtxVar x a)   -> CtxVar x (f a)
 
 -- | Change to top (=empty) context. Resets the checkpoints.
-{-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
+{-# INLINE inTopContext #-}
 inTopContext :: (MonadTCEnv tcm, ReadTCState tcm) => tcm a -> tcm a
 inTopContext cont =
   unsafeModifyContext (const CxEmpty)
@@ -82,7 +91,7 @@ inTopContext cont =
 
 -- | Change to top (=empty) context, but don't update the checkpoints. Totally
 --   not safe!
-{-# SPECIALIZE unsafeInTopContext :: TCM a -> TCM a #-}
+{-# INLINE unsafeInTopContext #-}
 unsafeInTopContext :: (MonadTCEnv m, ReadTCState m) => m a -> m a
 unsafeInTopContext cont =
   locallyScope scopeLocals (const []) $
@@ -92,11 +101,11 @@ unsafeInTopContext cont =
 --
 --   Doesn't update checkpoints! Use `escapeContext` or `updateContext
 --   rho (drop n)` instead, for an appropriate substitution `rho`.
-{-# SPECIALIZE unsafeEscapeContext :: Int -> TCM a -> TCM a #-}
+{-# INLINE unsafeEscapeContext #-}
 unsafeEscapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
 unsafeEscapeContext n = unsafeModifyContext $ cxDrop n
 
-{-# SPECIALIZE escapeContext :: Impossible -> Int -> TCM a -> TCM a #-}
+{-# INLINE escapeContext #-}
 -- | Delete the last @n@ bindings from the context. Any occurrences of
 -- these variables are replaced with the given @err@.
 escapeContext :: MonadAddContext m => Impossible -> Int -> m a -> m a
@@ -104,17 +113,22 @@ escapeContext err n = updateContext (strengthenS err n) $ cxDrop n
 
 -- * Manipulating checkpoints --
 
-{-# SPECIALIZE checkpoint :: Substitution -> TCM a -> TCM a #-}
+-- {-# NOINLINE checkpoint' #-}
+-- checkpoint' :: Substitution -> TCM a -> TCM a
+-- checkpoint' = checkpoint
+
+{-# INLINE checkpoint #-}
 -- | Add a new checkpoint. Do not use directly!
 --   Also updates head symbols of local rewrite rules with variable heads
-checkpoint
-  :: (MonadDebug tcm, MonadTCM tcm, MonadFresh CheckpointId tcm, ReadTCState tcm)
-  => Substitution -> tcm a -> tcm a
+checkpoint :: Substitution -> TCM a -> TCM a
 checkpoint sub k = do
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 $ "New checkpoint {"
-  old  <- viewTC eCurrentCheckpoint
-  oldChkpts <- useTC stModuleCheckpoints
-  chkpt <- fresh
+  old <- viewTC eCurrentCheckpoint
+  tc <- getTC
+  let oldChkpts = tc ^. stModuleCheckpoints
+  let chkpt     = tc ^. freshLens
+  putTC $! tc & freshLens .~ (nextFresh' chkpt)
+
   unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
     cxt <- getContextTelescope
     cps <- viewTC eCheckpoints
@@ -129,13 +143,13 @@ checkpoint sub k = do
       , "old substs =" <+> prCps cps
       , "new substs =" <?> prCps cps'
       ]
-  x <- flip localTC k $ \ env -> env
-    { envCurrentCheckpoint = chkpt
-    , envCheckpoints       = Map.insert chkpt IdS $
-                              fmap (applySubst sub) (envCheckpoints env)
-    , envLocalRewriteRules = updateLocalRewriteHeads sub $
-                              envLocalRewriteRules env
-    }
+
+  x <- localTC (  set eCurrentCheckpoint chkpt
+                . over eCheckpoints (Map.insert chkpt IdS . fmap (applySubst sub))
+                . over eLocalRewriteRules (updateLocalRewriteHeads sub)
+               )
+               k
+
   unlessDebugPrinting $ verboseS "tc.cxt.checkpoint" 105 $ do
     newChkpts <- useTC stModuleCheckpoints
     reportS "tc.cxt.checkpoint" 105 $ nest 2 $
@@ -176,7 +190,7 @@ updateLocalRewriteHeads sub = over lrewsVarHeaded (IntMap.mapKeys subHead)
 -- | Add a module checkpoint for the provided @ModuleName@.
 {-# SPECIALIZE setModuleCheckpoint :: ModuleName -> CheckpointId -> TCM () #-}
 setModuleCheckpoint :: (MonadTCState m) => ModuleName -> CheckpointId -> m ()
-setModuleCheckpoint mname newChkpt =
+setModuleCheckpoint !mname !newChkpt =
   modifyTCLens' stModuleCheckpoints \case
       (ModuleCheckpointsSection chkpts mnames chkpt) | chkpt == newChkpt ->
         ModuleCheckpointsSection chkpts (Set.insert mname mnames) chkpt
@@ -185,7 +199,7 @@ setModuleCheckpoint mname newChkpt =
 -- | Set every module checkpoint in the checkpoint stack to the provided @CheckpointId@.
 {-# SPECIALIZE setAllModuleCheckpoints :: CheckpointId -> TCM () #-}
 setAllModuleCheckpoints :: (MonadTCState m) => CheckpointId -> m ()
-setAllModuleCheckpoints chkpt =
+setAllModuleCheckpoints !chkpt =
   modifyTCLens' stModuleCheckpoints \case
     ModuleCheckpointsTop -> ModuleCheckpointsTop
     ModuleCheckpointsSection chkpts siblings _ -> setAll siblings chkpts
@@ -196,9 +210,9 @@ setAllModuleCheckpoints chkpt =
 
 -- | Unwind the current module checkpoint stack until we reach a target @CheckpointId@,
 --   and place the checkpoints onto the provided @ModuleCheckpoints@ stack.
-{-# SPECIALIZE unwindModuleCheckpointsOnto :: CheckpointId -> ModuleCheckpoints -> TCM () #-}
+{-# SPECIALIZE NOINLINE unwindModuleCheckpointsOnto :: CheckpointId -> ModuleCheckpoints -> TCM () #-} -- TODO
 unwindModuleCheckpointsOnto :: (MonadTCState m) => CheckpointId -> ModuleCheckpoints -> m ()
-unwindModuleCheckpointsOnto unwindTo oldChkpts =
+unwindModuleCheckpointsOnto !unwindTo !oldChkpts =
   -- We know that the checkpoints in the stack are sorted,
   -- so we can do a preliminary check to see if there's
   -- any work to be done.
@@ -220,16 +234,17 @@ unwindModuleCheckpointsOnto unwindTo oldChkpts =
         ModuleCheckpointsSection oldChkpts (Set.union siblings acc) chkpt
       | otherwise = unwind (Set.union siblings acc) chkpts
 
+{-# INLINE withoutModuleCheckpoints #-}
 -- | Run a computation with no module checkpoints set.
 withoutModuleCheckpoints :: (ReadTCState m) => m a -> m a
-withoutModuleCheckpoints cont =
-  locallyTCState stModuleCheckpoints (const ModuleCheckpointsTop) cont
-{-# INLINE withoutModuleCheckpoints #-}
+withoutModuleCheckpoints = locallyTCState stModuleCheckpoints (const ModuleCheckpointsTop)
 
+{-# SPECIALIZE checkpointSubstitution :: CheckpointId -> TCM Substitution #-}
 -- | Get the substitution from the context at a given checkpoint to the current context.
 checkpointSubstitution :: MonadTCEnv tcm => CheckpointId -> tcm Substitution
 checkpointSubstitution = maybe __IMPOSSIBLE__ return <=< checkpointSubstitution'
 
+{-# SPECIALIZE checkpointSubstitution' :: CheckpointId -> TCM (Maybe Substitution) #-}
 -- | Get the substitution from the context at a given checkpoint to the current context.
 checkpointSubstitution' :: MonadTCEnv tcm => CheckpointId -> tcm (Maybe Substitution)
 checkpointSubstitution' chkpt = viewTC (eCheckpoints . key chkpt)
@@ -241,6 +256,7 @@ getModuleCheckpoint mname (ModuleCheckpointsSection chkpts siblings chkid)
   | Set.member mname siblings = Just chkid
   | otherwise = getModuleCheckpoint mname chkpts
 
+{-# SPECIALIZE getModuleParameterSub :: ModuleName -> TCM (Maybe Substitution) #-}
 -- | Get substitution @Γ ⊢ ρ : Γm@ where @Γ@ is the current context
 --   and @Γm@ is the module parameter telescope of module @m@.
 --
@@ -314,6 +330,7 @@ addRewDom rew = case rewDomRew rew of
   Just r  -> addLocalRewrite r
   Nothing -> __IMPOSSIBLE__
 
+{-# INLINE withFreshName_ #-}
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
 
@@ -324,6 +341,9 @@ instance MonadAddContext m => MonadAddContext (MaybeT m)
 instance MonadAddContext m => MonadAddContext (ReaderT r m)
 instance MonadAddContext m => MonadAddContext (StateT r m)
 instance (Monoid w, MonadAddContext m) => MonadAddContext (WriterT w m)
+instance MonadAddContext m => MonadAddContext (Strict.ReaderT r m)
+instance MonadAddContext m => MonadAddContext (Strict.StateT r m)
+instance (Monoid w, MonadAddContext m) => MonadAddContext (Strict.WriterT w m)
 deriving instance MonadAddContext m => MonadAddContext (BlockT m)
 
 instance MonadAddContext m => MonadAddContext (ListT m) where
@@ -337,51 +357,63 @@ instance MonadAddContext m => MonadAddContext (ListT m) where
 --   being shadowed by all the names with the same root that are added
 --   to the context during this TCM action.
 withShadowingNameTCM :: Name -> TCM b -> TCM b
-withShadowingNameTCM x f = do
-  reportS "tc.cxt.shadowing" 80 $ "registered" <+> pretty x <+> "for shadowing"
-  when (isInScope x == InScope) $ tellUsedName x
-  (result , useds) <- listenUsedNames f
-  reportSLn "tc.cxt.shadowing" 90 $ "all used names: " ++ show useds
-  tellShadowing x useds
-  return result
+withShadowingNameTCM x f = f
+-- withShadowingNameTCM x = \f -> do
+--   reportS "tc.cxt.shadowing" 80 $ "registered" <+> pretty x <+> "for shadowing"
+--   when (isInScope x == InScope) $ tellUsedName x
+--   (result , useds) <- listenUsedNames f
+--   reportSLn "tc.cxt.shadowing" 90 $ "all used names: " ++ show useds
+--   tellShadowing x useds
+--   return result
 
-    where
-      listenUsedNames f = do
-        origUsedNames <- useTC stUsedNames
-        setTCLens stUsedNames Map.empty
-        result <- f
-        newUsedNames <- useTC stUsedNames
-        setTCLens stUsedNames $ Map.unionWith (<>) origUsedNames newUsedNames
-        return (result , newUsedNames)
+--     where
+--       listenUsedNames f = do
+--         Lazy origUsedNames <- useTC stUsedNames
+--         setTCLens stUsedNames (Lazy Map.empty)
+--         result <- f
+--         Lazy newUsedNames <- useTC stUsedNames
+--         setTCLens stUsedNames $ Lazy (Map.unionWith (<>) origUsedNames newUsedNames)
+--         return (result , newUsedNames)
 
-      tellUsedName x = do
-        let concreteX = nameConcrete x
-            rawX      = nameToRawName concreteX
-            rootX     = nameRoot concreteX
-        modifyTCLens (stUsedNames . key rootX) $
-          Just . (Set1.insertSet rawX) . Set1.toSet'
+--       tellUsedName x = do
+--         let concreteX = nameConcrete x
+--             rawX      = nameToRawName concreteX
+--             rootX     = nameRoot concreteX
+--         modifyTCLens stUsedNames \(Lazy ns) ->
+--           Lazy (ns & key rootX %~ Just . Set1.insertSet rawX . Set1.toSet')
 
-      tellShadowing x useds = case Map.lookup (nameRoot $ nameConcrete x) useds of
-        Just shadows -> do
-          reportS "tc.cxt.shadowing" 80 $
-            "names shadowing" <+> pretty x <+> ": " <+>
-            prettyList_ (map pretty $ toList shadows)
-          modifyTCLens stShadowingNames $ Map.insertWith (<>) x shadows
-        Nothing      -> return ()
+--       tellShadowing x useds = case Map.lookup (nameRoot $ nameConcrete x) useds of
+--         Just shadows -> do
+--           reportS "tc.cxt.shadowing" 80 $
+--             "names shadowing" <+> pretty x <+> ": " <+>
+--             prettyList_ (map' pretty $ toList shadows)
+--           modifyTCLens stShadowingNames $ Lazy . Map.insertWith (<>) x shadows . unLazy
+--         Nothing      -> return ()
+
+-- {-# NOINLINE addCtxTEST #-}
+-- addCtxTEST :: Name -> Dom Type -> TCM a -> TCM a
+-- addCtxTEST x a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
+--     defaultAddCtx x a ret
 
 instance MonadAddContext TCM where
-  addCtx x a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
+  {-# INLINE addCtx #-}
+  addCtx !x !a !ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
     defaultAddCtx x a ret
 
+  {-# INLINE addLetBinding' #-}
   addLetBinding' isAxiom o x u a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
     defaultAddLetBinding' isAxiom o x u a ret
 
+  {-# INLINE updateContext #-}
+  updateContext !sub !f !act = unsafeModifyContext f (checkpoint sub act)
+
+  {-# INLINE addLocalRewrite #-}
   addLocalRewrite = defaultAddLocalRewrite
 
-  updateContext sub f = unsafeModifyContext f . checkpoint sub
-
+  {-# INLINE withFreshName #-}
   withFreshName r x m = freshName r x >>= m
 
+{-# INLINE defaultAddLocalRewrite #-}
 -- | Adds a rewrite rule to the local typechecking environment
 defaultAddLocalRewrite :: (MonadTCEnv m, ReadTCState m)
   => RewriteRule -> m a -> m a
@@ -393,6 +425,7 @@ defaultAddLocalRewrite rew ret = do
     RewDefHead f -> locallyTC (eLocalRewriteRules . lrewsDefHeaded)
       (HMap.insertWith mappend f [rew']) ret
 
+{-# INLINE addRecordNameContext #-}
 addRecordNameContext
   :: (MonadAddContext m, MonadFresh NameId m)
   => Dom Type -> m b -> m b
@@ -424,89 +457,113 @@ instance AddContext ContextEntry where
   contextSize _ = 1
 
 instance AddContext (Name, Dom Type) where
-  addContext = uncurry addCtx; {-# INLINE addContext #-}
+  {-# INLINE addContext #-}
+  addContext = uncurry addCtx;
   contextSize _ = 1
-{-# SPECIALIZE addContext :: (Name, Dom Type) -> TCM a -> TCM a #-}
 
 instance AddContext (Dom (Name, Type)) where
+  {-# INLINE addContext #-}
   addContext = addContext . distributeF
   contextSize _ = 1
 
 instance AddContext (Dom (String, Type)) where
+  {-# INLINE addContext #-}
   addContext = addContext . distributeF
   contextSize _ = 1
 
 instance AddContext ([Name], Dom Type) where
+  {-# INLINE addContext #-}
   addContext (xs, dom) = addContext (bindsToTel' id xs dom)
   contextSize (xs, _) = length xs
 
 instance AddContext (List1 Name, Dom Type) where
+  {-# INLINE addContext #-}
   addContext (xs, dom) = addContext (bindsToTel'1 id xs dom)
   contextSize (xs, _) = length xs
 
 instance AddContext ([WithHiding Name], Dom Type) where
+  {-# INLINE addContext #-}
   addContext ([]    , dom) = id
   addContext (x : xs, dom) = addContext (x :| xs, dom)
   contextSize (xs, _) = length xs
 
 instance AddContext (List1 (WithHiding Name), Dom Type) where
+  {-# INLINE addContext #-}
   addContext (WithHiding h x :| xs, dom) =
     addContext (x , mapHiding (mappend h) dom) .
     addContext (xs, raise 1 dom)
   contextSize (xs, _) = length xs
 
+instance AddContext ([Arg Name], Type) where
+  {-# INLINE addContext #-}
+  addContext (xs, t) = addContext ((map' . fmap) unnamed xs :: [NamedArg Name], t)
+  contextSize (xs, _) = length xs
+
+instance AddContext (List1 (Arg Name), Type) where
+  {-# INLINE addContext #-}
+  addContext (xs, t) = addContext ((fmap . fmap) unnamed xs :: List1 (NamedArg Name), t)
+  contextSize (xs, _) = length xs
+
 instance AddContext ([NamedArg Name], Type) where
+  {-# INLINE addContext #-}
   addContext ([], _)     = id
   addContext (x : xs, t) = addContext (x :| xs, t)
   contextSize (xs, _) = length xs
 
 instance AddContext (List1 (NamedArg Name), Type) where
+  {-# INLINE addContext #-}
   addContext (x :| xs, t) =
     addContext (namedArg x, t <$ domFromNamedArgName x) .
     addContext (xs, raise 1 t)
   contextSize (xs, _) = length xs
 
 instance AddContext ([Dom Name], Type) where
+  {-# INLINE addContext #-}
   addContext ([], _)     = id
   addContext (x : xs, t) = addContext (x :| xs, t)
   contextSize (xs, _) = length xs
 
 instance AddContext (List1 (Dom Name), Type) where
+  {-# INLINE addContext #-}
   addContext (x :| xs, t) =
     addContext (unDom x, x $> t) .
     addContext (xs, raise 1 t)
   contextSize (xs, _) = length xs
 
 instance AddContext (String, Dom Type) where
+  {-# INLINE addContext #-}
   addContext (s, dom) ret =
     withFreshName noRange s $ \x -> addCtx (setNotInScope x) dom ret
   contextSize _ = 1
-{-# SPECIALIZE addContext :: (String, Dom Type) -> TCM a -> TCM a #-}
 
 instance AddContext (Text, Dom Type) where
+  {-# INLINE addContext #-}
   addContext (s, dom) ret = addContext (T.unpack s, dom) ret
   contextSize _ = 1
-{-# SPECIALIZE addContext :: (Text, Dom Type) -> TCM a -> TCM a #-}
 
 instance AddContext (KeepNames String, Dom Type) where
+  {-# INLINE addContext #-}
   addContext (KeepNames s, dom) ret =
     withFreshName noRange s $ \ x -> addCtx x dom ret
   contextSize _ = 1
-{-# SPECIALIZE addContext :: (KeepNames String, Dom Type) -> TCM a -> TCM a #-}
 
 instance AddContext (Dom Type) where
+  {-# INLINE addContext #-}
   addContext dom = addContext ("_" :: String, dom)
   contextSize _ = 1
 
 instance AddContext Name where
+  {-# INLINE addContext #-}
   addContext x = addContext (x, __DUMMY_DOM__)
   contextSize _ = 1
 
 instance {-# OVERLAPPING #-} AddContext String where
+  {-# INLINE addContext #-}
   addContext s = addContext (s, __DUMMY_DOM__)
   contextSize _ = 1
 
 instance AddContext (KeepNames Telescope) where
+  {-# INLINE addContext #-}
   addContext (KeepNames tel) ret = loop tel where
     loop EmptyTel          = ret
     loop (ExtendTel t tel) = underAbstraction' KeepNames t tel loop
@@ -514,6 +571,7 @@ instance AddContext (KeepNames Telescope) where
 {-# SPECIALIZE addContext :: KeepNames Telescope -> TCM a -> TCM a #-}
 
 instance AddContext Telescope where
+  {-# INLINE addContext #-}
   addContext tel ret = loop tel where
     loop EmptyTel          = ret
     loop (ExtendTel t tel) = underAbstraction' id t tel loop
@@ -529,9 +587,9 @@ extendReduceEnv x !a !env =
                           cn = C.Name noRange InScope (C.stringNameParts x')
                       in Name nid cn cn noRange noFixity' False
       !re           = redEnv env
-      !ec           = envContext re
+      !ec           = re ^. eContext
       !ec'          = CxExtendVar n a ec
-      !re'          = re {envContext = ec'}
+      !re'          = re & eContext .~ ec'
   in env {redEnv = re', redSt = tcs'}
 
 {-# INLINE underAbsReduceM #-}
@@ -548,31 +606,36 @@ underAbsReduceM_ :: Abs a -> (a -> ReduceM b) -> ReduceM b
 underAbsReduceM_ = underAbsReduceM __DUMMY_DOM__
 
 -- | Go under an abstraction.  Do not extend context in case of 'NoAbs'.
-{-# SPECIALIZE underAbstraction :: Subst a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
+{-# INLINE underAbstraction  #-}
 underAbstraction :: (Subst a, MonadAddContext m) => Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstraction = underAbstraction' id
 
+{-# INLINE underAbstraction' #-}
 underAbstraction' :: (Subst a, MonadAddContext m, AddContext (name, Dom Type)) =>
                      (String -> name) -> Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstraction' _ _ (NoAbs _ v) k = k v
 underAbstraction' wrap t a k = underAbstractionAbs' wrap t a k
 
+{-# INLINE underAbstractionAbs #-}
 -- | Go under an abstraction, treating 'NoAbs' as 'Abs'.
 underAbstractionAbs :: (Subst a, MonadAddContext m) => Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstractionAbs = underAbstractionAbs' id
 
+{-# INLINE underAbstractionAbs' #-}
 underAbstractionAbs'
   :: (Subst a, MonadAddContext m, AddContext (name, Dom Type))
   => (String -> name) -> Dom Type -> Abs a -> (a -> m b) -> m b
-underAbstractionAbs' wrap t a k = addContext (wrap $ realName $ absName a, t) $ k $ absBody a
+underAbstractionAbs' wrap t a k =
+  addContext (wrap $ realName $ absName a, t) $ k $ absBody a
   where
     realName s = if isNoName s then "x" else argNameToString s
 
 -- | Go under an abstract without worrying about the type to add to the context.
-{-# SPECIALIZE underAbstraction_ :: Subst a => Abs a -> (a -> TCM b) -> TCM b #-}
+{-# INLINE underAbstraction_  #-}
 underAbstraction_ :: (Subst a, MonadAddContext m) => Abs a -> (a -> m b) -> m b
 underAbstraction_ = underAbstraction __DUMMY_DOM__
 
+{-# INLINE mapAbstraction #-}
 -- | Map a monadic function on the thing under the abstraction, adding
 --   the abstracted variable to the context.
 mapAbstraction
@@ -588,17 +651,17 @@ mapAbstraction_ = mapAbstraction __DUMMY_DOM__
 {-# SPECIALIZE getLetBindings :: TCM [(Name, LetBinding)] #-}
 getLetBindings :: MonadTCEnv tcm => tcm [(Name, LetBinding)]
 getLetBindings = do
-  bs <- asksTC envLetBindings
+  bs <- viewTC eLetBindings
   forM (Map.toList bs) $ \ (n, o) -> (,) n <$> getOpen o
 
 -- | Add a let bound variable.
-{-# SPECIALIZE defaultAddLetBinding' :: IsAxiom -> Origin -> Name -> Term -> Dom Type -> TCM a -> TCM a #-}
+{-# INLINE defaultAddLetBinding' #-}
 defaultAddLetBinding' :: (ReadTCState m, MonadTCEnv m)
   => IsAxiom   -- ^ Does this let binding come from a 'LetAxiom'?
   -> Origin -> Name -> Term -> Dom Type -> m a -> m a
 defaultAddLetBinding' isAxiom o x v t ret = do
     vt <- makeOpen $ LetBinding isAxiom o v t
-    flip localTC ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
+    localTC (over eLetBindings (Map.insert x vt)) ret
 
 unsafeRule :: (MonadWarning m) => RewriteSource -> IllegalRewriteRuleReason -> MaybeT m ()
 unsafeRule s reason = lift $ warning $ IllegalRewriteRule s reason
@@ -609,35 +672,35 @@ illegalRule s reason = do
   mzero
 
 -- | Add a let bound variable.
-{-# SPECIALIZE addLetBinding :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
+{-# INLINE addLetBinding #-}
 addLetBinding :: (MonadWarning m) => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
 addLetBinding info o x v t0 =
   addLetBinding' NoAxiom o x v (defaultArgDom info t0)
 
 -- | Add a let bound variable without a definition.
-{-# SPECIALIZE addLetAxiom :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
+{-# INLINE addLetAxiom #-}
 addLetAxiom :: (MonadWarning m) => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
 addLetAxiom info o x v t0 ret =
   addLetBinding' YesAxiom o x v (defaultArgDom info t0) ret
 
-{-# SPECIALIZE removeLetBinding :: Name -> TCM a -> TCM a #-}
+{-# INLINE removeLetBinding #-}
 -- | Remove a let bound variable.
 removeLetBinding :: MonadTCEnv m => Name -> m a -> m a
-removeLetBinding x = localTC $ \ e -> e { envLetBindings = Map.delete x (envLetBindings e) }
+removeLetBinding x = localTC (over eLetBindings (Map.delete x))
 
-{-# SPECIALIZE removeLetBindingsFrom :: Name -> TCM a -> TCM a #-}
+{-# INLINE removeLetBindingsFrom #-}
 -- | Remove a let bound variable and all let bindings introduced after it. For instance before
 --   printing its body to avoid folding the binding itself, or using bindings defined later.
 --   Relies on the invariant that names introduced later are sorted after earlier names.
 removeLetBindingsFrom :: MonadTCEnv m => Name -> m a -> m a
-removeLetBindingsFrom x = localTC $ \ e -> e { envLetBindings = fst $ Map.split x (envLetBindings e) }
+removeLetBindingsFrom x = localTC (over eLetBindings (fst . Map.split x))
 
 -- * Querying the context
 
 -- | Get the current context.
 {-# SPECIALIZE getContext :: TCM Context #-}
 getContext :: MonadTCEnv m => m Context
-getContext = asksTC envContext
+getContext = viewTC eContext
 
 -- | Get the size of the current context.
 {-# SPECIALIZE getContextSize :: TCM Nat #-}
@@ -666,15 +729,15 @@ getContextArgs :: (MonadTCEnv m) => m Args
 getContextArgs = contextArgs <$> getContext
 
 contextArgs :: Context -> Args
-contextArgs = map (\(i,x) -> var i <$ argFromDom x) . contextVars
+contextArgs = map' (\(i,x) -> var i <$ argFromDom x) . contextVars
 
 -- | Generate @[var (n - 1), ..., var 0]@ for all declarations in the context.
 {-# SPECIALIZE getContextTerms :: TCM [Term] #-}
 getContextTerms :: (MonadTCEnv m) => m [Term]
-getContextTerms = map unArg <$> getContextArgs
+getContextTerms = map' unArg <$> getContextArgs
 
 contextTerms :: Context -> [Term]
-contextTerms = map unArg . contextArgs
+contextTerms = map' unArg . contextArgs
 
 -- | Get the current context as a 'Telescope'.
 {-# SPECIALIZE getContextTelescope :: TCM Telescope #-}
@@ -684,8 +747,9 @@ getContextTelescope = contextToTel <$> getContext
 contextToTel :: Context -> Telescope
 contextToTel = go EmptyTel
   where
-    go tel CxEmpty               = tel
-    go tel (CxExtendVar x a ctx) = go (ExtendTel a $ Abs (nameToArgName x) tel) ctx
+    go !tel CxEmpty              = tel
+    go tel (CxExtendVar x a ctx) = let !x' = nameToArgName x
+                                   in go (ExtendTel a (Abs x' tel)) ctx
 
 -- | Get the names of all declarations in the context.
 {-# SPECIALIZE getContextNames :: TCM [Name] #-}
@@ -697,10 +761,10 @@ getContextNames' :: (MonadTCEnv m) => m [Name]
 getContextNames' = contextNames' <$> getContext
 
 contextNames :: Context -> [Name]
-contextNames = map (unDom . snd) . contextVars
+contextNames = map' (unDom . snd) . contextVars
 
 contextNames' :: Context -> [Name]
-contextNames' = map (unDom . snd) . contextVars'
+contextNames' = map' (unDom . snd) . contextVars'
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
@@ -718,7 +782,7 @@ lookupBV n = do
         ctx <- getContext
         __IMPOSSIBLE_VERBOSE__ $ unwords
           [ "de Bruijn index out of scope:", show n
-          , "in context", prettyShow $ map ctxEntryName $ cxEntries ctx
+          , "in context", prettyShow $ map' ctxEntryName $ cxEntries ctx
           ]
   caseMaybeM (lookupBV' n) failure return
 
@@ -754,7 +818,7 @@ nameOfBV n = ctxEntryName <$> lookupBV n
 getVarInfo :: (MonadDebug m, MonadFail m, MonadTCEnv m) => Name -> m (Term, Dom Type)
 getVarInfo x =
     do  ctx <- getContextVars'
-        def <- asksTC envLetBindings
+        def <- viewTC eLetBindings
         case List.findIndex ((== x) . unDom . snd) ctx of
             Just n -> do
                 t <- domOfBV n

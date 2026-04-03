@@ -42,14 +42,15 @@ instance MonadAddContext ReduceM where
 
   addLetBinding' = defaultAddLetBinding'
 
+  {-# INLINE updateContext #-}
+  updateContext rho f ret = withFreshR \chkpt ->
+    localTC (  over' eContext f
+             . set eCurrentCheckpoint chkpt
+             . over eCheckpoints (Map.insert chkpt IdS . fmap (applySubst rho)))
+            ret
+
   addLocalRewrite = defaultAddLocalRewrite
 
-  updateContext rho f ret = withFreshR $ \ chkpt ->
-    localTC (\e -> e { envContext = f $ envContext e
-                     , envCurrentCheckpoint = chkpt
-                     , envCheckpoints = Map.insert chkpt IdS $
-                                          fmap (applySubst rho) (envCheckpoints e)
-                     }) ret
         -- let-bindings keep track of own their context
 
 instance MonadDebug ReduceM where

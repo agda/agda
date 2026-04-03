@@ -50,6 +50,9 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
 import Agda.Utils.Lens
+import Agda.Utils.Tuple.Strict (Pair(..))
+import Agda.Utils.Tuple.Strict qualified as Strict
+import Agda.Utils.Maybe.Strict qualified as Strict
 
 import Agda.Utils.Impossible
 import qualified Control.Monad.Catch as Catch
@@ -476,8 +479,8 @@ currentTopLevelModule ::
   (MonadTCEnv m, ReadTCState m) => m (Maybe TopLevelModuleName)
 currentTopLevelModule = do
   useR stCurrentModule >>= \case
-    Just (_, top) -> return (Just top)
-    Nothing       -> listToMaybe <$> asksTC envImportStack
+    Strict.Just (_ :!: top) -> return (Just top)
+    Strict.Nothing          -> listToMaybe <$> viewTC eImportStack
 
 -- | Use a different top-level module for a computation. Used when generating
 --   names for imported modules.
@@ -521,7 +524,7 @@ lookupBackend name = useSession lensBackends <&> \ backends ->
 
 activeBackend :: TCM (Maybe Backend)
 activeBackend = runMaybeT $ do
-  bname <- MaybeT $ asksTC envActiveBackendName
+  bname <- MaybeT $ viewTC eActiveBackendName
   lift $ fromMaybe __IMPOSSIBLE__ <$> lookupBackend bname
 
 -- | Ask the active backend whether a type may be erased.
@@ -534,7 +537,7 @@ activeBackendMayEraseType q = do
 
 addForeignCode :: BackendName -> String -> TCM ()
 addForeignCode backend code = do
-  r <- asksTC envRange  -- can't use TypeChecking.Monad.Trace.getCurrentRange without cycle
+  r <- viewTC eRange -- can't use TypeChecking.Monad.Trace.getCurrentRange without cycle
   modifyTCLens (stForeignCode . key backend) $
     Just . ForeignCodeStack . (ForeignCode r code :) . maybe [] getForeignCodeStack
 

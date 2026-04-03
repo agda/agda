@@ -68,6 +68,12 @@ toList' = maybe [] toList
 map' :: (a -> b) -> List1 a -> List1 b
 map' f (a :| as) = let !b = f a; !bs = List.map' f as in b :| bs
 
+-- | Strict filter
+filter' :: (a -> Bool) -> List1 a -> [a]
+filter' f (a :| as) =
+  let !as' = List.filter' f as
+  in if f a then a : as' else as'
+
 -- | Lift a function on non-empty lists to a function on lists.
 --
 -- This is in essence 'fmap' for 'Maybe', if we take @[a] = Maybe (List1 a)@.
@@ -175,6 +181,9 @@ breakAfter p (x :| xs) = List.breakAfter1 p x xs
 
 concat :: [List1 a] -> [a]
 concat = concatMap toList
+
+concat' :: [List1 a] -> [a]
+concat' = List.concatMap' toList
 
 concatMap1 :: (a -> List1 b) -> List1 a -> List1 b
 concatMap1 = (=<<)

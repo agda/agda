@@ -46,9 +46,8 @@ import Agda.TypeChecking.Warnings
 
 import Agda.Utils.CallStack (HasCallStack)
 import Agda.Utils.FileName
-import Agda.Utils.Functor
 import Agda.Utils.IndexedList
-import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Maybe
@@ -86,7 +85,7 @@ withKnownBackend ::
   (MonadTCError m) => BackendName -> (Backend -> m ()) -> m ()
 withKnownBackend name k = ifJustM (lookupBackend name) k $ do
   backends <- useSession lensBackends
-  let backendSet = otherBackends ++ [ backendName b | Backend b <- backends ]
+  let backendSet = otherBackends ++! [ backendName b | Backend b <- backends ]
   typeError $ UnknownBackend name (Set.fromList backendSet)
 
 -- | Backends that are not included in the state, but still available
@@ -121,14 +120,14 @@ parseBackendOptions :: [Backend] -> [String] -> CommandLineOptions -> OptM ([Bac
 parseBackendOptions backends argv opts0 =
   case makeAll backendWithOpts backends of
     Some bs -> do
-      let agdaFlags    = map (embedOpt lSnd) (deadStandardOptions ++ standardOptions)
+      let agdaFlags    = map' (embedOpt _2) (deadStandardOptions ++! standardOptions)
           backendFlags = do
             Some i            <- forgetAll Some $ allIndices bs
             BackendWithOpts b <- [lookupIndex bs i]
             opt               <- commandLineFlags b
-            return $ embedOpt (lFst . lIndex i . bOptions) opt
+            return $ embedOpt (_1 . lIndex i . bOptions) opt
       (backends, opts) <- getOptSimple (stripRTS argv)
-                                       (agdaFlags ++ backendFlags) (embedFlag lSnd . inputFlag)
+                                       (agdaFlags ++! backendFlags) (embedFlag _2 . inputFlag)
                                        (bs, opts0)
       opts <- checkOpts opts
       return (forgetAll forgetOpts backends, opts)
@@ -198,7 +197,7 @@ compileModule backend env isMain i = do
   case r of
     Skip m         -> return m
     Recompile menv -> do
-      defs <- map snd . sortDefs <$> curDefs
+      defs <- map' snd . sortDefs <$> curDefs
       res  <- mapM (compileDef' backend env menv isMain) defs
       postModule backend env menv isMain (iTopLevelModuleName i) res
 

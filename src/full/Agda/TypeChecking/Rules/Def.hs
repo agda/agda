@@ -262,7 +262,7 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
         reportSDoc "tc.def.fun" 70 $
           sep $ "clauses:" : fmap (nest 2 . text . show . A.deepUnscope) cs
 
-        cs <- return $ fmap A.lhsToSpine cs
+        cs <- return $! fmap A.lhsToSpine cs
 
         reportSDoc "tc.def.fun" 70 $
           sep $ "spine clauses:" : fmap (nest 2 . text . show . A.deepUnscope) cs
@@ -276,7 +276,7 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
 
         -- Check the clauses
         cs <- traceCall NoHighlighting $ do -- To avoid flicker.
-          forM (zip cs [0..]) $ \ (c, clauseNo) -> do
+          forM (zip' cs [0..]) $ \ (c, clauseNo) -> do
             atClause name clauseNo t (fst <$> withSubAndLets) c $ do
               (c,b) <- applyModalityToContextFunBody ai $ do
                 checkClause t withSubAndLets c
@@ -291,7 +291,7 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
               inTopContext $ addClauses name [c]
               return (c,b)
 
-        (cs, CPC isOneIxs) <- return $ (second mconcat . unzip) cs
+        (cs, CPC isOneIxs) <- return $! (second mconcat . unzip) cs
 
         -- If there is a partial match ("system"), no proper (co)pattern matching is allowed.
         let isSystem = not . null $ isOneIxs
@@ -342,7 +342,7 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
                        , clauseEllipsis    = NoEllipsis
                        , clauseWhereModule = Nothing
                        }
-                 return (cs ++ [c], pure sys)
+                 return (cs ++! [c], pure sys)
 
         -- The macro or inline tags might be on the type signature
         info <- getConstInfo name
@@ -436,7 +436,7 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
 
           reportSDoc "tc.def.fun.clauses" 15 $ inTopContext $ do
             vcat [ "final clauses for" <+> prettyTCM name <+>  ":"
-                 , nest 2 $ vcat $ map (prettyTCM . QNamed name) cs
+                 , nest 2 $ vcat $ map' (prettyTCM . QNamed name) cs
                  ]
 
           -- If there was a pragma for this definition, we can set the
@@ -484,10 +484,10 @@ useTerPragma def@Defn{ defName = name, theDef = fun@Function{}} = do
         Terminating    -> Just True
         _              -> Nothing
   reportS "tc.fundef" 30 $
-    [ "funTerminates of " ++ prettyShow name ++ " set to " ++ show terminates
-    , "  tc = " ++ show tc
+    [ "funTerminates of " ++! prettyShow name ++! " set to " ++! show terminates
+    , "  tc = " ++! show tc
     ]
-  return $ def { theDef = fun { funTerminates = terminates }}
+  return $! def { theDef = fun { funTerminates = terminates }}
 useTerPragma def = return def
 
 -- | Modify all the @LHSCore@s of the given piece of syntax.
@@ -530,9 +530,9 @@ insertInspects ps = \case
              -> [Arg a] -> [Arg a]
     insertIn []                 wps  = wps
     insertIn (Arg info nm : ps) (w : wps) | visible info =
-      w : maybeToList nm ++ insertIn ps wps
+      w : maybeToList nm ++! insertIn ps wps
     insertIn (Arg info nm : ps) wps       | notVisible info =
-          maybeToList nm ++ insertIn ps wps
+          maybeToList nm ++! insertIn ps wps
     insertIn _ _ = __IMPOSSIBLE__
 
 
@@ -617,15 +617,15 @@ checkSystemCoverage f [n] t cs = do
         orI (t:ts) = imax `apply` [argN t, argN (orI ts)]
 
       let
-        pats = map (take n . map (namedThing . unArg) . namedClausePats) cs
+        pats = map' (take' n . map' (namedThing . unArg) . namedClausePats) cs
         alphas :: [[(Int,Bool)]] -- the face maps corresponding to each clause
-        alphas = map (collectDirs (downFrom n)) pats
+        alphas = map' (collectDirs (downFrom n)) pats
         phis :: [Term] -- the φ terms for each clause (i.e. the alphas as terms)
-        phis = map (andI . (map dir)) alphas
+        phis = map' (andI . (map' dir)) alphas
         psi = orI $ phis
-        pcs = zip phis cs
+        pcs = zip' phis cs
 
-      reportSDoc "tc.sys.cover" 20 $ fsep $ map prettyTCM pats
+      reportSDoc "tc.sys.cover" 20 $ fsep $ map' prettyTCM pats
       interval <- primIntervalType
       reportSDoc "tc.sys.cover" 10 $ "equalTerm " <+> prettyTCM (unArg phi) <+> prettyTCM psi
       equalTerm interval (unArg phi) psi
@@ -644,12 +644,12 @@ checkSystemCoverage f [n] t cs = do
                   TelV delta _ <- telViewUpTo extra t'
                   fmap (abstract delta) $ addContext delta $ do
                     fmap fromReduced $ runReduceM $
-                      appDef' f (Def f []) [cl] [] (map notReduced $ raise (size delta) args ++ teleArgs delta)
+                      appDef' f (Def f []) [cl] [] (map' notReduced $ raise (size delta) args ++! teleArgs delta)
             v1 <- body cl1
             v2 <- body cl2
             equalTerm t' v1 v2
 
-      sys <- forM (zip alphas cs) $ \ (alpha,cl) -> do
+      sys <- forM (zip' alphas cs) $ \ (alpha,cl) -> do
 
             let
                 -- Δ = Γ_α , Δ'α
@@ -667,11 +667,11 @@ checkSystemCoverage f [n] t cs = do
                 weak [] = idS
                 weak (i:is) = weak is `composeS` liftS i (raiseS 1)
                 tel = telFromList (takeLast extra (telToList delta))
-                u = abstract tel (liftS extra (weak $ List.sort $ map fst alpha) `applySubst` b)
-            return (map (first var) alpha,u)
+                u = abstract tel (liftS extra (weak $ List.sort $ map' fst alpha) `applySubst` b)
+            return (map' (first var) alpha,u)
 
-      reportSDoc "tc.sys.cover.sys" 20 $ fsep $ prettyTCM gamma : map prettyTCM sys
-      reportSDoc "tc.sys.cover.sys" 40 $ fsep $ (text . show) gamma : map (text . show) sys
+      reportSDoc "tc.sys.cover.sys" 20 $ fsep $ prettyTCM gamma : map' prettyTCM sys
+      reportSDoc "tc.sys.cover.sys" 40 $ fsep $ (text . show) gamma : map' (text . show) sys
       return (System gamma sys) -- gamma uses names from the type, not the patterns, could we do better?
     _ -> __IMPOSSIBLE__
 checkSystemCoverage _ _ t cs = __IMPOSSIBLE__
@@ -734,7 +734,7 @@ checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats r
                 Just{}  -> return t
                 Nothing -> do
                   theta <- lookupSection (qnameModule x)
-                  return $ abstract theta t
+                  return $! abstract theta t
 
         -- At this point we should update the named dots potential with-clauses
         -- in the right-hand side. When checking a clause we expect the named
@@ -760,7 +760,7 @@ checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats r
 
         wbody <- unsafeInTopContext $ Bench.billTo [Bench.Typing, Bench.With] $ checkWithFunction cxtNames with
 
-        body <- return $ body `mplus` wbody
+        body <- return $! body `mplus` wbody
 
         whenM (optDoubleCheck <$> pragmaOptions) $ case body of
           Just v  -> do
@@ -798,7 +798,7 @@ checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats r
         -- treat them as catchalls.
         let catchall' = if isNothing body then YesCatchall empty else catchall
 
-        return $ (, CPC psplit)
+        return $! (, CPC psplit)
           Clause { clauseLHSRange  = getRange i
                  , clauseFullRange = getRange c
                  , clauseTel       = killRange delta
@@ -882,8 +882,8 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
       nfv <- getCurrentModuleFreeVars
       m   <- currentModule
       sep [ "with function module:" <+>
-             prettyList (map prettyTCM $ mnameToList m)
-          ,  text $ "free variables: " ++ show nfv
+             prettyList (map' prettyTCM $ mnameToList m)
+          ,  text $ "free variables: " ++! show nfv
           ]
 
     -- Infer the types of the with expressions
@@ -1093,7 +1093,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
         let (delta1, delta2, perm', t', vtys) = splitTelForWith delta (unArg trhs) vtys0
         let finalPerm = composeP perm' perm
 
-        reportSLn "tc.with.top" 75 $ "delta  = " ++ show delta
+        reportSLn "tc.with.top" 75 $ "delta  = " ++! show delta
 
         -- Andreas, 2012-09-17: for printing delta,
         -- we should remove it from the context first
@@ -1113,11 +1113,11 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
         let n = size us
             m = size delta
             -- First the variables bound outside this definition
-            (us0, us1') = splitAt (n - m) us
+            (us0, us1') = splitAt' (n - m) us
             -- Then permute the rest and grab those needed to for the with arguments
-            (us1, us2)  = splitAt (size delta1) $ permute perm' us1'
+            (us1, us2)  = splitAt' (size delta1) $ permute perm' us1'
             -- Now stuff the with arguments in between and finish with the remaining variables
-            argsS = parallelS $ reverse $ us0 ++ us1 ++ map unArg (List1.toList withArgs) ++ us2
+            argsS = parallelS $ reverse $ us0 ++! us1 ++! map' unArg (List1.toList withArgs) ++! us2
             v         = Nothing -- generated by checkWithFunction
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes
         addConstant aux =<< do
@@ -1194,7 +1194,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
       iz <- primIZero
       io <- primIOne
       let tm = Def f (patternsToElims ps)
-      return $ Boundary [(i,(inplaceS i iz `applySubst` tm, inplaceS i io `applySubst` tm)) | i <- vs]
+      return $! Boundary [(i,(inplaceS i iz `applySubst` tm, inplaceS i io `applySubst` tm)) | i <- vs]
     reportSDoc "tc.with.bndry" 40 $ addContext delta1 $ addContext delta2
                                   $ text "bndry =" <+> pretty bndry
     withFunctionType delta1 vtys delta2 b bndry
@@ -1228,7 +1228,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
     Display n ts dt ->
       reportSDoc "tc.with.top" 20 $ "Display" <+> fsep
         [ text (show n)
-        , prettyList $ map prettyTCM ts
+        , prettyList $ map' prettyTCM ts
         , prettyTCM dt
         ]
   addConstant aux =<< do
@@ -1245,14 +1245,14 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
     , nest 2 $ "-|" <+> (prettyTCM =<< getContextTelescope)
     ]
   reportSDoc "tc.with.top" 70 $ vcat
-    [ nest 2 $ text $ "raw with func. type = " ++ show withFunType
+    [ nest 2 $ text $ "raw with func. type = " ++! show withFunType
     ]
 
 
   -- Construct the body for the with function
-  cs <- return $ fmap (A.lhsToSpine) cs
+  cs <- return $! fmap (A.lhsToSpine) cs
   cs <- buildWithFunction cxtNames f aux t delta qs npars withSub finalPerm (size delta1) nwithpats cs
-  cs <- return $ fmap (A.spineToLhs) cs
+  cs <- return $! fmap (A.spineToLhs) cs
 
   -- #4833: inherit abstract mode from parent
   abstr <- defAbstract <$> ignoreAbstractMode (getConstInfo f)
@@ -1278,7 +1278,7 @@ checkWhere wh@(A.WhereDecls whmod whNamed mds) ret = do
         -- If we are in erased context, mark the module as erased.
         e <- case e of
           NotErased oo -> do
-            asksTC envQuantity >>= \case
+            viewTC eQuantity >>= \case
               Quantity0 o -> do
                 unless (oo == QωInferred) $
                   setCurrentRange oo $ warning $ PlentyInHardCompileTimeMode oo
@@ -1293,15 +1293,14 @@ checkWhere wh@(A.WhereDecls whmod whNamed mds) ret = do
         withCurrentModule m ret
       _ -> __IMPOSSIBLE__
   where
-    whereEnv e = e
-      { envCheckingWhere       = if whNamed then C.SomeWhere_ else C.AnyWhere_
-      }
+    whereEnv = set' eCheckingWhere (if whNamed then C.SomeWhere_ else C.AnyWhere_)
+
     -- #2897: We can't handle named where-modules in refined contexts.
     ensureNoNamedWhereInRefinedContext Nothing = return ()
     ensureNoNamedWhereInRefinedContext (Just m) = traceCall (CheckNamedWhere m) $ do
-      args <- map unArg <$> (moduleParamsToApply =<< currentModule)
+      args <- map' unArg <$> (moduleParamsToApply =<< currentModule)
       unless (isWeakening args) $ do -- weakened contexts are fine
-        names <- map (argNameToString . fst . unDom) . telToList <$>
+        names <- map' (argNameToString . fst . unDom) . telToList <$>
                 (lookupSection =<< currentModule)
         typeError $ NamedWhereModuleInRefinedContext args names
       where
@@ -1324,7 +1323,7 @@ newSection e m gtel@(A.GeneralizeTel _ tel) cont = do
   setHardCompileTimeModeIfErased e $ do
   reportSDoc "tc.section" 10 $
     "checking section" <+> (prettyErased e <$> prettyTCM m) <+>
-    fsep (map prettyA tel)
+    fsep (map' prettyA tel)
 
   checkGeneralizeTelescope ModTelNotData (Just m) gtel $ \ _ tel' -> do
     reportSDoc "tc.section" 10 $
@@ -1342,4 +1341,4 @@ newSection e m gtel@(A.GeneralizeTel _ tel) cont = do
 atClause :: QName -> Int -> Type -> Maybe Substitution -> A.SpineClause -> TCM a -> TCM a
 atClause name i t sub cl ret = do
   clo <- buildClosure ()
-  localTC (\ e -> e { envClause = IPClause name i t sub cl clo }) ret
+  localTC (set eClause (IPClause name i t sub cl clo)) ret

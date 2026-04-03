@@ -23,8 +23,7 @@ import Agda.Syntax.Abstract
 import Agda.Syntax.Abstract qualified as A
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Reflected as R
-import Agda.Syntax.Internal (Dom,Dom'(..))
-
+import Agda.Syntax.Internal (Dom,Dom'(..), pattern Dom, dIsFinite, dInfo)
 import Agda.Interaction.Options (optUseUnicode, UnicodeOrAscii(..))
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.Syntax.Scope.Monad (getCurrentModule)
@@ -136,13 +135,13 @@ instance ToAbstract r => ToAbstract [Arg r] where
 -- instance ToAbstract r A.Expr => ToAbstract (Dom r, Name) (A.TypedBinding) where
 instance (ToAbstract r, AbsOfRef r ~ A.Expr) => ToAbstract (Dom r, Name) where
   type AbsOfRef (Dom r, Name) = A.TypedBinding
-  toAbstract (Dom{domInfo = i, domIsFinite = isfin, unDom = x, domTactic = tac}, name) = do
-    dom <- toAbstract x
+  toAbstract (d, name) = do
+    dom <- toAbstract (unDom d)
     -- TODO(Amy): Anyone know why this discards the tactic? It was like
     -- that when I got here!
     return $ A.TBind noRange
-      (A.TypedBindingInfo empty isfin)
-      (singleton $ unnamedArg i $ A.mkBinder_ name)
+      (A.TypedBindingInfo empty (d ^. dIsFinite))
+      (singleton $ unnamedArg (d ^. dInfo) $ A.mkBinder_ name)
       dom
 
 instance ToAbstract (A.Expr, Elim) where

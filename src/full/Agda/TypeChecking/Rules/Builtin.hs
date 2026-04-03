@@ -730,7 +730,7 @@ bindBuiltinEquality x = do
   -- The types of the last two arguments must be the third-last argument
   unless (natSize eqTel >= 3) no
   let (a, b) = fromMaybe __IMPOSSIBLE__ $ last2 $ telToList eqTel
-  [a,b] <- reduce $ map (unEl . snd . unDom) [a,b]
+  [a,b] <- reduce $ map' (unEl . snd . unDom) [a,b]
   unless (deBruijnView a == Just 0) no
   unless (deBruijnView b == Just 1) no
 
@@ -745,7 +745,7 @@ bindBuiltinEquality x = do
       -- Check the arguments
       cdef <- getConstInfo c
       TelV conTel conCore <- telView $ defType cdef
-      ts <- reduce $ map (unEl . snd . unDom) $ drop (conPars $ theDef cdef) $ telToList conTel
+      ts <- reduce $ map' (unEl . snd . unDom) $ drop (conPars $ theDef cdef) $ telToList conTel
       -- After dropping the parameters, there should be maximally one argument.
       unless (length ts <= 1) wrongRefl
       unless (all ((Just 0 ==) . deBruijnView) ts) wrongRefl
@@ -753,7 +753,7 @@ bindBuiltinEquality x = do
       -- Check the target
       case unEl conCore of
         Def _ es -> do
-          let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+          let vs = map' unArg $ mustAllApplyElims es
           (a,b) <- reduce $ fromMaybe __IMPOSSIBLE__ $ last2 vs
           unless (deBruijnView a == Just 0) wrongRefl
           unless (deBruijnView b == Just 0) wrongRefl
@@ -940,7 +940,7 @@ bindUntypedBuiltin b qx = \case
 bindBuiltinNoDef :: BuiltinId -> A.QName -> TCM ()
 bindBuiltinNoDef b q = inTopContext $ do
   when (b `elem` sizeBuiltins) $
-    requireOptionSizedTypes $ "to declare size BUILTIN " ++ getBuiltinId b
+    requireOptionSizedTypes $ "to declare size BUILTIN " ++! getBuiltinId b
   case builtinDesc <$> findBuiltinInfo b of
 
     Just (BuiltinPostulate rel mt) -> do

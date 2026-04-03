@@ -278,10 +278,8 @@ runInteraction iotcm =
     IOTCM current highlighting highlightingMethod cmd = iotcm Nothing
 
     inEmacs :: forall a. CommandM a -> CommandM a
-    inEmacs = liftCommandMT $ withEnv $ initEnv
-            { envHighlightingLevel  = highlighting
-            , envHighlightingMethod = highlightingMethod
-            }
+    inEmacs = liftCommandMT $ withEnv $ initEnv & eHighlightingLevel  .~ highlighting
+                                                & eHighlightingMethod .~ highlightingMethod
 
     -- If an independent command fails we should reset theCurrentFile (Issue853).
     onFail | independent cmd = modify $ \ s -> s { theCurrentFile = Nothing }
@@ -575,7 +573,7 @@ interpret ToggleIrrelevantArgs = do
     over (lensPragmaOptions . lensOptShowIrrelevant . lensCollapseDefault) not opts
 
 interpret (Cmd_load_highlighting_info source) = do
-  l <- asksTC envHighlightingLevel
+  l <- viewTC eHighlightingLevel
   when (l /= None) $ do
     -- Make sure that the include directories have
     -- been set.
@@ -606,7 +604,7 @@ interpret (Cmd_load_highlighting_info source) = do
     mapM_ putResponse resp
 
 interpret (Cmd_tokenHighlighting source remove) = do
-  info <- do l <- asksTC envHighlightingLevel
+  info <- do l <- viewTC eHighlightingLevel
              if l == None
                then return Nothing
                else do
@@ -624,7 +622,7 @@ interpret (Cmd_tokenHighlighting source remove) = do
 
 interpret (Cmd_highlight ii rng s) = do
   rng <- syncInteractionRange ii rng
-  l <- asksTC envHighlightingLevel
+  l <- viewTC eHighlightingLevel
   when (l /= None) $ do
     scope <- getOldInteractionScope ii
     removeOldInteractionScope ii
@@ -871,7 +869,7 @@ extlam_dropName glyphMode Just{}  x
 solveInstantiatedGoals :: Rewrite -> Maybe InteractionId -> CommandM ()
 solveInstantiatedGoals norm mii = do
   -- Andreas, 2016-10-23 issue #2280: throw away meta elims.
-  out <- lift $ localTC (\ e -> e { envPrintMetasBare = True }) $ do
+  out <- lift $ localTC (set ePrintMetasBare True) $ do
     sip <- B.getSolvedInteractionPoints False norm
            -- only solve metas which have a proper instantiation, i.e., not another meta
     let sip' = maybe id (\ ii -> filter ((ii ==) . fst3)) mii sip
@@ -980,7 +978,7 @@ withCurrentFile :: CommandM a -> CommandM a
 withCurrentFile m = do
   mfile <- gets $ fmap currentFilePath . theCurrentFile
   i <- traverse idFromFile mfile
-  localTC (\ e -> e { envCurrentPath = i }) m
+  localTC (set eCurrentPath i) m
 
 atTopLevel :: CommandM a -> CommandM a
 atTopLevel cmd = liftCommandMT B.atTopLevel cmd
@@ -1069,7 +1067,7 @@ give_gen force ii rng s0 giveRefine = do
     -- the highlighting is moved together with the text when the hole goes away.
     -- To make it work for refine we'd have to adjust the ranges.
     when literally $ do
-      l <- asksTC envHighlightingLevel
+      l <- viewTC eHighlightingLevel
       when (l /= None) $ lift $ do
         printHighlightingInfo KeepHighlighting =<<
           generateTokenInfoFromString rng s
@@ -1090,9 +1088,9 @@ give_gen force ii rng s0 giveRefine = do
 
 highlightExpr :: A.Expr -> TCM ()
 highlightExpr e =
-  localTC (\ env -> env { envImportStack        = []
-                        , envHighlightingLevel  = NonInteractive
-                        , envHighlightingMethod = Direct }) $
+  localTC (  set eImportStack []
+           . set eHighlightingLevel NonInteractive
+           . set eHighlightingMethod Direct) $
     generateAndPrintSyntaxInfo decl Full True
   where
     dummy = mkName_ (NameId 0 noModuleNameHash) ("dummy" :: String)

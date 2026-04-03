@@ -163,7 +163,7 @@ solveSizeConstraints flag =  do
       -- Convert each constraint in the cluster to the largest context.
       -- (Keep fingers crossed).
 
-      enterClosure (Fold.maximumBy (compare `on` (length . envContext . clEnv)) $ fmap theConstraint cs) $ \ _ -> do
+      enterClosure (Fold.maximumBy (compare `on` (length . view eContext . clEnv)) $ fmap theConstraint cs) $ \ _ -> do
         -- Get all constraints that can be cast to the longest context.
         cs' :: [ProblemConstraint] <- List1.catMaybes <$> do
           mapM (runMaybeT . castConstraintToCurrentContext) cs
@@ -241,8 +241,8 @@ solveSizeConstraints flag =  do
 
 castConstraintToCurrentContext' :: Closure TCM.Constraint -> MaybeT TCM TCM.Constraint
 castConstraintToCurrentContext' cl = do
-  let modN  = envCurrentModule $ clEnv cl
-      delta = envContext $ clEnv cl
+  let modN  = view eCurrentModule $ clEnv cl
+      delta = view eContext $ clEnv cl
   -- The module telescope of the constraint.
   -- The constraint could come from the module telescope of the top level module.
   -- In this case, it does not live in any module!
@@ -324,7 +324,7 @@ castConstraintToCurrentContext :: ProblemConstraint -> MaybeT TCM ProblemConstra
 castConstraintToCurrentContext c = do
   -- The checkpoint of the contraint
   let cl = theConstraint c
-      cp = envCurrentCheckpoint $ clEnv cl
+      cp = view eCurrentCheckpoint $ clEnv cl
   sigma <- caseMaybeM (viewTC $ eCheckpoints . key cp)
           (do
             -- We are not in a descendant of the constraint checkpoint.
@@ -334,7 +334,7 @@ castConstraintToCurrentContext c = do
                   -- match by name (hazardous)
                   -- This is one of the seven deadly sins (not respecting alpha).
                   List.findIndex (((==) `on` ctxEntryName) ce) (cxEntries gamma)
-            let delta = envContext $ clEnv cl
+            let delta = view eContext $ clEnv cl
                 cand  = map findInGamma $ cxEntries delta
             -- The domain of our substitution
             let coveredVars = VarSet.fromList $ catMaybes $ zipWith ($>) cand [0..]
@@ -516,7 +516,7 @@ solveCluster flag ccs = do
       [ text $ "  xs = " ++ show xs
       , text $ "  u  = " ++ show u
       ]
-    ifM (isFrozen m `or2M` (not <$> asksTC envAssignMetas)) (return Set.empty) $ do
+    ifM (isFrozen m `or2M` (not <$> viewTC eAssignMetas)) (return Set.empty) $ do
       assignMeta n m t xs u
       return $ Set.singleton m
     -- WRONG:
@@ -553,7 +553,7 @@ solveCluster flag ccs = do
               reportSDoc "tc.size.solve" 30 $
                 prettyTCM (MetaV m []) <+> "is frozen, cannot set it to ∞"
               return False
-        ifM (isFrozen m `or2M` do not <$> asksTC envAssignMetas) no $ {-else-} do
+        ifM (isFrozen m `or2M` do not <$> viewTC eAssignMetas) no $ {-else-} do
           reportSDoc "tc.size.solve" 20 $
             "solution " <+> prettyTCM (MetaV m []) <+>
             " := "      <+> prettyTCM inf
@@ -679,7 +679,7 @@ instance Subst SizeConstraint where
 -- | Turn a constraint over de Bruijn indices into a size constraint.
 computeSizeConstraint :: ProblemConstraint -> TCM (Maybe HypSizeConstraint)
 computeSizeConstraint c = do
-  let cxt = envContext $ clEnv $ theConstraint c
+  let cxt = view eContext $ clEnv $ theConstraint c
   unsafeModifyContext (const cxt) $ do
     case clValue $ theConstraint c of
       ValueCmp CmpLeq _ u v -> do

@@ -48,7 +48,6 @@ import Agda.Compiler.Treeless.Unused
 
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -502,7 +501,7 @@ substTerm term = normaliseStatic term >>= \ term ->
   case I.unSpine $ etaContractErased term of
     I.Var ind es -> do
       ind' <- asks (lookupIndex ind . ccCxt)
-      let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
+      let args = I.mustAllApplyElims es
       C.mkTApp (C.TVar ind') <$> substArgs args
     I.Lam _ ab ->
       C.TLam <$>
@@ -511,10 +510,10 @@ substTerm term = normaliseStatic term >>= \ term ->
     I.Lit l -> return $ C.TLit l
     I.Level _ -> return C.TUnit
     I.Def q es -> do
-      let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
+      let args = I.mustAllApplyElims es
       maybeInlineDef q args
     I.Con c ci es -> do
-        let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
+        let args = I.mustAllApplyElims es
         c' <- lift $ canonicalName $ I.conName c
         C.mkTApp (C.TCon c') <$> substArgs args
     I.Pi _ _ -> return C.TUnit

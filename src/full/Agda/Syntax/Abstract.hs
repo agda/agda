@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wunused-matches #-}
 {-# OPTIONS_GHC -Wunused-binds #-}
+{-# LANGUAGE StrictData #-}
 
 {-| The abstract syntax. This is what you get after desugaring and scope
     analysis of the concrete syntax. The type checker works on abstract syntax,

@@ -13,6 +13,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import qualified Agda.Utils.SmallSet as SmallSet
@@ -21,10 +22,10 @@ import Agda.Utils.Impossible
 
 matchCompiled :: CompiledClauses -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Args) Term)
 matchCompiled c args = do
-  r <- matchCompiledE c $ map (fmap Apply) args
+  r <- matchCompiledE c $ map' (fmap Apply) args
   case r of
     YesReduction simpl v -> return $ YesReduction simpl v
-    NoReduction bes      -> return $ NoReduction $ fmap (map (fromMaybe __IMPOSSIBLE__ . isApplyElim)) bes
+    NoReduction bes      -> return $ NoReduction $ fmap (map' mustApplyElim) bes
 
 -- | @matchCompiledE c es@ takes a function given by case tree @c@ and
 --   and a spine @es@ and tries to apply the function to @es@.
@@ -60,12 +61,12 @@ type Stack = [Frame]
 
 match' :: Stack -> ReduceM (Reduced (Blocked Elims) Term)
 match' ((c, es, patch) : stack) = do
-  let no blocking es = return $ NoReduction $ blocking $ patch $ map ignoreReduced es
-      yes t          = flip YesReduction t <$> asksTC envSimplification
+  let no blocking es = return $! NoReduction $! blocking $! patch $! map'' ignoreReduced es
+      yes t          = flip YesReduction t <$!> viewTC eSimplification
 
   -- TODO: make this local to Done
-  allowedReductions <- asksTC envAllowedReductions
-  fun <- fromMaybe __IMPOSSIBLE__ <$> asksTC envAppDef
+  allowedReductions <- viewTC eAllowedReductions
+  fun <- fromMaybe __IMPOSSIBLE__ <$> viewTC eAppDef
   def <- getConstInfo fun
 
   do
@@ -86,34 +87,35 @@ match' ((c, es, patch) : stack) = do
         | m < n     -> yes $ applySubst (toSubst es) $ foldr lam t (drop m xs)
         -- otherwise, just apply instantiation to body
         -- apply the result to any extra arguments
-        | otherwise -> yes $ applySubst (toSubst es0) t `applyE` map ignoreReduced es1
+        | otherwise -> yes $ applySubst (toSubst es0) t `applyE` map'' ignoreReduced es1
         where
           n              = length xs
           m              = length es
           -- at least the first @n@ elims must be @Apply@s, so we can
           -- turn them into a subsitution
-          toSubst        = parallelS . reverse . map (unArg . fromMaybe __IMPOSSIBLE__ . isApplyElim . ignoreReduced)
-          (es0, es1)     = splitAt n es
+          toSubst        = parallelS . reverse . map'' (unArg . fromMaybe __IMPOSSIBLE__ . isApplyElim . ignoreReduced)
+          (es0, es1)     = splitAt' n es
           lam x t        = Lam (argInfo x) (Abs (unArg x) t)
 
       -- splitting on an eta-record constructor
       Case (Arg _ n) Branches{etaBranch = Just (c, cc), catchallBranch = ca} ->
-        case splitAt n es of
+        case splitAt' n es of
           (_, []) -> no (NotBlocked Underapplied) es
           (es0, MaybeRed _ e@(Apply (Arg _ v0)) : es1) ->
-              let projs = [ MaybeRed NotReduced $ Apply $ Arg ai $ relToDontCare ai $ v0 `applyE` [Proj ProjSystem f] | Arg ai f <- fs ]
+              let projs = map'' (\(Arg ai f) -> MaybeRed NotReduced $ Apply $ Arg ai $ relToDontCare ai $ v0 `applyE` [Proj ProjSystem f])
+                                fs
                   catchallFrame stack = maybe stack (\c -> (c, es, patch) : stack) ca in
-              match' $ (content cc, es0 ++ projs ++ es1, patchEta) : catchallFrame stack
+              match' $ (content cc, es0 ++! projs ++! es1, patchEta) : catchallFrame stack
             where
               fs = conFields c
-              patchEta es = patch (es0 ++ [e] ++ es1)
-                where (es0, es') = splitAt n es
-                      (_, es1)   = splitAt (length fs) es'
+              patchEta es = patch (es0 ++! e : es1)
+                where (es0, es') = splitAt' n es
+                      (_, es1)   = splitAt' (length fs) es'
           _ -> __IMPOSSIBLE__
 
       -- splitting on the @n@th elimination
       Case (Arg _ n) bs -> do
-        case splitAt n es of
+        case splitAt' n es of
           -- if the @n@th elimination is not supplied, no match
           (_, []) -> no (NotBlocked Underapplied) es
           -- if the @n@th elimination is @e0@
@@ -121,18 +123,18 @@ match' ((c, es, patch) : stack) = do
             -- get the reduced form of @e0@
             eb :: Blocked Elim <- do
                   case red of
-                    Reduced b  -> return $ e0 <$ b
+                    Reduced b  -> return $! e0 <$ b
                     NotReduced -> unfoldCorecursionE e0
             let e = ignoreBlocking eb
                 -- replace the @n@th argument by its reduced form
-                es' = es0 ++ [MaybeRed (Reduced $ () <$ eb) e] ++ es1
+                es' = es0 ++! MaybeRed (Reduced $ () <$ eb) e : es1
                 -- if a catch-all clause exists, put it on the stack
                 catchallFrame stack = maybe stack (\c -> (c, es', patch) : stack) (catchallBranch bs)
                 -- If our argument is @Lit l@, we push @litFrame l@ onto the stack.
                 litFrame l stack =
                   case Map.lookup l (litBranches bs) of
                     Nothing -> stack
-                    Just cc -> (cc, es0 ++ es1, patchLit) : stack
+                    Just cc -> (cc, es0 ++! es1, patchLit) : stack
                 -- If our argument (or its constructor form) is @Con c ci vs@
                 -- we push @conFrame c vs@ onto the stack.
                 conFrame c ci vs stack = conFrame' (conName c) (Con c ci) vs stack
@@ -140,24 +142,24 @@ match' ((c, es, patch) : stack) = do
                   case Map.lookup q (conBranches bs) of
                     Nothing -> stack
                     Just cc -> ( content cc
-                               , es0 ++ map (MaybeRed NotReduced) vs ++ es1
+                               , es0 ++! map' (MaybeRed NotReduced) vs ++! es1
                                , patchCon f (length vs)
                                ) : stack
                 -- If our argument is @Proj p@, we push @projFrame p@ onto the stack.
                 projFrame p stack =
                   case Map.lookup p (conBranches bs) of
                     Nothing -> stack
-                    Just cc -> (content cc, es0 ++ es1, patchLit) : stack
+                    Just cc -> (content cc, es0 ++! es1, patchLit) : stack
                 -- The new patch function restores the @n@th argument to @v@:
                 -- In case we matched a literal, just put @v@ back.
-                patchLit es = patch (es0 ++ [e] ++ es1)
-                  where (es0, es1) = splitAt n es
+                patchLit es = patch (es0 ++! e : es1)
+                  where (es0, es1) = splitAt' n es
                 -- In case we matched constructor @c@ with @m@ arguments,
                 -- contract these @m@ arguments @vs@ to @Con c ci vs@.
---                patchCon c ci m es = patch (es0 ++ [Con c ci vs <$ e] ++ es2)
-                patchCon f m es = patch (es0 ++ [f vs <$ e] ++ es2)
-                  where (es0, rest) = splitAt n es
-                        (es1, es2)  = splitAt m rest
+--                patchCon c ci m es = patch (es0 ++! [Con c ci vs <$ e] ++! es2)
+                patchCon f m es = patch (es0 ++! (f vs <$ e) : es2)
+                  where (es0, rest) = splitAt' n es
+                        (es1, es2)  = splitAt' m rest
                         vs          = es1
             -- zo <- do
             --    mi <- getBuiltinName' builtinIZero
@@ -204,7 +206,7 @@ match' ((c, es, patch) : stack) = do
 
 -- If we reach the empty stack, then pattern matching was incomplete
 match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
-  caseMaybeM (asksTC envAppDef) __IMPOSSIBLE__ $ \ f -> do
+  caseMaybeM (viewTC eAppDef) __IMPOSSIBLE__ $ \ f -> do
     pds <- getPartialDefs
     if f `elem` pds
     then return (NoReduction $ NotBlocked (MissingClauses f) [])
@@ -212,5 +214,5 @@ match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' 
       ifM anyRewritingOption
       {-then-} (return (NoReduction $ NotBlocked ReallyNotBlocked [])) -- See #5396
       {-else-} $ traceSLn "impossible" 10
-        ("Incomplete pattern matching when applying " ++ prettyShow f)
+        ("Incomplete pattern matching when applying " ++! prettyShow f)
         __IMPOSSIBLE__

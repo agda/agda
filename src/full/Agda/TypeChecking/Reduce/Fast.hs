@@ -1,4 +1,12 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE PatternGuards #-}
+-- {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
+{-# OPTIONS_GHC -fmax-worker-args=15 #-}
+#if  __GLASGOW_HASKELL__ > 902
+{-# OPTIONS_GHC -fworker-wrapper-cbv #-}
+#endif
+
 
 {-|
 
@@ -37,6 +45,7 @@ module Agda.TypeChecking.Reduce.Fast
 
 import Prelude hiding ((!!), null)
 
+import Data.Foldable hiding (null)
 import Control.Applicative hiding (empty)
 import Control.Monad.ST
 import Control.Monad.ST.Unsafe (unsafeSTToIO, unsafeInterleaveST)
@@ -51,7 +60,7 @@ import qualified Data.List as List
 import Data.Text (Text)
 import qualified Data.Text as T
 
-import System.IO.Unsafe (unsafePerformIO)
+import System.IO.Unsafe (unsafeDupablePerformIO)
 import Data.IORef
 import Data.STRef
 import Data.Char
@@ -74,6 +83,7 @@ import Agda.Utils.Float
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Maybe.Unboxable
 import Agda.Utils.Memo (memoUnsafeInt)
 import Agda.Utils.Monad
 import Agda.Utils.Null (empty, null)
@@ -81,8 +91,8 @@ import Agda.Utils.Functor
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Zipper
-import qualified Agda.Utils.SmallSet as SmallSet
-import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.SmallSet qualified as SmallSet
+import Agda.Utils.VarSet qualified as VarSet
 
 import Agda.Utils.Impossible
 
@@ -101,12 +111,12 @@ data CompactDef =
 
 data CompactDefn
   = CFun  { cfunCompiled  :: FastCompiledClauses, cfunProjection :: Maybe QName }
-  | CCon  { cconSrcCon :: ConHead, cconArity :: Int }
+  | CCon  { cconSrcCon :: ConHead, cconArity :: !Int }
   | CForce   -- ^ primForce
   | CErase   -- ^ primErase
   | CTyCon   -- ^ Datatype or record type. Need to know this for primForce.
   | CAxiom   -- ^ Axiom or abstract defn
-  | CPrimOp Int ([Literal] -> Term) (Maybe FastCompiledClauses)
+  | CPrimOp !Int ([Literal] -> Term) (Maybe FastCompiledClauses)
             -- ^ Literals in reverse argument order
   | COther  -- ^ In this case we fall back to slow reduction
 
@@ -120,33 +130,30 @@ compactDef ::
   -> ReduceM CompactDef
 compactDef bEnv def copatterns rewr = do
 
-  -- WARNING: don't use isPropM here because it relies on reduction,
-  -- which causes an infinite loop.
-  let isPrp = isProp $ getSort $ defType def
-
   shouldReduce <- shouldReduceDef (defName def)
-  allowed <- asksTC envAllowedReductions
+  allowed      <- viewTC eAllowedReductions
 
   let isConOrProj = case theDef def of
         Constructor{} -> True
         Function { funProjection = Right{} } -> True
         _ -> False
-  let allowReduce = and
-        [ shouldReduce
-        , or
-          [ RecursiveReductions `SmallSet.member` allowed
-          , isConOrProj && ProjectionReductions `SmallSet.member` allowed
-          , isInlineFun (theDef def) && InlineReductions `SmallSet.member` allowed
-          , definitelyNonRecursive_ (theDef def) && or
-            [ copatterns && CopatternReductions `SmallSet.member` allowed
-            , FunctionReductions `SmallSet.member` allowed
-            ]
-          ]
-        , not (defNonterminating def) || SmallSet.member NonTerminatingReductions allowed
-        -- , not (defTerminationUnconfirmed def) || SmallSet.member UnconfirmedReductions allowed
-        , not isPrp
-        , not (isIrrelevant def)
-        ]
+
+  let allowReduce =
+             shouldReduce
+          && (
+                   (RecursiveReductions `SmallSet.member` allowed)
+                || (isConOrProj && ProjectionReductions `SmallSet.member` allowed)
+                || (isInlineFun (theDef def) && InlineReductions `SmallSet.member` allowed)
+                || (definitelyNonRecursive_ (theDef def) && (
+                       (copatterns && CopatternReductions `SmallSet.member` allowed)
+                    || (FunctionReductions `SmallSet.member` allowed))
+                   )
+             )
+          && (not (defNonterminating def) || SmallSet.member NonTerminatingReductions allowed)
+             -- WARNING: don't use isPropM here because it relies on reduction,
+             -- which causes an infinite loop.
+          && (not $ isProp $ getSort $ defType def)
+          && (not (isIrrelevant def))
 
   cdefn <-
     case theDef def of
@@ -362,12 +369,12 @@ data FastCase c = FBranches
 -- | Case tree with bodies.
 
 data FastCompiledClauses
-  = FCase Int (FastCase FastCompiledClauses)
+  = FCase !Int (FastCase FastCompiledClauses)
     -- ^ @Case n bs@ stands for a match on the @n@-th argument
     -- (counting from zero) with @bs@ as the case branches.
     -- If the @n@-th argument is a projection, we have only 'conBranches'
     -- with arity 0.
-  | FEta Int [Arg QName] FastCompiledClauses (Maybe FastCompiledClauses)
+  | FEta !Int [Arg QName] FastCompiledClauses (Maybe FastCompiledClauses)
     -- ^ Match on record constructor. Can still have a catch-all though. Just
     --   contains the fields, not the actual constructor.
   | FDone (CCDone Term)
@@ -411,9 +418,9 @@ lookupCon c (FBranches _ cons _ _ _ _) = Map.lookup (nameId c) cons
 
 {-# NOINLINE memoQName #-}
 memoQName :: (QName -> a) -> (QName -> a)
-memoQName f = unsafePerformIO $ do
+memoQName f = unsafeDupablePerformIO $ do
   tbl <- newIORef Map.empty
-  return (unsafePerformIO . f' tbl)
+  return (unsafeDupablePerformIO . f' tbl)
   where
     f' tbl x = do
       let i = nameId x
@@ -422,7 +429,7 @@ memoQName f = unsafePerformIO $ do
         Just y  -> return y
         Nothing -> do
           let y = f x
-          writeIORef tbl (Map.insert i y m)
+          writeIORef tbl $! Map.insert i y m
           return y
 
 -- * Fast reduction
@@ -460,20 +467,27 @@ fastReduce' norm v = do
 
       bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
                           bPrimForce = force, bPrimErase = erase }
-  rwr    <- anyRewritingOption
+  rwr    <- rewritingOption
   rwrLoc <- localRewritingOption
-  constInfo <- unKleisli $ \f -> do
-    info <- getConstInfo f
-    copatterns <- if rwr then defCopatternLHS f info
-                         else return $ defCopatternLHS' info
-    rewr <- if rwr then getAllRewriteRulesForDefHead f
-                   else return []
-    compactDef bEnv info copatterns rewr
-  localRewr <- unKleisli $ \x ->
-    if rwrLoc then getAllRewriteRulesForVarHead x else return []
 
-  ReduceM $ \ redEnv ->
-    reduceTm redEnv bEnv (memoQName constInfo) (memoUnsafeInt localRewr) norm v
+  constInfo <- case rwr || rwrLoc of -- András 2026-04-06: TODO more fine-grained choice
+    True -> memoQName <$!> unKleisli \f -> do
+      info <- getConstInfo f
+      copatterns <- defCopatternLHS f info
+      rewr <- getAllRewriteRulesForDefHead f
+      compactDef bEnv info copatterns rewr
+    False -> memoQName <$!> unKleisli \f -> do
+      info <- getConstInfo f
+      let copatterns = defCopatternLHS' info
+      compactDef bEnv info copatterns []
+
+  localRewr <- case rwrLoc of
+    True  -> memoUnsafeInt <$!> unKleisli getAllRewriteRulesForVarHead
+    False -> pure (\_ -> [])
+
+  ReduceM \redEnv ->
+    reduceTm redEnv bEnv constInfo localRewr norm v
+
 
 -- * Closures
 
@@ -481,34 +495,77 @@ fastReduce' norm v = do
 --   spine of eliminations. Note that the environment doesn't necessarily bind all variables in the
 --   term. The variables in the context in which the abstract machine is started are free in
 --   closures. The 'IsValue' argument tracks whether the closure is in weak-head normal form.
-data Closure s = Closure IsValue Term (Env s) (Spine s)
-                 -- ^ The environment applies to the 'Term' argument. The spine contains closures
-                 --   with their own environments.
+data Closure s
+  = Closure IsValue Term (Env s) (Spine s)
+  -- ^ The environment applies to the 'Term' argument. The spine contains closures
+  --   with their own environments.
+  | BlackHole
+
+-- | A thunk can be a 'BlackHole' while a plain 'Closure' can't. This is not enforced in types. We
+--   could distinguish these by making 'Closure' an indexed GADT, but I don't think it's worth it.
+type Thunk s = Closure s
 
 -- | Used to track if a closure is @Unevaluated@ or a @Value@ (in weak-head normal form), and if so
 --   why it cannot reduce further.
 data IsValue = Value Blocked_ | Unevaled
 
+#if __GLASGOW_HASKELL__ < 906
+data SElim s
+  = SApply !ArgInfo !(Pointer s)
+  | SProj !ProjOrigin !QName
+  | SIApply !(Pointer s)
+            !(Pointer s)
+            !(Pointer s)
+#else
+data SElim s
+  = SApply !ArgInfo {-# UNPACK #-} !(Pointer s)
+  | SProj !ProjOrigin !QName
+  | SIApply {-# UNPACK #-} !(Pointer s)
+            {-# UNPACK #-} !(Pointer s)
+            {-# UNPACK #-} !(Pointer s)
+#endif
+
+sElimToElim :: SElim s -> Elim' (Pointer s)
+sElimToElim = \case
+  SApply i t -> Apply (Arg i t)
+  SProj o x -> Proj o x
+  SIApply l r t -> IApply l r t
+
 -- | The spine is a list of eliminations. Application eliminations contain pointers.
-type Spine s = [Elim' (Pointer s)]
+type Spine s = [SElim s]
 
 isValue :: Closure s -> IsValue
 isValue (Closure isV _ _ _) = isV
+isValue _ = __IMPOSSIBLE__
+
+sAllApplyElims :: Spine s -> Maybe# [Pointer s]
+sAllApplyElims = \case
+  []              -> Just# []
+  SApply _ p : es -> case sAllApplyElims es of
+    Nothing# -> Nothing#
+    Just# ps -> Just# (p:ps)
+  SIApply _ _ p : es -> case sAllApplyElims es of
+    Nothing# -> Nothing#
+    Just# ps -> Just# (p:ps)
+  _ -> Nothing#
 
 setIsValue :: IsValue -> Closure s -> Closure s
 setIsValue isV (Closure _ t env spine) = Closure isV t env spine
+setIsValue isV _ = __IMPOSSIBLE__
 
 -- | Apply a closure to a spine of eliminations. Note that this does not preserve the 'IsValue'
 --   field.
 clApply :: Closure s -> Spine s -> Closure s
 clApply c [] = c
-clApply (Closure _ t env es) es' = Closure Unevaled t env (es <> es')
+clApply (Closure _ t env es) es' = Closure Unevaled t env (es ++! es')
+clApply _ _ = __IMPOSSIBLE__
 
 -- | Apply a closure to a spine, preserving the 'IsValue' field. Use with care, since usually
 --   eliminations do not preserve the value status.
 clApply_ :: Closure s -> Spine s -> Closure s
 clApply_ c [] = c
-clApply_ (Closure b t env es) es' = Closure b t env (es <> es')
+clApply_ (Closure b t env es) es' = Closure b t env (es ++! es')
+clApply_ _ _ = __IMPOSSIBLE__
 
 -- * Pointers and thunks
 
@@ -520,34 +577,32 @@ data Pointer s = Pure (Closure s)
                  -- ^ An actual pointer is an 'STRef' to a 'Thunk'. The thunk is set to 'BlackHole'
                  --   during the evaluation of its contents to make debugging loops easier.
 
-type STPointer s = STRef s (Thunk (Closure s))
+type STPointer s = STRef s (Thunk s)
 
--- | A thunk is either a black hole or contains a value.
-data Thunk a = BlackHole | Thunk a
-  deriving (Functor)
+thunk :: Closure s -> Thunk s
+thunk = id
 
-derefPointer :: Pointer s -> ST s (Thunk (Closure s))
-derefPointer (Pure x)      = return (Thunk x)
+derefPointer :: Pointer s -> ST s (Thunk s)
+derefPointer (Pure cl)     = return $ thunk cl
 derefPointer (Pointer ptr) = readSTRef ptr
 
 -- | In most cases pointers that we dereference do not contain black holes.
 derefPointer_ :: Pointer s -> ST s (Closure s)
 derefPointer_ ptr =
   derefPointer ptr <&> \case
-    Thunk cl  -> cl
     BlackHole -> __IMPOSSIBLE__
-
+    cl        -> cl
 
 -- | Only use for debug printing!
-unsafeDerefPointer :: Pointer s -> Thunk (Closure s)
-unsafeDerefPointer (Pure x)    = Thunk x
-unsafeDerefPointer (Pointer p) = unsafePerformIO (unsafeSTToIO (readSTRef p))
+unsafeDerefPointer :: Pointer s -> Thunk s
+unsafeDerefPointer (Pure x)    = thunk x
+unsafeDerefPointer (Pointer p) = unsafeDupablePerformIO (unsafeSTToIO (readSTRef p))
 
-readPointer :: STPointer s -> ST s (Thunk (Closure s))
+readPointer :: STPointer s -> ST s (Thunk s)
 readPointer = readSTRef
 
 storePointer :: STPointer s -> Closure s -> ST s ()
-storePointer ptr !cl = writeSTRef ptr (Thunk cl)
+storePointer ptr !cl = writeSTRef ptr (thunk cl)
     -- Note the strict match. To prevent leaking memory in case of unnecessary updates.
 
 blackHole :: STPointer s -> ST s ()
@@ -556,9 +611,10 @@ blackHole ptr = writeSTRef ptr BlackHole
 -- | Create a thunk. If the closure is a naked variable we can reuse the pointer from the
 --   environment to avoid creating long pointer chains.
 createThunk :: Closure s -> ST s (Pointer s)
-createThunk (Closure _ (Var x []) env spine)
-  | null spine, Just p <- lookupEnv x env = return p
-createThunk cl = Pointer <$> newSTRef (Thunk cl)
+createThunk cl@(Closure _ (Var x []) env []) =
+  lookupEnv x env (\p -> return p)
+                  (\_ -> Pointer <$!> newSTRef (thunk cl))
+createThunk cl = Pointer <$!> newSTRef (thunk cl)
 
 -- | Create a thunk that is not shared or updated.
 pureThunk :: Closure s -> Pointer s
@@ -584,44 +640,43 @@ envToList (Env xs) = xs
 extendEnv :: Pointer s -> Env s -> Env s
 extendEnv p (Env xs) = Env (p : xs)
 
--- | Unsafe.
-lookupEnv_ :: Int -> Env s -> Pointer s
-lookupEnv_ i (Env e) = indexWithDefault __IMPOSSIBLE__ e i
-
--- Andreas, 2018-11-12, which isn't this just Agda.Utils.List.!!! ?
-lookupEnv :: Int -> Env s -> Maybe (Pointer s)
-lookupEnv i e | i < n     = Just (lookupEnv_ i e)
-              | otherwise = Nothing
-  where n = envSize e
+{-# INLINE lookupEnv #-}
+lookupEnv :: Int -> Env s -> (Pointer s -> a) -> (() -> a) -> a
+lookupEnv i (Env e) found notfound = go i e where
+  go 0 (p:ps) = found p
+  go i (p:ps) = go (i - 1) ps
+  go _ _      = notfound ()
 
 -- * The Agda Abstract Machine
 
--- | The abstract machine state has two states 'Eval' and 'Match' that determine what the machine is
---   currently working on: evaluating a closure in the Eval state and matching a spine against a
---   case tree in the Match state. Both states contain a 'ControlStack' of continuations for what to
---   do next. The heap is maintained implicitly using 'STRef's, hence the @s@ parameter.
-data AM s = Eval (Closure s) !(ControlStack s)
-            -- ^ Evaluate the given closure (the focus) to weak-head normal form. If the 'IsValue'
-            --   field of the closure is 'Value' we look at the control stack for what to do. Being
-            --   strict in the control stack is important! We can spend a lot of steps with
-            --   unevaluated closures (where we update, but don't look at the control stack). For
-            --   instance, long chains of 'suc' constructors.
-          | Match QName FastCompiledClauses (Spine s) (MatchStack s) (ControlStack s)
-            -- ^ @Match f cc spine stack ctrl@ Match the arguments @spine@ against the case tree
-            --   @cc@. The match stack contains a (possibly empty) list of 'Catchall' frames and a
-            --   closure to return in case of a stuck match.
+-- The abstract machine state has two states 'Eval' and 'Match' that determine what the machine is
+-- currently working on: evaluating a closure in the Eval state and matching a spine against a
+-- case tree in the Match state. Both states contain a 'ControlStack' of continuations for what to
+-- do next. The heap is maintained implicitly using 'STRef's, hence the @s@ parameter.
 
--- | The control stack contains a list of continuations, i.e. what to do with
---   the result of the current focus.
-type ControlStack s = [ControlFrame s]
+-- | Evaluate the given closure (the focus) to weak-head normal form. If the 'IsValue'
+--   field of the closure is 'Value' we look at the control stack for what to do. Being
+--   strict in the control stack is important! We can spend a lot of steps with
+--   unevaluated closures (where we update, but don't look at the control stack). For
+--   instance, long chains of 'suc' constructors.
+data Eval s = Eval !(Closure s) !(ControlStack s)
+
+-- | @Match f cc spine stack ctrl@ Match the arguments @spine@ against the case tree
+--   @cc@. The match stack contains a (possibly empty) list of 'Catchall' frames and a
+--   closure to return in case of a stuck match.
+data Match s = Match QName FastCompiledClauses (Spine s) {-# UNPACK #-} !(MatchStack s) !(ControlStack s)
+
+data CatchallFrames s
+  = CAFNil
+  | CAFCons {-# UNPACK #-} !(CatchallFrame s) !(CatchallFrames s)
 
 -- | The control stack for matching. Contains a list of CatchallFrame's and the closure to return in
 --   case of a stuck match.
-data MatchStack s = [CatchallFrame s] :> Closure s
+data MatchStack s = !(CatchallFrames s) :> (Closure s)
 infixr 2 :>, >:
 
 (>:) :: CatchallFrame s -> MatchStack s -> MatchStack s
-(>:) c (cs :> cl) = c : cs :> cl
+(>:) c (cs :> cl) = CAFCons c cs :> cl
 -- Previously written as:
 --   c >: cs :> cl = c : cs :> cl
 --
@@ -645,82 +700,87 @@ data ElimZipper a = ApplyCxt ArgInfo
                   | IApplyType a a | IApplyFst a a | IApplySnd a a
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-instance Zipper (ElimZipper a) where
-  type Carrier (ElimZipper a) = Elim' a
-  type Element (ElimZipper a) = a
+instance Zipper (ElimZipper (Pointer s)) where
+  type Carrier (ElimZipper (Pointer s)) = SElim s
+  type Element (ElimZipper (Pointer s)) = Pointer s
 
-  firstHole (Apply arg)    = Just (unArg arg, ApplyCxt (argInfo arg))
-  firstHole (IApply a x y) = Just (a, IApplyType x y)
-  firstHole Proj{}         = Nothing
+  firstHole (SApply i arg)  = Just (arg, ApplyCxt i)
+  firstHole (SIApply a x y) = Just (a, IApplyType x y)
+  firstHole SProj{}         = Nothing
 
-  plugHole x (ApplyCxt i)     = Apply (Arg i x)
-  plugHole a (IApplyType x y) = IApply a x y
-  plugHole x (IApplyFst a y)  = IApply a x y
-  plugHole y (IApplySnd a x)  = IApply a x y
+  plugHole x (ApplyCxt i)     = SApply i x
+  plugHole a (IApplyType x y) = SIApply a x y
+  plugHole x (IApplyFst a y)  = SIApply a x y
+  plugHole y (IApplySnd a x)  = SIApply a x y
 
   nextHole a (IApplyType x y) = Right (x, IApplyFst a y)
   nextHole x (IApplyFst a y)  = Right (y, IApplySnd a x)
-  nextHole y (IApplySnd a x)  = Left (IApply a x y)
-  nextHole x c@ApplyCxt{}     = Left (plugHole x c)
+  nextHole y (IApplySnd a x)  = Left (SIApply a x y)
+  nextHole x c@ApplyCxt{}     = Left $! plugHole x c
 
 -- | A spine with a single hole for a pointer.
-type SpineContext s = ComposeZipper (ListZipper (Elim' (Pointer s)))
+type SpineContext s = ComposeZipper (ListZipper (SElim s))
                                     (ElimZipper (Pointer s))
 
 -- | Control frames are continuations that act on value closures.
-data ControlFrame s = CaseK QName ArgInfo (FastCase FastCompiledClauses) (Spine s) (Spine s) (MatchStack s)
-                        -- ^ @CaseK f i bs spine0 spine1 stack@. Pattern match on the focus (with
-                        --   arg info @i@) using the @bs@ case tree. @f@ is the name of the function
-                        --   doing the matching, and @spine0@ and @spine1@ are the values bound to
-                        --   the pattern variables to the left and right (respectively) of the
-                        --   focus. The match stack contains catch-all cases we need to consider if
-                        --   this match fails.
-                    | ArgK (Closure s) (SpineContext s)
-                        -- ^ @ArgK cl cxt@. Used when computing full normal forms. The closure is
-                        --   the head and the context is the spine with the current focus removed.
-                    | NormaliseK
-                        -- ^ Indicates that the focus should be evaluated to full normal form.
-                    | ForceK QName (Spine s) (Spine s)
-                        -- ^ @ForceK f spine0 spine1@. Evaluating @primForce@ of the focus. @f@ is
-                        --   the name of @primForce@ and is used to build the result if evaluation
-                        --   gets stuck. @spine0@ are the level and type arguments and @spine1@
-                        --   contains (if not empty) the continuation and any additional
-                        --   eliminations.
-                    | EraseK QName (Spine s) (Spine s) (Spine s) (Spine s)
-                        -- ^ @EraseK f spine0 spine1 spine2 spine3@. Evaluating @primErase@. The
-                        --   first contains the level and type arguments. @spine1@ and @spine2@
-                        --   contain at most one argument between them. If in @spine1@ it's the
-                        --   value closure of the first argument to be compared and if in @spine2@
-                        --   it's the unevaluated closure of the second argument.
-                        --   @spine3@ contains the proof of equality we are erasing. It is passed
-                        --   around but never actually inspected.
-                    | NatSucK Integer
-                        -- ^ @NatSucK n@. Add @n@ to the focus. If the focus computes to a natural
-                        --   number literal this returns a new literal, otherwise it constructs @n@
-                        --   calls to @suc@.
-                    | PrimOpK QName ([Literal] -> Term) [Literal] [Pointer s] (Maybe FastCompiledClauses)
-                        -- ^ @PrimOpK f op lits es cc@. Evaluate the primitive function @f@ using
-                        --   the Haskell function @op@. @op@ gets a list of literal values in
-                        --   reverse order for the arguments of @f@ and computes the result as a
-                        --   term. The already computed arguments (in reverse order) are @lits@ and
-                        --   @es@ are the arguments that should be computed after the current focus.
-                        --   In case of built-in functions with corresponding Agda implementations,
-                        --   @cc@ contains the case tree.
-                    | UpdateThunk [STPointer s]
-                        -- ^ @UpdateThunk ps@. Update the pointers @ps@ with the value of the
-                        --   current focus.
-                    | ApplyK (Spine s)
-                        -- ^ @ApplyK spine@. Apply the current focus to the eliminations in @spine@.
-                        --   This is used when a thunk needs to be updated with a partial
-                        --   application of a function.
+data ControlStack s
+  = CaseK QName ArgInfo (FastCase FastCompiledClauses) (Spine s) (Spine s) {-# UNPACK #-} !(MatchStack s) !(ControlStack s)
+      -- ^ @CaseK f i bs spine0 spine1 stack@. Pattern match on the focus (with
+      --   arg info @i@) using the @bs@ case tree. @f@ is the name of the function
+      --   doing the matching, and @spine0@ and @spine1@ are the values bound to
+      --   the pattern variables to the left and right (respectively) of the
+      --   focus. The match stack contains catch-all cases we need to consider if
+      --   this match fails.
+  | ArgK (Closure s) (SpineContext s) !(ControlStack s)
+      -- ^ @ArgK cl cxt@. Used when computing full normal forms. The closure is
+      --   the head and the context is the spine with the current focus removed.
+  | NormaliseK !(ControlStack s)
+      -- ^ Indicates that the focus should be evaluated to full normal form.
+  | ForceK QName (Spine s) (Spine s) !(ControlStack s)
+      -- ^ @ForceK f spine0 spine1@. Evaluating @primForce@ of the focus. @f@ is
+      --   the name of @primForce@ and is used to build the result if evaluation
+      --   gets stuck. @spine0@ are the level and type arguments and @spine1@
+      --   contains (if not empty) the continuation and any additional
+      --   eliminations.
+  | EraseK QName (Spine s) (Spine s) (Spine s) (Spine s) !(ControlStack s)
+      -- ^ @EraseK f spine0 spine1 spine2 spine3@. Evaluating @primErase@. The
+      --   first contains the level and type arguments. @spine1@ and @spine2@
+      --   contain at most one argument between them. If in @spine1@ it's the
+      --   value closure of the first argument to be compared and if in @spine2@
+      --   it's the unevaluated closure of the second argument.
+      --   @spine3@ contains the proof of equality we are erasing. It is passed
+      --   around but never actually inspected.
+  | NatSucK Integer !(ControlStack s)
+      -- ^ @NatSucK n@. Add @n@ to the focus. If the focus computes to a natural
+      --   number literal this returns a new literal, otherwise it constructs @n@
+      --   calls to @suc@.
+  | PrimOpK QName ([Literal] -> Term) [Literal] [Pointer s] (Maybe FastCompiledClauses) !(ControlStack s)
+      -- ^ @PrimOpK f op lits es cc@. Evaluate the primitive function @f@ using
+      --   the Haskell function @op@. @op@ gets a list of literal values in
+      --   reverse order for the arguments of @f@ and computes the result as a
+      --   term. The already computed arguments (in reverse order) are @lits@ and
+      --   @es@ are the arguments that should be computed after the current focus.
+      --   In case of built-in functions with corresponding Agda implementations,
+      --   @cc@ contains the case tree.
+  | UpdateThunk [STPointer s] !(ControlStack s)
+      -- ^ @UpdateThunk ps@. Update the pointers @ps@ with the value of the
+      --   current focus.
+  | ApplyK (Spine s) !(ControlStack s)
+      -- ^ @ApplyK spine@. Apply the current focus to the eliminations in @spine@.
+      --   This is used when a thunk needs to be updated with a partial
+      --   application of a function.
+  | EmptyK
+      -- ^ Finished execution.
 
 -- * Compilation and decoding
 
 -- | The initial abstract machine state. Wrap the term to be evaluated in an empty closure. Note
 --   that free variables of the term are treated as constants by the abstract machine. If computing
 --   full normal form we start off the control stack with a 'NormaliseK' continuation.
-compile :: Normalisation -> Term -> AM s
-compile nf t = Eval (Closure Unevaled t emptyEnv []) [NormaliseK | nf == NF]
+compile :: Normalisation -> Term -> Eval s
+compile nf t =
+  let !k = if nf == NF then NormaliseK EmptyK else EmptyK in
+  Eval (Closure Unevaled t emptyEnv []) k
 
 decodePointer :: Pointer s -> ST s Term
 decodePointer p = decodeClosure_ =<< derefPointer_ p
@@ -729,7 +789,18 @@ decodePointer p = decodeClosure_ =<< derefPointer_ p
 --   'unsafeInterleaveST' here and in 'decodeEnv', and the special version of 'parallelS' in
 --   'decodeClosure'.
 decodeSpine :: Spine s -> ST s Elims
-decodeSpine spine = unsafeInterleaveST $ (traverse . traverse) decodePointer spine
+decodeSpine spine = unsafeInterleaveST $ go spine where
+  go [] = pure []
+  go (e:es) = case e of
+    SApply i t -> do
+      t <- decodePointer t
+      (Apply (Arg i t):) <$!> go es
+    SProj o x -> (Proj o x:) <$!> go es
+    SIApply l r t -> do
+      l <- decodePointer l
+      r <- decodePointer r
+      t <- decodePointer t
+      (IApply l r t:) <$!> go es
 
 decodeEnv :: Env s -> ST s [Term]
 decodeEnv env = unsafeInterleaveST $ traverse decodePointer (envToList env)
@@ -748,39 +819,40 @@ decodeClosure (Closure isV t env spine) = do
     es <- decodeSpine spine
     return $ applyE (applySubst (parS vs) t) es <$ b
   where
-    parS = foldr (:#) IdS  -- parallelS is too strict
+    parS = foldr' (:#) IdS  -- parallelS is too strict
     b    = case isV of
              Value b  -> b
              Unevaled -> notBlocked ()  -- only when falling back to slow reduce in which case the
                                         -- blocking tag is immediately discarded
+decodeClosure _ = __IMPOSSIBLE__
 
 -- | Turn a list of internal syntax eliminations into a spine. This builds closures and allocates
---   thunks for all the 'Apply' elims.
-elimsToSpine :: Env s -> Elims -> ST s (Spine s)
-elimsToSpine env es = do
-    spine <- mapM thunk es
-    forceSpine spine `seq` return spine
-  where
-    -- Need to be strict in mkClosure to avoid memory leak
-    forceSpine = foldl (\ () -> forceEl) ()
-    forceEl (Apply (Arg _ (Pure Closure{}))) = ()
-    forceEl (Apply (Arg _ (Pointer{})))      = ()
-    forceEl _                                = ()
+--   thunks for all the 'Apply' elims. We append the result onto the @Spine s@ argument.
+elimsToSpine :: Env s -> Elims -> Spine s -> ST s (Spine s)
+elimsToSpine env es sp0 = goETS es env sp0 where
+  -- We don't preserve free variables of closures (in the sense of their
+  -- decoding), since we freely add things to the spines.
+  unknownFVs i
+    | getFreeVariables i == unknownFreeVariables = i
+    | otherwise = setFreeVariables unknownFreeVariables i
 
-    -- We don't preserve free variables of closures (in the sense of their
-    -- decoding), since we freely add things to the spines.
-    unknownFVs = setFreeVariables unknownFreeVariables
+  -- Going straight for a value for literals is mostly to make debug traces
+  -- less verbose and doesn't really buy anything performance-wise.
+  closure _ _ t@Lit{} = let !v = Value $! notBlocked () in Closure v t emptyEnv []
+  closure env fv t    = let !env' = trimEnvironment fv env in Closure Unevaled t env' []
 
-    thunk (Apply (Arg i t)) = Apply . Arg (unknownFVs i) <$> createThunk (closure (getFreeVariables i) t)
-    thunk (Proj o f)        = return (Proj o f)
-    thunk (IApply a x y)    = IApply <$> mkThunk a <*> mkThunk x <*> mkThunk y
-      where mkThunk = createThunk . closure UnknownFVs
+  goETS (e:es) env sp0 = case e of
+    (Apply (Arg i t)) -> do
+      !t <- createThunk (closure env (getFreeVariables i) t)
+      let !i' = unknownFVs i
+      (SApply i' t:) <$!> goETS es env sp0
+    (Proj o f)     -> (SProj o f:) <$!> goETS es env sp0
+    (IApply a x y) -> do
+      let mkThunk = createThunk . closure env UnknownFVs
+      !e <- SIApply <$!> mkThunk a <*!> mkThunk x <*!> mkThunk y
+      (e:) <$!> goETS es env sp0
+  goETS [] _ sp0 = pure sp0
 
-    -- Going straight for a value for literals is mostly to make debug traces
-    -- less verbose and doesn't really buy anything performance-wise.
-    closure _ t@Lit{} = Closure (Value $ notBlocked ()) t emptyEnv []
-    closure fv t      = env' `seq` Closure Unevaled t env' []
-      where env' = trimEnvironment fv env
 
 -- | Trim unused entries from an environment. Currently only trims closed terms for performance
 --   reasons.
@@ -792,12 +864,12 @@ trimEnvironment (KnownFVs fvs) env
     -- some cases run in constant instead of linear space you need quite contrived examples to
     -- notice the effect.
   | otherwise       = env -- Env $ trim 0 $ envToList env
-  where
-    -- Important: strict enough that the trimming actually happens
-    trim _ [] = []
-    trim i (p : ps)
-      | VarSet.member i fvs = (p :)             $! trim (i + 1) ps
-      | otherwise           = (unusedPointer :) $! trim (i + 1) ps
+  -- where
+  --   -- Important: strict enough that the trimming actually happens
+  --   trim _ [] = []
+  --   trim i (p : ps)
+  --     | VarSet.member i fvs = (p :)             $! trim (i + 1) ps
+  --     | otherwise           = (unusedPointer :) $! trim (i + 1) ps
 
 -- | Build an environment for a body with some given free variables from a spine of arguments.
 --   Returns a triple containing
@@ -807,13 +879,12 @@ trimEnvironment (KnownFVs fvs) env
 buildEnv :: [Arg String] -> Spine s -> ([Arg String], Env s, Spine s)
 buildEnv xs spine = go xs spine emptyEnv
   where
-    go [] sp env = ([], env, sp)
-    go xs0@(x : xs) sp env =
-      case sp of
-        []           -> (xs0, env, sp)
-        Apply c : sp -> go xs sp (unArg c `extendEnv` env)
-        IApply x y r : sp -> go xs sp (r `extendEnv` env)
-        _            -> __IMPOSSIBLE__
+    go [] !sp !env = ([], env, sp)
+    go xs0@(x : xs) sp env = case sp of
+      []                  -> (xs0, env, sp)
+      SApply _ c     : sp -> go xs sp (c `extendEnv` env)
+      SIApply x y r  : sp -> go xs sp (r `extendEnv` env)
+      _                   -> __IMPOSSIBLE__
 
 unusedPointerString :: Text
 unusedPointerString = T.pack (show (withCurrentCallStack Impossible))
@@ -831,8 +902,7 @@ unusedPointer = Pure (Closure (Value $ notBlocked ())
 reduceTm ::
      ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> (Nat -> RewriteRules)
   -> Normalisation -> Term -> Blocked Term
-reduceTm rEnv bEnv !constInfo !localRewr normalisation =
-    compileAndRun . traceDoc "-- fast reduce --"
+reduceTm rEnv bEnv !constInfo !localRewr normalisation = compileAndRun . traceDoc "-- fast reduce --"
   where
     -- Helpers to get information from the ReduceEnv.
     localMetas     = redSt rEnv ^. stSolvedMetaStore
@@ -846,12 +916,13 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
                                     HMap.lookup m remoteMetas
     partialDefs    = runReduce getPartialDefs
     rewriteRules f = cdefRewriteRules (constInfo f)
-    callByNeed     = envCallByNeed (redEnv rEnv) && not (optCallByName $ redSt rEnv ^. stPragmaOptions)
+    callByNeed     = (redEnv rEnv ^. eCallByNeed) && not (optCallByName $ redSt rEnv ^. stPragmaOptions)
     iview          = runReduce intervalView'
 
     runReduce :: ReduceM a -> a
     runReduce m = unReduceM m rEnv
 
+#ifdef DEBUG
     -- Debug output. Taking care that we only look at the verbosity level once.
     hasVerb tag lvl = unReduceM (hasVerbosity tag lvl) rEnv
     doDebug = hasVerb "tc.reduce.fast" 110
@@ -859,6 +930,32 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
     traceDoc
       | doDebug   = trace . show
       | otherwise = const id
+
+    -- Run the machine in a given state. Prints the state if the right verbosity level is active.
+    runEval :: Eval s -> ST s (Blocked Term)
+    runEval = if doDebug then \s -> trace (prettyShow s) (runEval' s)
+                         else runEval'
+
+    -- Run the machine in a given state. Prints the state if the right verbosity level is active.
+    runMatch :: Match s -> ST s (Blocked Term)
+    runMatch = if doDebug then \s -> trace (prettyShow s) (runMatch' s)
+                          else runMatch'
+#else
+    {-# INLINE traceDoc #-}
+    traceDoc :: Doc -> a -> a
+    traceDoc _ a = a
+
+    {-# INLINE runEval #-}
+    -- Run the machine in a given state. Prints the state if the right verbosity level is active.
+    runEval :: Eval s -> ST s (Blocked Term)
+    runEval = runEval'
+
+    {-# INLINE runMatch #-}
+    -- Run the machine in a given state. Prints the state if the right verbosity level is active.
+    runMatch :: Match s -> ST s (Blocked Term)
+    runMatch = runMatch'
+#endif
+
 
     -- Checking for built-in zero and suc
     BuiltinEnv{ bZero = zero, bSuc = suc, bRefl = refl0 } = bEnv
@@ -877,25 +974,23 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
 
     -- The entry point of the machine.
     compileAndRun :: Term -> Blocked Term
-    compileAndRun t = runST (runAM (compile normalisation t))
+    compileAndRun t = runST (runEval (compile normalisation t))
 
-    -- Run the machine in a given state. Prints the state if the right verbosity level is active.
-    runAM :: AM s -> ST s (Blocked Term)
-    runAM = if doDebug then \ s -> trace (prettyShow s) (runAM' s)
-                       else runAM'
 
     -- The main function. This is where the stuff happens!
-    runAM' :: AM s -> ST s (Blocked Term)
+    runEval' :: Eval s -> ST s (Blocked Term)
+    runEval' (Eval BlackHole _) = __IMPOSSIBLE__
 
     -- Base case: The focus is a value closure and the control stack is empty. Decode and return.
-    runAM' (Eval cl@(Closure Value{} _ _ _) []) = decodeClosure cl
+    runEval' (Eval cl@(Closure Value{} _ _ _) EmptyK) = decodeClosure cl
 
     -- Unevaluated closure: inspect the term and take the appropriate action. For instance,
     --  - Change to the 'Match' state if a definition
     --  - Look up in the environment if variable
     --  - Perform a beta step if lambda and application elimination in the spine
     --  - Perform a record beta step if record constructor and projection elimination in the spine
-    runAM' s@(Eval cl@(Closure Unevaled t env spine) ctrl) = {-# SCC "runAM.Eval" #-}
+    runEval' s@(Eval cl@(Closure Unevaled t env spine) ctrl) = {-# SCC "runEval" #-}
+
       case t of
 
         -- Case: definition. Enter 'Match' state if defined function or shift to evaluating an
@@ -904,75 +999,84 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
         Def f [] ->
           evalIApplyAM spine ctrl $
           case cdefDef (constInfo f) of
-            CFun{ cfunCompiled = cc } -> runAM (Match f cc spine ([] :> cl) ctrl)
-            CAxiom         -> rewriteAM done
-            CTyCon         -> rewriteAM done
-            CCon{}         -> runAM done   -- Only happens for builtinSharp (which is a Def when you bind it)
-            CForce | (spine0, Apply v : spine1) <- splitAt 4 spine ->
-              evalPointerAM (unArg v) [] (ForceK f spine0 spine1 : ctrl)
-            CForce -> runAM done -- partially applied
-            CErase | (spine0, Apply v : spine1 : spine2) <- splitAt 2 spine ->
-              evalPointerAM (unArg v) [] (EraseK f spine0 [] [spine1] spine2 : ctrl)
-            CErase -> runAM done -- partially applied
+            CFun{ cfunCompiled = cc } -> runMatch (Match f cc spine (CAFNil :> cl) ctrl)
+            CAxiom         -> rewriteEval done
+            CTyCon         -> rewriteEval done
+            CCon{}         -> runEval done   -- Only happens for builtinSharp (which is a Def when you bind it)
+            CForce | (spine0, SApply _ v : spine1) <- splitAt' 4 spine ->
+              evalPointerAM v [] (ForceK f spine0 spine1 ctrl)
+            CForce -> runEval done -- partially applied
+            CErase | (spine0, SApply _ v : spine1 : spine2) <- splitAt' 2 spine ->
+              evalPointerAM v [] (EraseK f spine0 [] [spine1] spine2 ctrl)
+            CErase -> runEval done -- partially applied
             CPrimOp n op cc | length spine == n,                      -- PrimOps can't be over-applied. They don't
-                              Just (v : vs) <- allApplyElims spine -> -- return functions or records.
-              evalPointerAM (unArg v) [] (PrimOpK f op [] (map unArg vs) cc : ctrl)
-            CPrimOp{} -> runAM done  -- partially applied
-            COther    -> fallbackAM s
+                              Just# (v : vs) <- sAllApplyElims spine -> -- return functions or records.
+              evalPointerAM v [] (PrimOpK f op [] vs cc ctrl)
+            CPrimOp{} -> runEval done  -- partially applied
+            COther    -> fallbackEval s
 
         -- Case: zero. Return value closure with literal 0.
         Con c i [] | isZero c ->
-          runAM (evalTrueValue (Lit (LitNat 0)) emptyEnv spine ctrl)
+          runEval (evalTrueValue (Lit (LitNat 0)) emptyEnv spine ctrl)
 
         -- Case: suc. Suc is strict in its argument to make sure we return a literal whenever
         -- possible. Push a 'NatSucK' frame on the control stack and evaluate the argument.
-        Con c i [] | isSuc c, Apply v : _ <- spine ->
-          evalPointerAM (unArg v) [] (sucCtrl ctrl)
+        Con c i [] | isSuc c, SApply _ v : _ <- spine ->
+          evalPointerAM v [] (sucCtrl ctrl)
 
         -- Case: constructor. Perform beta reduction if projected from, otherwise return a value.
         Con c i []
-          -- Constructors of types in Prop are not representex as
+          -- Constructors of types in Prop are not represented as
           -- CCon, so this match might fail!
           | CCon{cconSrcCon = c', cconArity = ar} <- cdefDef (constInfo (conName c)) ->
-            evalIApplyAM spine ctrl $
-            case splitAt ar spine of
-              (args, Proj _ p : spine')
-                  -> evalPointerAM (unArg arg) spine' ctrl  -- Andreas #2170: fit argToDontCare here?!
-                where
-                  fields    = map unArg $ conFields c
-                  Just n    = List.elemIndex p fields
-                  Apply arg = args !! n
-              _ -> rewriteAM (evalTrueValue (Con c' i []) env spine ctrl)
-          | otherwise -> runAM done
+            evalIApplyAM spine ctrl $ do
+              let dontProject = rewriteEval (evalTrueValue (Con c' i []) env spine ctrl)
+
+              let doProj p (f:fs) (a:sp) restOfElims
+                    | unArg f == p = case a of
+                                     -- Andreas #2170: fit argToDontCare here?!
+                        SApply _ arg -> evalPointerAM arg restOfElims ctrl
+                        _            -> __IMPOSSIBLE__
+                    | otherwise = doProj p fs sp restOfElims
+                  doProj _ _ _ _ = __IMPOSSIBLE__
+
+              let shouldProj sp 0 = case sp of
+                    SProj _ p : rest -> doProj p (conFields c) spine rest
+                    _                -> dontProject
+                  shouldProj (_ : sp) ar = shouldProj sp (ar - 1)
+                  shouldProj []       ar = dontProject
+
+              shouldProj spine ar
+
+          | otherwise -> runEval done
 
         -- Case: variable. Look up the variable in the environment and evaluate the resulting
         -- pointer. If the variable is not in the environment it's a free variable and we adjust the
         -- deBruijn index appropriately.
         Var x []   ->
           evalIApplyAM spine ctrl $
-          case lookupEnv x env of
-            Nothing -> rewriteAM $ evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl
-            Just p  -> evalPointerAM p spine ctrl
+          lookupEnv x env
+            (\p -> evalPointerAM p spine ctrl)
+            (\_ -> rewriteEval $ evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl)
 
         -- Case: lambda. Perform the beta reduction if applied. Otherwise it's a value.
         Lam h b ->
           case spine of
-            [] -> runAM done
+            []            -> runEval done
             elim : spine' ->
-              case b of
-                Abs   _ b -> runAM (evalClosure b (getArg elim `extendEnv` env) spine' ctrl)
-                NoAbs _ b -> runAM (evalClosure b env spine' ctrl)
-          where
-            getArg (Apply v)      = unArg v
-            getArg (IApply _ _ v) = v
-            getArg Proj{}         = __IMPOSSIBLE__
+               let getArg (SApply _ v)    = v
+                   getArg (SIApply _ _ v) = v
+                   getArg SProj{}         = __IMPOSSIBLE__ in
+               case b of
+                 Abs   _ b -> runEval (evalClosure b (getArg elim `extendEnv` env) spine' ctrl)
+                 NoAbs _ b -> runEval (evalClosure b env spine' ctrl)
 
         -- Case: values. Literals and function types are already in weak-head normal form.
         -- We throw away the environment for literals mostly to make debug printing less verbose.
         -- And we know the spine is empty since literals cannot be applied or projected.
-        Lit{} -> runAM (evalTrueValue t emptyEnv [] ctrl)
-        Pi{}  -> runAM done
-        DontCare{} -> runAM done
+        Lit{} -> runEval (evalTrueValue t emptyEnv [] ctrl)
+        Pi{}  -> runEval done
+        DontCare{} -> runEval done
 
         -- Case: non-empty spine. If the focused term has a non-empty spine, we shift the
         -- eliminations onto the spine.
@@ -987,92 +1091,92 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
         MetaV m es -> evalIApplyAM spine ctrl $
           case getMetaInst m of
             Nothing ->
-              runAM (Eval (mkValue (blocked m ()) cl) ctrl)
+              runEval (Eval (mkValue (blocked m ()) cl) ctrl)
             Just (InstV i) -> do
-              spine' <- elimsToSpine env es
-              let (zs, env, !spine'') = buildEnv (instTel i) (spine' <> spine)
-              runAM (evalClosure (lams zs (instBody i)) env spine'' ctrl)
+              spine' <- elimsToSpine env es spine
+              let (zs, env, !spine'') = buildEnv (instTel i) spine'
+              runEval (evalClosure (lams zs (instBody i)) env spine'' ctrl)
             Just OpenMeta{}                     -> __IMPOSSIBLE__
             Just BlockedConst{}                 -> __IMPOSSIBLE__
             Just PostponedTypeCheckingProblem{} -> __IMPOSSIBLE__
 
         -- Case: unsupported. These terms are not handled by the abstract machine, so we fall back
         -- to slowReduceTerm for these.
-        Level{}    -> fallbackAM s
-        Sort{}     -> fallbackAM s
-        Dummy{}    -> fallbackAM s
+        Level{}    -> fallbackEval s
+        Sort{}     -> fallbackEval s
+        Dummy{}    -> fallbackEval s
 
       where done = Eval (mkValue (notBlocked ()) cl) ctrl
             shiftElims t env0 env es = do
-              spine' <- elimsToSpine env es
-              runAM (evalClosure t env0 (spine' <> spine) ctrl)
+              spine' <- elimsToSpine env es spine
+              runEval (evalClosure t env0 spine' ctrl)
 
     -- If the current focus is a value closure, we look at the control stack.
 
     -- Case NormaliseK: The focus is a weak-head value that should be fully normalised.
-    runAM' s@(Eval cl@(Closure b t env spine) (NormaliseK : ctrl)) =
+    runEval' s@(Eval cl@(Closure b t env spine) (NormaliseK ctrl)) =
       case t of
         Def _   [] -> normaliseArgsAM (Closure b t emptyEnv []) spine ctrl
         Con _ _ [] -> normaliseArgsAM (Closure b t emptyEnv []) spine ctrl
         Var _   [] -> normaliseArgsAM (Closure b t emptyEnv []) spine ctrl
         MetaV _ [] -> normaliseArgsAM (Closure b t emptyEnv []) spine ctrl
 
-        Lit{} -> runAM done
+        Lit{} -> runEval done
 
-        -- We might get these from fallbackAM
+        -- We might get these from fallbackEval
         Def f   es -> shiftElims (Def f   []) emptyEnv env es
         Con c i es -> shiftElims (Con c i []) emptyEnv env es
         Var x   es -> shiftElims (Var x   []) env      env es
         MetaV m es -> shiftElims (MetaV m []) emptyEnv env es
 
-        _ -> fallbackAM s -- fallbackAM knows about NormaliseK
+        _ -> fallbackEval s -- fallbackEval knows about NormaliseK
 
       where done = Eval (mkValue (notBlocked ()) cl) ctrl
             shiftElims t env0 env es = do
-              spine' <- elimsToSpine env es
-              runAM (Eval (Closure b t env0 (spine' <> spine)) (NormaliseK : ctrl))
+              spine' <- elimsToSpine env es spine
+              runEval (Eval (Closure b t env0 spine') (NormaliseK ctrl))
 
     -- Case: ArgK: We successfully normalised an argument. Start on the next argument, or if there
     -- isn't one we're done.
-    runAM' (Eval cl (ArgK cl0 cxt : ctrl)) =
+    runEval' (Eval cl (ArgK cl0 cxt ctrl)) =
       case nextHole (pureThunk cl) cxt of
-        Left spine      -> runAM (Eval (clApply_ cl0 spine) ctrl)
-        Right (p, cxt') -> evalPointerAM p [] (NormaliseK : ArgK cl0 cxt' : ctrl)
+        Left spine      -> runEval (Eval (clApply_ cl0 spine) ctrl)
+        Right (p, cxt') -> evalPointerAM p [] (NormaliseK (ArgK cl0 cxt' ctrl))
 
     -- Case: NatSucK m
 
     -- If literal add m to the literal,
-    runAM' (Eval cl@(Closure Value{} (Lit (LitNat n)) _ _) (NatSucK m : ctrl)) =
-      runAM (evalTrueValue (Lit $! LitNat $! m + n) emptyEnv [] ctrl)
+    runEval' (Eval cl@(Closure Value{} (Lit (LitNat n)) _ _) (NatSucK m ctrl)) =
+      runEval (evalTrueValue (Lit $! LitNat $! m + n) emptyEnv [] ctrl)
 
     -- otherwise apply 'suc' m times.
-    runAM' (Eval cl (NatSucK m : ctrl)) =
-        runAM (Eval (mkValue (notBlocked ()) $ plus m cl) ctrl)
+    runEval' (Eval cl (NatSucK m ctrl)) =
+        runEval (Eval (mkValue (notBlocked ()) $ plus m cl) ctrl)
       where
         plus 0 cl = cl
         plus n cl =
-          trueValue (Con (fromMaybe __IMPOSSIBLE__ suc) ConOSystem []) emptyEnv $
-                     Apply (defaultArg arg) : []
-          where arg = pureThunk (plus (n - 1) cl)
+          let !(Arg i arg) = defaultArg (pureThunk (plus (n - 1) cl)) in
+          trueValue (Con (fromMaybe __IMPOSSIBLE__ suc) ConOSystem []) emptyEnv
+                    $ SApply i arg : []
 
     -- Case: PrimOpK
 
     -- If literal apply the primitive function if no more arguments, otherwise
     -- store the literal in the continuation and evaluate the next argument.
-    runAM' (Eval (Closure _ (Lit a) _ _) (PrimOpK f op vs es cc : ctrl)) =
+    runEval' (Eval (Closure _ (Lit a) _ _) (PrimOpK f op vs es cc ctrl)) =
       case es of
-        []      -> runAM (evalTrueValue (op (a : vs)) emptyEnv [] ctrl)
-        e : es' -> evalPointerAM e [] (PrimOpK f op (a : vs) es' cc : ctrl)
+        []      -> runEval (evalTrueValue (op (a : vs)) emptyEnv [] ctrl)
+        e : es' -> evalPointerAM e [] (PrimOpK f op (a : vs) es' cc ctrl)
 
     -- If not a literal we use the case tree if there is one, otherwise we are stuck.
-    runAM' (Eval cl@(Closure (Value blk) _ _ _) (PrimOpK f _ vs es mcc : ctrl)) =
+    runEval' (Eval cl@(Closure (Value blk) _ _ _) (PrimOpK f _ vs es mcc ctrl)) =
       case mcc of
-        Nothing -> rewriteAM (Eval stuck ctrl)
-        Just cc -> runAM (Match f cc spine ([] :> notstuck) ctrl)
+        Nothing -> rewriteEval (Eval stuck ctrl)
+        Just cc -> runMatch (Match f cc spine (CAFNil :> notstuck) ctrl)
       where
         p         = pureThunk cl
-        lits      = map (pureThunk . litClos) (reverse vs)
-        spine     = fmap (Apply . defaultArg) $ lits <> [p] <> es
+        lits      = map' (pureThunk . litClos) (reverse vs)
+        spine     = map' (SApply defaultArgInfo) $! lits ++! (p : es)
         stuck     = Closure (Value blk) (Def f []) emptyEnv spine
         notstuck  = Closure Unevaled    (Def f []) emptyEnv spine
         litClos l = trueValue (Lit l) emptyEnv []
@@ -1080,20 +1184,20 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
     -- Case: ForceK. Here we need to check if the argument is a canonical form (i.e. not a variable
     -- or stuck function call) and if so apply the function argument to the value. If it's not
     -- canonical we are stuck.
-    runAM' (Eval arg@(Closure (Value blk) t _ _) (ForceK pf spine0 spine1 : ctrl))
+    runEval' (Eval arg@(Closure (Value blk) t _ _) (ForceK pf spine0 spine1 ctrl))
       | isCanonical t =
         case spine1 of
-          Apply k : spine' ->
-            evalPointerAM (unArg k) (elim : spine') ctrl
+          SApply _ k : spine' ->
+            evalPointerAM k (elim : spine') ctrl
           [] -> -- Partial application of primForce to canonical argument, return λ k → k arg.
-            runAM (evalTrueValue (lam (defaultArg "k") $ Var 0 [Apply $ defaultArg $ Var 1 []])
-                                 (argPtr `extendEnv` emptyEnv) [] ctrl)
+            runEval (evalTrueValue (lam (defaultArg "k") $ Var 0 [Apply (Arg defaultArgInfo (Var 1 []))])
+                                   (argPtr `extendEnv` emptyEnv) [] ctrl)
           _ -> __IMPOSSIBLE__
-      | otherwise = rewriteAM (Eval stuck ctrl)
+      | otherwise = rewriteEval (Eval stuck ctrl)
       where
         argPtr = pureThunk arg
-        elim   = Apply (defaultArg argPtr)
-        spine' = spine0 <> [elim] <> spine1
+        elim   = SApply defaultArgInfo argPtr
+        spine' = spine0 ++! (elim : spine1)
         stuck  = Closure (Value blk) (Def pf []) emptyEnv spine'
 
         isCanonical = \case
@@ -1113,27 +1217,31 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
 
     -- Case: EraseK. We evaluate both arguments to values, then do a simple check for the easy
     -- cases and otherwise fall back to slow reduce.
-    runAM' (Eval cl2@(Closure Value{} arg2 _ _) (EraseK f spine0 [Apply p1] _ spine3 : ctrl)) = do
-      cl1@(Closure _ arg1 _ sp1) <- derefPointer_ (unArg p1)
-      case (arg1, arg2) of
-        (Lit l1, Lit l2) | l1 == l2, isJust refl ->
-          runAM (evalTrueValue (Con (fromJust refl) ConOSystem []) emptyEnv [] ctrl)
-        _ ->
-          let spine = spine0 ++ map (Apply . hide . defaultArg . pureThunk) [cl1, cl2] ++ spine3 in
-          fallbackAM (evalClosure (Def f []) emptyEnv spine ctrl)
-    runAM' (Eval cl1@(Closure Value{} _ _ _) (EraseK f spine0 [] [Apply p2] spine3 : ctrl)) =
-      evalPointerAM (unArg p2) [] (EraseK f spine0 [Apply $ hide $ defaultArg $ pureThunk cl1] [] spine3 : ctrl)
-    runAM' (Eval _ (EraseK{} : _)) =
+    runEval' (Eval cl2@(Closure Value{} arg2 _ _) (EraseK f spine0 [SApply _ p1] _ spine3 ctrl)) =
+      derefPointer_ p1 >>= \case
+        BlackHole -> __IMPOSSIBLE__
+        cl1@(Closure _ arg1 _ sp1) -> case (arg1, arg2) of
+          (Lit l1, Lit l2) | l1 == l2, isJust refl ->
+            runEval (evalTrueValue (Con (fromJust refl) ConOSystem []) emptyEnv [] ctrl)
+          _ ->
+            let !i = hide defaultArgInfo
+                !spine = spine0 ++! map' (SApply i . pureThunk) [cl1, cl2] ++! spine3 in
+            fallbackEval (evalClosure (Def f []) emptyEnv spine ctrl)
+    runEval' (Eval cl1@(Closure Value{} _ _ _) (EraseK f spine0 [] [SApply _ p2] spine3 ctrl)) =
+      let !i = hide defaultArgInfo
+          !thcl1 = pureThunk cl1 in
+      evalPointerAM p2 [] (EraseK f spine0 [SApply i thcl1] [] spine3 ctrl)
+    runEval' (Eval _ (EraseK{})) =
       __IMPOSSIBLE__
 
     -- Case: UpdateThunk. Write the value to the pointers in the UpdateThunk frame.
-    runAM' (Eval cl@(Closure Value{} _ _ _) (UpdateThunk ps : ctrl)) =
-      mapM_ (`storePointer` cl) ps >> runAM (Eval cl ctrl)
+    runEval' (Eval cl@(Closure Value{} _ _ _) (UpdateThunk ps ctrl)) =
+      mapM_ (`storePointer` cl) ps >> runEval (Eval cl ctrl)
 
     -- Case: ApplyK. Application after thunk update. Add the spine from the control frame to the
     -- closure.
-    runAM' (Eval cl@(Closure Value{} _ _ _) (ApplyK spine : ctrl)) =
-      runAM (Eval (clApply cl spine) ctrl)
+    runEval' (Eval cl@(Closure Value{} _ _ _) (ApplyK spine ctrl)) =
+      runEval (Eval (clApply cl spine) ctrl)
 
     -- Case: CaseK. Pattern matching against a value. If it's a stuck value the pattern match is
     -- stuck and we return the closure from the match stack (see stuckMatch). Otherwise we need to
@@ -1141,8 +1249,8 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
     -- a Catchall in the match stack, or fail if there isn't one (see failedMatch). If the current
     -- branches contain a catch-all case we need to push a Catchall on the match stack if picking
     -- one of the other branches.
-    runAM' (Eval cl@(Closure (Value blk) t env spine) ctrl0@(CaseK f i bs spine0 spine1 stack : ctrl)) =
-      {-# SCC "runAM.CaseK" #-}
+    runEval' (Eval cl@(Closure (Value blk) t env spine) ctrl0@(CaseK f i bs spine0 spine1 stack ctrl)) =
+      {-# SCC "runEval.CaseK" #-}
       case blk of
         Blocked{} | null [()|Con{} <- [t]] -> stuck -- we might as well check the blocking tag first
         _ -> case t of
@@ -1155,8 +1263,8 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
           -- Case: non-empty elims. We can get here from a fallback (which builds a value without
           -- shifting arguments onto spine)
           Con c ci es -> do
-            spine' <- elimsToSpine env es
-            runAM (evalValue blk (Con c ci []) emptyEnv (spine' <> spine) ctrl0)
+            spine' <- elimsToSpine env es spine
+            runEval (evalValue blk (Con c ci []) emptyEnv spine' ctrl0)
           -- Case: natural number literals. Literal natural number patterns are translated to
           -- suc-matches, so there is no need to try matchLit.
           Lit (LitNat 0) -> matchLitZero  $ matchCatchall $ failedMatch f stack ctrl
@@ -1168,8 +1276,8 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
           -- Case: hcomp
           Def q [] | isJust $ lookupCon q bs -> matchCon' q (length spine) $ matchCatchall $ failedMatch f stack ctrl
           Def q es | isJust $ lookupCon q bs -> do
-            spine' <- elimsToSpine env es
-            runAM (evalValue blk (Def q []) emptyEnv (spine' <> spine) ctrl0)
+            spine' <- elimsToSpine env es spine
+            runEval (evalValue blk (Def q []) emptyEnv spine' ctrl0)
 
           -- Case: not constructor or literal. In this case we are stuck.
           _ -> stuck
@@ -1187,7 +1295,7 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
             stuckMatch blk' stack ctrl
 
         -- This the spine at this point in the matching. A catch-all match doesn't change the spine.
-        catchallSpine = spine0 <> [Apply $ Arg i p] <> spine1
+        catchallSpine = spine0 ++! (SApply i p : spine1)
           where p = pureThunk cl -- cl is already a value so no need to thunk it.
 
         -- Push catch-all frame on the match stack if there is a catch-all (and we're not taking it
@@ -1205,24 +1313,25 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
         -- the spine between spine0 and spine1.
         matchCon c ci ar = matchCon' (conName c) ar
         matchCon' q ar = lookupCon q bs `ifJust` \ cc ->
-          runAM (Match f cc (spine0 <> spine <> spine1) catchallStack ctrl)
+          runMatch (Match f cc (spine0 ++! spine ++! spine1) catchallStack ctrl)
 
         -- Catch-all: Don't add a Catchall to the match stack since this _is_ the catch-all.
         matchCatchall = fcatchallBranch bs `ifJust` \ cc ->
-          runAM (Match f cc catchallSpine stack ctrl)
+          runMatch (Match f cc catchallSpine stack ctrl)
 
         -- Matching literal: Switch to the Match state. There are no arguments to add to the spine.
         matchLit l = Map.lookup l (flitBranches bs) `ifJust` \ cc ->
-          runAM (Match f cc (spine0 <> spine1) catchallStack ctrl)
+          runMatch (Match f cc (spine0 ++! spine1) catchallStack ctrl)
 
         -- Matching a 'suc' constructor: Insert the argument in the spine.
         matchSuc = fsucBranch bs `ifJust` \ cc ->
-            runAM (Match f cc (spine0 <> spine <> spine1) catchallStack ctrl)
+            runMatch (Match f cc (spine0 ++! spine ++! spine1) catchallStack ctrl)
 
         -- Matching a non-zero natural number literal: Subtract one from the literal and
         -- insert it in the spine for the Match state.
         matchLitSuc n = fsucBranch bs `ifJust` \ cc ->
-            runAM (Match f cc (spine0 <> [Apply $ defaultArg arg] <> spine1) catchallStack ctrl)
+            let !arg' = SApply defaultArgInfo arg in
+            runMatch (Match f cc (spine0 ++! (arg' : spine1)) catchallStack ctrl)
           where n'  = n - 1
                 arg = pureThunk $ trueValue (Lit $ LitNat n') emptyEnv []
 
@@ -1230,70 +1339,87 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
         matchLitZero = matchCon (fromMaybe __IMPOSSIBLE__ zero) ConOSystem 0
                             -- If we have a nat literal we have builtin zero.
 
+
     -- Case: Match state. Here we look at the case tree and take the appropriate action:
     --   - FFail: stuck
     --   - FDone: evaluate body
     --   - FEta: eta expand argument
     --   - FCase on projection: pick corresponding branch and keep matching
     --   - FCase on argument: push CaseK frame on control stack and evaluate argument
-    runAM' (Match f cc spine stack ctrl) = {-# SCC "runAM.Match" #-}
+    runMatch' :: Match s -> ST s (Blocked Term)
+    runMatch' (Match f cc spine stack ctrl) = {-# SCC "runMatch" #-}
       case cc of
         -- Absurd match. You can get here for open terms.
         FFail -> stuckMatch (NotBlocked AbsurdMatch ()) stack ctrl
 
         -- Matching complete. Compute the environment for the body and switch to the Eval state.
         FDone (CCDone _ mr xs body) -> do
-          let allowedReductions = envAllowedReductions (redEnv rEnv)
+          let allowedReductions = redEnv rEnv ^. eAllowedReductions
           let undo = stuckMatch (NotBlocked ReallyNotBlocked ()) stack ctrl
-          let abort = and
-               [ couldBeRecursive mr
-               , cdefUnconfirmed (constInfo f)
-               , UnconfirmedReductions `SmallSet.notMember` allowedReductions
-               ]
+          let abort =
+                  couldBeRecursive mr
+               && cdefUnconfirmed (constInfo f)
+               && (UnconfirmedReductions `SmallSet.notMember` allowedReductions)
           if abort then undo else do
-            -- Don't ask me why, but not being strict in the spine causes a memory leak.
-            let (zs, env, !spine') = buildEnv xs spine
-            runAM (Eval (Closure Unevaled (lams zs body) env spine') ctrl)
+            let (!zs, !env, !spine') = buildEnv xs spine
+            runEval (Eval (Closure Unevaled (lams zs body) env spine') ctrl)
 
         -- A record pattern match. This does not block evaluation (since that would violate eta
         -- equality), so in this case we replace the argument with its projections in the spine and
         -- keep matching.
-        FEta n fs cc ca ->
-          case splitAt n spine of                           -- Question: add lambda here? doesn't
-            (_, [])                    -> done Underapplied -- matter for equality, but might for
-            (spine0, Apply e : spine1) -> do                -- rewriting or 'with'.
-              -- Replace e by its projections in the spine. And don't forget a
-              -- Catchall frame if there's a catch-all.
-              let projClosure (Arg ai f) = Closure Unevaled (Var 0 []) (extendEnv (unArg e) emptyEnv) [Proj ProjSystem f]
-              projs <- mapM (createThunk . projClosure) fs
-              let spine' = spine0 <> map (Apply . defaultArg) projs <> spine1
-                  stack' = caseMaybe ca stack $ \ cc -> Catchall cc spine >: stack
-              runAM (Match f cc spine' stack' ctrl)
-            _ -> __IMPOSSIBLE__
+        FEta n fs cc ca -> do
+
+              -- Recurse down to the application, replace it by projections
+              -- in the spine, rebuild the spine. If we don't have enough
+              -- arguments, return Nothing#
+          let go 0 (SApply _ e : spine1) = do Just# <$!> goFs fs e spine1
+              go n (e : spine1) = go (n - 1) spine1 >>= \case
+                Nothing# -> pure Nothing#
+                Just# sp -> pure $! Just# $! e:sp
+              go _ [] = pure Nothing#
+
+              -- Replace e by its projections in the spine.
+              goFs []     e spine1 = pure spine1
+              goFs (f:fs) e spine1 = do
+                let projClosure (Arg ai f) =
+                       Closure Unevaled (Var 0 []) (extendEnv e emptyEnv) [SProj ProjSystem f]
+                !t <- SApply defaultArgInfo <$!> createThunk (projClosure f)
+                (t:) <$!> goFs fs e spine1
+
+          go n spine >>= \case
+            Nothing# ->
+              -- Question: add lambda here? doesn't matter for equality, but might for
+              -- rewriting or 'with'
+              done Underapplied
+            Just# spine' -> do
+              let !stack' = caseMaybe ca stack \cc -> Catchall cc spine >: stack
+              runMatch (Match f cc spine' stack' ctrl)
 
         -- Split on nth elimination in the spine. Can be either a regular split or a copattern
         -- split.
         FCase n bs ->
-          case splitAt n spine of
+          case splitAt' n spine of
             -- If the nth elimination is not given, we're stuck.
             (_, []) -> done Underapplied
             -- Apply elim: push the current match on the control stack and evaluate the argument
-            (spine0, Apply e : spine1) ->
-              evalPointerAM (unArg e) [] $ CaseK f (argInfo e) bs spine0 spine1 stack : ctrl
+            (spine0, SApply i e : spine1) ->
+              evalPointerAM e [] $ CaseK f i bs spine0 spine1 stack ctrl
             -- Projection elim: in this case we must be in a copattern split and find the projection
             -- in the case tree and keep going. If it's not there it might be because it's not the
             -- original projection (issue #2265). If so look up the original projection instead.
             -- That _really_ should be there since copattern splits cannot be partial. Except of
             -- course, the user might still have written a partial function so we should check
             -- partialDefs before throwing an impossible (#3012).
-            (spine0, Proj o p : spine1) ->
+            (spine0, SProj o p : spine1) ->
               case lookupCon p bs <|> ((`lookupCon` bs) =<< op) of
                 Nothing
                   | f `elem` partialDefs -> stuckMatch (NotBlocked (MissingClauses f) ()) stack ctrl
                   | otherwise          -> __IMPOSSIBLE__
-                Just cc -> runAM (Match f cc (spine0 <> spine1) stack ctrl)
+                Just cc -> runMatch (Match f cc (spine0 ++! spine1) stack ctrl)
               where CFun{ cfunProjection = op } = cdefDef (constInfo p)
-            (_, IApply{} : _) -> __IMPOSSIBLE__ -- Paths cannot be defined by pattern matching
+            (_, SIApply{} : _) -> __IMPOSSIBLE__ -- Paths cannot be defined by pattern matching
+
+
       where done why = stuckMatch (NotBlocked why ()) stack ctrl
 
     -- 'evalPointerAM p spine ctrl'. Evaluate the closure pointed to by 'p' applied to 'spine' with
@@ -1301,14 +1427,16 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
     -- the pointer and an 'UpdateThunk' frame is pushed to the control stack. In this case the
     -- application to the spine has to be deferred until after the update through an 'ApplyK' frame.
     evalPointerAM :: Pointer s -> Spine s -> ControlStack s -> ST s (Blocked Term)
-    evalPointerAM (Pure cl)   spine ctrl = runAM (Eval (clApply cl spine) ctrl)
+    evalPointerAM (Pure cl)   spine ctrl = runEval (Eval (clApply cl spine) ctrl)
     evalPointerAM (Pointer p) spine ctrl = readPointer p >>= \ case
       BlackHole -> __IMPOSSIBLE__
-      Thunk cl@(Closure Unevaled _ _ _) | callByNeed -> do
+      cl@(Closure Unevaled _ _ _) | callByNeed -> do
         blackHole p
-        runAM (Eval cl $ updateThunkCtrl p $ [ApplyK spine | not (null spine)] ++ ctrl)
-      Thunk cl -> runAM (Eval (clApply cl spine) ctrl)
+        let !ctrl' = if not (null spine) then ApplyK spine ctrl else ctrl
+        runEval (Eval cl (updateThunkCtrl p ctrl'))
+      cl@(Closure _ _ _ _) -> runEval (Eval (clApply cl spine) ctrl)
 
+    {-# INLINE evalIApplyAM #-}
     -- 'evalIApplyAM spine ctrl fallback' checks if any 'IApply x y r' has a canonical 'r' (i.e. 0 or 1),
     -- in that case continues evaluating 'x' or 'y' with the rest of 'spine' and same 'ctrl'.
     -- If no such 'IApply' is found we continue with 'fallback'.
@@ -1317,9 +1445,9 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
       where
         -- written as a worker/wrapper to possibly trigger some
         -- specialization wrt fallback
-        go []                  = fallback
-        go (IApply x y r : es) = do
-          br <- evalPointerAM r [] []
+        go []                   = fallback
+        go (SIApply x y r : es) = do
+          br <- evalPointerAM r [] EmptyK
           case iview $ ignoreBlocking br of
             IZero -> evalPointerAM x es ctrl
             IOne  -> evalPointerAM y es ctrl
@@ -1328,11 +1456,11 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
 
     -- Normalise the spine and apply the closure to the result. The closure must be a value closure.
     normaliseArgsAM :: Closure s -> Spine s -> ControlStack s -> ST s (Blocked Term)
-    normaliseArgsAM cl []    ctrl = runAM (Eval cl ctrl)  -- nothing to do
+    normaliseArgsAM cl []    ctrl = runEval (Eval cl ctrl)  -- nothing to do
     normaliseArgsAM cl spine ctrl =
       case firstHole spine of -- v Only projections, nothing to do. Note clApply_ and not clApply (or we'd loop)
-        Nothing       -> runAM (Eval (clApply_ cl spine) ctrl)
-        Just (p, cxt) -> evalPointerAM p [] (NormaliseK : ArgK cl cxt : ctrl)
+        Nothing       -> runEval (Eval (clApply_ cl spine) ctrl)
+        Just (p, cxt) -> evalPointerAM p [] (NormaliseK (ArgK cl cxt ctrl))
 
     -- Fall back to slow reduction. This happens if we encounter a definition that's not supported
     -- by the machine (like a primitive function that does not work on literals), or a term that is
@@ -1341,62 +1469,60 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
     -- of the control stack is a 'NormaliseK' and the focus is a value closure (i.e. already in
     -- weak-head normal form) we call 'slowNormaliseArgs' and pop the 'NormaliseK' frame. Otherwise
     -- we use 'slowReduceTerm' to compute a weak-head normal form.
-    fallbackAM :: AM s -> ST s (Blocked Term)
-    fallbackAM (Eval c ctrl) = do
+    fallbackEval :: Eval s -> ST s (Blocked Term)
+    fallbackEval (Eval c ctrl) = do
         v <- decodeClosure_ c
-        runAM (mkValue $ runReduce $ slow v)
+        runEval (mkValue $ runReduce $ slow v)
       where mkValue b = evalValue (() <$ b) (ignoreBlocking b) emptyEnv [] ctrl'
             (slow, ctrl') = case ctrl of
-              NormaliseK : ctrl'
+              NormaliseK ctrl'
                 | Value{} <- isValue c -> (notBlocked <.> slowNormaliseArgs, ctrl')
               _                        -> (slowReduceTerm, ctrl)
-    fallbackAM _ = __IMPOSSIBLE__
 
     -- Applying rewrite rules to the current focus. This needs to decode the current focus, call
     -- rewriting and pack the result back up in a closure. In case some rewrite rules actually fired
     -- the next state is an unevaluated closure, otherwise it's a value closure.
-    rewriteAM :: AM s -> ST s (Blocked Term)
-    rewriteAM s@(Eval (Closure (Value blk) t env spine) ctrl)
-      | null rewr = runAM s
+    rewriteEval :: Eval s -> ST s (Blocked Term)
+    rewriteEval s@(Eval (Closure (Value blk) t env spine) ctrl)
+      | null rewr = runEval s
       | otherwise = traceDoc ("R" <+> pretty s) $ do
         v0 <- decodeClosure_ (Closure Unevaled t env [])
         es <- decodeSpine spine
         case runReduce (rewrite blk (applyE v0) rewr es) of
-          NoReduction b    -> runAM (evalValue (() <$ b) (ignoreBlocking b) emptyEnv [] ctrl)
-          YesReduction _ v -> runAM (evalClosure v emptyEnv [] ctrl)
+          NoReduction b    -> runEval (evalValue (() <$ b) (ignoreBlocking b) emptyEnv [] ctrl)
+          YesReduction _ v -> runEval (evalClosure v emptyEnv [] ctrl)
       where rewr = case t of
                      Def f []   -> rewriteRules f
                      Con c _ [] -> rewriteRules (conName c)
                      Var x _    -> localRewr x
                      _          -> __IMPOSSIBLE__
-    rewriteAM _ =
-      __IMPOSSIBLE__
+    rewriteEval _ = __IMPOSSIBLE__
 
     -- Add a NatSucK frame to the control stack. Pack consecutive suc's into a single frame.
     sucCtrl :: ControlStack s -> ControlStack s
-    sucCtrl (NatSucK !n : ctrl) = NatSucK (n + 1) : ctrl
-    sucCtrl               ctrl  = NatSucK 1 : ctrl
+    sucCtrl (NatSucK !n ctrl) = NatSucK (n + 1) ctrl
+    sucCtrl             ctrl  = NatSucK 1 ctrl
 
     -- Add a UpdateThunk frame to the control stack. Pack consecutive updates into a single frame.
     updateThunkCtrl :: STPointer s -> ControlStack s -> ControlStack s
-    updateThunkCtrl p (UpdateThunk ps : ctrl) = UpdateThunk (p : ps) : ctrl
-    updateThunkCtrl p                   ctrl  = UpdateThunk [p] : ctrl
+    updateThunkCtrl p (UpdateThunk ps ctrl) = UpdateThunk (p : ps) ctrl
+    updateThunkCtrl p                 ctrl  = UpdateThunk [p] ctrl
 
     -- When matching is stuck we return the closure from the 'MatchStack' with the appropriate
     -- 'IsValue' set.
     stuckMatch :: Blocked_ -> MatchStack s -> ControlStack s -> ST s (Blocked Term)
-    stuckMatch blk (_ :> cl) ctrl = rewriteAM (Eval (mkValue blk cl) ctrl)
+    stuckMatch blk (_ :> cl) ctrl = rewriteEval (Eval (mkValue blk cl) ctrl)
 
     -- On a mismatch we find the next 'Catchall' on the control stack and
     -- continue matching from there. If there isn't one we get an incomplete
     -- matching error (or get stuck if the function is marked partial).
     failedMatch :: QName -> MatchStack s -> ControlStack s -> ST s (Blocked Term)
-    failedMatch f (Catchall cc spine : stack :> cl) ctrl = runAM (Match f cc spine (stack :> cl) ctrl)
-    failedMatch f ([] :> cl) ctrl
+    failedMatch f (CAFCons (Catchall cc spine) stack :> cl) ctrl = runMatch (Match f cc spine (stack :> cl) ctrl)
+    failedMatch f (CAFNil :> cl) ctrl
         -- Bad work-around for #3870: don't fail hard during instance search.
-      | speculative          = rewriteAM (Eval (mkValue (NotBlocked (MissingClauses f) ()) cl) ctrl)
-      | f `elem` partialDefs = rewriteAM (Eval (mkValue (NotBlocked (MissingClauses f) ()) cl) ctrl)
-      | otherwise            = rewriteAM (Eval (mkValue (NotBlocked ReallyNotBlocked ()) cl) ctrl)  -- See #5396
+      | speculative          = rewriteEval (Eval (mkValue (NotBlocked (MissingClauses f) ()) cl) ctrl)
+      | f `elem` partialDefs = rewriteEval (Eval (mkValue (NotBlocked (MissingClauses f) ()) cl) ctrl)
+      | otherwise            = rewriteEval (Eval (mkValue (NotBlocked ReallyNotBlocked ()) cl) ctrl)  -- See #5396
 
     -- Some helper functions to build machine states and closures.
     evalClosure t env spine = Eval (Closure Unevaled t env spine)
@@ -1407,7 +1533,7 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
 
     -- Building lambdas
     lams :: [Arg String] -> Term -> Term
-    lams xs t = foldr lam t xs
+    lams xs t = foldr' lam t xs
 
     lam :: Arg String -> Term -> Term
     lam x t = Lam (argInfo x) (Abs (unArg x) t)
@@ -1416,7 +1542,7 @@ reduceTm rEnv bEnv !constInfo !localRewr normalisation =
 
 instance Pretty a => Pretty (FastCase a) where
   prettyPrec p (FBranches _cop cs suc ls m _) =
-    mparens (p > 0) $ vcat (prettyMap_ cs ++ prettyMap_ ls ++ prSuc suc ++ prC m)
+    mparens (p > 0) $ vcat (prettyMap_ cs ++! prettyMap_ ls ++! prSuc suc ++! prC m)
     where
       prC Nothing = []
       prC (Just x) = ["_ ->" <?> pretty x]
@@ -1428,19 +1554,15 @@ instance Pretty FastCompiledClauses where
   pretty (FDone done) = pretty done
   pretty FFail        = "fail"
   pretty (FEta n _ cc ca) =
-    text ("eta " ++ show n ++ " of") <?>
+    text ("eta " ++! show n ++! " of") <?>
       vcat ("{} ->" <?> pretty cc :
             [ "_ ->" <?> pretty cc | Just cc <- [ca] ])
   pretty (FCase n bs) | fprojPatterns bs =
-    sep [ text $ "project " ++ show n
+    sep [ text $ "project " ++! show n
         , nest 2 $ pretty bs
         ]
   pretty (FCase n bs) =
-    text ("case " ++ show n ++ " of") <?> pretty bs
-
-instance Pretty a => Pretty (Thunk a) where
-  prettyPrec _ BlackHole  = "<BLACKHOLE>"
-  prettyPrec p (Thunk cl) = prettyPrec p cl
+    text ("case " ++! show n ++! " of") <?> pretty bs
 
 instance Pretty (Pointer s) where
   prettyPrec p = prettyPrec p . unsafeDerefPointer
@@ -1451,40 +1573,59 @@ instance Pretty (Closure s) where
   prettyPrec p (Closure isV t env spine) =
     mparens (p > 9) $ fsep [ text tag
                            , nest 2 $ prettyPrec 10 t
-                           , nest 2 $ prettyList $ zipWith envEntry [0..] (envToList env)
-                           , nest 2 $ prettyList spine ]
-      where envEntry i c = text ("@" ++ show i ++ " =") <+> pretty c
+                           , nest 2 $ prettyList $ zipWith' envEntry [0..] (envToList env)
+                           , nest 2 $ prettyList (map' sElimToElim spine) ]
+      where envEntry i c = text ("@" ++! show i ++! " =") <+> pretty c
             tag = case isV of Value{} -> "V"; Unevaled -> "E"
+  prettyPrec _ BlackHole         = "<BLACKHOLE>"
 
-instance Pretty (AM s) where
-  prettyPrec p (Eval cl ctrl)  = prettyPrec p cl <?> prettyList ctrl
+instance Pretty (Eval s) where
+  prettyPrec p (Eval cl ctrl)  = prettyPrec p cl <?> pretty ctrl
+
+instance Pretty (Match s) where
   prettyPrec p (Match f cc sp stack ctrl) =
     mparens (p > 9) $ sep [ "M" <+> pretty f
-                          , nest 2 $ prettyList sp
+                          , nest 2 $ prettyList (map' sElimToElim sp)
                           , nest 2 $ prettyPrec 10 cc
                           , nest 2 $ pretty stack
-                          , nest 2 $ prettyList ctrl ]
+                          , nest 2 $ pretty ctrl ]
 
 instance Pretty (CatchallFrame s) where
   pretty Catchall{} = "Catchall"
 
 instance Pretty (MatchStack s) where
-  pretty ([] :> _) = empty
-  pretty (ca :> _) = prettyList ca
+  pretty (CAFNil :> _) = empty
+  pretty (ca     :> _) = prettyList $ asList ca where
+    asList CAFNil         = []
+    asList (CAFCons c cs) = (c :) $! asList cs
 
-instance Pretty (ControlFrame s) where
-  prettyPrec p (CaseK f _ _ _ _ mc)       = mparens (p > 9) $ ("CaseK" <+> pretty (qnameName f)) <?> pretty mc
-  prettyPrec p (ForceK _ spine0 spine1)   = mparens (p > 9) $ "ForceK" <?> prettyList (spine0 <> spine1)
-  prettyPrec p (EraseK _ sp0 sp1 sp2 sp3) = mparens (p > 9) $ sep [ "EraseK"
-                                                                  , nest 2 $ prettyList sp0
-                                                                  , nest 2 $ prettyList sp1
-                                                                  , nest 2 $ prettyList sp2
-                                                                  , nest 2 $ prettyList sp3 ]
-  prettyPrec _ (NatSucK n)              = text ("+" ++ show n)
-  prettyPrec p (PrimOpK f _ vs cls _)   = mparens (p > 9) $ sep [ "PrimOpK" <+> pretty f
+instance Pretty (ControlStack s) where
+  prettyPrec p (CaseK f _ _ _ _ mc ct)       = mparens (p > 9) (("CaseK" <+> pretty (qnameName f)) <?> pretty mc)
+                                               <+> prettyPrec p ct
+
+  prettyPrec p (ForceK _ spine0 spine1 ct)   = mparens (p > 9) (
+                                               "ForceK" <?> prettyList (map' sElimToElim (spine0 ++! spine1)))
+                                               <+> prettyPrec p ct
+  prettyPrec p (EraseK _ sp0 sp1 sp2 sp3 ct) = mparens (p > 9) (sep
+                                               [ "EraseK"
+                                                , nest 2 $ prettyList $ map' sElimToElim sp0
+                                                , nest 2 $ prettyList $ map' sElimToElim sp1
+                                                , nest 2 $ prettyList $ map' sElimToElim sp2
+                                                , nest 2 $ prettyList $ map' sElimToElim sp3 ])
+                                               <+> prettyPrec p ct
+
+  prettyPrec p (NatSucK n ct)            = text ("+" ++! show n)
+                                           <+> prettyPrec p ct
+  prettyPrec p (PrimOpK f _ vs cls _ ct) = mparens (p > 9) (sep [ "PrimOpK" <+> pretty f
                                                                 , nest 2 $ prettyList vs
-                                                                , nest 2 $ prettyList cls ]
-  prettyPrec p (UpdateThunk ps)         = mparens (p > 9) $ "UpdateThunk" <+> text (show (length ps))
-  prettyPrec p (ApplyK spine)           = mparens (p > 9) $ "ApplyK" <?> prettyList spine
-  prettyPrec p NormaliseK               = "NormaliseK"
-  prettyPrec p (ArgK cl _)              = mparens (p > 9) $ sep [ "ArgK" <+> prettyPrec 10 cl ]
+                                                                , nest 2 $ prettyList cls ])
+                                          <+> prettyPrec p ct
+  prettyPrec p (UpdateThunk ps ct)      = mparens (p > 9) ("UpdateThunk" <+> text (show (length ps)))
+                                          <+> prettyPrec p ct
+  prettyPrec p (ApplyK spine ct)        = mparens (p > 9) ("ApplyK" <?> prettyList (map' sElimToElim spine))
+                                          <+> prettyPrec p ct
+  prettyPrec p (NormaliseK ct)          = "NormaliseK"
+                                          <+> prettyPrec p ct
+  prettyPrec p (ArgK cl _ ct)           = mparens (p > 9) (sep [ "ArgK" <+> prettyPrec 10 cl ])
+                                          <+> prettyPrec p ct
+  prettyPrec p EmptyK                   = "EmptyK"

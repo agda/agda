@@ -331,13 +331,13 @@ instance GetMatchables a => GetMatchables (Elim' a) where
 instance GetMatchables a => GetMatchables (Abs a) where
 
 instance (GetMatchables a, GetMatchables b) => GetMatchables (a,b) where
-  getMatchables (x,y) = getMatchables x ++ getMatchables y
+  getMatchables (x,y) = getMatchables x ++! getMatchables y
 
 instance GetMatchables NLPat where
   getMatchables p =
     case p of
       PVar{}         -> empty
-      PDef f es      -> singleton f ++ getMatchables es
+      PDef f es      -> singleton f ++! getMatchables es
       PLam _ x       -> getMatchables x
       PPi a b        -> getMatchables (a,b)
       PSort s        -> getMatchables s
@@ -357,7 +357,7 @@ instance GetMatchables NLPSort where
     PIntervalUniv -> empty
 
 instance GetMatchables Term where
-  getMatchables = getDefs' __IMPOSSIBLE__ singleton
+  getMatchables = getDefListNoMetas
 
 instance GetMatchables GlobalRewriteRule where
   getMatchables = getMatchables . grPats

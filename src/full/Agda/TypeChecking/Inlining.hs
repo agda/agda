@@ -9,7 +9,6 @@ import Agda.Interaction.Options
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Free
-import Agda.Utils.Lens
 
 -- | Mark a definition to be inlined if it satisfies the inlining criterion.
 autoInline :: Defn -> TCM Defn

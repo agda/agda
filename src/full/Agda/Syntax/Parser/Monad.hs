@@ -1,3 +1,6 @@
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE UnboxedSums #-}
 
 module Agda.Syntax.Parser.Monad
     ( -- * The parser monad
@@ -38,13 +41,15 @@ import Prelude hiding ( null )
 
 import Control.DeepSeq
 import Control.Exception ( displayException )
-import Control.Monad.Except
-import Control.Monad.State
+import Control.Monad.Except (MonadError(..))
+import Control.Monad.State (MonadState(..), modify', modify, gets)
 import Control.Monad
 
 import Data.Maybe ( listToMaybe, fromMaybe )
 import Data.Word  ( Word32 )
 import Data.List  ( uncons )
+
+import GHC.Exts (oneShot)
 
 import Agda.Interaction.Options.Warnings
 
@@ -61,6 +66,7 @@ import Agda.Utils.IO   ( showIOException )
 import Agda.Utils.List ( tailWithDefault )
 import Agda.Utils.Maybe.Strict qualified as Strict
 import Agda.Utils.Null
+import Agda.Utils.Word (packW64, splitW64)
 
 import Agda.Utils.Impossible
 
@@ -68,28 +74,72 @@ import Agda.Utils.Impossible
     The parse monad
  --------------------------------------------------------------------------}
 
--- | The parse monad.
-newtype Parser a = P { _runP :: StateT ParseState (Either ParseError) a }
-  deriving (Functor, Applicative, Monad, MonadState ParseState, MonadError ParseError)
+type ParseRes a = (# ParseError | (# a , ParseState #) #)
+pattern PErr :: ParseError -> ParseRes a
+pattern PErr e <- (# e | #) where PErr !e = (# e | #)
+pattern POk :: a -> ParseState -> ParseRes a
+pattern POk a s <- (# | (# a, s #) #) where POk !a !s = (# | (# a, s #) #)
+{-# INLINE PErr #-}
+{-# INLINE POk #-}
+{-# COMPLETE PErr, POk #-}
+
+newtype Parser a = Parser {_runP :: ParseState -> ParseRes a}
+
+instance Functor Parser where
+  {-# INLINE fmap #-}
+  fmap f (Parser g) = Parser (oneShot \s -> case g s of
+    POk a s -> POk (f a) s
+    PErr e  -> PErr e)
+
+instance Applicative Parser where
+  {-# INLINE pure #-}
+  pure a = Parser (\s -> POk a s)
+  {-# INLINE (<*>) #-}
+  (<*>) (Parser pf) (Parser pa) = Parser (oneShot \s -> case pf s of
+    POk f s -> case pa s of
+      POk a s -> POk (f a) s
+      PErr e  -> PErr e
+    PErr e -> PErr e)
+
+instance Monad Parser where
+  return = pure
+  {-# INLINE (>>=) #-}
+  Parser pa >>= f = Parser (oneShot \s -> case pa s of
+    POk a s -> _runP (f a) s
+    PErr e  -> PErr e)
+
+instance MonadState ParseState Parser where
+  {-# INLINE get #-}
+  get = Parser (oneShot \s -> POk s s)
+  {-# INLINE put #-}
+  put s = Parser (oneShot \_ -> POk () s)
+
+instance MonadError ParseError Parser where
+  {-# INLINE throwError #-}
+  throwError e = Parser \_ -> PErr e
+  {-# INLINE catchError #-}
+  catchError (Parser pa) f = Parser (oneShot \s -> case pa s of
+     POk a s -> POk a s
+     PErr e  -> _runP (f e) s)
 
 -- | The parser state. Contains everything the parser and the lexer could ever
 --   need.
 data ParseState = PState
     { parseSrcFile    :: !SrcFile
-    , parsePos        :: !PositionWithoutFile  -- ^ position at current input location
-    , parseLastPos    :: !PositionWithoutFile  -- ^ position of last token
-    , parseInp        :: String                -- ^ the current input
-    , parsePrevChar   :: !Char                 -- ^ the character before the input
-    , parsePrevToken  :: String                -- ^ the previous token
-    , parseLayout     :: LayoutContext         -- ^ the stack of layout blocks
-    , parseLayStatus  :: LayoutStatus          -- ^ the status of the coming layout block
-    , parseLayKw      :: Keyword               -- ^ the keyword for the coming layout block
-    , parseLexState   :: [LexState]            -- ^ the state of the lexer
-                                             --   (states can be nested so we need a stack)
-    , parseFlags      :: ParseFlags            -- ^ parametrization of the parser
-    , parseWarnings   :: ![ParseWarning]       -- ^ In reverse order.
-    , parseBrackets   :: [OpenBracket]         -- ^ stack of open unicode/ASCII brackets
-    , parseAttributes :: !Attributes         -- ^ Every encountered attribute.
+    , parsePos        :: !PositionWithoutFile -- ^ position at current input location
+    , parseLastPos    :: !PositionWithoutFile -- ^ position of last token
+    , parseInp        :: !String              -- ^ the current input
+    , parsePrevChar   :: !Char                -- ^ the character before the input
+    , parsePrevToken  :: !String              -- ^ the previous token
+    , parseLayout     :: !LayoutContext       -- ^ the stack of layout blocks
+    , parseLayStatus  :: !LayoutStatus        -- ^ the status of the coming layout block
+    , parseLayKw      :: !Keyword             -- ^ the keyword for the coming layout block
+    , parseLexState   :: ![LexState]          -- ^ the state of the lexer
+                                              --   (states can be nested so we need a stack)
+    , parseFlags      :: !ParseFlags          -- ^ parametrization of the parser
+    , parseWarnings   :: ![ParseWarning]      -- ^ In reverse order.
+    , parseBrackets   :: ![OpenBracket]       -- ^ stack of open unicode/ASCII brackets
+    , parseAttributes :: !Attributes          -- ^ Every encountered attribute.
     }
     deriving Show
 
@@ -154,7 +204,7 @@ instance NFData OpenBracket where
 
 -- | Parser flags.
 data ParseFlags = ParseFlags
-  { parseKeepComments :: Bool
+  { parseKeepComments :: !Bool
     -- ^ Should comment tokens be returned by the lexer?
   }
   deriving Show
@@ -166,11 +216,11 @@ data ParseError
   = ParseError
     { errPos       :: !Position
                       -- ^ Where the error occurred.
-    , errInput     :: String
+    , errInput     :: !String
                       -- ^ The remaining input.
-    , errPrevToken :: String
+    , errPrevToken :: !String
                       -- ^ The previous token.
-    , errMsg       :: String
+    , errMsg       :: !String
                       -- ^ Hopefully an explanation of what happened.
     }
 
@@ -184,11 +234,11 @@ data ParseError
   | InvalidExtensionError
     { errPath      :: !RangeFile
                       -- ^ The file which the error concerns.
-    , errValidExts :: [String]
+    , errValidExts :: ![String]
     }
   | ReadFileError
     { errPath      :: !RangeFile
-    , errIOError   :: IOError
+    , errIOError   :: !IOError
     }
   deriving Show
 
@@ -213,18 +263,18 @@ data ParseWarning
     { warnRange :: !(Range' SrcFile)
         -- ^ The range of the bigger overlapping token.
     }
-  | MisplacedAttributes Range String
+  | MisplacedAttributes Range !String
       -- ^ The 'String' is the error message.
-  | UnknownPolarity Range String
+  | UnknownPolarity Range !String
       -- ^ Unknown polarity, ignored.
-  | UnknownAttribute Range String
+  | UnknownAttribute Range !String
       -- ^ Unknown attribute, ignored.
       --   The 'Range' includes the "@", the 'String' not.
   | UnsupportedAttribute Range !(Maybe String)
       -- ^ Unsupported attribute.
   | MultipleAttributes Range !(Maybe String)
       -- ^ Multiple attributes.
-  | MismatchedBrackets Range OpenBracket
+  | MismatchedBrackets Range !OpenBracket
       -- ^ The closing bracket (at the 'Range') was closed with a
       -- unicode-ness that doesn't match that of the 'OpenBracket'.
   deriving Show
@@ -256,9 +306,9 @@ data ParseResult a
 
 -- | Old interface to parser.
 unP :: Parser a -> ParseState -> ParseResult a
-unP (P m) s = case runStateT m s of
-  Left err     -> ParseFailed err
-  Right (a, s) -> ParseOk s a
+unP (Parser m) s = case m s of
+  PErr e  -> ParseFailed e
+  POk a s -> ParseOk s a
 
 -- | Throw a parse error at the current position.
 parseError :: String -> Parser a
@@ -424,13 +474,13 @@ parseFromSrc flags st p src input = unP p (initState (Strict.toLazy src) flags i
  --------------------------------------------------------------------------}
 
 setParsePos :: PositionWithoutFile -> Parser ()
-setParsePos p = modify $ \s -> s { parsePos = p }
+setParsePos p = modify' $ \s -> s { parsePos = p }
 
 setLastPos :: PositionWithoutFile -> Parser ()
-setLastPos p = modify $ \s -> s { parseLastPos = p }
+setLastPos p = modify' $ \s -> s { parseLastPos = p }
 
 setPrevToken :: String -> Parser ()
-setPrevToken t = modify $ \s -> s { parsePrevToken = t }
+setPrevToken t = modify' $ \s -> s { parsePrevToken = t }
 
 getLastPos :: Parser PositionWithoutFile
 getLastPos = gets parseLastPos
@@ -446,10 +496,10 @@ getLexState = gets parseLexState
 
 -- UNUSED Liang-Ting Chen 2019-07-16
 --setLexState :: [LexState] -> Parser ()
---setLexState ls = modify $ \ s -> s { parseLexState = ls }
+--setLexState ls = modify' $ \ s -> s { parseLexState = ls }
 
 modifyLexState :: ([LexState] -> [LexState]) -> Parser ()
-modifyLexState f = modify $ \ s -> s { parseLexState = f (parseLexState s) }
+modifyLexState f = modify' $ \ s -> s { parseLexState = f (parseLexState s) }
 
 pushLexState :: LexState -> Parser ()
 pushLexState l = modifyLexState (l:)
@@ -499,7 +549,7 @@ setContext :: LayoutContext -> Parser ()
 setContext = modifyContext . const
 
 modifyContext :: (LayoutContext -> LayoutContext) -> Parser ()
-modifyContext f = modify $ \ s -> s { parseLayout = f (parseLayout s) }
+modifyContext f = modify' $ \ s -> s { parseLayout = f (parseLayout s) }
 
 -- | Return the current layout block.
 topBlock :: Parser (Maybe LayoutBlock)
@@ -517,7 +567,7 @@ pushBlock l = modifyContext (l :)
 
 -- | When we see a layout keyword, by default we expect a 'Tentative' block.
 resetLayoutStatus :: Parser ()
-resetLayoutStatus = modify $ \ s -> s { parseLayStatus = Tentative }
+resetLayoutStatus = modify' $ \ s -> s { parseLayStatus = Tentative }
 
 ------------------------------------------------------------------------
 -- * Brackets
@@ -532,7 +582,7 @@ openBracket tok =
 
     -- These are the only tokens we call this for.
     _ -> __IMPOSSIBLE__
-  where push rng k = getRange rng <$ modify \s -> s { parseBrackets = k rng:parseBrackets s}
+  where push rng k = getRange rng <$ modify' \s -> s { parseBrackets = k rng:parseBrackets s}
 
 -- | Pop an 'OpenBracket' from the parser state, and generate the
 -- 'MismatchedBrackets' warning if the given 'Token' does not match what
@@ -543,7 +593,7 @@ closeBracket (TokSymbol sym ivl) = do
     rng          = getRange ivl
     match a b xs = rng <$ do
       unless (openBracketUnicode a == b) $ parseWarning $ MismatchedBrackets rng a
-      modify \s -> s { parseBrackets = xs }
+      modify' \s -> s { parseBrackets = xs }
 
   -- Since Happy won't call the action if the rule doesn't match, and we
   -- call this function from the *parser*, this function is guaranteed

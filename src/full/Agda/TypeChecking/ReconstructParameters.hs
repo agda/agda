@@ -25,7 +25,6 @@ import Agda.TypeChecking.Datatypes
 
 import Agda.Utils.Either
 import Agda.Utils.Function (applyWhen)
-import Agda.Utils.Lens
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -33,7 +32,7 @@ import Agda.Utils.Impossible
 reconstructParametersInType :: Type -> TCM Type
 reconstructParametersInType = reconstructParametersInType' defaultAction
 
-reconstructParametersInType' :: Action TCM -> Type -> TCM Type
+reconstructParametersInType' :: Action -> Type -> TCM Type
 reconstructParametersInType' act a =
   traverse (reconstructParameters' act (sort $ getSort a)) a
 
@@ -55,7 +54,7 @@ reconstructParametersInEqView (IdiomType a) = IdiomType <$> reconstructParameter
 reconstructParameters :: Type -> Term -> TCM Term
 reconstructParameters = reconstructParameters' defaultAction
 
-reconstructParameters' :: Action TCM -> Type -> Term -> TCM Term
+reconstructParameters' :: Action -> Type -> Term -> TCM Term
 reconstructParameters' act a v = do
   reportSDoc "tc.reconstruct" 30 $
     sep [ "reconstructing parameters in"
@@ -66,10 +65,10 @@ reconstructParameters' act a v = do
     nest 2 $ "-->" <+> prettyTCM v
   return v
 
-reconstructAction :: Action TCM
+reconstructAction :: Action
 reconstructAction = reconstructAction' defaultAction
 
-reconstructAction' :: Action TCM -> Action TCM
+reconstructAction' :: Action -> Action
 reconstructAction' act = act{ postAction = \ty tm -> postAction act ty tm >>= reconstruct ty }
 
 reconstruct :: Type -> Term -> TCM Term

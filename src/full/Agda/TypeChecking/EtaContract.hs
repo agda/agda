@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+-- {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
 
 -- | Compute eta short normal forms.
 module Agda.TypeChecking.EtaContract where
@@ -15,7 +16,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 
 import Agda.Utils.Monad
-import Agda.Utils.List (initLast)
+import Agda.Utils.List (initLast')
 
 import Agda.Utils.Impossible
 
@@ -47,7 +48,7 @@ binAppView t = case t of
   Dummy{}    -> __IMPOSSIBLE__
   where
     noApp = NoApp t
-    appE f es0 | Just (es, Apply v) <- initLast es0 = App (f es) v
+    appE f es0 | Just (es, Apply v) <- initLast' es0 = App (f es) v
     appE _ _ = noApp
 
 -- | Contracts all eta-redexes it sees without reducing.
@@ -72,6 +73,7 @@ etaOnce = \case
 
   v -> return v
 
+{-# INLINE etaCon #-}
 -- | If record constructor, call eta-contraction function.
 etaCon :: (HasConstInfo m)
   => ConHead  -- ^ Constructor name @c@.
@@ -89,6 +91,7 @@ etaCon c ci es cont = ignoreAbstractMode $ do
     let Just args = allApplyElims es
     cont r c ci args
 
+{-# INLINE etaLam #-}
 -- | Try to contract a lambda-abstraction @Lam i (Abs x b)@.
 etaLam :: (MonadTCEnv m, HasOptions m)
   => ArgInfo  -- ^ Info @i@ of the 'Lam'.
@@ -108,7 +111,7 @@ etaLam i x b = do
              && sameHiding i info
              && sameModality i info
              && not (freeIn 0 u)
-           then return $ strengthen impossible u
+           then return $! strengthen impossible u
            else fallback
       _ -> fallback
   where

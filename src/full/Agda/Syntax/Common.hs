@@ -627,6 +627,12 @@ data Modality = Modality
       -- ^ Polarity annotations (strictly positive, ...)
   } deriving (Eq, Ord, Show, Generic)
 
+{-# NOINLINE noinlineEqModality #-}
+-- | Non-inlined equality that's sometimes useful to prevent GHC from ballooning code size.
+noinlineEqModality :: Modality -> Modality -> Bool
+noinlineEqModality (Modality a b c d) (Modality a' b' c' d') =
+  a == a' && b == b' && c == c' && d == d'
+
 -- | Dominance ordering.
 instance PartialOrd Modality where
   comparable (Modality r q c p) (Modality r' q' c' p') = comparable (r, (q, (c, p))) (r', (q', (c', p')))
@@ -1616,16 +1622,19 @@ irrelevant = Irrelevant empty
 shapeIrrelevant :: Relevance
 shapeIrrelevant = ShapeIrrelevant empty
 
+{-# INLINE isRelevant #-}
 isRelevant :: LensRelevance a => a -> Bool
 isRelevant a = case getRelevance a of
   Relevant{} -> True
   _ -> False
 
+{-# INLINE isIrrelevant #-}
 isIrrelevant :: LensRelevance a => a -> Bool
 isIrrelevant a = case getRelevance a of
   Irrelevant{} -> True
   _ -> False
 
+{-# INLINE isShapeIrrelevant #-}
 isShapeIrrelevant :: LensRelevance a => a -> Bool
 isShapeIrrelevant a = case getRelevance a of
   ShapeIrrelevant{} -> True
@@ -2771,7 +2780,10 @@ isInsertedHidden a = getHiding a == Hidden && getOrigin a == Inserted
 data Arg e  = Arg
   { argInfo :: ArgInfo
   , unArg :: e
-  } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  } deriving (Eq, Ord, Show, Foldable, Traversable)
+
+instance Functor Arg where
+  fmap f = \(Arg x y) -> Arg x $! f y
 
 instance Decoration Arg where
   traverseF f (Arg ai a) = Arg ai <$> f a
@@ -2886,6 +2898,7 @@ instance LensModalPolarity (Arg e) where
   setModalPolarity = setPolarityMod
   mapModalPolarity = mapPolarityMod
 
+{-# INLINE defaultArg #-}
 defaultArg :: a -> Arg a
 defaultArg = Arg defaultArgInfo
 
@@ -3459,7 +3472,7 @@ newtype Constr a = Constr a
 
 -- | A "problem" consists of a set of constraints and the same constraint can be part of multiple
 --   problems.
-newtype ProblemId = ProblemId Nat
+newtype ProblemId = ProblemId Word64
   deriving (Eq, Ord, Enum, Real, Integral, Num, NFData)
 
 -- This particular Show instance is ok because of the Num instance.

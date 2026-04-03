@@ -1,3 +1,4 @@
+{-# LANGUAGE MagicHash, UnboxedTuples #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 ------------------------------------------------------------------------
@@ -33,27 +34,27 @@ module Agda.Utils.Parser.MemoisedCPS
 
 import Control.Applicative ( Alternative((<|>), empty, many, some) )
 import Control.Monad (liftM2, (<=<))
-import Control.Monad.State.Strict (State, evalState, runState, get, modify')
 
-import Data.Array
 import Data.Hashable
 import Data.HashMap.Strict qualified as Map
 import Data.HashMap.Strict (HashMap)
 
-
 import Data.IntMap.Strict qualified as IntMap
 import Data.IntMap.Strict (IntMap)
-import Data.List qualified as List
 import Data.Maybe
+import GHC.Exts
 
 import Agda.Utils.Null qualified as Null
 import Agda.Syntax.Common.Pretty hiding (annotate)
 
+import Agda.Utils.List
 import Agda.Utils.Impossible
+import Agda.Utils.StrictState
+import Agda.Utils.MinimalArray.Lifted qualified as A
 
 -- | Positions.
 
-type Pos = Int
+type Pos = Int#
 
 -- | State monad used by the parser.
 
@@ -67,7 +68,7 @@ type Cont k r tok b a = Pos -> a -> M k r tok b [b]
 
 data Value k r tok b = Value
   { _results       :: !(IntMap [r])
-  , _continuations :: [Cont k r tok b r]
+  , _continuations :: ![Cont k r tok b r]
   }
 
 -- | The parser type.
@@ -86,32 +87,39 @@ data Value k r tok b = Value
 
 newtype Parser k r tok a =
   P { unP :: forall b.
-             Array Pos tok ->
+             A.Array tok ->
              Pos ->
              Cont k r tok b a ->
              M k r tok b [b]
     }
 
 instance Monad (Parser k r tok) where
+  {-# INLINE return #-}
   return    = pure
-  P p >>= f = P $ \input i k ->
-    p input i $ \j x -> unP (f x) input j k
+  {-# INLINE (>>=) #-}
+  P p >>= f = P \input i k ->
+    p input i \j x -> unP (f x) input j k
 
 instance Functor (Parser k r tok) where
-  fmap f (P p) = P $ \input i k ->
-    p input i $ \i -> k i . f
+  {-# INLINE fmap #-}
+  fmap f (P p) = P \input i k ->
+    p input i \i -> k i . f
 
 instance Applicative (Parser k r tok) where
-  pure x        = P $ \_ i k -> k i x
-  P p1 <*> P p2 = P $ \input i k ->
-    p1 input i $ \i f ->
-    p2 input i $ \i x ->
-    k i (f x)
+  {-# INLINE pure #-}
+  pure x        = P \_ i k -> k i x
+  {-# INLINE (<*>) #-}
+  P p1 <*> P p2 = P \input i k ->
+    p1 input i \i f ->
+    p2 input i \i x ->
+    k i $! f x
 
 instance Alternative (Parser k r tok) where
-  empty         = P $ \_ _ _ -> return []
-  P p1 <|> P p2 = P $ \input i k ->
-    liftM2 (++) (p1 input i k) (p2 input i k)
+  {-# INLINE empty #-}
+  empty         = P \_ _ _ -> return []
+  {-# INLINE (<|>) #-}
+  P p1 <|> P p2 = P \input i k ->
+    (++!) <$> p1 input i k <*> p2 input i k
 
 class (Functor p, Applicative p, Alternative p, Monad p) =>
       ParserClass p k r tok | p -> k, p -> r, p -> tok where
@@ -145,68 +153,84 @@ class (Functor p, Applicative p, Alternative p, Monad p) =>
   -- inputs.)
   memoiseIfPrinting :: (Hashable k, Show k) => k -> p r -> p r
 
+{-# INLINE doc #-}
 -- | Uses the given document as the printed representation of the
 -- given parser. The document's precedence is taken to be 'atomP'.
-
 doc :: ParserClass p k r tok => Doc -> p a -> p a
 doc d = annotate (\_ -> (d, atomP))
 
+{-# INLINE sat #-}
 -- | Parses a token satisfying the given predicate.
-
 sat :: ParserClass p k r tok => (tok -> Bool) -> p tok
 sat p = sat' (\t -> if p t then Just t else Nothing)
 
+{-# INLINE token #-}
 -- | Parses a single token.
-
 token :: ParserClass p k r tok => p tok
 token = doc "·" (sat' Just)
 
+{-# INLINE tok #-}
 -- | Parses a given token.
-
 tok :: (ParserClass p k r tok, Eq tok, Show tok) => tok -> p tok
 tok t = doc (text (show t)) (sat (t ==))
 
+-- | List of positions and values with much better memory layout than @[(Pos, v)]@.
+data Assocs v = ANil | ACons Pos !v !(Assocs v)
+
 instance ParserClass (Parser k r tok) k r tok where
   parse p toks =
-    flip evalState IntMap.empty $
-    unP p (listArray (0, n - 1) toks) 0 $ \j x ->
-      if j == n then return [x] else return []
-    where n = List.genericLength toks
+    let !arr = A.fromList toks
+        !n   = A.size arr in
+    evalState (unP p arr 0# \j x -> if I# j == n then return [x] else return [])
+              mempty
 
   grammar _ = Null.empty
 
-  sat' p = P $ \input i k ->
-    if inRange (bounds input) i then
-      case p (input ! i) of
-        Nothing -> return []
-        Just x  -> (k $! (i + 1)) $! x
+  {-# INLINE sat' #-}
+  sat' p = P \input i k -> State \s ->
+    if 0 <= I# i && I# i < A.size input then
+      case p (A.unsafeIndex input (I# i)) of
+        Nothing  -> (# [], s #)
+        Just !x  -> runState# (k (i +# 1#) x) s
     else
-      return []
+      (# [], s #)
 
   annotate _ p = p
 
   memoiseIfPrinting _ p = p
 
-  memoise key p = P $ \input i k -> do
+  memoise key p = P \input i k -> do
 
     let alter j zero f m =
           IntMap.alter (Just . f . fromMaybe zero) j m
 
-        lookupTable   = fmap (Map.lookup key <=< IntMap.lookup i) get
-        insertTable v = modify' $ alter i Map.empty (Map.insert key v)
+        lookupTable   = (Map.lookup key <=< IntMap.lookup (I# i)) <$> get
+        lookupTable'  = (\tbl -> (tbl IntMap.! I# i) Map.! key) <$> get
+        insertTable v = modify $ alter (I# i) Map.empty (Map.insert key v)
 
     v <- lookupTable
     case v of
       Nothing -> do
         insertTable (Value IntMap.empty [k])
-        unP p input i $ \j r -> do
-          ~(Just (Value rs ks)) <- lookupTable
-          insertTable (Value (alter j [] (r :) rs) ks)
-          concat <$> mapM (\k -> k j r) ks  -- See note [Reverse ks?].
+        unP p input i \j r -> do
+          Value rs ks <- lookupTable'
+          insertTable (Value (alter (I# j) [] (r :) rs) ks)
+
+          let catMap (j :: Pos) !r []     = pure []
+              catMap j           r (k:ks) = (++!) <$> k j r <*> catMap j r ks
+
+          catMap j r ks -- See note [Reverse ks?].
+
       Just (Value rs ks) -> do
         insertTable (Value rs (k : ks))
-        concat . concat <$>
-          mapM (\(i, rs) -> mapM (k i) rs) (IntMap.toList rs)
+        let !assocs = IntMap.foldrWithKey' (\(I# i) rs acc -> ACons i rs acc) ANil rs
+
+        let go k ANil                = pure []
+            go k (ACons i rs assocs) = go' k i rs assocs
+            go' k (i :: Pos) []     assocs = go k assocs
+            go' k i          (r:rs) assocs = (++!) <$> k i r <*> go' k i rs assocs
+
+        go k assocs
 
 -- [Reverse ks?]
 --
@@ -320,9 +344,9 @@ memoiseDocs key p = do
   case r of
     Just _  -> return ()
     Nothing -> do
-      modify' (Map.insert key Nothing)
+      modify (Map.insert key Nothing)
       d <- docs p
-      modify' (Map.insert key (Just d))
+      modify (Map.insert key (Just d))
   return (prettyKey key)
 
 instance ParserClass (ParserWithGrammar k r tok) k r tok where

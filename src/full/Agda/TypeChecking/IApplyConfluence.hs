@@ -80,7 +80,7 @@ checkIApplyConfluence f cl = case cl of
                 } -> setCurrentRange (clauseLHSRange cl) $ do
           let
             trhs = unArg t
-          oldCall <- asksTC envCall
+          oldCall <- viewTC eCall
           reportSDoc "tc.cover.iapply" 40 $ "tel =" <+> prettyTCM clTel
           reportSDoc "tc.cover.iapply" 40 $ "ps =" <+> pretty ps
           ps <- normaliseProjP ps
@@ -133,7 +133,7 @@ checkIApplyConfluence f cl = case cl of
                         -- “failure case” here is *at worst* accidentally reminding the user of how
                         -- IApplyConfluence works.
                         if (u_p == u' && v_p == v')
-                          then localTC (\e -> e { envCall = oldCall }) $ typeError e'
+                          then localTC (set eCall oldCall) $ typeError e'
                           else throwError e
                   maybeDropCall x = throwError x
 

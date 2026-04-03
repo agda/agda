@@ -153,7 +153,7 @@ instance NamesIn Int where
 
 instance NamesIn Definition where
   namesAndMetasIn' sg
-    (Defn _ _ t _ _ _ disp _ _ _ _ _ _ _ _ _ _ def) =
+    (Defn _ _ t _ _ _ disp _ _ _ _ _ _ _ _ _ _ _ def) =
     namesAndMetasIn' sg (t, def, disp)
 
 instance NamesIn Defn where

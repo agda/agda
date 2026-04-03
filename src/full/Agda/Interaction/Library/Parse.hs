@@ -169,9 +169,10 @@ fromGeneric' file fields fs = do
     -- The range points to the start of the file.
     r = Range
           (Strict.Just $ mkRangeFile file Nothing)
-          (singleton (posToInterval () p p))
+          (singleton i)
       where
-      p = Pn () 1 1 1
+      p  = Pn () 1 1 1
+      !i = PackIWF (posToInterval () p p)
 
     upd :: AgdaLibFile -> GenericEntry -> P AgdaLibFile
     upd l (GenericEntry h cs) = do

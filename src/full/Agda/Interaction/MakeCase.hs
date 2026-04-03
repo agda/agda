@@ -40,7 +40,6 @@ import Agda.Interaction.Options
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.Lens   (set)
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -269,7 +268,7 @@ makeCase :: InteractionId -> Range -> String -> TCM (QName, CaseContext, [A.Clau
 makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) $ do
 
   -- Jesper, 2018-12-10: print unsolved metas in dot patterns as _
-  localTC (\ e -> e { envPrintMetasBare = True }) $ do
+  localTC (set ePrintMetasBare True) do
 
   -- Get function clause which contains the interaction point.
   InteractionPoint { ipMeta = mm, ipClause = ipCl} <- lookupInteractionPoint hole

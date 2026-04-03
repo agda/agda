@@ -575,9 +575,9 @@ computeOccurrences' :: QName -> TCM OccurrencesBuilder
 computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
   reportSDoc "tc.pos" 25 $ do
     let a = defAbstract def
-    m <- asksTC envAbstractMode
-    cur <- asksTC envCurrentModule
-    o <- asksTC envCurrentOpaqueId
+    m <- viewTC eAbstractMode
+    cur <- viewTC eCurrentModule
+    o <- viewTC eCurrentOpaqueId
     "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show o) <+> text (show m)
       <+> prettyTCM cur
   OccursAs (InDefOf q) <$> case theDef def of

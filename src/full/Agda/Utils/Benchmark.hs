@@ -32,6 +32,7 @@ import Agda.Syntax.Common.Pretty
 import Agda.Utils.Time
 import Agda.Utils.Trie (Trie)
 import Agda.Utils.Trie qualified as Trie
+import Agda.Utils.StrictReader qualified as Strict
 
 
 -- * Benchmark trie
@@ -156,6 +157,14 @@ instance MonadBench m => MonadBench (ReaderT r m) where
   modifyBenchmark = lift . modifyBenchmark
   finally m f = ReaderT $ \ r ->
     finally (m `runReaderT` r) (f `runReaderT` r)
+
+instance MonadBench m => MonadBench (Strict.ReaderT r m) where
+  type BenchPhase (Strict.ReaderT r m) = BenchPhase m
+  getBenchmark    = lift $ getBenchmark
+  putBenchmark    = lift . putBenchmark
+  modifyBenchmark = lift . modifyBenchmark
+  finally m f = Strict.ReaderT $ \ r ->
+    finally (m `Strict.runReaderT` r) (f `Strict.runReaderT` r)
 
 instance (MonadBench m, Monoid w) => MonadBench (WriterT w m) where
   type BenchPhase (WriterT w m) = BenchPhase m

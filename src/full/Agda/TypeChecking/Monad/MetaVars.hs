@@ -130,7 +130,7 @@ instance MonadMetaSolver m => MonadMetaSolver (ReaderT r m) where
 dontAssignMetas :: (MonadTCEnv m, MonadDebug m) => m a -> m a
 dontAssignMetas cont = do
   reportSLn "tc.meta" 45 $ "don't assign metas"
-  localTC (\ env -> env { envAssignMetas = False }) cont
+  localTC (set eAssignMetas False) cont
 
 -- | Is the meta-variable from another top-level module?
 
@@ -149,9 +149,9 @@ nextLocalMeta = useR stFreshMetaId
 -- | Pairs of local meta-stores.
 
 data LocalMetaStores = LocalMetaStores
-  { openMetas :: LocalMetaStore
+  { openMetas   :: !LocalMetaStore
     -- ^ A 'MetaStore' containing open meta-variables.
-  , solvedMetas :: LocalMetaStore
+  , solvedMetas :: !LocalMetaStore
     -- ^ A 'MetaStore' containing instantiated meta-variables.
   }
 
@@ -173,18 +173,17 @@ metasCreatedBy m = do
       (_, Just m,  ms) -> MapS.insert next m ms
 
 -- | Find information about the given local meta-variable, if any.
-
+{-# SPECIALIZE lookupLocalMeta' :: MetaId -> TCM (Maybe MetaVariable) #-}
 lookupLocalMeta' :: ReadTCState m => MetaId -> m (Maybe MetaVariable)
 lookupLocalMeta' m = do
-  mv <- lkup <$> useR stSolvedMetaStore
-  case mv of
+  tc <- getTCState
+  case MapS.lookup m (tc ^. stSolvedMetaStore) of
     mv@Just{} -> return mv
-    Nothing   -> lkup <$> useR stOpenMetaStore
-  where
-  lkup = MapS.lookup m
+    Nothing   -> pure $! MapS.lookup m (tc ^. stOpenMetaStore)
 
 -- | Find information about the given local meta-variable.
 
+{-# SPECIALIZE lookupLocalMeta :: MetaId -> TCM MetaVariable #-}
 lookupLocalMeta ::
   (HasCallStack, MonadDebug m, ReadTCState m) =>
   MetaId -> m MetaVariable
@@ -548,8 +547,12 @@ instance MonadInteractionPoints m => MonadInteractionPoints (StateT s m)
 instance (MonadInteractionPoints m, Monoid w) => MonadInteractionPoints (WriterT w m)
 
 instance MonadInteractionPoints TCM where
-  freshInteractionId = fresh
-  modifyInteractionPoints f = stInteractionPoints `modifyTCLens` f
+  -- TODO: does the pure mode happen?
+  freshInteractionId =
+    ifImpureConv fresh (patternViolation alwaysUnblock)
+  -- TODO: does the pure mode happen?
+  modifyInteractionPoints f =
+    ifImpureConv (stInteractionPoints `modifyTCLens` f) (patternViolation alwaysUnblock)
 
 -- | Register an interaction point during scope checking.
 --   If there is no interaction id yet, create one.
@@ -605,7 +608,7 @@ connectInteractionPoint
   :: MonadInteractionPoints m
   => InteractionId -> MetaId -> m ()
 connectInteractionPoint ii mi = do
-  ipCl <- asksTC envClause
+  ipCl <- viewTC eClause
   m <- useR stInteractionPoints
   let ip = InteractionPoint { ipRange = __IMPOSSIBLE__, ipMeta = Just mi, ipSolved = False, ipClause = ipCl, ipBoundary = IPBoundary mempty }
   -- The interaction point needs to be present already, we just set the meta.
