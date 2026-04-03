@@ -23,8 +23,8 @@ primitive
   primShowNat        : Nat → String
 
 {-# COMPILE JS primStringUncons = function(x) {
-   if (x === "") { return z_jAgda_Agda_Builtin_Maybe["Maybe"]["nothing"]; };
-   return z_jAgda_Agda_Builtin_Maybe["Maybe"]["just"](z_jAgda_Agda_Builtin_Sigma["_,_"](x.charAt(0))(x.slice(1)));
+   if (x === "") { return z_jAgda_Agda_Builtin_Maybe["module Maybe"]["nothing"]; };
+   return z_jAgda_Agda_Builtin_Maybe["module Maybe"]["just"](z_jAgda_Agda_Builtin_Sigma["_,_"](x.charAt(0))(x.slice(1)));
    }
  #-}
 {-# COMPILE JS primStringToList = function(x) { return x.split(""); } #-}
