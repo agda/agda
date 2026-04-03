@@ -1,0 +1,949 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="annot"><span class="hs-comment">-- | Extract used definitions from terms.</span></span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html"><span class="hs-identifier">Agda.Syntax.Internal.Defs</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html"><span class="hs-identifier">Agda.Syntax.Internal</span></a></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.ExpandCase.html"><span class="hs-identifier">Agda.Utils.ExpandCase</span></a></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.StrictEndo.html"><span class="hs-identifier">Agda.Utils.StrictEndo</span></a></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="annot"><span class="hs-comment">-- | Get list of definitions, throw an error if any metavariable is encountered.</span></span><span>
+</span><span id="line-15"></span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#getDefListNoMetas"><span class="hs-identifier hs-type">getDefListNoMetas</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-16"></span><span id="getDefListNoMetas"><span class="annot"><span class="annottext">getDefListNoMetas :: Term -&gt; [QName]
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefListNoMetas"><span class="hs-identifier hs-var hs-var">getDefListNoMetas</span></a></span></span><span> </span><span id="local-6989586621681731449"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681731449"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-17"></span><span>  </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term)
+-&gt; (QName -&gt; Endo [QName]) -&gt; Term -&gt; Endo [QName]
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Term -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="annot"><span class="annottext">MetaId
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe Term
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621681731452"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681731452"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">([QName] -&gt; [QName]) -&gt; Endo [QName]
+forall a. (a -&gt; a) -&gt; Endo a
+</span><a href="Agda.Utils.StrictEndo.html#Endo"><span class="hs-identifier hs-var">Endo</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681731454"><span class="annot"><span class="annottext">[QName]
+</span><a href="#local-6989586621681731454"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681731452"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">QName -&gt; [QName] -&gt; [QName]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">[QName]
+</span><a href="#local-6989586621681731454"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681731449"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Endo [QName] -&gt; [QName] -&gt; [QName]
+forall a. Endo a -&gt; a -&gt; a
+</span><a href="Agda.Utils.StrictEndo.html#appEndo"><span class="hs-operator hs-var">`appEndo`</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- | Getting the used definitions.</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- Note: in contrast to 'Agda.Syntax.Internal.Generic.foldTerm'</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- @getDefs@ also collects from sorts in terms.</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- Thus, this is not an instance of @foldTerm@.</span><span>
+</span><span id="line-24"></span><span class="hs-keyword">class</span><span> </span><span id="GetDefs"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-var">GetDefs</span></a></span></span><span> </span><span id="local-6989586621681731369"><span class="annot"><a href="#local-6989586621681731369"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-comment">-- | @getDefs lookup emb a@ extracts all used definitions</span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-comment">--   (functions, data/record types) from @a@, embedded into a monoid via @emb@.</span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-comment">--   Instantiations of meta variables are obtained via @lookup@.</span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-comment">--   Typical monoid instances would be @Endo [QName]@ or @Set QName@. Do not use @[QName]@</span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-comment">--   because of obvious quadratic slowdown.</span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-comment">--   Note that @emb@ can also choose to discard a used definition</span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-comment">--   by mapping to the unit of the monoid.</span><span>
+</span><span id="line-34"></span><span>  </span><span id="getDefs"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-type">getDefs</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621681731368"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621681731368"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.ExpandCase.html#ExpandCase"><span class="hs-identifier hs-type">ExpandCase</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731368"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#MetaId"><span class="hs-identifier hs-type">MetaId</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Abstract.Name.html#QName"><span class="hs-identifier hs-type">QName</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681731368"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681731369"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681731368"><span class="hs-identifier hs-type">m</span></a></span></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-comment">-- {-# INLINE getDefs #-}</span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-comment">-- default getDefs ::</span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-comment">--      (Foldable f, GetDefs b, f b ~ a, Monoid m, ExpandCase m)</span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-comment">--   =&gt; (MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m</span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-comment">-- getDefs ms ds = foldMap (getDefs ms ds)</span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Clause"><span class="hs-identifier hs-type">Clause</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-43"></span><span>  </span><span id="local-6989586621681731466"><span class="annot"><span class="annottext">getDefs :: forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Clause -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span id="local-6989586621681731467"><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731467"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681731468"><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731468"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span id="local-6989586621681731469"><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621681731469"><span class="hs-identifier hs-var">cl</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-44"></span><span>    </span><span class="annot"><span class="annottext">((m -&gt; Result m) -&gt; Result m) -&gt; m
+forall a. ExpandCase a =&gt; ((a -&gt; Result a) -&gt; Result a) -&gt; a
+</span><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-var">expand</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681731471"><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731471"><span class="hs-identifier hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731471"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Maybe Term -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Maybe Term -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731467"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731468"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Clause -&gt; Maybe Term
+</span><a href="Agda.Syntax.Internal.html#clauseBody"><span class="hs-identifier hs-var">clauseBody</span></a></span><span> </span><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621681731469"><span class="hs-identifier hs-var">cl</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-47"></span><span>  </span><span id="local-6989586621681731527"><span class="annot"><span class="annottext">getDefs :: forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Term -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span id="local-6989586621681731528"><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731528"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681731529"><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731529"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span id="local-6989586621681731530"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681731530"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((m -&gt; Result m) -&gt; Result m) -&gt; m
+forall a. ExpandCase a =&gt; ((a -&gt; Result a) -&gt; Result a) -&gt; a
+</span><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-var">expand</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681731531"><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731531"><span class="hs-identifier hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681731530"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-48"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Def"><span class="hs-identifier hs-type">Def</span></a></span><span> </span><span id="local-6989586621681731533"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681731533"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681731534"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681731534"><span class="hs-identifier hs-var">vs</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731531"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731529"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681731533"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">m -&gt; m -&gt; m
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Elims -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Elims -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731528"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731529"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681731534"><span class="hs-identifier hs-var">vs</span></a></span><span>
+</span><span id="line-49"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Con"><span class="hs-identifier hs-type">Con</span></a></span><span> </span><span class="annot"><span class="annottext">ConHead
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ConInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681731536"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681731536"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731531"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Elims -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Elims -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731528"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731529"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681731536"><span class="hs-identifier hs-var">vs</span></a></span><span>
+</span><span id="line-50"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Lit"><span class="hs-identifier hs-type">Lit</span></a></span><span> </span><span id="local-6989586621681731538"><span class="annot"><span class="annottext">Literal
+</span><a href="#local-6989586621681731538"><span class="hs-identifier hs-var">l</span></a></span></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731531"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-51"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span id="local-6989586621681731540"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681731540"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681731541"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681731541"><span class="hs-identifier hs-var">vs</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731531"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Elims -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Elims -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731528"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731529"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681731541"><span class="hs-identifier hs-var">vs</span></a></span><span>
+</span><span id="line-52"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Lam"><span class="hs-identifier hs-type">Lam</span></a></span><span> </span><span class="annot"><span class="annottext">ArgInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681731543"><span class="annot"><span class="annottext">Abs Term
+</span><a href="#local-6989586621681731543"><span class="hs-identifier hs-var">v</span></a></span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731531"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Abs Term -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Abs Term -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731528"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731529"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Abs Term
+</span><a href="#local-6989586621681731543"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-53"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Pi"><span class="hs-identifier hs-type">Pi</span></a></span><span> </span><span id="local-6989586621681731545"><span class="annot"><span class="annottext">Dom Type
+</span><a href="#local-6989586621681731545"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681731546"><span class="annot"><span class="annottext">Abs Type
+</span><a href="#local-6989586621681731546"><span class="hs-identifier hs-var">b</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731531"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Dom Type -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Dom Type -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731528"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731529"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Dom Type
+</span><a href="#local-6989586621681731545"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">m -&gt; m -&gt; m
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Abs Type -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Abs Type -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731528"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731529"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Abs Type
+</span><a href="#local-6989586621681731546"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-54"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Sort"><span class="hs-identifier hs-type">Sort</span></a></span><span> </span><span id="local-6989586621681731548"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681731548"><span class="hs-identifier hs-var">s</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731531"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Sort -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Sort -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731528"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731529"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681731548"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-55"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Level"><span class="hs-identifier hs-type">Level</span></a></span><span> </span><span id="local-6989586621681731550"><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681731550"><span class="hs-identifier hs-var">l</span></a></span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731531"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Level -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Level -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731528"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731529"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681731550"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-56"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#MetaV"><span class="hs-identifier hs-type">MetaV</span></a></span><span> </span><span id="local-6989586621681731552"><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681731552"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681731553"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681731553"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731531"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; MetaId -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; MetaId -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731528"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731529"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681731552"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">m -&gt; m -&gt; m
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Elims -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Elims -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731528"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731529"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681731553"><span class="hs-identifier hs-var">vs</span></a></span><span>
+</span><span id="line-57"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#DontCare"><span class="hs-identifier hs-type">DontCare</span></a></span><span> </span><span id="local-6989586621681731555"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681731555"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731531"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Term -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Term -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731528"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731529"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681731555"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-58"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Dummy"><span class="hs-identifier hs-type">Dummy</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731531"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#MetaId"><span class="hs-identifier hs-type">MetaId</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-61"></span><span>  </span><span id="local-6989586621681731563"><span class="annot"><span class="annottext">getDefs :: forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; MetaId -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span id="local-6989586621681731564"><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731564"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681731565"><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731565"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span id="local-6989586621681731566"><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681731566"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Maybe Term -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Maybe Term -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731564"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731565"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731564"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681731566"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-64"></span><span>  </span><span id="local-6989586621681731579"><span class="annot"><span class="annottext">getDefs :: forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Type -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span id="local-6989586621681731580"><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731580"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681731581"><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731581"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span id="local-6989586621681731582"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621681731582"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((m -&gt; Result m) -&gt; Result m) -&gt; m
+forall a. ExpandCase a =&gt; ((a -&gt; Result a) -&gt; Result a) -&gt; a
+</span><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-var">expand</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681731583"><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731583"><span class="hs-identifier hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621681731582"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-65"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#El"><span class="hs-identifier hs-type">El</span></a></span><span> </span><span id="local-6989586621681731585"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681731585"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681731586"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681731586"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731583"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Sort -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Sort -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731580"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731581"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681731585"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">m -&gt; m -&gt; m
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Term -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Term -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731580"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731581"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681731586"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Sort"><span class="hs-identifier hs-type">Sort</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-68"></span><span>  </span><span id="local-6989586621681731634"><span class="annot"><span class="annottext">getDefs :: forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Sort -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span id="local-6989586621681731635"><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731635"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681731636"><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731636"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span id="local-6989586621681731637"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681731637"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((m -&gt; Result m) -&gt; Result m) -&gt; m
+forall a. ExpandCase a =&gt; ((a -&gt; Result a) -&gt; Result a) -&gt; a
+</span><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-var">expand</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681731638"><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731638"><span class="hs-identifier hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681731637"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Univ"><span class="hs-identifier hs-type">Univ</span></a></span><span> </span><span class="annot"><span class="annottext">Univ
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681731640"><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681731640"><span class="hs-identifier hs-var">l</span></a></span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731638"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Level -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Level -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731635"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731636"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681731640"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-70"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Inf"><span class="hs-identifier hs-type">Inf</span></a></span><span> </span><span class="annot"><span class="annottext">Univ
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-identifier">_</span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731638"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-71"></span><span>    </span><span class="annot"><span class="annottext">Sort
+</span><a href="Agda.Syntax.Internal.html#SizeUniv"><span class="hs-identifier hs-var">SizeUniv</span></a></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731638"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-72"></span><span>    </span><span class="annot"><span class="annottext">Sort
+</span><a href="Agda.Syntax.Internal.html#LockUniv"><span class="hs-identifier hs-var">LockUniv</span></a></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731638"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-73"></span><span>    </span><span class="annot"><span class="annottext">Sort
+</span><a href="Agda.Syntax.Internal.html#LevelUniv"><span class="hs-identifier hs-var">LevelUniv</span></a></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731638"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-74"></span><span>    </span><span class="annot"><span class="annottext">Sort
+</span><a href="Agda.Syntax.Internal.html#IntervalUniv"><span class="hs-identifier hs-var">IntervalUniv</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731638"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-75"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#PiSort"><span class="hs-identifier hs-type">PiSort</span></a></span><span> </span><span id="local-6989586621681731647"><span class="annot"><span class="annottext">Dom' Term Term
+</span><a href="#local-6989586621681731647"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681731648"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681731648"><span class="hs-identifier hs-var">s1</span></a></span></span><span> </span><span id="local-6989586621681731649"><span class="annot"><span class="annottext">Abs Sort
+</span><a href="#local-6989586621681731649"><span class="hs-identifier hs-var">s2</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731638"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Dom' Term Term -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Dom' Term Term -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731635"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731636"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Dom' Term Term
+</span><a href="#local-6989586621681731647"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">m -&gt; m -&gt; m
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Sort -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Sort -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731635"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731636"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681731648"><span class="hs-identifier hs-var">s1</span></a></span><span> </span><span class="annot"><span class="annottext">m -&gt; m -&gt; m
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Abs Sort -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Abs Sort -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731635"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731636"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Abs Sort
+</span><a href="#local-6989586621681731649"><span class="hs-identifier hs-var">s2</span></a></span><span>
+</span><span id="line-76"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#FunSort"><span class="hs-identifier hs-type">FunSort</span></a></span><span> </span><span id="local-6989586621681731651"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681731651"><span class="hs-identifier hs-var">s1</span></a></span></span><span> </span><span id="local-6989586621681731652"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681731652"><span class="hs-identifier hs-var">s2</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731638"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Sort -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Sort -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731635"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731636"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681731651"><span class="hs-identifier hs-var">s1</span></a></span><span> </span><span class="annot"><span class="annottext">m -&gt; m -&gt; m
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Sort -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Sort -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731635"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731636"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681731652"><span class="hs-identifier hs-var">s2</span></a></span><span>
+</span><span id="line-77"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#UnivSort"><span class="hs-identifier hs-type">UnivSort</span></a></span><span> </span><span id="local-6989586621681731654"><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681731654"><span class="hs-identifier hs-var">s</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731638"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Sort -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Sort -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731635"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731636"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Sort
+</span><a href="#local-6989586621681731654"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-78"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#MetaS"><span class="hs-identifier hs-type">MetaS</span></a></span><span> </span><span id="local-6989586621681731656"><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681731656"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621681731657"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681731657"><span class="hs-identifier hs-var">es</span></a></span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731638"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; MetaId -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; MetaId -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731635"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731636"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId
+</span><a href="#local-6989586621681731656"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">m -&gt; m -&gt; m
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Elims -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Elims -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731635"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731636"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681731657"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-79"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#DefS"><span class="hs-identifier hs-type">DefS</span></a></span><span> </span><span id="local-6989586621681731659"><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681731659"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681731660"><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681731660"><span class="hs-identifier hs-var">es</span></a></span></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731638"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731636"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">QName
+</span><a href="#local-6989586621681731659"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">m -&gt; m -&gt; m
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Elims -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Elims -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731635"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731636"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Elims
+</span><a href="#local-6989586621681731660"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-80"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#DummyS"><span class="hs-identifier hs-type">DummyS</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731638"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Level"><span class="hs-identifier hs-type">Level</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-83"></span><span>  </span><span id="local-6989586621681731671"><span class="annot"><span class="annottext">getDefs :: forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Level -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span id="local-6989586621681731672"><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731672"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681731673"><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731673"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span id="local-6989586621681731674"><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681731674"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((m -&gt; Result m) -&gt; Result m) -&gt; m
+forall a. ExpandCase a =&gt; ((a -&gt; Result a) -&gt; Result a) -&gt; a
+</span><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-var">expand</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681731675"><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731675"><span class="hs-identifier hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Level
+</span><a href="#local-6989586621681731674"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="hs-keyword">of</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Max"><span class="hs-identifier hs-type">Max</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681731677"><span class="annot"><span class="annottext">[PlusLevel' Term]
+</span><a href="#local-6989586621681731677"><span class="hs-identifier hs-var">ls</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731675"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; [PlusLevel' Term] -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; [PlusLevel' Term] -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731672"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731673"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">[PlusLevel' Term]
+</span><a href="#local-6989586621681731677"><span class="hs-identifier hs-var">ls</span></a></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#PlusLevel"><span class="hs-identifier hs-type">PlusLevel</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-86"></span><span>  </span><span id="local-6989586621681731686"><span class="annot"><span class="annottext">getDefs :: forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; PlusLevel' Term -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span id="local-6989586621681731687"><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731687"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681731688"><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731688"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span id="local-6989586621681731689"><span class="annot"><span class="annottext">PlusLevel' Term
+</span><a href="#local-6989586621681731689"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((m -&gt; Result m) -&gt; Result m) -&gt; m
+forall a. ExpandCase a =&gt; ((a -&gt; Result a) -&gt; Result a) -&gt; a
+</span><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-var">expand</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681731690"><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731690"><span class="hs-identifier hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">PlusLevel' Term
+</span><a href="#local-6989586621681731689"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="hs-keyword">of</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Plus"><span class="hs-identifier hs-type">Plus</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681731692"><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681731692"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731690"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Term -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Term -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731687"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731688"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Term
+</span><a href="#local-6989586621681731692"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- collection instances</span><span>
+</span><span id="line-89"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681731376"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731376"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681731376"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-pragma hs-type">getDefs</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-91"></span><span>  </span><span id="local-6989586621681731702"><span class="annot"><span class="annottext">getDefs :: forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Maybe a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span id="local-6989586621681731703"><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731703"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681731704"><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731704"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span id="local-6989586621681731705"><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621681731705"><span class="hs-identifier hs-var">ma</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((m -&gt; Result m) -&gt; Result m) -&gt; m
+forall a. ExpandCase a =&gt; ((a -&gt; Result a) -&gt; Result a) -&gt; a
+</span><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-var">expand</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681731706"><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731706"><span class="hs-identifier hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621681731705"><span class="hs-identifier hs-var">ma</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-92"></span><span>    </span><span class="annot"><span class="annottext">Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731706"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-93"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681731707"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731707"><span class="hs-identifier hs-var">a</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731706"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731703"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731704"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731707"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681731395"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731395"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681731395"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-96"></span><span>  </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-pragma hs-type">getDefs</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-97"></span><span>  </span><span id="local-6989586621681731719"><span class="annot"><span class="annottext">getDefs :: forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; [a] -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span id="local-6989586621681731720"><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731720"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681731721"><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731721"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; m
+</span><a href="#local-6989586621681731722"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-98"></span><span>    </span><span id="local-6989586621681731722"><span class="annot"><span class="annottext">go :: [a] -&gt; m
+</span><a href="#local-6989586621681731722"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621681731723"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681731723"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((m -&gt; Result m) -&gt; Result m) -&gt; m
+forall a. ExpandCase a =&gt; ((a -&gt; Result a) -&gt; Result a) -&gt; a
+</span><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-var">expand</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681731724"><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731724"><span class="hs-identifier hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681731723"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-99"></span><span>      </span><span class="hs-special">[</span><span class="hs-special">]</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731724"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-100"></span><span>      </span><span id="local-6989586621681731725"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731725"><span class="hs-identifier hs-var">a</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621681731726"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681731726"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731724"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731720"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731721"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731725"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">m -&gt; m -&gt; m
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; m
+</span><a href="#local-6989586621681731722"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681731726"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681731394"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731394"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Elim%27"><span class="hs-identifier hs-type">Elim'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731394"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-103"></span><span>  </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-pragma hs-type">getDefs</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-104"></span><span>  </span><span id="local-6989586621681731749"><span class="annot"><span class="annottext">getDefs :: forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Elim' a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span id="local-6989586621681731750"><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731750"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681731751"><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731751"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span id="local-6989586621681731752"><span class="annot"><span class="annottext">Elim' a
+</span><a href="#local-6989586621681731752"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((m -&gt; Result m) -&gt; Result m) -&gt; m
+forall a. ExpandCase a =&gt; ((a -&gt; Result a) -&gt; Result a) -&gt; a
+</span><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-var">expand</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681731753"><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731753"><span class="hs-identifier hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Elim' a
+</span><a href="#local-6989586621681731752"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-105"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Apply"><span class="hs-identifier hs-type">Apply</span></a></span><span> </span><span id="local-6989586621681731755"><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621681731755"><span class="hs-identifier hs-var">t</span></a></span></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731753"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Arg a -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Arg a -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731750"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731751"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621681731755"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-106"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#Proj"><span class="hs-identifier hs-type">Proj</span></a></span><span> </span><span class="annot"><span class="annottext">ProjOrigin
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">QName
+</span><span class="hs-identifier">_</span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731753"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-107"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.Elim.html#IApply"><span class="hs-identifier hs-type">IApply</span></a></span><span> </span><span id="local-6989586621681731758"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731758"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621681731759"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731759"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681731760"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731760"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731753"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731750"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731751"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731758"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">m -&gt; m -&gt; m
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731750"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731751"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731759"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">m -&gt; m -&gt; m
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731750"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731751"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731760"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681731416"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731416"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731416"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-110"></span><span>  </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-pragma hs-type">getDefs</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-111"></span><span>  </span><span id="local-6989586621681731769"><span class="annot"><span class="annottext">getDefs :: forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Arg a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span id="local-6989586621681731770"><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731770"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681731771"><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731771"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span id="local-6989586621681731772"><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621681731772"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((m -&gt; Result m) -&gt; Result m) -&gt; m
+forall a. ExpandCase a =&gt; ((a -&gt; Result a) -&gt; Result a) -&gt; a
+</span><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-var">expand</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681731773"><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731773"><span class="hs-identifier hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Arg a
+</span><a href="#local-6989586621681731772"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-112"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Common.html#Arg"><span class="hs-identifier hs-type">Arg</span></a></span><span> </span><span class="annot"><span class="annottext">ArgInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681731775"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731775"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731773"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731770"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731771"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731775"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681731393"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731393"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Dom"><span class="hs-identifier hs-type">Dom</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731393"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-115"></span><span>  </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-pragma hs-type">getDefs</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-116"></span><span>  </span><span id="local-6989586621681731784"><span class="annot"><span class="annottext">getDefs :: forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Dom a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span id="local-6989586621681731785"><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731785"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681731786"><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731786"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span id="local-6989586621681731787"><span class="annot"><span class="annottext">Dom a
+</span><a href="#local-6989586621681731787"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((m -&gt; Result m) -&gt; Result m) -&gt; m
+forall a. ExpandCase a =&gt; ((a -&gt; Result a) -&gt; Result a) -&gt; a
+</span><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-var">expand</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681731788"><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731788"><span class="hs-identifier hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Dom a
+</span><a href="#local-6989586621681731787"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-117"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Dom"><span class="hs-identifier hs-type">Dom</span></a></span><span> </span><span class="annot"><span class="annottext">ArgInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Maybe NamedName
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Maybe Term
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Maybe (RewDom' Term)
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681731790"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731790"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731788"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731785"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731786"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731790"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-118"></span><span>
+</span><span id="line-119"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681731392"><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731392"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.html#Abs"><span class="hs-identifier hs-type">Abs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731392"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-120"></span><span>  </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-pragma hs-type">getDefs</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-121"></span><span>  </span><span id="local-6989586621681731802"><span class="annot"><span class="annottext">getDefs :: forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Abs a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span id="local-6989586621681731803"><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731803"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681731804"><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731804"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span id="local-6989586621681731805"><span class="annot"><span class="annottext">Abs a
+</span><a href="#local-6989586621681731805"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((m -&gt; Result m) -&gt; Result m) -&gt; m
+forall a. ExpandCase a =&gt; ((a -&gt; Result a) -&gt; Result a) -&gt; a
+</span><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-var">expand</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681731806"><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731806"><span class="hs-identifier hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Abs a
+</span><a href="#local-6989586621681731805"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-122"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#Abs"><span class="hs-identifier hs-type">Abs</span></a></span><span> </span><span class="annot"><span class="annottext">ArgName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681731808"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731808"><span class="hs-identifier hs-var">t</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731806"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731803"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731804"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731808"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-123"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Internal.html#NoAbs"><span class="hs-identifier hs-type">NoAbs</span></a></span><span> </span><span class="annot"><span class="annottext">ArgName
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621681731810"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731810"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731806"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731803"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731804"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731810"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681731429"><span id="local-6989586621681731430"><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731429"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681731430"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621681731429"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621681731430"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-pragma hs-type">getDefs</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-127"></span><span>  </span><span id="local-6989586621681731826"><span class="annot"><span class="annottext">getDefs :: forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; (a, b) -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span id="local-6989586621681731827"><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731827"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681731828"><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731828"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span id="local-6989586621681731829"><span class="annot"><span class="annottext">(a, b)
+</span><a href="#local-6989586621681731829"><span class="hs-identifier hs-var">ab</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((m -&gt; Result m) -&gt; Result m) -&gt; m
+forall a. ExpandCase a =&gt; ((a -&gt; Result a) -&gt; Result a) -&gt; a
+</span><a href="Agda.Utils.ExpandCase.html#expand"><span class="hs-identifier hs-var">expand</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621681731830"><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731830"><span class="hs-identifier hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">(a, b)
+</span><a href="#local-6989586621681731829"><span class="hs-identifier hs-var">ab</span></a></span><span> </span><span class="hs-keyword">of</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681731831"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731831"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621681731832"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681731832"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; Result m
+</span><a href="#local-6989586621681731830"><span class="hs-identifier hs-var">ret</span></a></span><span> </span><span class="annot"><span class="annottext">(m -&gt; Result m) -&gt; m -&gt; Result m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731827"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731828"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681731831"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">m -&gt; m -&gt; m
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; b -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; b -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731827"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731828"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681731832"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.html#Telescope"><span class="hs-identifier hs-type">Telescope</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-130"></span><span>  </span><span id="local-6989586621681731845"><span class="annot"><span class="annottext">getDefs :: forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; Telescope -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span id="local-6989586621681731846"><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731846"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621681731847"><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731847"><span class="hs-identifier hs-var">ds</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(MetaId -&gt; Maybe Term)
+-&gt; (QName -&gt; m) -&gt; [Dom (ArgName, Type)] -&gt; m
+forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term)
+-&gt; (QName -&gt; m) -&gt; [Dom (ArgName, Type)] -&gt; m
+forall a m.
+(GetDefs a, Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; a -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var">getDefs</span></a></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><a href="#local-6989586621681731846"><span class="hs-identifier hs-var">ms</span></a></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><a href="#local-6989586621681731847"><span class="hs-identifier hs-var">ds</span></a></span><span> </span><span class="annot"><span class="annottext">([Dom (ArgName, Type)] -&gt; m)
+-&gt; (Telescope -&gt; [Dom (ArgName, Type)]) -&gt; Telescope -&gt; m
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Telescope -&gt; [Dom (ArgName, Type)]
+forall t. Tele (Dom t) -&gt; [Dom (ArgName, t)]
+</span><a href="Agda.Syntax.Internal.html#telToList"><span class="hs-identifier hs-var">telToList</span></a></span><span>
+</span><span id="line-131"></span><span>
+</span><span id="line-132"></span><span class="hs-comment">-- no defs here</span><span>
+</span><span id="line-133"></span><span class="hs-keyword">instance</span><span> </span><span class="hs-pragma">{-# OVERLAPPING</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="annot"><a href="Agda.Syntax.Internal.Defs.html#GetDefs"><span class="hs-identifier hs-type">GetDefs</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-134"></span><span>  </span><span id="local-6989586621681731854"><span class="annot"><span class="annottext">getDefs :: forall m.
+(Monoid m, ExpandCase m) =&gt;
+(MetaId -&gt; Maybe Term) -&gt; (QName -&gt; m) -&gt; ArgName -&gt; m
+</span><a href="Agda.Syntax.Internal.Defs.html#getDefs"><span class="hs-identifier hs-var hs-var hs-var">getDefs</span></a></span></span><span> </span><span class="annot"><span class="annottext">MetaId -&gt; Maybe Term
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">QName -&gt; m
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ArgName
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-135"></span></pre></body></html>
