@@ -10,6 +10,8 @@ module Agda.TypeChecking.Rewriting.NonLinPattern where
 
 import Prelude hiding ( null )
 
+import Data.Foldable (Foldable(fold))
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Defs
@@ -33,9 +35,9 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import qualified Agda.Utils.SmallSet as SmallSet
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.VarSet (VarSet)
-import Data.Foldable (Foldable(fold))
 
 -- | Turn a term into a non-linear pattern, treating the
 --   free variables as pattern variables.
@@ -124,12 +126,17 @@ instance PatternFrom Term NLPat where
     t <- abortIfBlocked t
     etaRecord <- isEtaRecordType t
     r1 <- maxDefSing r1 <$> isDefSing k0 k1 t
-    v <- unLevel =<< abortIfBlocked v
+    -- We need to handle the primNoMatch primitive specially so need to stop it
+    -- reducing away
+    v <- modifyAllowedReductions (SmallSet.delete NoMatchReductions) $
+      unLevel =<< abortIfBlocked v
     reportSDoc "rewriting.build" 60 $ sep
       [ "building a pattern from term v = " <+> prettyTCM v
       , " of type " <+> prettyTCM t
       ]
     pview <- pathViewAsPi'whnf
+    nomatch <- getPrimitive' builtinNoMatch
+    let isNoMatch f = maybe False ((==) f . primFunName) nomatch
     let done = blockOnMetasIn v >> return (PTerm v)
     case (unEl t , stripDontCare v) of
       (Pi a b , _) -> do
@@ -176,6 +183,10 @@ instance PatternFrom Term NLPat where
         PDef (conName c) <$> patternFrom r1 r1 k0 k1 (ct , Con c ci) (map Apply vs)
       (_ , Lam{})   -> errNotPi t
       (_ , Lit{})   -> done
+      -- Terms wrapped in the primNoMatch primitive are converted to PTerms
+      -- (i.e. rather than matching, we will just test conversion)
+      (_ , Def f (l : a : Apply x : es)) | isNoMatch f ->
+        return $ PTerm $ applyE (unArg x) es
       (_ , Def f es) | isAlwaysSing r1 -> done
       (_ , Def f es) -> do
         Def lsuc [] <- primLevelSuc
