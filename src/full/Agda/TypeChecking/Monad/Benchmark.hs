@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# LANGUAGE NumDecimals #-}
 
 -- | Measure CPU time for individual phases of the Agda pipeline.
 
@@ -14,22 +15,22 @@ module Agda.TypeChecking.Monad.Benchmark
   ) where
 
 import Prelude hiding (print)
-import Control.Monad.IO.Class (liftIO)
-import Agda.Utils.FileName (filePath)
 
+import Data.Foldable (foldMap')
 import Data.Function (on)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Monoid (Sum(..), getSum)
+import qualified Data.Text.Lazy as TL
 
 import Agda.Benchmarking
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.State (topLevelModuleNameWithSourceFileCompleter)
+import Agda.TypeChecking.Monad.Imports (getVisitedModule)
 
 import qualified Agda.Utils.Benchmark as B
-import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.Trie as Trie
+import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Monad
 import Agda.Utils.Time (CPUTime(..), fromMilliseconds)
 import Agda.Syntax.Common.Pretty
@@ -84,14 +85,13 @@ instance Pretty ModuleThroughput where
     text (prettyShow $ mtModuleName mt) <+>
     parens
       (hsep
-        [ text (show (mtLineCount mt) ++ " lines") <> comma
-        , text (show (linesPerSecond mt) ++ " lines/s")
+        [ (text (show (mtLineCount mt)) <+> "lines") <> comma
+        , text (show (linesPerSecond mt)) <+> "lines/s"
         ])
 
 moduleThroughputDoc :: Benchmark -> TCM Doc
 moduleThroughputDoc b = do
-  moduleCompleter <- topLevelModuleNameWithSourceFileCompleter
-  stats           <- mapM (loadModuleThroughput moduleCompleter) (moduleRows b)
+  stats <- mapM loadModuleThroughput (moduleRows b)
   pure $ renderModuleThroughput stats
 
 renderModuleThroughput :: [ModuleThroughput] -> Doc
@@ -116,7 +116,7 @@ moduleRows =
         _             -> Nothing
 
 -- | Flatten benchmark timings into entries ordered by aggregate time,
---   skip entries with time below 10 ms.
+--   skipping entries with aggregate time below 10 ms.
 --   Each entry stores:
 --   * the account path
 --   * time stored at this node
@@ -134,18 +134,19 @@ orderedBenchmarkEntries =
 aggregateNode :: Ord a => Trie.Trie a CPUTime -> (CPUTime, CPUTime)
 aggregateNode t =
   ( fromMaybe 0 $ Trie.lookup [] t
-  , getSum $ foldMap Sum t
+  , getSum $ foldMap' Sum t
   )
 
 loadModuleThroughput
-  :: (TopLevelModuleName -> TopLevelModuleNameWithSourceFile)
-  -> (TopLevelModuleName, CPUTime)
+  :: (TopLevelModuleName, CPUTime)
   -> TCM ModuleThroughput
-loadModuleThroughput complete (mName, totalTime) = do
-  let given = complete mName
-  path <- srcFilePath (fileModuleSourceFile given)
-  contents <- liftIO $ UTF8.readFile (filePath path)
-  let lineCount = length (lines contents)
+loadModuleThroughput (mName, totalTime) = do
+  mi <- getVisitedModule mName >>= \case
+    Just mi -> pure mi
+    -- Module throughput is rendered only for modules already present in the benchmark output,
+    -- so the corresponding module info should already be in the visited-module cache.
+    Nothing -> __IMPOSSIBLE__
+  let lineCount = length (lines (TL.unpack (iSource (miInterface mi))))
   pure ModuleThroughput
     { mtModuleName = mName
     , mtTime = totalTime
@@ -153,7 +154,7 @@ loadModuleThroughput complete (mName, totalTime) = do
     }
 
 picosecondsPerSecond :: Integer
-picosecondsPerSecond = 1000000000000
+picosecondsPerSecond = 1e12
 
 linesPerSecond :: ModuleThroughput -> Integer
 linesPerSecond ModuleThroughput{ mtLineCount, mtTime = CPUTime ps }
