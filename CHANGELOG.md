@@ -471,6 +471,9 @@ Backends
   `UnknownJSPrimitive` warning
   (see [#8352](https://github.com/agda/agda/issues/8352)).
 
+* The JS backend's CJS & AMD module styles are now deprecated.
+  Please use ES6 module style instead (`--js-es6`).
+
 Issues closed
 -------------
 
