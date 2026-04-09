@@ -260,7 +260,11 @@ refine force ii e = do
   -- so that the new questionmarks appended to @e@
   -- can receive a 'Range' relatively correct to the ranges
   -- of the questionmarks withing @e@.
-  let range = getRange e
+  -- If @e@ has no range information, fall back to the current interaction
+  -- point range so appended metas still get a real file range.
+  holeRange <- getInteractionRange ii
+  let exprRange = getRange e
+      range     = if null exprRange then holeRange else exprRange
   scope <- getInteractionScope ii
   -- We try to append up to 10 meta variables
   tryRefine 10 range scope e
