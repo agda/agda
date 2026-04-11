@@ -1691,18 +1691,29 @@ Only if the buffer is unmodified, and only if there is anything to load."
              "Cmd_load_highlighting_info"
              (agda2-string-quote (buffer-file-name)))))
 
-(defun agda2-literate-p ()
-  "Is the current buffer a literate Agda buffer?"
-  (not (equal (file-name-extension (buffer-file-name)) "agda")))
+(defun agda2-file-type (&optional path)
+  "Determine the type of literate agda file based off of the file extension.
 
-(defmacro agda2--case (exp &rest branches) ;FIXME: Use `pcase' instead!
-  (declare (debug t) (indent 1))
-  (let ((s (make-symbol "v")))
-    `(let ((,s ,exp))
-       (cond
-         ,@(mapcar (lambda (branch)
-                     `((equal ,s ,(car branch)) ,@(cdr branch)))
-                   branches)))))
+If PATH is nil, use the filepath of the current buffer.
+
+Will return one of the following options:
+
+-- plain
+-- latex
+-- rst
+-- markdown
+-- org
+-- typst
+-- forestor"
+  (pcase (file-name-extension (or path (buffer-file-name)))
+    ("agda" 'plain)
+    ((or "lagda" "tex") 'latex)
+    ("rst" 'rst)
+    ("org" 'org)
+    ("md" 'markdown)
+    ("typ" 'typst)
+    ("tree" 'forestor)
+    (ext (error "Unknown agda file extension %s" ext))))
 
 (defun agda2-goals-action (goals)
   "Annotates the goals in the current buffer with text properties.
@@ -1714,66 +1725,113 @@ ways."
   (declare (agda2-command (list)))
   (agda2-forget-all-goals)
   (agda2-let
-      ((literate (agda2-literate-p))
-       stk
-       top
+      ((file-type (agda2-file-type))
+       (code-start-rx
+        (pcase file-type
+          ('latex
+           ;; We avoid matching '% \\begin{code}' to avoid creating
+           ;; interaction points in commented code blocks in TeX files.
+           ;; See issue #1331
+           (rx line-start (*? (not "%")) line-start (*? (not "%")) "\\begin{code}"))
+          ('org
+           (rx "#+begin_src" (+ blank) "agda2"))
+          ((or 'typst 'markdown)
+           (rx "```"))
+          ('forestor
+           (rx "\\agda{"))))
+       (code-end-rx
+        (pcase file-type
+          ('latex
+           (rx "\\end{code}"))
+          ('org
+           (rx "#+end_src"))
+          ((or 'typst 'markdown)
+           (rx "```"))
+          ;; Forestor uses } to close out code blocks,
+          ;; which requires special handling.
+          (_ (rx unmatchable))))
+       (comment-rx
+        (rx (or "{-" "-}")))
+       (string-end-rx
+        (rx (not "\\") "\""))
+       (char-end-rx
+        (rx (not "\\") "'"))
+       (code-rx
+        (rx (or
+             (submatch-n 1 "\"")
+             (submatch-n 1 "'")
+             ;; We want to make sure that we only match proper comments so that we don't
+             ;; stop lexing on identifiers like foo--bar.
+             (and (or bol (any "." "{" "}" "(" ")" ";" space)) (submatch-n 1 "--"))
+             ;; Similar idea: don't match ? inside of an identifier name.
+             (and (or bol (any "." "{" "}" "(" ")" ";" space))
+                  (submatch-n 1 "?")
+                  (or eol (any "." "{" "}" "(" ")" ";" space)))
+             (submatch-n 1 (and "{" (? (any "-" "!"))))
+             (submatch-n 1 (and (? "!") "}"))
+             (submatch-n 1 (regexp code-end-rx)))))
        ;; Don't run modification hooks: we don't want this function to
        ;; trigger agda2-abort-highlighting.
-       (inhibit-modification-hooks t))
-      ((delims() (re-search-forward "[?]\\|[{][-!]\\|[-!][}]\\|--\\|^%.*\\\\begin{code}\\|\\\\begin{code}\\|\\\\end{code}\\|```\\|\\#\\+begin_src agda2\\|\\#\\+end_src" nil t))
-       ;; is-proper checks whether string s (e.g. "?" or "--") is proper
-       ;; i.e., is not part of an identifier.
-       ;; comment-starter is true if s starts a comment (e.g. "--")
-       (is-proper (s comment-starter)
-          (save-excursion
-            (save-match-data
-              (backward-char (length s))
-              (unless (bolp) (backward-char 1))  ;; bolp = pointer at beginning of line
-              ;; Andreas, 2014-05-17 Issue 1132
-              ;; A questionmark can also follow immediately after a .
-              ;; for instance to be a place holder for a dot pattern.
-              (looking-at (concat "\\([.{}();]\\|^\\|\\s \\)"  ;; \\s = whitespace
-                                  (regexp-quote s)
-                                  (unless comment-starter
-                                    "\\([{}();]\\|$\\|\\s \\)"))))))
-       (make(p)  (agda2-make-goal p (point) (pop goals)))
-       (inside-comment() (and stk (null     (car stk))))
-       (inside-goal()    (and stk (integerp (car stk))))
-       (outside-code()   (and stk (eq (car stk) 'outside)))
-       (inside-code()    (not (outside-code)))
-       ;; inside a multi-line comment ignore everything but the multi-line comment markers
-       (safe-delims()
-          (if (inside-comment)
-               (re-search-forward "{-\\|-}" nil t)
-            (delims))))
+       (inhibit-modification-hooks t)
+       ;; Make sure that we don't use case-sensitive matching
+       ;; so that we can pick up on all capitalizations of #+BEGIN_SRC.
+       (case-fold-search t)
+       stk)
+      ((advance-to-code-block ()
+         (when code-start-rx (re-search-forward code-start-rx nil t)))
+       (advance-to-comment-end ()
+         (re-search-forward comment-rx nil t)
+         (pcase (match-string 0)
+           ("{-"
+            (push 'comment stk)
+            (advance-to-comment-end))
+           ("-}"
+            (when (eq 'comment (pop stk))
+              (advance-to-comment-end)))))
+       (advance-to-string-end ()
+         (re-search-forward string-end-rx nil t))
+       (advance-to-char-end ()
+         (re-search-forward char-end-rx nil t))
+       (end-of-code-block (str)
+         (pcase file-type
+           ('latex (equal str "\\end{code}"))
+           ('org (equal (downcase str) "#+end_src"))
+           ((or 'typst 'markdown) (equal str "```"))
+           ('forestor (and (equal str "}") (not (eq (car stk) 'bracket)))))))
     (save-excursion
-      ;; In literate mode we should start out in the "outside of code"
-      ;; state.
-      (if literate (push 'outside stk))
       (goto-char (point-min))
-      (while (and goals (safe-delims))
-        (agda2--case (match-string 0)
-          ("\\begin{code}"     (when (outside-code)               (pop stk)))
-          ("\\end{code}"       (when (not stk)                    (push 'outside stk)))
-          ("#+begin_src agda2" (when (outside-code)               (pop stk)))
-          ("#+end_src"         (when (not stk)                    (push 'outside stk)))
-          ("```"               (if   (outside-code)               (pop stk)
-                               (when (not stk)                    (push 'outside stk))))
-          ("--"                (when (and (not stk)
-                                          (is-proper "--" t))     (end-of-line)))
-          ("{-"                (when (and (inside-code)
-                                          (not (inside-goal)))    (push nil           stk)))
-          ("-}"                (when (inside-comment)             (pop stk)))
-          ("{!"                (when (and (inside-code)
-                                          (not (inside-comment))) (push (- (point) 2) stk)))
-          ("!}"                (when (inside-goal)
-                                 (setq top (pop stk))
-                                 (unless stk (make top))))
-          ("?"                 (progn
-                                 (when (and (not stk) (is-proper "?" nil))
-                                   (delete-char -1)
-                                   (insert "{!!}")
-                                   (make (- (point) 4))))))))))
+      ;; This code assumes that all delimiters in Agda code
+      ;; are properly matched, which may not hold if the user
+      ;; performs a slow load and then starts insert/deleting
+      ;; braces or quotes. However, this sort of problem is unavoidable
+      ;; with our current synchronization strategy (or lack thereof).
+      (advance-to-code-block)
+      (while (and goals (re-search-forward code-rx nil t))
+        (pcase (match-string 1)
+          ((pred end-of-code-block)
+           (advance-to-code-block))
+          ("\""
+           (advance-to-string-end))
+          ("'"
+           (advance-to-char-end))
+          ("{-"
+           (advance-to-comment-end))
+          ("--"
+           (end-of-line))
+          ("{!"
+           (push (- (point) 2) stk))
+          ("!}"
+           (let ((start (pop stk)))
+             (unless stk
+               (agda2-make-goal start (point) (pop goals)))))
+          ("?"
+           (delete-char -1)
+           (insert "{!!}")
+           (agda2-make-goal (- (point) 4) (point) (pop goals)))
+          ("{"
+           (push 'bracket stk))
+          ("}"
+           (pop stk)))))))
 
 (defun agda2-make-goal (p q n)
   "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean."
