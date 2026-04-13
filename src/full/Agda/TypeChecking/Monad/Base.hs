@@ -6715,8 +6715,12 @@ instance MonadBlock m => MonadBlock (ReaderT e m) where
   catchPatternErr h m = ReaderT $ \ e ->
     let run = flip runReaderT e in catchPatternErr (run . h) (run m)
 
-instance MonadFileId m => MonadFileId (BlockT m)
+instance MonadBlock m => MonadBlock (Strict.ReaderT e m) where
+  catchPatternErr h m = Strict.ReaderT (oneShot \e ->
+    let run = flip Strict.runReaderT e; {-# INLINE run #-}
+    in catchPatternErr (run . h) (run m))
 
+instance MonadFileId m => MonadFileId (BlockT m)
 ----------------------------------------------------------------------------------------------------
 -- * Type checking monad transformer
 ----------------------------------------------------------------------------------------------------

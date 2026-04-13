@@ -1,5 +1,5 @@
 
-{-# OPTIONS_GHC -Wunused-imports #-}
+-- {-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# LANGUAGE NondecreasingIndentation  #-}
 {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds -ddump-to-file #-}
@@ -57,7 +57,6 @@ import Agda.Interaction.Options (optFirstOrder, optErasure)
 
 import Agda.Utils.Either
 import Agda.Utils.Function
-import Agda.Utils.Lens
 import Agda.Utils.List (downFrom)
 import Agda.Utils.ListInf qualified as ListInf
 import Agda.Utils.Maybe
@@ -125,7 +124,7 @@ initOccursCheck m mv = modifyOccursCheckDefs . const =<<
        "initOccursCheck: we do not look into definitions"
      return Set.empty
    else do
-    mb <- asksTC envMutualBlock >>= \case
+    mb <- viewTC eMutualBlock >>= \case
       Nothing -> return Set.empty
       Just b  -> do
         ds <- mutualNames <$> lookupMutualBlock b
@@ -257,7 +256,7 @@ metaCheck m = do
       , "and quantity"
       , text . show $ getQuantity mmod
       ]
-    allowAssign <- asksTC envAssignMetas
+    allowAssign <- viewTC eAssignMetas
     -- Jesper, 2020-11-10: if we encounter a metavariable that is
     -- unusable because of its modality (e.g. irrelevant or erased) we
     -- try to *promote* the meta to the required modality, by creating
@@ -278,7 +277,7 @@ metaCheck m = do
           patternViolation $ unblockOnMeta m
     when (mvFrozen mv == Frozen)             $ fail "meta is frozen"
     unless (isOpenMeta $ mvInstantiation mv) $ fail "meta is already solved"
-    unlessM (asksTC envAssignMetas)          $ fail "assigning metas is not allowed here"
+    unlessM (viewTC eAssignMetas)          $ fail "assigning metas is not allowed here"
     -- Jesper, 2023-09-03, issue #6759: When --lossy-unification is enabled,
     -- we already lose the guarantee that we only throw an error when a
     -- problem is really unsolvable in favor of taking the "obvious" solution.
@@ -757,8 +756,8 @@ instance Occurs a => Occurs (Arg a) where
 
 instance Occurs a => Occurs (Dom a) where
   occurs :: Dom a -> OccursM (Dom a)
-  occurs (Dom info n f t x) =
-    Dom info n f t <$> underQuantity info (occurs x)
+  occurs (Dom info n f t r x) =
+    Dom info n f t r <$> underQuantity info (occurs x)
 
 ---------------------------------------------------------------------------
 -- * Pruning: getting rid of flexible occurrences.
@@ -772,12 +771,11 @@ instance Occurs a => Occurs (Dom a) where
 --   If any of the meta args @vs@ is matchable, e.g., is a constructor term,
 --   we cannot prune, because the offending variables could be removed by
 --   reduction for a suitable instantiation of the meta variable.
-prune
-  :: (PureTCM m, MonadMetaSolver m)
-  => MetaId         -- ^ Meta to prune.
+prune ::
+     MetaId         -- ^ Meta to prune.
   -> Args           -- ^ Arguments to meta variable.
   -> (Nat -> Bool)  -- ^ Test for allowed variable (de Bruijn index).
-  -> m PruneResult
+  -> TCM PruneResult
 prune m' vs xs = do
   caseEitherM (runExceptT $ mapM ((hasBadRigid xs) . unArg) vs)
     (const $ return PrunedNothing) $ \ kills -> do
@@ -981,12 +979,12 @@ data PruneResult
 
 -- | @killArgs [k1,...,kn] X@ prunes argument @i@ from metavar @X@ if @ki==True@.
 --   Pruning is carried out whenever > 0 arguments can be pruned.
-killArgs :: (MonadMetaSolver m) => [Bool] -> MetaId -> m PruneResult
+killArgs :: [Bool] -> MetaId -> TCM PruneResult
 killArgs kills _
   | not (or kills) = return NothingToPrune  -- nothing to kill
 killArgs kills m = do
   mv <- lookupLocalMeta m
-  allowAssign <- asksTC envAssignMetas
+  allowAssign <- viewTC eAssignMetas
   if mvFrozen mv == Frozen || not allowAssign then return PrunedNothing else do
       -- Andreas 2011-04-26, we allow pruning in MetaV and MetaS
       let a = jMetaType $ mvJudgement mv
@@ -1103,13 +1101,12 @@ reallyNotFreeIn xs a = do
 
 -- | Instantiate a meta variable with a new one that only takes
 --   the arguments which are not pruneable.
-performKill
-  :: MonadMetaSolver m
-  => [Arg Bool]    -- ^ Arguments to old meta var in left to right order
+performKill ::
+     [Arg Bool]    -- ^ Arguments to old meta var in left to right order
                    --   with @Bool@ indicating whether they can be pruned.
   -> MetaId        -- ^ The old meta var to receive pruning.
   -> Type          -- ^ The pruned type of the new meta var.
-  -> m ()
+  -> TCM ()
 performKill kills m a = do
   mv <- lookupLocalMeta m
   when (mvFrozen mv == Frozen) __IMPOSSIBLE__
