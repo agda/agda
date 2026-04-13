@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+{-# LANGUAGE MagicHash #-}
 
 module Agda.TypeChecking.Monad.Trace where
 
@@ -32,6 +33,10 @@ import Agda.Utils.Function
 import Agda.Utils.Monad
 import Agda.Utils.Null
 
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictWriter qualified as Strict
+import Agda.Utils.StrictState  qualified as Strict
+
 ---------------------------------------------------------------------------
 -- * Trace
 ---------------------------------------------------------------------------
@@ -64,6 +69,7 @@ interestingCall = \case
     CheckRecDef{}             -> True
     CheckConstructor{}        -> True
     CheckIApplyConfluence{}   -> True
+    CheckLocalRewriteConstraint{} -> True
     CheckConArgFitsIn{}       -> True
     CheckFunDefCall{}         -> True
     CheckPragma{}             -> True
@@ -82,15 +88,18 @@ interestingCall = \case
 
 class (MonadTCEnv m, ReadTCState m) => MonadTrace m where
 
+  {-# INLINE traceCall #-}
   -- | Record a function call in the trace.
   traceCall :: Call -> m a -> m a
   traceCall call m = do
     cl <- buildClosure call
     traceClosureCall cl m
 
+  {-# INLINE traceCallM #-}
   traceCallM :: m Call -> m a -> m a
   traceCallM call m = flip traceCall m =<< call
 
+  {-# INLINE traceCallCPS #-}
   -- | Like 'traceCall', but resets 'envCall' and the current ranges to the
   --   previous values in the continuation.
   --
@@ -98,14 +107,16 @@ class (MonadTCEnv m, ReadTCState m) => MonadTrace m where
   traceCallCPS call k ret = do
 
     -- Save current call and ranges.
-    TCEnv{ envCall = mcall, envRange = r, envHighlightingRange = hr } <- askTC
+    e <- askTC
+    let mcall = e ^. eCall
+        r     = e ^. eRange
+        hr    = e ^. eHighlightingRange
 
     -- Run given computation under given call.
-    traceCall call $ k $ \ a -> do
+    traceCall call $ k $ \a -> do
 
       -- Restore previous call and ranges for the continuation.
-      localTC (\ e -> e{ envCall = mcall, envRange = r, envHighlightingRange = hr }) $
-        ret a
+      localTC (set eCall mcall . set eRange r . set eHighlightingRange hr) $ ret a
 
   traceClosureCall :: Closure Call -> m a -> m a
 
@@ -135,6 +146,15 @@ instance MonadTrace m => MonadTrace (StateT s m) where
 instance (MonadTrace m, Monoid w) => MonadTrace (WriterT w m) where
   traceClosureCall c f = WriterT $ traceClosureCall c $ runWriterT f
 
+instance MonadTrace m => MonadTrace (Strict.ReaderT r m) where
+  traceClosureCall c f = Strict.ReaderT $ \r -> traceClosureCall c $ Strict.runReaderT f r
+
+instance MonadTrace m => MonadTrace (Strict.StateT s m) where
+  traceClosureCall c f = Strict.StateT (traceClosureCall c . Strict.runStateT# f)
+
+instance (MonadTrace m, Monoid w) => MonadTrace (Strict.WriterT w m) where
+  traceClosureCall c (Strict.WriterT f) = Strict.WriterT $ traceClosureCall c f
+
 instance MonadTrace m => MonadTrace (ExceptT e m) where
   traceClosureCall c f = ExceptT $ traceClosureCall c $ runExceptT f
 
@@ -147,19 +167,16 @@ instance MonadTrace TCM where
 
     -- Compute update to 'Range' and 'Call' components of 'TCEnv'.
     let withCall = localTC $ foldr (.) id $ concat $
-          [ [ \e -> e { envCall = Just cl } | interestingCall call ]
-          , [ \e -> e { envHighlightingRange = callRange }
-            | callHasRange && highlightCall
-              || isNoHighlighting
-            ]
-          , [ \e -> e { envRange = callRange } | callHasRange ]
+          [ [ set eCall (Just cl) | interestingCall call ]
+          , [ set eHighlightingRange callRange | callHasRange && highlightCall || isNoHighlighting ]
+          , [ set eRange callRange  | callHasRange ]
           ]
 
     -- For interactive highlighting, also wrap computation @m@ in 'highlightAsTypeChecked':
-    ifNotM (pure highlightCall `and2M` do (Interactive ==) . envHighlightingLevel <$> askTC)
+    ifNotM (pure highlightCall `and2M` (Interactive ==) <$> viewTC eHighlightingLevel)
       {-then-} (withCall m)
       {-else-} $ do
-        oldRange <- envHighlightingRange <$> askTC
+        oldRange <- viewTC eHighlightingRange
         highlightAsTypeChecked oldRange callRange $
           withCall m
     where
@@ -195,6 +212,7 @@ instance MonadTrace TCM where
       CheckIsEmpty{}            -> True
       CheckConfluence{}         -> False
       CheckIApplyConfluence{}   -> False
+      CheckLocalRewriteConstraint{} -> False
       CheckModuleParameters{}   -> False
       CheckWithFunctionType{}   -> True
       CheckSectionApplication{} -> True
@@ -226,7 +244,7 @@ instance MonadTrace TCM where
 
 
 getCurrentRange :: MonadTCEnv m => m Range
-getCurrentRange = asksTC envRange
+getCurrentRange = viewTC eRange
 
 -- | Sets the current range (for error messages etc.) to the range
 --   of the given object, if it has a range (i.e., its range is not 'noRange').

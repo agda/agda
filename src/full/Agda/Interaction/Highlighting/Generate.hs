@@ -465,6 +465,8 @@ warningHighlighting' b w = case tcWarning w of
     where r = getRange q
   FixingPolarity _ q _       -> if null r then cosmeticProblemHighlighting w else deadcodeHighlighting r
     where r = getRange q
+  IgnoringRew _ q            -> if null r then cosmeticProblemHighlighting w else deadcodeHighlighting r
+    where r = getRange q
   IllformedAsClause{}        -> deadcodeHighlighting w
   UnusedImports m Nothing    -> deadcodeHighlighting w
   UnusedImports m xs         -> cosmeticProblemHighlighting w <> foldMap deadcodeHighlighting xs
@@ -508,8 +510,10 @@ warningHighlighting' b w = case tcWarning w of
   RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting w
   RewriteAmbiguousRules{}    -> confluenceErrorHighlighting w
   RewriteMissingRule{}       -> confluenceErrorHighlighting w
-  IllegalRewriteRule x _     -> deadcodeHighlighting x
+  IllegalRewriteRule (GlobalRewrite x)  _ -> deadcodeHighlighting (defName x)
+  IllegalRewriteRule (LocalRewrite _ x _) _ -> deadcodeHighlighting x
   NotARewriteRule x _        -> deadcodeHighlighting x
+  InferredLocalRewrite _ _   -> mempty
   PragmaCompileErased{}      -> deadcodeHighlighting w
   PragmaCompileList{}        -> deadcodeHighlighting w
   PragmaCompileMaybe{}       -> deadcodeHighlighting w
@@ -592,6 +596,7 @@ warningHighlighting' b w = case tcWarning w of
     InvalidConstructorBlock{}        -> deadcodeHighlighting w
     InvalidDataOrRecDefParameter{}   -> deadcodeHighlighting w
     InvalidTacticAttribute{}         -> deadcodeHighlighting w
+    InvalidRewriteAttribute{}        -> deadcodeHighlighting w
     OpenImportAbstract{}             -> cosmeticProblemHighlighting w
     OpenImportPrivate{}              -> cosmeticProblemHighlighting w
     SafeFlagEta                   {} -> errorWarningHighlighting w
@@ -762,11 +767,11 @@ constraintsHighlighting ms cs =
   -- get ranges of interesting unsolved constraints
   rs = (`mapMaybe` (map theConstraint cs)) $ \case
     Closure{ clValue = IsEmpty r t           } -> Just r
-    Closure{ clEnv = e, clValue = ValueCmp{} } -> Just $ getRange (envRange e)
-    Closure{ clEnv = e, clValue = ElimCmp{}  } -> Just $ getRange (envRange e)
-    Closure{ clEnv = e, clValue = SortCmp{}  } -> Just $ getRange (envRange e)
-    Closure{ clEnv = e, clValue = LevelCmp{} } -> Just $ getRange (envRange e)
-    Closure{ clEnv = e, clValue = CheckSizeLtSat{} } -> Just $ getRange (envRange e)
+    Closure{ clEnv = e, clValue = ValueCmp{} } -> Just $! getRange (view eRange e)
+    Closure{ clEnv = e, clValue = ElimCmp{}  } -> Just $! getRange (view eRange e)
+    Closure{ clEnv = e, clValue = SortCmp{}  } -> Just $! getRange (view eRange e)
+    Closure{ clEnv = e, clValue = LevelCmp{} } -> Just $! getRange (view eRange e)
+    Closure{ clEnv = e, clValue = CheckSizeLtSat{} } -> Just $! getRange (view eRange e)
     _ -> Nothing
 
 

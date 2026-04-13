@@ -32,7 +32,6 @@ import Agda.Compiler.Treeless.Unused
 import Agda.Utils.Functor
 import Agda.Utils.IntSet.Infinite ( IntSet )
 import Agda.Utils.IntSet.Infinite qualified as IntSet
-import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Memo
 import Agda.Utils.Monad

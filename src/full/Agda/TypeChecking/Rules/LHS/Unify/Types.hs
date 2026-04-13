@@ -6,7 +6,6 @@ import Prelude hiding (null)
 
 import Control.Applicative ((<|>))
 import Control.Monad
-import Control.Monad.Writer (WriterT(..), MonadWriter(..))
 
 import Data.Foldable (toList)
 import Data.DList (DList)
@@ -24,8 +23,6 @@ import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
-import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Null
@@ -33,7 +30,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
-
+import Agda.Utils.StrictWriter
 import Agda.Utils.Impossible
 
 ----------------------------------------------------
@@ -481,5 +478,5 @@ writeUnifyLog ::
   MonadWriter UnifyLog' m => (UnifyLogEntry, UnifyState) -> m ()
 writeUnifyLog x = tell (singleton x) -- UnifyOutput IdS IdS [x]
 
-runUnifyLogT :: Functor m => UnifyLogT m a -> m (a, UnifyLog)
+runUnifyLogT :: Monad m => UnifyLogT m a -> m (a, UnifyLog)
 runUnifyLogT m = second toList <$> runWriterT m

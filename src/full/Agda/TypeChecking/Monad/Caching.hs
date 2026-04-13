@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+-- {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
 
 module Agda.TypeChecking.Monad.Caching
   ( -- * Log reading/writing operations
@@ -15,6 +16,8 @@ module Agda.TypeChecking.Monad.Caching
 
     -- * Restoring the 'PostScopeState'
   , restorePostScopeState
+
+  , cachingStartsTEST
   ) where
 
 import qualified Data.Set as Set
@@ -27,28 +30,45 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 
 import qualified Agda.Utils.BiMap as BiMap
-import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Null (empty)
 
 import Agda.Utils.Impossible
+
+{-# NOINLINE cachingStartsTEST #-}
+cachingStartsTEST :: TCM ()
+cachingStartsTEST = do
+    NameId _ m <- useTC stFreshNameId
+    stFreshNameId   `setTCLens` NameId 1 m
+    stFreshOpaqueId `setTCLens` OpaqueId 1 m
+    stAreWeCaching  `setTCLens` True
+    validateCache m -- fixes issue #4835
+    where
+      validateCache m = (localCache readFromCachedLog) >>= \case
+        Just (_ , s) -> do
+          let
+            NameId _ m'    = s ^. lensFreshNameId
+            OpaqueId _ m'' = s ^. lensFreshOpaqueId
+            stale = (m' /= m) || (m'' /= m)
+          when stale cleanCachedLog
+        _ -> return ()
 
 -- | To be called before any write or restore calls.
 {-# SPECIALIZE cachingStarts :: TCM () #-}
 cachingStarts :: (MonadDebug m, MonadTCState m, ReadTCState m) => m ()
 cachingStarts = do
     NameId _ m <- useTC stFreshNameId
-    stFreshNameId `setTCLens` NameId 1 m
+    stFreshNameId   `setTCLens` NameId 1 m
     stFreshOpaqueId `setTCLens` OpaqueId 1 m
-    stAreWeCaching `setTCLens` True
+    stAreWeCaching  `setTCLens` True
     validateCache m -- fixes issue #4835
     where
       validateCache m = (localCache readFromCachedLog) >>= \case
         Just (_ , s) -> do
           let
-            NameId _ m' = stPostFreshNameId s
-            OpaqueId _ m'' = stPostFreshOpaqueId s
-            stale = or [ m' /= m, m'' /= m ]
+            NameId _ m'    = s ^. lensFreshNameId
+            OpaqueId _ m'' = s ^. lensFreshOpaqueId
+            stale = (m' /= m) || (m'' /= m)
           when stale cleanCachedLog
         _ -> return ()
 
@@ -71,12 +91,11 @@ restorePostScopeState pss = do
   modifyTC $ \s ->
     let ipoints = s ^. stInteractionPoints
         ws = s ^. stTCWarnings
-        pss' = pss{stPostInteractionPoints = stPostInteractionPoints pss `mergeIPMap` ipoints
-                  ,stPostTCWarnings = stPostTCWarnings pss `mergeWarnings` ws
-                  ,stPostOpaqueBlocks = s ^. stOpaqueBlocks
-                  ,stPostOpaqueIds = s ^. stOpaqueIds
-                  }
-    in  s{stPostScopeState = pss'}
+        pss' = pss & lensInteractionPoints %~ (`mergeIPMap` ipoints)
+                   & lensTCWarnings %~ (`mergeWarnings` ws)
+                   & lensOpaqueBlocks .~ s ^. stOpaqueBlocks
+                   & lensOpaqueIds    .~ s ^. stOpaqueIds
+    in s{stPostScopeState = pss'}
   where
     mergeIPMap lm sm = BiMap.mapWithKey (\k v -> maybe v (`mergeIP` v) (BiMap.lookup k lm)) sm
     -- see #1338 on why we need to use the new ranges.

@@ -32,8 +32,9 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Monad
 
 import Agda.Utils.Impossible
-import Agda.Utils.Monad
 import Agda.Utils.Lens
+import Agda.Utils.List
+import Agda.Utils.Monad
 
 -- | Ensure that opaque blocks defined in the current module have
 -- saturated unfolding sets.
@@ -78,10 +79,7 @@ saturateOpaqueBlocks = entry where
 
     reportSDoc "tc.opaque.sat.full" 50 $ text "Saturated opaque blocks:" $+$ pretty blocks
 
-    modifyTC' $ \st -> st { stPostScopeState = (stPostScopeState st)
-      { stPostOpaqueBlocks = blocks
-      , stPostOpaqueIds    = names'
-      } }
+    modifyTC' (set stOpaqueBlocks blocks . set stOpaqueIds names')
 
   -- Actually compute the closure.
   computeClosure
@@ -155,13 +153,13 @@ isAccessibleDef :: TCEnv -> TCState -> Definition -> Bool
 -- getting the original definition (for inConcreteOrAbstractMode), and
 -- for "normalise ignoring abstract" interactively.
 isAccessibleDef env state defn
-  | envAbstractMode env == IgnoreAbstractMode = True
+  | (env ^. eAbstractMode) == IgnoreAbstractMode = True
 
 -- Otherwise, actually apply the reducibility rules..
 isAccessibleDef env state defn =
   let
     -- Reducibility rules for abstract definitions:
-    concretise def = case envAbstractMode env of
+    concretise def = case env ^. eAbstractMode of
       -- Being outside an abstract block has no effect on concreteness
       ConcreteMode       -> def
 
@@ -169,21 +167,26 @@ isAccessibleDef env state defn =
       -- figure it out:
       IgnoreAbstractMode -> ConcreteDef
 
-      AbstractMode
-        -- Symbols from enclosing modules will be made concrete:
-        | current `isLeChildModuleOf` m -> ConcreteDef
+      AbstractMode -> let
+        dropLastModule (MName ms) = MName $ initWithDefault __IMPOSSIBLE__ ms
+        dropAnon       (MName ms) = MName $ List.dropWhileEnd isNoName ms
 
-        -- Symbols from child modules, or unrelated modules, will keep
-        -- the same concreteness:
-        | otherwise                     -> def
-      where
-        current = dropAnon $ envCurrentModule env
-        m       = dropAnon $ qnameModule (defName defn)
-        dropAnon (MName ms) = MName $ List.dropWhileEnd isNoName ms
+        current = dropAnon $ env ^. eCurrentModule
+
+        modname = case theDef defn of
+          -- Hack to make abstract constructors work properly. The constructors
+          -- live in a module with the same name as the datatype, but for 'abstract'
+          -- purposes they're considered to be in the same module as the datatype.
+          Constructor{} -> dropAnon $ dropLastModule $ qnameModule $ defName defn
+          _             -> dropAnon $ qnameModule $ defName defn
+
+       in if current `isLeChildModuleOf` modname
+        then ConcreteDef
+        else def
 
     -- Reducibility rule for opaque definitions: If we are operating
     -- under an unfolding block,
-    clarify def = case envCurrentOpaqueId env of
+    clarify def = case env ^. eCurrentOpaqueId of
       Just oid ->
         let
           block = fromMaybe __IMPOSSIBLE__ $ Map.lookup oid (view stOpaqueBlocks state)

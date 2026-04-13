@@ -44,6 +44,7 @@ import Agda.Utils.Boolean (Boolean(fromBool), IsBool(toBool))
 import Agda.Utils.Float (toStringWithoutDotZero)
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.Hash (combineWord)
 import Agda.Utils.List  ( lastMaybe )
 import Agda.Utils.List1  ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
@@ -625,6 +626,12 @@ data Modality = Modality
   , modPolarity :: !PolarityModality
       -- ^ Polarity annotations (strictly positive, ...)
   } deriving (Eq, Ord, Show, Generic)
+
+{-# NOINLINE noinlineEqModality #-}
+-- | Non-inlined equality that's sometimes useful to prevent GHC from ballooning code size.
+noinlineEqModality :: Modality -> Modality -> Bool
+noinlineEqModality (Modality a b c d) (Modality a' b' c' d') =
+  a == a' && b == b' && c == c' && d == d'
 
 -- | Dominance ordering.
 instance PartialOrd Modality where
@@ -1615,16 +1622,19 @@ irrelevant = Irrelevant empty
 shapeIrrelevant :: Relevance
 shapeIrrelevant = ShapeIrrelevant empty
 
+{-# INLINE isRelevant #-}
 isRelevant :: LensRelevance a => a -> Bool
 isRelevant a = case getRelevance a of
   Relevant{} -> True
   _ -> False
 
+{-# INLINE isIrrelevant #-}
 isIrrelevant :: LensRelevance a => a -> Bool
 isIrrelevant a = case getRelevance a of
   Irrelevant{} -> True
   _ -> False
 
+{-# INLINE isShapeIrrelevant #-}
 isShapeIrrelevant :: LensRelevance a => a -> Bool
 isShapeIrrelevant a = case getRelevance a of
   ShapeIrrelevant{} -> True
@@ -1792,6 +1802,7 @@ data Annotation = Annotation
   { annLock :: Lock
     -- ^ Fitch-style dependent right adjoints.
     --   See Modal Dependent Type Theory and Dependent Right Adjoints, arXiv:1804.05236.
+  , annRewrite :: RewriteAnn
   } deriving (Eq, Ord, Show, Generic)
 
 instance HasRange Annotation where
@@ -1801,14 +1812,14 @@ instance KillRange Annotation where
   killRange = id
 
 defaultAnnotation :: Annotation
-defaultAnnotation = Annotation defaultLock
+defaultAnnotation = Annotation defaultLock defaultRewrite
 
 instance Null Annotation where
   empty = defaultAnnotation
-  null (Annotation lock) = null lock
+  null (Annotation lock rew) = null lock && null rew
 
 instance NFData Annotation where
-  rnf (Annotation l) = rnf l
+  rnf (Annotation l r) = rnf (l, r)
 
 class LensAnnotation a where
 
@@ -1872,6 +1883,8 @@ class LensLock a where
   mapLock :: (Lock -> Lock) -> a -> a
   mapLock f a = setLock (f $ getLock a) a
 
+  {-# MINIMAL getLock , (setLock | mapLock) #-}
+
 instance LensLock Lock where
   getLock = id
   setLock = const
@@ -1893,6 +1906,89 @@ instance Pretty Lock where
 
 prettyLock :: LensLock a => a -> Doc -> Doc
 prettyLock a = (pretty (getLock a) <+>)
+
+---------------------------------------------------------------------------
+-- * Rewrite arguments
+---------------------------------------------------------------------------
+
+data RewriteAnn
+  = IsNotRewrite
+  | IsRewrite Range
+  deriving (Show, Generic)
+
+defaultRewrite :: RewriteAnn
+defaultRewrite = IsNotRewrite
+
+instance HasRange RewriteAnn where
+  getRange = \case
+    IsRewrite r  -> r
+    IsNotRewrite -> noRange
+
+instance SetRange RewriteAnn where
+  setRange r = \case
+    IsRewrite _  -> IsRewrite r
+    IsNotRewrite -> IsNotRewrite
+
+instance KillRange RewriteAnn where
+  killRange = setRange noRange
+
+instance Eq RewriteAnn where
+  (==) = (==) `on` isRewrite
+
+instance Ord RewriteAnn where
+  compare = compare `on` isRewrite
+
+instance Null RewriteAnn where
+  empty = defaultRewrite
+
+instance NFData RewriteAnn where
+  rnf IsNotRewrite  = ()
+  rnf (IsRewrite _) = ()
+
+instance Pretty RewriteAnn where
+  pretty = \case
+    (IsRewrite _) -> "@rewrite"
+    IsNotRewrite  -> empty
+
+class LensRewriteAnn a where
+
+  getRewriteAnn :: a -> RewriteAnn
+
+  setRewriteAnn :: RewriteAnn -> a -> a
+  setRewriteAnn = mapRewriteAnn . const
+
+  mapRewriteAnn :: (RewriteAnn -> RewriteAnn) -> a -> a
+  mapRewriteAnn f a = setRewriteAnn (f $ getRewriteAnn a) a
+
+  {-# MINIMAL getRewriteAnn , (setRewriteAnn | mapRewriteAnn) #-}
+
+instance LensRewriteAnn RewriteAnn where
+  getRewriteAnn = id
+  setRewriteAnn = const
+  mapRewriteAnn = id
+
+instance LensRewriteAnn ArgInfo where
+  getRewriteAnn = annRewrite . argInfoAnnotation
+  setRewriteAnn r info = info { argInfoAnnotation = (argInfoAnnotation info){ annRewrite = r } }
+
+instance LensRewriteAnn (Arg t) where
+  getRewriteAnn = getRewriteAnn . getArgInfo
+  setRewriteAnn = mapArgInfo . setRewriteAnn
+
+isRewrite :: LensRewriteAnn a => a -> Bool
+isRewrite a = case getRewriteAnn a of
+  IsRewrite _  -> True
+  IsNotRewrite -> False
+
+ignoreRew :: Monad m => LensRewriteAnn a => (RewriteAnn  -> m ()) -> a -> m a
+ignoreRew warn info
+  | isRewrite info = do
+    warn $ getRewriteAnn info
+    return $ setRewriteAnn IsNotRewrite info
+  | otherwise      = return info
+
+prettyRewriteAnn :: LensRewriteAnn a => a -> Doc -> Doc
+prettyRewriteAnn a = (pretty (getRewriteAnn a) <+>)
 
 ---------------------------------------------------------------------------
 -- * Cohesion
@@ -2625,13 +2721,6 @@ defaultArgInfo =  ArgInfo
 defaultIrrelevantArgInfo :: ArgInfo
 defaultIrrelevantArgInfo = setRelevance irrelevant defaultArgInfo
 
--- | The 'defaultArgInfo' with the quantity set to 'zeroQuantity' and
--- the hiding set to 'Hidden'.
-
-erasedHiddenArgInfo :: ArgInfo
-erasedHiddenArgInfo =
-  setHiding Hidden (setQuantity zeroQuantity defaultArgInfo)
-
 
 -- Accessing through ArgInfo
 
@@ -2691,7 +2780,10 @@ isInsertedHidden a = getHiding a == Hidden && getOrigin a == Inserted
 data Arg e  = Arg
   { argInfo :: ArgInfo
   , unArg :: e
-  } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  } deriving (Eq, Ord, Show, Foldable, Traversable)
+
+instance Functor Arg where
+  fmap f = \(Arg x y) -> Arg x $! f y
 
 instance Decoration Arg where
   traverseF f (Arg ai a) = Arg ai <$> f a
@@ -2806,6 +2898,7 @@ instance LensModalPolarity (Arg e) where
   setModalPolarity = setPolarityMod
   mapModalPolarity = mapPolarityMod
 
+{-# INLINE defaultArg #-}
 defaultArg :: a -> Arg a
 defaultArg = Arg defaultArgInfo
 
@@ -3327,7 +3420,9 @@ instance NFData NameId where
 
 instance Hashable NameId where
   {-# INLINE hashWithSalt #-}
-  hashWithSalt salt (NameId n (ModuleNameHash m)) = hashWithSalt salt (n, m)
+  hashWithSalt salt (NameId n (ModuleNameHash m)) =
+    fromIntegral
+    (fromIntegral salt `combineWord` fromIntegral n `combineWord` fromIntegral m)
 
 ---------------------------------------------------------------------------
 -- * Meta variables
@@ -3377,7 +3472,7 @@ newtype Constr a = Constr a
 
 -- | A "problem" consists of a set of constraints and the same constraint can be part of multiple
 --   problems.
-newtype ProblemId = ProblemId Nat
+newtype ProblemId = ProblemId Word64
   deriving (Eq, Ord, Enum, Real, Integral, Num, NFData)
 
 -- This particular Show instance is ok because of the Num instance.

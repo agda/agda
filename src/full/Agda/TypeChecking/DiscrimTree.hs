@@ -33,6 +33,7 @@ import qualified Agda.Interaction.Options.ProfileOptions as Profile
 
 import Agda.Utils.Impossible
 import Agda.Utils.Trie (Trie(..))
+import Agda.Utils.List
 
 -- | Dummy term to use as a stand-in for expanded eta-records while
 -- building instance trees.
@@ -51,7 +52,10 @@ termKeyElims
 -- Since the case tree was generated with wildcards everywhere an eta
 -- record appeared, if we're *looking up* an instance, we don't have to
 -- do the censorship again.
-termKeyElims False _ es = pure (length es, map unArg es)
+termKeyElims False _ es = do
+  let !l   = length es
+      !es' = map' unArg es
+  pure (l, es')
 
 termKeyElims precise ty args = do
   let
@@ -323,7 +327,7 @@ lookupDT' localsRigid term tree = match True [term] tree where
         -- matching con, we need to make sure that the spine has the
         -- right number of arguments, otherwise the (sp0, t:sp1) pattern
         -- for a Case will fail.
-        let args' = take (keyArity key) $ args ++ [ __DUMMY_TERM_WITH__ ("_pad" <> show n) | n <- [0..] ]
+        let args' = take' (keyArity key) $ args ++! [ __DUMMY_TERM_WITH__ ("_pad" <> show n) | n <- [0..] ]
 
         reportSDoc "tc.instance.discrim.lookup" 99 $ vcat
           [ "explore" <+> prettyTCM key <+> pretty (keyArity key) <+> pretty (length args)

@@ -23,6 +23,10 @@ import Agda.TypeChecking.Monad.Signature
 import Agda.Utils.ListT
 import Agda.Utils.Update
 
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictWriter qualified as Strict
+import Agda.Utils.StrictState  qualified as Strict
+
 class
   ( HasBuiltins m
   , HasConstInfo m
@@ -44,3 +48,6 @@ instance PureTCM m => PureTCM (MaybeT m)
 instance PureTCM m => PureTCM (ReaderT r m)
 instance (PureTCM m, Monoid w) => PureTCM (WriterT w m)
 instance PureTCM m => PureTCM (StateT s m)
+instance PureTCM m => PureTCM (Strict.ReaderT r m)
+instance (PureTCM m, Monoid w) => PureTCM (Strict.WriterT w m)
+instance PureTCM m => PureTCM (Strict.StateT s m)

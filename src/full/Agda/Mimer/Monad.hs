@@ -98,7 +98,7 @@ getLocalVarTerms localCxt = do
   contextTerms <- getContextTerms
   contextTypes <- flattenTel <$> getContextTelescope
   let inScope i _ | i < localCxt = pure True   -- Ignore scope for variables we inserted ourselves
-      inScope _ Dom{ unDom = name } = do
+      inScope _ (unDom -> name) = do
         x <- abstractToConcrete_ name
         pure $ C.isInScope x == C.InScope
   scope <- mapM (uncurry inScope) =<< getContextVars
@@ -191,7 +191,7 @@ applyToMetas skip term typ = do
 
 localVarCount :: SM Int
 localVarCount = do
-  top <- asks $ length . envContext . searchTopEnv
+  top <- asks $ length . view eContext . searchTopEnv
   cur <- length <$> getContext
   pure $ cur - top
 
@@ -365,6 +365,13 @@ qnameToComponent cost qname = do
         c@Constructor{}    -> (Con (conSrcCon c) ConOCon [], conPars c - length mParams)
         Axiom{}            -> def
         GeneralizableVar{} -> def
+        f@Function{}
+          | Right proj <- funProjection f
+          , projIndex proj > 0 ->
+            let totalToDrop = projIndex proj - 1
+                term        = Def qname $ map Apply $ drop totalToDrop mParams
+                stillToDrop = max 0 $ totalToDrop - length mParams
+            in  (term , stillToDrop)
         Function{}         -> def
         Datatype{}         -> def
         Record{}           -> def
@@ -377,7 +384,7 @@ qnameToComponent cost qname = do
 -- | Turn the let bindings of the current 'TCEnv' into components.
 getLetVars :: forall tcm. (MonadFresh CompId tcm, MonadTCM tcm) => Cost -> tcm [Open Component]
 getLetVars cost = do
-  bindings <- asksTC envLetBindings
+  bindings <- viewTC eLetBindings
   mapM makeComp $ Map.toAscList bindings
   where
     makeComp :: (Name, Open LetBinding) -> tcm (Open Component)
@@ -493,7 +500,7 @@ applyToMetasG maxArgs comp = do
 
 createMeta :: Type -> SM (MetaId, Term)
 createMeta typ = do
-  (metaId, metaTerm) <- newValueMeta DontRunMetaOccursCheck CmpLeq typ
+  (metaId, metaTerm) <- lift $ newValueMeta DontRunMetaOccursCheck CmpLeq typ
   verboseS "mimer.stats" 20 $ updateStat incMetasCreated
   reportSDoc "mimer.components" 80 $ do
     "Created meta-variable (type in context):" <+> pretty metaTerm <+> ":" <+> (pretty =<< getMetaTypeInContext metaId)
@@ -650,7 +657,7 @@ makeSearchOptions norm options ii = do
 dumbUnifier :: Type -> Type -> SM ()
 dumbUnifier t1 t2 = bench [Bench.UnifyIndices] $ do
   updateStat incTypeEqChecks
-  noConstraints (equalType t2 t1)
+  noConstraints (lift $ equalType t2 t1)
 
 ------------------------------------------------------------------------
 -- * Debugging

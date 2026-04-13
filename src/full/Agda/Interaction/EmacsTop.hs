@@ -46,7 +46,6 @@ import Agda.Interaction.Options ( DiagnosticsColours(..), optDiagnosticsColour )
 import Agda.Utils.DocTree  ( treeToTextNoAnn, renderToTree )
 import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Functor  ( (<.>) )
-import Agda.Utils.Lens
 import Agda.Utils.Null
 import Agda.Utils.Maybe
 import Agda.Utils.String

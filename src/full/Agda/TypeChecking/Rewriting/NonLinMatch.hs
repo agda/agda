@@ -26,7 +26,6 @@ import Prelude hiding (null, sequence)
 
 import Control.Applicative  ( Alternative )
 import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
-import Control.Monad.State  ( MonadState, StateT, runStateT )
 
 import Data.Maybe
 import Data.IntMap (IntMap)
@@ -35,7 +34,7 @@ import qualified Data.IntMap as IntMap
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Conversion.Pure (pureEqualTermB)
+import Agda.TypeChecking.Conversion.Pure (pureBlockOrEqualTermPureTCM)
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Irrelevance (isPropM)
@@ -51,14 +50,15 @@ import Agda.TypeChecking.Primitive.Cubical.Base
 import Agda.Utils.Either
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
-import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Size
-import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.VarSet (VarSet)
+import Agda.Utils.VarSet qualified as VarSet
+import Agda.Utils.StrictState
 
 import Agda.Utils.Impossible
 
@@ -300,7 +300,7 @@ instance Match NLPat Term where
         case n of
           0 -> tellSub r (i-n) t v
           _ -> do
-            let vars = map unArg bvs
+            let vars = map' unArg bvs
             let allowedVars :: VarSet
                 allowedVars = VarSet.fromList vars
                 badVars :: VarSet
@@ -332,7 +332,7 @@ instance Match NLPat Term where
                   Nothing -> no ""
           _ | Pi a b <- unEl t -> do
             let ai    = domInfo a
-                pbody = PDef f $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
+                pbody = PDef f $ raise 1 ps ++! [ Apply $ Arg ai $ PTerm $ var 0 ]
                 body  = raise 1 v `apply` [ Arg (domInfo a) $ var 0 ]
             k' <- extendContext k (absName b) a
             match r gamma k' (absBody b) pbody body
@@ -344,14 +344,14 @@ instance Match NLPat Term where
             (tel, c, ci, vs) <- addContext k $ etaExpandRecord_ d pars def v
             addContext k (getFullyAppliedConType c t) >>= \case
               Just (_ , ct) -> do
-                let flds = map argFromDom $ _recFields def
-                    mkField fld = PDef f (ps ++ [Proj ProjSystem fld])
+                let flds = map' argFromDom $ _recFields def
+                    mkField fld = PDef f (ps ++! [Proj ProjSystem fld])
                     -- Issue #3335: when matching against the record constructor,
                     -- don't add projections but take record field directly.
                     ps'
                       | conName c == f = ps
-                      | otherwise      = map (Apply . fmap mkField) flds
-                match r gamma k (ct, Con c ci) ps' (map Apply vs)
+                      | otherwise      = map' (Apply . fmap mkField) flds
+                match r gamma k (ct, Con c ci) ps' (map' Apply vs)
               Nothing -> no ""
           v -> maybeBlock v
       PLam i p' -> case unEl t of
@@ -373,13 +373,22 @@ instance Match NLPat Term where
       PSort ps -> case v of
         Sort s -> match r gamma k () ps s
         v -> maybeBlock v
-      PBoundVar i ps -> case v of
-        Var i' es | i == i' -> do
-          let ti = maybe __IMPOSSIBLE__ (unDom . ctxEntryDom) $ lookupBV_ i k
+      PBoundVar i ps -> traceSDoc "rewriting.match" 60
+          ("Matching a PBoundVar" <+> addContext gamma (addContext k $
+            prettyTCM $ PBoundVar i ps) <+> "with" <+>
+            (addContext k $ prettyTCM v)) $ case v of
+        -- Either we are matching a higher order bound variable in k or we
+        -- are matching a locally bound variable outside gamma
+        -- (gamma is the rewrite telescope - i.e. the telescope of pattern
+        -- variables which are in scope in the pattern but not in the term we
+        -- matching against)
+        Var i' es |  (i < size k && i == i')
+                  || (i >= size k && i == i' + size gamma) -> do
+          ti <- addContext gamma $ addContext k $ typeOfBV i
           match r gamma k (ti , Var i) ps es
         _ | Pi a b <- unEl t -> do
           let ai    = domInfo a
-              pbody = PBoundVar (1 + i) $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
+              pbody = PBoundVar (1 + i) $ raise 1 ps ++! [ Apply $ Arg ai $ PTerm $ var 0 ]
               body  = raise 1 v `apply` [ Arg ai $ var 0 ]
           k' <- extendContext k (absName b) a
           match r gamma k' (absBody b) pbody body
@@ -388,9 +397,9 @@ instance Match NLPat Term where
           (tel, c, ci, vs) <- addContext k $ etaExpandRecord_ d pars def v
           addContext k (getFullyAppliedConType c t) >>= \case
             Just (_ , ct) -> do
-              let flds = map argFromDom $ _recFields def
-                  ps'  = map (fmap $ \fld -> PBoundVar i (ps ++ [Proj ProjSystem fld])) flds
-              match r gamma k (ct, Con c ci) (map Apply ps') (map Apply vs)
+              let flds = map' argFromDom $ _recFields def
+                  ps'  = map' (fmap $ \fld -> PBoundVar i (ps ++! [Proj ProjSystem fld])) flds
+              match r gamma k (ct, Con c ci) (map' Apply ps') (map' Apply vs)
             Nothing -> no ""
         v -> maybeBlock v
       PTerm u -> traceSDoc "rewriting.match" 60 ("matching a PTerm" <+> addContext gamma (addContext k $ prettyTCM u)) $
@@ -429,7 +438,7 @@ nonLinMatch gamma t p v = do
   caseEitherM (runNLM $ match relevant gamma empty t p v) (no "matching") $ \ s -> do
     let msub = makeSubstitution gamma $ s ^. nlmSub
         eqs = s ^. nlmEqs
-    traceSDoc "rewriting.match" 90 (text $ "msub = " ++ show msub) $ case msub of
+    traceSDoc "rewriting.match" 90 (text $ "msub = " ++! show msub) $ case msub of
       Nothing -> no "checking that all variables are bound" notBlocked_
       Just sub -> do
         ok <- checkPostponedEquations sub eqs
@@ -441,7 +450,7 @@ nonLinMatch gamma t p v = do
 --   Returns `Nothing` if the terms are equal, or `Just b` if the terms are not
 --   (where b contains information about possible metas blocking the comparison)
 equal :: PureTCM m => Type -> Term -> Term -> m (Maybe Blocked_)
-equal a u v = pureEqualTermB a u v >>= \case
+equal a u v = pureBlockOrEqualTermPureTCM a u v >>= \case
   Left b      -> return $ Just $ Blocked b ()
   Right True  -> return Nothing
   Right False -> traceSDoc "rewriting.match" 10 (sep
@@ -452,9 +461,20 @@ equal a u v = pureEqualTermB a u v >>= \case
 
 -- | Utility function for getting the name and type of a head term (i.e. a
 --   `Def` or `Con` with no arguments)
+--   Fails on variable heads
 getTypedHead :: PureTCM m => Term -> m (Maybe (QName, Type))
-getTypedHead = \case
-  Def f []   -> Just . (f,) . defType <$> getConstInfo f
+getTypedHead x = do
+  t <- getLocalHeadType x
+  case t of
+    Just (Just f,  t) -> pure $ Just (f, t)
+    Just (Nothing, t) -> pure Nothing
+    Nothing           -> pure Nothing
+
+-- | Utility function for getting the type of a head term. Includes a case
+--   for variables (which are valid heads of local rewrite rules)
+getLocalHeadType :: PureTCM m => Term -> m (Maybe (Maybe QName, Type))
+getLocalHeadType =  \case
+  Def f []   -> Just . (Just f,) . defType <$> getConstInfo f
   Con (ConHead { conName = c }) _ [] -> do
     -- Andreas, 2018-09-08, issue #3211:
     -- discount module parameters for constructor heads
@@ -463,9 +483,12 @@ getTypedHead = \case
     -- case we don't have enough parameters
     getNumberOfParameters c >>= \case
       Just npars -> do
-        let ws = replicate (npars - size vs) $ defaultArg __DUMMY_TERM__
+        let ws = replicate' (npars - size vs) $ defaultArg __DUMMY_TERM__
         t0 <- defType <$> getConstInfo c
-        t <- t0 `piApplyM` (vs ++ ws)
-        return $ Just (c , t)
-      Nothing -> return Nothing
-  _ -> return Nothing
+        t <- t0 `piApplyM` (vs ++! ws)
+        return $ Just (Just c , t)
+      Nothing -> pure Nothing
+  Var x [] -> do
+    t <- domOfBV x
+    pure $ Just (Nothing, unDom t)
+  _ -> pure Nothing

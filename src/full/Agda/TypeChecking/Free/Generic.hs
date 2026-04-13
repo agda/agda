@@ -288,6 +288,55 @@ instance Free EqualityView where
     IdiomType t                   -> ret $ freeVars t
     EqualityType _r s _eq l t a b -> ret $ freeVars (s, l, (t, a, b))
 
+-- | Only computes free variables that are not pattern variables (see
+--   'nlPatVars')
+--   i.e., those in a 'PTerm' or 'PBoundVar's from the local context.
+instance Free NLPat where
+  freeVars p = expand \ret -> case p of
+    PVar{}         -> ret $ mempty
+    PDef _ es      -> ret $ freeVars es
+    PLam _ u       -> ret $ freeVars u
+    PPi a b        -> ret $ freeVars (a,b)
+    PSort s        -> ret $ freeVars s
+    PBoundVar x es -> ret $ variable x <> freeVars es
+    PTerm t        -> ret $ freeVars t
+
+instance Free NLPType where
+  freeVars :: forall r. ComputeFree r => NLPType -> Reader r (Collect r)
+  freeVars t = expand \ret -> case t of
+    NLPType s a -> case ignoreSorts' @r of
+      IgnoreAll -> ret $ freeVars a
+      _         -> ret $ freeVars (s, a)
+
+instance Free NLPSort where
+  freeVars :: forall r. ComputeFree r => NLPSort -> Reader r (Collect r)
+  freeVars s = expand \ret -> case ignoreSorts' @r of
+      IgnoreAll -> ret mempty
+      _         -> case s of
+        PUniv _ l     -> ret $ freeVars l
+        PInf f n      -> ret $ mempty
+        PSizeUniv     -> ret $ mempty
+        PLockUniv     -> ret $ mempty
+        PLevelUniv    -> ret $ mempty
+        PIntervalUniv -> ret $ mempty
+
+instance Free RewriteHead where
+  freeVars h = expand \ret -> case h of
+    RewDefHead f -> ret mempty
+    RewVarHead x -> ret $ variable x
+
+instance Free RewriteRule where
+  freeVars rew = expand \ret -> case rew of
+    RewriteRule gamma h ps rhs b -> ret $
+      freeVars gamma <> freeVars h <>
+      underBinders (size gamma) (freeVars ps <> freeVars rhs <> freeVars b)
+
+instance Free LocalEquation where
+  freeVars eq = expand \ret -> case eq of
+    LocalEquation gamma lhs rhs b -> ret $
+      freeVars gamma <>
+      underBinders (size gamma) (freeVars lhs <> freeVars rhs <> freeVars b)
+
 {-# INLINE defaultUnderConstructor #-}
 defaultUnderConstructor :: (Semigroup a, LensFlexRig r a) => ConHead -> Elims -> r -> r
 defaultUnderConstructor c h = over lensFlexRig (composeFlexRig (constructorFlexRig c h))

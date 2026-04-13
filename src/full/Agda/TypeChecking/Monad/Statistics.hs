@@ -30,6 +30,7 @@ import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.String ( showThousandSep )
 import Agda.Utils.Maybe ( caseMaybe )
 import Agda.Utils.Null ( unlessNull )
+import Agda.Utils.StrictReader qualified as Strict
 
 class ReadTCState m => MonadStatistics m where
   tickN   :: String -> Word64 -> m ()
@@ -44,6 +45,7 @@ class ReadTCState m => MonadStatistics m where
 instance MonadStatistics m => MonadStatistics (ExceptT e m)
 instance MonadStatistics m => MonadStatistics (MaybeT m)
 instance MonadStatistics m => MonadStatistics (ReaderT r m)
+instance MonadStatistics m => MonadStatistics (Strict.ReaderT r m)
 instance MonadStatistics m => MonadStatistics (StateT  s m)
 instance (MonadStatistics m, Monoid w) => MonadStatistics (WriterT w m)
 

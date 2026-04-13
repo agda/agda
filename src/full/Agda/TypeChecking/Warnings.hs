@@ -40,6 +40,7 @@ import Agda.Syntax.Abstract.Name ( QName )
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
+import Agda.Syntax.Internal.Blockers (neverUnblock)
 
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
@@ -80,10 +81,13 @@ instance MonadWarning m => MonadWarning (StateT s m)
 instance (MonadWarning m, Monoid w) => MonadWarning (WriterT w m)
 
 instance MonadWarning TCM where
-  addWarning enabled tcwarn = do
-    stTCWarnings `modifyTCLens` Set.insert tcwarn
-    -- Andreas, 2025-04-01, issue #6994, no highlighting for disabled warnings
-    when enabled $ highlightWarning tcwarn
+  addWarning enabled tcwarn = ifImpureConv
+    (do stTCWarnings `modifyTCLens` Set.insert tcwarn
+        -- Andreas, 2025-04-01, issue #6994, no highlighting for disabled warnings
+        when enabled $ highlightWarning tcwarn)
+    (case classifyWarning (tcWarning tcwarn) of
+      ErrorWarnings -> patternViolation neverUnblock
+      AllWarnings   -> return ())
 
 -- * Raising warnings
 ---------------------------------------------------------------------------

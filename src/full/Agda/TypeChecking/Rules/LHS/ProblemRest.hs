@@ -36,7 +36,7 @@ useNamesFromPattern ps tel = telFromList (zipWith ren ps telList ++ telRemaining
   where
     telList = telToList tel
     telRemaining = drop (length ps) telList -- telescope entries beyond patterns
-    ren (Arg ai (Named nm p)) dom@Dom{ unDom = (y, a) } =
+    ren (Arg ai (Named nm p)) dom@(unDom -> (y, a)) =
       case p of
         -- Andreas, 2017-10-12, issue #2803, also preserve user-written hidden names.
         -- However, not if the argument is named, because then the name in the telescope

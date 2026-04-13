@@ -27,7 +27,7 @@ import Control.Monad.Except
 import Data.Functor
 import Data.Maybe
 
-import Agda.Interaction.Options (optCumulativity, optRewriting)
+import Agda.Interaction.Options (optCumulativity)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -73,8 +73,7 @@ inferUnivSort s = do
       -- addConstraint $ HasBiggerSort s
       return $ UnivSort s
 
-{-# SPECIALIZE sortFitsIn :: Sort -> Sort -> TCM () #-}
-sortFitsIn :: MonadConversion m => Sort -> Sort -> m ()
+sortFitsIn :: Sort -> Sort -> TCM ()
 sortFitsIn a b = do
   b' <- inferUnivSort a
   ifM (optCumulativity <$> pragmaOptions)
@@ -228,7 +227,7 @@ sortOf t = do
           Blocked m _ -> patternViolation m
 
           -- Not IMPOSSIBLE because of possible non-confluent rewriting (see #5531)
-          _ -> ifM (optRewriting <$> pragmaOptions)
+          _ -> ifM anyRewritingOption
             {-then-} (patternViolation neverUnblock)
             {-else-} __IMPOSSIBLE__
 

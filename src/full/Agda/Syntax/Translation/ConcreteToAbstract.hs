@@ -1324,7 +1324,7 @@ scopeCheckNiceModule
 scopeCheckNiceModule r p e name tel checkDs = do
     -- Andreas, 2025-03-29: clear @envCheckingWhere@
     -- We are no longer directly in a @where@ block if we enter a module.
-    localTC (\ env -> env{ envCheckingWhere = C.NoWhere_ }) $
+    localTC (set eCheckingWhere C.NoWhere_) $
       checkWrappedModules p (splitModuleTelescope tel)
   where
     -- Andreas, 2013-12-10:
@@ -1620,11 +1620,11 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
   safeButNotBuiltin <- and2M
     -- NB: BlockArguments allow bullet-point style argument lists using @do@, hehe!
     do pure isSafe
-    do not <$> do isBuiltinModuleWithSafePostulates . fromMaybe __IMPOSSIBLE__ =<< asksTC envCurrentPath
+    do not <$> do isBuiltinModuleWithSafePostulates . fromMaybe __IMPOSSIBLE__ =<< viewTC eCurrentPath
 
   -- We need to pass the fixities to the nicifier for clause grouping.
   fixs <- useScope scopeFixities
-  niceEnv <- NiceEnv safeButNotBuiltin <$> asksTC envCheckingWhere
+  niceEnv <- NiceEnv safeButNotBuiltin <$> viewTC eCheckingWhere
 
   -- Run nicifier.
   let (result, warns) = runNice niceEnv $ niceDeclarations fixs ds
@@ -1910,9 +1910,10 @@ scopeCheckLetDef wh d = setCurrentRange d do
 checkFieldArgInfo :: Bool -> ArgInfo -> ScopeM ArgInfo
 checkFieldArgInfo warn =
     ensureLeftAdjoint msg >=>
-    ensureMixedPolarity msg
+    ensureMixedPolarity msg >=>
+    ensureNotRew msg
   where
-    msg = if warn then Just "of field" else Nothing
+    msg = if warn then Just "field" else Nothing
 
 instance ToAbstract NiceDeclaration where
   type AbsOfCon NiceDeclaration = Maybe A.Declaration
@@ -1931,7 +1932,8 @@ instance ToAbstract NiceDeclaration where
     -- We record in the environment whether we are scope checking an
     -- abstract definition.  This way, we can propagate this attribute
     -- the extended lambdas.
-    applyWhenJust (niceHasAbstract d) (\ a -> localTC $ \ e -> e { envAbstractMode = aDefToMode a }) $
+    applyWhenJust (niceHasAbstract d)
+                  (\ a -> localTC (set eAbstractMode (aDefToMode a))) $
     case d of
 
   -- Axiom (actual postulate)
@@ -2261,7 +2263,7 @@ instance ToAbstract NiceDeclaration where
       -- Generate the identifier for this block:
       oid    <- fresh
       -- Record the parent unfolding block, if any:
-      parent <- asksTC envCurrentOpaqueId
+      parent <- viewTC eCurrentOpaqueId
 
       let r = getRange d
       stOpaqueBlocks `modifyTCLens` Map.insert oid OpaqueBlock
@@ -2273,7 +2275,7 @@ instance ToAbstract NiceDeclaration where
         }
 
       -- Keep going!
-      localTC (\e -> e { envCurrentOpaqueId = Just oid }) $ do
+      localTC (set eCurrentOpaqueId (Just oid)) do
         out <- catMaybes <$> traverse toAbstract decls
         unless (any interestingOpaqueDecl out) $ setCurrentRange kwr $ warning UselessOpaque
         -- Andreas, 2025-12-12
@@ -2283,7 +2285,7 @@ instance ToAbstract NiceDeclaration where
         -- With UnfoldingDecl at the end, it does not contribute to cache invalidation,
         -- because if something changed in the opaque block, one of its declarations changed
         -- which invalidates the cache for this declaration.
-        pure $ out ++ [UnfoldingDecl r names]
+        pure $! out ++! [UnfoldingDecl r names]
 
 declarationWarning :: MonadWarning m => DeclarationWarning' -> m ()
 declarationWarning w = withCurrentCallStack \ stk -> do
@@ -2700,7 +2702,7 @@ checkAllowedAxiom :: ArgInfo -> A.QName -> ScopeM ()
 checkAllowedAxiom info x = whenM
   (andM [ pure $ getOrigin info /= Inserted
         , Lens.getSafeMode <$> commandLineOptions
-        , not <$> (isBuiltinModuleWithSafePostulates . fromMaybe __IMPOSSIBLE__ =<< asksTC envCurrentPath)
+        , not <$> (isBuiltinModuleWithSafePostulates . fromMaybe __IMPOSSIBLE__ =<< viewTC eCurrentPath)
         ])
   (warning $ SafeFlagPostulate x)
 
@@ -2720,7 +2722,7 @@ interestingOpaqueDecl _ = False
 -- | Add a 'QName' to the set of declarations /contained in/ the current
 -- opaque block.
 unfoldFunction :: A.QName -> ScopeM ()
-unfoldFunction qn = asksTC envCurrentOpaqueId >>= \case
+unfoldFunction qn = viewTC eCurrentOpaqueId >>= \case
   Just id -> do
     let go Nothing   = __IMPOSSIBLE__
         go (Just ob) = Just ob{ opaqueDecls = qn `HashSet.insert` opaqueDecls ob }
@@ -2729,7 +2731,7 @@ unfoldFunction qn = asksTC envCurrentOpaqueId >>= \case
 
 -- | Look up the current opaque identifier as a value in 'IsOpaque'.
 contextIsOpaque :: ScopeM IsOpaque
-contextIsOpaque =  maybe TransparentDef OpaqueDef <$> asksTC envCurrentOpaqueId
+contextIsOpaque =  maybe TransparentDef OpaqueDef <$> viewTC eCurrentOpaqueId
 
 updateDefInfoOpacity :: DefInfo -> ScopeM DefInfo
 updateDefInfoOpacity di = (\a -> di { Info.defOpaque = a }) <$> contextIsOpaque
@@ -2738,8 +2740,8 @@ updateDefInfoOpacity di = (\a -> di { Info.defOpaque = a }) <$> contextIsOpaque
 -- affected by opacity, but only if we are actually in an Opaque block.
 notAffectedByOpaque :: ScopeM a -> ScopeM a
 notAffectedByOpaque k = do
-  whenM ((NoWhere_ ==) <$> asksTC envCheckingWhere) $
-    whenJustM (asksTC envCurrentOpaqueId) \ _ ->
+  whenM ((NoWhere_ ==) <$> viewTC eCheckingWhere) $
+    whenJustM (viewTC eCurrentOpaqueId) \ _ ->
       warning NotAffectedByOpaque
   notUnderOpaque k
 
@@ -3011,9 +3013,14 @@ checkConstructorArgInfo =
     ensureRelevant msg >=>
     ensureNotLinear msg >=>
     ensureLeftAdjoint msg >=>
-    ensureMixedPolarity msg
+    ensureMixedPolarity msg >=>
+    ensureNotRew msg
   where
-    msg = Just "of constructor"
+    msg = Just "constructor"
+
+ensureNotRew :: LensRewriteAnn a => Maybe String -> a -> ScopeM a
+ensureNotRew ms = ignoreRew $ \ r ->
+  whenJust ms \ s -> warning $ IgnoringRew s r
 
 ensureRelevant :: LensRelevance a => Maybe String -> a -> ScopeM a
 ensureRelevant ms info = do
@@ -3060,7 +3067,7 @@ instance ToAbstract C.Pragma where
   toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
 
   toAbstract (C.RewritePragma _ r xs) = do
-    (optRewriting <$> pragmaOptions) >>= \case
+    rewritingOption >>= \case
 
       -- If --rewriting is off, ignore the pragma.
       False -> [] <$ do
@@ -3358,7 +3365,7 @@ whereToAbstract r wh inner = do
       -- Named where-modules do not default to private.
       whereToAbstract1 r e (Just (m, a)) ds inner
   where
-  enter = localTC \ env -> env { envCheckingWhere = C.whereClause_ wh }
+  enter = localTC (set eCheckingWhere (C.whereClause_ wh))
   ret = (,A.noWhereDecls) <$> inner
   warnEmptyWhere = do
     setCurrentRange r $ warning EmptyWhere
@@ -4110,6 +4117,10 @@ checkAttributes (Attr r s attr : attrs) =
     LockAttribute IsLock{}  -> do
       unlessM (optGuarded <$> pragmaOptions) $
         setCurrentRange r $ typeError $ AttributeKindNotEnabled "Lock" "--guarded" s
+      cont
+    RewriteAttribute rew -> do
+      when (isRewrite rew) $ unlessM localRewritingOption $
+        setCurrentRange r $ typeError $ AttributeKindNotEnabled "Rewrite" "--local-rewriting" s
       cont
     QuantityAttribute Quantityω{} -> cont
     QuantityAttribute Quantity1{} -> __IMPOSSIBLE__

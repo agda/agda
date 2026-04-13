@@ -25,6 +25,7 @@ import Text.Read
 
 import Agda.Utils.List
 import Agda.Utils.List1 (wordsBy, toList)
+import Agda.Utils.Functor ((<&>))
 
 type GHCArgs = [String]
 
@@ -43,12 +44,9 @@ data CodeOptimization = NonOptimized | Optimized | MinifiedOptimized
 data Strict = Strict | StrictData | Lazy
   deriving (Show, Read, Eq, Enum, Bounded)
 
-data JSModuleStyle = ES6 | CJS | AMD
-  deriving (Show, Read, Eq, Enum, Bounded)
-
 data Compiler
   = MAlonzo Strict
-  | JS JSModuleStyle CodeOptimization
+  | JS CodeOptimization
   deriving (Show, Read, Eq)
 
 data CompilerOptions
@@ -66,7 +64,7 @@ data TestOptions
 allCompilers :: [Compiler]
 allCompilers
   =  [ MAlonzo strict | strict <- [Lazy, StrictData, Strict]]
-  ++ [ JS style opt   | opt <- [minBound..], style <- [minBound..] ]
+  ++ [ JS opt   | opt <- [minBound..] ]
 
 defaultOptions :: TestOptions
 defaultOptions = TestOptions
@@ -143,10 +141,9 @@ tests = do
         | s <- [Lazy, StrictData] ++
                [Strict | ghcVersionAtLeast9]
         ] ++
-        [ JS style opt
+        [ JS opt
         | isJust nodeBin
         , opt   <- [minBound..]
-        , style <- [CJS,ES6]
         ]
   _ <- case nodeBin of
     Nothing -> putStrLn "No JS node binary found, skipping JS tests."
@@ -310,11 +307,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
           Lazy       -> []
           StrictData -> ["--ghc-strict-data"]
           Strict     -> ["--ghc-strict"]
-        argsForComp (JS style opt) = [ "--js", "--js-verify" ]
-          ++ case style of
-            ES6 -> ["--js-es6"]
-            AMD -> ["--js-amd"]
-            CJS -> ["--js-cjs"]
+        argsForComp (JS opt) = [ "--js", "--js-verify", "--js-es6" ]
           ++ case opt of
             NonOptimized      -> []
             Optimized         -> [ "--js-optimize" ]
@@ -332,8 +325,12 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
 
 readOptions :: FilePath -- file name of the agda file
     -> IO TestOptions
-readOptions inpFile =
-  maybe defaultOptions (read . T.unpack . decodeUtf8) <$> readFileMaybe optFile
+readOptions inpFile = readFileMaybe optFile <&> \case
+    Nothing -> defaultOptions
+    (Just optsBS) ->
+      case readMaybe . T.unpack . decodeUtf8 $ optsBS of
+        Nothing -> error $ "Failed to parse options inside file " <> optFile
+        (Just optsParsed) -> optsParsed
   where optFile = dropAgdaOrOtherExtension inpFile <.> "options"
 
 cleanUpOptions :: AgdaArgs -> AgdaArgs
@@ -346,9 +343,8 @@ cleanUpOptions = filter clean
 
 -- gets the generated executable path
 getExecForComp :: Compiler -> FilePath -> FilePath -> FilePath
-getExecForComp (JS style opt) compDir inpFile
-  = compDir </> ("jAgda." ++ takeFileName (dropAgdaOrOtherExtension inpFile) ++ ext)
-    where ext = if style == ES6 then ".mjs" else ".js"
+getExecForComp (JS opt) compDir inpFile
+  = compDir </> ("jAgda." ++ takeFileName (dropAgdaOrOtherExtension inpFile) ++ ".mjs")
 getExecForComp _ compDir inpFile = compDir </> takeFileName (dropAgdaOrOtherExtension inpFile)
 
 printExecResult :: ExecResult -> T.Text

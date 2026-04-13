@@ -1,1 +1,1 @@
---ghc --js
+--ghc --js --js-es6

@@ -30,7 +30,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings ( warning )
 
 import Agda.Utils.Functor
-import Agda.Utils.List ( splitExactlyAt, dropEnd )
+import Agda.Utils.List
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
@@ -86,14 +86,13 @@ piAbstract (Arg info (v, IdiomType a)) b = do
     -- E.g. @eqTy = eqTel → Set a@ where @eqTel = {a : Level} {A : Set a} (x y : A)@.
     TelV eqTel _ <- telView eqTy
     tel  <- newTelMeta (telFromList $ dropEnd 3 $ telToList eqTel)
-    let eq = Def eqName $ map Apply
-                 $ map (setHiding Hidden) tel
+    let !eq = Def eqName $! map' Apply $! map' (setHiding Hidden) tel
                  -- we write `v ≡ w` because this equality is typically used to
                  -- get `v` to unfold to whatever pattern was used to refine `w`
                  -- in a with-clause.
                  -- If we were to write `w ≡ v`, we would often need to take the
                  -- symmetric of the proof we get to make use of `rewrite`.
-                 ++ [ setHiding Hidden $ defaultArg $ raise 1 $ unEl a
+                 ++! [ setHiding Hidden $ defaultArg $ raise 1 $ unEl a
                     , defaultArg (raise 1 v)
                     , defaultArg (var 0)
                     ]
@@ -150,7 +149,7 @@ instance IsPrefixOf Args where
   isPrefixOf us vs = do
     (vs1, vs2) <- splitExactlyAt (length us) vs
     guard $ equalSy us vs1
-    return $ map Apply vs2
+    return $! map' Apply vs2
 
 instance IsPrefixOf Term where
   isPrefixOf u v =
@@ -182,7 +181,7 @@ abstractTerm a u@Con{} b v = do
   hole <- qualify <$> currentModule <*> freshName_ ("hole" :: String)
   noMutualBlock $ addConstant' hole defaultArgInfo a defaultAxiom
 
-  args <- map Apply <$> getContextArgs
+  args <- map' Apply <$> getContextArgs
   let n = length args
 
   let abstr b v = do
@@ -194,7 +193,7 @@ abstractTerm a u@Con{} b v = do
             s <- getTC
             do  noConstraints $ equalType a' b
                 putTC s
-                return $ Def hole (raise (m - n) args ++ es)
+                return $! Def hole $! raise (m - n) args ++! es
               `catchError` \ _ -> do
                 reportSDoc "tc.abstract.ill-typed" 50 $
                   sep [ "Skipping ill-typed abstraction"
@@ -226,20 +225,20 @@ class AbsTerm a where
 
 instance AbsTerm Term where
   absTerm j u v
-    | Just es <- u `isPrefixOf` v = Var j $ absT es
+    | Just es <- u `isPrefixOf` v = Var j $! absT es
     | otherwise                   =
     case v of
 -- Andreas, 2013-10-20: the original impl. works only at base types
 --    v | u == v  -> Var j []  -- incomplete see succeed/WithOfFunctionType
-      Var i vs    -> Var (if i < j then i else i + 1) $ absT vs
+      Var i vs    -> (Var $! if i < j then i else i + 1) $! absT vs
       Lam h b     -> Lam h $ absT b
-      Def c vs    -> Def c $ absT vs
-      Con c ci vs -> Con c ci $ absT vs
+      Def c vs    -> Def c $! absT vs
+      Con c ci vs -> Con c ci $! absT vs
       Pi a b      -> uncurry Pi $ absT (a, b)
       Lit l       -> Lit l
       Level l     -> Level $ absT l
       Sort s      -> Sort $ absT s
-      MetaV m vs  -> MetaV m $ absT vs
+      MetaV m vs  -> MetaV m $! absT vs
       DontCare mv -> DontCare $ absT mv
       Dummy s es   -> Dummy s $ absT es
       where
@@ -260,10 +259,11 @@ instance AbsTerm Sort where
     PiSort a s1 s2 -> PiSort (absS a) (absS s1) (absS s2)
     FunSort s1 s2 -> FunSort (absS s1) (absS s2)
     UnivSort s -> UnivSort $ absS s
-    MetaS x es -> MetaS x $ absS es
-    DefS d es  -> DefS d $ absS es
+    MetaS x es -> MetaS x $! absS es
+    DefS d es  -> DefS d $! absS es
     s@DummyS{} -> s
     where
+      {-# INLINE absS #-}
       absS :: AbsTerm b => b -> b
       absS x = absTerm j u x
 
@@ -283,7 +283,7 @@ instance AbsTerm a => AbsTerm (Dom a) where
   absTerm j = fmap . absTerm j
 
 instance AbsTerm a => AbsTerm [a] where
-  absTerm j = fmap . absTerm j
+  absTerm j u as = map' (absTerm j u) as
 
 instance AbsTerm a => AbsTerm (Maybe a) where
   absTerm j = fmap . absTerm j
@@ -310,7 +310,9 @@ class EqualSy a where
   equalSy :: a -> a -> Bool
 
 instance EqualSy a => EqualSy [a] where
-  equalSy us vs = and $ (length us == length vs) : zipWith equalSy us vs
+  equalSy []     []     = True
+  equalSy (x:xs) (y:ys) = equalSy x y && equalSy xs ys
+  equalSy _      _      = False
 
 instance EqualSy Term where
   equalSy = curry $ \case
@@ -367,7 +369,8 @@ instance EqualSy a => EqualSy (Elim' a) where
 -- | Ignores 'absName'.
 instance (Subst a, EqualSy a) => EqualSy (Abs a) where
   equalSy = curry $ \case
-    (NoAbs _x b, NoAbs _x' b') -> equalSy b b' -- no need to raise if both are NoAbs
+    (NoAbs _x b, NoAbs _x' b') -> equalSy b b'
+    (Abs _ b   , Abs _ b'    ) -> equalSy b b'
     (a         , a'          ) -> equalSy (absBody a) (absBody a')
 
 -- | Ignore origin and free variables.
@@ -375,9 +378,9 @@ instance EqualSy ArgInfo where
   equalSy (ArgInfo h m _o _fv a) (ArgInfo h' m' _o' _fv' a') =
     h == h' && m == m' && a == a'
 
--- | Ignore the tactic.
+-- | Ignore the tactic and rewrite.
 instance EqualSy a => EqualSy (Dom a) where
-  equalSy d@(Dom ai x f _tac a) d'@(Dom ai' x' f' _tac' a') = and
+  equalSy d@(Dom ai x f _tac _rew a) d'@(Dom ai' x' f' _tac' _rew' a') = and
     [ x == x'
     , f == f'
     , equalSy ai ai'

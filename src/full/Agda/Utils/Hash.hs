@@ -1,4 +1,6 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedTuples #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 {-| Instead of checking time-stamps we compute a hash of the module source and
@@ -14,6 +16,7 @@ import Data.Digest.Murmur64
 import Data.Text.Encoding qualified as T
 import Data.Text.Lazy (Text)
 import Data.Text.Lazy qualified as T
+import GHC.Exts
 
 import Agda.Utils.FileName
 import Agda.Utils.IO.UTF8 (readTextFile)
@@ -42,3 +45,20 @@ combineHashes hs = H.asWord64 $ L.foldl' H.combine (H.hashWord8 0) $ L.map H.has
 -- | Hashing a module name for unique identifiers.
 hashString :: String -> Word64
 hashString = asWord64 . hash64
+
+factor :: Word
+#if WORD_SIZE_IN_BITS == 64
+factor = 11400714819323198549
+#else
+factor = 2654435741
+#endif
+
+{-# INLINE combineWord #-}
+combineWord :: Word -> Word -> Word
+combineWord x y = foldedMul (xor x y) factor where
+  xor       (W# x) (W# y) = W# (xor# x y)
+  foldedMul (W# x) (W# y) = case timesWord2# x y of (# hi, lo #) -> W# (xor# hi lo)
+
+{-# INLINE combineInt #-}
+combineInt :: Int -> Int -> Int
+combineInt x y = fromIntegral (combineWord (fromIntegral x) (fromIntegral y))

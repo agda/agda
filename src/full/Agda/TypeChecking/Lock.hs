@@ -28,7 +28,6 @@ import Agda.TypeChecking.Free
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.VarSet (VarSet)
-import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null

@@ -213,8 +213,8 @@ makeEnv scope = do
                  noScopeCheck b || isNameInScope q scope -> return [(b, q)]
         _                                                -> return []
   ctxVars <- getContextNames'
-  letVars <- Map.keys <$> asksTC envLetBindings
-  let vars = ctxVars ++ letVars
+  letVars <- Map.keys <$> viewTC eLetBindings
+  let vars = ctxVars ++! letVars
 
   -- pick concrete names for in-scope names now so we don't
   -- accidentally shadow them
@@ -402,7 +402,7 @@ pickConcreteName x y = modifyConcreteNames $ flip Map.alter x $ Just . \case
 -- | For the given abstract name, return the names that could shadow it.
 shadowingNames :: (ReadTCState m)
                => A.Name -> m (Set RawName)
-shadowingNames x = Set1.toSet' . Map.lookup x <$> useR stShadowingNames
+shadowingNames x = pure mempty -- TODO
 
 toConcreteName :: MonadToConcrete m => A.Name -> m C.Name
 toConcreteName x | y <- nameConcrete x , isNoName y = return y

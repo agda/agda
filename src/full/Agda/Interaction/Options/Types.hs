@@ -154,6 +154,8 @@ data PragmaOptions = PragmaOptions
       -- ^ Mark parameters of record modules as erased?
   , _optRewriting                 :: WithDefault 'False
       -- ^ Can rewrite rules be added and used?
+  , _optLocalRewriting            :: WithDefault 'False
+      -- ^ Can local rewrite rules be added and used?
   , _optCubical                   :: Maybe Cubical
   , _optGuarded                   :: WithDefault 'False
   , _optFirstOrder                :: WithDefault 'False

@@ -11,7 +11,7 @@ module Agda.Utils.IORef.Strict
     -- * Strict IO references #strict-ioref#
     --
     -- $strictIORef
-    IORef
+    IORef(..)
   , newIORef
   , readIORef
   , writeIORef
@@ -239,3 +239,4 @@ modifyIORef = \ref f -> do
 -- Both the stored value and the result are forced.
 atomicModifyIORef :: IORef a -> (a -> (a, b)) -> IO b
 atomicModifyIORef (StrictIORef r) = Lazy.atomicModifyIORef' r
+{-# INLINE atomicModifyIORef #-}

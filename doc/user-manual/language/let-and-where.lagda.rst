@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --rewriting --sized-types --erasure #-}
+  {-# OPTIONS --rewriting --sized-types #-}
   module language.let-and-where where
 
   open import language.built-ins
@@ -276,16 +276,23 @@ Using a let-expression::
                       twice xs = xs ++ xs
                   in  map (\ x → twice [ x ]) xs
 
+Same definition but with less type information::
+
+  tw-map' : {A : Set} → List A → List (List A)
+  tw-map' {A} xs = let twice : _
+                       twice xs = xs ++ xs
+                   in  map (\ x → twice [ x ]) xs
+
 Same definition but with a where-expression
 
 ::
 
-  tw-map' : {A : Set} → List A → List (List A)
-  tw-map' {A} xs =  map (\ x → twice [ x ]) xs
+  tw-map'' : {A : Set} → List A → List (List A)
+  tw-map'' {A} xs =  map (\ x → twice [ x ]) xs
      where twice : List A → List A
            twice xs = xs ++ xs
 
-A let expression without a type signature::
+Even less type information using let::
 
   h : Nat → List Nat
   h zero    = [ zero ]

@@ -13,15 +13,15 @@ instance MonadMetaSolver TCM
 type Condition = Dom Type -> Abs Type -> Bool
 type SubstCand = [(Int,Term)]
 
-newArgsMeta'      :: MonadMetaSolver m => Condition -> Type -> m Args
-newArgsMeta       :: MonadMetaSolver m => Type -> m Args
-assignTerm        :: MonadMetaSolver m => MetaId -> [Arg String] -> Term -> m ()
+newArgsMeta'      :: Condition -> Type -> TCM Args
+newArgsMeta       :: Type -> TCM Args
+assignTerm        :: MetaId -> [Arg String] -> Term -> TCM ()
 assign            :: CompareDirection -> MetaId -> Args -> Term -> CompareAs -> TCM ()
-newInstanceMeta   :: MonadMetaSolver m => String -> Type -> m (MetaId, Term)
-newValueMeta      :: MonadMetaSolver m => RunMetaOccursCheck -> Comparison -> Type -> m (MetaId, Term)
-newNamedValueMeta :: MonadMetaSolver m => RunMetaOccursCheck -> String -> Comparison -> Type -> m (MetaId, Term)
-newNamedValueMeta':: MonadMetaSolver m => RunMetaOccursCheck -> String -> Comparison -> Type -> m (MetaId, Term)
-newTelMeta        :: MonadMetaSolver m => Telescope -> m Args
-newSortMeta       :: MonadMetaSolver m => m Sort
+newInstanceMeta   :: String -> Type -> TCM (MetaId, Term)
+newValueMeta      :: RunMetaOccursCheck -> Comparison -> Type -> TCM (MetaId, Term)
+newNamedValueMeta :: RunMetaOccursCheck -> String -> Comparison -> Type -> TCM (MetaId, Term)
+newNamedValueMeta':: RunMetaOccursCheck -> String -> Comparison -> Type -> TCM (MetaId, Term)
+newTelMeta        :: Telescope -> TCM Args
+newSortMeta       :: TCM Sort
 checkMetaInst     :: MetaId -> TCM ()
 isFaceConstraint  :: MetaId -> Args -> TCM (Maybe (MetaVariable, IntMap Bool, SubstCand, Substitution))

@@ -42,6 +42,9 @@ import Agda.Syntax.Common.Pretty
 import Agda.Interaction.Options.ProfileOptions
 import Agda.Utils.Update
 import qualified Agda.Utils.Trie as Trie
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictWriter qualified as Strict
+import Agda.Utils.StrictState  qualified as Strict
 
 import Agda.Utils.Impossible
 import Agda.Utils.DocTree (renderToTree)
@@ -118,7 +121,7 @@ defaultGetProfileOptions :: HasOptions m => m ProfileOptions
 defaultGetProfileOptions = optProfiling <$> pragmaOptions
 
 defaultIsDebugPrinting :: MonadTCEnv m => m Bool
-defaultIsDebugPrinting = asksTC envIsDebugPrinting
+defaultIsDebugPrinting = viewTC eIsDebugPrinting
 
 defaultNowDebugPrinting :: MonadTCEnv m => m a -> m a
 defaultNowDebugPrinting = locallyTC eIsDebugPrinting $ const True
@@ -205,6 +208,9 @@ instance MonadDebug m => MonadDebug (MaybeT m)
 instance MonadDebug m => MonadDebug (ReaderT r m)
 instance MonadDebug m => MonadDebug (StateT s m)
 instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m)
+instance MonadDebug m => MonadDebug (Strict.ReaderT r m)
+instance MonadDebug m => MonadDebug (Strict.StateT s m)
+instance (MonadDebug m, Monoid w) => MonadDebug (Strict.WriterT w m)
 instance MonadDebug m => MonadDebug (IdentityT m)
 
 -- We are lacking MonadTransControl ListT
@@ -294,9 +300,15 @@ reportResult _ _ _ = id
 {-# INLINE reportResult #-}
 #endif
 
+#ifdef DEBUG
 unlessDebugPrinting :: MonadDebug m => m () -> m ()
 unlessDebugPrinting = unlessM isDebugPrinting
 {-# INLINE unlessDebugPrinting #-}
+#else
+unlessDebugPrinting :: MonadDebug m => m () -> m ()
+unlessDebugPrinting _ = pure ()
+{-# INLINE unlessDebugPrinting #-}
+#endif
 
 -- | Debug print some lines if the verbosity level for the given
 --   'VerboseKey' is at least 'VerboseLevel'.

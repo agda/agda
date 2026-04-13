@@ -64,7 +64,7 @@ import Agda.Utils.Null
 import Agda.Utils.Trie
 import Agda.Utils.Permutation ( Permutation )
 import qualified Agda.Utils.Maybe.Strict as S
-import Agda.Utils.Size ( Sized, natSize )
+import Agda.Utils.Size ( Sized, natSize, size )
 
 import Agda.Utils.Impossible
 
@@ -565,7 +565,7 @@ prettyTCMPatterns :: MonadPretty m => [NamedArg DeBruijnPattern] -> m [Doc]
 prettyTCMPatterns = mapM prettyA <=< reifyPatterns
 
 {-# SPECIALIZE prettyTCMPatternList :: [NamedArg DeBruijnPattern] -> TCM Doc #-}
-prettyTCMPatternList :: MonadPretty m => [NamedArg DeBruijnPattern] -> m Doc
+prettyTCMPatternList :: (MonadPretty m) => [NamedArg DeBruijnPattern] -> m Doc
 prettyTCMPatternList = prettyList . map prettyA <=< reifyPatterns
 
 -- | For unquote.
@@ -580,7 +580,10 @@ instance PrettyTCM (Elim' DisplayTerm) where
 {-# SPECIALIZE prettyTCM :: Elim' DisplayTerm -> TCM Doc #-}
 
 instance PrettyTCM NLPat where
-  prettyTCM (PVar s x bvs) = prettyTCM (Var x (map (Apply . fmap var) bvs))
+  -- We print variables in NLPats with "?" prefixes to indicate that they are
+  -- not bound vars
+  prettyTCM (PVar s x bvs) =
+    ("?" <> prettyTCM (var x)) <+> fsep (map (prettyTCM . fmap var) bvs)
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
   prettyTCM (PLam i u)  = parens $ fsep
@@ -625,8 +628,8 @@ instance PrettyTCM (Type' NLPat) where
   prettyTCM = prettyTCM . unEl
 {-# SPECIALIZE prettyTCM :: Type' NLPat -> TCM Doc #-}
 
-instance PrettyTCM RewriteRule where
-  prettyTCM (RewriteRule q gamma f ps rhs b _c _top) = fsep
+instance PrettyTCM GlobalRewriteRule where
+  prettyTCM (GlobalRewriteRule q gamma f ps rhs b _c _top) = fsep
     [ prettyTCM q
     , prettyTCM gamma <+> " |- "
     , addContext gamma $ sep
@@ -637,7 +640,41 @@ instance PrettyTCM RewriteRule where
       , prettyTCM b
       ]
     ]
-{-# SPECIALIZE prettyTCM :: RewriteRule -> TCM Doc #-}
+{-# SPECIALIZE prettyTCM :: GlobalRewriteRule -> TCM Doc #-}
+
+instance PrettyTCM LocalEquation where
+  prettyTCM (LocalEquation gamma lhs rhs b) = fsep
+    [ prettyTCM gamma <+> " |- "
+    , addContext gamma $ sep
+      [ prettyTCM lhs
+      , " = "
+      , prettyTCM rhs
+      , " : "
+      , prettyTCM b
+      ]
+    ]
+
+instance PrettyTCM RewriteHead where
+  prettyTCM (RewDefHead f) = prettyTCM f
+  prettyTCM (RewVarHead x) = prettyTCM (var x)
+
+instance PrettyTCM RewriteRule where
+  prettyTCM (RewriteRule gamma f ps rhs b) = fsep
+    [ prettyTCM gamma <+> " |- "
+    , addContext gamma $ sep
+      [ prettyTCM (headToPat (size gamma) f ps)
+      , " --> "
+      , prettyTCM rhs
+      , " : "
+      , prettyTCM b
+      ]
+    ]
+
+instance PrettyTCM RewDom where
+  prettyTCM (RewDom e r) = fsep
+    [ prettyTCM e
+    , if isJust r then "(rewrite present)" else "(rewrite invalidated)"
+    ]
 
 instance PrettyTCM Occurrence where
   prettyTCM occ  = text $ "-[" ++ prettyShow occ ++ "]->"
