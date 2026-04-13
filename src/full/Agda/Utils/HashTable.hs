@@ -90,7 +90,7 @@ toList (HashTable h) = Data.Vector.Hashtables.toList h
 forAssocs :: (MVector ks k, MVector vs v)
           => HashTable ks k vs v -> (k -> v -> IO ()) -> IO ()
 forAssocs (HashTable h) f = do
-  Dictionary{..} <- readMutVar (getDRef h)
+  Dictionary{ hashCode, key, refs, value } <- readMutVar (getDRef h)
   count <- refs ! getCount
   let go :: Int -> IO ()
       go i | i < 0 = pure ()
@@ -122,8 +122,8 @@ insertingIfAbsent :: forall ks k vs v a.
        -> IO v
        -> (v -> IO a)
        -> IO a
-insertingIfAbsent (HashTable DRef{..}) key' found getValue' notfound = do
-    d@Dictionary{..} <- readMutVar getDRef
+insertingIfAbsent (HashTable DRef{ getDRef }) key' found getValue' notfound = do
+    d@Dictionary{ buckets, hashCode, key, next, refs, remSize, value } <- readMutVar getDRef
     let
         hashCode' = hash key' .&. mask
         !targetBucket = hashCode' `fastRem` remSize

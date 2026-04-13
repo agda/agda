@@ -388,6 +388,7 @@ common language
       DeriveTraversable
       DerivingStrategies
       DerivingVia
+      DisambiguateRecordFields
       ExistentialQuantification
       FlexibleContexts
       FlexibleInstances
@@ -402,7 +403,6 @@ common language
       OverloadedStrings
       PatternSynonyms
       RankNTypes
-      RecordWildCards
       ScopedTypeVariables
       StandaloneDeriving
       TupleSections
@@ -428,6 +428,7 @@ common language
       PatternGuards
       PolyKinds
       RebindableSyntax
+      RecordWildCards
       TemplateHaskell
       UnboxedTuples
       UndecidableInstances

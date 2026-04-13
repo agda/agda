@@ -117,7 +117,7 @@ isType_ e = traceCall (IsType_ e) $ do
     , nest 2 $ "returns" <?> prettyTCM a
     ]) $ do
   let fallback = isType' CmpEq e =<< do workOnTypes $ newSortMeta
-  SortKit{..} <- sortKit
+  SortKit{ isNameOfUniv } <- sortKit
   case unScope e of
     A.Fun i (Arg info t) b -> do
       a <- uncurry (defaultArgDomRew info) <$>

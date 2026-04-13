@@ -3441,8 +3441,8 @@ instance Pretty MetaId where
     text $ "_" ++ show n ++ "@" ++ show (moduleNameHash m)
 
 instance Enum MetaId where
-  succ MetaId{..} = MetaId { metaId = succ metaId, .. }
-  pred MetaId{..} = MetaId { metaId = pred metaId, .. }
+  succ m@MetaId{ metaId } = m { metaId = succ metaId }
+  pred m@MetaId{ metaId } = m { metaId = pred metaId }
 
   -- The following functions should not be used.
   toEnum   = __IMPOSSIBLE__

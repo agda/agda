@@ -257,7 +257,7 @@ inferApplication exh hd args e | not (defOrVar hd) = do
   v <- checkExpr' CmpEq e t
   return (v, t)
 inferApplication exh hd args e = postponeInstanceConstraints $ do
-  SortKit{..} <- sortKit
+  SortKit{ isNameOfUniv } <- sortKit
   case unScope hd of
     A.Proj o p | isAmbiguous p -> inferProjApp e o p hd args
     A.Def' x s | Just (sz, u) <- isNameOfUniv x -> inferUniv sz u e x s args
@@ -414,7 +414,7 @@ inferDef mkTerm x =
 -- not be any need to insert hidden lambdas.
 checkHeadApplication :: Comparison -> A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Term
 checkHeadApplication cmp e t hd args = do
-  SortKit{..} <- sortKit
+  SortKit{ isNameOfUniv } <- sortKit
   sharp <- fmap nameOfSharp <$> coinductionKit
   pOr    <- getNameOfConstrained builtinPOr
   pComp  <- getNameOfConstrained builtinComp
@@ -567,7 +567,7 @@ checkArgumentsE'
   -> CheckArgumentsE'
 
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
-checkArgumentsE' S{ sArgs = [], .. }
+checkArgumentsE' S{ sArgs = [], sFun, sFunType, sChecked, sExpand }
   | isDontExpandLast sExpand =
     return $ ACState
       { acCheckedArgs = []
@@ -577,7 +577,7 @@ checkArgumentsE' S{ sArgs = [], .. }
       }
 
 -- Case: no arguments, but need to insert trailing hiddens.
-checkArgumentsE' S{ sArgs = [], .. } =
+checkArgumentsE' S{ sArgs = [], sFun, sFunType, sChecked, sResultType } =
   traceCallE (CheckArguments sFun [] sFunType sResultType) $ lift $ do
     sResultType <- traverse (unEl <.> reduce) sResultType
     (ncargs, t) <- implicitCheckedArgs (-1) (\ h _x -> expand sResultType h) sFunType
@@ -596,7 +596,7 @@ checkArgumentsE' S{ sArgs = [], .. } =
 
 -- Case: argument given.
 checkArgumentsE'
-  s@S{ sArgs = sArgs@((arg@(Arg info e), sArgsVisible) : args), .. } =
+  s@S{ sArgs = sArgs@((arg@(Arg info e), sArgsVisible) : args), sArgsLen, sChecked, sComp, sFun, sFunType, sPathView, sResultType, sSkipCheck, sSizeLtChecked } =
 
     traceCallE (CheckArguments sFun (map' fst sArgs) sFunType sResultType) $ do
       lift $ reportSDoc "tc.term.args" 30 $ sep

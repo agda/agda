@@ -32,7 +32,7 @@ import Data.Text.Lazy qualified as TL
 import Data.Text.Lazy.Builder qualified as Builder
 #endif
 
-import GHC.Generics
+import GHC.Generics (Generic)
 
 import Text.PrettyPrint.Annotated.HughesPJ (Doc)
 import Text.PrettyPrint.Annotated.HughesPJ qualified as Ppr

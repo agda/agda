@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 
 module Agda.Mimer.Monad where
 

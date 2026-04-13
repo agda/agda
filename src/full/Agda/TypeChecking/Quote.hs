@@ -224,7 +224,7 @@ quotingKit = do
 
       quoteTelEntry :: Dom (ArgName, Type) -> ReduceM Term
       quoteTelEntry dom@(unDom -> (x , t)) = do
-        SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+        SigmaKit{ sigmaCon } <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
         Con sigmaCon ConOSystem [] !@! quoteString x @@ quoteDom quoteType (fmap snd dom)
 
       list :: [ReduceM Term] -> ReduceM Term

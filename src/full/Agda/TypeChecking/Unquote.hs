@@ -373,7 +373,7 @@ instance Unquote a => Unquote [a] where
 instance (Unquote a, Unquote b) => Unquote (a, b) where
   unquote t = do
     t <- reduceQuotedTerm t
-    SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+    SigmaKit{ sigmaCon } <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
     case t of
       Con c _ es | Just [x,y] <- allApplyElims es ->
         choice

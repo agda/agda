@@ -36,7 +36,7 @@ import Agda.Utils.Impossible
 import Internal.Helpers
 import Internal.TypeChecking.Positivity.Occurrence ()
 
-import Test.QuickCheck as QuickCheck
+import qualified Test.QuickCheck as QuickCheck
 
 
 ------------------------------------------------------------------------

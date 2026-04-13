@@ -4,6 +4,7 @@
 -- with GHC 9.14
 {-# LANGUAGE NoDeepSubsumption #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE UnboxedTuples #-}
 
 module Agda.TypeChecking.Monad.Base
