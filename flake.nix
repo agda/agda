@@ -124,7 +124,9 @@
                   --add-flags "-fignore-build-tool-depends"
                 '';
             })
-            pkgs.haskell-language-server
+            # Getting haskell-language-server from hpks
+            # (not pkgs) ensures compatability with GHC
+            hpkgs.haskell-language-server
             pkgs.icu
             hpkgs.fix-whitespace
 
