@@ -2,11 +2,8 @@
 
 module Internal.TypeChecking.Substitute ( tests ) where
 
-import Control.Applicative
-import Control.Monad
-import Data.Maybe
-import Data.Monoid hiding ((<>))
-import Data.Semigroup
+import Control.Applicative ( Alternative(empty) )
+import Control.Monad ( guard )
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Internal
@@ -341,6 +338,163 @@ prop_parallelS :: Cx -> Cx -> Property
 prop_parallelS gamma delta =
   forAllShrink (mapM (genTm gamma) (map snd $ contextVars delta)) (traverse shrink) $ \ vs ->
   checkSub gamma (parallelS vs) (gamma <> delta)
+
+------------------------------------------------------------------------
+-- * Level stuff
+------------------------------------------------------------------------
+
+-- ** Closed levels; those evaluate to a natural number.
+------------------------------------------------------------------------
+
+-- | A level that evaluates to a natural number.
+newtype NatLevelTerm = NatLevelTerm { theNatLevelTerm :: Term }
+  deriving (Eq, Show)
+
+instance Arbitrary NatLevelTerm where
+  arbitrary = NatLevelTerm . Level . theNatLevel <$> arbitrary
+
+-- | A level that evaluates to a natural number.
+newtype NatLevel = NatLevel { theNatLevel :: Level }
+  deriving (Eq, Show)
+
+instance Arbitrary NatLevel where
+  arbitrary = do
+    n <- getNonNegative <$> arbitrary
+    m <- frequency [(7, pure 0), (5, pure 1), (3, pure 2), (1, pure 3)]
+    ls <- map theNatPlusLevel <$> vectorOf m arbitrary
+    return $ NatLevel $ Max n ls
+
+-- | A level that evaluates to a natural number.
+newtype NatPlusLevel = NatPlusLevel { theNatPlusLevel :: PlusLevel }
+  deriving (Eq, Show)
+
+instance Arbitrary NatPlusLevel where
+  arbitrary = do
+    n <- getNonNegative <$> arbitrary
+    NatPlusLevel . Plus n . theNatLevelTerm <$> arbitrary
+
+-- Evaluating NatLevel
+
+class EvalNatLevel a where
+  evalNatLevel :: a -> Integer
+
+instance EvalNatLevel NatLevelTerm where
+  evalNatLevel (NatLevelTerm (Level l)) = evalNatLevel (NatLevel l)
+  evalNatLevel _ = undefined
+
+instance EvalNatLevel NatLevel where
+  evalNatLevel (NatLevel (Max n ls)) = maximum (n : map (evalNatLevel . NatPlusLevel) ls)
+
+instance EvalNatLevel NatPlusLevel where
+  evalNatLevel (NatPlusLevel (Plus n l)) = n + evalNatLevel (NatLevelTerm l)
+
+-- QuickCheck statistics
+
+instance TermSize NatLevelTerm where
+  tsize (NatLevelTerm t) = tsize t
+
+instance TermSize NatLevel where
+  tsize (NatLevel (Max _ ls)) = 1 + sum (map tsize ls)
+
+instance TermSize NatPlusLevel where
+  tsize (NatPlusLevel (Plus _ t)) = tsize t
+
+-- | ⟦ l₁ ⊔ l₂ ⟧ = ⟦ l₁ ⟧ ⊔ ⟦ l₂ ⟧
+prop_eval_levelLub  :: NatLevel -> NatLevel -> Property
+prop_eval_levelLub l1 l2 =
+  -- collect (termSize l1 + termSize l2) $
+  property $
+    evalNatLevel (NatLevel (levelLub (theNatLevel l1) (theNatLevel l2)))
+    == max (evalNatLevel l1) (evalNatLevel l2)
+
+-- | l₁ ⊔ l₂ = ClosedLevel ⟦ l₁ ⊔ l₂ ⟧
+prop_eval_levelLub_to_Nat  :: NatLevel -> NatLevel -> Property
+prop_eval_levelLub_to_Nat l1 l2 =
+  -- collect (termSize l1 + termSize l2) $
+  property $
+    l == ClosedLevel (evalNatLevel (NatLevel l))
+  where l = levelLub (theNatLevel l1) (theNatLevel l2)
+
+-- | l₁ ⊔ l₂ = l₂ ⊔ l₁
+prop_closed_levelLub_commutative :: NatLevel -> NatLevel -> Property
+prop_closed_levelLub_commutative nl1@(NatLevel l1) nl2@(NatLevel l2) =
+  -- collect (termSize nl1 + termSize nl2) $
+  property $
+    levelLub l1 l2 == levelLub l2 l1
+
+-- | l₁ ⊔ (l₂ ⊔ l₃) = (l₁ ⊔ l₂) ⊔ l₃
+prop_closed_levelLub_associative :: NatLevel -> NatLevel -> NatLevel -> Property
+prop_closed_levelLub_associative nl1@(NatLevel l1) nl2@(NatLevel l2) nl3@(NatLevel l3) =
+  -- collect (termSize nl1 + termSize nl2 + termSize nl3) $
+  property $
+    levelLub l1 (levelLub l2 l3) == levelLub (levelLub l1 l2) l3
+
+-- ** Open levels; those evaluate to a natural number.
+------------------------------------------------------------------------
+
+-- | A level that evaluates to a natural number.
+newtype OpenLevelTerm = OpenLevelTerm { theOpenLevelTerm :: Term }
+  deriving (Eq, Show)
+
+instance Arbitrary OpenLevelTerm where
+  arbitrary = OpenLevelTerm <$> frequency
+    [ (2, Level . theOpenLevel <$> arbitrary)
+    , (1, var <$> choose (0,2))
+    ]
+
+-- | A level that evaluates to a natural number.
+newtype OpenLevel = OpenLevel { theOpenLevel :: Level }
+  deriving (Eq, Show)
+
+instance Arbitrary OpenLevel where
+  arbitrary = do
+    n <- getNonNegative <$> arbitrary
+    m <- frequency [(7, pure 0), (5, pure 1), (3, pure 2), (1, pure 3)]
+    ls <- map theOpenPlusLevel <$> vectorOf m arbitrary
+    return $ OpenLevel $ Max n ls
+
+-- | A level that evaluates to a natural number.
+newtype OpenPlusLevel = OpenPlusLevel { theOpenPlusLevel :: PlusLevel }
+  deriving (Eq, Show)
+
+instance Arbitrary OpenPlusLevel where
+  arbitrary = do
+    n <- getNonNegative <$> arbitrary
+    OpenPlusLevel . Plus n . theOpenLevelTerm <$> arbitrary
+
+-- QuickCheck statistics
+
+instance TermSize OpenLevelTerm where
+  tsize (OpenLevelTerm t) = tsize t
+
+instance TermSize OpenLevel where
+  tsize (OpenLevel (Max _ ls)) = 1 + sum (map tsize ls)
+
+instance TermSize OpenPlusLevel where
+  tsize (OpenPlusLevel (Plus _ t)) = tsize t
+
+-- | l ⊔ l == l for normalized l.
+prop_open_levelLub_idem :: OpenLevel -> OpenLevel -> Property
+prop_open_levelLub_idem nl1@(OpenLevel l1) nl2@(OpenLevel l2) =
+  -- collect (termSize nl1 + termSize nl2) $
+  property $
+    levelLub l l == l
+  where l = levelLub l1 l2
+
+-- | l₁ ⊔ l₂ = l₂ ⊔ l₁
+prop_open_levelLub_commutative :: OpenLevel -> OpenLevel -> Property
+prop_open_levelLub_commutative nl1@(OpenLevel l1) nl2@(OpenLevel l2) =
+  -- collect (termSize nl1 + termSize nl2) $
+  property $
+    levelLub l1 l2 == levelLub l2 l1
+
+-- | l₁ ⊔ (l₂ ⊔ l₃) = (l₁ ⊔ l₂) ⊔ l₃
+prop_open_levelLub_associative :: OpenLevel -> OpenLevel -> OpenLevel -> Property
+prop_open_levelLub_associative nl1@(OpenLevel l1) nl2@(OpenLevel l2) nl3@(OpenLevel l3) =
+  -- collect (termSize nl1 + termSize nl2 + termSize nl3) $
+  property $
+    levelLub l1 (levelLub l2 l3) == levelLub (levelLub l1 l2) l3
+
 
 ------------------------------------------------------------------------
 -- * All tests

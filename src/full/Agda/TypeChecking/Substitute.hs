@@ -1994,7 +1994,7 @@ piSortM va s1 s2 = case piSort' va s1 s2 of
 -- * Level stuff
 ---------------------------------------------------------------------------
 
--- ^ Computes @n0 ⊔ a₁ ⊔ a₂ ⊔ ... ⊔ aₙ@ and return its canonical form.
+-- | Computes @n0 ⊔ a₁ ⊔ a₂ ⊔ ... ⊔ aₙ@ and return its canonical form.
 levelMax :: Integer -> [PlusLevel] -> Level
 levelMax !n0 as0 = Max n as
   where
