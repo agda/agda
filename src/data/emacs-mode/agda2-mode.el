@@ -1825,7 +1825,8 @@ ways."
              (unless stk
                (agda2-make-goal start (point) (pop goals)))))
           ("?"
-           (delete-char -1)
+           (goto-char (match-beginning 1))
+           (delete-char 1)
            (insert "{!!}")
            (agda2-make-goal (- (point) 4) (point) (pop goals)))
           ("{"
