@@ -412,7 +412,7 @@ Interaction and emacs mode
 --------------------------
 
 * Syntax highlighting and go-to-definition now also works in the Agda
-  information buffer in Emacs where goals etc. are displayed.
+  information and debug buffers in Emacs where goals etc. are displayed.
   This fixes long-standing [Issue #706](https://github.com/agda/agda/issues/706).
 
 * By temporarily turning on printing of hidden arguments
