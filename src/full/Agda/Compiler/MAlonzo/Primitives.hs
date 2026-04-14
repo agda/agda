@@ -289,7 +289,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $ List.loo
   , PrimEraseEquality |-> return mazErasedName
 
   -- Rewriting
-  , PrimNoMatch |-> return "\\ _ _ x -> x"
+  , PrimNoMatch       |-> return "\\ _ _ x -> x"
 
   -- Cubical
   , PrimIMin          |-> return "(&&)"
