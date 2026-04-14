@@ -176,7 +176,7 @@ and so the implicit argument reduces to just ``{n = m}``. Agda does not reduce
 pattern-matching definitions during rewrite rule matching, so it fails to match
 ``m`` against ``n + m`` and the rewrite does not apply.
 
-The ``primNoMatch`` primitive (exported via the syntax ``⟨_⟩`` from
+The ``primNoMatch`` primitive (exported by
 ``Agda.Builtin.Equality.Rewrite``) enables manually working around this
 limitation. Wrapping subterms of rewrite rule left-hand sides with the
 primitive tells Agda to not strictly match against those subterms.
@@ -186,12 +186,12 @@ somewhere else on the left-hand-side.
 
 If we wrap the implicit length argument to the outer ``_++_`` on the
 left-hand side of the associativity of vector concatenation rewrite rule
-with ``⟨_⟩``, then we find the rewrite rule works correctly.
+with ``primNoMatch``, then we find the rewrite rule works correctly.
 
 ::
 
   ++-assoc' : {xs : Vec A n} {ys : Vec A m} {zs : Vec A l}
-            → _++_ {n = ⟨ n + m ⟩} (xs ++ ys) zs ≡ xs ++ (ys ++ zs)
+            → _++_ {n = primNoMatch (n + m)} (xs ++ ys) zs ≡ xs ++ (ys ++ zs)
   ++-assoc' {xs = xs} = ++-assoc {xs = xs}
 
   {-# REWRITE ++-assoc' #-}

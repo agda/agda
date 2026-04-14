@@ -693,7 +693,7 @@ primNoMatch = do
        (el (pure $ var 0) --> el (pure $ var 0))
 
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 3 $ \ ~[l, a, x] -> do
-    allowed <- asksTC envAllowedReductions
+    allowed <- viewTC eAllowedReductions
 
     if NoMatchReductions `SmallSet.member` allowed
     then redReturn $ unArg x
