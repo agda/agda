@@ -1704,7 +1704,7 @@ Will return one of the following options:
 -- markdown
 -- org
 -- typst
--- forestor"
+-- forester"
   (pcase (file-name-extension (or path (buffer-file-name)))
     ("agda" 'plain)
     ((or "lagda" "tex") 'latex)
@@ -1712,7 +1712,7 @@ Will return one of the following options:
     ("org" 'org)
     ("md" 'markdown)
     ("typ" 'typst)
-    ("tree" 'forestor)
+    ("tree" 'forester)
     (ext (error "Unknown agda file extension %s" ext))))
 
 (defun agda2-goals-action (goals)
@@ -1726,19 +1726,24 @@ ways."
   (agda2-forget-all-goals)
   (agda2-let
       ((file-type (agda2-file-type))
+       ;; All regexes in `code-start-rx' are headed by line-start (blank *) to avoid
+       ;; creating interaction points in code blocks that are commented
+       ;; out using the host languages comments (EG: % \begin{code})
+       ;; See issue #1331.
+       ;;
+       ;; [TODO: Reed M, 14/04/2026] Literate RST support.
        (code-start-rx
         (pcase file-type
           ('latex
-           ;; We avoid matching '% \\begin{code}' to avoid creating
-           ;; interaction points in commented code blocks in TeX files.
-           ;; See issue #1331
-           (rx line-start (*? (not "%")) line-start (*? (not "%")) "\\begin{code}"))
+           (rx line-start (* blank) "\\begin{code}"))
           ('org
-           (rx "#+begin_src" (+ blank) "agda2"))
+           (rx line-start (* blank) "#+begin_src" (+ blank) "agda2"))
           ((or 'typst 'markdown)
-           (rx "```"))
-          ('forestor
-           (rx "\\agda{"))))
+           (rx line-start (* blank) "```"))
+          ('forester
+           (rx line-start (* blank) "\\agda{"))))
+       ;; We don't need to be as careful with comments in `code-end-rx', as
+       ;; `code-rx' and the main lexer loop will handle comments for us.
        (code-end-rx
         (pcase file-type
           ('latex
@@ -1747,8 +1752,9 @@ ways."
            (rx "#+end_src"))
           ((or 'typst 'markdown)
            (rx "```"))
-          ;; Forestor uses } to close out code blocks,
-          ;; which requires special handling.
+          ;; Forester uses } to close out code blocks,
+          ;; which requires special handling due to implicit
+          ;; arguments.
           (_ (rx unmatchable))))
        (comment-rx
         (rx (or "{-" "-}")))
@@ -1771,7 +1777,7 @@ ways."
              (submatch-n 1 (and (? "!") "}"))
              (submatch-n 1 (regexp code-end-rx)))))
        ;; Don't run modification hooks: we don't want this function to
-       ;; trigger agda2-abort-highlighting.
+       ;; trigger `agda2-abort-highlighting'.
        (inhibit-modification-hooks t)
        ;; Make sure that we don't use case-sensitive matching
        ;; so that we can pick up on all capitalizations of #+BEGIN_SRC.
@@ -1797,7 +1803,7 @@ ways."
            ('latex (equal str "\\end{code}"))
            ('org (equal (downcase str) "#+end_src"))
            ((or 'typst 'markdown) (equal str "```"))
-           ('forestor (and (equal str "}") (not (eq (car stk) 'bracket)))))))
+           ('forester (and (equal str "}") (not (eq (car stk) 'bracket)))))))
     (save-excursion
       (goto-char (point-min))
       ;; This code assumes that all delimiters in Agda code
