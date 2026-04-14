@@ -7,6 +7,7 @@ module Agda.Interaction.EmacsCommand
   ( displayInfo
   , clearRunningInfo
   , displayRunningInfo
+  , displayVerboseInfo
   ) where
 
 import Prelude hiding (null)
@@ -42,9 +43,7 @@ displayInfo header content append m = L $ concat
   , map Q ann
   ]
   where
-    (t, ann) = case m of
-      Nothing  -> (, [])                                $ treeToTextNoAnn   content
-      Just m2s -> second (lispifyHighlightingInfo_ m2s) $ treeToTextWithAnn content
+    (t, ann) = processAnnotations content m
 
 ------------------------------------------------------------------------
 -- Running info
@@ -63,3 +62,16 @@ clearRunningInfo = displayInfo runningInfoHeader empty False Nothing
 
 displayRunningInfo :: DocTree -> Maybe ModuleToSource -> Lisp String
 displayRunningInfo t = displayInfo runningInfoHeader t True
+
+displayVerboseInfo :: DocTree -> Maybe ModuleToSource -> Lisp String
+displayVerboseInfo t m = L $ concat
+  [ [ A "agda2-verbose"
+    , A (quote $ Text.unpack tx)]
+  , map Q anns]
+  where
+    (tx, anns) = processAnnotations t m
+
+processAnnotations :: DocTree -> Maybe ModuleToSource -> (Text.Text, [Lisp String])
+processAnnotations t = \case
+  Nothing  -> (, [])                                $ treeToTextNoAnn t
+  Just m2s -> second (lispifyHighlightingInfo_ m2s) $ treeToTextWithAnn t
