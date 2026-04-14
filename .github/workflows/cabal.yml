@@ -24,7 +24,7 @@ jobs:
     env:
       FLAGS: -O0 ${{ matrix.cabal-flags || '--enable-tests --flags=enable-cluster-counting'
         }}
-      GHC_VER: ${{ matrix.ghc-ver || '9.12.2' }}
+      GHC_VER: ${{ matrix.ghc-ver || '9.12.4' }}
     name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
@@ -127,7 +127,7 @@ jobs:
         doctest:
         - false
         ghc-ver:
-        - 9.12.2
+        - 9.12.4
         - 9.10.3
         - 9.8.4
         - 9.6.7
@@ -142,22 +142,22 @@ jobs:
         - cabal-flags: --disable-tests
           description: Linux doctest
           doctest: true
-          ghc-ver: 9.12.2
+          ghc-ver: 9.12.4
           os: ubuntu-24.04
         - cabal-flags: --enable-tests --flags=debug
           description: Linux debug
-          ghc-ver: 9.12.2
+          ghc-ver: 9.12.4
           os: ubuntu-24.04
         - cabal-flags: --enable-tests --flags=use-xdg-data-home --flags=enable-cluster-counting
             --flags=debug --flags=debug-serialisation --flags=debug-parsing
           description: Linux debug all
-          ghc-ver: 9.12.2
+          ghc-ver: 9.12.4
           os: ubuntu-24.04
         - description: macOS
-          ghc-ver: 9.12.2
+          ghc-ver: 9.12.4
           os: macos-15
         - description: Windows
-          ghc-ver: 9.12.2
+          ghc-ver: 9.12.4
           os: windows-2025
         os:
         - ubuntu-24.04
