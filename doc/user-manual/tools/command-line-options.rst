@@ -1768,6 +1768,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Repeated variable name in telescope.
 
+.. option:: ShouldBeEtaRecordPatternW
+
+     Irrefutable record pattern without eta.
+
 .. option:: TooManyArgumentsToSort
 
      E.g. ``Set`` used with more than one argument.

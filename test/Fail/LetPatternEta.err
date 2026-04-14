@@ -1,6 +1,14 @@
-LetPatternEta.agda:10.9-22: error: [ShouldBeEtaRecordPattern]
+LetPatternEta.agda:13.14-20: warning: -W[no]ShouldBeEtaRecordPatternW
 Pattern matching in binders is only allowed for record types with
 eta-equality, but this constructor belongs to a record type without
-eta-equality
-when checking that the expression λ (wrap a) → a has type
-Wrap A → Set
+eta-equality (this will be an error in future versions of Agda)
+when checking that the expression
+λ w @ (wrap a) → refl {x = wrap a} has type (w : Wrap A) → w ≡ w
+
+LetPatternEta.agda:13.24-41: error: [UnequalTerms]
+The terms
+  wrap a
+and
+  w
+are not equal at type Wrap A
+when checking that the expression refl {x = wrap a} has type w ≡ w

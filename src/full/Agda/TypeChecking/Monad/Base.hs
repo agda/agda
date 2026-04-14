@@ -5264,6 +5264,9 @@ data Warning
       --   This can indicate a user misunderstanding of display forms.
 
   -- Type checker warnings
+  | ShouldBeEtaRecordPatternW
+      -- ^ Warning version of @'ShouldBeEtaRecordPattern' 'NotEtaRecord'@.
+      --   Should be turned into error in 2.10.
   | TooManyArgumentsToSort QName (List1 (NamedArg A.Expr))
       -- ^ Extra arguments to sort (will be ignored).
   | DefinitionBeforeDeclaration A.AbstractName
@@ -5417,6 +5420,7 @@ warningName = \case
   UnusedVariablesInDisplayForm{}       -> UnusedVariablesInDisplayForm_
 
   -- Type checking
+  ShouldBeEtaRecordPatternW{}          -> ShouldBeEtaRecordPatternW_
   TooManyArgumentsToSort{}             -> TooManyArgumentsToSort_
   DefinitionBeforeDeclaration{}        -> DefinitionBeforeDeclaration_
   RecursiveRecordNeedsInductivity{}    -> RecursiveRecordNeedsInductivity_
@@ -5675,7 +5679,7 @@ data TypeError
         | ShouldBePath Type
         | ShouldBeRecordType Type
         | ShouldBeRecordPattern
-        | ShouldBeEtaRecordPattern NotEtaRecord DeBruijnPattern
+        | ShouldBeEtaRecordPattern NotEtaRecord
         | CannotApply A.Expr Type
             -- ^ The given expression is used as a function
             --   but its type is not a function type.

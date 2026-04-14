@@ -34,6 +34,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Warnings (warning)
 
 import Agda.Interaction.Options
 
@@ -72,7 +73,7 @@ recordPatternToProjections p =
 
     ConP c ci ps -> do
       unless (conPRecord ci) $
-        typeError $ ShouldBeEtaRecordPattern DataNotRecord p
+        typeError $ ShouldBeEtaRecordPattern DataNotRecord
       t <- reduce (unArg $ fromMaybe __IMPOSSIBLE__ $ conPType ci)
       reportSDoc "tc.rec" 45 $ vcat
         [ "recordPatternToProjections: "
@@ -81,9 +82,13 @@ recordPatternToProjections p =
       reportSLn "tc.rec" 70 $ "  type raw: " ++ show t
       case unEl t of
         Def r _ -> fmap theDef (getConstInfo r) >>= \case
-          rt@Record { recFields = fields } | YesEta == recEtaEquality rt ->
+          rt@Record { recFields = fields } -> do
+            unless (YesEta == recEtaEquality rt) do
+              -- This should be turned into an error in Agda 2.10.0.
+              -- typeError $ ShouldBeEtaRecordPattern NotEtaRecord
+              warning ShouldBeEtaRecordPatternW
             concat <$> zipWithM comb (map proj fields) (map namedArg ps)
-          _ -> typeError $ ShouldBeEtaRecordPattern NotEtaRecord p
+          _ -> typeError $ ShouldBeEtaRecordPattern DataNotRecord
         _ -> __IMPOSSIBLE_VERBOSE__ "recordPatternToProjections: ConP can only belong to a record or data type."
   where
     proj p = (`applyE` [Proj ProjSystem $ unDom p])

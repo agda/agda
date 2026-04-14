@@ -388,6 +388,7 @@ data WarningName
   | SafeFlagPragma_
   | SafeFlagTerminating_
   | SafeFlagWithoutKFlagPrimEraseEquality_
+  | ShouldBeEtaRecordPatternW_
   | TerminationIssue_
   | TooManyArgumentsToSort_
   | UnreachableClauses_
@@ -655,6 +656,7 @@ warningNameDescription = \case
   UserWarning_                     -> "User-defined warnings via one of the 'WARNING_ON_*' pragmas."
   InvalidDisplayForm_              -> "Invalid display forms."
   UnusedVariablesInDisplayForm_    -> "Bound but unused variables in display forms."
+  ShouldBeEtaRecordPatternW_       -> "Irrefutable record pattern without eta."
   TooManyArgumentsToSort_          -> "Extra arguments given to a sort."
   RecursiveRecordNeedsInductivity_ -> "Recursive records declared neither `inductive' nor `coinductive'."
   RewritesNothing_                 -> "`rewrite' clauses that do not fire."

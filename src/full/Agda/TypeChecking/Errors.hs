@@ -290,7 +290,7 @@ instance PrettyTCM TypeError where
     ShouldBeRecordPattern -> fsep $
       pwords "Expected record pattern"
 
-    ShouldBeEtaRecordPattern why p -> fsep $
+    ShouldBeEtaRecordPattern why -> fsep $
       let
         reason = case why of
           NotEtaRecord -> pwords "record types with eta-equality, but this constructor belongs to a record type without eta-equality"
