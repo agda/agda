@@ -3,7 +3,7 @@
 {-# OPTIONS --guardedness #-}
 module Issue636 where
 
-open import Agda.Builtin.Coinduction
+open import Common.Coinduction
 
 data ⊥ : Set where
 

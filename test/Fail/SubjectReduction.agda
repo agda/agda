@@ -5,7 +5,7 @@
 
 module SubjectReduction where
 
-open import Agda.Builtin.Coinduction
+open import Common.Coinduction
 
 Eq : {A : Set} → A → A → Set1
 Eq {A} x y = (P : A → Set) → P x → P y

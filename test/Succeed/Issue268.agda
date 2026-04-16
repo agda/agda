@@ -4,7 +4,7 @@
 module Issue268 where
 
 module Example₁ where
-  open import Agda.Builtin.Coinduction
+  open import Common.Coinduction
 
   module Record where
 

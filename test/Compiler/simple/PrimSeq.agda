@@ -1,4 +1,3 @@
-{-# OPTIONS --erasure #-}
 
 module _ where
 
@@ -13,14 +12,14 @@ n mod suc m = mod-helper 0 m n m
 {-# INLINE _mod_ #-}
 
 primitive
-  primForce      : ∀ {@0 a b} {A : Set a} {B : A → Set b} (x : A) → (∀ x → B x) → B x
-  primForceLemma : ∀ {@0 a b} {A : Set a} {B : A → Set b} (x : A) (f : ∀ x → B x) → primForce x f ≡ f x
+  primForce      : ∀ {a b} {A : Set a} {B : A → Set b} (x : A) → (∀ x → B x) → B x
+  primForceLemma : ∀ {a b} {A : Set a} {B : A → Set b} (x : A) (f : ∀ x → B x) → primForce x f ≡ f x
 
 force      = primForce
 forceLemma = primForceLemma
 
 infixr 0 _$!_
-_$!_ : ∀ {@0 a b} {A : Set a} {B : A → Set b} → (∀ x → B x) → ∀ x → B x
+_$!_ : ∀ {a b} {A : Set a} {B : A → Set b} → (∀ x → B x) → ∀ x → B x
 f $! x = force x f
 
 -- Memory leak without proper seq --

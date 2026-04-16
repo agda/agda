@@ -26,7 +26,7 @@ import Agda.Utils.Impossible
 --
 --   Precondition: no projection patterns.
 clauseArgs :: Clause -> Args
-clauseArgs cl = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ clauseElims cl
+clauseArgs cl = mustAllApplyElims $ clauseElims cl
 
 -- | Translate the clause patterns to an elimination spine
 --   with free variables bound by the clause telescope.
@@ -49,7 +49,7 @@ instance FunArity Clause where
 -- | Get the number of common initial 'Apply' patterns in a list of clauses.
 instance {-# OVERLAPPING #-} FunArity [Clause] where
   funArity []  = 0
-  funArity cls = minimum $ map funArity cls
+  funArity cls = minimum $ map' funArity cls
 
 -- * Tools for patterns
 
@@ -165,17 +165,17 @@ clausePerm = dbPatPerm . namedClausePats
 patternToElim :: Arg DeBruijnPattern -> Elim
 patternToElim (Arg ai (VarP o x)) = Apply $ Arg ai $ var $ dbPatVarIndex x
 patternToElim (Arg ai (ConP c cpi ps)) = Apply $ Arg ai $ Con c ci $
-      map (patternToElim . fmap namedThing) ps
+      map' (patternToElim . fmap namedThing) ps
   where ci = fromConPatternInfo cpi
 patternToElim (Arg ai (DefP o q ps)) = Apply $ Arg ai $ Def q $
-      map (patternToElim . fmap namedThing) ps
+      map' (patternToElim . fmap namedThing) ps
 patternToElim (Arg ai (DotP o t)   ) = Apply $ Arg ai t
 patternToElim (Arg ai (LitP o l)    ) = Apply $ Arg ai $ Lit l
 patternToElim (Arg ai (ProjP o dest)) = Proj o dest
 patternToElim (Arg ai (IApplyP o t u x)) = IApply t u $ var $ dbPatVarIndex x
 
 patternsToElims :: [NamedArg DeBruijnPattern] -> [Elim]
-patternsToElims ps = map build ps
+patternsToElims ps = map' build ps
   where
     build :: NamedArg DeBruijnPattern -> Elim
     build = patternToElim . fmap namedThing
@@ -337,7 +337,7 @@ instance PatternVarModalities a => PatternVarModalities (Named s a) where
 
 instance PatternVarModalities a => PatternVarModalities (Arg a) where
   type PatVar (Arg a) = PatVar a
-  patternVarModalities arg = map (second (composeModality m)) (patternVarModalities $ unArg arg)
+  patternVarModalities arg = map' (second (composeModality m)) (patternVarModalities $ unArg arg)
     where m = getModality arg
 
 -- UNUSED:

@@ -1,4 +1,4 @@
-resolver: lts-24.29
+resolver: lts-24.37
 compiler: ghc-9.10.3
 compiler-check: match-exact
 

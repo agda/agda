@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Translates the Agda builtin nat datatype to arbitrary-precision integers.

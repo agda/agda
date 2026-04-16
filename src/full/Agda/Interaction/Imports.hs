@@ -36,27 +36,28 @@ module Agda.Interaction.Imports
 
 import Prelude hiding (null)
 
-import qualified Control.Exception as E
+import Control.Exception qualified as E
 import Control.Monad.Except        ( MonadError(..), ExceptT, runExceptT, withExceptT )
 import Control.Monad.IO.Class      ( MonadIO(..) )
 import Control.Monad.State         ( MonadState(..), execStateT )
 import Control.Monad.Trans.Maybe
 import Control.Concurrent
+import Control.DeepSeq
 
 import Data.Either
 import Data.Monoid
 import Data.List (intercalate)
-import qualified Data.List as List
+import Data.List qualified as List
 import Data.Maybe
 import Data.Map (Map)
-import qualified Data.Map as Map
-import qualified Data.HashMap.Strict as HMap
-import qualified Data.ByteString as B
+import Data.Map qualified as Map
+import Data.HashMap.Strict qualified as HMap
+import Data.ByteString qualified as B
 import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.Text.Lazy as TL
+import Data.Text qualified as T
+import Data.Text.Lazy qualified as TL
 
 import GHC.Conc
 
@@ -67,9 +68,9 @@ import System.IO.Error (isUserError, isFullError)
 
 import Agda.Benchmarking
 
-import qualified Agda.Syntax.Concrete.Definitions as C
-import qualified Agda.Syntax.Abstract as A
-import qualified Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete.Definitions qualified as C
+import Agda.Syntax.Abstract qualified as A
+import Agda.Syntax.Concrete qualified as C
 import Agda.Syntax.Concrete.Attribute
 import Agda.Syntax.Concrete.Generic
 import Agda.Syntax.Abstract.Name
@@ -85,7 +86,7 @@ import Agda.Syntax.Translation.ConcreteToAbstract
   , TopLevelInfo( TopLevelInfo, topLevelDecls, topLevelScope)
   , checkAttributes, concreteToAbstract_
   )
-import qualified Agda.Syntax.Translation.ConcreteToAbstract as CToA
+import Agda.Syntax.Translation.ConcreteToAbstract qualified as CToA
 
 import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Errors
@@ -100,18 +101,18 @@ import Agda.TypeChecking.Serialise (decode, encodeFile, decodeInterface, deseria
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.DeadCode
-import qualified Agda.TypeChecking.Monad.Benchmark as Bench
+import Agda.TypeChecking.Monad.Benchmark qualified as Bench
 
 import Agda.TheTypeChecker
 
 import Agda.Interaction.BasicOps ( getGoals, prettyGoals )
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Generate
-import qualified Agda.Interaction.Highlighting.Precise as Highlighting ( convert )
+import Agda.Interaction.Highlighting.Precise qualified as Highlighting ( convert )
 import Agda.Interaction.Highlighting.Vim
 import Agda.Interaction.Library
 import Agda.Interaction.Options
-import qualified Agda.Interaction.Options.Lenses as Lens
+import Agda.Interaction.Options.Lenses qualified as Lens
 import Agda.Interaction.Options.Warnings (unsolvedWarnings)
 import Agda.Interaction.Response
   (RemoveTokenBasedHighlighting(KeepHighlighting))
@@ -123,16 +124,18 @@ import Agda.Utils.IO.Binary
 import Agda.Utils.Lens
 import Agda.Utils.List ( nubOn )
 import Agda.Utils.Maybe
-import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Maybe.Strict qualified as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Interaction.Options.ProfileOptions as Profile
+import Agda.Interaction.Options.ProfileOptions qualified as Profile
 import Agda.Utils.Singleton
-import qualified Agda.Utils.Set1 as Set1
-import qualified Agda.Utils.Trie as Trie
+import Agda.Utils.Set1 qualified as Set1
+import Agda.Utils.Trie qualified as Trie
 import Agda.Utils.Impossible
 import Agda.Utils.IORef.Strict
-import Agda.Utils.WithDefault
+import Agda.Utils.Tuple.Strict (Pair(..))
+import Agda.Utils.Tuple.Strict qualified as Strict
+
 
 -- | Whether to ignore interfaces (@.agdai@) other than built-in modules
 
@@ -352,13 +355,13 @@ mergeInterface i = do
         else do
           reportSDoc "" 1 $ P.vcat $ map (P.nest 2) $
             "Checking confluence of imported rewrite rules" :
-            map (("-" P.<+>) . prettyTCM . rewName) rews
+            map (("-" P.<+>) . prettyTCM . grName) rews
 
       -- Andreas, 2025-06-28, PR #7934 and issue #7969:
       -- Global confluence checker requires rules to be sorted
       -- according to the generality of their lhs
       when (confChk == GlobalConfluenceCheck) $
-        forM_ (nubOn id $ map rewHead rews) sortRulesOfSymbol
+        forM_ (nubOn id $ map grHead rews) sortRulesOfSymbol
 
       -- #8273: We need to ensure the module we are importing is considered
       -- imported when checking confluence.
@@ -491,6 +494,8 @@ data TCWorkers = Workers
     -- worker to signal completion (or failure).
   , workerModules    :: !(IORef DecodedModules)
     -- ^ The shared 'DecodedModules' where workers can put their results.
+  , workerStarted    :: !(IORef Int)
+    -- ^ How many threads have actually started their work. Used for progress reporting.
   }
 
 -- | If the user has asked for it, prepare the type checker for loading
@@ -513,10 +518,29 @@ wantsParallelChecking = fmap optParallelChecking commandLineOptions >>= \case
 
     threads <- liftIO $ newMVar mempty
     results <- liftIO . newIORef =<< getDecodedModules
+    started <- liftIO $ newIORef 0
     pure Workers
       { workerThreads    = threads
       , workerModules    = results
+      , workerStarted    = started
       }
+
+-- | Gets the prefix string to use for reporting the progress message
+-- (Checking, Loading, etc.) for the module this worker is responsible
+-- for.
+-- As a side-effect, updates the 'workerStarted' count.
+thisWorkerPrefix :: TCWorkers -> TCM String
+thisWorkerPrefix workers = do
+  -- In general, we don't know ahead-of-time how many modules we will
+  -- end up checking (e.g. with --build-library, this fluctuates), but
+  -- the number of modules for which we have a result slot is a pretty
+  -- good estimate.
+  sz <- show . HMap.size <$> liftIO (readMVar (workerThreads workers))
+  me <- liftIO $ atomicModifyIORef (workerStarted workers) \n -> (n + 1, show (n + 1))
+  let
+    pad = replicate (length sz - length me) ' '
+    out = "(" <> pad <> me <> "/" <> sz <> ") "
+  out `deepseq` pure out
 
 -- | Type-check the given module, using a 'TCWorkers' instance to check
 -- its imports in parallel.
@@ -639,7 +663,9 @@ chaseModule workers mod main msrc = do
         -- around to actually scope checking the import.
         sequence_ (appEndo imports [])
 
-        mi <- getInterface mod main (Just src)
+        prefix <- thisWorkerPrefix workers
+        mi <- locallyTC eChasePrefix (const (Just prefix)) $
+          getInterface mod main (Just src)
 
         -- After we're done, update the shared DecodedModules map and
         -- signal our completion.
@@ -685,9 +711,7 @@ typeCheckMain mode src = do
     Nothing      -> getInterface (srcModuleName src) (MainInterface mode) (Just src)
 
   stCurrentModule `setTCLens'`
-    Just ( iModuleName (miInterface mi)
-         , iTopLevelModuleName (miInterface mi)
-         )
+    Strict.Just (iModuleName (miInterface mi) :!: iTopLevelModuleName (miInterface mi))
 
   return $ CheckResult' mi src
 
@@ -855,22 +879,21 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
       return mi
   where
     addOptionsCompatibilityWarnings :: PragmaOptions -> ModuleInfo -> TCM ModuleInfo
-    addOptionsCompatibilityWarnings currentOptions mi = do
+    addOptionsCompatibilityWarnings currentOptions
+      mi@ModuleInfo{ miInterface = i, miPrimitive = isPrim, miWarnings = ws } = do
 
       -- Andreas, 2026-02-03, issue #8361, debug printing by @nad.
       -- For testing whether 'isBuiltinModule' is thread-safe.
       reportSDoc "import.iface.builtin" 25 do
         isBuiltin <- isJust <$> isBuiltinModule (srcFileId (miSourceFile mi))
-        P.hsep [ "The module"
-               , prettyTCM (iTopLevelModuleName (miInterface mi)), "is"
+        P.hsep [ "The module", prettyTCM (iTopLevelModuleName i), "is"
                , if isBuiltin then "primitive." else "not primitive."
                ]
 
       -- Check that imported options are compatible with current ones (issue #2487),
       -- but give primitive modules a pass.
       -- Compute updated warnings if needed.
-      ws' <- fromMaybe (miWarnings mi) <$>
-             getOptionsCompatibilityWarnings isMain currentOptions mi
+      ws' <- fromMaybe ws <$> getOptionsCompatibilityWarnings isMain isPrim currentOptions i
       return mi{ miWarnings = ws' }
 
 -- | If checking produced non-benign warnings, error out.
@@ -886,15 +909,8 @@ raiseNonFatalErrors result = do
 --   compatible with the current options. Raises Non-fatal errors if
 --   not.
 checkOptionsCompatible ::
-  PragmaOptions -> PragmaOptions -> SourceFile -> TopLevelModuleName ->
-  TCM Bool
-checkOptionsCompatible current imported importedFile importedModule =
-  flip execStateT True $ do
-  -- The flag --erasure is ignored for builtin modules.
-  imported <-
-    ifM (isJust <$> isBuiltinModule (srcFileId importedFile))
-      (return (set lensOptErasure Default imported))
-      (return imported)
+  PragmaOptions -> PragmaOptions -> TopLevelModuleName -> TCM Bool
+checkOptionsCompatible current imported importedModule = flip execStateT True $ do
   reportSDoc "import.iface.options" 25 $ P.nest 2 $ "current options  =" P.<+> showOptions current
   reportSDoc "import.iface.options" 25 $ P.nest 2 $ "imported options =" P.<+> showOptions imported
   forM_ infectiveCoinfectiveOptions $ \opt -> do
@@ -921,22 +937,16 @@ checkOptionsCompatible current imported importedFile importedModule =
 
 getOptionsCompatibilityWarnings ::
      MainInterface
+  -> Bool           -- ^ Are we looking at a primitvie module?
   -> PragmaOptions
-  -> ModuleInfo
+  -> Interface
   -> TCM (Maybe (Set TCWarning))
-getOptionsCompatibilityWarnings
-  isMain currentOptions
-  ModuleInfo{
-    miPrimitive = False,
-    miInterface = Interface{ iOptionsUsed, iTopLevelModuleName },
-    miSourceFile } = do
-  ifM (checkOptionsCompatible currentOptions iOptionsUsed miSourceFile
-         iTopLevelModuleName)
+getOptionsCompatibilityWarnings isMain False currentOptions Interface{ iOptionsUsed, iTopLevelModuleName } = do
+  ifM (checkOptionsCompatible currentOptions iOptionsUsed iTopLevelModuleName)
     {-then-} (return Nothing) -- No warnings to collect because options were compatible.
     {-else-} (Just <$> getAllWarnings' isMain ErrorWarnings)
 -- Options consistency checking is disabled for always-available primitive modules.
-getOptionsCompatibilityWarnings _ _ ModuleInfo{ miPrimitive = True } =
-  return Nothing
+getOptionsCompatibilityWarnings _ True _ _ = return Nothing
 
 -- | Try to get the interface from interface file or cache.
 
@@ -1154,10 +1164,10 @@ createInterfaceIsolated ::
   -> TCM ModuleInfo
 createInterfaceIsolated x file msrc = do
       cleanCachedLog
-
-      ms          <- asksTC envImportStack
-      range       <- asksTC envRange
-      call        <- asksTC envCall
+      ms          <- viewTC eImportStack
+      pref        <- viewTC eChasePrefix
+      range       <- viewTC eRange
+      call        <- viewTC eCall
       vs          <- getVisitedModules
       ds          <- getDecodedModules
       opts        <- stPersistentOptions . stPersistentState <$> getTC
@@ -1179,15 +1189,16 @@ createInterfaceIsolated x file msrc = do
            -- The cache should not be used for an imported module, and it
            -- should be restored after the module has been type-checked
            freshTCM $
-             localTC (\e -> e
-                              -- Andreas, 2014-08-18:
-                              -- Preserve the range of import statement
-                              -- for reporting termination errors in
-                              -- imported modules:
-                            { envRange              = range
-                            , envCall               = call
-                            , envImportStack        = ms
-                            }) $ do
+             localTC (
+                -- Andreas, 2014-08-18:
+                -- Preserve the range of import statement
+                -- for reporting termination errors in
+                -- imported modules:
+                        set eRange range
+                      . set eCall call
+                      . set eImportStack ms
+                      . set eChasePrefix pref
+                     ) do
                setDecodedModules ds
                setCommandLineOptions opts
                setVisitedModules vs
@@ -1226,7 +1237,9 @@ chaseMsg
   -> Maybe String         -- ^ Optionally: the file name.
   -> TCM ()
 chaseMsg kind x file = do
-  indentation <- (`replicate` ' ') <$> asksTC (pred . length . envImportStack)
+  indentation <- viewTC eChasePrefix >>= \case
+    Just pref -> pure pref
+    Nothing   -> (`replicate` ' ') . pred . length <$> viewTC eImportStack
   traceImports <- optTraceImports <$> commandLineOptions
   let maybeFile = caseMaybe file "." $ \ f -> " (" ++ f ++ ")."
       vLvl | kind == "Checking"
@@ -1333,7 +1346,7 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
       reportWarningsForModule mname $ tcWarnings classified
       when (null (nonFatalErrors classified)) $ chaseMsg "Finished" mname Nothing
 
-  withMsgs $ Bench.billTo [Bench.TopModule mname] $ localTC (\ e -> e { envCurrentPath = Just sfi }) do
+  withMsgs $ Bench.billTo [Bench.TopModule mname] $ localTC (set eCurrentPath (Just sfi)) do
 
     reportSLn "import.iface.create" 5 $
       "Creating interface for " ++ prettyShow mname ++ "..."
@@ -1359,11 +1372,11 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
     setOptionsFromSourcePragmas checkConsistency src
     checkAttributes (srcAttributes src)
     syntactic <- optSyntacticEquality <$> pragmaOptions
-    localTC (\env -> env { envSyntacticEqualityFuel = syntactic }) $ do
+    localTC (set eSyntacticEqualityFuel syntactic) $ do
 
     verboseS "import.iface.create" 15 $ do
-      nestingLevel      <- asksTC (pred . length . envImportStack)
-      highlightingLevel <- asksTC envHighlightingLevel
+      nestingLevel      <- asksTC (pred . length . view eImportStack)
+      highlightingLevel <- viewTC eHighlightingLevel
       reportSLn "import.iface.create" 15 $ unlines
         [ "  nesting      level: " ++ show nestingLevel
         , "  highlighting level: " ++ show highlightingLevel

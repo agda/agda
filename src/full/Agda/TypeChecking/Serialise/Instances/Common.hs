@@ -271,7 +271,11 @@ instance EmbPrj A.ModuleName where
   value n           = A.MName <$!> value n
 
 instance EmbPrj A.Name where
-  icod_ (A.Name a b c d e f) = icodeMemo nameD nameC a $
+  icod_ x@(A.Name a b c d e f) =
+    -- Andreas, 2026-03-12: issue #8465:
+    -- We include the definition site into the key for 'A.Name'
+    -- to correctly serialize the 'nameDefinitionSite' field.
+    icodeMemo nameD nameC (nameIdR x) $
     icodeN' (\ a b c d e f -> A.Name a b c (underlyingRange d) e f) a b c (SerialisedRange d) e f
 
   value = valueN (\a b c d e f -> A.Name a b c (underlyingRange d) e f)
@@ -518,7 +522,7 @@ instance EmbPrj Relevance where
     _      -> malformed
 
 instance EmbPrj Annotation where
-  icod_ (Annotation l) = icodeN' Annotation l
+  icod_ (Annotation l r) = icodeN' Annotation l r
 
   value = valueN Annotation
 
@@ -530,6 +534,14 @@ instance EmbPrj Lock where
   value 0 = pure IsNotLock
   value 1 = pure (IsLock LockOTick)
   value 2 = pure (IsLock LockOLock)
+  value _ = malformed
+
+instance EmbPrj RewriteAnn where
+  icod_ IsNotRewrite  = pure 0
+  icod_ (IsRewrite _) = pure 1
+
+  value 0 = pure IsNotRewrite
+  value 1 = pure $ IsRewrite noRange
   value _ = malformed
 
 instance EmbPrj Origin where

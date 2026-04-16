@@ -106,6 +106,8 @@ fdebugTestFilter =
 -- This list was crafted using
 --    grep -RP '(?<!-- ){-# OPTIONS.* -v' | grep Fail/
 --  and screening the results (e.g. for comments)
+-- Andreas, 2026-04-02: added Issue641*
+-- The recipe above is incomplete because -v OPTIONS can also be passsed via the .flags file.
   [ disable "Fail/Issue3590-2"
   , disable "Fail/IndexInference"
   , disable "Fail/DebugWith"
@@ -117,8 +119,9 @@ fdebugTestFilter =
   , disable "Fail/Issue2018debug"
   , disable "Fail/Issue1963DisplayWithPostfixCopattern"
   , disable "Fail/Optimised-open"
-  , disable "Fail/Optimised-open"
   , disable "Fail/Issue4175"
+  , disable "Fail/Issue641"
+  , disable "Fail/Issue641-all-interfaces"
   ]
   where disable = RFInclude
 

@@ -47,6 +47,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Position (Range, noRange)
 import Agda.Syntax.Translation.InternalToAbstract (reify, blankNotInScope)
 
+import Agda.TypeChecking.CheckInternal ( checkInternal )
 import Agda.TypeChecking.Empty (isEmptyType)
 import Agda.TypeChecking.Level (levelType)
 import Agda.TypeChecking.MetaVars (newValueMeta)
@@ -56,9 +57,11 @@ import Agda.TypeChecking.Reduce (reduce, instantiateFull, instantiate)
 import Agda.TypeChecking.Rules.Term  (makeAbsurdLambda)
 import Agda.TypeChecking.Substitute (apply)
 
+import Agda.Interaction.Options ( optDoubleCheck )
+
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Maybe (catMaybes)
-import Agda.Utils.Monad (concatMapM, ifM)
+import Agda.Utils.Monad (concatMapM, ifM, whenM)
 import Agda.Utils.Null
 import Agda.Utils.Tuple (first, second)
 import Agda.Utils.Time (measureTime, getCPUTime, fromMilliseconds)
@@ -284,6 +287,8 @@ prepareComponents goal branch = withBranchAndGoal branch goal $ do
       -- Generate components for this context
       comps <- genComponents
       reportSDoc "mimer.components" 20 $ "Generated" <+> pretty (sum $ map (length . snd) comps) <+> "components"
+      whenM (optDoubleCheck <$> pragmaOptions) $
+        mapM_ checkInternalComponent $ concatMap (\(x,xs) -> x:xs) comps
       return comps
     -- Yes, just update the missing generated components
     Just cache -> mapM prepare (Map.toAscList cache)
@@ -298,6 +303,11 @@ prepareComponents goal branch = withBranchAndGoal branch goal $ do
   prepare (sourceComp, Nothing) = do
     updateStat incCompRegen
     (sourceComp,) <$> genComponentsFrom True sourceComp
+
+checkInternalComponent :: Component -> SM ()
+checkInternalComponent comp = do
+  reportSDoc "mimer.components" 40 $ "double-checking component" <+> prettyTCM comp
+  lift $ checkInternal (compTerm comp) CmpLeq (compType comp)
 
 genComponents :: SM [(Component, [Component])]
 genComponents = do
@@ -362,7 +372,7 @@ genRecCalls thisFn = do
       return []
     recCandTerms -> do
       reportSDoc "mimer.components" 45 $ "  recCandTerms = " <+> pretty (map fst recCandTerms)
-      Costs{..} <- asks searchCosts
+      Costs{ costLocal, costNewMeta, costNewHiddenMeta } <- asks searchCosts
       n <- localVarCount
       localVars <- lift $ getLocalVars n costLocal
       let recCands = [ (t, i) | t@(compTerm -> v@Var{}) <- localVars, NoSubst i <- maybeToList $ lookup v recCandTerms ]
@@ -496,7 +506,7 @@ tryLamAbs goal goalType branch =
           reportSDoc "mimer.lam" 40 $ "  bodyType = " <+> prettyTCM bodyType
           bodyType <- bench [Bench.Reduce] $ reduce bodyType -- TODO: Good place to reduce?
           reportSDoc "mimer.lam" 40 $ "  bodyType (reduced) = " <+> prettyTCM bodyType
-          (metaId', metaTerm) <- bench [Bench.Free] $ newValueMeta DontRunMetaOccursCheck CmpLeq bodyType
+          (metaId', metaTerm) <- bench [Bench.Free] $ lift $ newValueMeta DontRunMetaOccursCheck CmpLeq bodyType
           reportSDoc "mimer.lam" 40 $ "  metaId' = " <+> prettyTCM metaId'
           env <- askTC
           return (metaId', bodyType, metaTerm, env)

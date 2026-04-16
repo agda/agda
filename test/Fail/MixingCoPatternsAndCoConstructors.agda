@@ -41,7 +41,7 @@ module MStream where
 module Coinduction where
 
   import Common.Level
-  open import Agda.Builtin.Coinduction
+  open import Common.Coinduction
 
   record Stream (A : Set) : Set where
     inductive

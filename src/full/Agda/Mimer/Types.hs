@@ -370,7 +370,8 @@ instance Pretty Costs where
         ]
 
 instance PrettyTCM Component where
-  prettyTCM Component{..} = parens (prettyTCM compId) <+> sep
+  prettyTCM Component{ compId, compTerm, compType, compCost, compMetas } =
+    parens (prettyTCM compId) <+> sep
     [ sep [ prettyTCM compTerm
           , ":" <+> prettyTCM compType ]
     , parens $ fsep $ punctuate ","

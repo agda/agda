@@ -37,7 +37,6 @@ import Agda.TypeChecking.Monad
   hiding (ModuleInfo, MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 
 import           Agda.Utils.Function
-import           Agda.Utils.Functor
 import           Agda.Utils.List                     ( initLast1 )
 import           Agda.Utils.List1                    ( List1 )
 import qualified Agda.Utils.List1          as List1

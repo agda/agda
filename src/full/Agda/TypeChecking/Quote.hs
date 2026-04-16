@@ -23,7 +23,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Impossible
-import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Size
 import Agda.Utils.Maybe.Strict qualified as Strict
@@ -224,8 +223,8 @@ quotingKit = do
       quoteTelescope tel = quoteList quoteTelEntry $ telToList tel
 
       quoteTelEntry :: Dom (ArgName, Type) -> ReduceM Term
-      quoteTelEntry dom@Dom{ unDom = (x , t) } = do
-        SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+      quoteTelEntry dom@(unDom -> (x , t)) = do
+        SigmaKit{ sigmaCon } <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
         Con sigmaCon ConOSystem [] !@! quoteString x @@ quoteDom quoteType (fmap snd dom)
 
       list :: [ReduceM Term] -> ReduceM Term
@@ -235,7 +234,7 @@ quotingKit = do
       quoteList q xs = list (map q xs)
 
       quoteDom :: (a -> ReduceM Term) -> Dom a -> ReduceM Term
-      quoteDom q Dom{domInfo = info, unDom = t} = arg !@ quoteArgInfo info @@ q t
+      quoteDom q d@(unDom -> t) = arg !@ quoteArgInfo (d ^. dInfo) @@ q t
 
       quoteAbs :: Subst a => (a -> ReduceM Term) -> Abs a -> ReduceM Term
       quoteAbs q (Abs s t)   = abs !@! quoteString s @@ q t

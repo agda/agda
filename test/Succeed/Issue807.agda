@@ -4,7 +4,7 @@
 
 module Issue807 where
 
-open import Agda.Builtin.Coinduction
+open import Common.Coinduction
 
 data Stream : Set where
   cons : ∞ Stream → Stream

@@ -126,10 +126,10 @@ data HeadMismatch
   -- | They are distinct 'Pi' types.
   | HdmTypes    WhyUnequalTypes
   -- | They are distinct variables.
-  | HdmVars     Int   Int
+  | HdmVars     !Int   !Int
   -- | They are the same variable, but their spines might be
   -- interesting.
-  | HdmVarSpine Int (Closure (Elims, Elims))
+  | HdmVarSpine !Int (Closure (Elims, Elims))
 
   | HdmVarDef -- ^ Variable-definition mismatch
   | HdmDefVar -- ^ Definition-variable mismatch
@@ -276,7 +276,9 @@ failConversion cmp l r cas = do
       , convErrCmp = cmp
       , convErrCtx = Floating ConvStop
       }
+{-# SPECIALIZE NOINLINE failConversion :: Comparison -> Term -> Term -> CompareAs -> TCM a #-}
 
+{-# INLINE addConversionContext #-}
 -- | Add some call stack context to floating t'ConversionError's thrown
 -- from the continuation.
 --
@@ -290,15 +292,17 @@ addConversionContext
   -> m a
     -- ^ Generally, a recursive call to the conversion checker
   -> m a
-addConversionContext ext cont = cont `catchError` \case
+addConversionContext !ext !cont = cont `catchError` catchConversionContext ext
+
+{-# SPECIALIZE NOINLINE catchConversionContext :: (ConversionZipper -> ConversionZipper) -> TCErr -> TCM a #-}
+catchConversionContext :: MonadTCError m => (ConversionZipper -> ConversionZipper) -> TCErr -> m a
+catchConversionContext !ext = \case
   TypeError loc st cl'@Closure{ clValue = ConversionError_ conv@ConversionError{ convErrCtx = Floating ctx } } -> do
     let
-      zip   = ext ctx
-      old_c = envCall (clEnv cl')
+      !zip   = ext ctx
+      !old_c = view eCall $ clEnv cl'
     cl <- buildClosure $ ConversionError_ $! conv { convErrCtx = Floating zip }
-    zip `seq` old_c `seq` throwError $ TypeError loc st cl
-      { clEnv = (clEnv cl) { envCall = old_c }
-      }
+    throwError $! TypeError loc st $! (cl {clEnv = (clEnv cl) & eCall .~ old_c})
   err -> throwError err
 
 -- $stackSlice
@@ -357,15 +361,24 @@ addConversionContext ext cont = cont `catchError` \case
 -- | Replaces any floating t'ConversionError's raised by the
 -- continuation with the one generated (as per 'failConversion') from
 -- the given arguments.
-nowConversionChecking
-  :: forall m a. (MonadTCError m, HasBuiltins m)
+{-# INLINE nowConversionChecking #-}
+nowConversionChecking ::
+     forall m a. (MonadTCError m, HasBuiltins m)
   => Comparison -- ^ Equality or subtyping?
   -> Term       -- ^ See 'convErrLhs'
   -> Term       -- ^ See 'convErrRhs'
   -> CompareAs  -- ^ Will be converted to a 'FailedCompareAs'.
   -> m a        -- ^ Generally, a recursive call to a type-specific conversion checking function.
   -> m a
-nowConversionChecking cmp l r cas cont = cont `catchError` \case
+nowConversionChecking !cmp l r !cas !cont =
+  cont `catchError` catchNowConversionChecking cmp l r cas
+
+{-# SPECIALIZE NOINLINE catchNowConversionChecking ::
+  Comparison -> Term -> Term -> CompareAs -> TCErr -> TCM a #-}
+catchNowConversionChecking ::
+     (MonadTCError m, HasBuiltins m)
+  => Comparison -> Term -> Term -> CompareAs -> TCErr -> m a
+catchNowConversionChecking cmp l r cas = \case
   TypeError loc st Closure{ clValue = err }
     | ConversionError_ ConversionError{ convErrCtx = Floating{} } <- err
     -> failConversion cmp l r cas
@@ -374,10 +387,14 @@ nowConversionChecking cmp l r cas cont = cont `catchError` \case
 -- | Freeze t'ConversionError's thrown by the continuation.
 --
 -- This function should be placed on the __inside__ of context updates.
-cutConversionErrors
-  :: (MonadPretty m, MonadError TCErr m)
-  => m a -> m a
-cutConversionErrors cont = cont `catchError` \case
+{-# INLINE cutConversionErrors #-}
+cutConversionErrors :: (MonadPretty m, MonadError TCErr m) => m a -> m a
+cutConversionErrors cont = cont `catchError` catchCutConversionErrors
+
+
+{-# SPECIALIZE NOINLINE catchCutConversionErrors :: TCErr -> TCM a #-}
+catchCutConversionErrors :: (MonadPretty m, MonadError TCErr m) => TCErr -> m a
+catchCutConversionErrors = \case
   TypeError loc st cl@Closure{ clValue = ConversionError_ conv } -> enterClosure cl \_ ->
     flattenConversionError conv \conv@ConversionError{convErrLhs = lhs, convErrRhs = rhs} -> do
       cl <- buildClosure ()
@@ -427,6 +444,7 @@ eliminateLhsRhs t1 v1 l_es t2 v2 r_es =
 --
 -- The further eliminations @e1@ and @e2@ are treated as "uncompared"
 -- context for the error message.
+{-# SPECIALIZE NOINLINE mismatchedProjections :: Type -> Term -> Elims -> Type -> Term -> Elims -> TCM a #-}
 mismatchedProjections
   :: (MonadError TCErr m, PureTCM m)
   => Type  -- ^ LHS type, @t1@
@@ -668,7 +686,7 @@ instance PrettyTCM ConversionError where
         HdmTypes x -> Just x
         _          -> Nothing
     case tys of
-      FailAsTermsOf lhs_t rhs_t -> runBlocked (pureEqualType lhs_t rhs_t) >>= \case
+      FailAsTermsOf lhs_t rhs_t -> pureBlockOrEqualTypePureTCM lhs_t rhs_t >>= \case
         Right True -> vcat
           [ "The terms", nest 2 (pure d1)
           , "and",       nest 2 (pure d2)

@@ -1,15 +1,15 @@
-Issue431.agda:16.25-29: warning: -W[no]InversionDepthReached
+
+Issue431.agda:24.25-29: warning: -W[no]InversionDepthReached
 Refusing to invert pattern matching of double because the maximum
-depth (10) has been reached. Most likely this means you have an
+depth (2) has been reached. Most likely this means you have an
 unsatisfiable constraint, but it could also mean that you need to
 increase the maximum depth using the flag --inversion-max-depth=N
 when checking that the expression refl has type
-double (suc (suc (suc (suc (suc _n_19))))) ≡
-suc (double (suc (suc (suc (suc _n_18)))))
+double (suc _n_19) ≡ suc (double (suc _n_20))
 error: [UnsolvedConstraints]
 Failed to solve the following constraints:
-  double _n_18 = suc (double _n_19) : Nat (blocked on _n_18)
+  double _n_19 = suc (double _n_20) : Nat (blocked on _n_19)
 
-Issue431.agda:16.25-29: error: [UnsolvedMetaVariables]
+Issue431.agda:24.25-29: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue431.agda:16.25-29
+  Issue431.agda:24.25-29

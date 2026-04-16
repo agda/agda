@@ -3,7 +3,7 @@
 {-# LANGUAGE UnboxedSums #-}
 {-# LANGUAGE MagicHash #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
-{-# OPTIONS_GHC -Wunused-matches #-}
+-- {-# OPTIONS_GHC -Wunused-matches #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
@@ -47,6 +47,7 @@ import Agda.Utils.CallStack
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.List1 (List1)
 import Agda.Utils.Null
 import Agda.Utils.Size
@@ -59,6 +60,85 @@ import Agda.Utils.Impossible
 ---------------------------------------------------------------------------
 -- * Function type domain
 ---------------------------------------------------------------------------
+
+data RewDom' t = RewDom
+  { rewDomEq  :: LocalEquation' t
+    -- ^ Elaborated "@rewrite" equation
+  , rewDomRew :: Maybe RewriteRule
+    -- ^ "@rewrite" equation transformed into a directed rewrite rule.
+    --
+    -- @Nothing@ iff invalidated by a substitution. If we are checking
+    -- against an "@rewrite" domain, this is fine, but if we are inside an "@rewrite"
+    -- context, this is probably an internal error.
+  } deriving (Show, Generic)
+
+type RewDom = RewDom' Term
+
+data DomInfo t = DomInfo {
+    domInfoArgInfo  :: ArgInfo
+  , domInfoName     :: (Maybe NamedName)
+  -- ^ e.g. @x@ in @{x = y : A} -> B@.
+  , domInfoIsFinite :: Bool
+  -- ^ Is this a Π-type (False), or a partial type (True)?
+  , domInfoTactic   :: (Maybe t)
+  -- ^ "@tactic e".
+  , domInfoRew      :: (Maybe (RewDom' t))
+  -- ^ Elaborated "@rewrite" equation
+  --
+  -- Will only be present if domain annotated with "@rewrite" (@annRewrite@
+  -- is @IsRewrite@) AND the type successfully elaborated into a rewrite rule.
+  }
+
+instance Show t => Show (DomInfo t) where
+  show (DomInfo a b c d e) = show (a,b,c,d,e)
+
+{-# INLINE domInfo #-}
+domInfo :: Dom' t e -> ArgInfo
+domInfo d = domInfoArgInfo (domDomInfo d)
+
+{-# INLINE dInfo #-}
+dInfo :: Lens' (Dom' t e) ArgInfo
+dInfo = \f d ->
+  f (domInfo d) <&> \x -> d {domDomInfo = (domDomInfo d){domInfoArgInfo = x}}
+
+{-# INLINE domName #-}
+domName :: Dom' t e -> Maybe NamedName
+domName d = domInfoName (domDomInfo d)
+
+{-# INLINE dName #-}
+dName :: Lens' (Dom' t e) (Maybe NamedName)
+dName = \f d ->
+  f (domName d) <&> \x -> d {domDomInfo = (domDomInfo d){domInfoName = x}}
+
+{-# INLINE domIsFinite #-}
+domIsFinite :: Dom' t e -> Bool
+domIsFinite d =
+  domInfoIsFinite (domDomInfo d)
+
+{-# INLINE dIsFinite #-}
+dIsFinite :: Lens' (Dom' t e) Bool
+dIsFinite = \f d ->
+  f (domIsFinite d) <&> \x -> d {domDomInfo = (domDomInfo d){domInfoIsFinite = x}}
+
+{-# INLINE domTactic #-}
+domTactic :: Dom' t e -> Maybe t
+domTactic d =
+  domInfoTactic (domDomInfo d)
+
+{-# INLINE dTactic #-}
+dTactic :: Lens' (Dom' t e) (Maybe t)
+dTactic = \f d ->
+  f (domTactic d) <&> \x -> d {domDomInfo = (domDomInfo d){domInfoTactic = x}}
+
+{-# INLINE rewDom #-}
+rewDom :: Dom' t e -> Maybe (RewDom' t)
+rewDom d =
+  domInfoRew (domDomInfo d)
+
+{-# INLINE dRew #-}
+dRew :: Lens' (Dom' t e) (Maybe (RewDom' t))
+dRew = \f d ->
+  f (rewDom d) <&> \x -> d {domDomInfo = (domDomInfo d){domInfoRew = x}}
 
 -- | Similar to 'Arg', but we need to distinguish
 --   an irrelevance annotation in a function domain
@@ -74,43 +154,71 @@ import Agda.Utils.Impossible
 --   tabulating the domain type.  Only supported in case the domain type
 --   is primIsOne, to obtain the correct equality for partial elements.
 --
-data Dom' t e = Dom
-  { domInfo   :: ArgInfo
-  , domName   :: Maybe NamedName  -- ^ e.g. @x@ in @{x = y : A} -> B@.
-  , domIsFinite :: Bool
-    -- ^ Is this a Π-type (False), or a partial type (True)?
-  , domTactic :: Maybe t        -- ^ "@tactic e".
-  , unDom     :: e
-  } deriving (Show, Functor, Foldable, Traversable)
+data Dom' t e = Dom'
+  { domDomInfo :: !(DomInfo t)
+  , unDom      :: e
+  } deriving (Show, Foldable, Traversable)
+
+pattern Dom :: ArgInfo -> Maybe NamedName -> Bool -> Maybe t -> Maybe (RewDom' t) -> e -> Dom' t e
+pattern Dom a b c d e f = Dom' (DomInfo a b c d e) f
+{-# INLINE Dom #-}
+{-# COMPLETE Dom #-}
+
+instance Functor (Dom' t) where
+  {-# INLINE fmap #-}
+  fmap fn = \(Dom a b c d e f) -> Dom a b c d e $! fn f
 
 type Dom = Dom' Term
 
+{-# INLINE domEq #-}
+domEq :: Dom' t e -> Maybe (LocalEquation' t)
+domEq = fmap rewDomEq . rewDom
+
+-- | Is this Dom annotated as a local rewrite rule and if so, has the rewrite
+--   been invalidated due to a substitution?
+invalidRew :: Dom' t e -> Bool
+invalidRew d = case rewDom d of
+  Just (RewDom {rewDomRew = Nothing}) -> True
+  _                                   -> False
+
+
 instance Decoration (Dom' t) where
-  traverseF f (Dom ai x t b a) = Dom ai x t b <$> f a
+  traverseF f (Dom ai x t b r a) = Dom ai x t b r <$> f a
 
 instance HasRange a => HasRange (Dom' t a) where
   getRange = getRange . unDom
 
+instance KillRange t => KillRange (RewDom' t) where
+  killRange (RewDom eq rew) = killRangeN RewDom eq rew
+
 instance (KillRange t, KillRange a) => KillRange (Dom' t a) where
-  killRange (Dom info x t b a) = killRangeN Dom info x t b a
+  killRange (Dom info x t b r a) = killRangeN Dom info x t b r a
 
 -- | Ignores 'Origin' and 'FreeVariables' and tactic.
 instance Eq a => Eq (Dom' t a) where
-  Dom (ArgInfo h1 m1 _ _ a1) s1 f1 _ x1 == Dom (ArgInfo h2 m2 _ _ a2) s2 f2 _ x2 =
+  Dom (ArgInfo h1 m1 _ _ a1) s1 f1 _ _ x1 == Dom (ArgInfo h2 m2 _ _ a2) s2 f2 _ _ x2 =
     (h1, m1, a1, s1, f1, x1) == (h2, m2, a2, s2, f2, x2)
 
 instance LensNamed (Dom' t e) where
   type NameOf (Dom' t e) = NamedName
-  lensNamed f dom = f (domName dom) <&> \ nm -> dom { domName = nm }
+  {-# INLINE lensNamed #-}
+  lensNamed = \f dom ->
+    f (domName dom) <&> \ nm -> dom { domDomInfo = (domDomInfo dom){domInfoName = nm }}
 
 instance LensArgInfo (Dom' t e) where
   getArgInfo        = domInfo
-  setArgInfo ai dom = dom { domInfo = ai }
-  mapArgInfo f  dom = dom { domInfo = f $ domInfo dom }
+  setArgInfo ai dom = dom { domDomInfo = (domDomInfo dom) {domInfoArgInfo = ai} }
 
 instance LensLock (Dom' t e) where
   getLock = getLock . getArgInfo
   setLock = mapArgInfo . setLock
+
+instance LensRewriteAnn (Dom' t e) where
+  getRewriteAnn = getRewriteAnn . getArgInfo
+  setRewriteAnn = mapRewriteAnn . setRewriteAnn
+
+instance LensLocalEquation (Dom e) where
+  getLocalEq = domEq
 
 -- The other lenses are defined through LensArgInfo
 
@@ -128,30 +236,40 @@ instance LensCohesion  (Dom' t e) where
 instance LensModalPolarity (Dom' t e) where
 
 argFromDom :: Dom' t a -> Arg a
-argFromDom Dom{domInfo = i, unDom = a} = Arg i a
+argFromDom d = let !i = domInfo d in Arg i (unDom d)
 
 namedArgFromDom :: Dom' t a -> NamedArg a
-namedArgFromDom Dom{domInfo = i, domName = s, unDom = a} = Arg i $ Named s a
+namedArgFromDom d =
+  let !i = domInfo d
+      !s = domName d
+  in Arg i $ Named s (unDom d)
 
 -- The following functions are less general than they could be:
 -- @Dom@ could be replaced by @Dom' t@.
 -- However, this causes problems with instance resolution in several places.
 -- often for class AddContext.
 
+domFromArgRew :: Maybe RewDom -> Arg a -> Dom a
+domFromArgRew rew (Arg i a) = Dom i Nothing False Nothing rew a
+
 domFromArg :: Arg a -> Dom a
-domFromArg (Arg i a) = Dom i Nothing False Nothing a
+domFromArg = domFromArgRew Nothing
 
 domFromNamedArg :: NamedArg a -> Dom a
-domFromNamedArg (Arg i a) = Dom i (nameOf a) False Nothing (namedThing a)
+domFromNamedArg (Arg i a) = Dom i (nameOf a) False Nothing Nothing (namedThing a)
 
 defaultDom :: a -> Dom a
 defaultDom = defaultArgDom defaultArgInfo
 
+defaultArgDomRew :: ArgInfo -> Maybe RewDom -> a -> Dom a
+defaultArgDomRew info rew x = domFromArgRew rew (Arg info x)
+
 defaultArgDom :: ArgInfo -> a -> Dom a
-defaultArgDom info x = domFromArg (Arg info x)
+defaultArgDom info = defaultArgDomRew info Nothing
 
 defaultNamedArgDom :: ArgInfo -> String -> a -> Dom a
-defaultNamedArgDom info s x = (defaultArgDom info x) { domName = Just $ WithOrigin Inserted $ unranged s }
+defaultNamedArgDom info (unranged -> !s) x =
+  set lensNamed (Just $ WithOrigin Inserted s) (defaultArgDom info x)
 
 -- | Type of argument lists.
 --
@@ -305,7 +423,12 @@ data Abs a = Abs   { absName :: ArgName, unAbs :: a }
                -- ^ The body has (at least) one free variable.
                --   Danger: 'unAbs' doesn't shift variables properly
            | NoAbs { absName :: ArgName, unAbs :: a }
-  deriving (Functor, Foldable, Traversable, Generic)
+  deriving (Foldable, Traversable, Generic)
+
+instance Functor Abs where
+  fmap f = \case
+    Abs x y   -> Abs x $! f y
+    NoAbs x y -> NoAbs x $! f y
 
 instance Decoration Abs where
   traverseF f (Abs   x a) = Abs   x <$> f a
@@ -346,7 +469,7 @@ instance LensSort a => LensSort (Arg a) where
 -- | Sequence of types. An argument of the first type is bound in later types
 --   and so on.
 data Tele a = EmptyTel
-            | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
+            | ExtendTel a !(Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
   deriving (Show, Functor, Foldable, Traversable, Generic)
 
 instance ExpandCase (Tele a) where type Result (Tele a) = Tele a
@@ -497,7 +620,7 @@ data Clause = Clause
   deriving (Show, Generic)
 
 clausePats :: Clause -> [Arg DeBruijnPattern]
-clausePats = map (fmap namedThing) . namedClausePats
+clausePats = map' (fmap namedThing) . namedClausePats
 
 instance HasRange Clause where
   getRange = clauseLHSRange
@@ -712,7 +835,7 @@ data Substitution' a
     --   Apply this to closed terms you want to use in a non-empty context.
     --   @Γ ⊢ EmptyS : ()@
 
-  | a :# Substitution' a
+  | a :# !(Substitution' a)
     -- ^ Substitution extension, ``cons''.
     --   @
     --     Γ ⊢ u : Aρ   Γ ⊢ ρ : Δ
@@ -720,7 +843,7 @@ data Substitution' a
     --     Γ ⊢ u :# ρ : Δ, A
     --   @
 
-  | Strengthen Impossible !Int (Substitution' a)
+  | Strengthen Impossible !Int !(Substitution' a)
     -- ^ Strengthening substitution.  First argument is @__IMPOSSIBLE__@.
     --   In @'Strengthen err n ρ@ the number @n@ must be non-negative.
     --   This substitution should only be applied to values @t@ for
@@ -732,7 +855,7 @@ data Substitution' a
     --     Γ ⊢ Strengthen n ρ : Δ, Θ
     --   @
 
-  | Wk !Int (Substitution' a)
+  | Wk !Int !(Substitution' a)
     -- ^ Weakening substitution, lifts to an extended context.
     --   @
     --         Γ ⊢ ρ : Δ
@@ -741,7 +864,7 @@ data Substitution' a
     --   @
 
 
-  | Lift !Int (Substitution' a)
+  | Lift !Int !(Substitution' a)
     -- ^ Lifting substitution.  Use this to go under a binder.
     --   @Lift 1 ρ == var 0 :# Wk 1 ρ@.
     --   @
@@ -759,6 +882,7 @@ data Substitution' a
 
 type Substitution = Substitution' Term
 type PatternSubstitution = Substitution' DeBruijnPattern
+type Renaming = Substitution' Nat
 
 infixr 4 :#
 
@@ -946,7 +1070,7 @@ tmSSort t = SSet $ atomicLevel t
 
 -- | Given a constant @m@ and level @l@, compute @m + l@
 levelPlus :: Integer -> Level -> Level
-levelPlus m (Max n as) = Max (m + n) $ map pplus as
+levelPlus m (Max n as) = Max (m + n) $ map' pplus as
   where pplus (Plus n l) = Plus (m + n) l
 
 levelSuc :: Level -> Level
@@ -1017,7 +1141,7 @@ type ListTel = ListTel' ArgName
 telFromList' :: (a -> ArgName) -> ListTel' a -> Telescope
 telFromList' f = List.foldr extTel EmptyTel
   where
-    extTel dom@Dom{unDom = (x, a)} = ExtendTel (dom{unDom = a}) . Abs (f x)
+    extTel dom@Dom'{unDom = (x, a)} = ExtendTel (dom{unDom = a}) . Abs (f x)
 
 -- | Convert a list telescope to a telescope.
 telFromList :: ListTel -> Telescope
@@ -1026,7 +1150,7 @@ telFromList = telFromList' id
 -- | Convert a telescope to its list form.
 telToList :: Tele (Dom t) -> [Dom (ArgName,t)]
 telToList EmptyTel                    = []
-telToList (ExtendTel arg (Abs x tel)) = fmap (x,) arg : telToList tel
+telToList (ExtendTel arg (Abs x tel)) = (fmap (x,) arg :) $! telToList tel
 telToList (ExtendTel _    NoAbs{}   ) = __IMPOSSIBLE__
 
 -- | Lens to edit a 'Telescope' as a list.
@@ -1038,7 +1162,7 @@ class TelToArgs a where
   telToArgs :: a -> [Arg ArgName]
 
 instance TelToArgs ListTel where
-  telToArgs = map $ \ dom -> Arg (domInfo dom) (fst $ unDom dom)
+  telToArgs = map' \dom -> Arg (domInfo dom) (fst $ unDom dom)
 
 instance TelToArgs Telescope where
   telToArgs = telToArgs . telToList
@@ -1163,6 +1287,7 @@ unSpine' p v =
                                   loop (Def f) [Apply v] es'
         e        : es'         -> loop h (e : res) es'
 
+{-# INLINE hasElims #-}
 -- | A view distinguishing the neutrals @Var@, @Def@, and @MetaV@ which
 --   can be projected.
 hasElims :: Term -> Maybe (Elims -> Term, Elims)
@@ -1200,6 +1325,130 @@ type instance TypeOf Sort        = ()
 type instance TypeOf Level       = ()
 type instance TypeOf [PlusLevel] = ()
 type instance TypeOf PlusLevel   = ()
+
+---------------------------------------------------------------------------
+-- * (Local) rewrite rules
+---------------------------------------------------------------------------
+
+-- | NLPat might become definitionally singular (after a substitution)
+data DefSing
+  = NeverSing
+    -- ^ Never definitionally singular
+  | MaybeSing
+    -- ^ Might become definitionally singular after a substitution
+  | AlwaysSing
+    -- ^ Always definitionally singular (e.g. irrelevant or in |Prop|)
+  deriving (Show, Generic, Enum, Bounded)
+
+relToDefSing :: Relevance -> DefSing
+relToDefSing r = if isIrrelevant r then AlwaysSing else NeverSing
+
+-- Only approximate if both sides are |NotDefSingIfInj| with non-empty
+-- injective constraints
+minDefSing :: DefSing -> DefSing -> DefSing
+minDefSing s s' = toEnum $ fromEnum s `min` fromEnum s'
+
+maxDefSing :: DefSing -> DefSing -> DefSing
+maxDefSing s s' = toEnum $ fromEnum s `max` fromEnum s'
+
+isAlwaysSing :: DefSing -> Bool
+isAlwaysSing AlwaysSing = True
+isAlwaysSing _          = False
+
+-- | Non-linear (non-constructor) first-order pattern.
+data NLPat
+  = PVar DefSing !Int [Arg Int]
+    -- ^ Matches anything (modulo non-linearity) that only contains bound
+    --   variables that occur in the given arguments.
+    --   Tracks the definitional singularity of the surrounding pattern (not
+    --   the type of the variable itself)
+  | PDef QName PElims
+    -- ^ Matches @f es@
+  | PLam ArgInfo (Abs NLPat)
+    -- ^ Matches @λ x → t@
+  | PPi (Dom NLPType) (Abs NLPType)
+    -- ^ Matches @(x : A) → B@
+  | PSort NLPSort
+    -- ^ Matches a sort of the given shape.
+  | PBoundVar {-# UNPACK #-} !Int PElims
+    -- ^ Matches @x es@ where x is a lambda-bound variable
+  | PTerm Term
+    -- ^ Matches the term modulo β (ideally βη).
+  deriving (Show, Generic)
+type PElims = [Elim' NLPat]
+
+
+type instance TypeOf NLPat = Type
+type instance TypeOf [Elim' NLPat] = (Type, Elims -> Term)
+
+
+data NLPType = NLPType
+  { nlpTypeSort :: NLPSort
+  , nlpTypeUnEl :: NLPat
+  } deriving (Show, Generic)
+
+
+data NLPSort
+  = PUniv Univ NLPat
+  | PInf Univ Integer
+  | PSizeUniv
+  | PLockUniv
+  | PLevelUniv
+  | PIntervalUniv
+  deriving (Show, Generic)
+
+pattern PType, PProp, PSSet :: NLPat -> NLPSort
+pattern PType p = PUniv UType p
+pattern PProp p = PUniv UProp p
+pattern PSSet p = PUniv USSet p
+
+{-# COMPLETE
+  PType, PSSet, PProp, PInf,
+  PSizeUniv, PLockUniv, PLevelUniv, PIntervalUniv #-}
+
+data RewriteHead
+  = RewDefHead QName
+  | RewVarHead Nat
+    -- ^ de Bruijn index of head symbol (excluding rewContext variables)
+  deriving (Show, Generic, Eq)
+
+headToPat :: Nat -> RewriteHead -> PElims -> NLPat
+headToPat _        (RewDefHead f) = PDef f
+headToPat telStart (RewVarHead x) = PBoundVar (x + telStart)
+
+headToTerm :: Nat -> RewriteHead -> Elims -> Term
+headToTerm _        (RewDefHead f) = Def f
+headToTerm telStart (RewVarHead x) = Var (x + telStart)
+
+-- | Undirected equational constraint ("the LHS and RHS
+--   must be convertible in the calling context").
+--   Admits arbitrary substitution.
+data LocalEquation' t = LocalEquation
+  { lEqContext :: !(Tele (Dom' t (Type'' t t)))
+  , lEqLHS     :: t
+  , lEqRHS     :: t
+  , lEqType    :: Type'' t t
+  }
+  deriving (Show, Generic)
+
+type LocalEquation = LocalEquation' Term
+
+-- | Directed rewrite rules generic over the type of head symbol.
+--   Generally unstable under substitution.
+data RewriteRule = RewriteRule
+  { rewContext :: Telescope
+  , rewHead    :: RewriteHead
+  , rewPats    :: PElims     -- patterns (including rewContext variables)
+  , rewRHS     :: Term
+  , rewType    :: Type
+  }
+  deriving (Show, Generic)
+
+lrewHasProjectionPattern :: RewriteRule -> Bool
+lrewHasProjectionPattern rew = any (isJust . isProjElim) $ rewPats rew
+
+class LensLocalEquation a where
+  getLocalEq :: a -> Maybe LocalEquation
 
 ---------------------------------------------------------------------------
 -- * Null instances.
@@ -1341,16 +1590,16 @@ instance KillRange Term where
     DontCare mv -> killRangeN DontCare mv
     v@Dummy{}   -> v
 
-instance KillRange Level where
+instance KillRange a => KillRange (Level' a) where
   killRange (Max n as) = killRangeN (Max n) as
 
-instance KillRange PlusLevel where
+instance KillRange a => KillRange (PlusLevel' a) where
   killRange (Plus n l) = killRangeN (Plus n) l
 
-instance (KillRange a) => KillRange (Type' a) where
+instance (KillRange a, KillRange b) => KillRange (Type'' a b) where
   killRange (El s v) = killRangeN El s v
 
-instance KillRange Sort where
+instance KillRange a => KillRange (Sort' a) where
   killRange = \case
     Inf u n    -> Inf u n
     SizeUniv   -> SizeUniv
@@ -1413,6 +1662,41 @@ instance KillRange Clause where
   killRange (Clause rl rf tel ps body t catchall recursive unreachable ell wm) =
     killRangeN Clause rl rf tel ps body t catchall recursive unreachable ell wm
 
+
+instance KillRange NLPat where
+  killRange (PVar s x y)    = killRangeN (PVar s) x y
+  killRange (PDef x y)      = killRangeN PDef x y
+  killRange (PLam x y)      = killRangeN PLam x y
+  killRange (PPi x y)       = killRangeN PPi x y
+  killRange (PSort x)       = killRangeN PSort x
+  killRange (PBoundVar x y) = killRangeN PBoundVar x y
+  killRange (PTerm x)       = killRangeN PTerm x
+
+instance KillRange NLPType where
+  killRange (NLPType s a) = killRangeN NLPType s a
+
+instance KillRange NLPSort where
+  killRange (PUniv u l) = killRangeN (PUniv u) l
+  killRange s@(PInf _f _n) = s
+  killRange PSizeUniv = PSizeUniv
+  killRange PLockUniv = PLockUniv
+  killRange PLevelUniv = PLevelUniv
+  killRange PIntervalUniv = PIntervalUniv
+
+instance KillRange RewriteHead where
+  killRange (RewVarHead a) =
+    killRangeN RewVarHead a
+  killRange (RewDefHead a) =
+    killRangeN RewDefHead a
+
+instance KillRange t => KillRange (LocalEquation' t) where
+  killRange (LocalEquation a b c d) =
+    killRangeN LocalEquation a b c d
+
+instance KillRange RewriteRule where
+  killRange (RewriteRule a b c d e) =
+    killRangeN RewriteRule a b c d e
+
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange
 
@@ -1435,16 +1719,16 @@ instance Pretty a => Pretty (Substitution' a) where
       t :# rho           -> mparens (p > 2) $
                             sep [ pr 2 rho <> ",", prettyPrec 3 t ]
       Strengthen _ n rho -> mparens (p > 9) $
-                            text ("strS " ++ show n) <+> pr 10 rho
+                            text ("strS " ++! show n) <+> pr 10 rho
       Wk n rho           -> mparens (p > 9) $
-                            text ("wkS " ++ show n) <+> pr 10 rho
+                            text ("wkS " ++! show n) <+> pr 10 rho
       Lift n rho         -> mparens (p > 9) $
-                            text ("liftS " ++ show n) <+> pr 10 rho
+                            text ("liftS " ++! show n) <+> pr 10 rho
 
 instance Pretty Term where
   prettyPrec p v =
     case v of
-      Var x els -> text ("@" ++ show x) `pApp` els
+      Var x els -> text ("@" ++! show x) `pApp` els
       Lam ai b   ->
         mparens (p > 0) $
         sep [ "λ" <+> prettyHiding ai id (text . absName $ b) <+> "->"
@@ -1468,7 +1752,7 @@ instance Pretty Term where
         DummyBrave hd -> pretty hd `pApp` es
     where
       pApp d els = mparens (not (null els) && p > 9) $
-                   sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
+                   sep [d, nest 2 $ fsep (map' (prettyPrec 10) els)]
 
 instance Pretty t => Pretty (Abs t) where
   pretty (Abs   x t) = "Abs"   <+> (text x <> ".") <+> pretty t
@@ -1498,7 +1782,7 @@ instance Pretty ClauseRecursive where
 instance Pretty Clause where
   pretty Clause{clauseTel = tel, namedClausePats = ps, clauseBody = b, clauseType = t} =
     sep [ pretty tel <+> "|-"
-        , nest 2 $ sep [ fsep (map (prettyPrec 10) ps) <+> "="
+        , nest 2 $ sep [ fsep (map' (prettyPrec 10) ps) <+> "="
                        , nest 2 $ pBody b t ] ]
     where
       pBody Nothing _ = "(absurd)"
@@ -1521,7 +1805,7 @@ instance Pretty Level where
       []  -> prettyN
       [a] | n == 0 -> prettyPrec p a
       _   -> mparens (p > 9) $ List.foldr1 (\a b -> "lub" <+> a <+> b) $
-        [ prettyN | n > 0 ] ++ map (prettyPrec 10) as
+        [ prettyN | n > 0 ] ++! map' (prettyPrec 10) as
     where
       prettyN = prettyPrecLevelSucs p n (const "lzero")
 
@@ -1533,7 +1817,7 @@ instance Pretty Sort where
     case s of
       Univ u (ClosedLevel n) -> text $ suffix n $ showUniv u
       Univ u l -> mparens (p > 9) $ text (showUniv u) <+> prettyPrec 10 l
-      Inf u n -> text $ suffix n $ showUniv u ++ "ω"
+      Inf u n -> text $ suffix n $ showUniv u ++! "ω"
       SizeUniv -> "SizeUniv"
       LockUniv -> "LockUniv"
       LevelUniv -> "LevelUniv"
@@ -1548,25 +1832,25 @@ instance Pretty Sort where
       DefS d es  -> prettyPrec p $ Def d es
       DummyS s   -> parens $ text s
    where
-     suffix n = applyWhen (n /= 0) (++ show n)
+     suffix n = applyWhen (n /= 0) (++! show n)
 
 instance Pretty Type where
   prettyPrec p (El _ a) = prettyPrec p a
 
 instance Pretty DBPatVar where
-  prettyPrec _ x = text $ patVarNameToString (dbPatVarName x) ++ "@" ++ show (dbPatVarIndex x)
+  prettyPrec _ x = text $ patVarNameToString (dbPatVarName x) ++! "@" ++! show (dbPatVarIndex x)
 
 instance Pretty a => Pretty (Pattern' a) where
   prettyPrec n (VarP _o x)   = prettyPrec n x
   prettyPrec _ (DotP _o t)   = "." <> prettyPrec 10 t
   prettyPrec n (ConP c i nps)= mparens (n > 0 && not (null nps)) $
-    (lazy <> pretty (conName c)) <+> fsep (map (prettyPrec 10) ps)
-    where ps = map (fmap namedThing) nps
+    (lazy <> pretty (conName c)) <+> fsep (map' (prettyPrec 10) ps)
+    where ps = map' (fmap namedThing) nps
           lazy | conPLazy i = "~"
                | otherwise  = empty
   prettyPrec n (DefP _o q nps)= mparens (n > 0 && not (null nps)) $
-    pretty q <+> fsep (map (prettyPrec 10) ps)
-    where ps = map (fmap namedThing) nps
+    pretty q <+> fsep (map' (prettyPrec 10) ps)
+    where ps = map' (fmap namedThing) nps
   -- -- Version with printing record type:
   -- prettyPrec _ (ConP c i ps) = (if b then braces else parens) $ prTy $
   --   text (show $ conName c) <+> fsep (map (pretty . namedArg) ps)
@@ -1574,7 +1858,7 @@ instance Pretty a => Pretty (Pattern' a) where
   --     b = maybe False (== ConOSystem) $ conPRecord i
   --     prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> ":" <+> pretty t
   prettyPrec _ (LitP _ l)    = pretty l
-  prettyPrec _ (ProjP _o q)  = text ("." ++ prettyShow q)
+  prettyPrec _ (ProjP _o q)  = text ("." ++! prettyShow q)
   prettyPrec n (IApplyP _o _ _ x) = prettyPrec n x
 --  prettyPrec n (IApplyP _o u0 u1 x) = text "@[" <> prettyPrec 0 u0 <> text ", " <> prettyPrec 0 u1 <> text "]" <> prettyPrec n x
 
@@ -1632,7 +1916,7 @@ instance NFData PlusLevel where
   rnf (Plus n l) = rnf (n, l)
 
 instance NFData e => NFData (Dom e) where
-  rnf (Dom a c d e f) = rnf a `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
+  rnf (Dom a c d e f g) = rnf a `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f `seq` rnf g
 
 instance NFData a => NFData (DataOrRecord' a)
 instance NFData ConHead
@@ -1647,3 +1931,11 @@ instance NFData x => NFData (Pattern' x)
 instance NFData DBPatVar
 instance NFData ConPatternInfo
 instance NFData a => NFData (Substitution' a)
+instance NFData DefSing
+instance NFData NLPat
+instance NFData NLPType
+instance NFData NLPSort
+instance NFData RewriteHead
+instance NFData LocalEquation
+instance NFData RewriteRule
+instance NFData RewDom

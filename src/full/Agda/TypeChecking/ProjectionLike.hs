@@ -81,7 +81,6 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.DropArgs
 
 import Agda.Utils.CallStack (HasCallStack)
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

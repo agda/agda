@@ -5,6 +5,5 @@ is not a subtype of
   ⊥
 when checking that the expression
 transp
-(λ i₁ → onS¹ (hcomp {φ = ~ i₁} (λ { j (i₁ = i0) → base }) base)) i0
-tt
+(λ i → onS¹ (hcomp {φ = ~ i} (λ { j (i = i0) → base }) base)) i0 tt
 has type ⊥

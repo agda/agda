@@ -110,9 +110,8 @@ runUnquoteM m = do
   cxt <- getContext
   s   <- getTC
   pid <- fresh  -- Create a fresh problem for the unquote call. Used in tcSolveInstances.
-  z   <- localTC (\ e -> e { envUnquoteProblem = Just pid })
-       $ solvingProblem pid
-       $ unpackUnquoteM m cxt (Clean, s)
+  z   <- localTC (set eUnquoteProblem (Just pid)) $
+           solvingProblem pid $ unpackUnquoteM m cxt (Clean, s)
   case z of
     Left err              -> return $ Left err
     Right ((v, _), decls) -> Right (v, decls) <$ mapM_ isDefined decls
@@ -374,7 +373,7 @@ instance Unquote a => Unquote [a] where
 instance (Unquote a, Unquote b) => Unquote (a, b) where
   unquote t = do
     t <- reduceQuotedTerm t
-    SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+    SigmaKit{ sigmaCon } <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
     case t of
       Con c _ es | Just [x,y] <- allApplyElims es ->
         choice
@@ -879,7 +878,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
       where
         recons :: [(ArgName, Dom Type)] -> TCM [(ArgName, Dom Type)]
         recons []                        = return []
-        recons ((s, d@Dom {unDom=t}):ds) = do
+        recons ((s, d@(unDom -> t)):ds) = do
           t <- locallyReduceAllDefs $ reconstructParametersInType t
           let d' = d{unDom=t}
           ds' <- addContext (s, d') $ recons ds
@@ -982,7 +981,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         reconsTel :: Telescope -> TCM Telescope
         reconsTel EmptyTel = return EmptyTel
         reconsTel (ExtendTel _ NoAbs{}) = __IMPOSSIBLE__
-        reconsTel (ExtendTel (d@Dom{unDom=t}) ds@Abs{unAbs=ts}) = do
+        reconsTel (ExtendTel (d@(unDom->t)) ds@Abs{unAbs=ts}) = do
            t <- locallyReduceAllDefs $ reconstructParametersInType t
            let d' = d{unDom=t}
            ts' <- addContext d' $ reconsTel ts
@@ -1150,8 +1149,8 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcSolveInstances = liftTCM $ do
       locallyTCState stPostponeInstanceSearch (const False) $ do
         -- Steal instance constraints (TODO: not all!)
-        current <- asksTC envActiveProblems
-        topPid  <- fromMaybe __IMPOSSIBLE__ <$> asksTC envUnquoteProblem
+        current <- viewTC eActiveProblems
+        topPid  <- fromMaybe __IMPOSSIBLE__ <$> viewTC eUnquoteProblem
         let steal pc@(PConstr pids u c)
               | isInstance pc
               , Set.member topPid pids = PConstr (Set.union current pids) u c

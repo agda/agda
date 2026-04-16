@@ -25,7 +25,6 @@ import qualified Data.IntSet   as IntSet
 
 import Agda.Interaction.Highlighting.Generate
   ( storeDisambiguatedConstructor, storeDisambiguatedProjection )
-import Agda.Interaction.Options.Base
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern (patternToExpr)
@@ -62,7 +61,7 @@ import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List  ( (!!!), initWithDefault )
+import Agda.Utils.List hiding (Suffix)
 import qualified Agda.Utils.List as List
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
@@ -111,7 +110,7 @@ acHeadConstraints hd = go hd . acCheckedArgs
 checkHeadConstraints :: (Elims -> Term) -> ArgsCheckState a -> TCM Term
 checkHeadConstraints hd st = do
   mapM_ solveConstraint_ $ acHeadConstraints hd st
-  return $ hd $ map caElim $ acCheckedArgs st
+  return $ hd $ map' caElim $ acCheckedArgs st
 
 
 -- | @checkApplication hd args e t@ checks an application.
@@ -133,10 +132,10 @@ checkApplication cmp hd args e t =
     ]
   reportSDoc "tc.check.app" 70 $ vcat
     [ "checkApplication (raw)"
-    , nest 2 $ text $ "hd   = " ++ show hd
-    , nest 2 $ text $ "args = " ++ show (deepUnscope args)
-    , nest 2 $ text $ "e    = " ++ show (deepUnscope e)
-    , nest 2 $ text $ "t    = " ++ show t
+    , nest 2 $ text $ "hd   = " ++! show hd
+    , nest 2 $ text $ "args = " ++! show (deepUnscope args)
+    , nest 2 $ text $ "e    = " ++! show (deepUnscope e)
+    , nest 2 $ text $ "t    = " ++! show t
     ]
   case unScope hd of
     -- Subcase: unambiguous projection
@@ -231,7 +230,7 @@ checkApplication cmp hd args e t =
                                                     -- a b : (x : X) (y : Y x)
           (_, hole) <- newValueMeta RunMetaOccursCheck CmpLeq holeType
           unquoteM hd hole holeType
-          let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
+          let rho = reverse (map' unArg vs) ++# IdS  -- [x := a, y := b]
           coerce CmpEq (apply hole vs) (applySubst rho target) t -- H a b : A
       where
         metaTel :: [Arg a] -> TCM Telescope
@@ -258,7 +257,7 @@ inferApplication exh hd args e | not (defOrVar hd) = do
   v <- checkExpr' CmpEq e t
   return (v, t)
 inferApplication exh hd args e = postponeInstanceConstraints $ do
-  SortKit{..} <- sortKit
+  SortKit{ isNameOfUniv } <- sortKit
   case unScope hd of
     A.Proj o p | isAmbiguous p -> inferProjApp e o p hd args
     A.Def' x s | Just (sz, u) <- isNameOfUniv x -> inferUniv sz u e x s args
@@ -283,7 +282,7 @@ inferHeadDef o x = do
   rel  <- getRelevance . defArgInfo <$> getConstInfo x
   let app =
         case proj of
-          Nothing -> \ args -> Def x $ map Apply args
+          Nothing -> \ args -> Def x $ map' Apply args
           Just p  -> \ args -> projDropParsApply p o rel args
   first applyE <$> inferDef app x
 
@@ -380,7 +379,7 @@ inferDef mkTerm x =
         -- since x is considered living in the top-level, we have to
         -- apply it to the current context
         vs <- freeVarsToApply x
-        reportSDoc "tc.term.def" 30 $ "  free vars:" <+> prettyList_ (map prettyTCM vs)
+        reportSDoc "tc.term.def" 30 $ "  free vars:" <+> prettyList_ (map' prettyTCM vs)
         let t = defType d
             v = mkTerm vs -- applies x to vs, dropping parameters
 
@@ -396,9 +395,9 @@ inferDef mkTerm x =
     debug :: Args -> Type -> Term -> TCM ()
     debug vs t v = do
       reportSDoc "tc.term.def" 60 $
-        "freeVarsToApply to def " <+> hsep (map (text . show) vs)
+        "freeVarsToApply to def " <+> hsep (map' (text . show) vs)
       reportSDoc "tc.term.def" 10 $ vcat
-        [ "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
+        [ "inferred def " <+> prettyTCM x <+> hsep (map' prettyTCM vs)
         , nest 2 $ ":" <+> prettyTCM t
         , nest 2 $ "-->" <+> prettyTCM v ]
 
@@ -415,7 +414,7 @@ inferDef mkTerm x =
 -- not be any need to insert hidden lambdas.
 checkHeadApplication :: Comparison -> A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Term
 checkHeadApplication cmp e t hd args = do
-  SortKit{..} <- sortKit
+  SortKit{ isNameOfUniv } <- sortKit
   sharp <- fmap nameOfSharp <$> coinductionKit
   pOr    <- getNameOfConstrained builtinPOr
   pComp  <- getNameOfConstrained builtinComp
@@ -445,15 +444,15 @@ checkHeadApplication cmp e t hd args = do
   defaultResult' :: Maybe (ArgRanges -> Args -> Type -> TCM Args) -> TCM Term
   defaultResult' mk = do
     (f, t0) <- inferHead hd
-    expandLast <- asksTC envExpandLast
+    expandLast <- viewTC eExpandLast
     checkArguments cmp expandLast hd args t0 t $ \ st@(ACState cas _fun t1 checkedTarget) -> do
       let check :: Maybe (TCM Args)
           check = do
             k <- mk
-            vs <- allApplyElims $ map caElim cas
-            pure $ k (map caRange cas) vs t1
+            vs <- allApplyElims $ map' caElim cas
+            pure $ k (map' caRange cas) vs t1
       st' <- case check of
-               Just ck -> (`setACElims` st) . map Apply <$> ck
+               Just ck -> (`setACElims` st) . map' Apply <$> ck
                Nothing -> pure st
       v <- unfoldInlined =<< checkHeadConstraints f st'
       coerce' cmp checkedTarget v t1 t
@@ -568,7 +567,7 @@ checkArgumentsE'
   -> CheckArgumentsE'
 
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
-checkArgumentsE' S{ sArgs = [], .. }
+checkArgumentsE' S{ sArgs = [], sFun, sFunType, sChecked, sExpand }
   | isDontExpandLast sExpand =
     return $ ACState
       { acCheckedArgs = []
@@ -578,12 +577,12 @@ checkArgumentsE' S{ sArgs = [], .. }
       }
 
 -- Case: no arguments, but need to insert trailing hiddens.
-checkArgumentsE' S{ sArgs = [], .. } =
+checkArgumentsE' S{ sArgs = [], sFun, sFunType, sChecked, sResultType } =
   traceCallE (CheckArguments sFun [] sFunType sResultType) $ lift $ do
     sResultType <- traverse (unEl <.> reduce) sResultType
     (ncargs, t) <- implicitCheckedArgs (-1) (\ h _x -> expand sResultType h) sFunType
     return $ ACState
-      { acCheckedArgs = map namedThing ncargs
+      { acCheckedArgs = map' namedThing ncargs
       , acFun         = sFun
       , acType        = t
       , acData        = sChecked
@@ -597,9 +596,9 @@ checkArgumentsE' S{ sArgs = [], .. } =
 
 -- Case: argument given.
 checkArgumentsE'
-  s@S{ sArgs = sArgs@((arg@(Arg info e), sArgsVisible) : args), .. } =
+  s@S{ sArgs = sArgs@((arg@(Arg info e), sArgsVisible) : args), sArgsLen, sChecked, sComp, sFun, sFunType, sPathView, sResultType, sSkipCheck, sSizeLtChecked } =
 
-    traceCallE (CheckArguments sFun (map fst sArgs) sFunType sResultType) $ do
+    traceCallE (CheckArguments sFun (map' fst sArgs) sFunType sResultType) $ do
       lift $ reportSDoc "tc.term.args" 30 $ sep
         [ "checkArgumentsE"
 --        , "  sArgs =" <+> prettyA sArgs
@@ -640,7 +639,7 @@ checkArgumentsE'
             { acCheckedArgs = cargs
             , acFun         = sFun
             , acType        = sFunType
-            , acData        = map fst sArgs
+            , acData        = map' fst sArgs
             }) {- else -} $ \ _ sFunType -> do
 
         -- What can go wrong?
@@ -687,89 +686,103 @@ checkArgumentsE'
             (NotCheckedTarget, False, Just sResultType) | sArgsVisible -> do
               -- How many visible Π's (up to at most sArgsLen) does
               -- sFunType start with?
-              TelV tel tgt <- telViewUpTo' sArgsLen visible sFunType
-              let visiblePis = size tel
+              tel <- runMaybeT $ safeTelViewUpTo' sArgsLen visible sFunType
+              case tel of
+                Nothing             -> do
+                  -- Telescope has invalidated @rewrite arguments in it, so we
+                  -- have to delay checking the target type
+                  -- We could make this a bit more efficient by counting the
+                  -- number of @rewrite arguments and skipping exactly that many
+                  -- args
+                  return s { sSkipCheck = Skip }
+                Just (TelV tel tgt) -> do
+                  let visiblePis = size tel
 
-                  -- The free variables less than visiblePis in tgt.
-                  freeInTgt =
-                    fst $ VarSet.split visiblePis $ freeVarSet tgt
+                      -- The free variables less than visiblePis in tgt.
+                      freeInTgt =
+                        fst $ VarSet.split visiblePis $ freeVarSet tgt
 
-              rigid <- isRigid s tgt
-              -- The target must be rigid.
-              case rigid of
-                IsNotRigid reason ->
-                      -- Skip the next visiblePis - 1 - k checks.
-                  let skip k   = s{ sSkipCheck =
-                                    SkipNext $ visiblePis - 1 - k
-                                  }
-                      dontSkip = s
-                  in return $ case reason of
-                    Permanent   -> skip 0
-                    Unspecified -> dontSkip
-                    AVar x      ->
-                      if x `VarSet.member` freeInTgt
-                      then skip x
-                      else skip 0
-                IsRigid -> do
-                  -- Andreas, 2024-03-01, issue #7158 reported by Amy.
-                  -- We need to check that the arity of the function type
-                  -- is sufficient before checking the target,
-                  -- otherwise the target is non-sensical.
-                  if visiblePis < sArgsLen then return s else do
+                  rigid <- isRigid s tgt
+                  -- The target must be rigid.
+                  case rigid of
+                    IsNotRigid reason ->
+                          -- Skip the next visiblePis - 1 - k checks.
+                      let skip k   = s{ sSkipCheck =
+                                        SkipNext $ visiblePis - 1 - k
+                                      }
+                          dontSkip = s
+                      in return $ case reason of
+                        Permanent   -> skip 0
+                        Unspecified -> dontSkip
+                        AVar x      ->
+                          if x `VarSet.member` freeInTgt
+                          then skip x
+                          else skip 0
+                    IsRigid -> do
+                      -- Andreas, 2024-03-01, issue #7158 reported by Amy.
+                      -- We need to check that the arity of the function type
+                      -- is sufficient before checking the target,
+                      -- otherwise the target is non-sensical.
+                      if visiblePis < sArgsLen then return s else do
 
-                      -- Is any free variable in tgt less than
-                      -- visiblePis?
-                  let dep = not (null freeInTgt)
-                  -- The target must be non-dependent.
-                  if dep then return s else do
+                          -- Is any free variable in tgt less than
+                          -- visiblePis?
+                      let dep = not (null freeInTgt)
+                      -- The target must be non-dependent.
+                      if dep then return s else do
 
-                  -- Andreas, 2019-03-28, issue #3248:
-                  -- If the target type is SIZELT, we need coerce, leqType is insufficient.
-                  -- For example, we have i : Size <= (Size< ↑ i), but not Size <= (Size< ↑ i).
-                  (isSizeLt, sResultType, s) <-
-                    if sSizeLtChecked
-                    then return (False, sResultType, s)
-                    else do
-                      sResultType <- reduce sResultType
-                      isSizeLt    <- isSizeType sResultType <&> \case
-                        Just (BoundedLt _) -> True
-                        _                  -> False
-                      return ( isSizeLt
-                             , sResultType
-                             , s{ sResultType    = Just sResultType
-                                , sSizeLtChecked = True
-                                , sSkipCheck     =
-                                    if isSizeLt then Skip else DontSkip
-                                }
-                             )
-                  if isSizeLt then return s else do
+                      -- Andreas, 2019-03-28, issue #3248:
+                      -- If the target type is SIZELT, we need coerce, leqType is insufficient.
+                      -- For example, we have i : Size <= (Size< ↑ i), but not Size <= (Size< ↑ i).
+                      (isSizeLt, sResultType, s) <-
+                        if sSizeLtChecked
+                        then return (False, sResultType, s)
+                        else do
+                          sResultType <- reduce sResultType
+                          isSizeLt    <- isSizeType sResultType <&> \case
+                            Just (BoundedLt _) -> True
+                            _                  -> False
+                          return ( isSizeLt
+                                , sResultType
+                                , s{ sResultType    = Just sResultType
+                                    , sSizeLtChecked = True
+                                    , sSkipCheck     =
+                                        if isSizeLt then Skip else DontSkip
+                                    }
+                                )
+                      if isSizeLt then return s else do
 
-                  let tgt1 = applySubst
-                               (strengthenS impossible visiblePis)
-                               tgt
-                  reportSDoc "tc.term.args.target" 30 $ vcat
-                    [ "Checking target types first"
-                    , nest 2 $ "inferred =" <+> prettyTCM tgt1
-                    , nest 2 $ "expected =" <+> prettyTCM sResultType ]
-                  chk <-
-                    traceCall
-                      (CheckTargetType
-                         (fuseRange sFun sArgs) tgt1 sResultType) $
-                      CheckedTarget <$>
-                        ifNoConstraints_ (compareType sComp tgt1 sResultType)
-                          (return Nothing) (return . Just)
-                  return s{ sChecked = chk }
+                      let tgt1 = applySubst
+                                  (strengthenS impossible visiblePis)
+                                  tgt
+                      reportSDoc "tc.term.args.target" 30 $ vcat
+                        [ "Checking target types first"
+                        , nest 2 $ "inferred =" <+> prettyTCM tgt1
+                        , nest 2 $ "expected =" <+> prettyTCM sResultType ]
+                      chk <-
+                        traceCall
+                          (CheckTargetType
+                            (fuseRange sFun sArgs) tgt1 sResultType) $
+                          CheckedTarget <$>
+                            ifNoConstraints_ (compareType sComp tgt1 sResultType)
+                              (return Nothing) (return . Just)
+                      return s{ sChecked = chk }
 
             _ -> return s
 
         -- sFunType <- lift $ forcePi (getHiding info)
         --                  (maybe "_" rangedThing $ nameOf e) sFunType
         case unEl sFunType of
-          Pi (Dom{domInfo = info', domName = dname, unDom = a}) b
-            | let name = bareNameWithDefault "_" dname,
+          Pi dom@(unDom -> a) b
+            | let info' = dom ^. dInfo,
+              let dname = dom ^. dName,
+              let name  = bareNameWithDefault "_" dname,
               sameHiding info info'
               && (visible info || maybe True (name ==) mx) -> do
-                u <- lift $ applyModalityToContext info' $ do
+                whenJust (domEq dom) \eq ->
+                  reportSDoc "rewriting" 30 $
+                    "Applying equational constraint to context: " <+> prettyTCM eq
+                u <- lift $ applyDomToContext dom $ do
                  -- Andreas, 2014-05-30 experiment to check non-dependent arguments
                  -- after the spine has been processed.  Allows to propagate type info
                  -- from ascribed type into extended-lambdas.  Would solve issue 1159.
@@ -792,11 +805,12 @@ checkArgumentsE'
                 addCheckedArgs cargs ca $
                   checkArgumentsE' s{ sFunType = absApp b u }
             | otherwise -> do
+                let info' = dom ^. dInfo
                 reportSDoc "error" 10 $ nest 2 $ vcat
-                  [ text $ "info      = " ++ show info
-                  , text $ "info'     = " ++ show info'
-                  , text $ "absName b = " ++ absName b
-                  , text $ "nameOf e  = " ++ show (nameOf e)
+                  [ text $ "info      = " ++! show info
+                  , text $ "info'     = " ++! show info'
+                  , text $ "absName b = " ++! absName b
+                  , text $ "nameOf e  = " ++! show (nameOf e)
                   ]
                 wrongPi
           _
@@ -823,7 +837,7 @@ checkArgumentsE'
       -> CheckArgumentsE'
     addCheckedArgs cas ca cont = do
       let upd :: ArgsCheckState a -> ArgsCheckState a
-          upd st = st{ acCheckedArgs = cas ++ ca : acCheckedArgs st }
+          upd st = st{ acCheckedArgs = cas ++! ca : acCheckedArgs st }
       -- Add checked arguments to both regular and exceptional result of @cont@.
       withError upd $ upd <$> cont
 
@@ -953,20 +967,20 @@ postponeArgs ::
 postponeArgs (ACState cas fun t1 es) cmp exph hd args t0 t k = do
   reportSDoc "tc.term.expr.args" 80 $
     sep [ "postponed checking arguments"
-        , nest 4 $ prettyList (map (prettyA . namedThing . unArg) args)
+        , nest 4 $ prettyList (map' (prettyA . namedThing . unArg) args)
         , nest 2 $ "against"
         , nest 4 $ prettyTCM t0
         ] $$
     sep [ "progress:"
-        , nest 2 $ "checked" <+> prettyList (map (prettyTCM . caElim) cas)
+        , nest 2 $ "checked" <+> prettyList (map' (prettyTCM . caElim) cas)
         , nest 2 $ "remaining" <+> sep
-            [ prettyList (map (prettyA . namedThing . unArg) es)
+            [ prettyList (map' (prettyA . namedThing . unArg) es)
             , nest 2 $ ":" <+> prettyTCM t1
             ]
         ]
   postponeTypeCheckingProblem_ $
     CheckArgs cmp exph fun es t1 t $ \ (ACState cas' func t pid) ->
-      k $ ACState (cas ++ cas') func t pid
+      k $ ACState (cas ++! cas') func t pid
 
 -----------------------------------------------------------------------------
 -- * Constructors
@@ -1026,8 +1040,8 @@ checkConstructorApplication cmp org t c hd args = do
          -- from t = Def d' vs, we drop the additional parameters.
          npars' <- getNumberOfParameters d'
          caseMaybe (sequenceA $ Pair (Just npars) npars') fallback $ \ (Pair n n') -> do
-           reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n    = " ++ show n
-           reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n'   = " ++ show n'
+           reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n    = " ++! show n
+           reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n'   = " ++! show n'
            when (n > n')  -- preprocessor does not like ', so put on next line
              __IMPOSSIBLE__
            let ps    = take n $ drop (n' - n) vs
@@ -1040,11 +1054,11 @@ checkConstructorApplication cmp org t c hd args = do
            reportSDoc "tc.term.con" 20 $ nest 2 $ "ctype' =" <+> prettyTCM ctype'
            -- get the parameter names
            let TelV ptel _ = telView'UpTo n ctype
-           let pnames = map (fmap fst) $ telToList ptel
+           let pnames = map' (fmap fst) $ telToList ptel
            -- drop the parameter arguments
                args' = dropArgs pnames args
            -- check the non-parameter arguments
-           expandLast <- asksTC envExpandLast
+           expandLast <- viewTC eExpandLast
            checkArguments cmp expandLast hd args' ctype' t \ st@(ACState _ _ t' targetCheck) -> do
              reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
                [ text "es     =" <+> prettyTCM es
@@ -1094,21 +1108,21 @@ type DisambiguateConstructor = TCM (Either (Blocker, ConstructorDisambiguationDa
 -- | Successfully disambiguate constructor with given choice.
 decideOn :: ConHead -> DisambiguateConstructor
 decideOn c = do
-  reportSLn "tc.check.term.con" 40 $ "  decided on: " ++ prettyShow c
+  reportSLn "tc.check.term.con" 40 $ "  decided on: " ++! prettyShow c
   storeDisambiguatedConstructor (conInductive c) (conName c)
   return $ Right c
 
 -- | Returns an unblocking action in case of failure.
 disambiguateConstructor :: AmbiguousQName -> A.Args -> Type -> DisambiguateConstructor
 disambiguateConstructor ambC args t = do
-  reportSLn "tc.check.term.con" 40 $ "Ambiguous constructor: " ++ prettyShow ambC
-  reportSDoc "tc.check.term.con" 40 $ vcat $ "Arguments:" : map (nest 2 . prettyTCM) args
+  reportSLn "tc.check.term.con" 40 $ "Ambiguous constructor: " ++! prettyShow ambC
+  reportSDoc "tc.check.term.con" 40 $ vcat $ "Arguments:" : map' (nest 2 . prettyTCM) args
   let cs0 = getAmbiguous ambC
 
   -- Get the datatypes of the various constructors
   let getData Constructor{conData = d} = d
       getData _                        = __IMPOSSIBLE__
-  reportSLn "tc.check.term.con" 40 $ "  ranges before: " ++ prettyShow (getRange cs0)
+  reportSLn "tc.check.term.con" 40 $ "  ranges before: " ++! prettyShow (getRange cs0)
   -- We use the reduced constructor when disambiguating, but
   -- the original constructor for type checking. This is important
   -- since they may have different types (different parameters).
@@ -1116,12 +1130,12 @@ disambiguateConstructor ambC args t = do
   -- Andreas, 2017-08-13, issue #2686: ignore abstract constructors
   ccons  <- List1.rights <$> do
      forM cs0 $ \ c -> mapRight (c,) <$> getConForm c
-  reportSLn "tc.check.term.con" 40 $ "  reduced: " ++ prettyShow (map snd ccons)
+  reportSLn "tc.check.term.con" 40 $ "  reduced: " ++! prettyShow (map' snd ccons)
   case ccons of
     []    -> typeError $ AbstractConstructorNotInScope $ List1.head cs0
     [(c0,con)] -> do
       let c = setConName c0 con
-      reportSLn "tc.check.term.con" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
+      reportSLn "tc.check.term.con" 40 $ "  only one non-abstract constructor: " ++! prettyShow c
       decideOn c
     cons@(c0,_):conss   -> do
       dcs :: List1 (QName, Type, ConHead) <- forM (cons :| conss) $ \ (c, con) -> do
@@ -1156,7 +1170,7 @@ resolveAmbiguousConstructor bcd@(ConstructorDisambiguationData c0 dcs1 args t) =
        ifBlocked t1 (\ b _ -> disambiguateByArgs dcs args $ postpone b) $ \ _ t' ->
          caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ (d, _) -> do
            let dcs' = filter ((d ==) . fst3) dcs
-           case map thd3 dcs' of
+           case map' thd3 dcs' of
              [c] -> decideOn c
              []  -> badCon $ t' $> Def d []
              -- If the information from the target type did not eliminate ambiguity fully,
@@ -1185,9 +1199,9 @@ disambiguateByArgs dcs args fallback = do
     -- without full-fledged type inference.
     askel <- visibleVarArgs
     reportSDoc "tc.check.term.con" 40 $ hsep $
-      "trying disambiguation by arguments" : map prettyTCM askel
+      "trying disambiguation by arguments" : map' prettyTCM askel
     reportSDoc "tc.check.term.con" 80 $ hsep $
-      "trying disambiguation by arguments" : map pretty askel
+      "trying disambiguation by arguments" : map' pretty askel
 
     -- Filter out candidates with definitive mismatches.
     cands <- filterM (\ (_d, t, _c) -> matchSkel askel =<< visibleConDoms t) dcs
@@ -1346,7 +1360,7 @@ inferOrCheckProjApp
 inferOrCheckProjApp e o ds hd args mt = do
   reportSDoc "tc.proj.amb" 20 $ vcat
     [ "checking ambiguous projection"
-    , text $ "  ds   = " ++ prettyShow ds
+    , text $ "  ds   = " ++! prettyShow ds
     , text   "  args = " <+> do prettyList $ fmap prettyTCM args
     , text   "  t    = " <+> caseMaybe mt "Nothing" prettyTCM
     ]
@@ -1446,7 +1460,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
       -- try to project it with all of the possible projections
       let try d = do
             reportSDoc "tc.proj.amb" 30 $ vcat
-              [ text $ "trying projection " ++ prettyShow d
+              [ text $ "trying projection " ++! prettyShow d
               , "  td  = " <+> caseMaybeM (getDefType d ta) "Nothing" prettyTCM
               ]
 
@@ -1454,10 +1468,10 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
             def <- lift $ getConstInfo d
             let isP = isProjection_ $ theDef def
             reportSDoc "tc.proj.amb" 40 $ vcat $
-              text ( "  isProjection = " ++ caseMaybe isP "no" (const "yes")
+              text ( "  isProjection = " ++! caseMaybe isP "no" (const "yes")
                    ) : caseMaybe isP [] (\ Projection{ projProper = proper, projOrig = orig } ->
-              [ text $ "  proper       = " ++ show proper
-              , text $ "  orig         = " ++ prettyShow orig
+              [ text $ "  proper       = " ++! show proper
+              , text $ "  orig         = " ++! prettyShow orig
               ])
 
             -- Andreas, 2017-01-21, issue #2422
@@ -1490,8 +1504,8 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
             let tfull = defType def
             TelV tel _ <- lift $ telViewUpTo' (-1) (not . visible) tfull
             reportSDoc "tc.proj.amb" 30 $ vcat
-              [ text $ "  size tel  = " ++ show (size tel)
-              , text $ "  size pars = " ++ show (size pars)
+              [ text $ "  size tel  = " ++! show (size tel)
+              , text $ "  size pars = " ++! show (size pars)
               ]
             -- See issue 1960 for when the following assertion fails for
             -- the correct disambiguation.
@@ -1512,7 +1526,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds hd args mt k v0 ta mpatm = do
 
           -- Check parameters
           tfull <- typeOfConst d
-          (args0, princArg : args') <- pure $ splitAt k args
+          (args0, princArg : args') <- pure $ splitAt' k args
           (_,_) <- checkKnownArguments args0 pars tfull
 
           -- Check remaining arguments
@@ -1594,14 +1608,7 @@ inferLeveledSort u q suffix = \case
     unless (visible arg) $ typeError $ WrongHidingInApplication $ sort $ Univ u $ ClosedLevel 0
     unlessM hasUniversePolymorphism $ typeError NeedOptionUniversePolymorphism
     List1.unlessNull args $ warning . TooManyArgumentsToSort q
-    -- If --erasure has been turned on, then the argument of
-    -- Set/Prop/SSet is erased.
-    erasureEnabled <- optErasure <$> pragmaOptions
-    l <- applyRelevanceToContext shapeIrrelevant $
-         (if erasureEnabled
-          then applyQuantityToJudgement zeroQuantity
-          else id)
-         (checkLevel arg)
+    l <- applyRelevanceToContext shapeIrrelevant $ checkLevel arg
     return (Sort $ Univ u l , sort (Univ (univUniv u) $ levelSuc l))
 
 inferUnivOmega ::
@@ -1627,7 +1634,7 @@ checkSharpApplication e t c args = do
 
   -- The name of the fresh function.
   i <- fresh :: TCM Int
-  let name = filter (/= '_') (prettyShow $ A.nameConcrete $ A.qnameName c) ++ "-" ++ show i
+  let name = filter (/= '_') (prettyShow $ A.nameConcrete $ A.qnameName c) ++! "-" ++! show i
 
   kit <- coinductionKit'
   let flat = nameOfFlat kit
@@ -1640,15 +1647,10 @@ checkSharpApplication e t c args = do
   -- postpone checking of patterns when we don't know their types (Issue480).
   forcedType <- do
     lvl <- levelType
-    (_, l) <- do
-      erasureEnabled <- optErasure <$> pragmaOptions
-      (if erasureEnabled
-       then applyQuantityToJudgement zeroQuantity
-       else id)
-        (newValueMeta RunMetaOccursCheck CmpLeq lvl)
+    (_, l) <- newValueMeta RunMetaOccursCheck CmpLeq lvl
     lv  <- levelView l
     (_, a) <- newValueMeta RunMetaOccursCheck CmpEq (sort $ Type lv)
-    return $ El (Type lv) $ Def inf [Apply $ argE l, Apply $ defaultArg a]
+    return $ El (Type lv) $ Def inf [Apply $ setHiding Hidden $ defaultArg l, Apply $ defaultArg a]
 
   wrapper <- inFreshModuleIfFreeParams $
              setRunTimeModeUnlessInHardCompileTimeMode $ do
@@ -1698,7 +1700,7 @@ checkSharpApplication e t c args = do
 
   -- The application of the fresh function to the relevant
   -- arguments.
-  e' <- Def wrapper . map Apply <$> getContextArgs
+  e' <- Def wrapper . map' Apply <$> getContextArgs
 
   reportSDoc "tc.term.expr.coind" 15 $ vcat $
       [ "The coinductive constructor application"
@@ -1720,7 +1722,7 @@ pathAbs (OType _) t = __IMPOSSIBLE__
 pathAbs (PathType s path l a x y) t = do
   return $ Lam defaultArgInfo t
 
--- | @primComp : ∀ {@0 ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (u : ∀ i → Partial φ (A i)) (a : A i0) → A i1@
+-- | @primComp : ∀ {ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (u : ∀ i → Partial φ (A i)) (a : A i0) → A i1@
 --
 --   Check:  @u i0 = (λ _ → a) : Partial φ (A i0)@.
 --
@@ -1732,7 +1734,7 @@ checkPrimComp c rs vs _ = do
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
       let lz = unArg l `apply` [iz]
           az = unArg a `apply` [iz]
-      ty <- el's (pure (unArg l `apply` [iz])) $ primPartial <#@> pure (unArg l `apply` [iz]) <@> pure (unArg phi) <@> pure (unArg a `apply` [iz])
+      ty <- el's (pure (unArg l `apply` [iz])) $ primPartial <#> pure (unArg l `apply` [iz]) <@> pure (unArg phi) <@> pure (unArg a `apply` [iz])
       bAz <- el' (pure $ lz) (pure $ az)
       a0 <- blockArg bAz (rs !!! 4) a0 $ do
         equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
@@ -1741,7 +1743,7 @@ checkPrimComp c rs vs _ = do
       return $ l : a : phi : u : a0 : rest
     _ -> typeError $ CubicalPrimitiveNotFullyApplied c
 
--- | @primHComp : ∀ {@0 ℓ} {A : Set ℓ} {φ : I} (u : ∀ i → Partial φ A) (a : A) → A@
+-- | @primHComp : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : ∀ i → Partial φ A) (a : A) → A@
 --
 --   Check:  @u i0 = (λ _ → a) : Partial φ A@.
 --
@@ -1753,7 +1755,7 @@ checkPrimHComp c rs vs _ = do
       -- iz = i0
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
       -- ty = Partial φ A
-      ty <- el's (pure (unArg l)) $ primPartial <#@> pure (unArg l) <@> pure (unArg phi) <@> pure (unArg a)
+      ty <- el's (pure (unArg l)) $ primPartial <#> pure (unArg l) <@> pure (unArg phi) <@> pure (unArg a)
       -- (λ _ → a) = u i0 : ty
       bA <- el' (pure $ unArg l) (pure $ unArg a)
       a0 <- blockArg bA (rs !!! 4) a0 $ do
@@ -1763,7 +1765,7 @@ checkPrimHComp c rs vs _ = do
       return $ l : a : phi : u : a0 : rest
     _ -> typeError $ CubicalPrimitiveNotFullyApplied c
 
--- | @transp : ∀{@0 ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (a0 : A i0) → A i1@
+-- | @transp : ∀{ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (a0 : A i0) → A i1@
 --
 --   Check:  If φ, then @A i = A i0 : Set (ℓ i)@ must hold for all @i : I@.
 --
@@ -1794,7 +1796,7 @@ blockArg t r a m =
 -- The following comment contains silly ' escapes to calm CPP about ∨ (\vee).
 -- May not be haddock-parseable.
 
--- ' @primPOr : ∀ {@0 ℓ} (φ₁ φ₂ : I) {A : Partial (φ₁ ∨ φ₂) (Set ℓ)}
+-- ' @primPOr : ∀ {ℓ} (φ₁ φ₂ : I) {A : Partial (φ₁ ∨ φ₂) (Set ℓ)}
 -- '         → (u : PartialP φ₁ (λ (o : IsOne φ₁) → A (IsOne1 φ₁ φ₂ o)))
 -- '         → (v : PartialP φ₂ (λ (o : IsOne φ₂) → A (IsOne2 φ₁ φ₂ o)))
 -- '         → PartialP (φ₁ ∨ φ₂) A@
@@ -1823,7 +1825,7 @@ checkPOr c rs vs _ = do
       return $ l : phi1 : phi2 : a : u : v : rest
    _ -> typeError $ CubicalPrimitiveNotFullyApplied c
 
--- | @prim^glue : ∀ {@0 ℓ ℓ'} {A : Set ℓ} {φ : I}
+-- | @prim^glue : ∀ {ℓ ℓ'} {A : Set ℓ} {φ : I}
 --              → {T : Partial φ (Set ℓ')} → {e : PartialP φ (λ o → T o ≃ A)}
 --              → (t : PartialP φ T) → (a : A) → primGlue A T e@
 --
@@ -1841,13 +1843,13 @@ check_glue c rs vs _ = do
             bT  <- open . unArg $ bT
             e   <- open . unArg $ e
             t   <- open . unArg $ t
-            let f o = cl primEquivFun <#@> lb <#@> la <#> (bT <..> o) <#> bA <@> (e <..> o)
+            let f o = cl primEquivFun <#> lb <#> la <#> (bT <..> o) <#> bA <@> (e <..> o)
             glam defaultIrrelevantArgInfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
             lb  <- open . unArg $ lb
             phi <- open . unArg $ phi
             bA  <- open . unArg $ bA
-            el's lb $ cl primPartialP <#@> lb <@> phi <@> glam defaultIrrelevantArgInfo "o" (\ _ -> bA)
+            el's lb $ cl primPartialP <#> lb <@> phi <@> glam defaultIrrelevantArgInfo "o" (\ _ -> bA)
       let a' = Lam defaultIrrelevantArgInfo (NoAbs "o" $ unArg a)
       ta <- el' (pure $ unArg la) (pure $ unArg bA)
       a <- blockArg ta (rs !!! 7) a $ equalTerm ty a' v
@@ -1855,7 +1857,7 @@ check_glue c rs vs _ = do
    _ -> typeError $ CubicalPrimitiveNotFullyApplied c
 
 
--- | @prim^glueU : ∀ {@0 ℓ} {φ : I}
+-- | @prim^glueU : ∀ {ℓ} {φ : I}
 --              → {T : I → Partial φ (Set ℓ)} → {A : Set ℓ [ φ ↦ T i0 ]}
 --              → (t : PartialP φ (T i1)) → (a : outS A) → hcomp T (outS A)@
 --
@@ -1872,7 +1874,7 @@ check_glueU c rs vs _ = do
             bT  <- open . unArg $ bT
             bA  <- open . unArg $ bA
             t   <- open . unArg $ t
-            let f o = cl primTrans <#@> lam "i" (const la) <@> lam "i" (\ i -> bT <@> (cl primINeg <@> i) <..> o) <@> cl primIZero
+            let f o = cl primTrans <#> lam "i" (const la) <@> lam "i" (\ i -> bT <@> (cl primINeg <@> i) <..> o) <@> cl primIZero
             glam defaultIrrelevantArgInfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
             la  <- open . unArg $ la
@@ -1885,7 +1887,7 @@ check_glueU c rs vs _ = do
             phi <- open . unArg $ phi
             bT  <- open . unArg $ bT
             bA  <- open . unArg $ bA
-            el' la (cl primSubOut <#@> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <#> (bT <@> cl primIZero) <@> bA)
+            el' la (cl primSubOut <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <#> (bT <@> cl primIZero) <@> bA)
       a <- blockArg ta (rs !!! 5) a $ equalTerm ty a' v
       return $ la : phi : bT : bA : t : a : rest
    _ -> typeError $ CubicalPrimitiveNotFullyApplied c

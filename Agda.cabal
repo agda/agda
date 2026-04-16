@@ -30,7 +30,7 @@ description:
     Emacs mode.
 
 tested-with:
-    GHC == 9.12.2
+    GHC == 9.12.4
     GHC == 9.10.3
     GHC == 9.8.4
     GHC == 9.6.7
@@ -87,7 +87,7 @@ extra-doc-files:
     doc/release-notes/2.2.0.md
 
 extra-source-files:
-    stack-9.12.2.yaml
+    stack-9.12.4.yaml
     stack-9.10.3.yaml
     stack-9.8.4.yaml
     stack-9.6.7.yaml
@@ -267,6 +267,16 @@ flag use-xdg-data-home
     instead of the installation location defined by Cabal.
     This should not be enabled in declarative build environments like Nix or Guix.
 
+flag ignore-build-tool-depends
+  default: False
+  manual: True
+  description:
+    Ignore the build-tool-depends stanza, and trust user-provided tools on the PATH.
+    This is intended to be used in declarative build environemnts like Nix or Guix,
+    which will manage the installation of build tools like alex or happy.
+    See github.com/NixOS/nixpkgs/issues/130556 and https://github.com/haskell/cabal/issues/8434
+    for more details.
+
 -- Common stanzas
 ---------------------------------------------------------------------------
 
@@ -278,6 +288,7 @@ common language
     ghc-options:
       -fexpose-all-unfoldings
       -fspecialise-aggressively
+      -fstg-lift-lams
 
   if flag(use-xdg-data-home)
     cpp-options:
@@ -377,6 +388,7 @@ common language
       DeriveTraversable
       DerivingStrategies
       DerivingVia
+      DisambiguateRecordFields
       ExistentialQuantification
       FlexibleContexts
       FlexibleInstances
@@ -391,7 +403,6 @@ common language
       OverloadedStrings
       PatternSynonyms
       RankNTypes
-      RecordWildCards
       ScopedTypeVariables
       StandaloneDeriving
       TupleSections
@@ -417,6 +428,7 @@ common language
       PatternGuards
       PolyKinds
       RebindableSyntax
+      RecordWildCards
       TemplateHaskell
       UnboxedTuples
       UndecidableInstances
@@ -526,9 +538,10 @@ library
 
   -- We don't write upper bounds for Alex nor Happy because the
   -- `build-tool-depends` field can not be modified in Hackage.
-  build-tool-depends:
-    , alex:alex   >= 3.2.7.4
-    , happy:happy >= 1.20.1.1
+  if !flag(ignore-build-tool-depends)
+    build-tool-depends:
+      , alex:alex   >= 3.2.7.4
+      , happy:happy >= 1.20.1.1
 
   exposed-modules:
     -- Keep in alphabetical order, please!
@@ -914,6 +927,7 @@ library
       Agda.Utils.Map1
       Agda.Utils.Maybe
       Agda.Utils.Maybe.Strict
+      Agda.Utils.Maybe.Unboxable
       Agda.Utils.Memo
       Agda.Utils.MinimalArray.Lifted
       Agda.Utils.MinimalArray.MutableLifted
@@ -999,7 +1013,7 @@ executable agda
   if !arch(wasm32)
     ghc-options:
       -threaded
-      "-with-rtsopts=-I0 -N1"
+      "-with-rtsopts=-I0 -N1 -qb0"
   else
     ghc-options: -with-rtsopts=-I0
 
@@ -1128,7 +1142,8 @@ executable agda-tests
   -- Andreas, 2021-08-26, see https://github.com/haskell/cabal/issues/7577
   -- Since 'agda-tests' wants to call 'agda', we have to add it here,
   -- should we want to run 'cabal run agda-tests'.
-  build-tool-depends: Agda:agda
+  if !flag(ignore-build-tool-depends)
+    build-tool-depends: Agda:agda
 
   build-depends:
     , Agda

@@ -1,0 +1,3 @@
+Issue8453.agda:20.1-24: error: [InvalidBuiltin]
+Builtin SIGMA: wrong field types
+when checking the pragma BUILTIN SIGMA Σ

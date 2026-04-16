@@ -5,63 +5,62 @@ module Agda.TypeChecking.Monad.Signature where
 import Prelude hiding (null)
 
 import Control.Monad.Except          ( ExceptT )
-import Control.Monad.Reader          ( ReaderT )
 import Control.Monad.State           ( StateT  )
-import Control.Monad.Trans           ( MonadTrans, lift )
-import Control.Monad.Trans.Identity  ( IdentityT )
-import Control.Monad.Trans.Maybe     ( MaybeT  )
+import Control.Monad.Reader          ( ReaderT )
 import Control.Monad.Writer          ( WriterT )
+import Control.Monad.Trans.Maybe     ( MaybeT (MaybeT), runMaybeT  )
+import Control.Monad.Trans.Identity  ( IdentityT )
+import Control.Monad.Trans           ( MonadTrans, lift )
 
 import Data.Either
 import Data.Foldable                 ( for_ )
-import Data.HashMap.Strict           qualified as HMap
+import Data.IntMap                   qualified as IntMap
 import Data.List                     qualified as List
-import Data.Map                      qualified as Map
-import Data.Maybe
 import Data.Set                      ( Set )
 import Data.Set                      qualified as Set
+import Data.Map                      qualified as Map
+import Data.HashMap.Strict           qualified as HMap
+import Data.Maybe
 
 import Agda.Interaction.Options
 
-import Agda.Syntax.Abstract (Ren, renamingSize, ScopeCopyInfo(..))
+import Agda.Syntax.Scope.Base (LiveNames(..), isModuleAlive, isNameAlive)
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Abstract (Ren, renamingSize, ScopeCopyInfo(..))
 import Agda.Syntax.Common
-import Agda.Syntax.Common.Pretty (Doc, prettyShow)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Names
 import Agda.Syntax.Position
-import Agda.Syntax.Scope.Base (LiveNames(..), isModuleAlive, isNameAlive)
 import Agda.Syntax.Treeless (Compiled(..), TTerm, ArgUsage)
 
-import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Coverage.SplitTree
-import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Constraints
-import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad.Context
+import Agda.TypeChecking.Monad.Constraints
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.State
-import Agda.TypeChecking.Monad.Statistics
 import Agda.TypeChecking.Monad.Trace
+import Agda.TypeChecking.Monad.Statistics
+import Agda.TypeChecking.DropArgs
+import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Warnings
-import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
+import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Coverage.SplitTree
 import {-# SOURCE #-} Agda.TypeChecking.InstanceArguments
-import {-# SOURCE #-} Agda.TypeChecking.Opacity
+import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 import {-# SOURCE #-} Agda.TypeChecking.Reduce
+import {-# SOURCE #-} Agda.TypeChecking.Opacity
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
 import qualified Agda.Interaction.Options.ProfileOptions as Profile
-
 import Agda.Utils.CallStack.Base
 import Agda.Utils.Either
 import Agda.Utils.Function ( applyWhen )
@@ -74,12 +73,14 @@ import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Syntax.Common.Pretty (Doc, prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
-import Agda.Utils.StrictReader qualified as Strict
-import Agda.Utils.StrictState qualified as Strict
 import Agda.Utils.Tuple ( first, second )
 import Agda.Utils.Update
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictWriter qualified as Strict
+import Agda.Utils.StrictState  qualified as Strict
 
 import Agda.Utils.Impossible
 
@@ -94,7 +95,7 @@ setHardCompileTimeModeIfErased
 setHardCompileTimeModeIfErased erased =
   localTC
     $ applyWhen (isErased erased) (set eHardCompileTimeMode True)
-    . over eQuantity (`composeQuantity` asQuantity erased)
+    . over eQuantityZeroHardCompile (`composeQuantity` asQuantity erased)
 
 -- | If the quantity is \"erased\", then hard compile-time mode is
 -- enabled when the continuation is run.
@@ -121,7 +122,7 @@ setRunTimeModeUnlessInHardCompileTimeMode
   -> TCM a
 setRunTimeModeUnlessInHardCompileTimeMode c =
   ifM (viewTC eHardCompileTimeMode) c $
-  localTC (over eQuantity $ mapQuantity (`addQuantity` topQuantity)) c
+  localTC (over eQuantityZeroHardCompile $ mapQuantity (`addQuantity` topQuantity)) c
 
 -- | Use hard compile-time mode in the continuation if the first
 -- argument is @'Erased' something@. Use run-time mode if the first
@@ -673,7 +674,7 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
                     , defMatchable      = Set.empty
                     , defNoCompilation  = defNoCompilation d
                     , defInjective      = False
-                    , defCopatternLHS   = isCopatternLHS [cl]
+                    , defCopatternLHS'  = isCopatternLHS [cl]
                     , defBlocked        = defBlocked d
                     , defLanguage       =
                       case defLanguage d of
@@ -684,7 +685,8 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
                         Cubical CWithoutGlue -> lang
                         WithoutK             -> lang
                         WithK                -> lang
-                    , theDef            = df }
+                    , defMightContainMetas = True
+                    , theDef               = df }
             oldDef = theDef d
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
             mutual = case oldDef of { Function{funMutual = m} -> m              ; _ -> Nothing }
@@ -809,7 +811,8 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
       reportSDoc "tc.mod.apply" 80 $ "  totalArgs    = " <+> text (show totalArgs)
       reportSDoc "tc.mod.apply" 80 $ "  tel          = " <+> text (unwords (map (fst . unDom) $ telToList tel))  -- only names
       reportSDoc "tc.mod.apply" 80 $ "  sectionTel   = " <+> text (unwords (map (fst . unDom) $ telToList ptel)) -- only names
-      addContext sectionTel $ addSection y
+      ctxTel <- getContextTelescope
+      addSection' y (ctxTel `abstract` sectionTel)
       reportSDoc "tc.mod.apply" 80 $
         "finished copySec" <+> pretty x <+> "->" <+> pretty y
 
@@ -972,12 +975,16 @@ class ( Functor m
   getConstInfo' :: HasCallStack => QName -> m (Either SigError Definition)
   -- getConstInfo' q = Right <$> getConstInfo q -- conflicts with default signature
 
-  -- | Return the rewrite rules for the given head symbol that could be tried.
-  --   Not categorically all rewrite rules are returned, in particular, none when
-  --   reduction of the head symbol is disabled.
-  --   Rewrite rules that only happen to be in the signature but are not in scope
-  --   are also not returned.
-  getRewriteRulesFor :: QName -> m RewriteRules
+  -- | Return the global rewrite rules for the given head symbol that could be
+  --   tried.
+  --   Not categorically all rewrite rules are returned, in particular, none
+  --   when reduction of the head symbol is disabled.
+  --   Rewrite rules that only happen to be in the signature but are not in
+  --   scope are also not returned.
+  getGlobalRewriteRulesFor :: QName -> m GlobalRewriteRules
+
+  -- | Return the local rewrite rules for the given head symbol.
+  getLocalRewriteRulesFor :: RewriteHead -> m RewriteRules
 
   -- Lifting HasConstInfo through monad transformers:
 
@@ -986,12 +993,54 @@ class ( Functor m
     => QName -> m (Either SigError Definition)
   getConstInfo' = lift . getConstInfo'
 
-  default getRewriteRulesFor
+  default getGlobalRewriteRulesFor
     :: (HasConstInfo n, MonadTrans t, m ~ t n)
-    => QName -> m RewriteRules
-  getRewriteRulesFor = lift . getRewriteRulesFor
+    => QName -> m GlobalRewriteRules
+  getGlobalRewriteRulesFor = lift . getGlobalRewriteRulesFor
 
+  default getLocalRewriteRulesFor
+    :: (HasConstInfo n, MonadTrans t, m ~ t n)
+    => RewriteHead -> m RewriteRules
+  getLocalRewriteRulesFor = lift . getLocalRewriteRulesFor
 {-# SPECIALIZE getConstInfo :: HasCallStack => QName -> TCM Definition #-}
+
+justTheRule :: GlobalRewriteRule -> Maybe RewriteRule
+justTheRule (GlobalRewriteRule _ g q ps rhs t isClause _)
+  | isClause  = Nothing
+  | otherwise = pure $ RewriteRule g (RewDefHead q)  ps rhs t
+
+{-# INLINE getAllRewriteRulesForDefHead #-}
+getAllRewriteRulesForDefHead :: (HasConstInfo m, ReadTCState m) => QName -> m RewriteRules
+getAllRewriteRulesForDefHead f = do
+  globals <- catMaybes . fmap justTheRule <$> (instantiateRewriteRules =<< getGlobalRewriteRulesFor f)
+  localRewritingOption >>= \case
+    True  -> do locals <- getLocalRewriteRulesFor (RewDefHead f)
+                pure $! globals ++! locals
+    False -> pure globals
+
+-- | A local rewrite rule forces us to consider the definition as defined
+--   by copatterns (see #3812 for an example case with global rewrite rules)
+--   This is necessary because binding local rewrite rules does not update
+--   defCopatternLHS'
+rewUsesCopatterns :: HasConstInfo m => RewriteHead -> m Bool
+rewUsesCopatterns h =
+  any lrewHasProjectionPattern <$> getLocalRewriteRulesFor h
+
+{-# INLINE defCopatternLHS #-}
+-- | Is this a function defined by copatterns?
+--   Accounts for local rewrite rules
+defCopatternLHS :: HasConstInfo m => QName -> Definition -> m Bool
+defCopatternLHS f d = localRewritingOption >>= \case
+  True -> do
+    rewForces <- rewUsesCopatterns $ RewDefHead f
+    pure $! defCopatternLHS' d || rewForces
+  False ->
+    pure $! defCopatternLHS' d
+
+{-# INLINE getAllRewriteRulesForVarHead #-}
+getAllRewriteRulesForVarHead :: HasConstInfo m
+  => Nat -> m RewriteRules
+getAllRewriteRulesForVarHead x = getLocalRewriteRulesFor $ RewVarHead x
 
 {-# SPECIALIZE getOriginalConstInfo :: HasCallStack => QName -> TCM Definition #-}
 -- | The computation 'getConstInfo' sometimes tweaks the returned
@@ -1011,30 +1060,55 @@ getOriginalConstInfo q = do
         (getConstInfo q)
     _ -> return def
 
+{-# SPECIALIZE defaultGetGlobalRewriteRulesFor :: QName -> ReduceM GlobalRewriteRules #-}
 -- | Return the rewrite rules for the given head symbol that could be tried.
 --   Not categorically all rewrite rules are returned, e.g. none when
 --   reduction of the head symbol is disabled.
 --   Rewrite rules that only happen to be in the signature but are not in scope
 --   are also not returned.
-defaultGetRewriteRulesFor :: (ReadTCState m, MonadTCEnv m) => QName -> m RewriteRules
-defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
-  getFilteredRewriteRulesFor True q
+defaultGetGlobalRewriteRulesFor :: (ReadTCState m, MonadTCEnv m)
+  => QName -> m GlobalRewriteRules
+defaultGetGlobalRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
+  getFilteredGlobalRewriteRulesFor True q
+
+{-# SPECIALIZE defaultGetLocalRewriteRulesFor :: RewriteHead -> TCM RewriteRules #-}
+defaultGetLocalRewriteRulesFor ::
+     (ReadTCState m, MonadTCEnv m, MonadDebug m, HasOptions m)
+  => RewriteHead -> m RewriteRules
+defaultGetLocalRewriteRulesFor h = localRewritingOption >>= \case
+  False -> pure []
+  True  -> do
+    ifNotM (shouldReduceDef' h) (return []) $ do
+      m <- runMaybeT . lookup h =<< viewTC eLocalRewriteRules
+      pure $ fromMaybe [] m
+    where
+      shouldReduceDef' (RewDefHead f) = shouldReduceDef f
+      shouldReduceDef' (RewVarHead _) = pure True
+
+      lookup h m = do
+        rews  <- MaybeT $ pure $ lookup' h m
+        lift $ traverse (tryGetOpenRew fallback) rews
+
+      fallback = __IMPOSSIBLE_VERBOSE__ . show
+
+      lookup' (RewDefHead f) = HMap.lookup   f . defHeadedRews
+      lookup' (RewVarHead x) = IntMap.lookup x . varHeadedRews
 
 -- | If the 'Bool' parameter is 'True', get the rules in scope,
 --   otherwise, get *all* rules unfiltered.
-getFilteredRewriteRulesFor :: (ReadTCState m)
+getFilteredGlobalRewriteRulesFor :: (ReadTCState m)
   => Bool            -- ^ Only return rewrite rules that are in scope?
   -> QName           -- ^ Head symbol.
-  -> m RewriteRules  -- ^ Rules for the head symbol.
-getFilteredRewriteRulesFor filt q = do
+  -> m GlobalRewriteRules  -- ^ Rules for the head symbol.
+getFilteredGlobalRewriteRulesFor filt q = do
   st <- getTCState
   let
-    look :: Lens' TCState Signature -> Maybe RewriteRules
+    look :: Lens' TCState Signature -> Maybe GlobalRewriteRules
     look l = HMap.lookup q $ st ^. (l . sigRewriteRules)
 
   -- Restrict "imported" rewrite rules to those defined in modules we currently (transitively) import.
   let imps = st ^. stImportedModulesTransitive
-  let inScope rew = rewTopModule rew `Set.member` imps
+  let inScope rew = grTopModule rew `Set.member` imps
   let rewImported = applyWhen filt (filter inScope) <$> look stImports  -- stImports is actually a superset of imported symbols.
 
   return $ mconcat $ catMaybes [look stSignature, rewImported]
@@ -1045,7 +1119,8 @@ getOriginalProjection :: (HasCallStack, HasConstInfo m) => QName -> m QName
 getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
 instance HasConstInfo TCM where
-  getRewriteRulesFor = defaultGetRewriteRulesFor
+  getGlobalRewriteRulesFor = defaultGetGlobalRewriteRulesFor
+  getLocalRewriteRulesFor  = defaultGetLocalRewriteRulesFor
   getConstInfo' q = do
     st  <- getTC
     env <- askTC
@@ -1056,7 +1131,6 @@ instance HasConstInfo TCM where
       Left SigAbstract          -> notInScopeError $ qnameToConcrete q
       Left SigCubicalNotErasure -> typeError $ CubicalNotErasure q
 
-{-# SPECIALIZE defaultGetConstInfo :: TCState -> TCEnv -> QName -> TCM (Either SigError Definition) #-}
 defaultGetConstInfo
   :: (HasCallStack, HasOptions m, MonadDebug m)
   => TCState -> TCEnv -> QName -> m (Either SigError Definition)
@@ -1064,8 +1138,8 @@ defaultGetConstInfo st env q = do
     let defs  = st ^. stSignature . sigDefinitions
         idefs = st ^. stImports   . sigDefinitions
         unambiguous d = checkErasureFixQuantity d >>= \case
-          Left !err -> return $! Left err
-          Right d   -> mkAbs env d
+          Left err -> return $ Left err
+          Right d  -> mkAbs env d
     case (HMap.lookup q defs, HMap.lookup q idefs) of
       (Nothing, Nothing) -> return $ Left $ SigUnknown $ "Unbound name: " ++ prettyShow q ++ showQNameId q
       (Just d, Nothing)  -> unambiguous d
@@ -1076,38 +1150,26 @@ defaultGetConstInfo st env q = do
         -- Apply the reducibility rules (abstract, opaque) to check
         -- whether the definition should be hidden behind an
         -- 'AbstractDef'.
-        | not (isAccessibleDef env st d{defName = q'}) =
+        | not (isAccessibleDef env st d) =
           case alwaysMakeAbstract d of
-            Just !d     -> return $ Right d
+            Just d      -> return $ Right d
             Nothing     -> return $ Left SigAbstract
-              -- the above can happen since the scope checker is a bit sloppy with 'abstract'
+            -- the above can happen since the scope checker is a bit sloppy with 'abstract'
         | otherwise = return $ Right d
-        where
-          q' = case theDef d of
-            -- Hack to make abstract constructors work properly. The constructors
-            -- live in a module with the same name as the datatype, but for 'abstract'
-            -- purposes they're considered to be in the same module as the datatype.
-            Constructor{} -> dropLastModule q
-            _             -> q
 
-          dropLastModule q@QName{ qnameModule = m } =
-            q{ qnameModule = mnameFromList $
-                 initWithDefault __IMPOSSIBLE__ $ mnameToList m
-             }
 
       -- Names defined in Cubical Agda may only be used in Erased
       -- Cubical Agda if --erasure is used. In that case they are (to
       -- a large degree) treated as erased.
-      checkErasureFixQuantity !d = do
+      checkErasureFixQuantity d = do
         current <- getLanguage
         if defLanguage d == Cubical CFull &&
            current == Cubical CErased
         then do
           erasure <- optErasure <$> pragmaOptions
-          return $
-            if erasure
-            then Right $! setQuantity zeroQuantity d
-            else Left SigCubicalNotErasure
+          if erasure
+            then return $! Right $! setQuantity zeroQuantity d
+            else return $ Left SigCubicalNotErasure
         else return $ Right d
 
 -- HasConstInfo lifts through monad transformers
@@ -1120,9 +1182,10 @@ instance HasConstInfo m => HasConstInfo (ListT m)
 instance HasConstInfo m => HasConstInfo (MaybeT m)
 instance HasConstInfo m => HasConstInfo (ReaderT r m)
 instance HasConstInfo m => HasConstInfo (StateT s m)
+instance (Monoid w, HasConstInfo m) => HasConstInfo (WriterT w m)
 instance HasConstInfo m => HasConstInfo (Strict.ReaderT r m)
 instance HasConstInfo m => HasConstInfo (Strict.StateT s m)
-instance (Monoid w, HasConstInfo m) => HasConstInfo (WriterT w m)
+instance (Monoid w, HasConstInfo m) => HasConstInfo (Strict.WriterT w m)
 instance HasConstInfo m => HasConstInfo (BlockT m)
 
 {-# INLINE getConInfo #-}
@@ -1151,7 +1214,7 @@ setPolarity q pol = do
 getForcedArgs :: HasConstInfo m => QName -> m [IsForced]
 getForcedArgs q = defForced <$> getConstInfo q
 
--- | Returns the occurences given explicitly as polarity annotations in the function type
+-- | Returns the occurences given explicitely as polarity annotations in the function type
 getOccurrencesFromType :: Type -> TCM [Occurrence]
 getOccurrencesFromType t = do
   polarityEnabled <- optPolarity <$> pragmaOptions
@@ -1416,18 +1479,23 @@ instantiateDef d = do
       fsep (map pretty $ zipWith (<$) ctx vs)
   return $ d `apply` vs
 
+-- | Instantiate a global rewrite rule
 instantiateRewriteRule :: (HasConstInfo m, ReadTCState m)
-  => RewriteRule -> m RewriteRule
+  => GlobalRewriteRule -> m GlobalRewriteRule
 instantiateRewriteRule rew = do
-  traceSDoc "rewriting" 95 ("instantiating rewrite rule" <+> pretty (rewName rew) <+> "to the local context.") $ do
-  vs  <- freeVarsToApply $ rewName rew
+  traceSDoc "rewriting" 95
+    ("instantiating rewrite rule" <+>
+    pretty (grName rew) <+>
+    "to the local context.") $ do
+  vs  <- freeVarsToApply $ grName rew
   let rew' = rew `apply` vs
   traceSLn "rewriting" 95 ("instantiated rewrite rule: ") $ do
   traceSLn "rewriting" 95 (show rew') $ do
   return rew'
 
+-- | Instantiate global rewrite rules
 instantiateRewriteRules :: (HasConstInfo m, ReadTCState m)
-  => RewriteRules -> m RewriteRules
+  => GlobalRewriteRules -> m GlobalRewriteRules
 instantiateRewriteRules = mapM instantiateRewriteRule
 
 -- | Return the abstract view of a definition, /regardless/ of whether
@@ -1457,47 +1525,44 @@ alwaysMakeAbstract d =
     makeAbs AbstractDefn{} = __IMPOSSIBLE__
 
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
-{-# INLINE inAbstractMode #-}
+{-# SPECIALIZE inAbstractMode :: TCM a -> TCM a #-}
 inAbstractMode :: MonadTCEnv m => m a -> m a
-inAbstractMode = localTC $ \e -> e { envAbstractMode = AbstractMode }
+inAbstractMode = localTC (set eAbstractMode AbstractMode)
 
 -- | Not in abstract mode. All abstract definitions are opaque.
-{-# INLINE inConcreteMode #-}
+{-# SPECIALIZE inConcreteMode :: TCM a -> TCM a #-}
 inConcreteMode :: MonadTCEnv m => m a -> m a
-inConcreteMode = localTC $ \e -> e { envAbstractMode = ConcreteMode }
+inConcreteMode = localTC (set eAbstractMode ConcreteMode)
 
-{-# INLINE ignoreAbstractMode#-}
 -- | Ignore abstract mode. All abstract definitions are transparent.
 ignoreAbstractMode :: MonadTCEnv m => m a -> m a
-ignoreAbstractMode = localTC $ \e -> e { envAbstractMode = IgnoreAbstractMode }
+ignoreAbstractMode = localTC (set eAbstractMode IgnoreAbstractMode)
 
 -- | Go under the given opaque block. The unfolding set will turn opaque
 -- definitions transparent.
-{-# INLINE underOpaqueId #-}
+{-# SPECIALIZE underOpaqueId :: OpaqueId -> TCM a -> TCM a #-}
 underOpaqueId :: MonadTCEnv m => OpaqueId -> m a -> m a
-underOpaqueId i = localTC $ \e -> e { envCurrentOpaqueId = Just i }
+underOpaqueId i = localTC (set eCurrentOpaqueId (Just i))
 
 -- | Outside of any opaque blocks.
-{-# INLINE notUnderOpaque #-}
+{-# SPECIALIZE notUnderOpaque :: TCM a -> TCM a #-}
 notUnderOpaque :: MonadTCEnv m => m a -> m a
-notUnderOpaque = localTC $ \e -> e { envCurrentOpaqueId = Nothing }
+notUnderOpaque = localTC (set eCurrentOpaqueId Nothing)
 
 -- | Enter the reducibility environment associated with a definition:
 -- The environment will have the same concreteness as the name, and we
 -- will be in the opaque block enclosing the name, if any.
-{-# INLINE inConcreteOrAbstractMode #-}
+{-# SPECIALIZE inConcreteOrAbstractMode :: QName -> (Definition -> TCM a) -> TCM a #-}
 inConcreteOrAbstractMode :: (HasConstInfo m) => QName -> (Definition -> m a) -> m a
 inConcreteOrAbstractMode q cont = do
   -- Andreas, 2015-07-01: If we do not ignoreAbstractMode here,
   -- we will get ConcreteDef for abstract things, as they are turned into axioms.
   def <- ignoreAbstractMode $ getConstInfo q
   let
-    {-# INLINE k1 #-}
     k1 = case defAbstract def of
       AbstractDef -> inAbstractMode
       ConcreteDef -> inConcreteMode
 
-    {-# INLINE k2 #-}
     k2 = case defOpaque def of
       OpaqueDef i    -> underOpaqueId i
       TransparentDef -> notUnderOpaque
@@ -1580,7 +1645,7 @@ projectionArgs = maybe 0 (max 0 . pred . projIndex) . isRelevantProjection_
 
 -- | Check whether a definition uses copatterns.
 usesCopatterns :: (HasConstInfo m) => QName -> m Bool
-usesCopatterns q = defCopatternLHS <$> getConstInfo q
+usesCopatterns q = defCopatternLHS q =<< getConstInfo q
 
 -- | Apply a function @f@ to its first argument, producing the proper
 --   postfix projection if @f@ is a projection which is not irrelevant.

@@ -22,6 +22,7 @@ import Agda.TypeChecking.Substitute
 
 import qualified Agda.Utils.VarSet as Set
 
+import Agda.Utils.Lens
 import Agda.Utils.Impossible
 
 import Internal.Helpers hiding ( Args )
@@ -451,7 +452,9 @@ instance ShrinkC a => ShrinkC (Arg a) where
 
 instance ShrinkC a => ShrinkC (Dom a) where
   type ShrinksTo (Dom a) = Dom (ShrinksTo a)
-  shrinkC conf dom@Dom{domInfo = info,unDom = x} = (\ (h,x) -> x <$ dom{domInfo = (setHiding h info)}) <$> shrinkC conf (argInfoHiding info, x)
+  shrinkC conf dom@(unDom -> x) =
+    let info = dom ^. I.dInfo in
+    (\ (h,x) -> x <$ (dom & I.dInfo .~ setHiding h info)) <$> shrinkC conf (argInfoHiding info, x)
   noShrink = fmap noShrink
 
 instance ShrinkC a => ShrinkC (Blocked a) where

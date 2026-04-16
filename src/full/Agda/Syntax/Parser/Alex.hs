@@ -21,6 +21,7 @@ module Agda.Syntax.Parser.Alex
 import Control.Monad.State
 import Data.Char
 import Data.Word
+import GHC.Exts (oneShot)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser.Monad
@@ -32,7 +33,7 @@ import Agda.Utils.Tuple
 data AlexInput = AlexInput
   { lexSrcFile  :: !SrcFile              -- ^ File.
   , lexPos      :: !PositionWithoutFile  -- ^ Current position.
-  , lexInput    :: String                -- ^ Current input.
+  , lexInput    :: !String                -- ^ Current input.
   , lexPrevChar :: !Char                 -- ^ Previously read character.
   }
 
@@ -119,25 +120,30 @@ type PreviousInput  = AlexInput
 type CurrentInput   = AlexInput
 type TokenLength    = Int
 
--- | In the lexer, regular expressions are associated with lex actions who's
---   task it is to construct the tokens.
+-- | In the lexer, regular expressions are associated with lex actions whose
+--   task is to construct the tokens.
 newtype LexAction r
   = LexAction { runLexAction :: PreviousInput -> CurrentInput -> TokenLength -> Parser r }
   deriving (Functor)
 
 instance Applicative LexAction where
-  pure r    = LexAction $ \ _ _ _ -> pure r
-  mf <*> mr = LexAction $ \ a b c -> runLexAction mf a b c <*> runLexAction mr a b c
+  {-# INLINE pure #-}
+  pure r    = LexAction (oneShot \ _ _ _ -> pure r)
+  {-# INLINE (<*>) #-}
+  mf <*> mr = LexAction (oneShot \ a b c -> runLexAction mf a b c <*> runLexAction mr a b c)
 
 instance Monad LexAction where
   return = pure
-  m >>= k  = LexAction $ \ a b c -> do
+  {-# INLINE (>>=) #-}
+  m >>= k  = LexAction (oneShot \ a b c -> do
     r <- runLexAction m a b c
-    runLexAction (k r) a b c
+    runLexAction (k r) a b c)
 
 instance MonadState ParseState LexAction where
-  get   = LexAction $ \ _ _ _ -> get
-  put s = LexAction $ \ _ _ _ -> put s
+  {-# INLINE get #-}
+  get   = LexAction (oneShot (\ _ _ _ -> get))
+  {-# INLINE put #-}
+  put s = LexAction (oneShot (\ _ _ _ -> put s))
 
 -- | Sometimes regular expressions aren't enough. Alex provides a way to do
 --   arbitrary computations to see if the input matches. This is done with a

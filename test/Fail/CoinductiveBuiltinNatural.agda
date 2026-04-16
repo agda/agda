@@ -2,7 +2,7 @@
 
 module CoinductiveBuiltinNatural where
 
-open import Agda.Builtin.Coinduction
+open import Common.Coinduction
 
 data ℕ : Set where
   zero : ℕ

@@ -1,5 +1,4 @@
-{-# OPTIONS --cubical=no-glue --safe --no-sized-types --no-guardedness
-            --erasure #-}
+{-# OPTIONS --cubical=no-glue --safe --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.Cubical.Path where
 
@@ -10,7 +9,7 @@ module Agda.Builtin.Cubical.Path where
 
   -- We have a variable name in `(λ i → A)` as a hint for case
   -- splitting.
-  _≡_ : ∀ {@0 ℓ} {A : Set ℓ} → A → A → Set ℓ
+  _≡_ : ∀ {ℓ} {A : Set ℓ} → A → A → Set ℓ
   _≡_ {A = A} = PathP (λ i → A)
 
   {-# BUILTIN PATH         _≡_     #-}

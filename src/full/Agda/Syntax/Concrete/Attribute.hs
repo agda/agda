@@ -41,6 +41,7 @@ data Attribute
   | CohesionAttribute Cohesion
   | PolarityAttribute PolarityModality
   | LockAttribute      Lock
+  | RewriteAttribute RewriteAnn
   deriving (Show)
 
 instance HasRange Attribute where
@@ -51,6 +52,7 @@ instance HasRange Attribute where
     PolarityAttribute p  -> getRange p
     TacticAttribute e    -> getRange e
     LockAttribute _l     -> NoRange
+    RewriteAttribute _r  -> NoRange
 
 instance SetRange Attribute where
   setRange r = \case
@@ -60,6 +62,7 @@ instance SetRange Attribute where
     PolarityAttribute p  -> PolarityAttribute  $ setRange r p
     TacticAttribute e    -> TacticAttribute e  -- -- $ setRange r e -- SetRange Expr not yet implemented
     LockAttribute l      -> LockAttribute l
+    RewriteAttribute r   -> RewriteAttribute r
 
 instance KillRange Attribute where
   killRange = \case
@@ -69,6 +72,7 @@ instance KillRange Attribute where
     PolarityAttribute p  -> PolarityAttribute  $ killRange p
     TacticAttribute e    -> TacticAttribute    $ killRange e
     LockAttribute l      -> LockAttribute l
+    RewriteAttribute r   -> RewriteAttribute r
 
 -- | Parsed attribute.
 
@@ -89,7 +93,7 @@ instance KillRange Attr where
 
 -- | (Conjunctive constraint.)
 
-type LensAttribute a = (LensRelevance a, LensQuantity a, LensCohesion a, LensModalPolarity a, LensLock a)
+type LensAttribute a = (LensRelevance a, LensQuantity a, LensCohesion a, LensModalPolarity a, LensLock a, LensRewriteAnn a)
 
 -- | Modifiers for 'Relevance'.
 
@@ -150,7 +154,7 @@ polarityAttributeTable =
   , ("-" , withStandardLock Negative)
   , ("mixed" , withStandardLock MixedPolarity)]
 
--- | Modifiers for 'Quantity'.
+-- | Modifiers for 'Lock'.
 
 lockAttributeTable :: [(String, Lock)]
 lockAttributeTable = concat
@@ -159,6 +163,13 @@ lockAttributeTable = concat
   , map (, IsLock LockOLock) [ "lock" ] -- @lock
   ]
 
+-- | Modifiers for @RewriteAnn@
+--   I don't think we ever actually hit this because 'rewrite' is a keyword
+--   Of course, we might want to add aliases
+rewriteAttributeTable :: [(String, RewriteAnn)]
+rewriteAttributeTable =
+  [ ("rewrite" , IsRewrite noRange)
+  ]
 
 -- | Concrete syntax for all attributes.
 
@@ -169,6 +180,7 @@ attributesMap = Map.fromListWith __IMPOSSIBLE__ $ concat
   , map (second CohesionAttribute)  cohesionAttributeTable
   , map (second PolarityAttribute)  polarityAttributeTable
   , map (second LockAttribute)      lockAttributeTable
+  , map (second RewriteAttribute)   rewriteAttributeTable
   ]
 
 -- | Parsing a string into an attribute.
@@ -192,6 +204,7 @@ setAttribute = \case
   CohesionAttribute  c -> setCohesion  c
   PolarityAttribute  p -> setModalPolarity p
   LockAttribute      l -> setLock      l
+  RewriteAttribute   r -> setRewriteAnn r
   TacticAttribute _    -> id
 
 
@@ -241,6 +254,13 @@ setPristineLock q a
   | getLock a == defaultLock = Just $ setLock q a
   | otherwise = Nothing
 
+-- | Setting 'RewriteAnn' if unset.
+
+setPristineRewriteAnn :: (LensRewriteAnn a) => RewriteAnn -> a -> Maybe a
+setPristineRewriteAnn q a
+  | getRewriteAnn a == defaultRewrite = Just $ setRewriteAnn q a
+  | otherwise = Nothing
+
 -- | Setting an unset attribute (to e.g. an 'Arg').
 
 setPristineAttribute :: (LensAttribute a) => Attribute -> a -> Maybe a
@@ -250,6 +270,7 @@ setPristineAttribute = \case
   CohesionAttribute  c -> setPristineCohesion  c
   PolarityAttribute  p -> setPristinePolarity  p
   LockAttribute      l -> setPristineLock      l
+  RewriteAttribute   r -> setPristineRewriteAnn r
   TacticAttribute{}    -> Just
 
 -- | Setting a list of unset attributes.
@@ -276,6 +297,11 @@ isTacticAttribute = C.TacticAttribute . \case
   TacticAttribute t -> Just t
   _ -> Nothing
 
+isRewriteAttribute :: Attribute -> Maybe RewriteAnn
+isRewriteAttribute = \case
+  RewriteAttribute q -> Just q
+  _                  -> Nothing
+
 relevanceAttributes :: [Attribute] -> [Attribute]
 relevanceAttributes = filter $ isJust . isRelevanceAttribute
 
@@ -284,3 +310,6 @@ quantityAttributes = filter $ isJust . isQuantityAttribute
 
 tacticAttributes :: [Attribute] -> [Attribute]
 tacticAttributes = filter $ isJust . C.theTacticAttribute . isTacticAttribute
+
+rewAttributes :: [Attribute] -> [Attribute]
+rewAttributes = filter $ isJust . isRewriteAttribute

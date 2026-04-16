@@ -1,4 +1,3 @@
-{-# OPTIONS --erasure #-}
 
 module _ where
 
@@ -216,20 +215,20 @@ data ErrorPart : Set where
 -- TC monad --
 
 postulate
-  TC            : ∀ {@0 a} → Set a → Set a
-  returnTC      : ∀ {@0 a} {A : Set a} → A → TC A
-  bindTC        : ∀ {@0 a b} {A : Set a} {B : Set b} → TC A → (A → TC B) → TC B
+  TC            : ∀ {a} → Set a → Set a
+  returnTC      : ∀ {a} {A : Set a} → A → TC A
+  bindTC        : ∀ {a b} {A : Set a} {B : Set b} → TC A → (A → TC B) → TC B
   unify         : Term → Term → TC ⊤
-  typeError     : ∀ {@0 a} {A : Set a} → List ErrorPart → TC A
+  typeError     : ∀ {a} {A : Set a} → List ErrorPart → TC A
   inferType     : Term → TC Type
   checkType     : Term → Type → TC Term
   normalise     : Term → TC Term
-  catchTC       : ∀ {@0 a} {A : Set a} → TC A → TC A → TC A
-  quoteTC       : ∀ {@0 a} {A : Set a} → A → TC Term
-  unquoteTC     : ∀ {@0 a} {A : Set a} → Term → TC A
+  catchTC       : ∀ {a} {A : Set a} → TC A → TC A → TC A
+  quoteTC       : ∀ {a} {A : Set a} → A → TC Term
+  unquoteTC     : ∀ {a} {A : Set a} → Term → TC A
   getContext    : TC Telescope
-  extendContext : ∀ {@0 a} {A : Set a} → String → Arg Type → TC A → TC A
-  inContext     : ∀ {@0 a} {A : Set a} → Telescope → TC A → TC A
+  extendContext : ∀ {a} {A : Set a} → String → Arg Type → TC A → TC A
+  inContext     : ∀ {a} {A : Set a} → Telescope → TC A → TC A
   freshName     : String → TC Name
   declareDef    : Arg Name → Type → TC ⊤
   defineFun     : Name → List Clause → TC ⊤

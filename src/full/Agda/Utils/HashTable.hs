@@ -104,7 +104,7 @@ toList (HashTable h) = Data.Vector.Hashtables.toList h
 forAssocs :: (MVector ks k, MVector vs v)
           => HashTable ks k vs v -> (k -> v -> IO ()) -> IO ()
 forAssocs (HashTable h) f = do
-  Dictionary{..} <- readMutVar (getDRef h)
+  Dictionary{ hashCode, key, refs, value } <- readMutVar (getDRef h)
   count <- refs ! getCount
   let go :: Int -> IO ()
       go i | i < 0 = pure ()
@@ -125,7 +125,7 @@ forAssocs (HashTable h) f = do
 forAssocsAccum :: forall ks k vs v acc. (MVector ks k, MVector vs v)
                => HashTable ks k vs v -> acc -> (k -> v -> acc -> IO acc) -> IO acc
 forAssocsAccum (HashTable h) acc f = do
-  Dictionary{..} <- readMutVar (getDRef h)
+  Dictionary hashCode _ _ refs key value _ <- readMutVar (getDRef h)
   count <- refs ! getCount
   let go :: Int -> acc -> IO acc
       go i acc | i < 0 = pure acc
@@ -157,8 +157,8 @@ insertingIfAbsent :: forall ks k vs v a.
        -> IO v
        -> (v -> IO a)
        -> IO a
-insertingIfAbsent (HashTable DRef{..}) key' found getValue' notfound = do
-    d@Dictionary{..} <- readMutVar getDRef
+insertingIfAbsent (HashTable DRef{ getDRef }) key' found getValue' notfound = do
+    d@Dictionary{ buckets, hashCode, key, next, refs, remSize, value } <- readMutVar getDRef
     let
         hashCode' = hash key' .&. mask
         !targetBucket = hashCode' `fastRem` remSize
@@ -216,8 +216,8 @@ insertingIfAbsent (HashTable DRef{..}) key' found getValue' notfound = do
 lookupCPS ::
   forall a k v ks vs.
   (MVector ks k, MVector vs v, Hashable k) => k -> HashTable ks k vs v -> (v -> IO a) -> IO a -> IO a
-lookupCPS key' (HashTable DRef{..}) found notfound = do
-  Dictionary{..} <- readMutVar getDRef
+lookupCPS key' (HashTable (DRef getDRef)) found notfound = do
+  Dictionary hashCode next buckets refs key value remSize <- readMutVar getDRef
   let hashCode' = hash key' .&. mask
   let go i
         | i >= 0 = do

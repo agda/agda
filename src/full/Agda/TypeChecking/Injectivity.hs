@@ -42,8 +42,6 @@ module Agda.TypeChecking.Injectivity where
 
 import Control.Applicative
 import Control.Monad.Except       ( MonadError )
-import Control.Monad.State        ( evalStateT, MonadState, gets, put )
-import Control.Monad.Reader       ( runReaderT, MonadReader, ask )
 import Control.Monad.Trans.Maybe  ( MaybeT(MaybeT), runMaybeT )
 
 import qualified Data.Map as Map
@@ -80,7 +78,9 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Syntax.Common.Pretty ( prettyShow )
-import qualified Agda.Interaction.Options.ProfileOptions as Profile
+import Agda.Interaction.Options.ProfileOptions qualified as Profile
+import Agda.Utils.StrictReader
+import Agda.Utils.StrictState
 
 import Agda.Utils.Impossible
 
@@ -106,7 +106,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
           -- Don't treat axioms in the current mutual block
           -- as constructors (they might have definitions we
           -- don't know about yet).
-          caseMaybeM (asksTC envMutualBlock) yes $ \ mb -> do
+          caseMaybeM (viewTC eMutualBlock) yes $ \ mb -> do
             fs <- mutualNames <$> lookupMutualBlock mb
             if Set.member f fs then no else yes
         Function{}    -> no
@@ -184,7 +184,7 @@ headSymbol' v = do
 --   which one (index from the left).
 topLevelArg :: Clause -> Int -> Maybe TermHead
 topLevelArg Clause{ namedClausePats = ps } i =
-  case [ n | (n, VarP _ (DBPatVar _ j)) <- zip [0..] $ map namedArg ps, i == j ] of
+  case [ n | (n, VarP _ (DBPatVar _ j)) <- zip' [0..] $ map' namedArg ps, i == j ] of
     []    -> Nothing
     [n]   -> Just (VarHead n)
     _:_:_ -> __IMPOSSIBLE__
@@ -254,7 +254,7 @@ checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
     for (Map.toList hdMap) $ \ (h, uc) ->
       text (prettyShow h) <+> "-->" <+>
       case uc of
-        [c] -> prettyTCM $ map namedArg $ namedClausePats c
+        [c] -> prettyTCM $ map' namedArg $ namedClausePats c
         _   -> "(multiple clauses)"
   return $ Inverse hdMap
 
@@ -317,19 +317,25 @@ functionInverse = \case
   Def f es -> do
     inv <- defInverse <$> getConstInfo f
     cubical <- cubicalOption
+    -- Local rewrite rules do not update definitional injectivity/invertibility
+    -- so we check if any are present
+    rewr <- getLocalRewriteRulesFor $ RewDefHead f
     case inv of
       NotInjective -> return NoInv
-      Inverse m -> maybe NoInv (Inv f es) <$> (traverse (checkOverapplication es) =<< instantiateVarHeads f es m)
+      Inverse m | null rewr -> do
+        maybe NoInv (Inv f es) <$>
+          (traverse (checkOverapplication es) =<< instantiateVarHeads f es m)
         -- NB: Invertible functions are never classified as
         --     projection-like, so this is fine, we are not
         --     missing parameters.  (Andreas, 2013-11-01)
+      Inverse m -> return NoInv
   _ -> return NoInv
 
 data InvView = Inv QName [Elim] (InversionMap Clause)
              | NoInv
 
 -- | Precondition: The first term must be blocked on the given meta and the second must be neutral.
-useInjectivity :: MonadConversion m => CompareDirection -> Blocker -> CompareAs -> Term -> Term -> m ()
+useInjectivity :: CompareDirection -> Blocker -> CompareAs -> Term -> Term -> TCM ()
 useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
   inv <- functionInverse blk
   -- Injectivity might cause non-termination for unsatisfiable constraints
@@ -358,8 +364,8 @@ useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
           reportSDoc "tc.inj.use" 20 $ vcat
             [ fsep (pwords "comparing application of injective function" ++ [prettyTCM f] ++
                   pwords "at")
-            , nest 2 $ fsep $ punctuate comma $ map prettyTCM blkArgs
-            , nest 2 $ fsep $ punctuate comma $ map prettyTCM neuArgs
+            , nest 2 $ fsep $ punctuate comma $ map' prettyTCM blkArgs
+            , nest 2 $ fsep $ punctuate comma $ map' prettyTCM neuArgs
             , nest 2 $ "and type" <+> prettyTCM fTy
             ]
           fs  <- getForcedArgs f
@@ -399,16 +405,14 @@ useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
 
 -- | The second argument should be a blocked application and the third argument
 --   the inverse of the applied function.
-invertFunction
-  :: MonadConversion m
-  => Comparison -> Term -> InvView -> TermHead -> m () -> m () -> (Term -> m ()) -> m ()
+invertFunction :: Comparison -> Term -> InvView -> TermHead -> TCM () -> TCM () -> (Term -> TCM ()) -> TCM ()
 invertFunction _ _ NoInv _ fallback _ _ = fallback
 invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     fTy <- defType <$> getConstInfo f
     reportSDoc "tc.inj.use" 20 $ vcat
       [ "inverting injective function" <?> hsep [prettyTCM f, ":", prettyTCM fTy]
       , "for" <?> pretty hd
-      , nest 2 $ "args =" <+> prettyList (map prettyTCM blkArgs)
+      , nest 2 $ "args =" <+> prettyList (map' prettyTCM blkArgs)
       ]                         -- Clauses with unknown heads are also possible candidates
     case fromMaybe [] $ Map.lookup hd hdMap <> Map.lookup UnknownHead hdMap of
       [] -> err
@@ -417,12 +421,12 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
           let ps   = clausePats cl
               perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
           -- These are what dot patterns should be instantiated at
-          ms <- map unArg <$> newTelMeta tel
+          ms <- map' unArg <$> newTelMeta tel
           reportSDoc "tc.inj.invert" 20 $ vcat
-            [ "meta patterns" <+> prettyList (map prettyTCM ms)
+            [ "meta patterns" <+> prettyList (map' prettyTCM ms)
             , "  perm =" <+> text (show perm)
             , "  tel  =" <+> prettyTCM tel
-            , "  ps   =" <+> prettyList (map (text . prettyShow) ps)
+            , "  ps   =" <+> prettyList (map' (text . prettyShow) ps)
             ]
           -- and this is the order the variables occur in the patterns
           let msAux = permute (invertP __IMPOSSIBLE__ $ compactP perm) ms
@@ -487,8 +491,8 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     metaPat (DotP _ v)       = dotP v
     metaPat (VarP _ _)       = nextMeta
     metaPat (IApplyP{})      = nextMeta
-    metaPat (ConP c mt args) = Con c (fromConPatternInfo mt) . map Apply <$> metaArgs args
-    metaPat (DefP o q args)  = Def q . map Apply <$> metaArgs args
+    metaPat (ConP c mt args) = Con c (fromConPatternInfo mt) . map' Apply <$> metaArgs args
+    metaPat (DefP o q args)  = Def q . map' Apply <$> metaArgs args
     metaPat (LitP _ l)       = return $ Lit l
     metaPat ProjP{}          = __IMPOSSIBLE__
 

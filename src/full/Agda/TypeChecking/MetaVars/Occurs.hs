@@ -47,12 +47,11 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
-import Agda.Interaction.Options (optFirstOrder, optErasure)
+import Agda.Interaction.Options (optFirstOrder)
 
 import Agda.Utils.Either
 import Agda.Utils.Function
-import Agda.Utils.Lens
-import Agda.Utils.List (downFrom)
+import Agda.Utils.List
 import Agda.Utils.ListInf qualified as ListInf
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -117,7 +116,7 @@ initOccursCheck m mv = modifyOccursCheckDefs . const =<<
        "initOccursCheck: we do not look into definitions"
      return Set.empty
    else do
-    mb <- asksTC envMutualBlock >>= \case
+    mb <- viewTC eMutualBlock >>= \case
       Nothing -> return Set.empty
       Just b  -> do
         ds <- mutualNames <$> lookupMutualBlock b
@@ -235,7 +234,7 @@ metaCheck m = do
   -- when (m == m') $ if ctx == Top then patternViolation else
   --   abort ctx $ MetaOccursInItself m'
   -- Andreas, 2024-09-28: removed error MetaOccursInItself from code base.
-  when (m == m0) $ patternViolation' neverUnblock 50 $ "occursCheck failed: Found " ++ prettyShow m
+  when (m == m0) $ patternViolation' neverUnblock 50 $ "occursCheck failed: Found " ++! prettyShow m
 
   mv <- lookupLocalMeta m
   let mmod = getModality mv
@@ -249,7 +248,7 @@ metaCheck m = do
       , "and quantity"
       , text . show $ getQuantity mmod
       ]
-    allowAssign <- asksTC envAssignMetas
+    allowAssign <- viewTC eAssignMetas
     -- Jesper, 2020-11-10: if we encounter a metavariable that is
     -- unusable because of its modality (e.g. irrelevant or erased) we
     -- try to *promote* the meta to the required modality, by creating
@@ -270,7 +269,7 @@ metaCheck m = do
           patternViolation $ unblockOnMeta m
     when (mvFrozen mv == Frozen)             $ fail "meta is frozen"
     unless (isOpenMeta $ mvInstantiation mv) $ fail "meta is already solved"
-    unlessM (asksTC envAssignMetas)          $ fail "assigning metas is not allowed here"
+    unlessM (viewTC eAssignMetas)          $ fail "assigning metas is not allowed here"
     -- Jesper, 2023-09-03, issue #6759: When --lossy-unification is enabled,
     -- we already lose the guarantee that we only throw an error when a
     -- problem is really unsolvable in favor of taking the "obvious" solution.
@@ -295,7 +294,7 @@ allowedVars = do
   n  <- liftM2 (-) getContextSize (asks (occCxtSize . feExtra))
   xs <- asks (theVarMap . occVars . feExtra)
   -- Bound variables are allowed, and those mentioned in occVars.
-  return $ \ i -> i < n || (i - n) `IntMap.member` xs
+  return $! \ i -> i < n || (i - n) `IntMap.member` xs
 
 -- ** Unfolding during occurs check.
 
@@ -406,7 +405,7 @@ subVar :: Int -> Maybe Variable -> Maybe Variable
 subVar n x = do
   i <- x
   guard $ i >= n
-  return $ i - n
+  return $! i - n
 
 metaOccurs2 :: (Occurs a, Occurs b) => MetaId -> a -> b -> TCM ()
 metaOccurs2 m x y = metaOccurs m x >> metaOccurs m y
@@ -420,7 +419,7 @@ handleVariable n = do
   r <- asks feModality
   s <- asks feSingleton
   e <- asks feExtra
-  return $ withVarOcc (VarOcc o r) (s e $ Just n)
+  return $! withVarOcc (VarOcc o r) (s e $ Just n)
 
 -- | Going under a binder.
 underBinder :: MonadReader (FreeEnv' a b c) m => m z -> m z
@@ -496,7 +495,7 @@ instance Occurs Term where
         ctx <- ask
         let m = occMeta . feExtra $ ctx
         reportSDoc "tc.meta.occurs" 45 $
-          text ("occursCheck " ++ prettyShow m ++ " (" ++ show (feFlexRig ctx) ++ ") of ") <+> prettyTCM v
+          text ("occursCheck " ++! prettyShow m ++! " (" ++! show (feFlexRig ctx) ++! ") of ") <+> prettyTCM v
         reportSDoc "tc.meta.occurs" 70 $
           nest 2 $ pretty v
         case v of
@@ -524,10 +523,10 @@ instance Occurs Term where
                   -- #4480: Only hard fail if the variable is not in scope. Wrong modality/relevance
                   -- could potentially be salvaged by eta expansion.
                   ifM (($ i) <$> allowedVars) -- vv TODO: neverUnblock is not correct! What could trigger this eta expansion though?
-                      (patternViolation' neverUnblock 70 $ "Disallowed var " ++ show i ++ " due to modality/relevance")
+                      (patternViolation' neverUnblock 70 $ "Disallowed var " ++! show i ++! " due to modality/relevance")
                       (strongly $ abort neverUnblock $ MetaCannotDependOn m (occRHS $ feExtra ctx) i)
                 -- is a singleton type with unique inhabitant sv
-                (Just sv) -> return $ sv `applyE` es
+                (Just sv) -> return $! sv `applyE` es
           Lam h f     -> do
             Lam h <$> occurs f
           Level l     -> Level <$> occurs_ l
@@ -549,7 +548,7 @@ instance Occurs Term where
             (MetaV m' <$> do flexibly $ occurs es) `catchError` \ err -> do
                 ctx <- ask
                 reportSDoc "tc.meta.kill" 25 $ vcat
-                  [ text $ "error during flexible occurs check, we are " ++ show (ctx ^. lensFlexRig)
+                  [ text $ "error during flexible occurs check, we are " ++! show (ctx ^. lensFlexRig)
                   , text $ show err
                   ]
                 case err of
@@ -557,7 +556,7 @@ instance Occurs Term where
                   -- flexible occurrences (if not already in a flexible context)
                   PatternErr{} | not (isFlexible ctx) -> do
                     reportSLn "tc.meta.kill" 20 $
-                      "oops, pattern violation for " ++ prettyShow m'
+                      "oops, pattern violation for " ++! prettyShow m'
                     -- Andreas, 2014-03-02, see issue 1070:
                     -- Do not prune when meta is projected!
                     caseMaybe (allApplyElims es) (throwError err) $ \ vs -> do
@@ -592,7 +591,7 @@ instance Occurs Term where
       Con c _ vs -> metaOccurs m vs
       Pi a b     -> metaOccurs2 m a b
       Sort s     -> metaOccurs m s              -- vv m is already an unblocker
-      MetaV m' vs | m == m'   -> patternViolation' neverUnblock 50 $ "Found occurrence of " ++ prettyShow m
+      MetaV m' vs | m == m'   -> patternViolation' neverUnblock 50 $ "Found occurrence of " ++! prettyShow m
                   | otherwise -> addOrUnblocker (unblockOnMeta m') $ metaOccurs m vs
 
 instance Occurs QName where
@@ -659,15 +658,9 @@ instance Occurs Sort where
         s1' <- flexibly $ occurs_ s1
         a'  <- (a $>) <$> do flexibly $ occurs (unDom a)
         s2' <- mapAbstraction (El s1' <$> a') (flexibly . underBinder . occurs_) s2
-        return $ PiSort a' s1' s2'
+        return $! PiSort a' s1' s2'
       FunSort s1 s2 -> FunSort <$> flexibly (occurs_ s1) <*> flexibly (occurs_ s2)
-      Univ u a -> do
-        -- If --erasure has been turned on, then the argument of
-        -- Set/Prop/SSet is erased.
-        erasureEnabled <- optErasure <$> pragmaOptions
-        Univ u <$>
-          (if erasureEnabled then underQuantity zeroQuantity else id)
-          (occurs_ a)
+      Univ u a   -> Univ u <$> occurs_ a
       s@Inf{}    -> return s
       s@SizeUniv -> return s
       s@LockUniv -> return s
@@ -676,10 +669,10 @@ instance Occurs Sort where
       UnivSort s -> UnivSort <$> do flexibly $ occurs_ s
       MetaS x es -> do
         MetaV x es <- occurs (MetaV x es)
-        return $ MetaS x es
+        return $! MetaS x es
       DefS x es -> do
         Def x es <- occurs (Def x es)
-        return $ DefS x es
+        return $! DefS x es
       DummyS{}   -> return s
 
   metaOccurs m s = do
@@ -750,8 +743,8 @@ instance Occurs a => Occurs (Arg a) where
 
 instance Occurs a => Occurs (Dom a) where
   occurs :: Dom a -> OccursM (Dom a)
-  occurs (Dom info n f t x) =
-    Dom info n f t <$> underQuantity info (occurs x)
+  occurs (Dom info n f t r x) =
+    Dom info n f t r <$> underQuantity info (occurs x)
 
 ---------------------------------------------------------------------------
 -- * Pruning: getting rid of flexible occurrences.
@@ -765,12 +758,11 @@ instance Occurs a => Occurs (Dom a) where
 --   If any of the meta args @vs@ is matchable, e.g., is a constructor term,
 --   we cannot prune, because the offending variables could be removed by
 --   reduction for a suitable instantiation of the meta variable.
-prune
-  :: (PureTCM m, MonadMetaSolver m)
-  => MetaId         -- ^ Meta to prune.
+prune ::
+     MetaId         -- ^ Meta to prune.
   -> Args           -- ^ Arguments to meta variable.
   -> (Nat -> Bool)  -- ^ Test for allowed variable (de Bruijn index).
-  -> m PruneResult
+  -> TCM PruneResult
 prune m' vs xs = do
   caseEitherM (runExceptT $ mapM ((hasBadRigid xs) . unArg) vs)
     (const $ return PrunedNothing) $ \ kills -> do
@@ -779,7 +771,7 @@ prune m' vs xs = do
       , nest 2 $ vcat
         [ "m'    =" <+> pretty m'
         -- , "xs    =" <+> prettyList (map (prettyTCM . var) xs)  -- no longer printable
-        , "vs    =" <+> prettyList (map prettyTCM vs)
+        , "vs    =" <+> prettyList (map' prettyTCM vs)
         , "kills =" <+> text (show kills)
         ]
       ]
@@ -792,18 +784,17 @@ prune m' vs xs = do
 --   @hasBadRigid xs v = Nothing@ means that
 --   we cannot prune at all as one of the meta args is matchable.
 --   (See issue 1147.)
-hasBadRigid
-  :: PureTCM m
-  => (Nat -> Bool)      -- ^ Test for allowed variable (de Bruijn index).
+hasBadRigid ::
+     (Nat -> Bool)      -- ^ Test for allowed variable (de Bruijn index).
   -> Term               -- ^ Argument of meta variable.
-  -> ExceptT () m Bool  -- ^ Exception if argument is matchable.
+  -> ExceptT () TCM Bool  -- ^ Exception if argument is matchable.
 hasBadRigid xs t = do
   -- We fail if we encounter a matchable argument.
   let failure = throwError ()
   tb <- reduceB t
   let t = ignoreBlocking tb
   case t of
-    Var x _      -> return $ not $ xs x
+    Var x _      -> return $! not $ xs x
     -- Issue 1153: A lambda has to be considered matchable.
     -- Lam _ v    -> hasBadRigid (0 : map (+1) xs) (absBody v)
     Lam _ v      -> failure
@@ -876,7 +867,7 @@ rigidVarsNotContainedIn v is = do
             forbidden = l < n0 && not (levels l)
         when forbidden $
           reportSLn "tc.meta.kill" 20 $
-            "found forbidden de Bruijn level " ++ show l
+            "found forbidden de Bruijn level " ++! show l
         return forbidden
   anyRigid test v
 
@@ -974,17 +965,17 @@ data PruneResult
 
 -- | @killArgs [k1,...,kn] X@ prunes argument @i@ from metavar @X@ if @ki==True@.
 --   Pruning is carried out whenever > 0 arguments can be pruned.
-killArgs :: (MonadMetaSolver m) => [Bool] -> MetaId -> m PruneResult
+killArgs :: [Bool] -> MetaId -> TCM PruneResult
 killArgs kills _
   | not (or kills) = return NothingToPrune  -- nothing to kill
 killArgs kills m = do
   mv <- lookupLocalMeta m
-  allowAssign <- asksTC envAssignMetas
+  allowAssign <- viewTC eAssignMetas
   if mvFrozen mv == Frozen || not allowAssign then return PrunedNothing else do
       -- Andreas 2011-04-26, we allow pruning in MetaV and MetaS
       let a = jMetaType $ mvJudgement mv
       TelV tel b <- telView' <$> instantiateFull a
-      let args         = zip (telToList tel) (ListInf.pad kills False)
+      let args = zip (telToList tel) (ListInf.pad kills False)
       (kills', a') <- killedType args b
       dbg kills' a a'
       -- If there is any prunable argument, perform the pruning
@@ -993,7 +984,7 @@ killArgs kills m = do
         -- Only successful if all occurrences were killed
         -- Andreas, 2011-05-09 more precisely, check that at least
         -- the in 'kills' prescribed kills were carried out
-        return $ if (and $ zipWith implies kills $ map unArg kills')
+        return $! if (and $ zipWith' implies kills $ map' unArg kills')
                    then PrunedEverything
                    else PrunedSomething
   where
@@ -1006,7 +997,7 @@ killArgs kills m = do
         , nest 2 $ vcat
           [ "metavar =" <+> prettyTCM m
           , "kills   =" <+> text (show kills)
-          , "kills'  =" <+> prettyList (map prettyTCM kills')
+          , "kills'  =" <+> prettyList (map' prettyTCM kills')
           , "oldType =" <+> prettyTCM a
           , "newType =" <+> prettyTCM a'
           ]
@@ -1021,7 +1012,7 @@ killedType :: (MonadReduce m) => [(Dom (ArgName, Type), Bool)] -> Type -> m ([Ar
 killedType args b = do
 
   let n = length args
-  let iargs = zip (downFrom n) args
+  let iargs = zip' (downFrom n) args
 
   -- Turn list of bools into an VarSet containing the variables we want to kill
   -- (indices relative to b).
@@ -1031,7 +1022,7 @@ killedType args b = do
   (tokill, b) <- reallyNotFreeIn tokill b
 
   -- Then recurse over the telescope (right-to-left), building up the final type.
-  (killed, b) <- go (reverse $ map fst args) tokill b
+  (killed, b) <- go (reverse $ map' fst args) tokill b
 
   -- Turn the VarSet of killed variables into the list of Arg Bool's to return.
   let kills = [ Arg (getArgInfo dom) (VarSet.member i killed)
@@ -1060,7 +1051,8 @@ killedType args b = do
           (ys, b) <- go args ys $ strengthen impossible b
           -- We need to return a set of killed variables relative to Δ (x : A), so
           -- shift ys and add x back in.
-          return (VarSet.insert 0 $ VarSet.weaken 1 ys, b)
+          let !ys' = VarSet.insert 0 $ VarSet.weaken 1 ys
+          return (ys', b)
       | otherwise = do
           -- Case x ∉ xs. We either can't or don't want to get rid of x. In
           -- this case we have to check A for potential dependencies preventing
@@ -1072,7 +1064,8 @@ killedType args b = do
           -- not free in A'. We already know ys not free in B.
           (zs, b) <- go args ys $ mkPi ((name, a) <$ arg) b
           -- Shift back up to make it relative to Δ (x : A) again.
-          return (VarSet.weaken 1 zs, b)
+          let !zs' = VarSet.weaken 1 zs
+          return (zs', b)
 
 reallyNotFreeIn :: (MonadReduce m) => VarSet -> Type -> m (VarSet, Type)
 reallyNotFreeIn xs a | null xs = return (xs, a) -- Shortcut
@@ -1083,26 +1076,26 @@ reallyNotFreeIn xs a = do
       nonrigid = VarSet.difference anywhere rigid
       hasNo    = VarSet.disjoint xs
   if hasNo nonrigid
-    then
+    then do
        -- No non-rigid occurrences. We can't do anything about the rigid
        -- occurrences so drop those and leave `a` untouched.
-       return (VarSet.difference xs rigid, a)
+       let !diff = VarSet.difference xs rigid
+       return (diff, a)
     else do
       -- If there are non-rigid occurrences we need to reduce to see if
       -- we can get rid of them (#3177).
       (fvs, a) <- liftReduce $ forceNotFree (VarSet.difference xs rigid) a
-      let xs = nonFreeVars fvs
+      let !xs = nonFreeVars fvs
       return (xs, a)
 
 -- | Instantiate a meta variable with a new one that only takes
 --   the arguments which are not pruneable.
-performKill
-  :: MonadMetaSolver m
-  => [Arg Bool]    -- ^ Arguments to old meta var in left to right order
+performKill ::
+     [Arg Bool]    -- ^ Arguments to old meta var in left to right order
                    --   with @Bool@ indicating whether they can be pruned.
   -> MetaId        -- ^ The old meta var to receive pruning.
   -> Type          -- ^ The pruned type of the new meta var.
-  -> m ()
+  -> TCM ()
 performKill kills m a = do
   mv <- lookupLocalMeta m
   when (mvFrozen mv == Frozen) __IMPOSSIBLE__
@@ -1126,11 +1119,11 @@ performKill kills m a = do
   let -- Arguments to new meta (de Bruijn indices)
       -- in left to right order.
       vars = [ Arg info (var i)
-             | (i, Arg info False) <- zip (downFrom n) kills ]
-      u       = MetaV m' $ map Apply vars
+             | (i, Arg info False) <- zip' (downFrom n) kills ]
+      u       = MetaV m' $! map' Apply vars
       -- Arguments to the old meta (just arg infos and name hints)
       -- in left to right order.
-      tel     = map ("v" <$) kills
+      tel     = map' ("v" <$) kills
   dbg m' u
   assignTerm m tel u  -- m tel := u
   where
@@ -1138,7 +1131,7 @@ performKill kills m a = do
       [ "actual killing"
       , nest 2 $ vcat
         [ "new meta:" <+> pretty m'
-        , "kills   :" <+> prettyList_ (map (text . show . unArg) kills)
+        , "kills   :" <+> prettyList_ (map' (text . show . unArg) kills)
         , "inst    :" <+> pretty m <+> ":=" <+> prettyTCM u
         ]
       ]

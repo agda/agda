@@ -22,7 +22,6 @@ import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Reduce
 
 import Agda.Utils.Either
-import Agda.Utils.Lens
 import Agda.Utils.List ( hasElem )
 import Agda.Utils.Haskell.Syntax qualified as HS
 
