@@ -301,13 +301,17 @@ jsFileName :: JSModuleStyle -> GlobalId -> String
 jsFileName JSES6 (GlobalId ms) = intercalate "." ms ++ ".mjs" -- Hint that file is ES6, not old js
 jsFileName _     (GlobalId ms) = intercalate "." ms ++  ".js"
 
-jsMember :: Name -> MemberId
-jsMember n
+-- Convert an internal name (fragment) to a (MemberID-wrapped) string
+-- Bool parameter should be True for module names, and False otherwise
+jsMember :: Bool -> Name -> MemberId
+jsMember isModuleName n
   -- Anonymous fields are used for where clauses,
   -- and they're all given the concrete name "_",
   -- so we disambiguate them using their name id.
-  | isNoName n = MemberId ("_" ++ show (nameId n))
-  | otherwise  = MemberId $ prettyShow n
+  | isNoName n   = MemberId ("_" ++ show (nameId n))
+  -- Module names are disambiguated to avoid #8483
+  | isModuleName = MemberId $ "module " <> prettyShow n
+  | otherwise    = MemberId $ prettyShow n
 
 global' :: QName -> TCM (Exp, JSQName)
 global' q = do
@@ -318,7 +322,7 @@ global' q = do
     qms = mnameToList $ qnameModule q
     -- File-local module prefix
     localms = drop (size top) qms
-    nm = fmap jsMember $ List1.snoc localms $ qnameName q
+    nm = List1.snoc (map (jsMember True) localms) $ jsMember False (qnameName q)
   if top == i
     then return (Self, nm)
     else return (Global (jsMod top), nm)
@@ -532,7 +536,7 @@ definition' kit q d t ls =
 --
 --    compiles to
 --
---        exports["Foo"]["c2"] = x => y => k => k["c2"](x,y)
+--        exports["module Foo"]["c2"] = x => y => k => k["c2"](x,y)
 --
 --  * A constructor application, e.g.
 --
@@ -540,7 +544,7 @@ definition' kit q d t ls =
 --
 --    compiles to
 --
---        exports["Foo"]["c2"](x)(y)
+--        exports["module Foo"]["c2"](x)(y)
 --
 --  * A case split, e.g.
 --

@@ -460,6 +460,10 @@ Interaction and emacs mode
 Backends
 --------
 
+* (**BREAKING**): the JavaScript backend now generates different names for local Agda
+  modules, to avoid collisions with similarly-named `postulate`s or functions:
+  (see [#8483]((https://github.com/agda/agda/issues/)))
+
 * `agda --html --html-highlight=code example.lagda.tree` now produces `html/example.tree`, which Forester can consume directly - no external tools needed.
 
 * New option `--ghc-trace` for GHC Backend to instrument code
