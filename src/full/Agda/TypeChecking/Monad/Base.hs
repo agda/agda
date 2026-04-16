@@ -5264,6 +5264,9 @@ data Warning
       --   This can indicate a user misunderstanding of display forms.
 
   -- Type checker warnings
+  | ShouldBeEtaRecordPattern
+      -- ^ Irrefutable match (match in binder) on a non-eta record pattern.
+      --   Some expected definitional equalities will not hold.
   | TooManyArgumentsToSort QName (List1 (NamedArg A.Expr))
       -- ^ Extra arguments to sort (will be ignored).
   | DefinitionBeforeDeclaration A.AbstractName
@@ -5417,6 +5420,7 @@ warningName = \case
   UnusedVariablesInDisplayForm{}       -> UnusedVariablesInDisplayForm_
 
   -- Type checking
+  ShouldBeEtaRecordPattern{}           -> ShouldBeEtaRecordPattern_
   TooManyArgumentsToSort{}             -> TooManyArgumentsToSort_
   DefinitionBeforeDeclaration{}        -> DefinitionBeforeDeclaration_
   RecursiveRecordNeedsInductivity{}    -> RecursiveRecordNeedsInductivity_

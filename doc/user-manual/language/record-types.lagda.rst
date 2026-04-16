@@ -348,6 +348,9 @@ Or, using a :ref:`let binding record pattern<let-record-pattern>`:
   sum-let : Pair Nat Nat → Nat
   sum-let p = let (x , y) = p in x + y
 
+Since Agda 2.9.0, the latter requires records with eta-equality (such as ``Pair``)
+lest warning :option:`ShouldBeEtaRecordPattern` is raised.
+
 
 .. note::
    Naming the constructor is not required to enable pattern matching against
