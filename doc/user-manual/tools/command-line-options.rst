@@ -1467,6 +1467,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: EmptyAbstract
 
+     .. versionadded:: 2.5.4
+
      Empty ``abstract`` blocks.
 
 .. option:: EmptyConstructor
@@ -1489,13 +1491,19 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: EmptyInstance
 
+     .. versionadded:: 2.5.4
+
      Empty ``instance`` blocks.
 
 .. option:: EmptyMacro
 
+     .. versionadded:: 2.5.4
+
      Empty ``macro`` blocks.
 
 .. option:: EmptyMutual
+
+     .. versionadded:: 2.5.4
 
      Empty ``mutual`` blocks.
 
@@ -1507,6 +1515,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: EmptyPostulate
 
+     .. versionadded:: 2.5.4
+
      Empty ``postulate`` blocks.
 
 .. option:: EmptyPrimitive
@@ -1516,6 +1526,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Empty ``primitive`` blocks.
 
 .. option:: EmptyPrivate
+
+     .. versionadded:: 2.5.4
 
      Empty ``private`` blocks.
 
@@ -1620,6 +1632,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: InvalidCatchallPragma
 
+     .. versionadded:: 2.5.4
+
      :ref:`CATCHALL<catchall-pragma>` pragmas before a non-function clause.
 
 .. option:: InvalidCharacterLiteral
@@ -1649,6 +1663,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: InvalidNoPositivityCheckPragma
 
+     .. versionadded:: 2.5.4
+
      :ref:`NO_POSITIVITY_CHECK <no_positivity_check-pragma>` pragmas before something
      that is neither a ``data`` nor ``record`` declaration nor a ``mutual`` block.
 
@@ -1666,6 +1682,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: InvalidTerminationCheckPragma
 
+     .. versionadded:: 2.5.4
+
      :ref:`Termination checking pragmas <terminating-pragma>` before non-function or ``mutual`` blocks.
 
 .. option:: InversionDepthReached
@@ -1682,6 +1700,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: LocalRewritingConfluenceCheck
 
+     .. versionadded:: 2.9.0
+
      Confluence checking (:option:`--confluence-check` or :option:`--local-confluence-check`) is not yet implemented for local rewrite rules (:option:`--local-rewriting`).
 
 .. option:: MisplacedAttributes
@@ -1691,6 +1711,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Attributes where they cannot appear.
 
 .. option:: MisplacedRewrite
+
+     .. versionadded:: 2.9.0
 
      Invalid local rewrite annotations, automatically ignored.
 
@@ -1775,6 +1797,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Use of attributes ``@ω`` or ``@plenty`` in hard compile-time mode.
 
 .. option:: PolarityPragmasButNotPostulates
+
+     .. versionadded:: 2.5.4
 
      Polarity pragmas for non-postulates.
 
@@ -1990,9 +2014,13 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: UnknownFixityInMixfixDecl
 
+     .. versionadded:: 2.5.4
+
      Mixfix names without an associated fixity declaration.
 
 .. option:: UnknownJSPrimitive
+
+     .. versionadded:: 2.9.0
 
      A primitive compiled to ``Undefined`` by the JS backend because it
      is not in the list of known primitives.
@@ -2050,6 +2078,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: UselessAbstract
 
+     .. versionadded:: 2.5.4
+
      ``abstract`` blocks where they have no effect.
 
 .. option:: UselessHiding
@@ -2066,9 +2096,13 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: UselessImport
 
+     .. versionadded:: 2.9.0
+
      ``import`` statements that do not bring anything into scope.
 
 .. option:: UselessInstance
+
+     .. versionadded:: 2.5.4
 
      ``instance`` blocks where they have no effect.
 
@@ -2097,6 +2131,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Pragmas that get ignored.
 
 .. option:: UselessPrivate
+
+     .. versionadded:: 2.5.4
 
      ``private`` blocks where they have no effect.
 
@@ -2155,6 +2191,12 @@ Error warnings
 Some warnings are fatal; those are errors Agda first ignores but eventually raises.
 Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
+.. option:: AbstractInLetBindings
+
+     .. versionadded:: 2.8.0
+
+     Let bindings can not be made abstract.
+
 .. option:: CoinductiveEtaRecord
 
      .. versionadded:: 2.7.0
@@ -2179,6 +2221,13 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
      Failed coverage checks.
 
+.. option:: HiddenNotInArgumentPosition
+
+     .. versionadded:: 2.8.0
+
+     Hidden arguments ``{ x }`` can only appear as arguments to
+     functions, not as expressions by themselves.
+
 .. option:: InfectiveImport
 
      .. versionadded:: 2.6.0
@@ -2187,11 +2236,35 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
 .. option:: InferredLocalRewrite
 
+     .. versionadded:: 2.9.0
+
      Tried to solve a meta with an '@rewrite' function.
+
+.. option:: InstanceNotInArgumentPosition
+
+     .. versionadded:: 2.8.0
+
+     Instance arguments ``⦃ x ⦄`` can only appear as arguments to
+     functions, not as expressions by themselves.
 
 .. option:: LocalRewriteOutsideTelescope
 
+     .. versionadded:: 2.9.0
+
      '@rewrite' arguments are (currently) only allowed in module telescopes.
+
+.. option:: MacroInLetBindings
+
+     .. versionadded:: 2.8.0
+
+     Macros can not be let-bound.
+
+.. option:: MismatchedBrackets
+
+     .. versionadded:: 2.9.0
+
+     An idiom bracket opened with unicode (resp. ASCII) syntax must also
+     be closed with unicode (resp. ASCII) syntax.
 
 .. option:: MissingDataDeclaration
 
@@ -2218,6 +2291,8 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
      Failed strict positivity checks.
 
 .. option:: OverlappingTokensWarning
+
+     .. versionadded:: 2.5.4
 
      Multi-line comments spanning one or more literate text blocks.
 
@@ -2337,10 +2412,14 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
 .. option:: UnknownNamesInFixityDecl
 
+     .. versionadded:: 2.5.4
+
      Names not declared in the same scope as their syntax or fixity
      declaration.
 
 .. option:: UnknownNamesInPolarityPragmas
+
+     .. versionadded:: 2.5.4
 
      Names not declared in the same scope as their polarity pragmas.
 
@@ -2361,37 +2440,6 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
      .. versionadded:: 2.5.2
 
      Unsolved meta variables.
-
-.. option:: HiddenNotInArgumentPosition
-
-     .. versionadded:: 2.8.0
-
-     Hidden arguments ``{ x }`` can only appear as arguments to
-     functions, not as expressions by themselves.
-
-.. option:: InstanceNotInArgumentPosition
-
-     .. versionadded:: 2.8.0
-
-     Instance arguments ``⦃ x ⦄`` can only appear as arguments to
-     functions, not as expressions by themselves.
-
-.. option:: MacroInLetBindings
-
-     .. versionadded:: 2.8.0
-
-     Macros can not be let-bound.
-
-.. option:: AbstractInLetBindings
-
-     .. versionadded:: 2.8.0
-
-     Let bindings can not be made abstract.
-
-.. option:: MismatchedBrackets
-
-     An idiom bracket opened with unicode (resp. ASCII) syntax must also
-     be closed with unicode (resp. ASCII) syntax.
 
 
 Command-line examples
