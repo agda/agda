@@ -1471,13 +1471,19 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: EmptyConstructor
 
-     Empty ``constructor`` blocks.
+     .. versionadded:: 2.6.2
+
+     Empty ``data _ where`` blocks.
 
 .. option:: EmptyField
+
+     .. versionadded:: 2.6.1
 
      Empty ``field`` blocks.
 
 .. option:: EmptyGeneralize
+
+     .. versionadded:: 2.6.0
 
      Empty ``variable`` blocks.
 
@@ -1504,6 +1510,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Empty ``postulate`` blocks.
 
 .. option:: EmptyPrimitive
+
+     .. versionadded:: 2.6.0
 
      Empty ``primitive`` blocks.
 
@@ -1560,6 +1568,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Fixity annotations in ``renaming`` directives for a ``module``.
 
 .. option:: HiddenGeneralize
+
+     .. versionadded:: 2.6.3
 
      Hidden identifiers in ``variable`` blocks.
 
@@ -1620,9 +1630,13 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: InvalidConstructorBlock
 
+     .. versionadded:: 2.6.2
+
      ``constructor`` blocks outside of ``interleaved mutual`` blocks.
 
 .. option:: InvalidCoverageCheckPragma
+
+     .. versionadded:: 2.6.1
 
      :ref:`NON_COVERING <non_covering-pragma>` pragmas before non-function or ``mutual`` blocks.
 
@@ -1639,6 +1653,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      that is neither a ``data`` nor ``record`` declaration nor a ``mutual`` block.
 
 .. option:: InvalidNoUniverseCheckPragma
+
+     .. versionadded:: 2.6.0
 
      :ref:`NO_UNIVERSE_CHECK <no_universe_check-pragma>` pragmas before declarations other than ``data`` or ``record`` declarations.
 
@@ -1659,6 +1675,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Inversions of pattern-matching failed due to exhausted inversion depth.
 
 .. option:: LibUnknownField
+
+     .. versionadded:: 2.6.0
 
      Unknown fields in library files.
 
@@ -1690,6 +1708,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      the module in question.
 
 .. option:: MultipleAttributes
+
+     .. versionadded:: 2.6.2
 
      Multiple attributes given where only erasure is accepted.
 
@@ -1737,6 +1757,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      ``open`` or ``import`` statements in ``private`` blocks.
 
 .. option:: OptionRenamed
+
+     .. versionadded:: 2.6.3
 
      Renamed options.
 
@@ -1811,6 +1833,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Pragmas referring to identifiers that are not unambiguous projections or functions.
 
 .. option:: PragmaNoTerminationCheck
+
+     .. versionadded:: 2.6.0
 
      :ref:`NO_TERMINATION_CHECK<terminating-pragma>` pragmas; such are deprecated.
 
@@ -1986,6 +2010,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Unreachable function clauses.
 
 .. option:: UnsupportedAttribute
+
+     .. versionadded:: 2.6.2
 
      Unsupported attributes.
 
@@ -2169,13 +2195,19 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
 .. option:: MissingDataDeclaration
 
+     .. versionadded:: 2.8.0
+
      Constructor definitions not associated to a data declaration.
 
 .. option:: MissingDefinitions
 
+     .. versionadded:: 2.6.0
+
      Names declared without an accompanying definition.
 
 .. option:: NotAllowedInMutual
+
+     .. versionadded:: 2.6.0
 
      Declarations that are not allowed in a mutual block.
 
@@ -2190,6 +2222,8 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
      Multi-line comments spanning one or more literate text blocks.
 
 .. option:: PragmaCompiled
+
+     .. versionadded:: 2.6.0
 
      :ref:`COMPILE<foreign-function-interface>` pragmas not allowed in safe mode.
 
