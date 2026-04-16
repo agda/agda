@@ -1368,21 +1368,33 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: AbsurdPatternRequiresAbsentRHS
 
+     .. versionadded:: 2.8.0
+
+     (Previously named ``AbsurdPatternRequiresNoRHS``.)
+
      RHS given despite an absurd pattern in the LHS.
 
 .. option:: BuiltinDeclaresIdentifier
+
+     .. versionadded:: 2.7.0
 
      A ``BUILTIN`` pragma that declares an identifier, but has been given an existing one.
 
 .. option:: AsPatternShadowsConstructorOrPatternSynonym
 
+     .. versionadded:: 2.6.2
+
      ``@``-patterns that shadow constructors or pattern synonyms.
 
 .. option:: CantGeneralizeOverSorts
 
+     .. versionadded:: 2.6.0
+
      Attempts to generalize over sort metas in ``variable`` declaration.
 
 .. option:: ClashesViaRenaming
+
+     .. versionadded:: 2.6.1
 
      Clashes introduced by ``renaming``.
 
@@ -1395,17 +1407,25 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: ConfluenceCheckingIncompleteBecauseOfMeta
 
+     .. versionadded:: 2.7.0
+
      Incomplete confluence checks because of unsolved metas.
 
 .. option:: ConfluenceForCubicalNotSupported
+
+     .. versionadded:: 2.7.0
 
      Attempts to check confluence with :option:`--cubical`.
 
 .. option:: CoverageNoExactSplit
 
+     .. versionadded:: 2.5.3
+
      Failed exact split checks.
 
 .. option:: DeprecationWarning
+
+     .. versionadded:: 2.5.3
 
      Deprecated features.
 
@@ -1423,6 +1443,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: DuplicateFields
 
+     .. versionadded:: 2.6.4
+
      ``record`` expression with duplicate field names.
 
 .. option:: DuplicateRecordDirective
@@ -1433,9 +1455,13 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: DuplicateRewriteRule
 
+     .. versionadded:: 2.7.0
+
      Duplicate declaration of a name as :ref:`REWRITE<rewriting>` rule.
 
 .. option:: DuplicateUsing
+
+     .. versionadded:: 2.6.2
 
      Repeated names in ``using`` directive.
 
@@ -1487,9 +1513,13 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: EmptyRewritePragma
 
+     .. versionadded:: 2.5.2
+
      Empty ``REWRITE`` pragmas.
 
 .. option:: EmptyWhere
+
+     .. versionadded:: 2.6.2
 
      Empty ``where`` blocks.
 
@@ -1525,6 +1555,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: FixityInRenamingModule
 
+     .. versionadded:: 2.6.1
+
      Fixity annotations in ``renaming`` directives for a ``module``.
 
 .. option:: HiddenGeneralize
@@ -1533,32 +1565,46 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: IllegalDeclarationInDataDefinition
 
+     .. versionadded:: 2.6.4
+
      Declarations inside of a ``data`` definition that are not constructor type signatures.
 
 .. option:: IllformedAsClause
+
+     .. versionadded:: 2.6.0
 
      Illformed ``as``-clauses in ``import`` statements.
 
 .. option:: InlineNoExactSplit
 
+     .. versionadded:: 2.6.4
+
      Failed exact splits after inlining a constructor, see :ref:`inline-pragma`.
 
 .. option:: InstanceNoOutputTypeName
+
+     .. versionadded:: 2.6.0
 
      Instance arguments whose type does not end in a named or variable type;
      such are never considered by instance search.
 
 .. option:: InstanceArgWithExplicitArg
 
+     .. versionadded:: 2.6.0
+
      Instance arguments with explicit arguments;
      such are never considered by instance search.
 
 .. option:: InstanceWithExplicitArg
 
+     .. versionadded:: 2.6.0
+
      Instance declarations with explicit arguments;
      such are never considered by instance search.
 
 .. option:: InteractionMetaBoundaries
+
+     .. versionadded:: 2.6.4
 
      Interaction meta variables that have unsolved boundary constraints.
 
@@ -1567,6 +1613,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      :ref:`CATCHALL<catchall-pragma>` pragmas before a non-function clause.
 
 .. option:: InvalidCharacterLiteral
+
+     .. versionadded:: 2.6.4
 
      Illegal character literals such as surrogate code points.
 
@@ -1606,6 +1654,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: InversionDepthReached
 
+     .. versionadded:: 2.5.4
+
      Inversions of pattern-matching failed due to exhausted inversion depth.
 
 .. option:: LibUnknownField
@@ -1628,9 +1678,13 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: MissingTypeSignatureForOpaque
 
+     .. versionadded:: 2.7.0
+
      ``abstract`` or ``opaque`` definitions that lack a type signature.
 
 .. option:: ModuleDoesntExport
+
+     .. versionadded:: 2.6.0
 
      Names mentioned in an import statement which are not exported by
      the module in question.
@@ -1641,22 +1695,32 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: NoMain
 
+     .. versionadded:: 2.7.0
+
      Invoking the compiler on a module without a ``main`` function.
      See also :option:`--no-main`.
 
 .. option:: NotAffectedByOpaque
 
+     .. versionadded:: 2.6.4
+
      Declarations that should not be inside ``opaque`` blocks.
 
 .. option:: NotARewriteRule
+
+     .. versionadded:: 2.8.0
 
      ``REWRITE`` pragmas referring to identifiers that are neither definitions nor constructors.
 
 .. option:: NotInScope
 
+     .. versionadded:: 2.6.1
+
      Out of scope names.
 
 .. option:: OldBuiltin
+
+     .. versionadded:: 2.5.2
 
      Deprecated :ref:`BUILTIN<built-ins>` pragmas.
 
@@ -1684,6 +1748,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: PlentyInHardCompileTimeMode
 
+     .. versionadded:: 2.6.4
+
      Use of attributes ``@ω`` or ``@plenty`` in hard compile-time mode.
 
 .. option:: PolarityPragmasButNotPostulates
@@ -1692,37 +1758,55 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: PragmaCompileErased
 
+     .. versionadded:: 2.6.1
+
      :ref:`COMPILE<foreign-function-interface>` pragma targeting an erased symbol.
 
 .. option:: PragmaCompileList
+
+     .. versionadded:: 2.7.0
 
      :ref:`COMPILE<foreign-function-interface>` pragma for GHC backend targeting lists.
 
 .. option:: PragmaCompileMaybe
 
+     .. versionadded:: 2.7.0
+
      :ref:`COMPILE<foreign-function-interface>` pragma for GHC backend targeting ``MAYBE``.
 
 .. option:: PragmaCompileUnparsable
+
+     .. versionadded:: 2.8.0
 
      Unparsable :ref:`COMPILE<foreign-function-interface>` GHC pragmas.
 
 .. option:: PragmaCompileWrong
 
+     .. versionadded:: 2.8.0
+
      Ill-formed :ref:`COMPILE<foreign-function-interface>` GHC pragmas.
 
 .. option:: PragmaCompileWrongName
+
+     .. versionadded:: 2.8.0
 
      :ref:`COMPILE<foreign-function-interface>` pragmas referring to identifiers that are neither definitions nor constructors.
 
 .. option:: PragmaExpectsDefinedSymbol
 
+     .. versionadded:: 2.8.0
+
      Pragmas referring to identifiers that are not defined symbols.
 
 .. option:: PragmaExpectsUnambiguousConstructorOrFunction
 
+     .. versionadded:: 2.8.0
+
      Pragmas referring to identifiers that are not unambiguous constructors or functions.
 
 .. option:: PragmaExpectsUnambiguousProjectionOrFunction
+
+     .. versionadded:: 2.8.0
 
      Pragmas referring to identifiers that are not unambiguous projections or functions.
 
@@ -1852,6 +1936,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: TooManyFields
 
+     .. versionadded:: 2.6.4
+
      Record expression with invalid field names.
 
 .. option:: TooManyPolarities
@@ -1862,9 +1948,13 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: UnfoldingWrongName
 
+     .. versionadded:: 2.8.0
+
      Names in an ``unfolding`` clause that are not unambiguous definitions.
 
 .. option:: UnfoldTransparentName
+
+     .. versionadded:: 2.6.4
 
      Non-``opaque`` names mentioned in an ``unfolding`` clause.
 
@@ -1890,6 +1980,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Unknown polarities.
 
 .. option:: UnreachableClauses
+
+     .. versionadded:: 2.5.3
 
      Unreachable function clauses.
 
@@ -1936,9 +2028,13 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: UselessHiding
 
+     .. versionadded:: 2.6.2
+
      Names in ``hiding`` directive that are anyway not imported.
 
 .. option:: UselessInline
+
+     .. versionadded:: 2.5.3
 
      :ref:`INLINE<inline-pragma>` pragmas where they have no effect.
 
@@ -1958,9 +2054,13 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: UselessOpaque
 
+     .. versionadded:: 2.6.4
+
      ``opaque`` blocks that have no effect.
 
 .. option:: UselessPatternDeclarationForRecord
+
+     .. versionadded:: 2.6.2
 
      ``pattern`` directives where they have no effect.
 
@@ -1976,6 +2076,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: UselessPublic
 
+     .. versionadded:: 2.5.3
+
      ``public`` directives where they have no effect.
 
 .. option:: UselessTactic
@@ -1985,6 +2087,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      ``@tactic`` attributes in non-hidden and instance arguments.
 
 .. option:: UserWarning
+
+     .. versionadded:: 2.5.4
 
      User-defined warnings added using one of the ``WARNING_ON_*`` pragmas.
 
@@ -2003,13 +2107,19 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: WithoutKFlagPrimEraseEquality
 
+     .. versionadded:: 2.6.0
+
      ``primEraseEquality`` used with the without-K flags.
 
 .. option:: WrongInstanceDeclaration
 
+     .. versionadded:: 2.6.0
+
      Terms marked as eligible for instance search whose type does not end with a name.
 
 .. option:: CustomBackendWarning
+
+     .. versionadded:: 2.7.0
 
      Warnings from custom backends.
 
@@ -2027,6 +2137,8 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
 .. option:: CoInfectiveImport
 
+     .. versionadded:: 2.6.0
+
      Importing a file not using e.g. :option:`--safe` from one which does.
 
 .. option:: ConstructorDoesNotFitInData
@@ -2037,9 +2149,13 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
 .. option:: CoverageIssue
 
+     .. versionadded:: 2.5.3
+
      Failed coverage checks.
 
 .. option:: InfectiveImport
+
+     .. versionadded:: 2.6.0
 
      Importing a file using e.g. :option:`--cubical` into one which does not.
 
@@ -2065,6 +2181,8 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
 .. option:: NotStrictlyPositive
 
+     .. versionadded:: 2.5.2
+
      Failed strict positivity checks.
 
 .. option:: OverlappingTokensWarning
@@ -2077,73 +2195,109 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
 .. option:: RecursiveRecordNeedsInductivity
 
+     .. versionadded:: 2.7.0
+
      Recursive records that are neither declared ``inductive`` nor ``coinductive``.
 
 .. option:: RewriteAmbiguousRules
+
+     .. versionadded:: 2.6.2
 
      Failed global confluence checks because of overlapping rules.
 
 .. option:: RewriteMaybeNonConfluent
 
+     .. versionadded:: 2.6.1
+
      Failed confluence checks while computing overlap.
 
 .. option:: RewriteMissingRule
+
+     .. versionadded:: 2.6.2
 
      Failed global confluence checks because of missing rules.
 
 .. option:: RewriteNonConfluent
 
+     .. versionadded:: 2.6.1
+
      Failed confluence checks while joining critical pairs.
 
 .. option:: SafeFlagEta
+
+     .. versionadded:: 2.6.1
 
      :ref:`ETA <eta-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagInjective
 
+     .. versionadded:: 2.6.1
+
      :ref:`INJECTIVE <injective-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagNoCoverageCheck
+
+     .. versionadded:: 2.6.1
 
      :ref:`NON_COVERING <non_covering-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagNonTerminating
 
+     .. versionadded:: 2.5.3
+
      :ref:`NON_TERMINATING <non_terminating-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagNoPositivityCheck
+
+     .. versionadded:: 2.5.3
 
      :ref:`NO_POSITIVITY_CHECK <no_positivity_check-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagNoUniverseCheck
 
+     .. versionadded:: 2.6.0
+
      :ref:`NO_UNIVERSE_CHECK <no_universe_check-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagPolarity
+
+     .. versionadded:: 2.5.3
 
      :ref:`POLARITY <polarity-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagPostulate
 
+     .. versionadded:: 2.5.3
+
      ``postulate`` blocks with the :option:`--safe` flag.
 
 .. option:: SafeFlagPragma
+
+     .. versionadded:: 2.5.3
 
      Unsafe :ref:`OPTIONS <options-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagTerminating
 
+     .. versionadded:: 2.5.3
+
      :ref:`TERMINATING <terminating-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagWithoutKFlagPrimEraseEquality
+
+     .. versionadded:: 2.6.0
 
      ``primEraseEquality`` used with the :option:`--safe` and :option:`--without-K` flags.
 
 .. option:: TerminationIssue
 
+     .. versionadded:: 2.5.2
+
      Failed termination checks.
 
 .. option:: TopLevelPolarity
+
+     .. versionadded:: 2.8.0
 
      Declaring definitions with an explicit polarity annotation.
 
@@ -2158,31 +2312,45 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
 .. option:: UnsolvedConstraints
 
+     .. versionadded:: 2.5.2
+
      Unsolved constraints.
 
 .. option:: UnsolvedInteractionMetas
+
+     .. versionadded:: 2.5.2
 
      Unsolved interaction meta variables.
 
 .. option:: UnsolvedMetaVariables
 
+     .. versionadded:: 2.5.2
+
      Unsolved meta variables.
 
 .. option:: HiddenNotInArgumentPosition
+
+     .. versionadded:: 2.8.0
 
      Hidden arguments ``{ x }`` can only appear as arguments to
      functions, not as expressions by themselves.
 
 .. option:: InstanceNotInArgumentPosition
 
+     .. versionadded:: 2.8.0
+
      Instance arguments ``⦃ x ⦄`` can only appear as arguments to
      functions, not as expressions by themselves.
 
 .. option:: MacroInLetBindings
 
+     .. versionadded:: 2.8.0
+
      Macros can not be let-bound.
 
 .. option:: AbstractInLetBindings
+
+     .. versionadded:: 2.8.0
 
      Let bindings can not be made abstract.
 
