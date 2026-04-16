@@ -12,9 +12,13 @@ import Data.Maybe
 import Data.List (partition)
 import qualified Data.Map as Map
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
+import Agda.TypeChecking.CheckInternal
+import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Coverage.SplitTree
@@ -24,6 +28,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free.Precompute
 import Agda.TypeChecking.Reduce
+--import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
@@ -31,6 +36,7 @@ import Agda.Utils.List
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size
 import Agda.Utils.Update
+import Agda.Utils.Monad hiding (guard)
 
 import Agda.Utils.Impossible
 
@@ -93,13 +99,18 @@ compileClauses mt cs = do
         [ "compiled clauses of " <+> prettyTCM q <+> " (still containing record splits)"
         , nest 2 $ return $ P.pretty cc
         ]
-
+      --TODO: potentially double-check cc here too
       (cc, becameCopatternLHS) <- runChangeT $ translateCompiledClauses q cc
-
       reportSDoc "tc.cc" 12 $ sep
         [ "compiled clauses of " <+> prettyTCM q
         , nest 2 $ return $ P.pretty cc
         ]
+      whenM (optDoubleCheck <$> pragmaOptions) $ do
+        reportSDoc "tc.cc" 30 $ vcat
+          [ "double checking compiled clauses of " <+> prettyTCM q
+          , nest 2 $ return $ P.pretty cc
+          ]
+        noConstraints $ withFrozenMetas $ checkInternal cc CmpLeq (q, t)
       return (Just splitTree, becameCopatternLHS, fmap precomputeFreeVars_ cc)
 
 -- | Stripped-down version of 'Agda.Syntax.Internal.Clause'
