@@ -495,7 +495,7 @@ warningHighlighting' b w = case tcWarning w of
   CoInfectiveImport{}                   -> errorWarningHighlighting w
   InvalidDisplayForm{}                  -> deadcodeHighlighting w
   UnusedVariablesInDisplayForm xs       -> foldMap deadcodeHighlighting xs
-  ShouldBeEtaRecordPatternW             -> errorWarningHighlighting w
+  ShouldBeEtaRecordPattern              -> errorWarningHighlighting w
   TooManyArgumentsToSort _ args         -> errorWarningHighlighting args
   RewritesNothing                       -> cosmeticProblemHighlighting w
   RecursiveRecordNeedsInductivity _x    -> errorWarningHighlighting w

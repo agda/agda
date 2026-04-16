@@ -5264,9 +5264,9 @@ data Warning
       --   This can indicate a user misunderstanding of display forms.
 
   -- Type checker warnings
-  | ShouldBeEtaRecordPatternW
-      -- ^ Warning version of @'ShouldBeEtaRecordPattern' 'NotEtaRecord'@.
-      --   Should be turned into error in 2.10.
+  | ShouldBeEtaRecordPattern
+      -- ^ Irrefutable match (match in binder) on a non-eta record pattern.
+      --   Some expected definitional equalities will not hold.
   | TooManyArgumentsToSort QName (List1 (NamedArg A.Expr))
       -- ^ Extra arguments to sort (will be ignored).
   | DefinitionBeforeDeclaration A.AbstractName
@@ -5420,7 +5420,7 @@ warningName = \case
   UnusedVariablesInDisplayForm{}       -> UnusedVariablesInDisplayForm_
 
   -- Type checking
-  ShouldBeEtaRecordPatternW{}          -> ShouldBeEtaRecordPatternW_
+  ShouldBeEtaRecordPattern{}           -> ShouldBeEtaRecordPattern_
   TooManyArgumentsToSort{}             -> TooManyArgumentsToSort_
   DefinitionBeforeDeclaration{}        -> DefinitionBeforeDeclaration_
   RecursiveRecordNeedsInductivity{}    -> RecursiveRecordNeedsInductivity_
@@ -5679,7 +5679,6 @@ data TypeError
         | ShouldBePath Type
         | ShouldBeRecordType Type
         | ShouldBeRecordPattern
-        | ShouldBeEtaRecordPattern NotEtaRecord
         | CannotApply A.Expr Type
             -- ^ The given expression is used as a function
             --   but its type is not a function type.
@@ -6136,13 +6135,6 @@ data CannotQuote
       -- ^ @quote@ is applied to a pattern that is not an unambiguous defined name.
     deriving (Show, Generic)
 
--- | Distinguish between a failure of irrefutable record-pattern
--- translation because the type is not a record, or because the type has
--- no eta equality.
-data NotEtaRecord
-  = DataNotRecord  -- ^ Data type.
-  | NotEtaRecord   -- ^ Record type without eta-equality.
-  deriving (Eq, Show, Generic)
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.
 data LHSOrPatSyn = IsLHS | IsPatSyn
   deriving (Eq, Show, Generic, Bounded, Enum)
@@ -7401,7 +7393,6 @@ instance NFData TypeError
 instance NFData WhyInvalidInstanceType
 instance NFData ClashingName
 instance NFData InvalidFileNameReason
-instance NFData NotEtaRecord
 instance NFData LHSOrPatSyn
 instance NFData InductionAndEta
 instance NFData RewriteSource

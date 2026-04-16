@@ -1,7 +1,5 @@
-TelescopePatternEta.agda:11.18-24: warning: -W[no]ShouldBeEtaRecordPatternW
-Pattern matching in binders is only allowed for record types with
-eta-equality, but this constructor belongs to a record type without
-eta-equality (this will be an error in future versions of Agda)
+TelescopePatternEta.agda:11.18-24: warning: -W[no]ShouldBeEtaRecordPattern
+Irrefutable matching on non-eta record constructor
 when checking the parameters of module _
 
 TelescopePatternEta.agda:14.7-11: error: [UnequalTerms]

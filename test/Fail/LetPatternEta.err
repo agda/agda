@@ -1,7 +1,5 @@
-LetPatternEta.agda:13.14-20: warning: -W[no]ShouldBeEtaRecordPatternW
-Pattern matching in binders is only allowed for record types with
-eta-equality, but this constructor belongs to a record type without
-eta-equality (this will be an error in future versions of Agda)
+LetPatternEta.agda:13.14-20: warning: -W[no]ShouldBeEtaRecordPattern
+Irrefutable matching on non-eta record constructor
 when checking that the expression
 λ w @ (wrap a) → refl {x = wrap a} has type (w : Wrap A) → w ≡ w
 

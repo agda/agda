@@ -206,7 +206,6 @@ typeErrorName = \case
   ShadowedModule                                             {} -> ShadowedModule_
   ShouldBeASort                                              {} -> ShouldBeASort_
   ShouldBeEmpty                                              {} -> ShouldBeEmpty_
-  ShouldBeEtaRecordPattern                                   {} -> ShouldBeEtaRecordPattern_
   ShouldBePath                                               {} -> ShouldBePath_
   ShouldBePi                                                 {} -> ShouldBePi_
   ShouldBeRecordPattern                                      {} -> ShouldBeRecordPattern_

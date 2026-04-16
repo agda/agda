@@ -59,7 +59,8 @@ import Agda.Utils.Impossible
 --
 --   E.g. for @(x , (y , z))@ we return @[ fst, fst . snd, snd . snd ]@.
 --
---   If it is not a record pattern, error 'ShouldBeEtaRecordPattern' is raised.
+--   Precondition: it must be a record pattern.
+--   If the record does not have eta, warning 'ShouldBeEtaRecordPattern' is raised.
 recordPatternToProjections :: DeBruijnPattern -> TCM [Term -> Term]
 recordPatternToProjections p =
   case p of
@@ -72,23 +73,24 @@ recordPatternToProjections p =
     ProjP{}      -> impossible "ProjP"
 
     ConP c ci ps -> do
-      unless (conPRecord ci) $
-        typeError $ ShouldBeEtaRecordPattern DataNotRecord
-      t <- reduce (unArg $ fromMaybe __IMPOSSIBLE__ $ conPType ci)
+      -- Invariant: this function is only invoked on record patterns.
+      -- We do not check it here, since it is checked below by inspecting the conPType.
+      -- unless (conPRecord ci) $
+      --   __IMPOSSIBLE__
+      --   typeError ShouldBeRecordPattern
+      t <- reduce $ unArg $ fromMaybe __IMPOSSIBLE__ $ conPType ci
       reportSDoc "tc.rec" 45 $ vcat
         [ "recordPatternToProjections: "
         , nest 2 $ "constructor pattern " <+> prettyTCM p <+> " has type " <+> prettyTCM t
         ]
       reportSLn "tc.rec" 70 $ "  type raw: " ++ show t
       case unEl t of
-        Def r _ -> fmap theDef (getConstInfo r) >>= \case
+        Def r _ -> getConstInfo r <&> theDef >>= \case
           rt@Record { recFields = fields } -> do
             unless (YesEta == recEtaEquality rt) do
-              -- This should be turned into an error in Agda 2.10.0.
-              -- typeError $ ShouldBeEtaRecordPattern NotEtaRecord
-              warning ShouldBeEtaRecordPatternW
+              warning ShouldBeEtaRecordPattern
             concat <$> zipWithM comb (map proj fields) (map namedArg ps)
-          _ -> typeError $ ShouldBeEtaRecordPattern DataNotRecord
+          _ -> __IMPOSSIBLE_VERBOSE__ "recordPatternToProjections: ConP can only belong to a record type."
         _ -> __IMPOSSIBLE_VERBOSE__ "recordPatternToProjections: ConP can only belong to a record or data type."
   where
     proj p = (`applyE` [Proj ProjSystem $ unDom p])

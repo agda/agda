@@ -253,7 +253,6 @@ data ErrorName
   | ShadowedModule_
   | ShouldBeASort_
   | ShouldBeEmpty_
-  | ShouldBeEtaRecordPattern_
   | ShouldBePath_
   | ShouldBePi_
   | ShouldBeRecordPattern_

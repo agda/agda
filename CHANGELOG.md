@@ -234,6 +234,23 @@ Warnings
   definition.  This can happen since the nicifier bubbles signatures up.
   (See [issue #8435](https://github.com/agda/agda/issues/8435).)
 
+* New warning `ShouldBeEtaRecordPattern`, raised for
+  matches on record constructors in _binders_ (`λ`, `let`, parameter telescopes etc.)
+  when the respective record does not have eta.
+  For example, this module parameter match triggers the warning:
+  ```agda
+    record Wrap (A : Set) : Set where
+      constructor wrap; no-eta-equality; pattern
+      field unwrap : A
+
+    module _ {A} (w@(wrap a) : Wrap A) where
+  ```
+  Reason for the warning:
+  Such a binding is interpreted here as `a = unwrap w`.
+  The user expectation that `w` is definitionally equal to `wrap a` is only met if `Wrap` admits `eta-equality`.
+
+  Pattern matching on left hand sides of function definitions does not trigger the warning.
+
 Syntax
 ------
 
@@ -374,23 +391,6 @@ Changes to type checker and other components defining the Agda language.
   `--cohesion` flag. This also enables the use of attributes in record
   fields for any cohesion modality which has a left adjoint (currently
   just sharp and continuous).
-
-* [**Breaking**]
-  Can no longer match on record constructors in _binders_ (`λ`, `let`, parameter telescopes etc.)
-  if the respective record does not have eta.
-  For example, this is now rejected:
-  ```agda
-    record Wrap (A : Set) : Set where
-      constructor wrap; no-eta-equality; pattern
-      field unwrap : A
-
-    module _ {A} (w@(wrap a) : Wrap A) where
-  ```
-  Reason for this change:
-  Such a binding is interpreted here as `a = unwrap w`.
-  The user expectation that `w` is definitionally equal to `wrap a` is only met if `Wrap` admits `eta-equality`.
-
-  Pattern matching on left hand sides of function definitions is unaffected by this change.
 
 Reflection
 ----------

@@ -100,8 +100,9 @@ will be translated internally to as
       z = h t
   in  u
 
-This is not allowed if ``R`` is declared ``coinductive``
-or lacks eta-equality, e.g. by being declared with ``no-eta-equality``.
+This is not allowed if ``R`` is declared ``coinductive``.
+If ``R`` lacks eta-equality, e.g. by being declared with ``no-eta-equality``,
+then warning :option:`ShouldBeEtaRecordPattern` is triggered (since Agda 2.9.0).
 
 
 .. _let-open:

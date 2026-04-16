@@ -756,8 +756,8 @@ prettyWarning = \case
         ]
       ]
 
-    ShouldBeEtaRecordPatternW -> prettyTCM (ShouldBeEtaRecordPattern NotEtaRecord)
-      <+> "(this will be an error in future versions of Agda)"
+    ShouldBeEtaRecordPattern -> fwords
+      "Irrefutable matching on non-eta record constructor"
 
     TooManyArgumentsToSort q args -> fsep $ concat
       [ pwords "Too many arguments given to sort"
