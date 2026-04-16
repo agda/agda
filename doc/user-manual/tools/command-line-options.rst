@@ -137,6 +137,8 @@ General options
 
 .. option:: --parallel[=N], -j[N]
 
+     .. versionadded:: 2.9.0
+
      Type check in parallel. N is optional, and controls the number of
      threads to use for checking. If ``N`` is omitted, or explicitly set
      to 0, the number of processors is used. The default, ``-j1``, means
@@ -1318,13 +1320,13 @@ Erasure
 
 .. option:: --quote-metas
 
-     .. versionadded 2.9.0
+     .. versionadded:: 2.9.0
 
      Allow typechecking to quote terms that contain metas, see :ref:`quote-metas`.
 
 .. option:: --no-quote-metas
 
-     .. versionadded 2.9.0
+     .. versionadded:: 2.9.0
 
      Block typechecking when attempting to quote terms that contain metas.
 
@@ -1407,9 +1409,13 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: DefinitionBeforeDeclaration
 
+     .. versionadded:: 2.9.0
+
      Definitions that occur in ``mutual`` blocks before their declarations.
 
 .. option:: DivergentModalityInClause
+
+     .. versionadded:: 2.9.0
 
      Modalities of clauses that diverge from the modality of the function.
 
@@ -1558,6 +1564,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: InvalidDataOrRecDefParameter
 
+     .. versionadded:: 2.9.0
+
      A ``data/record D parameters where`` definition where the parameters do not match up
      with the previously given signature or contain more than just names with hiding information.
 
@@ -1571,6 +1579,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      :ref:`NO_UNIVERSE_CHECK <no_universe_check-pragma>` pragmas before declarations other than ``data`` or ``record`` declarations.
 
 .. option:: InvalidTacticAttribute
+
+     .. versionadded:: 2.9.0
 
      :ref:`@(tactic ...) <tactic_arguments>` attributes where they are not supported.
 
@@ -1713,6 +1723,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Constructor-headed rewrite rule has non-linear parameters.
 
 .. option:: RewriteVariablesBoundInSingleton
+
+     .. versionadded:: 2.9.0
 
      Rewrite rule binds some variables in possibly definitionally singular contexts.
 

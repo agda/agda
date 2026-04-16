@@ -403,10 +403,10 @@ Library management
 ------------------
 
 * Suppport for version-specific `defaults` files: a file whose name is
-of the form `defaults-X.Y.Z` will take precedence over the standard
-`defaults` one for the `X.Y.Z` version of the compiler. This can be
-used to have default libraries that are only compatible with a given
-version of the compiler.
+  of the form `defaults-X.Y.Z` will take precedence over the standard
+  `defaults` one for the `X.Y.Z` version of the compiler. This can be
+  used to have default libraries that are only compatible with a given
+  version of the compiler.
 
 Interaction and emacs mode
 --------------------------
@@ -477,7 +477,9 @@ Interaction and emacs mode
 Backends
 --------
 
-* `agda --html --html-highlight=code example.lagda.tree` now produces `html/example.tree`, which Forester can consume directly - no external tools needed.
+* `agda --html --html-highlight=code example.lagda.tree` now produces
+  `html/example.tree`, which Forester can consume directly;
+  no external tools needed.
 
 * New option `--ghc-trace` for GHC Backend to instrument code
   such that the Agda name of the function is printed to `stderr`
