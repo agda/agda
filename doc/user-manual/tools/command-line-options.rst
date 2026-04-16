@@ -1388,6 +1388,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: ConflictingPragmaOptions
 
+     .. versionadded:: 2.7.0
+
      Conflicting pragma options. For instance, both ``--this`` and ``--no-that`` when
      ``--this`` implies ``--that``.
 
@@ -1424,6 +1426,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      ``record`` expression with duplicate field names.
 
 .. option:: DuplicateRecordDirective
+
+     .. versionadded:: 2.7.0
 
      Conflicting directives in a record declaration.
 
@@ -1465,6 +1469,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: EmptyPolarityPragma
 
+     .. versionadded:: 2.8.0
+
      :ref:`POLARITY pragmas <polarity-pragma>` not giving any polarities.
 
 .. option:: EmptyPostulate
@@ -1489,21 +1495,31 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: FaceConstraintCannotBeHidden
 
+     .. versionadded:: 2.6.4
+
      Face constraint patterns that are given as implicit arguments.
 
 .. option:: FaceConstraintCannotBeNamed
+
+     .. versionadded:: 2.6.4
 
      Face constraint patterns that are given as named arguments.
 
 .. option:: FixingCohesion
 
+     .. versionadded:: 2.8.0
+
      Invalid cohesion annotations, automatically corrected.
 
 .. option:: FixingPolarity
 
+     .. versionadded:: 2.8.0
+
      Invalid polarity annotations, automatically corrected.
 
 .. option:: FixingRelevance
+
+     .. versionadded:: 2.8.0
 
      Invalid relevance annotations, automatically corrected.
 
@@ -1602,6 +1618,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: MisplacedAttributes
 
+     .. versionadded:: 2.8.0
+
      Attributes where they cannot appear.
 
 .. option:: MisplacedRewrite
@@ -1644,9 +1662,13 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: OpenImportAbstract
 
+     .. versionadded:: 2.8.0
+
      ``open`` or ``import`` statements in ``abstract`` blocks.
 
 .. option:: OpenImportPrivate
+
+     .. versionadded:: 2.8.0
 
      ``open`` or ``import`` statements in ``private`` blocks.
 
@@ -1655,6 +1677,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Renamed options.
 
 .. option:: PatternShadowsConstructor
+
+     .. versionadded:: 2.6.4
 
      Pattern variables that shadow constructors.
 
@@ -1708,17 +1732,25 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: InvalidDisplayForm
 
+     .. versionadded:: 2.8.0
+
      An illegal :ref:`DISPLAY <display-pragma>` form; it will be ignored.
 
 .. option:: RewriteLHSNotDefinitionOrConstructor
+
+     .. versionadded:: 2.7.0
 
      Rewrite rule head symbol is not a defined symbol or constructor.
 
 .. option:: RewriteVariablesNotBoundByLHS
 
+     .. versionadded:: 2.7.0
+
      Rewrite rule does not bind all of its variables.
 
 .. option:: RewriteVariablesBoundMoreThanOnce
+
+     .. versionadded:: 2.7.0
 
      Constructor-headed rewrite rule has non-linear parameters.
 
@@ -1730,53 +1762,79 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: RewriteLHSReduces
 
+     .. versionadded:: 2.7.0
+
      Rewrite rule LHS is not in weak-head normal form.
 
 .. option:: RewriteHeadSymbolIsProjectionLikeFunction
+
+     .. versionadded:: 2.7.0
 
      Rewrite rule head symbol is a projection-like function.
 
 .. option:: RewriteHeadSymbolIsTypeConstructor
 
+     .. versionadded:: 2.7.0
+
      Rewrite rule head symbol is a type constructor.
 
 .. option:: RewriteHeadSymbolContainsMetas
+
+     .. versionadded:: 2.7.0
 
      Definition of rewrite rule head symbol contains unsolved metas.
 
 .. option:: RewriteConstructorParametersNotGeneral
 
+     .. versionadded:: 2.7.0
+
      Constructor-headed rewrite rule parameters are not fully general.
 
 .. option:: RewriteContainsUnsolvedMetaVariables
+
+     .. versionadded:: 2.7.0
 
      Rewrite rule contains unsolved metas.
 
 .. option:: RewriteBlockedOnProblems
 
+     .. versionadded:: 2.7.0
+
      Checking rewrite rule blocked by unsolved constraint.
 
 .. option:: RewriteRequiresDefinitions
+
+     .. versionadded:: 2.7.0
 
      Checking rewrite rule blocked by missing definition.
 
 .. option:: RewriteDoesNotTargetRewriteRelation
 
+     .. versionadded:: 2.7.0
+
      Rewrite rule does not target the rewrite relation.
 
 .. option:: RewriteBeforeFunctionDefinition
+
+     .. versionadded:: 2.7.0
 
      Rewrite rule is not yet defined.
 
 .. option:: RewriteBeforeMutualFunctionDefinition
 
+     .. versionadded:: 2.7.0
+
      Mutually declaration with the rewrite rule is not yet defined.
 
 .. option:: RewritesNothing
 
+     .. versionadded:: 2.8.0
+
      ``rewrite`` clauses that do not fire.
 
 .. option:: ShadowingInTelescope
+
+     .. versionadded:: 2.6.1
 
      Repeated variable name in telescope.
 
@@ -1788,6 +1846,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: TooManyArgumentsToSort
 
+     .. versionadded:: 2.8.0
+
      E.g. ``Set`` used with more than one argument.
 
 .. option:: TooManyFields
@@ -1795,6 +1855,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Record expression with invalid field names.
 
 .. option:: TooManyPolarities
+
+     .. versionadded:: 2.8.0
 
      :ref:`POLARITY pragma <polarity-pragma>` with too many polarities given.
 
@@ -1807,6 +1869,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Non-``opaque`` names mentioned in an ``unfolding`` clause.
 
 .. option:: UnknownAttribute
+
+     .. versionadded:: 2.8.0
 
      Unknown attributes.
 
@@ -1821,6 +1885,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: UnknownPolarity
 
+     .. versionadded:: 2.8.0
+
      Unknown polarities.
 
 .. option:: UnreachableClauses
@@ -1832,6 +1898,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Unsupported attributes.
 
 .. option:: UnsupportedIndexedMatch
+
+     .. versionadded:: 2.6.3
 
      Failures to compute full equivalence when splitting on indexed family.
 
@@ -1858,6 +1926,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: UnusedVariablesInDisplayForm
 
+     .. versionadded:: 2.8.0
+
      :ref:`DISPLAY <display-pragma>` forms that bind variables they do not use.
 
 .. option:: UselessAbstract
@@ -1882,6 +1952,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: UselessMacro
 
+     .. versionadded:: 2.7.0
+
      ``macro`` blocks where they have no effect.
 
 .. option:: UselessOpaque
@@ -1893,6 +1965,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      ``pattern`` directives where they have no effect.
 
 .. option:: UselessPragma
+
+     .. versionadded:: 2.6.4
 
      Pragmas that get ignored.
 
@@ -1906,6 +1980,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: UselessTactic
 
+     .. versionadded:: 2.8.0
+
      ``@tactic`` attributes in non-hidden and instance arguments.
 
 .. option:: UserWarning
@@ -1914,10 +1990,14 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: WarningProblem
 
+     .. versionadded:: 2.7.0
+
      Problem encountered with option :option:`-W`,
      like an unknown warning or the attempt to switch off a non-benign warning.
 
 .. option:: WithClauseProjectionFixityMismatch
+
+     .. versionadded:: 2.8.0
 
      Projection fixity different in with-clause compared to its parent clause.
 
@@ -1941,6 +2021,8 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
 .. option:: CoinductiveEtaRecord
 
+     .. versionadded:: 2.7.0
+
      Declaring a ``record`` type as both ``coinductive`` and having ``eta-equality``.
 
 .. option:: CoInfectiveImport
@@ -1948,6 +2030,8 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
      Importing a file not using e.g. :option:`--safe` from one which does.
 
 .. option:: ConstructorDoesNotFitInData
+
+     .. versionadded:: 2.7.0
 
      Constructor with arguments in a universe higher than the one of its data type.
 
