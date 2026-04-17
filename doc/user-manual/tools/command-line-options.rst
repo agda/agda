@@ -137,6 +137,8 @@ General options
 
 .. option:: --parallel[=N], -j[N]
 
+     .. versionadded:: 2.9.0
+
      Type check in parallel. N is optional, and controls the number of
      threads to use for checking. If ``N`` is omitted, or explicitly set
      to 0, the number of processors is used. The default, ``-j1``, means
@@ -1325,13 +1327,13 @@ Erasure
 
 .. option:: --quote-metas
 
-     .. versionadded 2.9.0
+     .. versionadded:: 2.9.0
 
      Allow typechecking to quote terms that contain metas, see :ref:`quote-metas`.
 
 .. option:: --no-quote-metas
 
-     .. versionadded 2.9.0
+     .. versionadded:: 2.9.0
 
      Block typechecking when attempting to quote terms that contain metas.
 
@@ -1373,405 +1375,605 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: AbsurdPatternRequiresAbsentRHS
 
+     .. versionadded:: 2.8.0
+
+     (Previously named ``AbsurdPatternRequiresNoRHS``.)
+
      RHS given despite an absurd pattern in the LHS.
 
 .. option:: BuiltinDeclaresIdentifier
+
+     .. versionadded:: 2.7.0
 
      A ``BUILTIN`` pragma that declares an identifier, but has been given an existing one.
 
 .. option:: AsPatternShadowsConstructorOrPatternSynonym
 
+     .. versionadded:: 2.6.2
+
      ``@``-patterns that shadow constructors or pattern synonyms.
 
 .. option:: CantGeneralizeOverSorts
+
+     .. versionadded:: 2.6.0
 
      Attempts to generalize over sort metas in ``variable`` declaration.
 
 .. option:: ClashesViaRenaming
 
+     .. versionadded:: 2.6.1
+
      Clashes introduced by ``renaming``.
 
 .. option:: ConflictingPragmaOptions
+
+     .. versionadded:: 2.7.0
 
      Conflicting pragma options. For instance, both ``--this`` and ``--no-that`` when
      ``--this`` implies ``--that``.
 
 .. option:: ConfluenceCheckingIncompleteBecauseOfMeta
 
+     .. versionadded:: 2.7.0
+
      Incomplete confluence checks because of unsolved metas.
 
 .. option:: ConfluenceForCubicalNotSupported
+
+     .. versionadded:: 2.7.0
 
      Attempts to check confluence with :option:`--cubical`.
 
 .. option:: CoverageNoExactSplit
 
+     .. versionadded:: 2.5.3
+
      Failed exact split checks.
 
 .. option:: DeprecationWarning
+
+     .. versionadded:: 2.5.3
 
      Deprecated features.
 
 .. option:: DefinitionBeforeDeclaration
 
+     .. versionadded:: 2.9.0
+
      Definitions that occur in ``mutual`` blocks before their declarations.
 
 .. option:: DivergentModalityInClause
+
+     .. versionadded:: 2.9.0
 
      Modalities of clauses that diverge from the modality of the function.
 
 .. option:: DuplicateFields
 
+     .. versionadded:: 2.6.4
+
      ``record`` expression with duplicate field names.
 
 .. option:: DuplicateRecordDirective
+
+     .. versionadded:: 2.7.0
 
      Conflicting directives in a record declaration.
 
 .. option:: DuplicateRewriteRule
 
+     .. versionadded:: 2.7.0
+
      Duplicate declaration of a name as :ref:`REWRITE<rewriting>` rule.
 
 .. option:: DuplicateUsing
+
+     .. versionadded:: 2.6.2
 
      Repeated names in ``using`` directive.
 
 .. option:: EmptyAbstract
 
+     .. versionadded:: 2.5.4
+
      Empty ``abstract`` blocks.
 
 .. option:: EmptyConstructor
 
-     Empty ``constructor`` blocks.
+     .. versionadded:: 2.6.2
+
+     Empty ``data _ where`` blocks.
 
 .. option:: EmptyField
+
+     .. versionadded:: 2.6.1
 
      Empty ``field`` blocks.
 
 .. option:: EmptyGeneralize
 
+     .. versionadded:: 2.6.0
+
      Empty ``variable`` blocks.
 
 .. option:: EmptyInstance
+
+     .. versionadded:: 2.5.4
 
      Empty ``instance`` blocks.
 
 .. option:: EmptyMacro
 
+     .. versionadded:: 2.5.4
+
      Empty ``macro`` blocks.
 
 .. option:: EmptyMutual
+
+     .. versionadded:: 2.5.4
 
      Empty ``mutual`` blocks.
 
 .. option:: EmptyPolarityPragma
 
+     .. versionadded:: 2.8.0
+
      :ref:`POLARITY pragmas <polarity-pragma>` not giving any polarities.
 
 .. option:: EmptyPostulate
+
+     .. versionadded:: 2.5.4
 
      Empty ``postulate`` blocks.
 
 .. option:: EmptyPrimitive
 
+     .. versionadded:: 2.6.0
+
      Empty ``primitive`` blocks.
 
 .. option:: EmptyPrivate
+
+     .. versionadded:: 2.5.4
 
      Empty ``private`` blocks.
 
 .. option:: EmptyRewritePragma
 
+     .. versionadded:: 2.5.2
+
      Empty ``REWRITE`` pragmas.
 
 .. option:: EmptyWhere
+
+     .. versionadded:: 2.6.2
 
      Empty ``where`` blocks.
 
 .. option:: FaceConstraintCannotBeHidden
 
+     .. versionadded:: 2.6.4
+
      Face constraint patterns that are given as implicit arguments.
 
 .. option:: FaceConstraintCannotBeNamed
+
+     .. versionadded:: 2.6.4
 
      Face constraint patterns that are given as named arguments.
 
 .. option:: FixingCohesion
 
+     .. versionadded:: 2.8.0
+
      Invalid cohesion annotations, automatically corrected.
 
 .. option:: FixingPolarity
+
+     .. versionadded:: 2.8.0
 
      Invalid polarity annotations, automatically corrected.
 
 .. option:: FixingRelevance
 
+     .. versionadded:: 2.8.0
+
      Invalid relevance annotations, automatically corrected.
 
 .. option:: FixityInRenamingModule
+
+     .. versionadded:: 2.6.1
 
      Fixity annotations in ``renaming`` directives for a ``module``.
 
 .. option:: HiddenGeneralize
 
+     .. versionadded:: 2.6.3
+
      Hidden identifiers in ``variable`` blocks.
 
 .. option:: IllegalDeclarationInDataDefinition
+
+     .. versionadded:: 2.6.4
 
      Declarations inside of a ``data`` definition that are not constructor type signatures.
 
 .. option:: IllformedAsClause
 
+     .. versionadded:: 2.6.0
+
      Illformed ``as``-clauses in ``import`` statements.
 
 .. option:: InlineNoExactSplit
 
+     .. versionadded:: 2.6.4
+
      Failed exact splits after inlining a constructor, see :ref:`inline-pragma`.
 
 .. option:: InstanceNoOutputTypeName
+
+     .. versionadded:: 2.6.0
 
      Instance arguments whose type does not end in a named or variable type;
      such are never considered by instance search.
 
 .. option:: InstanceArgWithExplicitArg
 
+     .. versionadded:: 2.6.0
+
      Instance arguments with explicit arguments;
      such are never considered by instance search.
 
 .. option:: InstanceWithExplicitArg
+
+     .. versionadded:: 2.6.0
 
      Instance declarations with explicit arguments;
      such are never considered by instance search.
 
 .. option:: InteractionMetaBoundaries
 
+     .. versionadded:: 2.6.4
+
      Interaction meta variables that have unsolved boundary constraints.
 
 .. option:: InvalidCatchallPragma
+
+     .. versionadded:: 2.5.4
 
      :ref:`CATCHALL<catchall-pragma>` pragmas before a non-function clause.
 
 .. option:: InvalidCharacterLiteral
 
+     .. versionadded:: 2.6.4
+
      Illegal character literals such as surrogate code points.
 
 .. option:: InvalidConstructorBlock
+
+     .. versionadded:: 2.6.2
 
      ``constructor`` blocks outside of ``interleaved mutual`` blocks.
 
 .. option:: InvalidCoverageCheckPragma
 
+     .. versionadded:: 2.6.1
+
      :ref:`NON_COVERING <non_covering-pragma>` pragmas before non-function or ``mutual`` blocks.
 
 .. option:: InvalidDataOrRecDefParameter
+
+     .. versionadded:: 2.9.0
 
      A ``data/record D parameters where`` definition where the parameters do not match up
      with the previously given signature or contain more than just names with hiding information.
 
 .. option:: InvalidNoPositivityCheckPragma
 
+     .. versionadded:: 2.5.4
+
      :ref:`NO_POSITIVITY_CHECK <no_positivity_check-pragma>` pragmas before something
      that is neither a ``data`` nor ``record`` declaration nor a ``mutual`` block.
 
 .. option:: InvalidNoUniverseCheckPragma
 
+     .. versionadded:: 2.6.0
+
      :ref:`NO_UNIVERSE_CHECK <no_universe_check-pragma>` pragmas before declarations other than ``data`` or ``record`` declarations.
 
 .. option:: InvalidTacticAttribute
+
+     .. versionadded:: 2.9.0
 
      :ref:`@(tactic ...) <tactic_arguments>` attributes where they are not supported.
 
 .. option:: InvalidTerminationCheckPragma
 
+     .. versionadded:: 2.5.4
+
      :ref:`Termination checking pragmas <terminating-pragma>` before non-function or ``mutual`` blocks.
 
 .. option:: InversionDepthReached
+
+     .. versionadded:: 2.5.4
 
      Inversions of pattern-matching failed due to exhausted inversion depth.
 
 .. option:: LibUnknownField
 
+     .. versionadded:: 2.6.0
+
      Unknown fields in library files.
 
 .. option:: LocalRewritingConfluenceCheck
+
+     .. versionadded:: 2.9.0
 
      Confluence checking (:option:`--confluence-check` or :option:`--local-confluence-check`) is not yet implemented for local rewrite rules (:option:`--local-rewriting`).
 
 .. option:: MisplacedAttributes
 
+     .. versionadded:: 2.8.0
+
      Attributes where they cannot appear.
 
 .. option:: MisplacedRewrite
+
+     .. versionadded:: 2.9.0
 
      Invalid local rewrite annotations, automatically ignored.
 
 .. option:: MissingTypeSignatureForOpaque
 
+     .. versionadded:: 2.7.0
+
      ``abstract`` or ``opaque`` definitions that lack a type signature.
 
 .. option:: ModuleDoesntExport
+
+     .. versionadded:: 2.6.0
 
      Names mentioned in an import statement which are not exported by
      the module in question.
 
 .. option:: MultipleAttributes
 
+     .. versionadded:: 2.6.2
+
      Multiple attributes given where only erasure is accepted.
 
 .. option:: NoMain
+
+     .. versionadded:: 2.7.0
 
      Invoking the compiler on a module without a ``main`` function.
      See also :option:`--no-main`.
 
 .. option:: NotAffectedByOpaque
 
+     .. versionadded:: 2.6.4
+
      Declarations that should not be inside ``opaque`` blocks.
 
 .. option:: NotARewriteRule
+
+     .. versionadded:: 2.8.0
 
      ``REWRITE`` pragmas referring to identifiers that are neither definitions nor constructors.
 
 .. option:: NotInScope
 
+     .. versionadded:: 2.6.1
+
      Out of scope names.
 
 .. option:: OldBuiltin
+
+     .. versionadded:: 2.5.2
 
      Deprecated :ref:`BUILTIN<built-ins>` pragmas.
 
 .. option:: OpenImportAbstract
 
+     .. versionadded:: 2.8.0
+
      ``open`` or ``import`` statements in ``abstract`` blocks.
 
 .. option:: OpenImportPrivate
+
+     .. versionadded:: 2.8.0
 
      ``open`` or ``import`` statements in ``private`` blocks.
 
 .. option:: OptionRenamed
 
+     .. versionadded:: 2.6.3
+
      Renamed options.
 
 .. option:: PatternShadowsConstructor
+
+     .. versionadded:: 2.6.4
 
      Pattern variables that shadow constructors.
 
 .. option:: PlentyInHardCompileTimeMode
 
+     .. versionadded:: 2.6.4
+
      Use of attributes ``@ω`` or ``@plenty`` in hard compile-time mode.
 
 .. option:: PolarityPragmasButNotPostulates
+
+     .. versionadded:: 2.5.4
 
      Polarity pragmas for non-postulates.
 
 .. option:: PragmaCompileErased
 
+     .. versionadded:: 2.6.1
+
      :ref:`COMPILE<foreign-function-interface>` pragma targeting an erased symbol.
 
 .. option:: PragmaCompileList
+
+     .. versionadded:: 2.7.0
 
      :ref:`COMPILE<foreign-function-interface>` pragma for GHC backend targeting lists.
 
 .. option:: PragmaCompileMaybe
 
+     .. versionadded:: 2.7.0
+
      :ref:`COMPILE<foreign-function-interface>` pragma for GHC backend targeting ``MAYBE``.
 
 .. option:: PragmaCompileUnparsable
+
+     .. versionadded:: 2.8.0
 
      Unparsable :ref:`COMPILE<foreign-function-interface>` GHC pragmas.
 
 .. option:: PragmaCompileWrong
 
+     .. versionadded:: 2.8.0
+
      Ill-formed :ref:`COMPILE<foreign-function-interface>` GHC pragmas.
 
 .. option:: PragmaCompileWrongName
+
+     .. versionadded:: 2.8.0
 
      :ref:`COMPILE<foreign-function-interface>` pragmas referring to identifiers that are neither definitions nor constructors.
 
 .. option:: PragmaExpectsDefinedSymbol
 
+     .. versionadded:: 2.8.0
+
      Pragmas referring to identifiers that are not defined symbols.
 
 .. option:: PragmaExpectsUnambiguousConstructorOrFunction
+
+     .. versionadded:: 2.8.0
 
      Pragmas referring to identifiers that are not unambiguous constructors or functions.
 
 .. option:: PragmaExpectsUnambiguousProjectionOrFunction
 
+     .. versionadded:: 2.8.0
+
      Pragmas referring to identifiers that are not unambiguous projections or functions.
 
 .. option:: PragmaNoTerminationCheck
+
+     .. versionadded:: 2.6.0
 
      :ref:`NO_TERMINATION_CHECK<terminating-pragma>` pragmas; such are deprecated.
 
 .. option:: InvalidDisplayForm
 
+     .. versionadded:: 2.8.0
+
      An illegal :ref:`DISPLAY <display-pragma>` form; it will be ignored.
 
 .. option:: RewriteLHSNotDefinitionOrConstructor
+
+     .. versionadded:: 2.7.0
 
      Rewrite rule head symbol is not a defined symbol or constructor.
 
 .. option:: RewriteVariablesNotBoundByLHS
 
+     .. versionadded:: 2.7.0
+
      Rewrite rule does not bind all of its variables.
 
 .. option:: RewriteVariablesBoundMoreThanOnce
+
+     .. versionadded:: 2.7.0
 
      Constructor-headed rewrite rule has non-linear parameters.
 
 .. option:: RewriteVariablesBoundInSingleton
 
+     .. versionadded:: 2.9.0
+
      Rewrite rule binds some variables in possibly definitionally singular contexts.
 
 .. option:: RewriteLHSReduces
+
+     .. versionadded:: 2.7.0
 
      Rewrite rule LHS is not in weak-head normal form.
 
 .. option:: RewriteHeadSymbolIsProjectionLikeFunction
 
+     .. versionadded:: 2.7.0
+
      Rewrite rule head symbol is a projection-like function.
 
 .. option:: RewriteHeadSymbolIsTypeConstructor
+
+     .. versionadded:: 2.7.0
 
      Rewrite rule head symbol is a type constructor.
 
 .. option:: RewriteHeadSymbolContainsMetas
 
+     .. versionadded:: 2.7.0
+
      Definition of rewrite rule head symbol contains unsolved metas.
 
 .. option:: RewriteConstructorParametersNotGeneral
+
+     .. versionadded:: 2.7.0
 
      Constructor-headed rewrite rule parameters are not fully general.
 
 .. option:: RewriteContainsUnsolvedMetaVariables
 
+     .. versionadded:: 2.7.0
+
      Rewrite rule contains unsolved metas.
 
 .. option:: RewriteBlockedOnProblems
+
+     .. versionadded:: 2.7.0
 
      Checking rewrite rule blocked by unsolved constraint.
 
 .. option:: RewriteRequiresDefinitions
 
+     .. versionadded:: 2.7.0
+
      Checking rewrite rule blocked by missing definition.
 
 .. option:: RewriteDoesNotTargetRewriteRelation
+
+     .. versionadded:: 2.7.0
 
      Rewrite rule does not target the rewrite relation.
 
 .. option:: RewriteBeforeFunctionDefinition
 
+     .. versionadded:: 2.7.0
+
      Rewrite rule is not yet defined.
 
 .. option:: RewriteBeforeMutualFunctionDefinition
+
+     .. versionadded:: 2.7.0
 
      Mutually declaration with the rewrite rule is not yet defined.
 
 .. option:: RewritesNothing
 
+     .. versionadded:: 2.8.0
+
      ``rewrite`` clauses that do not fire.
 
 .. option:: ShadowingInTelescope
+
+     .. versionadded:: 2.6.1
 
      Repeated variable name in telescope.
 
@@ -1783,50 +1985,74 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: TooManyArgumentsToSort
 
+     .. versionadded:: 2.8.0
+
      E.g. ``Set`` used with more than one argument.
 
 .. option:: TooManyFields
+
+     .. versionadded:: 2.6.4
 
      Record expression with invalid field names.
 
 .. option:: TooManyPolarities
 
+     .. versionadded:: 2.8.0
+
      :ref:`POLARITY pragma <polarity-pragma>` with too many polarities given.
 
 .. option:: UnfoldingWrongName
+
+     .. versionadded:: 2.8.0
 
      Names in an ``unfolding`` clause that are not unambiguous definitions.
 
 .. option:: UnfoldTransparentName
 
+     .. versionadded:: 2.6.4
+
      Non-``opaque`` names mentioned in an ``unfolding`` clause.
 
 .. option:: UnknownAttribute
+
+     .. versionadded:: 2.8.0
 
      Unknown attributes.
 
 .. option:: UnknownFixityInMixfixDecl
 
+     .. versionadded:: 2.5.4
+
      Mixfix names without an associated fixity declaration.
 
 .. option:: UnknownJSPrimitive
+
+     .. versionadded:: 2.9.0
 
      A primitive compiled to ``Undefined`` by the JS backend because it
      is not in the list of known primitives.
 
 .. option:: UnknownPolarity
 
+     .. versionadded:: 2.8.0
+
      Unknown polarities.
 
 .. option:: UnreachableClauses
+
+     .. versionadded:: 2.5.3
 
      Unreachable function clauses.
 
 .. option:: UnsupportedAttribute
 
+     .. versionadded:: 2.6.2
+
      Unsupported attributes.
 
 .. option:: UnsupportedIndexedMatch
+
+     .. versionadded:: 2.6.3
 
      Failures to compute full equivalence when splitting on indexed family.
 
@@ -1853,78 +2079,116 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: UnusedVariablesInDisplayForm
 
+     .. versionadded:: 2.8.0
+
      :ref:`DISPLAY <display-pragma>` forms that bind variables they do not use.
 
 .. option:: UselessAbstract
+
+     .. versionadded:: 2.5.4
 
      ``abstract`` blocks where they have no effect.
 
 .. option:: UselessHiding
 
+     .. versionadded:: 2.6.2
+
      Names in ``hiding`` directive that are anyway not imported.
 
 .. option:: UselessInline
+
+     .. versionadded:: 2.5.3
 
      :ref:`INLINE<inline-pragma>` pragmas where they have no effect.
 
 .. option:: UselessImport
 
+     .. versionadded:: 2.9.0
+
      ``import`` statements that do not bring anything into scope.
 
 .. option:: UselessInstance
+
+     .. versionadded:: 2.5.4
 
      ``instance`` blocks where they have no effect.
 
 .. option:: UselessMacro
 
+     .. versionadded:: 2.7.0
+
      ``macro`` blocks where they have no effect.
 
 .. option:: UselessOpaque
+
+     .. versionadded:: 2.6.4
 
      ``opaque`` blocks that have no effect.
 
 .. option:: UselessPatternDeclarationForRecord
 
+     .. versionadded:: 2.6.2
+
      ``pattern`` directives where they have no effect.
 
 .. option:: UselessPragma
+
+     .. versionadded:: 2.6.4
 
      Pragmas that get ignored.
 
 .. option:: UselessPrivate
 
+     .. versionadded:: 2.5.4
+
      ``private`` blocks where they have no effect.
 
 .. option:: UselessPublic
+
+     .. versionadded:: 2.5.3
 
      ``public`` directives where they have no effect.
 
 .. option:: UselessTactic
 
+     .. versionadded:: 2.8.0
+
      ``@tactic`` attributes in non-hidden and instance arguments.
 
 .. option:: UserWarning
 
+     .. versionadded:: 2.5.4
+
      User-defined warnings added using one of the ``WARNING_ON_*`` pragmas.
 
 .. option:: WarningProblem
+
+     .. versionadded:: 2.7.0
 
      Problem encountered with option :option:`-W`,
      like an unknown warning or the attempt to switch off a non-benign warning.
 
 .. option:: WithClauseProjectionFixityMismatch
 
+     .. versionadded:: 2.8.0
+
      Projection fixity different in with-clause compared to its parent clause.
 
 .. option:: WithoutKFlagPrimEraseEquality
+
+     .. versionadded:: 2.6.0
 
      ``primEraseEquality`` used with the without-K flags.
 
 .. option:: WrongInstanceDeclaration
 
+     .. versionadded:: 2.6.0
+
      Terms marked as eligible for instance search whose type does not end with a name.
 
 .. option:: CustomBackendWarning
+
+     .. versionadded:: 2.7.0
 
      Warnings from custom backends.
 
@@ -1934,173 +2198,255 @@ Error warnings
 Some warnings are fatal; those are errors Agda first ignores but eventually raises.
 Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
+.. option:: AbstractInLetBindings
+
+     .. versionadded:: 2.8.0
+
+     Let bindings can not be made abstract.
+
 .. option:: CoinductiveEtaRecord
+
+     .. versionadded:: 2.7.0
 
      Declaring a ``record`` type as both ``coinductive`` and having ``eta-equality``.
 
 .. option:: CoInfectiveImport
 
+     .. versionadded:: 2.6.0
+
      Importing a file not using e.g. :option:`--safe` from one which does.
 
 .. option:: ConstructorDoesNotFitInData
+
+     .. versionadded:: 2.7.0
 
      Constructor with arguments in a universe higher than the one of its data type.
 
 .. option:: CoverageIssue
 
+     .. versionadded:: 2.5.3
+
      Failed coverage checks.
 
+.. option:: HiddenNotInArgumentPosition
+
+     .. versionadded:: 2.8.0
+
+     Hidden arguments ``{ x }`` can only appear as arguments to
+     functions, not as expressions by themselves.
+
 .. option:: InfectiveImport
+
+     .. versionadded:: 2.6.0
 
      Importing a file using e.g. :option:`--cubical` into one which does not.
 
 .. option:: InferredLocalRewrite
 
+     .. versionadded:: 2.9.0
+
      Tried to solve a meta with an '@rewrite' function.
+
+.. option:: InstanceNotInArgumentPosition
+
+     .. versionadded:: 2.8.0
+
+     Instance arguments ``⦃ x ⦄`` can only appear as arguments to
+     functions, not as expressions by themselves.
 
 .. option:: LocalRewriteOutsideTelescope
 
+     .. versionadded:: 2.9.0
+
      '@rewrite' arguments are (currently) only allowed in module telescopes.
 
+.. option:: MacroInLetBindings
+
+     .. versionadded:: 2.8.0
+
+     Macros can not be let-bound.
+
+.. option:: MismatchedBrackets
+
+     .. versionadded:: 2.9.0
+
+     An idiom bracket opened with unicode (resp. ASCII) syntax must also
+     be closed with unicode (resp. ASCII) syntax.
+
 .. option:: MissingDataDeclaration
+
+     .. versionadded:: 2.8.0
 
      Constructor definitions not associated to a data declaration.
 
 .. option:: MissingDefinitions
 
+     .. versionadded:: 2.6.0
+
      Names declared without an accompanying definition.
 
 .. option:: NotAllowedInMutual
+
+     .. versionadded:: 2.6.0
 
      Declarations that are not allowed in a mutual block.
 
 .. option:: NotStrictlyPositive
 
+     .. versionadded:: 2.5.2
+
      Failed strict positivity checks.
 
 .. option:: OverlappingTokensWarning
+
+     .. versionadded:: 2.5.4
 
      Multi-line comments spanning one or more literate text blocks.
 
 .. option:: PragmaCompiled
 
+     .. versionadded:: 2.6.0
+
      :ref:`COMPILE<foreign-function-interface>` pragmas not allowed in safe mode.
 
 .. option:: RecursiveRecordNeedsInductivity
+
+     .. versionadded:: 2.7.0
 
      Recursive records that are neither declared ``inductive`` nor ``coinductive``.
 
 .. option:: RewriteAmbiguousRules
 
+     .. versionadded:: 2.6.2
+
      Failed global confluence checks because of overlapping rules.
 
 .. option:: RewriteMaybeNonConfluent
+
+     .. versionadded:: 2.6.1
 
      Failed confluence checks while computing overlap.
 
 .. option:: RewriteMissingRule
 
+     .. versionadded:: 2.6.2
+
      Failed global confluence checks because of missing rules.
 
 .. option:: RewriteNonConfluent
+
+     .. versionadded:: 2.6.1
 
      Failed confluence checks while joining critical pairs.
 
 .. option:: SafeFlagEta
 
+     .. versionadded:: 2.6.1
+
      :ref:`ETA <eta-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagInjective
+
+     .. versionadded:: 2.6.1
 
      :ref:`INJECTIVE <injective-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagNoCoverageCheck
 
+     .. versionadded:: 2.6.1
+
      :ref:`NON_COVERING <non_covering-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagNonTerminating
+
+     .. versionadded:: 2.5.3
 
      :ref:`NON_TERMINATING <non_terminating-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagNoPositivityCheck
 
+     .. versionadded:: 2.5.3
+
      :ref:`NO_POSITIVITY_CHECK <no_positivity_check-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagNoUniverseCheck
+
+     .. versionadded:: 2.6.0
 
      :ref:`NO_UNIVERSE_CHECK <no_universe_check-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagPolarity
 
+     .. versionadded:: 2.5.3
+
      :ref:`POLARITY <polarity-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagPostulate
+
+     .. versionadded:: 2.5.3
 
      ``postulate`` blocks with the :option:`--safe` flag.
 
 .. option:: SafeFlagPragma
 
+     .. versionadded:: 2.5.3
+
      Unsafe :ref:`OPTIONS <options-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagTerminating
+
+     .. versionadded:: 2.5.3
 
      :ref:`TERMINATING <terminating-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagWithoutKFlagPrimEraseEquality
 
+     .. versionadded:: 2.6.0
+
      ``primEraseEquality`` used with the :option:`--safe` and :option:`--without-K` flags.
 
 .. option:: TerminationIssue
+
+     .. versionadded:: 2.5.2
 
      Failed termination checks.
 
 .. option:: TopLevelPolarity
 
+     .. versionadded:: 2.8.0
+
      Declaring definitions with an explicit polarity annotation.
 
 .. option:: UnknownNamesInFixityDecl
+
+     .. versionadded:: 2.5.4
 
      Names not declared in the same scope as their syntax or fixity
      declaration.
 
 .. option:: UnknownNamesInPolarityPragmas
 
+     .. versionadded:: 2.5.4
+
      Names not declared in the same scope as their polarity pragmas.
 
 .. option:: UnsolvedConstraints
+
+     .. versionadded:: 2.5.2
 
      Unsolved constraints.
 
 .. option:: UnsolvedInteractionMetas
 
+     .. versionadded:: 2.5.2
+
      Unsolved interaction meta variables.
 
 .. option:: UnsolvedMetaVariables
 
+     .. versionadded:: 2.5.2
+
      Unsolved meta variables.
-
-.. option:: HiddenNotInArgumentPosition
-
-     Hidden arguments ``{ x }`` can only appear as arguments to
-     functions, not as expressions by themselves.
-
-.. option:: InstanceNotInArgumentPosition
-
-     Instance arguments ``⦃ x ⦄`` can only appear as arguments to
-     functions, not as expressions by themselves.
-
-.. option:: MacroInLetBindings
-
-     Macros can not be let-bound.
-
-.. option:: AbstractInLetBindings
-
-     Let bindings can not be made abstract.
-
-.. option:: MismatchedBrackets
-
-     An idiom bracket opened with unicode (resp. ASCII) syntax must also
-     be closed with unicode (resp. ASCII) syntax.
 
 
 Command-line examples
