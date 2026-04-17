@@ -8,13 +8,72 @@
 {-# OPTIONS_GHC -fworker-wrapper-cbv #-}
 #endif
 
+{- |
+Computing the occurrence graph for a mutual block. This is used to compute polarities of arguments
+and to check positivity.
+
+- We do a traversal over internal syntax.
+- The occurrence graph is 'NodeMap (NodeMap Edge)', where 'NodeMap' is a mutable hashtable keyed by
+  graph nodes. The outer keys are sources and the inner keys are targets. We insert edges into the
+  graph during the traversal.
+- An edge from source to target means that source occurs in target.
+- A graph node is either 'DefNode QName', which is a definition site of a mutual name, or 'ArgNode
+  QName Int', which is an argument of a mutual name, indexed left-right starting from 0.
+- An edge contains an 'Occurrence', the 'Range' of the actual occurrence in the internal syntax and
+  an 'OccursPath' that can be used to produce a textual warning message.
+
+The occurrence graph is imprecise in several ways.
+
+- We only normalize types of data constructors and don't compute anything else.
+- We have at most a single edge between two nodes. We aggregate multiple actual occurrences into a
+  single edge, using 'mergeEdges'.
+
+Lastly, applications of mutual names to arguments is handled in a rather imprecise way.  See Issue
+1984 for illustration:
+
+@
+mutual
+  record Fun (A : Set) (B : A → Set) : Set where
+    field fun : (x : A) → B x
+
+  data U : Set where
+    Π : (A : U) (B : El A → U) → U
+
+  El : U → Set
+  El (Π A B) = Fun (El A) (λ x → El (B x))
+@
+
+In this case:
+
+- @Fun@ occurs in @El@.
+- @El A@ occurs in the first argument of @Fun@.
+- The first argument of @Fun@ occurs in @Fun@.
+
+In short, when we apply a mutual name to an argument, we view that as if the argument was
+__substituted__ inside the body of the mutual name definition.
+
+Hence, @Fun@ "occurs" in @Fun@, and it does so negatively. This is kinda bogus, because @Fun@ could
+be moved outside of the mutual block.
+
+A potential fix of this issue would be to first split the mutual block into strongly connected
+components based on only "raw" QName occurrences, and afterwards do the current occurrence analysis
+for each sub-block.
+
+__Immutable representation__
+
+Instead of using the mutable hashtable, we use immutable "generic" graphs from
+'Agda.Utils.Graph.AdjacencyMap.Unidirectional' for printing warnings and debug messages, and also to
+define tests in internal property tests. One reason is convenience. Another reason is that the
+previous (less optimized) implementation before PR 8411 used the generic graphs, and we just reuse
+the old implementation for printing. See 'toGenericGraph' and 'fromGenericGraph'.
+-}
+
 module Agda.TypeChecking.Positivity.OccurrenceAnalysis (
     Node
   , pattern DefNode
   , pattern ArgNode
   , Edge(..)
   , type OccGraph
-  , type InvMutuals
   , buildOccurrenceGraph
   , stronglyConnComp
   , transitiveOccurrence
@@ -22,7 +81,6 @@ module Agda.TypeChecking.Positivity.OccurrenceAnalysis (
   , lookupNode
   , toGenericGraph
   , fromGenericGraph
-  , mutualIxToName
   ) where
 
 import Prelude hiding ( null, (!!) )
@@ -73,57 +131,30 @@ import Agda.Utils.MinimalArray.MutableLifted qualified as MArr
 import Agda.Utils.MinimalArray.Lifted qualified as Arr
 
 
--- Graph nodes
-----------------------------------------------------------------------------------------------------
-
--- Bit-packed representation of
--- data Node = DefNode Word32 | ArgNode Word32 Word31
-
-newtype Node = Node Word64 deriving (Eq, Ord)
-
-instance Hashable Node where
-  hashWithSalt h (Node w) = fromIntegral (fromIntegral h `combineWord` fromIntegral w)
-
-unpackNode# :: Word64 -> Either Int (Int, Int)
-unpackNode# x
-  | x .&. 1 == 0 = Left (fromIntegral (unsafeShiftR x 32))
-  | otherwise    = Right (fromIntegral (unsafeShiftR x 32), fromIntegral (unsafeShiftR x 1 .&. 0xFFFFFFFF))
-
-pattern DefNode :: Int -> Node
-pattern DefNode x <- Node (unpackNode# -> Left x) where
-  DefNode x = Node (fromIntegral (unsafeShiftL x 32))
-{-# INLINE DefNode #-}
-
-pattern ArgNode :: Int -> Int -> Node
-pattern ArgNode x y <- Node (unpackNode# -> Right (x, y)) where
-  ArgNode x y = Node (fromIntegral (unsafeShiftL x 32 .|. (unsafeShiftL y 1 + 1)))
-{-# INLINE ArgNode #-}
-{-# COMPLETE DefNode, ArgNode #-}
-
-instance Show Node where
-  showsPrec p (DefNode x)   =
-    showParen (p > 10) (("DefNode " ++) . showsPrec (p + 1) x)
-  showsPrec p (ArgNode x y) =
-    showParen (p > 10) (("ArgNode " ++) . showsPrec (p + 1) x . (' ':) . showsPrec (p + 1) y)
-
-instance P.Pretty Node where
-  pretty = \case
-    DefNode q   -> P.pretty q
-    ArgNode q i -> P.pretty q <> P.text ("." ++ show i)
-
 -- Maps keyed by Node
 ----------------------------------------------------------------------------------------------------
 
-type NodeMap v = HT.HashTableUL Word64 v
+type NodeMap v = HT.HashTableLL Node v
 
--- Getting the "found" and "not found" branches as arguments
+-- | Getting the "found" and "not found" branches as arguments. We
+--   do this to fuse away the 'Maybe' in the lookup result.
 {-# INLINE lookupNode #-}
 lookupNode :: Node -> NodeMap v -> (v -> IO a) -> IO a -> IO a
-lookupNode (Node n) map found notfound = HT.lookupCPS n map found notfound
+lookupNode node map found notfound = HT.lookupCPS node map found notfound
+
+{-# NOINLINE isMutual #-}
+isMutual :: QName -> OccM Bool
+isMutual q = do
+  mutuals <- asks mutuals
+  lift $ lift $ HT.hasKey mutuals q
+
+{-# NOINLINE insertMutual #-}
+insertMutual :: Mutuals -> QName -> IO ()
+insertMutual muts q = HT.insert muts q ()
 
 {-# NOINLINE insertNode #-}
 insertNode :: Node -> v -> NodeMap v -> IO ()
-insertNode (Node n) v map = HT.insert map n v
+insertNode n v map = HT.insert map n v
 
 {-# NOINLINE nodeMapToList #-}
 nodeMapToList :: NodeMap v -> IO [(Node, v)]
@@ -132,34 +163,6 @@ nodeMapToList map = coerce (HT.toList map)
 {-# NOINLINE cloneNodeMap #-}
 cloneNodeMap :: NodeMap v -> IO (NodeMap v)
 cloneNodeMap = HT.clone
-
--- Labeling mutual QName-s with consecutive Int-s
-----------------------------------------------------------------------------------------------------
-
-type Mutuals    = HT.HashTableLU QName Int
-type InvMutuals = Arr.Array QName
-
--- Getting the "found" and "not found" branches as arguments
-{-# INLINE lookupMutual #-}
-lookupMutual :: QName -> (Int -> OccM a) -> OccM a -> OccM a
-lookupMutual q found notfound = ReaderT \oenv -> TCM \tcs tce ->
-  HT.lookupCPS q (mutuals oenv)
-    (\i -> unTCM (runReaderT (found i) oenv) tcs tce)
-    (unTCM (runReaderT notfound oenv) tcs tce)
-
-{-# NOINLINE insertMutual #-}
-insertMutual :: QName -> Int -> Mutuals -> IO ()
-insertMutual q i muts = HT.insert muts q i
-
-invertMutuals :: Mutuals -> IO InvMutuals
-invertMutuals muts = do
-  size <- HT.size muts
-  arr <- MArr.new size undefined
-  HT.forAssocs muts \q i -> MArr.write arr i q
-  MArr.unsafeFreeze arr
-
-mutualIxToName :: InvMutuals -> Int -> QName
-mutualIxToName = Arr.index
 
 -- Occurrence graph
 ----------------------------------------------------------------------------------------------------
@@ -191,8 +194,8 @@ adjacencyList graph = do
 addTargetNodesAsSource :: OccGraph -> IO OccGraph
 addTargetNodesAsSource graph = do
   graph' <- cloneNodeMap graph
-  HT.forAssocs graph \(Node -> src) tgts ->
-    HT.forAssocs tgts \(Node -> tgt) _ -> lookupNode tgt graph
+  HT.forAssocs graph \src tgts ->
+    HT.forAssocs tgts \tgt _ -> lookupNode tgt graph
       (\_ -> pure ())
       (do
         edges <- HT.empty
@@ -205,20 +208,15 @@ stronglyConnComp :: OccGraph -> IO [Data.Graph.SCC Node]
 stronglyConnComp graph = do
   graph  <- addTargetNodesAsSource graph
   assocs <- nodeMapToList graph
-  assocs <- forM assocs \(src, tgts) -> (src,src,) . map fst <$!> nodeMapToList tgts
+  assocs <- forM assocs \(src, tgts) -> (src,src,) . map' fst <$!> nodeMapToList tgts
   pure $! Data.Graph.stronglyConnComp assocs
 
 {-# NOINLINE toGenericGraph #-}
 -- | Convert to generic Utils graph, for the purpose of testing and warning rendering.
-toGenericGraph :: (OccGraph, InvMutuals) -> Graph.Graph W.Node (Edge W.OccursWhere)
-toGenericGraph (!graph, !muts) = unsafeDupablePerformIO do
+toGenericGraph :: OccGraph -> Graph.Graph Node (Edge W.OccursWhere)
+toGenericGraph graph = unsafeDupablePerformIO do
 
-  let convNode :: Node -> W.Node
-      convNode = \case
-        DefNode i   -> W.DefNode (mutualIxToName muts i)
-        ArgNode i j -> W.ArgNode (mutualIxToName muts i) j
-
-      convEdge :: Edge OccursWhere -> Edge W.OccursWhere
+  let convEdge :: Edge OccursWhere -> Edge W.OccursWhere
       convEdge (Edge occ (OccursWhere rng path)) = Edge occ (convPath rng path)
 
       convPath :: Range -> OccursPath -> W.OccursWhere
@@ -227,7 +225,7 @@ toGenericGraph (!graph, !muts) = unsafeDupablePerformIO do
         go' :: OccursPath -> Seq W.Where
         go' = \case
           Root            -> mempty
-          MutDefArg p x i -> go' p :|> W.DefArg (mutualIxToName muts x) i
+          MutDefArg p x i -> go' p :|> W.DefArg x i
           LeftOfArrow p   -> go' p :|> W.LeftOfArrow
           DefArg p x i    -> go' p :|> W.DefArg x i
           UnderInf p      -> go' p :|> W.UnderInf
@@ -245,7 +243,7 @@ toGenericGraph (!graph, !muts) = unsafeDupablePerformIO do
         go = \case
           Root            -> (mempty, mempty)
           MutDefArg p x i -> let s1 = go' p
-                                 s2 = DS.singleton (W.DefArg (mutualIxToName muts x) i)
+                                 s2 = DS.singleton (W.DefArg x i)
                              in (s1, s2)
           LeftOfArrow p   -> (:|> W.LeftOfArrow)   <$!> go p
           DefArg p x i    -> (:|> W.DefArg x i)    <$!> go p
@@ -262,10 +260,10 @@ toGenericGraph (!graph, !muts) = unsafeDupablePerformIO do
 
         in case go path of (s1, s2) -> W.OccursWhere rng s1 s2
 
-  let go :: Map W.Node (Map W.Node (Edge W.OccursWhere))
+  let go :: Map Node (Map Node (Edge W.OccursWhere))
          -> (Node, Node, Edge OccursWhere)
-         -> Map W.Node (Map W.Node (Edge W.OccursWhere))
-      go m (convNode -> src, convNode -> tgt, convEdge -> e) =
+         -> Map Node (Map Node (Edge W.OccursWhere))
+      go m (src, tgt, convEdge -> e) =
           Map.insertWith (\_ -> Map.insert tgt e) src (Map.singleton tgt e) $
           Map.insertWith (\_ tgts -> tgts) tgt mempty $
           m
@@ -290,21 +288,23 @@ fromGenericGraph (Graph.Graph graph) = unsafeDupablePerformIO do
 ----------------------------------------------------------------------------------------------------
 
 {-
-Occurrence analysis is a single traversal over definitions which builds a mutable graph in IO.
-We keep track of the "path" during traversal that leads from the current position to a top
-definition. If positivity checking produces warnings, the paths get processed into those warnings.
+Occurrence analysis is a single traversal over definitions which builds a mutable graph in IO.  We
+keep track of the "path" during traversal that leads from the current position to a top definition.
 -}
 
 -- | Top-level arg index that a local variable was bound in, arg polarity of the var itself.
 data DefArgInEnv = DefArgInEnv Int [Occurrence]
   deriving Show
 
+-- | Set of mutual definition names in the block.
+type Mutuals = HT.HashTableLU QName ()
+
 data OccEnv = OccEnv {
-    topDef     :: Int           -- ^ The definition we're working under (as n-th definition in the mutual block)
+    topDef     :: QName         -- ^ The definition we're working under (as n-th definition in the mutual block)
   , topDefArgs :: [DefArgInEnv] -- ^ Occurrence info for definition args.
   , inf        :: Maybe QName   -- ^ Name for ∞ builtin.
   , locals     :: Int           -- ^ Number of local binders (on the top of the definition args).
-  , mutuals    :: Mutuals       -- ^ Int labeling of definition names in the current mutual group.
+  , mutuals    :: Mutuals       -- ^ Set of mutual QName-s in the block.
   , target     :: Node          -- ^ We add occurrences pointing to this node.
   , path       :: OccursPath    -- ^ Path from the target node to the current position.
   , occ        :: Occurrence    -- ^ Occurence of current position.
@@ -381,12 +381,13 @@ occurrencesInDefArgArg p i e = expand \ret -> case p of
   p      -> ret $ underPathOcc (\x -> VarArg x i p) p $ occurrences e
 
 -- | Recurse into an argument of a mutual definition.
-occurrencesInMutDefArg :: Int -> Occurrence -> Int -> Elim -> OccM ()
-occurrencesInMutDefArg di p i e = expand \ret -> case p of
+occurrencesInMutDefArg :: QName -> Occurrence -> Int -> Elim -> OccM ()
+occurrencesInMutDefArg d p i e = expand \ret -> case p of
   Unused -> ret $ pure ()
-  p      -> ret $ local (\e -> e {path = MutDefArg (path e) di i, target = ArgNode di i, occ = p}) $
+  p      -> ret $ local (\e -> e {path = MutDefArg (path e) d i, target = ArgNode d i, occ = p}) $
                     occurrences e
 
+-- | The initial 'Occurrence' when processing a definition.
 mutualDefOcc :: Definition -> Occurrence
 mutualDefOcc d = case theDef d of
   Datatype{} -> GuardPos
@@ -428,62 +429,63 @@ instance ComputeOccurrences Term where
 
     Def d es -> ret $ asks inf >>= \case
 
-      -- ∞ application
+      -- check for ∞ application
       Just inf | d == inf -> case es of
         []     -> pure ()
         [_]    -> pure () -- unused arg
         [_, e] -> underPathOcc UnderInf GuardPos $ occurrences e
         _      -> __IMPOSSIBLE__
 
-      _ -> lookupMutual d
+      _ -> do
+        isMut <- isMutual d
+        expand \ret -> case isMut of
 
-        -- it's a mutual definition
-        (\di -> do
-          addEdge (getRange d) (DefNode di)
-          expand \ret -> case es of
-            [] -> ret $ pure ()  -- we skip the mutualDefOcc in this case
-            es -> ret do
-              let elims di p i es = expand \ret -> case es of
-                    []   -> ret $ pure ()
-                    e:es -> ret do occurrencesInMutDefArg di p i e
-                                   elims di p (i + 1) es
+          -- it's a mutual definition
+          True -> ret do
+            addEdge (getRange d) (DefNode d)
+            expand \ret -> case es of
+              [] -> ret $ pure ()  -- we skip the mutualDefOcc in this case
+              es -> ret do
+                let elims d p i es = expand \ret -> case es of
+                      []   -> ret $ pure ()
+                      e:es -> ret do occurrencesInMutDefArg d p i e
+                                     elims d p (i + 1) es
 
-              defOcc <- lift (mutualDefOcc <$> getConstInfo d)
-              elims di defOcc 0 es
-        )
+                defOcc <- lift (mutualDefOcc <$> getConstInfo d)
+                elims d defOcc 0 es
 
-        -- not a mutual definition
-        (do
-          def <- lift $ getConstInfo d
-          case theDef def of
-            Constructor{} -> do
-              let elims i es = expand \ret -> case es of
-                    []   -> ret $ pure ()
-                    e:es -> ret do occurrencesInDefArg d StrictPos i e
-                                   elims (i + 1) es
-              elims 0 es
+          -- it's not a mutual definition, we use existing defArgOccurrences
+          -- in each argument in the Elims
+          False -> ret do
+            def <- lift $ getConstInfo d
+            case theDef def of
+              Constructor{} -> do
+                let elims i es = expand \ret -> case es of
+                      []   -> ret $ pure ()
+                      e:es -> ret do occurrencesInDefArg d StrictPos i e
+                                     elims (i + 1) es
+                elims 0 es
 
-            _ -> do
-              let elims' :: QName -> Int -> [Occurrence] -> Elims -> OccM ()
-                  elims' d i ps es = expand \ret -> case (ps, es) of
-                    (_   , []  ) -> ret $ pure ()
-                    (p:ps, e:es) -> ret do occurrencesInDefArg d p i e
-                                           elims' d (i + 1) ps es
-                    ([],   e:es) -> ret do occurrencesInDefArg d Mixed i e
-                                           elims' d (i + 1) ps es
+              _ -> do
+                let elims' :: QName -> Int -> [Occurrence] -> Elims -> OccM ()
+                    elims' d i ps es = expand \ret -> case (ps, es) of
+                      (_   , []  ) -> ret $ pure ()
+                      (p:ps, e:es) -> ret do occurrencesInDefArg d p i e
+                                             elims' d (i + 1) ps es
+                      ([],   e:es) -> ret do occurrencesInDefArg d Mixed i e
+                                             elims' d (i + 1) ps es
 
-              let elims :: QName -> Type -> Int -> [Occurrence] -> Elims -> OccM ()
-                  elims d a i ps es = expand \ret -> case (ps, es) of
-                    (_   , []  ) -> ret $ pure ()
-                    (p:ps, e:es) -> ret do occurrencesInDefArg d p i e
-                                           elims d a (i + 1) ps es
-                    ([]  , e:es) -> ret do ps <- lift $ getOccurrencesFromType a
-                                           elims' d i (drop i ps) (e:es)
+                let elims :: QName -> Type -> Int -> [Occurrence] -> Elims -> OccM ()
+                    elims d a i ps es = expand \ret -> case (ps, es) of
+                      (_   , []  ) -> ret $ pure ()
+                      (p:ps, e:es) -> ret do occurrencesInDefArg d p i e
+                                             elims d a (i + 1) ps es
+                      ([]  , e:es) -> ret do ps <- lift $ getOccurrencesFromType a
+                                             elims' d i (drop i ps) (e:es)
 
-              let defOcc = mutualDefOcc def
-              let argOccs = defArgOccurrences def
-              underOcc defOcc $ elims d (defType def) 0 argOccs es
-         )
+                let defOcc = mutualDefOcc def
+                let argOccs = defArgOccurrences def
+                underOcc defOcc $ elims d (defType def) 0 argOccs es
 
     Con _ _ es -> ret $ occurrences es
     MetaV m es -> ret $ underPathSetOcc MetaArg Mixed (occurrences es)
@@ -584,8 +586,8 @@ instance ComputeOccurrences Int where
   occurrences _ = pure ()
 
 -- | Compute occurrences in a given definition.
-computeDefOccurrences :: QName -> Int -> OccM ()
-computeDefOccurrences q qi = inConcreteOrAbstractMode q \def -> do
+computeDefOccurrences :: QName -> OccM ()
+computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
   reportSDoc "tc.pos" 25 do
     let a = defAbstract def
     m   <- viewTC eAbstractMode
@@ -621,7 +623,7 @@ computeDefOccurrences q qi = inConcreteOrAbstractMode q \def -> do
           let go i ps = expand \ret -> case ps of
                 []   -> ret $ pure ()
                 _:ps -> ret do d <- asks topDef
-                               addEdge noRange (ArgNode qi i)
+                               addEdge noRange (ArgNode q i)
                                go (i + 1) ps
           go 0 (namedClausePats cl)
 
@@ -641,12 +643,12 @@ computeDefOccurrences q qi = inConcreteOrAbstractMode q \def -> do
 
       -- add edge for size index, if it exists
       expand \ret -> case sizeIndex of
-        1 -> ret $ addEdge noRange (ArgNode qi np0)
+        1 -> ret $ addEdge noRange (ArgNode q np0)
         _ -> ret $ pure ()
 
       -- add edges for indices
       underPathSetOcc InIndex Mixed $
-        rangeM_ np (size telD - 1) \i -> addEdge noRange (ArgNode qi i)
+        rangeM_ np (size telD - 1) \i -> addEdge noRange (ArgNode q i)
 
 
       -- Then, we compute the occurrences in the constructor types.
@@ -655,7 +657,7 @@ computeDefOccurrences q qi = inConcreteOrAbstractMode q \def -> do
       -- If the data type has a transport constructor (i.e. it's an
       -- indexed family in cubical mode) we should also consider it for
       -- positivity.
-      cs <- maybe (pure cs) (\c -> pure (cs ++ [c])) trx
+      cs <- maybe (pure cs) (\c -> pure (cs ++! [c])) trx
       forM_ cs \c -> do
          -- Andreas, 2020-02-15, issue #4447:
          -- Allow UnconfimedReductions here to make sure we get the constructor type
@@ -722,24 +724,19 @@ computeDefOccurrences q qi = inConcreteOrAbstractMode q \def -> do
     GeneralizableVar{} -> ret mempty
     AbstractDefn{}     -> ret __IMPOSSIBLE__
 
-buildOccurrenceGraph :: [QName] -> TCM (OccGraph, InvMutuals)
+buildOccurrenceGraph :: [QName] -> TCM (OccGraph, Mutuals)
 buildOccurrenceGraph qs = do
-  inf     <- maybe Nothing (\x -> Just $! nameOfInf x) <$> coinductionKit
-  graph   <- lift HT.empty
+  inf <- maybe Nothing (\x -> Just $! nameOfInf x) <$> coinductionKit
+
   mutuals <- lift HT.empty
+  lift $ forM_ qs $ insertMutual mutuals
 
-  TCM \_ _ -> do
-    let init []     i = pure ()
-        init (q:qs) i = insertMutual q i mutuals >> init qs (i + 1)
-    init qs 0
+  graph <- lift HT.empty
+  TCM \st tce -> forM_ qs \q -> do
+    let env = OccEnv q [] inf 0 mutuals (DefNode q) Root StrictPos graph
+    unTCM (runReaderT (computeDefOccurrences q) env) st tce
 
-  TCM \st tce -> HT.forAssocs mutuals \q i -> do
-    let env = OccEnv i [] inf 0 mutuals (DefNode i) Root StrictPos graph
-    unTCM (runReaderT (computeDefOccurrences q i) env) st tce
-
-  mutuals <- lift $ invertMutuals mutuals
   pure (graph, mutuals)
-
 
 -- Computing transitive occurrences, to be used in positivity checking
 ----------------------------------------------------------------------------------------------------
@@ -806,7 +803,7 @@ transitiveOccurrence graph src tgt = do
       -- Function for traversing the map of children for a node
       goMap :: OccGraph -> Node -> NodeMap (Edge OccursWhere) -> Occurrence -> Occurrence -> SeenNodes -> IO Occurrence
       goMap graph tgt map path acc seen =
-        HT.forAssocsAccum map acc \(Node -> src) (Edge occ _) acc ->
+        HT.forAssocsAccum map acc \src (Edge occ _) acc ->
           if src == tgt then pure acc -- already covered this case in go'
                         else go graph tgt src (otimes path occ) acc seen
 

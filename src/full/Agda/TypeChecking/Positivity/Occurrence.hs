@@ -6,14 +6,17 @@ module Agda.TypeChecking.Positivity.Occurrence where
 
 import Prelude hiding (null)
 import Control.DeepSeq
+import Data.Hashable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common.Pretty qualified as P
 import Agda.Syntax.Position
+import Agda.Utils.Hash
 import Agda.Utils.List1 (List1)
 import Agda.Utils.Null
 import Agda.Utils.SemiRing
+
 
 -- Occurrences
 ----------------------------------------------------------------------------------------------------
@@ -111,7 +114,7 @@ data OccursPath
   = Root
   | LeftOfArrow !OccursPath
   | DefArg !OccursPath !QName !Nat      -- ^ in the nth argument of a defined constant
-  | MutDefArg !OccursPath !Int !Nat     -- ^ in the nth argument of a def in the current mutual block.
+  | MutDefArg !OccursPath !QName !Nat   -- ^ in the nth argument of a def in the current mutual block.
                                         --   (def given by Int index in the block)
   | UnderInf !OccursPath                -- ^ in the principal argument of built-in ∞
   | VarArg !OccursPath !Nat !Occurrence -- ^ as an argument to a bound variable with given polarity.
@@ -156,7 +159,29 @@ data OccursWhere = OccursWhere !Range !OccursPath
 instance P.Pretty OccursWhere where
   pretty (OccursWhere x y) = "OccursWhere" P.<+> P.pretty x P.<+> P.pretty y
 
---------------------------------------------------------------------------------
+
+-- Occurrence graph nodes
+----------------------------------------------------------------------------------------------------
+
+data Node
+  = DefNode QName       -- ^ Definition site of a mutual definition
+  | ArgNode QName Int   -- ^ Occurrence of the nth definition argument inside
+                        --   the definition.
+  deriving (Eq, Ord, Show)
+
+instance Hashable Node where
+  hashWithSalt h = \case
+    DefNode x   -> h + 1 `hashWithSalt` x
+    ArgNode x i -> fromIntegral
+                    (fromIntegral (h + 2 `hashWithSalt` x) `combineWord` fromIntegral i)
+
+instance P.Pretty Node where
+  pretty = \case
+    DefNode q   -> P.pretty q
+    ArgNode q i -> P.pretty q <> P.text ("." ++ show i)
+
+-- Occurrence graph edges
+----------------------------------------------------------------------------------------------------
 
 data Edge a = Edge !Occurrence !a
   deriving (Eq, Ord, Show, Functor)

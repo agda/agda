@@ -18,6 +18,7 @@ module Agda.Utils.HashTable
   , Agda.Utils.HashTable.clone
   , forAssocs
   , forAssocsAccum
+  , hasKey
   , Agda.Utils.HashTable.size
   , insertingIfAbsent
   , lookupCPS
@@ -86,6 +87,13 @@ lookup :: (Hashable k, MVector ks k, MVector vs v)
        => HashTable ks k vs v -> k -> IO (Maybe v)
 lookup (HashTable h) = Data.Vector.Hashtables.lookup h
 {-# INLINE lookup #-}
+
+{-# INLINE hasKey #-}
+hasKey :: (Hashable k, MVector ks k, MVector vs v)
+       => HashTable ks k vs v -> k -> IO Bool
+hasKey (HashTable h) k = Data.Vector.Hashtables.findEntry h k >>= \case
+  (-1) -> pure False
+  _    -> pure True
 
 -- | Make a copy.
 clone :: (MVector ks k, MVector vs v) => HashTable ks k vs v -> IO (HashTable ks k vs v)

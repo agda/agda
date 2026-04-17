@@ -61,9 +61,10 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
   let qs = Set.toList qset
   reportSDoc "tc.pos.tick" 100 $ "positivity of" <+> prettyTCM qs
 
+  -- Collect relevant information about the block.
   preprocessBlock qs >>= \case
     Nothing -> do
-      pure ()
+      pure () -- skip the whole thing if there's nothing to check
     Just blockInfo -> do
 
       -- compute the occurrence graph
@@ -71,8 +72,8 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
       (g, mutuals) <- buildOccurrenceGraph qs
       sccs <- lift $ stronglyConnComp g
 
-      -- lazy generic graph for debug printing and warnings
-      let ggeneric = toGenericGraph (g, mutuals)
+      -- /lazily computed/ generic graph for debug printing and warnings
+      let ggeneric = toGenericGraph g
 
       reportSDoc "tc.pos.tick" 100 $ "constructed graph"
       reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes ggeneric) ++
@@ -98,13 +99,13 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
       -- #7133: Note that the graph doesn't necessarily contain all of qs in the case where there are no
       -- occurrences of a name, but we still need to setMutual for them.
       let ~sccMap = Map.unions [ case scc of
-                                   AcyclicSCC (DefNode q) -> Map.singleton (mutualIxToName mutuals q) []
+                                   AcyclicSCC (DefNode q) -> Map.singleton q []
                                    AcyclicSCC ArgNode{}   -> mempty
                                    CyclicSCC scc          -> Map.fromList [ (q, qs) | q <- qs ]
-                                     where qs = [ mutualIxToName mutuals q | DefNode q <- scc ]
+                                     where qs = [ q | DefNode q <- scc ]
                                | scc <- sccs ]
 
-      inAbstractMode $ forMGood_ qs \q -> do
+      inAbstractMode $ forM_ qs \q -> do
         whenM (isNothing <$> getMutual q) do
 
           let qs = fromMaybe [] $ Map.lookup q sccMap
@@ -114,7 +115,7 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
                                             | otherwise      -> "mutually recursive"
           setMutual q qs
 
-      forMGood_ blockInfo \(q, arity, dataTypeOrRec, _, qi) -> inConcreteOrAbstractMode q \_ -> do
+      forM_ blockInfo \(q, arity, dataTypeOrRec, _) -> inConcreteOrAbstractMode q \_ -> do
 
         -- set argument occurrences
         --------------------------------------------------------------------------------
@@ -123,7 +124,7 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
 
           -- If there is no outgoing edge @ArgNode q i@, all @n@ arguments are @Unused@.
           -- Otherwise, we obtain the occurrences from the Graph.
-          !args <- forM [0 .. arity-1] \i -> lift $ transitiveOccurrence g (ArgNode qi i) (DefNode qi)
+          !args <- forM [0 .. arity-1] \i -> lift $ transitiveOccurrence g (ArgNode q i) (DefNode q)
               --   [0 .. max m (arity - 1)] -- triggers issue #3049
 
           reportSDoc "tc.pos.args" 10 $ sep
@@ -161,7 +162,7 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
 
                 reason bound =
                   case W.productOfEdgesInBoundedWalk
-                         (\(Edge o _) -> o) ggeneric' (W.DefNode q) (W.DefNode q) bound of
+                         (\(Edge o _) -> o) ggeneric' (DefNode q) (DefNode q) bound of
                     Just (Edge _ how) -> how
                     Nothing           -> __IMPOSSIBLE__
 
@@ -183,7 +184,7 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
               if Info.mutualPositivityCheck mi == nopc || pc == nopc || not posCheck then
                 pure Nothing
               else do
-                loop <- lift $ transitiveOccurrence g (DefNode qi) (DefNode qi)
+                loop <- lift $ transitiveOccurrence g (DefNode q) (DefNode q)
                 when (loop <= JustPos) $ warning $ NotStrictlyPositive q (reason JustPos)
                 pure $ Just loop
 
@@ -200,7 +201,7 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
               IsData -> return ()
               IsRecord pat -> do
                 loop <- case loop of
-                  Nothing   -> lift $ transitiveOccurrence g (DefNode qi) (DefNode qi)
+                  Nothing   -> lift $ transitiveOccurrence g (DefNode q) (DefNode q)
                   Just loop -> pure loop
                 case loop of
                   o | o <= StrictPos -> do
@@ -258,21 +259,21 @@ isDatatype def = do
       Just (recPositivityCheck, IsRecord recPatternMatching)
     _ -> Nothing
 
--- Result: [(name, arity, data or record, do we need to setMutual, index of def)] or Nothing if we don't need any
+-- Result: [(name, arity, data or record, do we need to setMutual)] or Nothing if we don't need any
 -- occurrence analysis.
-preprocessBlock :: [QName] -> TCM (Maybe ([(QName, Int, Maybe (PositivityCheck, DataOrRecord), Bool, Int)]))
+preprocessBlock :: [QName] -> TCM (Maybe ([(QName, Int, Maybe (PositivityCheck, DataOrRecord), Bool)]))
 preprocessBlock qs = do
-  let go _ []     = pure []
-      go i (q:qs) = inConcreteOrAbstractMode q \def -> do
+  let go []     = pure []
+      go (q:qs) = inConcreteOrAbstractMode q \def -> do
         !arity <- case hasDefinition (theDef def) of
           True  -> getDefArity def
           False -> pure 0
         let !dr = isDatatype def
         let !needToSetMutual = isNothing (getMutual_ (theDef def))
-        rest <- go (i + 1) qs
-        pure ((q, arity, dr, needToSetMutual, i) : rest)
-  info <- go 0 qs
-  case any (\(_, arity, dr, setMut, _) -> arity /= 0 || isJust dr || setMut) info of
+        !rest <- go qs
+        pure ((q, arity, dr, needToSetMutual) : rest)
+  info <- go qs
+  case any (\(_, arity, dr, setMut) -> arity /= 0 || isJust dr || setMut) info of
     True -> pure $ Just info
     _    -> pure Nothing
 
@@ -280,10 +281,7 @@ preprocessBlock qs = do
 -- Pretty printing
 ----------------------------------------------------------------------------------------------------
 
--- instance PrettyTCM OccursWhere where
---   prettyTCM = pure . P.pretty
-
-instance PrettyTCM W.Node where
+instance PrettyTCM Node where
   prettyTCM = return . P.pretty
 
 instance P.Pretty a => PrettyTCMWithNode (Edge a) where
