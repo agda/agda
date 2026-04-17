@@ -671,8 +671,15 @@ Experimental features
 
      .. versionadded:: 2.2.8
 
-     Enable injective type constructors (makes Agda anti-classical and
-     possibly inconsistent).
+     Enable injective type constructors.
+
+     This makes Agda anti-classical: injective type constructors are incompatible
+     with the law of excluded middle, see theorem 93 (attributed to Chung-Kil Hur)
+     by Cockx and Devriese :ref:`[1] <command-line-options-refs>`.
+
+     It is also incompatible with univalence, by theorem 92 of the same paper.
+
+     Additionally, this possibly makes Agda inconsistent.
 
 .. option:: --no-injective-type-constructors
 
@@ -2242,3 +2249,11 @@ again, the source file is re-typechecked instead:
 
 .. _Vim: https://www.vim.org/
 .. _Dot: http://www.graphviz.org/content/dot-language
+
+
+.. _command-line-options-refs:
+
+References
+----------
+
+[1] Jesper Cockx and Dominique Devriese. `"Proof-relevant unification: Dependent pattern matching with only the axioms of your type theory." <https://doi.org/10.1017/s095679681800014x>`_ In Journal of Functional Programming 28, 2018.
