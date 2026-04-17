@@ -2256,4 +2256,4 @@ again, the source file is re-typechecked instead:
 References
 ==========
 
-[1] JESPER COCKX and DOMINIQUE DEVRIESE. 2018. Proof-relevant unification: Dependent pattern matching with only the axioms of your type theory. Journal of Functional Programming 28, (2018). DOI:https://doi.org/10.1017/s095679681800014x 
+[1] Jesper Cockx and Dominique Devriese. `"Proof-relevant unification: Dependent pattern matching with only the axioms of your type theory." <https://doi.org/10.1017/s095679681800014x>`_ In Journal of Functional Programming 28, 2018.
