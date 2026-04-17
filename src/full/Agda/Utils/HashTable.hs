@@ -6,16 +6,22 @@
 ------------------------------------------------------------------------
 
 module Agda.Utils.HashTable
-  ( HashTable
+  ( HashTable(..)
   , HashTableLU
   , HashTableLL
+  , HashTableUL
+  , HashTableUU
   , Agda.Utils.HashTable.empty
   , Agda.Utils.HashTable.insert
   , Agda.Utils.HashTable.lookup
   , Agda.Utils.HashTable.toList
+  , Agda.Utils.HashTable.clone
   , forAssocs
+  , forAssocsAccum
+  , hasKey
   , Agda.Utils.HashTable.size
   , insertingIfAbsent
+  , lookupCPS
   ) where
 
 import Prelude hiding (lookup)
@@ -59,34 +65,50 @@ type HashTableLU k v = HashTable VM.MVector k VUM.MVector v
 -- | Hashtable with lifted keys and lifted values.
 type HashTableLL k v = HashTable VM.MVector k VM.MVector v
 
--- | An empty hash table.
+-- | Hashtable with unboxed keys and lifted values.
+type HashTableUL k v = HashTable VUM.MVector k VM.MVector v
 
+-- | Hashtable with unboxed keys and values.
+type HashTableUU k v = HashTable VUM.MVector k VUM.MVector v
+
+-- | An empty hash table.
 empty :: (MVector ks k, MVector vs v) => IO (HashTable ks k vs v)
 empty = HashTable <$!> initialize 0
+{-# INLINE empty #-}
 
 -- | Inserts the key and the corresponding value into the hash table.
-
 insert :: (Hashable k, MVector vs v, MVector ks k) =>
           HashTable ks k vs v -> k -> v -> IO ()
 insert (HashTable h) = Data.Vector.Hashtables.insert h
-{-# INLINABLE insert #-}
+{-# INLINE insert #-}
 
 -- | Tries to find a value corresponding to the key in the hash table.
-
 lookup :: (Hashable k, MVector ks k, MVector vs v)
        => HashTable ks k vs v -> k -> IO (Maybe v)
 lookup (HashTable h) = Data.Vector.Hashtables.lookup h
-{-# INLINABLE lookup #-}
+{-# INLINE lookup #-}
+
+{-# INLINE hasKey #-}
+hasKey :: (Hashable k, MVector ks k, MVector vs v)
+       => HashTable ks k vs v -> k -> IO Bool
+hasKey (HashTable h) k = Data.Vector.Hashtables.findEntry h k >>= \case
+  (-1) -> pure False
+  _    -> pure True
+
+-- | Make a copy.
+clone :: (MVector ks k, MVector vs v) => HashTable ks k vs v -> IO (HashTable ks k vs v)
+clone (HashTable h) = HashTable <$!> Data.Vector.Hashtables.clone h
+{-# INLINE clone #-}
 
 -- | Converts the hash table to a list.
 --
 -- The order of the elements in the list is unspecified.
-
 toList :: (Hashable k, MVector ks k, MVector vs v) => HashTable ks k vs v -> IO [(k, v)]
 toList (HashTable h) = Data.Vector.Hashtables.toList h
-{-# INLINABLE toList #-}
+{-# INLINE toList #-}
 
--- | Iterate over key-value pairs in IO.
+-- | Iterate over key-value pairs in IO. Caution: don't modify the table
+--   while iterating over it!
 forAssocs :: (MVector ks k, MVector vs v)
           => HashTable ks k vs v -> (k -> v -> IO ()) -> IO ()
 forAssocs (HashTable h) f = do
@@ -105,6 +127,27 @@ forAssocs (HashTable h) f = do
           go (i - 1)
   go (count - 1)
 {-# INLINE forAssocs #-}
+
+-- | Iterate over key-value pairs in IO while accummulating a value. Caution: don't modify the table
+--   while iterating over it!
+forAssocsAccum :: forall ks k vs v acc. (MVector ks k, MVector vs v)
+               => HashTable ks k vs v -> acc -> (k -> v -> acc -> IO acc) -> IO acc
+forAssocsAccum (HashTable h) acc f = do
+  Dictionary hashCode _ _ refs key value _ <- readMutVar (getDRef h)
+  count <- refs ! getCount
+  let go :: Int -> acc -> IO acc
+      go i acc | i < 0 = pure acc
+      go i acc = do
+        h <- hashCode ! i
+        if h < 0 then
+          go (i - 1) acc
+        else do
+          k <- key !~ i
+          v <- value !~ i
+          acc <- f k v acc
+          go (i - 1) acc
+  go (count - 1) acc
+{-# INLINE forAssocsAccum #-}
 
 size :: MVector ks k => HashTable ks k vs v -> IO Int
 size (HashTable h) = Data.Vector.Hashtables.size h
@@ -176,3 +219,26 @@ insertingIfAbsent (HashTable DRef{ getDRef }) key' found getValue' notfound = do
 
     go =<< buckets ! targetBucket
 {-# INLINE insertingIfAbsent #-}
+
+-- | Properly inlinable CPS-d lookup function.
+lookupCPS ::
+  forall a k v ks vs.
+  (MVector ks k, MVector vs v, Hashable k) => k -> HashTable ks k vs v -> (v -> IO a) -> IO a -> IO a
+lookupCPS key' (HashTable (DRef getDRef)) found notfound = do
+  Dictionary hashCode next buckets refs key value remSize <- readMutVar getDRef
+  let hashCode' = hash key' .&. mask
+  let go i
+        | i >= 0 = do
+            hc <- hashCode ! i
+            if hc == hashCode' then do
+              k <- key !~ i
+              if k == key' then do
+                v <- value !~ i
+                found v
+              else
+                go =<< next ! i
+            else
+              go =<< next ! i
+        | otherwise = notfound
+  go =<< buckets ! (hashCode' `fastRem` remSize)
+{-# INLINE lookupCPS #-}

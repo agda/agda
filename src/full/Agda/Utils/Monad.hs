@@ -24,6 +24,7 @@ import Agda.Utils.Boolean
 import Agda.Utils.Either
 import Agda.Utils.Null (empty, ifNotNullM)
 import Agda.Utils.Singleton
+import Agda.Utils.ExpandCase
 
 import Agda.Utils.Impossible
 
@@ -209,6 +210,40 @@ forMM_ = flip mapMM_
 
 concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
 concatMapM f xs = concat <$> Trav.mapM f xs
+
+{-# INLINE mapMGood #-}
+-- | Variant of 'mapM' which gets compiled to good code, assuming that we're mapping over an actual
+--   runtime list and don't intend for list fusion to fire.
+mapMGood :: (Monad m, ExpandCase (m [b])) => (a -> m b) -> [a] -> m [b]
+mapMGood f = go where
+  go as = expand \ret -> case as of
+    []   -> ret $ pure []
+    a:as -> ret do b <- f a; bs <- go as; pure (b:bs)
+
+{-# INLINE forMGood #-}
+forMGood :: (Monad m, ExpandCase (m [b])) => [a] -> (a -> m b) -> m [b]
+forMGood = flip mapMGood
+
+{-# INLINE mapMGood_ #-}
+-- | Variant of 'mapM_' which gets compiled to good code, assuming that we're mapping over an actual
+--   runtime list and don't intend for list fusion to fire.
+mapMGood_ :: (Monad m, ExpandCase (m ())) => (a -> m ()) -> [a] -> m ()
+mapMGood_ f = go where
+  go as = expand \ret -> case as of
+    []   -> ret $ pure ()
+    a:as -> ret $ f a >> go as
+
+{-# INLINE forMGood_ #-}
+forMGood_ :: (Monad m, ExpandCase (m ())) => [a] -> (a -> m ()) -> m ()
+forMGood_ = flip mapMGood_
+
+{-# INLINE rangeM_ #-}
+-- | Performing an action for an inclusive range of 'Int'-s, counting up by one.
+rangeM_ :: (Monad m, ExpandCase (m ())) => Int -> Int -> (Int -> m ()) -> m ()
+rangeM_ lo hi f = go lo hi where
+  go !lo !hi = expand \ret -> if lo <= hi
+    then ret $ f lo >> go (lo + 1) hi
+    else ret $ pure ()
 
 -- | A monadic version of @'mapMaybe' :: (a -> Maybe b) -> [a] -> [b]@.
 mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
