@@ -56,8 +56,8 @@ Hence, @Fun@ "occurs" in @Fun@, and it does so negatively. This is kinda bogus, 
 be moved outside of the mutual block.
 
 A potential fix of this issue would be to first split the mutual block into strongly connected
-components based on only "raw" QName occurrences, and afterwards do the current occurrence analysis
-for each sub-block.
+components based on only QName occurrences, and afterwards do the current occurrence analysis for
+each sub-block.
 
 __Immutable representation__
 
@@ -351,6 +351,9 @@ getOccurrencesFromType a = (optPolarity <$> pragmaOptions) >>= \case
         go a = (unEl <$> reduce a) >>= \case
           Pi a b -> do
             let p = modalPolarityToOccurrence $ modPolarityAnn $ getModalPolarity a
+            -- We're working under a Strict pragma, and we want this to be lazy,
+            -- because we might have under-applied names where we don't want to
+            -- unnecessarily compute types.
             ~ps <- underAbsReduceM a b \b -> go b
             pure (p:ps)
           _ -> pure []
@@ -467,6 +470,8 @@ instance ComputeOccurrences Term where
                 elims 0 es
 
               _ -> do
+                -- process Elims where we get Occurrence information from the type
+                -- of the definition
                 let elims' :: QName -> Int -> [Occurrence] -> Elims -> OccM ()
                     elims' d i ps es = expand \ret -> case (ps, es) of
                       (_   , []  ) -> ret $ pure ()
@@ -475,6 +480,7 @@ instance ComputeOccurrences Term where
                       ([],   e:es) -> ret do occurrencesInDefArg d Mixed i e
                                              elims' d (i + 1) ps es
 
+                -- process Elims where we get Occurrences from defArgOccurrences
                 let elims :: QName -> Type -> Int -> [Occurrence] -> Elims -> OccM ()
                     elims d a i ps es = expand \ret -> case (ps, es) of
                       (_   , []  ) -> ret $ pure ()
@@ -668,7 +674,7 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
         -- Do not collect occurrences in the data parameters.
         -- Normalization needed e.g. for test/succeed/Bush.agda.
         -- (Actually, for Bush.agda, reducing the parameters should be sufficient.)
-        tel1' <- lift $ addContext tel0 $ normalise tel1 -- András 2026-02-18: why addContext?
+        tel1' <- lift $ addContext tel0 $ normalise tel1
         pvars <- lift $ paramsToDefArgs tel0
 
         local (\env -> env {topDefArgs = pvars}) do
