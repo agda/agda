@@ -672,13 +672,13 @@ Experimental features
      .. versionadded:: 2.2.8
 
      Enable injective type constructors.
-     
+
      This makes Agda anti-classical: injective type constructors are incompatible
      with the law of excluded middle, see theorem 93 (attributed to Chung-Kil Hur)
      by Cockx and Devriese :ref:`[1] <command-line-options-refs>`.
-     
+
      It is also incompatible with univalence, by theorem 92 of the same paper.
-     
+
      Additionally, this possibly makes Agda inconsistent.
 
 .. option:: --no-injective-type-constructors
