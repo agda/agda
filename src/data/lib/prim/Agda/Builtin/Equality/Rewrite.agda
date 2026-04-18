@@ -6,4 +6,4 @@ open import Agda.Builtin.Equality
 
 {-# BUILTIN REWRITE _≡_ #-}
 
-primitive primNoMatch : ∀ {a} {A : Set a} → A → A
+primitive primRewriteNoMatch : ∀ {a} {A : Set a} → A → A

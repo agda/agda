@@ -686,8 +686,8 @@ primLockUniv' = do
   let t = sort $ Type $ levelSuc $ Max 0 []
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort LockUniv
 
-primNoMatch :: TCM PrimitiveImpl
-primNoMatch = do
+primRewriteNoMatch :: TCM PrimitiveImpl
+primRewriteNoMatch = do
   t <- hPi "a" (el primLevel) $
        hPi "A" (pure $ sort $ varSort 0) $
        (el (pure $ var 0) --> el (pure $ var 0))
@@ -695,7 +695,7 @@ primNoMatch = do
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 3 $ \ ~[l, a, x] -> do
     allowed <- viewTC eAllowedReductions
 
-    if NoMatchReductions `SmallSet.member` allowed
+    if RewriteNoMatchReductions `SmallSet.member` allowed
     then redReturn $ unArg x
     else return $ NoReduction $ notReduced <$> [l, a, x]
 
@@ -965,7 +965,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
 
   -- Other stuff
   , PrimEraseEquality     |-> primEraseEquality
-  , PrimNoMatch           |-> primNoMatch
+  , PrimRewriteNoMatch    |-> primRewriteNoMatch
     -- This needs to be force : A → ((x : A) → B x) → B x rather than seq because of call-by-name.
   , PrimForce             |-> primForce
   , PrimForceLemma        |-> primForceLemma

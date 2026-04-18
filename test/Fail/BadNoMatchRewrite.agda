@@ -1,6 +1,6 @@
 {-# OPTIONS --rewriting #-}
 
-open import Agda.Builtin.Equality.Rewrite renaming (primNoMatch to ⟨_⟩)
+open import Agda.Builtin.Equality.Rewrite renaming (primRewriteNoMatch to ⟨_⟩)
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Nat
 

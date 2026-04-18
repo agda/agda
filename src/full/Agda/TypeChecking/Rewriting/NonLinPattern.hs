@@ -126,17 +126,17 @@ instance PatternFrom Term NLPat where
     t <- abortIfBlocked t
     etaRecord <- isEtaRecordType t
     r1 <- maxDefSing r1 <$> isDefSing k0 k1 t
-    -- We need to handle the primNoMatch primitive specially so need to stop it
-    -- reducing away
-    v <- modifyAllowedReductions (SmallSet.delete NoMatchReductions) $
+    -- We need to handle the primRewriteNoMatch primitive specially so need to
+    -- stop it reducing away
+    v <- modifyAllowedReductions (SmallSet.delete RewriteNoMatchReductions) $
       unLevel =<< abortIfBlocked v
     reportSDoc "rewriting.build" 60 $ sep
       [ "building a pattern from term v = " <+> prettyTCM v
       , " of type " <+> prettyTCM t
       ]
     pview <- pathViewAsPi'whnf
-    nomatch <- getPrimitive' builtinNoMatch
-    let isNoMatch f = maybe False ((==) f . primFunName) nomatch
+    noMatchPrim <- getPrimitive' builtinRewriteNoMatch
+    let isRewriteNoMatch f = maybe False ((==) f . primFunName) noMatchPrim
     let done = blockOnMetasIn v >> return (PTerm v)
     case (unEl t , stripDontCare v) of
       (Pi a b , _) -> do
@@ -183,9 +183,9 @@ instance PatternFrom Term NLPat where
         PDef (conName c) <$> patternFrom r1 r1 k0 k1 (ct , Con c ci) (map Apply vs)
       (_ , Lam{})   -> errNotPi t
       (_ , Lit{})   -> done
-      -- Terms wrapped in the primNoMatch primitive are converted to PTerms
+      -- Terms wrapped in the primRewriteNoMatch primitive are converted to PTerms
       -- (i.e. rather than matching, we will just test conversion)
-      (_ , Def f (l : a : Apply x : es)) | isNoMatch f ->
+      (_ , Def f (l : a : Apply x : es)) | isRewriteNoMatch f ->
         return $ PTerm $ applyE (unArg x) es
       (_ , Def f es) | isAlwaysSing r1 -> done
       (_ , Def f es) -> do
