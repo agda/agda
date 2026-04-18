@@ -1,0 +1,479 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# OPTIONS_GHC -fno-warn-orphans #-}</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Only instances exported</span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.html"><span class="hs-identifier">Agda.TypeChecking.Serialise.Instances</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Position.html"><span class="hs-identifier">Agda.Syntax.Position</span></a></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html"><span class="hs-identifier">Agda.Syntax.TopLevelModuleName</span></a></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html"><span class="hs-identifier">Agda.TypeChecking.Serialise.Base</span></a></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Common.html"><span class="hs-identifier">Agda.TypeChecking.Serialise.Instances.Common</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Common.html#SerialisedRange"><span class="hs-identifier">SerialisedRange</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Errors.html"><span class="hs-identifier">Agda.TypeChecking.Serialise.Instances.Errors</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.General.html"><span class="hs-identifier">Agda.TypeChecking.Serialise.Instances.General</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Highlighting.html"><span class="hs-identifier">Agda.TypeChecking.Serialise.Instances.Highlighting</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Hash.html"><span class="hs-identifier">Agda.Utils.Hash</span></a></span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">type</span><span> </span><span id="RangedImportedModules"><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.html#RangedImportedModules"><span class="hs-identifier hs-var">RangedImportedModules</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.Common.html#SerialisedRange"><span class="hs-identifier hs-type">SerialisedRange</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Hash.html#Hash"><span class="hs-identifier hs-type">Hash</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.html#fromImportedModules"><span class="hs-identifier hs-type">fromImportedModules</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Hash.html#Hash"><span class="hs-identifier hs-type">Hash</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.html#RangedImportedModules"><span class="hs-identifier hs-type">RangedImportedModules</span></a></span><span>
+</span><span id="line-22"></span><span id="fromImportedModules"><span class="annot"><span class="annottext">fromImportedModules :: [(TopLevelModuleName' Range, Hash)] -&gt; RangedImportedModules
+</span><a href="Agda.TypeChecking.Serialise.Instances.html#fromImportedModules"><span class="hs-identifier hs-var hs-var">fromImportedModules</span></a></span></span><span> </span><span id="local-6989586621681968059"><span class="annot"><span class="annottext">[(TopLevelModuleName' Range, Hash)]
+</span><a href="#local-6989586621681968059"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; SerialisedRange
+</span><a href="Agda.TypeChecking.Serialise.Instances.Common.html#SerialisedRange"><span class="hs-identifier hs-var">SerialisedRange</span></a></span><span> </span><span class="annot"><span class="annottext">(Range -&gt; SerialisedRange) -&gt; Range -&gt; SerialisedRange
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName' Range -&gt; Range
+forall a. HasRange a =&gt; a -&gt; Range
+</span><a href="Agda.Syntax.Position.html#getRange"><span class="hs-identifier hs-var">getRange</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName' Range
+</span><a href="#local-6989586621681968062"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName' Range
+</span><a href="#local-6989586621681968062"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Hash
+</span><a href="#local-6989586621681968063"><span class="hs-identifier hs-var">hash</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681968062"><span class="annot"><span class="annottext">TopLevelModuleName' Range
+</span><a href="#local-6989586621681968062"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681968063"><span class="annot"><span class="annottext">Hash
+</span><a href="#local-6989586621681968063"><span class="hs-identifier hs-var">hash</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[(TopLevelModuleName' Range, Hash)]
+</span><a href="#local-6989586621681968059"><span class="hs-identifier hs-var">ms</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.html#toImportedModules"><span class="hs-identifier hs-type">toImportedModules</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-25"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Serialise.Instances.html#RangedImportedModules"><span class="hs-identifier hs-type">RangedImportedModules</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Hash.html#Hash"><span class="hs-identifier hs-type">Hash</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-26"></span><span id="toImportedModules"><span class="annot"><span class="annottext">toImportedModules :: RangedImportedModules -&gt; [(TopLevelModuleName' Range, Hash)]
+</span><a href="Agda.TypeChecking.Serialise.Instances.html#toImportedModules"><span class="hs-identifier hs-var hs-var">toImportedModules</span></a></span></span><span> </span><span id="local-6989586621681968065"><span class="annot"><span class="annottext">RangedImportedModules
+</span><a href="#local-6989586621681968065"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; TopLevelModuleName' Range -&gt; TopLevelModuleName' Range
+forall a. SetRange a =&gt; Range -&gt; a -&gt; a
+</span><a href="Agda.Syntax.Position.html#setRange"><span class="hs-identifier hs-var">setRange</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SerialisedRange -&gt; Range
+</span><a href="Agda.TypeChecking.Serialise.Instances.Common.html#underlyingRange"><span class="hs-identifier hs-var">underlyingRange</span></a></span><span> </span><span class="annot"><span class="annottext">SerialisedRange
+</span><a href="#local-6989586621681968068"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName' Range
+</span><a href="#local-6989586621681968069"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Hash
+</span><a href="#local-6989586621681968070"><span class="hs-identifier hs-var">hash</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681968068"><span class="annot"><span class="annottext">SerialisedRange
+</span><a href="#local-6989586621681968068"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681968069"><span class="annot"><span class="annottext">TopLevelModuleName' Range
+</span><a href="#local-6989586621681968069"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681968070"><span class="annot"><span class="annottext">Hash
+</span><a href="#local-6989586621681968070"><span class="hs-identifier hs-var">hash</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">RangedImportedModules
+</span><a href="#local-6989586621681968065"><span class="hs-identifier hs-var">ms</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681968074"><span class="annot"><a href="Agda.TypeChecking.Serialise.Base.html#EmbPrj"><span class="hs-identifier hs-type">EmbPrj</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Interface"><span class="hs-identifier hs-type">Interface</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-29"></span><span>  </span><span id="local-6989586621681968235"><span class="annot"><span class="annottext">icod_ :: Interface -&gt; S Word32
+</span><a href="#local-6989586621681968235"><span class="hs-identifier hs-var hs-var hs-var">icod_</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Interface"><span class="hs-identifier hs-type">Interface</span></a></span><span> </span><span id="local-6989586621681968238"><span class="annot"><span class="annottext">Hash
+</span><a href="#local-6989586621681968238"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681968239"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681968239"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681968240"><span class="annot"><span class="annottext">FileType
+</span><a href="#local-6989586621681968240"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621681968241"><span class="annot"><span class="annottext">[(TopLevelModuleName' Range, Hash)]
+</span><a href="#local-6989586621681968241"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621681968242"><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681968242"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span id="local-6989586621681968243"><span class="annot"><span class="annottext">TopLevelModuleName' Range
+</span><a href="#local-6989586621681968243"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621681968244"><span class="annot"><span class="annottext">Map ModuleName Scope
+</span><a href="#local-6989586621681968244"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621681968245"><span class="annot"><span class="annottext">ScopeInfo
+</span><a href="#local-6989586621681968245"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span id="local-6989586621681968246"><span class="annot"><span class="annottext">Signature
+</span><a href="#local-6989586621681968246"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621681968247"><span class="annot"><span class="annottext">HashMap MetaId RemoteMetaVariable
+</span><a href="#local-6989586621681968247"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span id="local-6989586621681968248"><span class="annot"><span class="annottext">HashMap QName (List1 LocalDisplayForm)
+</span><a href="#local-6989586621681968248"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621681968249"><span class="annot"><span class="annottext">Map QName Text
+</span><a href="#local-6989586621681968249"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621681968250"><span class="annot"><span class="annottext">Maybe Text
+</span><a href="#local-6989586621681968250"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621681968251"><span class="annot"><span class="annottext">Map SomeBuiltin (Builtin (PrimitiveId, QName))
+</span><a href="#local-6989586621681968251"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621681968252"><span class="annot"><span class="annottext">Map Text ForeignCodeStack
+</span><a href="#local-6989586621681968252"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621681968253"><span class="annot"><span class="annottext">RangeMap Aspects
+</span><a href="#local-6989586621681968253"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621681968254"><span class="annot"><span class="annottext">[OptionsPragma]
+</span><a href="#local-6989586621681968254"><span class="hs-identifier hs-var">q</span></a></span></span><span> </span><span id="local-6989586621681968255"><span class="annot"><span class="annottext">[OptionsPragma]
+</span><a href="#local-6989586621681968255"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621681968256"><span class="annot"><span class="annottext">PragmaOptions
+</span><a href="#local-6989586621681968256"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621681968257"><span class="annot"><span class="annottext">Map QName PatternSynDefn
+</span><a href="#local-6989586621681968257"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621681968258"><span class="annot"><span class="annottext">Set TCWarning
+</span><a href="#local-6989586621681968258"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span id="local-6989586621681968259"><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621681968259"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span id="local-6989586621681968260"><span class="annot"><span class="annottext">Map OpaqueId OpaqueBlock
+</span><a href="#local-6989586621681968260"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span id="local-6989586621681968261"><span class="annot"><span class="annottext">Map QName OpaqueId
+</span><a href="#local-6989586621681968261"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-30"></span><span>      </span><span class="annot"><span class="annottext">(Hash
+ -&gt; Text
+ -&gt; FileType
+ -&gt; RangedImportedModules
+ -&gt; ModuleName
+ -&gt; TopLevelModuleName' Range
+ -&gt; Map ModuleName Scope
+ -&gt; ScopeInfo
+ -&gt; Signature
+ -&gt; HashMap MetaId RemoteMetaVariable
+ -&gt; HashMap QName (List1 LocalDisplayForm)
+ -&gt; Map QName Text
+ -&gt; Maybe Text
+ -&gt; Map SomeBuiltin (Builtin (PrimitiveId, QName))
+ -&gt; Map Text ForeignCodeStack
+ -&gt; RangeMap Aspects
+ -&gt; [OptionsPragma]
+ -&gt; [OptionsPragma]
+ -&gt; PragmaOptions
+ -&gt; Map QName PatternSynDefn
+ -&gt; Set TCWarning
+ -&gt; Set QName
+ -&gt; Map OpaqueId OpaqueBlock
+ -&gt; Map QName OpaqueId
+ -&gt; Interface)
+-&gt; Arrows
+     (Domains
+        (Hash
+         -&gt; Text
+         -&gt; FileType
+         -&gt; RangedImportedModules
+         -&gt; ModuleName
+         -&gt; TopLevelModuleName' Range
+         -&gt; Map ModuleName Scope
+         -&gt; ScopeInfo
+         -&gt; Signature
+         -&gt; HashMap MetaId RemoteMetaVariable
+         -&gt; HashMap QName (List1 LocalDisplayForm)
+         -&gt; Map QName Text
+         -&gt; Maybe Text
+         -&gt; Map SomeBuiltin (Builtin (PrimitiveId, QName))
+         -&gt; Map Text ForeignCodeStack
+         -&gt; RangeMap Aspects
+         -&gt; [OptionsPragma]
+         -&gt; [OptionsPragma]
+         -&gt; PragmaOptions
+         -&gt; Map QName PatternSynDefn
+         -&gt; Set TCWarning
+         -&gt; Set QName
+         -&gt; Map OpaqueId OpaqueBlock
+         -&gt; Map QName OpaqueId
+         -&gt; Interface))
+     (S Word32)
+forall t.
+(ICODE t (Arity t), StrictCurrying (Domains t) (S Word32),
+ All EmbPrj (Domains t)) =&gt;
+t -&gt; Arrows (Domains t) (S Word32)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#icodeN%27"><span class="hs-identifier hs-var">icodeN'</span></a></span><span> </span><span class="annot"><span class="annottext">Hash
+-&gt; Text
+-&gt; FileType
+-&gt; RangedImportedModules
+-&gt; ModuleName
+-&gt; TopLevelModuleName' Range
+-&gt; Map ModuleName Scope
+-&gt; ScopeInfo
+-&gt; Signature
+-&gt; HashMap MetaId RemoteMetaVariable
+-&gt; HashMap QName (List1 LocalDisplayForm)
+-&gt; Map QName Text
+-&gt; Maybe Text
+-&gt; Map SomeBuiltin (Builtin (PrimitiveId, QName))
+-&gt; Map Text ForeignCodeStack
+-&gt; RangeMap Aspects
+-&gt; [OptionsPragma]
+-&gt; [OptionsPragma]
+-&gt; PragmaOptions
+-&gt; Map QName PatternSynDefn
+-&gt; Set TCWarning
+-&gt; Set QName
+-&gt; Map OpaqueId OpaqueBlock
+-&gt; Map QName OpaqueId
+-&gt; Interface
+</span><a href="#local-6989586621681968263"><span class="hs-identifier hs-var">interface</span></a></span><span> </span><span class="annot"><span class="annottext">Hash
+</span><a href="#local-6989586621681968238"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681968239"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">FileType
+</span><a href="#local-6989586621681968240"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[(TopLevelModuleName' Range, Hash)] -&gt; RangedImportedModules
+</span><a href="Agda.TypeChecking.Serialise.Instances.html#fromImportedModules"><span class="hs-identifier hs-var">fromImportedModules</span></a></span><span> </span><span class="annot"><span class="annottext">[(TopLevelModuleName' Range, Hash)]
+</span><a href="#local-6989586621681968241"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ModuleName
+</span><a href="#local-6989586621681968242"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName' Range
+</span><a href="#local-6989586621681968243"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Map ModuleName Scope
+</span><a href="#local-6989586621681968244"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">ScopeInfo
+</span><a href="#local-6989586621681968245"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">Signature
+</span><a href="#local-6989586621681968246"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">HashMap MetaId RemoteMetaVariable
+</span><a href="#local-6989586621681968247"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">HashMap QName (List1 LocalDisplayForm)
+</span><a href="#local-6989586621681968248"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Map QName Text
+</span><a href="#local-6989586621681968249"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Text
+</span><a href="#local-6989586621681968250"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Map SomeBuiltin (Builtin (PrimitiveId, QName))
+</span><a href="#local-6989586621681968251"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Map Text ForeignCodeStack
+</span><a href="#local-6989586621681968252"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">RangeMap Aspects
+</span><a href="#local-6989586621681968253"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">[OptionsPragma]
+</span><a href="#local-6989586621681968254"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="annot"><span class="annottext">[OptionsPragma]
+</span><a href="#local-6989586621681968255"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">PragmaOptions
+</span><a href="#local-6989586621681968256"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Map QName PatternSynDefn
+</span><a href="#local-6989586621681968257"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">Set TCWarning
+</span><a href="#local-6989586621681968258"><span class="hs-identifier hs-var">u</span></a></span><span> </span><span class="annot"><span class="annottext">Set QName
+</span><a href="#local-6989586621681968259"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">Map OpaqueId OpaqueBlock
+</span><a href="#local-6989586621681968260"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">Map QName OpaqueId
+</span><a href="#local-6989586621681968261"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-31"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681968263"><span class="annot"><span class="annottext">interface :: Hash
+-&gt; Text
+-&gt; FileType
+-&gt; RangedImportedModules
+-&gt; ModuleName
+-&gt; TopLevelModuleName' Range
+-&gt; Map ModuleName Scope
+-&gt; ScopeInfo
+-&gt; Signature
+-&gt; HashMap MetaId RemoteMetaVariable
+-&gt; HashMap QName (List1 LocalDisplayForm)
+-&gt; Map QName Text
+-&gt; Maybe Text
+-&gt; Map SomeBuiltin (Builtin (PrimitiveId, QName))
+-&gt; Map Text ForeignCodeStack
+-&gt; RangeMap Aspects
+-&gt; [OptionsPragma]
+-&gt; [OptionsPragma]
+-&gt; PragmaOptions
+-&gt; Map QName PatternSynDefn
+-&gt; Set TCWarning
+-&gt; Set QName
+-&gt; Map OpaqueId OpaqueBlock
+-&gt; Map QName OpaqueId
+-&gt; Interface
+</span><a href="#local-6989586621681968263"><span class="hs-identifier hs-var hs-var">interface</span></a></span></span><span> </span><span id="local-6989586621681968264"><span class="annot"><span class="annottext">Hash
+</span><a href="#local-6989586621681968264"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681968265"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681968265"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681968266"><span class="annot"><span class="annottext">FileType
+</span><a href="#local-6989586621681968266"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Hash
+-&gt; Text
+-&gt; FileType
+-&gt; [(TopLevelModuleName' Range, Hash)]
+-&gt; ModuleName
+-&gt; TopLevelModuleName' Range
+-&gt; Map ModuleName Scope
+-&gt; ScopeInfo
+-&gt; Signature
+-&gt; HashMap MetaId RemoteMetaVariable
+-&gt; HashMap QName (List1 LocalDisplayForm)
+-&gt; Map QName Text
+-&gt; Maybe Text
+-&gt; Map SomeBuiltin (Builtin (PrimitiveId, QName))
+-&gt; Map Text ForeignCodeStack
+-&gt; RangeMap Aspects
+-&gt; [OptionsPragma]
+-&gt; [OptionsPragma]
+-&gt; PragmaOptions
+-&gt; Map QName PatternSynDefn
+-&gt; Set TCWarning
+-&gt; Set QName
+-&gt; Map OpaqueId OpaqueBlock
+-&gt; Map QName OpaqueId
+-&gt; Interface
+</span><a href="Agda.TypeChecking.Monad.Base.html#Interface"><span class="hs-identifier hs-var">Interface</span></a></span><span> </span><span class="annot"><span class="annottext">Hash
+</span><a href="#local-6989586621681968264"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681968265"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">FileType
+</span><a href="#local-6989586621681968266"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">([(TopLevelModuleName' Range, Hash)]
+ -&gt; ModuleName
+ -&gt; TopLevelModuleName' Range
+ -&gt; Map ModuleName Scope
+ -&gt; ScopeInfo
+ -&gt; Signature
+ -&gt; HashMap MetaId RemoteMetaVariable
+ -&gt; HashMap QName (List1 LocalDisplayForm)
+ -&gt; Map QName Text
+ -&gt; Maybe Text
+ -&gt; Map SomeBuiltin (Builtin (PrimitiveId, QName))
+ -&gt; Map Text ForeignCodeStack
+ -&gt; RangeMap Aspects
+ -&gt; [OptionsPragma]
+ -&gt; [OptionsPragma]
+ -&gt; PragmaOptions
+ -&gt; Map QName PatternSynDefn
+ -&gt; Set TCWarning
+ -&gt; Set QName
+ -&gt; Map OpaqueId OpaqueBlock
+ -&gt; Map QName OpaqueId
+ -&gt; Interface)
+-&gt; (RangedImportedModules -&gt; [(TopLevelModuleName' Range, Hash)])
+-&gt; RangedImportedModules
+-&gt; ModuleName
+-&gt; TopLevelModuleName' Range
+-&gt; Map ModuleName Scope
+-&gt; ScopeInfo
+-&gt; Signature
+-&gt; HashMap MetaId RemoteMetaVariable
+-&gt; HashMap QName (List1 LocalDisplayForm)
+-&gt; Map QName Text
+-&gt; Maybe Text
+-&gt; Map SomeBuiltin (Builtin (PrimitiveId, QName))
+-&gt; Map Text ForeignCodeStack
+-&gt; RangeMap Aspects
+-&gt; [OptionsPragma]
+-&gt; [OptionsPragma]
+-&gt; PragmaOptions
+-&gt; Map QName PatternSynDefn
+-&gt; Set TCWarning
+-&gt; Set QName
+-&gt; Map OpaqueId OpaqueBlock
+-&gt; Map QName OpaqueId
+-&gt; Interface
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">RangedImportedModules -&gt; [(TopLevelModuleName' Range, Hash)]
+</span><a href="Agda.TypeChecking.Serialise.Instances.html#toImportedModules"><span class="hs-identifier hs-var">toImportedModules</span></a></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span>  </span><span id="local-6989586621681968355"><span class="annot"><span class="annottext">value :: Word32 -&gt; R Interface
+</span><a href="#local-6989586621681968355"><span class="hs-identifier hs-var hs-var hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Hash
+ -&gt; Text
+ -&gt; FileType
+ -&gt; RangedImportedModules
+ -&gt; ModuleName
+ -&gt; TopLevelModuleName' Range
+ -&gt; Map ModuleName Scope
+ -&gt; ScopeInfo
+ -&gt; Signature
+ -&gt; HashMap MetaId RemoteMetaVariable
+ -&gt; HashMap QName (List1 LocalDisplayForm)
+ -&gt; Map QName Text
+ -&gt; Maybe Text
+ -&gt; Map SomeBuiltin (Builtin (PrimitiveId, QName))
+ -&gt; Map Text ForeignCodeStack
+ -&gt; RangeMap Aspects
+ -&gt; [OptionsPragma]
+ -&gt; [OptionsPragma]
+ -&gt; PragmaOptions
+ -&gt; Map QName PatternSynDefn
+ -&gt; Set TCWarning
+ -&gt; Set QName
+ -&gt; Map OpaqueId OpaqueBlock
+ -&gt; Map QName OpaqueId
+ -&gt; Interface)
+-&gt; Word32
+-&gt; R (CoDomain
+        (Hash
+         -&gt; Text
+         -&gt; FileType
+         -&gt; RangedImportedModules
+         -&gt; ModuleName
+         -&gt; TopLevelModuleName' Range
+         -&gt; Map ModuleName Scope
+         -&gt; ScopeInfo
+         -&gt; Signature
+         -&gt; HashMap MetaId RemoteMetaVariable
+         -&gt; HashMap QName (List1 LocalDisplayForm)
+         -&gt; Map QName Text
+         -&gt; Maybe Text
+         -&gt; Map SomeBuiltin (Builtin (PrimitiveId, QName))
+         -&gt; Map Text ForeignCodeStack
+         -&gt; RangeMap Aspects
+         -&gt; [OptionsPragma]
+         -&gt; [OptionsPragma]
+         -&gt; PragmaOptions
+         -&gt; Map QName PatternSynDefn
+         -&gt; Set TCWarning
+         -&gt; Set QName
+         -&gt; Map OpaqueId OpaqueBlock
+         -&gt; Map QName OpaqueId
+         -&gt; Interface))
+forall t.
+(VALU t (Arity t), All EmbPrj (CoDomain t : Domains t)) =&gt;
+t -&gt; Word32 -&gt; R (CoDomain t)
+</span><a href="Agda.TypeChecking.Serialise.Base.html#valueN"><span class="hs-identifier hs-var">valueN</span></a></span><span> </span><span class="annot"><span class="annottext">Hash
+-&gt; Text
+-&gt; FileType
+-&gt; RangedImportedModules
+-&gt; ModuleName
+-&gt; TopLevelModuleName' Range
+-&gt; Map ModuleName Scope
+-&gt; ScopeInfo
+-&gt; Signature
+-&gt; HashMap MetaId RemoteMetaVariable
+-&gt; HashMap QName (List1 LocalDisplayForm)
+-&gt; Map QName Text
+-&gt; Maybe Text
+-&gt; Map SomeBuiltin (Builtin (PrimitiveId, QName))
+-&gt; Map Text ForeignCodeStack
+-&gt; RangeMap Aspects
+-&gt; [OptionsPragma]
+-&gt; [OptionsPragma]
+-&gt; PragmaOptions
+-&gt; Map QName PatternSynDefn
+-&gt; Set TCWarning
+-&gt; Set QName
+-&gt; Map OpaqueId OpaqueBlock
+-&gt; Map QName OpaqueId
+-&gt; Interface
+</span><a href="#local-6989586621681968358"><span class="hs-identifier hs-var">interface</span></a></span><span>
+</span><span id="line-34"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621681968358"><span class="annot"><span class="annottext">interface :: Hash
+-&gt; Text
+-&gt; FileType
+-&gt; RangedImportedModules
+-&gt; ModuleName
+-&gt; TopLevelModuleName' Range
+-&gt; Map ModuleName Scope
+-&gt; ScopeInfo
+-&gt; Signature
+-&gt; HashMap MetaId RemoteMetaVariable
+-&gt; HashMap QName (List1 LocalDisplayForm)
+-&gt; Map QName Text
+-&gt; Maybe Text
+-&gt; Map SomeBuiltin (Builtin (PrimitiveId, QName))
+-&gt; Map Text ForeignCodeStack
+-&gt; RangeMap Aspects
+-&gt; [OptionsPragma]
+-&gt; [OptionsPragma]
+-&gt; PragmaOptions
+-&gt; Map QName PatternSynDefn
+-&gt; Set TCWarning
+-&gt; Set QName
+-&gt; Map OpaqueId OpaqueBlock
+-&gt; Map QName OpaqueId
+-&gt; Interface
+</span><a href="#local-6989586621681968358"><span class="hs-identifier hs-var hs-var">interface</span></a></span></span><span> </span><span id="local-6989586621681968359"><span class="annot"><span class="annottext">Hash
+</span><a href="#local-6989586621681968359"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621681968360"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681968360"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681968361"><span class="annot"><span class="annottext">FileType
+</span><a href="#local-6989586621681968361"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Hash
+-&gt; Text
+-&gt; FileType
+-&gt; [(TopLevelModuleName' Range, Hash)]
+-&gt; ModuleName
+-&gt; TopLevelModuleName' Range
+-&gt; Map ModuleName Scope
+-&gt; ScopeInfo
+-&gt; Signature
+-&gt; HashMap MetaId RemoteMetaVariable
+-&gt; HashMap QName (List1 LocalDisplayForm)
+-&gt; Map QName Text
+-&gt; Maybe Text
+-&gt; Map SomeBuiltin (Builtin (PrimitiveId, QName))
+-&gt; Map Text ForeignCodeStack
+-&gt; RangeMap Aspects
+-&gt; [OptionsPragma]
+-&gt; [OptionsPragma]
+-&gt; PragmaOptions
+-&gt; Map QName PatternSynDefn
+-&gt; Set TCWarning
+-&gt; Set QName
+-&gt; Map OpaqueId OpaqueBlock
+-&gt; Map QName OpaqueId
+-&gt; Interface
+</span><a href="Agda.TypeChecking.Monad.Base.html#Interface"><span class="hs-identifier hs-var">Interface</span></a></span><span> </span><span class="annot"><span class="annottext">Hash
+</span><a href="#local-6989586621681968359"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621681968360"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">FileType
+</span><a href="#local-6989586621681968361"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">([(TopLevelModuleName' Range, Hash)]
+ -&gt; ModuleName
+ -&gt; TopLevelModuleName' Range
+ -&gt; Map ModuleName Scope
+ -&gt; ScopeInfo
+ -&gt; Signature
+ -&gt; HashMap MetaId RemoteMetaVariable
+ -&gt; HashMap QName (List1 LocalDisplayForm)
+ -&gt; Map QName Text
+ -&gt; Maybe Text
+ -&gt; Map SomeBuiltin (Builtin (PrimitiveId, QName))
+ -&gt; Map Text ForeignCodeStack
+ -&gt; RangeMap Aspects
+ -&gt; [OptionsPragma]
+ -&gt; [OptionsPragma]
+ -&gt; PragmaOptions
+ -&gt; Map QName PatternSynDefn
+ -&gt; Set TCWarning
+ -&gt; Set QName
+ -&gt; Map OpaqueId OpaqueBlock
+ -&gt; Map QName OpaqueId
+ -&gt; Interface)
+-&gt; (RangedImportedModules -&gt; [(TopLevelModuleName' Range, Hash)])
+-&gt; RangedImportedModules
+-&gt; ModuleName
+-&gt; TopLevelModuleName' Range
+-&gt; Map ModuleName Scope
+-&gt; ScopeInfo
+-&gt; Signature
+-&gt; HashMap MetaId RemoteMetaVariable
+-&gt; HashMap QName (List1 LocalDisplayForm)
+-&gt; Map QName Text
+-&gt; Maybe Text
+-&gt; Map SomeBuiltin (Builtin (PrimitiveId, QName))
+-&gt; Map Text ForeignCodeStack
+-&gt; RangeMap Aspects
+-&gt; [OptionsPragma]
+-&gt; [OptionsPragma]
+-&gt; PragmaOptions
+-&gt; Map QName PatternSynDefn
+-&gt; Set TCWarning
+-&gt; Set QName
+-&gt; Map OpaqueId OpaqueBlock
+-&gt; Map QName OpaqueId
+-&gt; Interface
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">RangedImportedModules -&gt; [(TopLevelModuleName' Range, Hash)]
+</span><a href="Agda.TypeChecking.Serialise.Instances.html#toImportedModules"><span class="hs-identifier hs-var">toImportedModules</span></a></span><span>
+</span><span id="line-35"></span></pre></body></html>
