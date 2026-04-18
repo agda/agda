@@ -558,8 +558,7 @@ cubical-test :
 	-rm -rf cubical/_build
 	@$(call decorate, "Cubical library test", \
 		time $(MAKE) -C cubical \
-			AGDA_BIN="$(AGDA_BIN)" AGDA_FLAGS="-j" RTS_OPTIONS=$(AGDA_OPTS) \
-			gen-everythings check)
+			AGDA_BIN="$(AGDA_BIN)" AGDA_FLAGS="-j" RTS_OPTIONS=$(AGDA_OPTS))
 
 .PHONY : continue-cubical-test ##
 continue-cubical-test :
