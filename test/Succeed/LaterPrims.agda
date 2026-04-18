@@ -3,23 +3,14 @@ module LaterPrims where
 
 open import Agda.Primitive
 open import Agda.Primitive.Cubical renaming (itIsOne to 1=1)
+open import Agda.Primitive.Guarded
 open import Agda.Builtin.Cubical.Path
 open import Agda.Builtin.Cubical.Sub renaming (Sub to _[_↦_]; primSubOut to outS)
-
-module Prims where
-  primitive
-    primLockUniv : Set₁
-
-open Prims renaming (primLockUniv to LockU) public
 
 private
   variable
     l : Level
     A B : Set l
-
--- We postulate Tick as it is supposed to be an abstract sort.
-postulate
-  Tick : LockU
 
 ▹_ : ∀ {l} → Set l → Set l
 ▹_ A = (@tick x : Tick) -> A
