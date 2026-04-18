@@ -1059,7 +1059,7 @@ major mode)."
   (setq agda2-buffer-external-status status)
   (force-mode-line-update))
 
-(defmacro agda2-information-buffer (buffer kind title)
+(defmacro agda2-information-buffer (buffer kind name-of-mode title)
   "Used to define functions like `agda2-info-buffer'."
   `(defun ,buffer nil
      ,(concat "Creates the Agda " kind
@@ -1070,7 +1070,7 @@ The buffer is returned.")
           (generate-new-buffer ,title))
 
     (with-current-buffer ,buffer
-      (compilation-mode "AgdaInfo")
+      (compilation-mode ,name-of-mode)
       ;; Support for jumping to positions mentioned in the text.
       (set (make-local-variable 'compilation-error-regexp-alist)
            '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\)\\.\\([0-9]+\\)\\(-\\(\\([0-9]+\\)\\.\\)?\\([0-9]+\\)\\)?"
@@ -1123,7 +1123,7 @@ The buffer is returned.")
 
   ,buffer))
 
-(agda2-information-buffer agda2-info-buffer "info" "*Agda information*")
+(agda2-information-buffer agda2-info-buffer "info" "AgdaInfo" "*Agda information*")
 
 (defun agda2-display-information-buffer ()
   "Make sure the Agda information buffer is displayed in the current window.
@@ -2043,18 +2043,24 @@ To do: dealing with semicolon separated decls."
 (defvar agda2-debug-buffer-name "*Agda debug*"
   "The name of the buffer used for Agda debug messages.")
 
-(defun agda2-verbose (msg)
+(defvar agda2-debug-buffer nil
+  "Agda debug buffer.")
+
+(agda2-information-buffer agda2-debug-buffer "debug" "AgdaDebug" agda2-debug-buffer-name)
+
+(defun agda2-verbose (msg &rest annotations)
   "Appends the string MSG plus a final newline
 to the `agda2-debug-buffer-name' buffer.
 Note that this buffer's contents is not erased automatically when
 a file is loaded."
- (declare (agda2-command (string)))
- (unless (string-empty-p msg)
-  (with-current-buffer (get-buffer-create agda2-debug-buffer-name)
-    (save-excursion
-      (goto-char (point-max))
-      (insert msg)
-      (newline)))))
+  (declare (agda2-command (string &repeat t)))
+  (unless (string-empty-p msg)
+    (with-current-buffer (agda2-debug-buffer)
+      (save-excursion
+        (goto-char (point-max))
+        (apply 'annotation-load "Click to jump to definition" nil msg annotations)
+        (insert msg)
+        (newline)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Comments and paragraphs
@@ -2469,9 +2475,8 @@ An attempt is made to preserve the default value of `agda2-mode-hook'."
     ;; Kill some buffers related to Agda.
     (when (buffer-live-p agda2-info-buffer)
       (kill-buffer agda2-info-buffer))
-    (when (and agda2-debug-buffer-name
-               (get-buffer agda2-debug-buffer-name))
-      (kill-buffer agda2-debug-buffer-name))
+    (when (buffer-live-p agda2-debug-buffer)
+      (kill-buffer agda2-debug-buffer))
 
     ;; Remove the Agda mode directory from the load path.
     (setq load-path (delete agda2-directory load-path))

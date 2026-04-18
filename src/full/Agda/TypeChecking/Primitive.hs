@@ -48,6 +48,7 @@ import Agda.Utils.Monad
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
 
@@ -685,6 +686,19 @@ primLockUniv' = do
   let t = sort $ Type $ levelSuc $ Max 0 []
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort LockUniv
 
+primRewriteNoMatch :: TCM PrimitiveImpl
+primRewriteNoMatch = do
+  t <- hPi "a" (el primLevel) $
+       hPi "A" (pure $ sort $ varSort 0) $
+       (el (pure $ var 0) --> el (pure $ var 0))
+
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 3 $ \ ~[l, a, x] -> do
+    allowed <- viewTC eAllowedReductions
+
+    if RewriteNoMatchReductions `SmallSet.member` allowed
+    then redReturn $ unArg x
+    else return $ NoReduction $ notReduced <$> [l, a, x]
+
 mkPrimFun1TCM :: (FromTerm a, ToTerm b) =>
                  TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
 mkPrimFun1TCM mt f = do
@@ -951,6 +965,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
 
   -- Other stuff
   , PrimEraseEquality     |-> primEraseEquality
+  , PrimRewriteNoMatch    |-> primRewriteNoMatch
     -- This needs to be force : A → ((x : A) → B x) → B x rather than seq because of call-by-name.
   , PrimForce             |-> primForce
   , PrimForceLemma        |-> primForceLemma
