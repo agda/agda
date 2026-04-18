@@ -138,6 +138,8 @@ Pragmas and options
 
 * New option `--local-rewriting` which enables parameterising over computation rules by annotating module parameters with `@rewrite` attributes. See the [local rewriting documentation](https://agda.readthedocs.io/en/v2.9.0/language/local-rewriting.html) for more info.
 
+* New `primRewriteNoMatch` primitive in `Agda.Builtin.Equality.Rewrite` for controlling rewrite rule matching. See the section in the [rewriting documentation](https://agda.readthedocs.io/en/v2.9.0/language/rewriting.html#controlling-rewrite-rule-matching-with-primrewritenomatch) for more info.
+
 Errors
 ------
 
