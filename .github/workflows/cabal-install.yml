@@ -17,7 +17,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.13.0
+    - uses: styfle/cancel-workflow-action@0.13.1
       with:
         access_token: ${{ github.token }}
   cabal-install:
@@ -33,7 +33,7 @@ jobs:
       with:
         cabal-update: true
         cabal-version: latest
-        ghc-version: 9.12.4
+        ghc-version: 9.14.1
     - name: Configure the build plan
       run: |
         # shellcheck disable=SC2086

@@ -35,7 +35,7 @@ jobs:
           - macos-latest
           - macos-15-intel
           - ubuntu-latest
-        ghc-ver: ['9.12.4']
+        ghc-ver: ['9.14.1']
         cabal-ver: [latest]
 
     env:

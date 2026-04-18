@@ -30,6 +30,7 @@ description:
     Emacs mode.
 
 tested-with:
+    GHC == 9.14.1
     GHC == 9.12.4
     GHC == 9.10.3
     GHC == 9.8.4
@@ -87,6 +88,7 @@ extra-doc-files:
     doc/release-notes/2.2.0.md
 
 extra-source-files:
+    stack-9.14.1.yaml
     stack-9.12.4.yaml
     stack-9.10.3.yaml
     stack-9.8.4.yaml
