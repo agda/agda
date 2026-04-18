@@ -202,14 +202,17 @@ class Monad m => ReadTCState m where
   withTCState :: (TCState -> TCState) -> m a -> m a
   withTCState = locallyTCState id
 
+  {-# INLINE getTCState #-}
   default getTCState :: (MonadTrans t, ReadTCState n, t n ~ m) => m TCState
   getTCState = lift getTCState
 
+  {-# INLINE locallyTCState #-}
   default locallyTCState
     :: (MonadTransControl t, ReadTCState n, t n ~ m)
     => Lens' TCState a -> (a -> a) -> m b -> m b
   locallyTCState l = liftThrough . locallyTCState l
 
+  {-# INLINE getSessionState #-}
   default getSessionState :: (MonadTrans t, ReadTCState n, t n ~ m) => m SessionState
   getSessionState = lift getSessionState
 
@@ -6509,12 +6512,15 @@ class Monad m => MonadTCState m where
   putTC :: TCState -> m ()
   modifyTC :: (TCState -> TCState) -> m ()
 
+  {-# INLINE getTC #-}
   default getTC :: (MonadTrans t, MonadTCState n, t n ~ m) => m TCState
   getTC = lift getTC
 
+  {-# INLINE putTC #-}
   default putTC :: (MonadTrans t, MonadTCState n, t n ~ m) => TCState -> m ()
   putTC = lift . putTC
 
+  {-# INLINE modifyTC #-}
   default modifyTC :: (MonadTrans t, MonadTCState n, t n ~ m) => (TCState -> TCState) -> m ()
   modifyTC = lift . modifyTC
 
@@ -6686,6 +6692,7 @@ class Monad m => MonadBlock m where
   -- | `patternViolation b` aborts the current computation
   patternViolation :: Blocker -> m a
 
+  {-# INLINE patternViolation #-}
   default patternViolation :: (MonadTrans t, MonadBlock n, m ~ t n) => Blocker -> m a
   patternViolation = lift . patternViolation
 
@@ -6721,8 +6728,12 @@ instance MonadBlock m => MonadBlock (ReaderT e m) where
   catchPatternErr h m = ReaderT $ \ e ->
     let run = flip runReaderT e in catchPatternErr (run . h) (run m)
 
-instance MonadFileId m => MonadFileId (BlockT m)
+instance MonadBlock m => MonadBlock (Strict.ReaderT e m) where
+  catchPatternErr h m = Strict.ReaderT (oneShot \e ->
+    let run = flip Strict.runReaderT e; {-# INLINE run #-}
+    in catchPatternErr (run . h) (run m))
 
+instance MonadFileId m => MonadFileId (BlockT m)
 ----------------------------------------------------------------------------------------------------
 -- * Type checking monad transformer
 ----------------------------------------------------------------------------------------------------

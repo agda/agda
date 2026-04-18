@@ -291,26 +291,31 @@ class MonadTCEnv m => MonadAddContext m where
 
   withFreshName :: Range -> ArgName -> (Name -> m a) -> m a
 
+  {-# INLINE addCtx #-}
   default addCtx
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
     => Name -> Dom Type -> m a -> m a
   addCtx x a = liftThrough $ addCtx x a
 
+  {-# INLINE addLetBinding' #-}
   default addLetBinding'
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
     => IsAxiom -> Origin -> Name -> Term -> Dom Type -> m a -> m a
   addLetBinding' isAxiom o x u a = liftThrough $ addLetBinding' isAxiom o x u a
 
+  {-# INLINE addLocalRewrite #-}
   default addLocalRewrite
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
     => RewriteRule -> m a -> m a
   addLocalRewrite r = liftThrough $ addLocalRewrite r
 
+  {-# INLINE updateContext #-}
   default updateContext
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
     => Substitution -> (Context -> Context) -> m a -> m a
   updateContext sub f = liftThrough $ updateContext sub f
 
+  {-# INLINE withFreshName #-}
   default withFreshName
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
     => Range -> ArgName -> (Name -> m a) -> m a
@@ -353,56 +358,12 @@ instance MonadAddContext m => MonadAddContext (ListT m) where
   updateContext sub f    = liftListT $ updateContext sub f
   withFreshName r x cont = ListT $ withFreshName r x $ runListT . cont
 
--- | Run the given TCM action, and register the given variable as
---   being shadowed by all the names with the same root that are added
---   to the context during this TCM action.
-withShadowingNameTCM :: Name -> TCM b -> TCM b
-withShadowingNameTCM x f = f
--- withShadowingNameTCM x = \f -> do
---   reportS "tc.cxt.shadowing" 80 $ "registered" <+> pretty x <+> "for shadowing"
---   when (isInScope x == InScope) $ tellUsedName x
---   (result , useds) <- listenUsedNames f
---   reportSLn "tc.cxt.shadowing" 90 $ "all used names: " ++ show useds
---   tellShadowing x useds
---   return result
-
---     where
---       listenUsedNames f = do
---         Lazy origUsedNames <- useTC stUsedNames
---         setTCLens stUsedNames (Lazy Map.empty)
---         result <- f
---         Lazy newUsedNames <- useTC stUsedNames
---         setTCLens stUsedNames $ Lazy (Map.unionWith (<>) origUsedNames newUsedNames)
---         return (result , newUsedNames)
-
---       tellUsedName x = do
---         let concreteX = nameConcrete x
---             rawX      = nameToRawName concreteX
---             rootX     = nameRoot concreteX
---         modifyTCLens stUsedNames \(Lazy ns) ->
---           Lazy (ns & key rootX %~ Just . Set1.insertSet rawX . Set1.toSet')
-
---       tellShadowing x useds = case Map.lookup (nameRoot $ nameConcrete x) useds of
---         Just shadows -> do
---           reportS "tc.cxt.shadowing" 80 $
---             "names shadowing" <+> pretty x <+> ": " <+>
---             prettyList_ (map' pretty $ toList shadows)
---           modifyTCLens stShadowingNames $ Lazy . Map.insertWith (<>) x shadows . unLazy
---         Nothing      -> return ()
-
--- {-# NOINLINE addCtxTEST #-}
--- addCtxTEST :: Name -> Dom Type -> TCM a -> TCM a
--- addCtxTEST x a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
---     defaultAddCtx x a ret
-
 instance MonadAddContext TCM where
   {-# INLINE addCtx #-}
-  addCtx !x !a !ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
-    defaultAddCtx x a ret
+  addCtx !x !a !ret = defaultAddCtx x a ret
 
   {-# INLINE addLetBinding' #-}
-  addLetBinding' isAxiom o x u a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
-    defaultAddLetBinding' isAxiom o x u a ret
+  addLetBinding' isAxiom o x u a ret = defaultAddLetBinding' isAxiom o x u a ret
 
   {-# INLINE updateContext #-}
   updateContext !sub !f !act = unsafeModifyContext f (checkpoint sub act)
