@@ -17,14 +17,14 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.13.0
+    - uses: styfle/cancel-workflow-action@0.13.1
       with:
         access_token: ${{ github.token }}
   cabal:
     env:
       FLAGS: -O0 ${{ matrix.cabal-flags || '--enable-tests --flags=enable-cluster-counting'
         }}
-      GHC_VER: ${{ matrix.ghc-ver || '9.12.4' }}
+      GHC_VER: ${{ matrix.ghc-ver || '9.14.1' }}
     name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
@@ -127,6 +127,7 @@ jobs:
         doctest:
         - false
         ghc-ver:
+        - 9.14.1
         - 9.12.4
         - 9.10.3
         - 9.8.4
@@ -134,30 +135,25 @@ jobs:
         - 9.4.8
         - 9.2.8
         include:
-        - cabal-flags: --project-file=cabal.project.ghc-9.14.1
-          description: Linux GHC 9.14.1
-          doctest: false
-          ghc-ver: 9.14.1
-          os: ubuntu-24.04
         - cabal-flags: --disable-tests
           description: Linux doctest
           doctest: true
-          ghc-ver: 9.12.4
+          ghc-ver: 9.14.1
           os: ubuntu-24.04
         - cabal-flags: --enable-tests --flags=debug
           description: Linux debug
-          ghc-ver: 9.12.4
+          ghc-ver: 9.14.1
           os: ubuntu-24.04
         - cabal-flags: --enable-tests --flags=use-xdg-data-home --flags=enable-cluster-counting
             --flags=debug --flags=debug-serialisation --flags=debug-parsing
           description: Linux debug all
-          ghc-ver: 9.12.4
+          ghc-ver: 9.14.1
           os: ubuntu-24.04
         - description: macOS
-          ghc-ver: 9.12.4
-          os: macos-15
+          ghc-ver: 9.14.1
+          os: macos-26
         - description: Windows
-          ghc-ver: 9.12.4
+          ghc-ver: 9.14.1
           os: windows-2025
         os:
         - ubuntu-24.04

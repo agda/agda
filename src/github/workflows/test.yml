@@ -59,7 +59,7 @@ env:
   # Andreas, 2022-03-26, 2022-11-28:
   # GHC_VER should be given as x.y.z (as opposed to x.y only)
   # because it is used verbatim when referring to stack-x.y.z.yaml.
-  GHC_VER: "9.12.4"
+  GHC_VER: "9.14.1"
 
   # Part 2: Variables that should not have to be changed
   ###########################################################################
@@ -103,7 +103,7 @@ jobs:
         echo "github.ref_name   = ${{ github.ref_name   }}"
         echo "github.ref_type   = ${{ github.ref_type   }}"
 
-    - uses: styfle/cancel-workflow-action@0.13.0
+    - uses: styfle/cancel-workflow-action@0.13.1
       # Andreas, 2022-12-05, issue #6388: do not cancel on `master`!
       if: github.ref != 'refs/heads/master'
       with:
