@@ -2283,9 +2283,12 @@ FILEPOS should have the form (FILE . POSITION).
 
 If `agda2-highlight-in-progress' is nil, then nothing happens.
 
-If there is a buffer already visiting FILE that is displayed in
-some windows, then the point is updated to POSITION in all of those
-windows.
+If there is a buffer already visiting FILE whose window
+is selected, then the point is updated to POSITION in the `selected-window'.
+
+If there is a buffer already visiting FILE that is currently visible
+in only non-selected windows, then the point is updated to POSITION
+in all of those windows.
 
 If there is a buffer visiting FILE that is not displayed in any windows,
 then update the point, but do not display it.
@@ -2303,10 +2306,16 @@ If there is no buffer visiting FILE, do nothing."
     (xref-push-marker-stack)
     (if-let* ((buffer (find-buffer-visiting (car filepos))))
         (if-let* ((windows (get-buffer-window-list buffer 'no-minibuffer 'all-frames)))
-            ;; Buffer is visible, update points in all windows.
-            (dolist (window windows)
-              (with-selected-window window
-                (goto-char (cdr filepos))))
+            (if (eq buffer (window-buffer (selected-window)))
+                ;; Buffer is visible and focused, only update the point in the
+                ;; focused window.
+                ;;
+                ;; See #8505
+                (goto-char (cdr filepos))
+              ;; Buffer is visible, update points in all windows.
+              (dolist (window windows)
+                (with-selected-window window
+                  (goto-char (cdr filepos)))))
           ;; Buffer exists, but is not visible.
           ;; We do not display the buffer here, as can be jarring for slow loads.
           ;; See https://github.com/agda/agda/pull/8458#issuecomment-4032442448
