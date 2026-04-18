@@ -6,26 +6,13 @@ open import Agda.Primitive.Cubical renaming (itIsOne to 1=1)
 open import Agda.Primitive.Guarded
 open import Agda.Builtin.Cubical.Path
 open import Agda.Builtin.Cubical.Sub renaming (Sub to _[_↦_]; primSubOut to outS)
+open import Common.Guarded.Core
+open import Common.Guarded.Cubical
 
 private
   variable
     l : Level
     A B : Set l
-
-▹_ : ∀ {l} → Set l → Set l
-▹_ A = (@tick x : Tick) -> A
-
-▸_ : ∀ {l} → ▹ Set l → Set l
-▸ A = (@tick x : Tick) → A x
-
-next : A → ▹ A
-next x _ = x
-
-_⊛_ : ▹ (A → B) → ▹ A → ▹ B
-_⊛_ f x a = f a (x a)
-
-map▹ : (f : A → B) → ▹ A → ▹ B
-map▹ f x α = f (x α)
 
 transpLater : ∀ (A : I → ▹ Set) → ▸ (A i0) → ▸ (A i1)
 transpLater A u0 a = primTransp (\ i → A i a) i0 (u0 a)
@@ -52,8 +39,6 @@ ap f eq = \ i → f (eq i)
 
 _$>_ : ∀ {A B : Set} {f g : A → B} → f ≡ g → ∀ x → f x ≡ g x
 eq $> x = \ i → eq i x
-later-ext : ∀ {A : Set} → {f g : ▹ A} → (▸ \ α → f α ≡ g α) → f ≡ g
-later-ext eq = \ i α → eq α i
 
 postulate
   dfix : ∀ {l} {A : Set l} → (▹ A → A) → ▹ A
@@ -64,10 +49,6 @@ pfix' f α i = pfix f i α
 
 fix : ∀ {l} {A : Set l} → (▹ A → A) → A
 fix f = f (dfix f)
-
-data gStream (A : Set) : Set where
-  cons : (x : A) (xs : ▹ gStream A) → gStream A
-
 
 repeat : ∀ {A : Set} → A → gStream A
 repeat a = fix \ repeat▹ → cons a repeat▹
