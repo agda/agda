@@ -25,6 +25,7 @@ import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
+import Agda.TypeChecking.Rules.LHS (buildParamSub, LHSSubstitutionCase (..))
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Telescope
@@ -84,6 +85,8 @@ checkIApplyConfluence f cl = case cl of
           reportSDoc "tc.cover.iapply" 40 $ "tel =" <+> prettyTCM clTel
           reportSDoc "tc.cover.iapply" 40 $ "ps =" <+> pretty ps
           ps <- normaliseProjP ps
+          clCxt <- inTopContext $ addContext clTel $ getContext
+          (_, clSub) <- buildParamSub ps NormalFunction
           forM_ (iApplyVars ps) $ \ i -> do
             unview <- intervalUnview'
             let phi = unview $ IMax (argN $ unview (INeg $ argN $ var i)) $ argN $ var i
@@ -143,7 +146,8 @@ checkIApplyConfluence f cl = case cl of
                 -- instead of presenting a mysterious error.
                 traceCall why (compareTerm cmp ty u v `catchError` maybeDropCall)
 
-            addContext clTel $ compareTermOnFace' k CmpEq phi trhs lhs body
+            updateContext clSub (const clCxt) $
+              compareTermOnFace' k CmpEq phi trhs lhs body
 
 -- | current context is of the form Γ.Δ
 unifyElims :: Args

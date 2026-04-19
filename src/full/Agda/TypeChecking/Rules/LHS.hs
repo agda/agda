@@ -9,6 +9,8 @@ module Agda.TypeChecking.Rules.LHS
   , DataOrRecord
   , checkSortOfSplitVar
   , LetOrClause(LetLHS, ClauseLHS)
+  , buildParamSub
+  , LHSSubstitutionCase(..)
   ) where
 
 import Prelude hiding ( null )
@@ -638,6 +640,70 @@ instance InstantiateFull LHSResult where
     <*> pure psplit
     <*> pure ixsplit
 
+-- | Building substitutions from out patterns needs to handle normal functions
+--   and with-functions.
+data LHSSubstitutionCase = NormalFunction | WithFunction Type Substitution
+
+-- | Build LHSSubstitutionCase from expected type and module parameter
+--   substitution from with-abstraction if relevant.
+lhsSubstitutionCase :: Type -> Maybe Substitution -> LHSSubstitutionCase
+lhsSubstitutionCase a Nothing        = NormalFunction
+lhsSubstitutionCase a (Just withSub) = WithFunction a withSub
+
+-- | Compute substitution from the out patterns @ps@
+--
+---  We have two slightly different cases here: normal function and
+--   with-function. In both cases the goal is to build a substitution
+--   from the context Γ of the previous checkpoint to the current lhs
+--   context Δ:
+--
+--      Δ ⊢ paramSub : Γ
+--
+--    * Normal function, f
+--
+--      Γ = cxt = module parameter telescope of f
+--      Ψ = non-parameter arguments of f (we have f : Γ Ψ → A)
+--      Δ   ⊢ patSub  : Γ Ψ
+--      Γ Ψ ⊢ weakSub : Γ
+--      paramSub = patSub ∘ weakSub
+--
+--    * With-function
+--
+--      Γ = lhs context of the parent clause (cxt = [])
+--      Ψ = argument telescope of with-function
+--      Θ = inserted implicit patterns not in Ψ (#2827)
+--          (this happens if the goal computes to an implicit
+--           function type after some matching in the with-clause)
+--
+--      Ψ   ⊢ withSub : Γ
+--      Δ   ⊢ patSub  : Ψ Θ
+--      Ψ Θ ⊢ weakSub : Ψ
+--      paramSub = patSub ∘ weakSub ∘ withSub
+--
+--      To compute Θ we can look at the arity of the with-function
+--      and compare it to numPats. This works since the with-function
+--      type is fully reduced.
+buildParamSub :: NAPs -> LHSSubstitutionCase -> TCM (Substitution, Substitution)
+buildParamSub ps withSub' = do
+  cxt <- getContext
+  let notProj ProjP{} = False
+      notProj _       = True
+      numPats = length $ takeWhile (notProj . namedArg) ps
+      patSub = map' (patternToTerm . namedArg) (reverse $ take' numPats ps) ++#
+        EmptyS impossible
+  (weakSub, withSub) <- case withSub' of
+    NormalFunction         -> pure (wkS (numPats - length cxt) idS, idS)
+    WithFunction a withSub -> do
+      arity <- arityPiPath a
+      -- if numPats < arity, Θ is empty
+      pure (wkS (max 0 $ numPats - arity) idS , withSub)
+  let paramSub = patSub `composeS` weakSub `composeS` withSub
+  reportSDoc "tc.lhs.top" 20 $ nest 2 $ "withSub  = " <+> pretty withSub
+  reportSDoc "tc.lhs.top" 20 $ nest 2 $ "weakSub  = " <+> pretty weakSub
+  reportSDoc "tc.lhs.top" 20 $ nest 2 $ "patSub   = " <+> pretty patSub
+  reportSDoc "tc.lhs.top" 20 $ nest 2 $ "paramSub = " <+> pretty paramSub
+  pure (patSub, paramSub)
+
 -- | Check a LHS. Main function.
 --
 --   @checkLeftHandSide a ps a ret@ checks that user patterns @ps@ eliminate
@@ -710,57 +776,12 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
           -- implement the substitution T[y/x], we use an actual
           -- transport. See #5448.
 
-        arity_a <- arityPiPath a
-
         reportSDoc "tc.lhs.top" 30 $ vcat
           [ nest 2 $ "a        =" <+> prettyTCM a
-          , nest 2 $ "arity_a  =" <+> prettyTCM arity_a
           , nest 2 $ "withSub' =" <+> prettyTCM withSub'
           ]
 
-        -- Compute substitution from the out patterns @qs0@
-        let notProj ProjP{} = False
-            notProj _       = True
-            numPats  = length $ takeWhile (notProj . namedArg) qs0
-
-            -- We have two slightly different cases here: normal function and
-            -- with-function. In both cases the goal is to build a substitution
-            -- from the context Γ of the previous checkpoint to the current lhs
-            -- context Δ:
-            --
-            --    Δ ⊢ paramSub : Γ
-            --
-            --  * Normal function, f
-            --
-            --    Γ = cxt = module parameter telescope of f
-            --    Ψ = non-parameter arguments of f (we have f : Γ Ψ → A)
-            --    Δ   ⊢ patSub  : Γ Ψ
-            --    Γ Ψ ⊢ weakSub : Γ
-            --    paramSub = patSub ∘ weakSub
-            --
-            --  * With-function
-            --
-            --    Γ = lhs context of the parent clause (cxt = [])
-            --    Ψ = argument telescope of with-function
-            --    Θ = inserted implicit patterns not in Ψ (#2827)
-            --        (this happens if the goal computes to an implicit
-            --         function type after some matching in the with-clause)
-            --
-            --    Ψ   ⊢ withSub : Γ
-            --    Δ   ⊢ patSub  : Ψ Θ
-            --    Ψ Θ ⊢ weakSub : Ψ
-            --    paramSub = patSub ∘ weakSub ∘ withSub
-            --
-            --    To compute Θ we can look at the arity of the with-function
-            --    and compare it to numPats. This works since the with-function
-            --    type is fully reduced.
-
-            weakSub :: Substitution
-            weakSub | isJust withSub' = wkS (max 0 $ numPats - arity_a) idS -- if numPats < arity, Θ is empty
-                    | otherwise       = wkS (numPats - length cxt) idS
-            withSub  = fromMaybe idS withSub'
-            patSub   = map' (patternToTerm . namedArg) (reverse $ take' numPats qs0) ++# EmptyS impossible
-            paramSub = patSub `composeS` weakSub `composeS` withSub
+        (patSub, paramSub) <- buildParamSub qs0 (lhsSubstitutionCase a withSub')
 
         eqs <- addContext delta $ checkPatternLinearity eqs
 
@@ -803,10 +824,6 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
                  [ "vars   = " <+> pretty vars
                  , "b      = " <+> pretty b
                  ]
-        reportSDoc "tc.lhs.top" 20 $ nest 2 $ "withSub  = " <+> pretty withSub
-        reportSDoc "tc.lhs.top" 20 $ nest 2 $ "weakSub  = " <+> pretty weakSub
-        reportSDoc "tc.lhs.top" 20 $ nest 2 $ "patSub   = " <+> pretty patSub
-        reportSDoc "tc.lhs.top" 20 $ nest 2 $ "paramSub = " <+> pretty paramSub
 
         newCxt <- computeLHSContext vars delta
 
