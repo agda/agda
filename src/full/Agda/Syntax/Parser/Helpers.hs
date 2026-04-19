@@ -605,7 +605,7 @@ patternToNames :: Pattern -> Parser (List1 (Arg Name))
 patternToNames = \case
     IdentP _ (QName i)           -> return $ singleton $ defaultArg i
     WildP r                      -> return $ singleton $ defaultArg $ C.noName r
-    DotP kwr _ (Ident (QName i)) -> return $ singleton $ makeIrrelevant kwr $ defaultArg i
+    DotP kwr _ _ (Ident (QName i)) -> return $ singleton $ makeIrrelevant kwr $ defaultArg i
     RawAppP _ ps                 -> sconcat . List2.toList1 <$> mapM patternToNames ps
     p -> parseError $
       "Illegal name in type signature: " ++ prettyShow p
@@ -614,8 +614,8 @@ patternToNames = \case
 
 patternToArgPattern :: Pattern -> Arg Pattern
 patternToArgPattern = \case
-   DotP kwr _ (Ident x)        -> makeIrrelevant kwr $ defaultArg $ IdentP True x
-   DotP kwr _ (Underscore r _) -> makeIrrelevant kwr $ defaultArg $ WildP r
+   DotP kwr _ _ (Ident x)        -> makeIrrelevant kwr $ defaultArg $ IdentP True x
+   DotP kwr _ _ (Underscore r _) -> makeIrrelevant kwr $ defaultArg $ WildP r
    p -> defaultArg p
 
 
