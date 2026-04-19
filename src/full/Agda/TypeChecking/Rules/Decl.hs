@@ -336,7 +336,7 @@ revisitRecordPatternTranslation qs = do
   -- and the set of function definitions in the mutual block
   classify q = inConcreteOrAbstractMode q $ \ def -> do
     case theDef def of
-      Record{ recEtaEquality' = Inferred YesEta } -> return $ Just $ Left q
+      Record{ recEtaEquality' = EtaEquality YesEta _ } -> return $ Just $ Left q
       Function
         { funProjection = Left MaybeProjection
             -- Andreas, 2017-08-10, issue #2664:
@@ -858,13 +858,11 @@ checkPragma r p = do
             Nothing -> uselessPragma =<< pretty new <+> "pragma can only be applied to instances"
 
         A.EtaPragma q -> isRecord q >>= \case
-            Nothing -> noRecord
-            Just RecordData{ _recInduction = ind, _recEtaEquality' = eta }
-              | ind /= Just CoInductive  -> noRecord
-              | Specified NoEta{} <- eta -> uselessPragma "ETA pragma conflicts with no-eta-equality declaration"
-              | otherwise -> modifyRecEta q $ const $ Specified YesEta
-          where
-            noRecord = uselessPragma "ETA pragma is only applicable to coinductive records"
+            Nothing -> uselessPragma "ETA pragma is only applicable to record types"
+            Just RecordData{ _recEtaEquality' = EtaEquality eta etaProvenance }
+              | NoEta{} <- eta, EtaFromDirective <- etaProvenance  ->
+                  uselessPragma "ETA pragma conflicts with no-eta-equality declaration"
+              | otherwise -> modifyRecEta q $ setEtaEquality $ EtaEquality YesEta EtaFromPragma
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 --

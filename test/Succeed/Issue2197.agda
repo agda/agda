@@ -5,7 +5,7 @@
 -- {-# OPTIONS -v tc.pos:20 -v tc.meta.eta:20 #-}
 
 record R : Set where
-  inductive
+  inductive; no-eta-equality
 
   field
     foo : R

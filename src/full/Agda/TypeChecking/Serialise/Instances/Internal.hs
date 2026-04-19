@@ -426,13 +426,12 @@ instance EmbPrj Occurrence where
   value _ = malformed
 
 instance EmbPrj EtaEquality where
-  icod_ (Specified a) = icodeN 0 Specified a
-  icod_ (Inferred a)  = icodeN 1 Inferred a
-
+  icod_ (EtaEquality a b) = icodeN' EtaEquality a b
   value = vcase valu where
-    valu (N2 0 a) = valuN Specified a
-    valu (N2 1 a) = valuN Inferred a
+    valu (N2 a b) = valuN EtaEquality a b
     valu _        = malformed
+
+instance EmbPrj EtaProvenance
 
 instance EmbPrj ProjectionLikenessMissing
 

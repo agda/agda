@@ -2784,10 +2784,19 @@ projArgInfo :: Projection -> ArgInfo
 projArgInfo (Projection _ _ _ _ lams) =
   maybe __IMPOSSIBLE__ getArgInfo $ lastMaybe $ getProjLams lams
 
+-- | Provenance of the eta equality.
+-- Keep constructors in order @'EtaFromOption' < 'EtaFromDirective' < 'EtaFromPragma'@.
+data EtaProvenance
+  = EtaFromOption      -- ^ Default stemming from option ('etaEnabled') and inductivity.
+  | EtaFromDirective   -- ^ User specified @(no-)eta-equality@ in record directive.
+  | EtaFromPragma      -- ^ User specified eta-equality through pragma, overruling safety checks.
+  deriving (Eq, Ord, Show, Generic, Enum, Bounded)
+
 -- | Should a record type admit eta-equality?
-data EtaEquality
-  = Specified { theEtaEquality :: !HasEta }  -- ^ User specified 'eta-equality' or 'no-eta-equality'.
-  | Inferred  { theEtaEquality :: !HasEta }  -- ^ Positivity checker inferred whether eta is safe.
+data EtaEquality = EtaEquality
+  { theEtaEquality :: !HasEta          -- ^ Eta or no eta?
+  , etaProvenance  :: !EtaProvenance   -- ^ Where does this information come from?
+  }
   deriving (Show, Eq, Generic)
 
 instance PatternMatchingAllowed EtaEquality where
@@ -2797,9 +2806,13 @@ instance CopatternMatchingAllowed EtaEquality where
   copatternMatchingAllowed = copatternMatchingAllowed . theEtaEquality
 
 -- | Make sure we do not overwrite a user specification.
-setEtaEquality :: EtaEquality -> HasEta -> EtaEquality
-setEtaEquality e@Specified{} _ = e
-setEtaEquality _ b = Inferred b
+setEtaEquality ::
+     EtaEquality   -- ^ New value.  Must have higher provenance than old value.
+  -> EtaEquality   -- ^ Old value.
+  -> EtaEquality   -- ^ New value, or crash if invariant is violated.
+setEtaEquality eta@(EtaEquality _ newProvenance) (EtaEquality _ oldProvenance)
+  | newProvenance > oldProvenance = eta
+  | otherwise = __IMPOSSIBLE__
 
 data FunctionFlag
   = FunStatic  -- ^ Should calls to this function be normalised at compile-time?
@@ -5817,6 +5830,7 @@ data TypeError
     -- Positivity and polarity errors
         | DatatypeIndexPolarity
             -- ^ An index of a data type has a polarity different from 'Mixed'.
+        | UnguardedEtaRecord QName
 
     -- Sized type errors
         | CannotSolveSizeConstraints (List1 (ProblemConstraint, HypSizeConstraint)) Doc
@@ -7350,6 +7364,7 @@ instance NFData CompilerPragma
 instance NFData System
 instance NFData ExtLamInfo
 instance NFData EtaEquality
+instance NFData EtaProvenance
 instance NFData FunctionFlag
 instance NFData CompKit
 instance NFData AxiomData

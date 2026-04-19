@@ -1675,6 +1675,10 @@ instance PrettyTCM TypeError where
     UnexpectedTypeSignatureForParameter xs -> do
       fsep (pwords "Unexpected type signature for" ++ [ pluralS xs "parameter" ]) <+> sep (fmap prettyA xs)
 
+    UnguardedEtaRecord x ->
+      fwords "Unguarded eta record"
+
+
     UnusableAtModality why mod t -> do
       compatible <- cubicalCompatibleOption
       cubical <- isJust <$> cubicalOption

@@ -1,3 +1,4 @@
+
 Issue7245.agda:1.1-37: warning: -W[no]PragmaExpectsDefinedSymbol
 Target of ETA pragma should be a defined symbol
 when scope checking the declaration
@@ -34,7 +35,7 @@ when scope checking the declaration
   {-# NOINLINE Set1 #-}
 
 Issue7245.agda:12.1-36: warning: -W[no]UselessPragma
-ETA pragma is only applicable to coinductive records
+ETA pragma is only applicable to record types
 when checking the pragma ETA foo
 
 Issue7245.agda:14.1-36: warning: -W[no]UselessPragma
@@ -179,7 +180,7 @@ when scope checking the declaration
   {-# NOINLINE Set1 #-}
 
 Issue7245.agda:12.1-36: warning: -W[no]UselessPragma
-ETA pragma is only applicable to coinductive records
+ETA pragma is only applicable to record types
 when checking the pragma ETA foo
 
 Issue7245.agda:14.1-36: warning: -W[no]UselessPragma

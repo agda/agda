@@ -20,6 +20,8 @@ record Acc {a} {A : Set a} {r} (R : A → A → Set r) (x : A) : Set (a ⊔ r) w
   field step : ∀ y → R y x → Acc R y
 open Acc public
 
+{-# ETA Acc #-}
+
 -- Naively testing Acc R x for being a singleton will infinitely unfold its definition.
 -- We need to keep track of which record types we already unfolded!
 
@@ -28,4 +30,3 @@ isPropAcc (acc x) (acc y) = cong acc (funExt λ n → funExt λ p → isPropAcc 
 
 -- Agda used to loop when trying determine whether Acc is a singleton type.
 -- Now it gives a termination error, as expected.
-

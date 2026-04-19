@@ -237,6 +237,7 @@ typeErrorName = \case
   UnexpectedParameter                                        {} -> UnexpectedParameter_
   UnexpectedTypeSignatureForParameter                        {} -> UnexpectedTypeSignatureForParameter_
   UnexpectedWithPatterns                                     {} -> UnexpectedWithPatterns_
+  UnguardedEtaRecord                                         {} -> UnguardedEtaRecord_
   UnknownBackend                                             {} -> UnknownBackend_
   UnusableAtModality                                         {} -> UnusableAtModality_
   UnusedVariableInPatternSynonym                             {} -> UnusedVariableInPatternSynonym_

@@ -286,6 +286,7 @@ data ErrorName
   | UnexpectedParameter_
   | UnexpectedTypeSignatureForParameter_
   | UnexpectedWithPatterns_
+  | UnguardedEtaRecord_
   | UnknownBackend_
   | UnusableAtModality_
   | UnusedVariableInPatternSynonym_
