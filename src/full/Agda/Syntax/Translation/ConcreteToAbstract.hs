@@ -3707,7 +3707,7 @@ instance ToAbstract CLHSCore where
         x <- withLocalVars do
           setLocalVars []
           toAbstractOldName x
-        ps <- toAbstract $ (fmap . fmap . fmap) (CPattern displayLhs) ps
+        ps <- toAbstract $ (fmap . fmap . fmap) (CPattern displayLhs CouldBeProjectionPattern) ps
         A.LHSHead x <$> mergeEqualPs ps
 
     C.LHSProj d ps1 core ps2 -> do
@@ -3717,7 +3717,7 @@ instance ToAbstract CLHSCore where
           UnknownName  -> notInScopeError d
           _            -> typeError $ CopatternHeadNotProjection d
         core <- toAbstract $ (fmap . fmap) (CLHSCore displayLhs) core
-        ps2  <- toAbstract $ (fmap . fmap . fmap) (CPattern displayLhs) ps2
+        ps2  <- toAbstract $ (fmap . fmap . fmap) (CPattern displayLhs CouldBeProjectionPattern) ps2
         A.LHSProj x core <$> mergeEqualPs ps2
 
     C.LHSWith core wps ps -> do
@@ -3867,9 +3867,11 @@ instance ToAbstract (WithHidingInfo C.Pattern) where
 -- | Scope check a 'C.Pattern' (of possibly a 'C.DisplayForm').
 --
 data CPattern = CPattern
-  DisplayLHS
+  !DisplayLHS
     -- ^ Are we checking a 'C.DisplayForm'?
-  C.Pattern
+  !PossiblyProjectionPattern
+    -- ^ Could this be a projection pattern?
+  !C.Pattern
     -- ^ The pattern to scope-check.
 
 -- | Scope check a 'C.Pattern' not belonging to a 'C.DisplayForm'.
@@ -3877,12 +3879,12 @@ data CPattern = CPattern
 instance ToAbstract C.Pattern where
   type AbsOfCon C.Pattern = A.Pattern' C.Expr
 
-  toAbstract = toAbstract . CPattern NoDisplayLHS
+  toAbstract = toAbstract . CPattern NoDisplayLHS CouldBeProjectionPattern
 
 instance ToAbstract CPattern where
   type AbsOfCon CPattern = A.Pattern' C.Expr
 
-  toAbstract (CPattern displayLhs p0) = do
+  toAbstract (CPattern displayLhs ppp0 p0) = do
    case p0 of
 
     C.IdentP canBeConstructor x ->
@@ -3978,18 +3980,19 @@ instance ToAbstract CPattern where
 
     -- We have to do dot patterns at the end since they can
     -- refer to the variables bound by the other patterns.
-    C.DotP _kwr r CannotBeProjectionPattern e -> return $ A.DotP (PatRange r) e
-    C.DotP _kwr r CouldBeProjectionPattern e -> do
-      reportSLn "scope.pat" 90 $ "ConcreteToAbstract.toAbstract DotP{}: " ++ show p0
-      case e of
-        C.Ident x -> resolveName x >>= \case
-          -- Andreas, 2018-06-19, #3130
-          -- We interpret .x as postfix projection if x is a field name in scope
-          FieldName xs -> do
-            reportSLn "scope.pat" 80 $ "ConcreteToAbstract.toAbstract DotP{}: returning A.ProjP{}"
-            return $ A.ProjP (PatRange r) ProjPostfix $ ambigName xs
-          _ -> fallback
-        _ -> fallback
+    C.DotP _kwr r ppp e
+      | CouldBeProjectionPattern <- ppp, CouldBeProjectionPattern <- ppp0 -> do
+          reportSLn "scope.pat" 90 $ "ConcreteToAbstract.toAbstract DotP{}: " ++ show p0
+          case e of
+            C.Ident x -> resolveName x >>= \case
+              -- Andreas, 2018-06-19, #3130
+              -- We interpret .x as postfix projection if x is a field name in scope
+              FieldName xs -> do
+                reportSLn "scope.pat" 80 $ "ConcreteToAbstract.toAbstract DotP{}: returning A.ProjP{}"
+                return $ A.ProjP (PatRange r) ProjPostfix $ ambigName xs
+              _ -> fallback
+            _ -> fallback
+      | otherwise -> fallback
       where
         fallback = do
           reportSLn "scope.pat" 80 $ "ConcreteToAbstract.toAbstract DotP{}: returning A.DotP{}"
@@ -4001,7 +4004,7 @@ instance ToAbstract CPattern where
 
     where
       -- Pass on @displayLhs@ context
-      wrap = CPattern displayLhs
+      wrap = CPattern displayLhs CannotBeProjectionPattern
 
 -- | An argument @OpApp C.Expr@ to an operator can have binders,
 --   in case the operator is some @syntax@-notation.
