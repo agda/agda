@@ -851,16 +851,17 @@ exprToPattern :: Applicative m
   => (Expr -> m Pattern)  -- ^ Default result for non-pattern things.
   -> Expr                 -- ^ The expression to translate.
   -> m Pattern            -- ^ The translated pattern (maybe).
-exprToPattern fallback = loop
+exprToPattern fallback = go CouldBeProjectionPattern
   where
-  loop = \case
+  loop = go CannotBeProjectionPattern
+  go ppp = \case
     Ident       x        -> pure $ IdentP True x
     App         _ e1 e2  -> AppP <$> loop e1 <*> traverse (traverse loop) e2
     Paren       r e      -> ParenP r <$> loop e
     Underscore  r _      -> pure $ WildP r
     Absurd      r        -> pure $ AbsurdP r
     As          r x e    -> pushUnderBracesP r (AsP r x) <$> loop e
-    e0@(Dot     kwr e)   -> pure $ pushDotUnderBraces kwr (getRange e0) e
+    e0@(Dot     kwr e)   -> pure $ pushDotUnderBraces kwr (getRange e0) ppp e
     -- Wen, 2020-08-27: We disallow Float patterns, since equality for floating
     -- point numbers is not stable across architectures and with different
     -- compiler flags.
@@ -891,12 +892,12 @@ exprToPattern fallback = loop
     InstanceP _ p   -> InstanceP r $ fmap f p
     p               -> f p
 
-  pushDotUnderBraces :: KwRange -> Range -> Expr -> Pattern
-  pushDotUnderBraces kwr r = \case
+  pushDotUnderBraces :: KwRange -> Range -> PossiblyProjectionPattern -> Expr -> Pattern
+  pushDotUnderBraces kwr r ppp = \case
     HiddenArg   _ e -> HiddenP   r $ fmap (DotP kwr r CannotBeProjectionPattern) e
     InstanceArg _ e -> InstanceP r $ fmap (DotP kwr r CannotBeProjectionPattern) e
     Paren       _ e -> DotP kwr r CannotBeProjectionPattern e
-    e               -> DotP kwr r CouldBeProjectionPattern e
+    e               -> DotP kwr r ppp e
 
 isAbsurdP :: Pattern -> Maybe (Range, Hiding)
 isAbsurdP = \case
