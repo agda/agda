@@ -586,16 +586,13 @@ checkGeneralize s i info x e = do
       GeneralizableVar $ SomeGeneralizableArgs n
 
 -- | Type check an axiom.
-checkAxiom :: KindOfName -> A.DefInfo -> ArgInfo ->
-              Maybe PragmaPolarities -> QName -> A.Expr -> TCM ()
-checkAxiom = checkAxiom' Nothing
-
--- | Data and record type signatures need to remember the generalized
+--
+--   Data and record type signatures need to remember the generalized
 --   parameters for when checking the corresponding definition, so for these we
 --   pass in the parameter telescope separately.
-checkAxiom' :: Maybe A.GeneralizeTelescope -> KindOfName -> A.DefInfo -> ArgInfo ->
-               Maybe PragmaPolarities -> QName -> A.Expr -> TCM ()
-checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaultOpenLevelsToZero $ do
+checkAxiom :: Maybe A.GeneralizeTelescope -> KindOfName -> A.DefInfo -> ArgInfo ->
+              Maybe PragmaPolarities -> QName -> A.Expr -> TCM ()
+checkAxiom gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaultOpenLevelsToZero $ do
   -- Andreas, 2016-07-19 issues #418 #2102:
   -- We freeze metas in type signatures of abstract definitions, to prevent
   -- leakage of implementation details.
@@ -909,7 +906,7 @@ checkTypeSignature' gtel (A.Axiom funSig i info mp x e) =
               -- Issue #418, #3744, in fact don't go to AbstractMode at all
             | otherwise -> inConcreteMode
           PublicAccess  -> inConcreteMode
-    in abstr $ checkAxiom' gtel funSig i info mp x e
+    in abstr $ checkAxiom gtel funSig i info mp x e
 checkTypeSignature' _ _ =
   __IMPOSSIBLE__   -- type signatures are always axioms
 
