@@ -639,6 +639,7 @@ can be changed globally by option :option:`--no-eta-equality`.
     record Rec : Set where
       constructor con
       no-eta-equality
+      pattern
       field
         f : Nat
     open Rec
@@ -646,7 +647,7 @@ can be changed globally by option :option:`--no-eta-equality`.
     eta : (r : Rec) → r ≡ con (f r)
     eta (con n) = refl
 
-    bar : R
+    bar : Rec
     f bar = 0
 
   If this code were allowed, then ``eta bar`` is a closed term of type
