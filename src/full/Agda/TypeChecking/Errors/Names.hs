@@ -112,6 +112,7 @@ typeErrorName = \case
   DuplicateOverlapPragma                                     {} -> DuplicateOverlapPragma_
   DuplicatePrimitiveBinding                                  {} -> DuplicatePrimitiveBinding_
   EmptyTypeOfSizes                                           {} -> EmptyTypeOfSizes_
+  EtaPragmaVsNoEtaEquality                                   {} -> EtaPragmaVsNoEtaEquality_
   ExpectedBindingForParameter                                {} -> ExpectedBindingForParameter_
   ExpectedIntervalLiteral                                    {} -> ExpectedIntervalLiteral_
   FieldOutsideRecord                                         {} -> FieldOutsideRecord_

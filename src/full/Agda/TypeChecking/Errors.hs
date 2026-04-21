@@ -290,6 +290,8 @@ instance PrettyTCM TypeError where
     ShouldBeRecordPattern -> fsep $
       pwords "Expected record pattern"
 
+    EtaPragmaVsNoEtaEquality -> fwords $ "Record has both ETA pragma and no-eta-equality directive"
+
     WrongHidingInLHS -> fwords "Unexpected implicit argument"
 
     WrongHidingInLambda t ->

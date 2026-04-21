@@ -1210,7 +1210,7 @@ niceDeclarations fixs ds = do
               OverlapPragma{}           -> top
 
               ImpossiblePragma{}        -> top     -- error thrown in scope checker
-              EtaPragma{}               -> bottom  -- needs record definition
+              EtaPragma{}               -> top     -- needs to come before record definition
               WarningOnUsage{}          -> top
               WarningOnImport{}         -> top
               InjectivePragma{}         -> top     -- only needs name, not definition

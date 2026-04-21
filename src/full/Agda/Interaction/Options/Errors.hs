@@ -152,6 +152,7 @@ data ErrorName
   | DuplicateOverlapPragma_
   | DuplicatePrimitiveBinding_
   | EmptyTypeOfSizes_
+  | EtaPragmaVsNoEtaEquality_
   | ExpectedBindingForParameter_
   | ExpectedIntervalLiteral_
   | FieldOutsideRecord_

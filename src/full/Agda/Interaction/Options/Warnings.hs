@@ -337,6 +337,7 @@ data WarningName
   | NotStrictlyPositive_
   | ConstructorDoesNotFitInData_
   | CoinductiveEtaRecord_
+  | UnguardedEtaRecordW_
   | UnsupportedIndexedMatch_
   | OldBuiltin_
   | BuiltinDeclaresIdentifier_
@@ -446,6 +447,7 @@ string2WarningName = (`HMap.lookup` warnings) where
 
 warningNameToString :: WarningName -> String
 warningNameToString = \case
+  UnguardedEtaRecordW_ -> "UnguardedEtaRecord"
   UnusedImportsAll_ -> "UnusedImports=all"
   w -> initWithDefault __IMPOSSIBLE__ $ show w
 
@@ -595,6 +597,7 @@ warningNameDescription = \case
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   ConstructorDoesNotFitInData_     -> "Failed constructor size checks."
   CoinductiveEtaRecord_            -> "Record type declared as both coinductive and having eta-equality."
+  UnguardedEtaRecordW_             -> "Record type declared with eta-equality that has an unguarded recursive occurrence."
   UnsupportedIndexedMatch_         -> "Failures to compute full equivalence when splitting on indexed family."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   BuiltinDeclaresIdentifier_       -> "`BUILTIN' pragmas that declare a new identifier but have been given an existing one."

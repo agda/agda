@@ -2882,11 +2882,15 @@ pattern Axiom :: Bool -> Defn
 pattern Axiom{ axiomConstTransp } = AxiomDefn (AxiomData axiomConstTransp)
 
 data DataOrRecSigData = DataOrRecSigData
-  { _datarecPars :: Int
+  { _datarecPars :: !Int
+  , _datarecEta  :: !DataOrRecordEta
+      -- ^ Is it a record signature, and if yes,
+      --   what is the range of the 'EtaPragma' attached to it, if any.
   } deriving (Show, Generic)
+type DataOrRecordEta = DataOrRecord' Range
 
-pattern DataOrRecSig :: Int -> Defn
-pattern DataOrRecSig{ datarecPars } = DataOrRecSigDefn (DataOrRecSigData datarecPars)
+pattern DataOrRecSig :: Int -> DataOrRecordEta -> Defn
+pattern DataOrRecSig{ datarecPars, datarecEta } = DataOrRecSigDefn (DataOrRecSigData datarecPars datarecEta)
 
 -- | Indicates the reason behind a function having not been marked
 -- projection-like.
@@ -3281,6 +3285,11 @@ pattern PrimitiveSort
 
 -- TODO: lenses for all Defn variants
 
+lensDataOrRecSig :: Lens' Defn DataOrRecSigData
+lensDataOrRecSig f = \case
+  DataOrRecSigDefn d -> DataOrRecSigDefn <$> f d
+  _ -> __IMPOSSIBLE__
+
 lensFunction :: Lens' Defn FunctionData
 lensFunction f = \case
   FunctionDefn d -> FunctionDefn <$> f d
@@ -3294,6 +3303,13 @@ lensConstructor f = \case
 lensRecord :: Lens' Defn RecordData
 lensRecord f = \case
   RecordDefn d -> RecordDefn <$> f d
+  _ -> __IMPOSSIBLE__
+
+-- Lenses for data/record signatures
+
+lensRecSigEta :: Lens' DataOrRecSigData Range
+lensRecSigEta f = \case
+  DataOrRecSigData n (IsRecord r) -> DataOrRecSigData n . IsRecord <$> f r
   _ -> __IMPOSSIBLE__
 
 -- Lenses for Record
@@ -3341,7 +3357,12 @@ instance Pretty Defn where
     PrimitiveSortDefn d -> pretty d
 
 instance Pretty DataOrRecSigData where
-  pretty (DataOrRecSigData n) = "DataOrRecSig" <+> pretty n
+  pretty (DataOrRecSigData n eta) = "DataOrRecSig" <+> pretty n <+> pretty eta
+
+instance Pretty DataOrRecordEta where
+  pretty = \case
+    IsData -> "data"
+    IsRecord r -> "record" <+> if null r then empty else "ETA"
 
 instance Pretty ProjectionLikenessMissing where
   pretty MaybeProjection = "MaybeProjection"
@@ -5084,6 +5105,9 @@ data Warning
       --   produced 'TCErr'.
   | CoinductiveEtaRecord QName
       -- ^ A record type declared as both @coinductive@ and having @eta-equality@.
+  | UnguardedEtaRecordW QName
+      -- ^ A record type with @eta-equality@ which unguarded.
+      --   This warning can be switched off via the ETA pragma.
 
   | UnsolvedMetaVariables    (Set1 Range)  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas (Set1 Range)  -- ^ Do not use directly with 'warning'
@@ -5365,6 +5389,7 @@ warningName = \case
   NotStrictlyPositive{}        -> NotStrictlyPositive_
   ConstructorDoesNotFitInData{}-> ConstructorDoesNotFitInData_
   CoinductiveEtaRecord{}       -> CoinductiveEtaRecord_
+  UnguardedEtaRecordW{}        -> UnguardedEtaRecordW_
   UnsupportedIndexedMatch{}    -> UnsupportedIndexedMatch_
   OldBuiltin{}                 -> OldBuiltin_
   BuiltinDeclaresIdentifier{}  -> BuiltinDeclaresIdentifier_
@@ -5694,6 +5719,8 @@ data TypeError
         | ShouldBePath Type
         | ShouldBeRecordType Type
         | ShouldBeRecordPattern
+        | EtaPragmaVsNoEtaEquality
+            -- ^ A record has been declared as both @ETA@ and @no-eta-equality@.
         | CannotApply A.Expr Type
             -- ^ The given expression is used as a function
             --   but its type is not a function type.
@@ -7225,7 +7252,7 @@ instance KillRange Defn where
   killRange def =
     case def of
       Axiom a -> Axiom a
-      DataOrRecSig n -> DataOrRecSig n
+      DataOrRecSig n eta -> DataOrRecSig n (killRange eta)
       GeneralizableVar a -> GeneralizableVar a
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function a b c d e f g h i j k l m n ->

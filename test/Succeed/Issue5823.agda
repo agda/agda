@@ -29,6 +29,7 @@ mutual
   record S (n : Nat) : Set where
     inductive; eta-equality
     field inn : T n
+  {-# ETA S #-}
 
   T : Nat → Set
   T zero = ⊤

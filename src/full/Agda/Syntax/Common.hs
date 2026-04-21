@@ -287,6 +287,11 @@ data DataOrRecord' p
   | IsRecord p
   deriving (Show, Eq, Generic)
 
+instance KillRange a => KillRange (DataOrRecord' a) where
+  killRange = \case
+    IsData     -> IsData
+    IsRecord a -> killRangeN IsRecord a
+
 type DataOrRecord = DataOrRecord' PatternOrCopattern
 type DataOrRecord_ = DataOrRecord' ()
 

@@ -9,7 +9,7 @@ record R : Set where
   constructor cons
   field
     r : R
-
+{-# ETA R #-}
 
 postulate F : (R → Set) → Set
 

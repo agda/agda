@@ -1,10 +1,10 @@
 
-Issue3355.agda:7.1-28: warning: -W[no]InvalidNoPositivityCheckPragma
+Issue3355.agda:9.1-28: warning: -W[no]InvalidNoPositivityCheckPragma
 NO_POSITIVITY_CHECKING pragmas can only precede a data/record
 definition or a mutual block (that contains a data/record
 definition).
 
-Issue3355.agda:52.5-32: warning: -W[no]InvalidNoPositivityCheckPragma
+Issue3355.agda:54.5-32: warning: -W[no]InvalidNoPositivityCheckPragma
 NO_POSITIVITY_CHECKING pragmas can only precede a data/record
 definition or a mutual block (that contains a data/record
 definition).
@@ -17,22 +17,22 @@ when scope checking the declaration
           field f : R → R
         {-# NO_POSITIVITY_CHECK #-}
         bar = Set
-Issue3355.agda:8.1-13.20: error: [NotStrictlyPositive]
+Issue3355.agda:10.1-15.20: error: [NotStrictlyPositive]
 R is not strictly positive, because it occurs
 to the left of an arrow
 in the definition of R.
 
-Issue3355.agda:45.1-53.14: error: [NotStrictlyPositive]
+Issue3355.agda:47.1-55.14: error: [NotStrictlyPositive]
 R is not strictly positive, because it occurs
 to the left of an arrow
 in the definition of R.
 
-Issue3355.agda:106.3-123.24: error: [NotStrictlyPositive]
+Issue3355.agda:108.3-125.24: error: [NotStrictlyPositive]
 R is not strictly positive, because it occurs
 to the left of an arrow
 in the definition of R.
 
-Issue3355.agda:106.3-123.24: error: [NotStrictlyPositive]
+Issue3355.agda:108.3-125.24: error: [NotStrictlyPositive]
 R' is not strictly positive, because it occurs
 to the left of an arrow
 in the definition of R'.

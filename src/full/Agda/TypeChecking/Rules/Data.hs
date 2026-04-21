@@ -79,8 +79,8 @@ checkDataDef i name pc uc (A.DataDefParams gpars ps) cs =
         t   <- instantiateFull $ defType def
         let npars =
               case theDef def of
-                DataOrRecSig n -> n
-                _              -> __IMPOSSIBLE__
+                DataOrRecSig n IsData -> n
+                _ -> __IMPOSSIBLE__
 
         -- If the data type is erased, then hard compile-time mode is
         -- entered.

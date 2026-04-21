@@ -4,7 +4,7 @@
 
 module Agda.TypeChecking.Rules.Record where
 
-import Prelude hiding (null, not, (&&), (||))
+import Prelude hiding (null, (&&), (||))
 
 import Data.Maybe
 import qualified Data.Set as Set
@@ -98,10 +98,10 @@ checkRecDef i name pc uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gp
     -- get type of record
     def <- instantiateDef =<< getConstInfo name
     t   <- instantiateFull $ defType def
-    let npars =
+    let (npars, rangeETA) =
           case theDef def of
-            DataOrRecSig n -> n
-            _              -> __IMPOSSIBLE__
+            DataOrRecSig n (IsRecord r) -> (n, r)
+            _ -> __IMPOSSIBLE__
 
     -- If the record type is erased, then hard compile-time mode is
     -- entered.
@@ -197,17 +197,24 @@ checkRecDef i name pc uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gp
       -- Compute eta status from record directives and options.
       let noEta = NoEta patCopat
       etaenabled <- etaEnabled
-      haveEta <- case (eta, conInduction, etaenabled) of
-        (Nothing, Inductive, True) -> pure $ EtaEquality YesEta EtaFromOption
-        (Nothing, _, _)            -> pure $ EtaEquality noEta  EtaFromOption
-        (Just noEta@NoEta{}, _, _) -> pure $ EtaEquality noEta  EtaFromDirective
-        (Just YesEta, Inductive,_) -> pure $ EtaEquality YesEta EtaFromDirective
-        (Just YesEta, CoInductive, _)     -> EtaEquality noEta  EtaFromOption <$ do
-          -- Andreas, 2017-01-26, issue #2436
-          -- Disallow coinductive records with eta-equality
-          -- Andreas, 2024-06-14, PR #7300
-          -- Just make this a deadcode warning.
-          setCurrentRange eta0 $ warning $ CoinductiveEtaRecord name
+      haveEta <- if not $ null rangeETA
+        -- We force eta-equality since we have an ETA pragma.
+        then case eta of
+          Just (NoEta _)             -> typeError $ EtaPragmaVsNoEtaEquality
+          _                          -> pure $ EtaEquality YesEta EtaFromPragma
+        -- We do not have an ETA pragma, so we first look at possible eta-equality directives
+        -- and then at the defaults.
+        else case (eta, conInduction, etaenabled) of
+          (Nothing, Inductive, True) -> pure $ EtaEquality YesEta EtaFromOption
+          (Nothing, _, _)            -> pure $ EtaEquality noEta  EtaFromOption
+          (Just noEta@NoEta{}, _, _) -> pure $ EtaEquality noEta  EtaFromDirective
+          (Just YesEta, Inductive,_) -> pure $ EtaEquality YesEta EtaFromDirective
+          (Just YesEta, CoInductive, _)     -> EtaEquality noEta  EtaFromOption <$ do
+            -- Andreas, 2017-01-26, issue #2436
+            -- Disallow coinductive records with eta-equality
+            -- Andreas, 2024-06-14, PR #7300
+            -- Just make this a deadcode warning.
+            setCurrentRange eta0 $ warning $ CoinductiveEtaRecord name
 
       -- Warn about 'pattern' directive if eta is on.
       case (haveEta, pat) of

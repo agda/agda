@@ -513,8 +513,11 @@ isEtaRecordConstructor c = isRecordConstructor c <&> \case
 unguardedRecord :: QName -> TCM ()
 unguardedRecord q = getConstInfo q <&> theDef >>= \case
     Record{ recEtaEquality' = EtaEquality eta etaProvenance } -> do
-      when (eta == YesEta && etaProvenance < EtaFromPragma) do
-        setCurrentRange q $ typeError $ UnguardedEtaRecord q
+      when (eta == YesEta) do
+        case etaProvenance of
+          EtaFromOption    -> setCurrentRange q $ typeError $ UnguardedEtaRecord q
+          EtaFromDirective -> setCurrentRange q $ warning $ UnguardedEtaRecordW q
+          EtaFromPragma    -> return ()
     _ -> __IMPOSSIBLE__
 
 -- | Check whether record type is marked as recursive.

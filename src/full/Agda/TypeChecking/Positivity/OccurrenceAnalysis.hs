@@ -394,7 +394,8 @@ occurrencesInMutDefArg d p i e = expand \ret -> case p of
 mutualDefOcc :: Definition -> Occurrence
 mutualDefOcc d = case theDef d of
   Datatype{} -> GuardPos
-  _          -> StrictPos
+  Record{ recEtaEquality' = EtaEquality NoEta{} _ } -> GuardPos
+  _ -> StrictPos
 
 class ComputeOccurrences a where
   occurrences :: a -> OccM ()

@@ -203,6 +203,11 @@ prettyWarning = \case
       , fsep $ pwords "If you must, use pragma" ++ [ "{-# ETA", prettyTCM name, "#-}" ]
       ]
 
+    UnguardedEtaRecordW name -> vcat
+      [ fsep $ pwords "Recursive occurrence of this record in its definition is unguarded, so eta-equality for this record might lead to non-termination in the type checker."
+      , fsep $ pwords "To disable this warning, use pragma" ++ [ "{-# ETA", prettyTCM name, "#-}" ]
+      ]
+
     UnsupportedIndexedMatch doc -> vcat
       [ fsep (pwords "This clause uses pattern-matching features that are not yet supported by Cubical Agda,"
            ++ pwords "the function to which it belongs will not compute when applied to transports."

@@ -436,6 +436,7 @@ warningHighlighting' b w = case tcWarning w of
   ConstructorDoesNotFitInData _dataOrRecord c _s1 _s2 _err -> errorWarningHighlighting $
      getRange c `catchNull` getRange w
   CoinductiveEtaRecord _x    -> deadcodeHighlighting w
+  UnguardedEtaRecordW _x      -> errorWarningHighlighting w
   -- #3965 highlight each unreachable clause independently: they
   -- may be interleaved with actually reachable clauses!
   UnreachableClauses _ rs    -> foldMap deadcodeHighlighting rs

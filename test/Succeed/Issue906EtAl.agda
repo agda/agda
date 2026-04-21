@@ -228,7 +228,7 @@ module Issue4391Nisse where
   mutual
 
     record GlobSetMorphism (G H : GlobSet) : Set where
-      inductive
+      inductive; no-eta-equality
       field
         func          : cells G → cells H
         funcMorphisms : (x y : cells G) →

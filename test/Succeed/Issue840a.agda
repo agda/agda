@@ -50,6 +50,7 @@ mutual
     inductive
     constructor rec
     field fun : Record-fun Sig
+  {-# ETA Record #-}
 
   Record-fun : Signature → Set
   Record-fun ∅             = ⊤

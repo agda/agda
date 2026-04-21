@@ -47,7 +47,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Unquote
-import Agda.TypeChecking.Records
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting
@@ -708,8 +707,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         case kind of   -- #4833: set abstract already here so it can be inherited by with functions
           FunName   -> fun
           MacroName -> set funMacro True fun
-          DataName  -> DataOrRecSig npars
-          RecName   -> DataOrRecSig npars
+          DataName  -> DataOrRecSig npars IsData
+          RecName   -> DataOrRecSig npars (IsRecord empty)
           AxiomName -> defaultAxiom     -- Old comment: NB: used also for data and record type sigs
           _         -> __IMPOSSIBLE__
         where
@@ -857,12 +856,13 @@ checkPragma r p = do
             Just InstanceInfo{ instanceOverlap = old } -> typeError $ DuplicateOverlapPragma q old new
             Nothing -> uselessPragma =<< pretty new <+> "pragma can only be applied to instances"
 
-        A.EtaPragma q -> isRecord q >>= \case
-            Nothing -> uselessPragma "ETA pragma is only applicable to record types"
-            Just RecordData{ _recEtaEquality' = EtaEquality eta etaProvenance }
-              | NoEta{} <- eta, EtaFromDirective <- etaProvenance  ->
-                  uselessPragma "ETA pragma conflicts with no-eta-equality declaration"
-              | otherwise -> modifyRecEta q $ setEtaEquality $ EtaEquality YesEta EtaFromPragma
+        A.EtaPragma q -> do
+          getConstInfo q <&> theDef >>= \case
+            DataOrRecSig _ (IsRecord r')
+              | null r' -> modifyGlobalDefinition q $ set (lensTheDef . lensDataOrRecSig . lensRecSigEta) r
+              | otherwise -> uselessPragma "Duplicate ETA pragma"
+            Record{} -> uselessPragma "ETA pragma needs to be placed after record signature, but before record definition"
+            _ -> uselessPragma "ETA pragma is only applicable to record types"
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 --
