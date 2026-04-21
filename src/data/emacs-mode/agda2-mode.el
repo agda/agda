@@ -1782,6 +1782,12 @@ ways."
        ;; Make sure that we don't use case-sensitive matching
        ;; so that we can pick up on all capitalizations of #+BEGIN_SRC.
        (case-fold-search t)
+       ;; The `stk' is used to store the lexer state.
+       ;; It is a list whose elements whose elements take the following form:
+       ;;
+       ;; -- A 'comment, which is use when we are inside a comment.
+       ;; -- A 'bracket, which is used to track the number of brackets we are inside.
+       ;; -- A NUMBER, which is used to track the starting positions of holes.
        stk)
       ((advance-to-code-block ()
          (when code-start-rx (re-search-forward code-start-rx nil t)))
@@ -1828,13 +1834,18 @@ ways."
            (push (- (point) 2) stk))
           ("!}"
            (let ((start (pop stk)))
-             (unless stk
+             ;; We skip inserting a hole when the head of the stack
+             ;; is also a hole position marker to avoid putting holes
+             ;; inside of holes.
+             (unless (numberp (car stk))
                (agda2-make-goal start (point) (pop goals)))))
           ("?"
-           (goto-char (match-beginning 1))
-           (delete-char 1)
-           (insert "{!!}")
-           (agda2-make-goal (- (point) 4) (point) (pop goals)))
+           ;; Same idea; don't put holes inside of holes.
+           (unless (numberp (car stk))
+             (goto-char (match-beginning 1))
+             (delete-char 1)
+             (insert "{!!}")
+             (agda2-make-goal (- (point) 4) (point) (pop goals))))
           ("{"
            (push 'bracket stk))
           ("}"
