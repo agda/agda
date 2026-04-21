@@ -34,6 +34,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Warnings (warning)
 
 import Agda.Interaction.Options
 
@@ -58,29 +59,44 @@ import Agda.Utils.Impossible
 --
 --   E.g. for @(x , (y , z))@ we return @[ fst, fst . snd, snd . snd ]@.
 --
---   If it is not a record pattern, error @'ShouldBeRecordPattern'@ is raised.
+--   Precondition: it must be a record pattern.
+--   If the record does not have eta, warning 'ShouldBeEtaRecordPattern' is raised.
 recordPatternToProjections :: DeBruijnPattern -> TCM [Term -> Term]
-recordPatternToProjections = \case
-    VarP{}           -> return [ id ]
-    LitP{}           -> failure
-    DotP{}           -> failure
-    p@(ConP c ci ps) -> do
-      unless (conPRecord ci) $
-        failure
-      let t = unArg $ fromMaybe __IMPOSSIBLE__ $ conPType ci
+recordPatternToProjections p =
+  case p of
+    VarP{}       -> return [ id ]
+    LitP{}       -> impossible "LitP"
+
+    DotP{}       -> impossible "DotP"
+    IApplyP{}    -> impossible "IApplyP"
+    DefP{}       -> impossible "DefP"
+    ProjP{}      -> impossible "ProjP"
+
+    ConP c ci ps -> do
+      -- Invariant: this function is only invoked on record patterns.
+      -- We do not check it here, since it is checked below by inspecting the conPType.
+      -- unless (conPRecord ci) $
+      --   __IMPOSSIBLE__
+      --   typeError ShouldBeRecordPattern
+      t <- reduce $ unArg $ fromMaybe __IMPOSSIBLE__ $ conPType ci
       reportSDoc "tc.rec" 45 $ vcat
         [ "recordPatternToProjections: "
         , nest 2 $ "constructor pattern " <+> prettyTCM p <+> " has type " <+> prettyTCM t
         ]
       reportSLn "tc.rec" 70 $ "  type raw: " ++ show t
-      fields <- getRecordTypeFields t
-      concat <$> zipWithM comb (map proj fields) (map namedArg ps)
-    ProjP{}          -> __IMPOSSIBLE__ -- copattern cannot appear here
-    IApplyP{}        -> failure
-    DefP{}           -> failure
+      case unEl t of
+        Def r _ -> getConstInfo r <&> theDef >>= \case
+          rt@Record { recFields = fields } -> do
+            unless (YesEta == recEtaEquality rt) do
+              warning ShouldBeEtaRecordPattern
+            concat <$> zipWithM comb (map proj fields) (map namedArg ps)
+          _ -> __IMPOSSIBLE_VERBOSE__ "recordPatternToProjections: ConP can only belong to a record type."
+        _ -> __IMPOSSIBLE_VERBOSE__ "recordPatternToProjections: ConP can only belong to a record or data type."
   where
-    failure = typeError ShouldBeRecordPattern
     proj p = (`applyE` [Proj ProjSystem $ unDom p])
+
+    impossible pat = __IMPOSSIBLE_VERBOSE__ $ "recordPatternToProjections: " ++ pat ++ " is ruled out by checkValidLetPattern"
+
     comb :: (Term -> Term) -> DeBruijnPattern -> TCM [Term -> Term]
     comb prj p = map (\ f -> f . prj) <$> recordPatternToProjections p
 

@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Agda.TypeChecking.Rules.Decl where
 

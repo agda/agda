@@ -74,7 +74,7 @@ simplifyTTerm t = do
   return $ runS $ simplify kit t
 
 simplify :: FunctionKit -> TTerm -> S TTerm
-simplify FunctionKit{..} = simpl
+simplify FunctionKit{ divAux, modAux, natMinus, true, false } = simpl
   where
     simpl = rewrite' >=> unchainCase >=> \case
 

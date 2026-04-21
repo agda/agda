@@ -29,7 +29,7 @@ jobs:
       run: |
         make -C doc/user-manual requirements
     - name: Install dependencies (LaTeX)
-      uses: TeX-Live/setup-texlive-action@v3
+      uses: TeX-Live/setup-texlive-action@v4
       with:
         packages: scheme-basic anyfontsize bbm bbm-macros booktabs capt-of cmap colortbl
           dvisvgm ellipse etoolbox fancyvrb float fncychap fontawesome5 framed keystroke

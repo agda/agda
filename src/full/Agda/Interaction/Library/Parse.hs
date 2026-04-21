@@ -178,7 +178,7 @@ fromGeneric' file fields fs = do
     upd l (GenericEntry h cs) = do
       mf <- findField h fields
       case mf of
-        Just Field{..} -> do
+        Just Field{ fParse, fSet } -> do
           x <- fParse r cs
           return $ fSet x l
         Nothing -> return l

@@ -402,7 +402,7 @@ initialiseCommandQueue next = do
 
   _ <- forkIO (readCommands 0)
 
-  return (CommandQueue { .. })
+  return (CommandQueue { commands, abort })
 
 ---------------------------------------------------------
 

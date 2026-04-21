@@ -4,6 +4,7 @@
 -- with GHC 9.14
 {-# LANGUAGE NoDeepSubsumption #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE UnboxedTuples #-}
 
 module Agda.TypeChecking.Monad.Base
@@ -104,6 +105,7 @@ import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.Conversion.Errors
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Positivity.Warnings qualified as W
 import Agda.TypeChecking.Free
 
 import Agda.TypeChecking.DiscrimTree.Types
@@ -3697,6 +3699,7 @@ data AllowedReduction
   = ProjectionReductions     -- ^ (Projection and) projection-like functions may be reduced.
   | InlineReductions         -- ^ Functions marked INLINE may be reduced.
   | CopatternReductions      -- ^ Copattern definitions may be reduced.
+  | RewriteNoMatchReductions -- ^ The primRewriteNoMatch primitive may be reduced.
   | FunctionReductions       -- ^ Non-recursive functions and primitives may be reduced.
   | RecursiveReductions      -- ^ Even recursive functions may be reduced.
   | LevelReductions          -- ^ Reduce @'Level'@ terms.
@@ -5065,7 +5068,7 @@ data Warning
   | InlineNoExactSplit       QName Clause
     -- ^ 'Clause' was turned into copattern matching clause(s) by an @{-# INLINE constructor #-}@
     --   and thus is not a definitional equality any more.
-  | NotStrictlyPositive      QName (Seq OccursWhere)
+  | NotStrictlyPositive      QName (Seq W.OccursWhere)
   | ConstructorDoesNotFitInData DataOrRecord_ QName Sort Sort TCErr
       -- ^ Checking whether constructor 'QName' 'Sort' fits into @data@ 'Sort'
       --   produced 'TCErr'.
@@ -5266,6 +5269,9 @@ data Warning
       --   This can indicate a user misunderstanding of display forms.
 
   -- Type checker warnings
+  | ShouldBeEtaRecordPattern
+      -- ^ Irrefutable match (match in binder) on a non-eta record pattern.
+      --   Some expected definitional equalities will not hold.
   | TooManyArgumentsToSort QName (List1 (NamedArg A.Expr))
       -- ^ Extra arguments to sort (will be ignored).
   | DefinitionBeforeDeclaration A.AbstractName
@@ -5419,6 +5425,7 @@ warningName = \case
   UnusedVariablesInDisplayForm{}       -> UnusedVariablesInDisplayForm_
 
   -- Type checking
+  ShouldBeEtaRecordPattern{}           -> ShouldBeEtaRecordPattern_
   TooManyArgumentsToSort{}             -> TooManyArgumentsToSort_
   DefinitionBeforeDeclaration{}        -> DefinitionBeforeDeclaration_
   RecursiveRecordNeedsInductivity{}    -> RecursiveRecordNeedsInductivity_

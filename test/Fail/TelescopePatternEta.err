@@ -1,0 +1,11 @@
+TelescopePatternEta.agda:11.18-24: warning: -W[no]ShouldBeEtaRecordPattern
+Irrefutable matching on non-eta record constructor
+when checking the parameters of module _
+
+TelescopePatternEta.agda:14.7-11: error: [UnequalTerms]
+The terms
+  w
+and
+  wrap a
+are not equal at type Wrap A
+when checking that the expression refl has type w ≡ wrap a

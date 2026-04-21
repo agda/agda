@@ -201,7 +201,7 @@ instance CPatternLike Pattern where
       -- Nonrecursive cases:
       IdentP _ _      -> mempty
       WildP _         -> mempty
-      DotP _ _ _      -> mempty
+      DotP _ _ _ _    -> mempty
       AbsurdP _       -> mempty
       LitP _ _        -> mempty
       QuoteP _        -> mempty
@@ -222,7 +222,7 @@ instance CPatternLike Pattern where
       -- Nonrecursive cases:
       IdentP _ _      -> pure p0
       WildP _         -> pure p0
-      DotP _ _ _      -> pure p0
+      DotP _ _ _ _    -> pure p0
       AbsurdP _       -> pure p0
       LitP _ _        -> pure p0
       QuoteP _        -> pure p0
@@ -245,7 +245,7 @@ instance CPatternLike Pattern where
       -- Nonrecursive cases:
       IdentP _ _      -> return p0
       WildP _         -> return p0
-      DotP _ _ _      -> return p0
+      DotP _ _ _ _    -> return p0
       AbsurdP _       -> return p0
       LitP _ _        -> return p0
       QuoteP _        -> return p0
@@ -320,7 +320,7 @@ patternQNames p = foldCPattern f p `appEndo` []
     ParenP _ _     -> mempty
     WildP _        -> mempty
     AbsurdP _      -> mempty
-    DotP _ _ _     -> mempty
+    DotP _ _ _ _   -> mempty
     LitP _ _       -> mempty
     QuoteP _       -> mempty
     InstanceP _ _  -> mempty

@@ -19,7 +19,6 @@ import Control.Monad.State    ( evalStateT )
 import Control.Monad.Trans    ( lift )
 
 import Data.List qualified as List
-import Data.Text qualified as Text
 
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty as P
@@ -37,13 +36,13 @@ import Agda.Interaction.Base
 import Agda.Interaction.BasicOps as B
 import Agda.Interaction.Response as R
 import Agda.Interaction.Emacs.Lisp
-import Agda.Interaction.EmacsCommand ( displayInfo, clearRunningInfo, displayRunningInfo)
+import Agda.Interaction.EmacsCommand ( displayInfo, clearRunningInfo, displayRunningInfo, displayVerboseInfo)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.Command (localStateCommandM)
 import Agda.Interaction.Options ( DiagnosticsColours(..), optDiagnosticsColour )
 
-import Agda.Utils.DocTree  ( treeToTextNoAnn, renderToTree )
+import Agda.Utils.DocTree  ( renderToTree )
 import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Functor  ( (<.>) )
 import Agda.Utils.Null
@@ -92,9 +91,7 @@ lispifyResponse = \case
 
   Resp_RunningInfo n docTree
     | n <= 1 -> displayRunningInfo docTree <$> wantBufferHighlighting
-    | otherwise ->
-        return $ L [ A "agda2-verbose", A (quote $ Text.unpack $ treeToTextNoAnn docTree) ]
-        -- TODO: do we want colored debug-printout?
+    | otherwise -> displayVerboseInfo docTree <$> wantBufferHighlighting
 
   Resp_Status s ->
     return $ L

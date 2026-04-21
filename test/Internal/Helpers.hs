@@ -271,8 +271,10 @@ instance Arbitrary a => Arbitrary (List1 a) where
   shrink = map (List1.fromListSafe __IMPOSSIBLE__ . getNonEmpty) . shrink . (NonEmpty . List1.toList)
 #endif
 
+#if !MIN_VERSION_QuickCheck(2,18,0)
 instance CoArbitrary a => CoArbitrary (List1 a) where
   coarbitrary (x :| xs) = coarbitrary (x, xs)
+#endif
 
 ------------------------------------------------------------------------
 -- Test driver

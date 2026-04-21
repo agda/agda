@@ -1,4 +1,7 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE UnboxedSums #-}
+{-# LANGUAGE MagicHash #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 -- {-# OPTIONS_GHC -Wunused-matches #-}
 
@@ -15,11 +18,11 @@ import Prelude hiding (null)
 
 import Control.Monad.Identity
 import Control.DeepSeq
+import GHC.Exts
 
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ( Sum(..) )
-import Data.String
 import System.IO.Unsafe (unsafePerformIO)
 
 import GHC.Generics (Generic)
@@ -48,6 +51,7 @@ import Agda.Utils.List
 import Agda.Utils.List1 (List1)
 import Agda.Utils.Null
 import Agda.Utils.Size
+import Agda.Utils.ExpandCase
 import qualified Agda.Utils.CompactRegion as Compact
 import qualified Agda.Utils.MinimalArray.Lifted as AL
 
@@ -467,6 +471,8 @@ instance LensSort a => LensSort (Arg a) where
 data Tele a = EmptyTel
             | ExtendTel a !(Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
   deriving (Show, Functor, Foldable, Traversable, Generic)
+
+instance ExpandCase (Tele a) where type Result (Tele a) = Tele a
 
 type Telescope = Tele (Dom Type)
 
@@ -1298,6 +1304,7 @@ hasElims v =
     Level{}    -> Nothing
     DontCare{} -> Nothing
     Dummy{}    -> Nothing
+
 
 ---------------------------------------------------------------------------
 -- * Type family for type-directed operations.

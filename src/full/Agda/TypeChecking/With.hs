@@ -389,7 +389,8 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
     ]
 
   -- Andreas, 2015-11-09 Issue 1710: self starts with parent-function, not with-function!
-  (ps', strippedPats) <- runWriterT $ strip (Def parent []) t psi qs
+  (ps', strippedPats) <- runWriterT $ addContext delta $
+    strip (Def parent []) t psi qs
   unless (null strippedPats) $ reportSDoc "tc.with.strip" 50 $ nest 2 $
     "strippedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
   let psp = permute perm ps'
@@ -466,7 +467,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         ProjP o d -> case A.isProjP p of
           Just (o', ambP) -> do
             -- We assume here that neither @o@ nor @o'@ can be @ProjSystem@.
-            when (o /= o') $ setCurrentRange p0 $ addContext delta do
+            when (o /= o') $ setCurrentRange p0 $ do
               reportSLn "tc.with.strip" 90 $ "p0 = " ++ show p0
               reportSLn "tc.with.strip" 80 $ "getRange p0 = " ++ prettyShow (getRange p0)
               warning $ WithClauseProjectionFixityMismatch p0 o' q o
@@ -597,8 +598,8 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           (e, t') <- piOrPathApplyM t v
           strip (self `applyE` e) t' ps qs
 
-        mismatch :: forall m a. (MonadAddContext m, MonadTCError m) => m a
-        mismatch = addContext delta $ typeError $
+        mismatch :: forall m a. MonadTCError m => m a
+        mismatch = typeError $
           WithClausePatternMismatch (namedArg p0) q
 
         -- Make a WildP, keeping arg. info.

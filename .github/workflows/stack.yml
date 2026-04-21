@@ -14,7 +14,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.13.0
+    - uses: styfle/cancel-workflow-action@0.13.1
       with:
         access_token: ${{ github.token }}
   stack:
@@ -127,16 +127,16 @@ jobs:
       fail-fast: false
       matrix:
         ghc-ver:
-        - 9.12.2
+        - 9.12.4
         - 9.10.3
         - 9.8.4
         - 9.6.7
         - 9.4.8
         - 9.2.8
         include:
-        - ghc-ver: 9.12.2
+        - ghc-ver: 9.12.4
           os: macos-15
-        - ghc-ver: 9.12.2
+        - ghc-ver: 9.12.4
           os: windows-2025
         os:
         - ubuntu-24.04

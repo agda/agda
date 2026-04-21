@@ -30,7 +30,8 @@ description:
     Emacs mode.
 
 tested-with:
-    GHC == 9.12.2
+    GHC == 9.14.1
+    GHC == 9.12.4
     GHC == 9.10.3
     GHC == 9.8.4
     GHC == 9.6.7
@@ -87,7 +88,8 @@ extra-doc-files:
     doc/release-notes/2.2.0.md
 
 extra-source-files:
-    stack-9.12.2.yaml
+    stack-9.14.1.yaml
+    stack-9.12.4.yaml
     stack-9.10.3.yaml
     stack-9.8.4.yaml
     stack-9.6.7.yaml
@@ -388,6 +390,7 @@ common language
       DeriveTraversable
       DerivingStrategies
       DerivingVia
+      DisambiguateRecordFields
       ExistentialQuantification
       FlexibleContexts
       FlexibleInstances
@@ -402,7 +405,6 @@ common language
       OverloadedStrings
       PatternSynonyms
       RankNTypes
-      RecordWildCards
       ScopedTypeVariables
       StandaloneDeriving
       TupleSections
@@ -428,6 +430,7 @@ common language
       PatternGuards
       PolyKinds
       RebindableSyntax
+      RecordWildCards
       TemplateHaskell
       UnboxedTuples
       UndecidableInstances
@@ -511,7 +514,7 @@ library
     , nonempty-containers  >= 0.3.4.4   && < 0.4
     , parallel             >= 3.2.2.0   && < 3.4
     , peano                >= 0.1.0.1   && < 0.2
-    , pqueue               >= 1.4.3.0   && < 1.7
+    , pqueue               >= 1.4.3.0   && < 1.8
     , primitive            >= 0.7       && < 0.10
     , pretty               >= 1.1.3.6   && < 1.2
     , process              >= 1.6.16.0  && < 1.7
@@ -800,6 +803,8 @@ library
       Agda.TypeChecking.Polarity
       Agda.TypeChecking.Positivity
       Agda.TypeChecking.Positivity.Occurrence
+      Agda.TypeChecking.Positivity.OccurrenceAnalysis
+      Agda.TypeChecking.Positivity.Warnings
       Agda.TypeChecking.Pretty
       Agda.TypeChecking.Pretty.Call
       Agda.TypeChecking.Pretty.Constraint
@@ -1154,7 +1159,7 @@ executable agda-tests
     , mtl
     , process
     , process-extras
-    , QuickCheck        >= 2.14.3    && < 2.18
+    , QuickCheck        >= 2.14.3    && < 2.19
     , regex-tdfa
     , split
     , tasty             >= 1.4.3     && < 1.6

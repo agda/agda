@@ -3882,7 +3882,8 @@ instance ToAbstract C.Pattern where
 instance ToAbstract CPattern where
   type AbsOfCon CPattern = A.Pattern' C.Expr
 
-  toAbstract (CPattern displayLhs p0) = case p0 of
+  toAbstract (CPattern displayLhs p0) = do
+   case p0 of
 
     C.IdentP canBeConstructor x ->
       resolvePatternIdentifier canBeConstructor displayLhs empty x Nothing
@@ -3911,7 +3912,7 @@ instance ToAbstract CPattern where
 
         where
             distributeDots :: C.Pattern -> ScopeM C.Pattern
-            distributeDots p@(C.DotP kwr r e) = distributeDotsExpr kwr r e
+            distributeDots p@(C.DotP kwr r _ppp e) = distributeDotsExpr kwr r e
             distributeDots p = return p
 
             distributeDotsExpr :: KwRange -> Range -> C.Expr -> ScopeM C.Pattern
@@ -3923,9 +3924,9 @@ instance ToAbstract CPattern where
                 case (traverse . traverse . traverse) fromNoPlaceholder as of
                   Just as -> OpAppP r q ns <$>
                     (traverse . traverse . traverse) (distributeDotsExpr empty r) as
-                  Nothing -> return $ C.DotP empty r e
+                  Nothing -> return $ C.DotP empty r CannotBeProjectionPattern e
               Paren r e -> ParenP r <$> distributeDotsExpr empty r e
-              _ -> return $ C.DotP kwr r e
+              _ -> return $ C.DotP kwr r CannotBeProjectionPattern e
 
             fromNoPlaceholder :: MaybePlaceholder (OpApp a) -> Maybe a
             fromNoPlaceholder (NoPlaceholder _ (Ordinary e)) = Just e
@@ -3977,15 +3978,22 @@ instance ToAbstract CPattern where
 
     -- We have to do dot patterns at the end since they can
     -- refer to the variables bound by the other patterns.
-    C.DotP _kwr r e -> do
-      let fallback = return $ A.DotP (PatRange r) e
+    C.DotP _kwr r CannotBeProjectionPattern e -> return $ A.DotP (PatRange r) e
+    C.DotP _kwr r CouldBeProjectionPattern e -> do
+      reportSLn "scope.pat" 90 $ "ConcreteToAbstract.toAbstract DotP{}: " ++ show p0
       case e of
         C.Ident x -> resolveName x >>= \case
           -- Andreas, 2018-06-19, #3130
           -- We interpret .x as postfix projection if x is a field name in scope
-          FieldName xs -> return $ A.ProjP (PatRange r) ProjPostfix $ ambigName xs
+          FieldName xs -> do
+            reportSLn "scope.pat" 80 $ "ConcreteToAbstract.toAbstract DotP{}: returning A.ProjP{}"
+            return $ A.ProjP (PatRange r) ProjPostfix $ ambigName xs
           _ -> fallback
         _ -> fallback
+      where
+        fallback = do
+          reportSLn "scope.pat" 80 $ "ConcreteToAbstract.toAbstract DotP{}: returning A.DotP{}"
+          return $ A.DotP (PatRange r) e
 
     C.AbsurdP r -> return $ A.AbsurdP $ PatRange r
     C.RecP kwr r fs -> A.RecP kwr (ConPatInfo ConORec (PatRange r) ConPatEager) <$> mapM (traverse $ toAbstract . wrap) fs

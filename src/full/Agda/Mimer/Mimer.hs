@@ -372,7 +372,7 @@ genRecCalls thisFn = do
       return []
     recCandTerms -> do
       reportSDoc "mimer.components" 45 $ "  recCandTerms = " <+> pretty (map fst recCandTerms)
-      Costs{..} <- asks searchCosts
+      Costs{ costLocal, costNewMeta, costNewHiddenMeta } <- asks searchCosts
       n <- localVarCount
       localVars <- lift $ getLocalVars n costLocal
       let recCands = [ (t, i) | t@(compTerm -> v@Var{}) <- localVars, NoSubst i <- maybeToList $ lookup v recCandTerms ]

@@ -844,7 +844,7 @@ validConPattern cons = loop
         | cons x         -> mapM_ loop ps
         | otherwise      -> failure
       QuoteP _    :| [_] -> ok
-      DotP _ _ _  :| ps  -> mapM_ loop ps
+      DotP _ _ _ _ :| ps -> mapM_ loop ps
 
       -- Failures:
       AbsurdP{}   :| _:_ -> failure

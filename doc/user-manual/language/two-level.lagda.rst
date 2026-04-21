@@ -40,8 +40,7 @@ Function-types belong to ``Set`` if both their domain and codomain do,
 and to ``SSet`` otherwise.  Records and datatypes can always be
 declared to belong to ``SSet``, and can be declared to belong to
 ``Set`` instead if all their inputs belong to ``Set``.  In particular,
-any type in ``Set`` has an isomorphic copy in ``SSet`` defined as a
-trivial record::
+any type in ``Set`` can be lifted to ``SSet`` using a trivial record::
 
   record c (A : Set) : SSet where
     constructor ↑

@@ -6,7 +6,7 @@ Installation
 
 * Dropped support for GHC 8.8, 8.10, and 9.0.
 
-* Agda supports GHC versions 9.2.8 to 9.12.2.
+* Agda supports GHC versions 9.2.8 to 9.14.1.
 
 Pragmas and options
 -------------------
@@ -138,6 +138,8 @@ Pragmas and options
 
 * New option `--local-rewriting` which enables parameterising over computation rules by annotating module parameters with `@rewrite` attributes. See the [local rewriting documentation](https://agda.readthedocs.io/en/v2.9.0/language/local-rewriting.html) for more info.
 
+* New `primRewriteNoMatch` primitive in `Agda.Builtin.Equality.Rewrite` for controlling rewrite rule matching. See the section in the [rewriting documentation](https://agda.readthedocs.io/en/v2.9.0/language/rewriting.html#controlling-rewrite-rule-matching-with-primrewritenomatch) for more info.
+
 Errors
 ------
 
@@ -233,6 +235,23 @@ Warnings
   `mutual` block a data/record signature appears *after* the respective
   definition.  This can happen since the nicifier bubbles signatures up.
   (See [issue #8435](https://github.com/agda/agda/issues/8435).)
+
+* New warning `ShouldBeEtaRecordPattern`, raised for
+  matches on record constructors in _binders_ (`λ`, `let`, parameter telescopes etc.)
+  when the respective record does not have eta.
+  For example, this module parameter match triggers the warning:
+  ```agda
+    record Wrap (A : Set) : Set where
+      constructor wrap; no-eta-equality; pattern
+      field unwrap : A
+
+    module _ {A} (w@(wrap a) : Wrap A) where
+  ```
+  Reason for the warning:
+  Such a binding is interpreted here as `a = unwrap w`.
+  The user expectation that `w` is definitionally equal to `wrap a` is only met if `Wrap` admits `eta-equality`.
+
+  Pattern matching on left hand sides of function definitions does not trigger the warning.
 
 Syntax
 ------
@@ -386,16 +405,16 @@ Library management
 ------------------
 
 * Suppport for version-specific `defaults` files: a file whose name is
-of the form `defaults-X.Y.Z` will take precedence over the standard
-`defaults` one for the `X.Y.Z` version of the compiler. This can be
-used to have default libraries that are only compatible with a given
-version of the compiler.
+  of the form `defaults-X.Y.Z` will take precedence over the standard
+  `defaults` one for the `X.Y.Z` version of the compiler. This can be
+  used to have default libraries that are only compatible with a given
+  version of the compiler.
 
 Interaction and emacs mode
 --------------------------
 
 * Syntax highlighting and go-to-definition now also works in the Agda
-  information buffer in Emacs where goals etc. are displayed.
+  information and debug buffers in Emacs where goals etc. are displayed.
   This fixes long-standing [Issue #706](https://github.com/agda/agda/issues/706).
 
 * By temporarily turning on printing of hidden arguments
@@ -460,7 +479,9 @@ Interaction and emacs mode
 Backends
 --------
 
-* `agda --html --html-highlight=code example.lagda.tree` now produces `html/example.tree`, which Forester can consume directly - no external tools needed.
+* `agda --html --html-highlight=code example.lagda.tree` now produces
+  `html/example.tree`, which Forester can consume directly;
+  no external tools needed.
 
 * New option `--ghc-trace` for GHC Backend to instrument code
   such that the Agda name of the function is printed to `stderr`

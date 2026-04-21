@@ -756,6 +756,9 @@ prettyWarning = \case
         ]
       ]
 
+    ShouldBeEtaRecordPattern -> fwords
+      "Irrefutable matching on non-eta record constructor"
+
     TooManyArgumentsToSort q args -> fsep $ concat
       [ pwords "Too many arguments given to sort"
       , [ prettyTCM q ]

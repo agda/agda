@@ -164,8 +164,11 @@ instance NamesIn Defn where
     PrimitiveSort _ s  -> namesAndMetasIn' sg s
     AbstractDefn{}     -> __IMPOSSIBLE__
     -- Andreas 2017-07-27, Q: which names can be in @cc@ which are not already in @cl@?
-    Function cl cc _ _ _ _ _ _ _ _ el _ _ _
-      -> namesAndMetasIn' sg (cl, cc, el)
+    Function cl cc _ _ _ _ _ prj _ _ el _ _ _
+      -- Andreas, 2025-11-18, issue #8037
+      -- When copying the record type along with one of its projections in a module application,
+      -- we need to make sure the record type has not been deleted as deadcode.
+      -> namesAndMetasIn' sg (cl, cc, el, prj)
     Datatype _ _ cl cs s _ _ _ _ trX trD
       -> namesAndMetasIn' sg (cl, cs, s, trX, trD)
     Record _ cl c _ fs recTel _ _ _ _ _ _ _ comp
@@ -178,6 +181,20 @@ instance NamesIn Defn where
 instance NamesIn Clause where
   namesAndMetasIn' sg (Clause _ _ tel ps b t _ _ _ _ _) =
     namesAndMetasIn' sg (tel, ps, b, t)
+
+instance NamesIn ProjectionLikenessMissing where
+  {-# INLINE namesAndMetasIn' #-}
+  namesAndMetasIn' _ = mempty
+
+instance NamesIn Projection where
+  {-# INLINE namesAndMetasIn' #-}
+  namesAndMetasIn' sg p = namesAndMetasIn' sg (projProper p)
+
+instance (NamesIn a, NamesIn b) => NamesIn (Either a b) where
+  {-# INLINE namesAndMetasIn' #-}
+  namesAndMetasIn' sg = \case
+    Left a  -> namesAndMetasIn' sg a
+    Right b -> namesAndMetasIn' sg b
 
 instance NamesIn CompiledClauses where
   namesAndMetasIn' sg = \case

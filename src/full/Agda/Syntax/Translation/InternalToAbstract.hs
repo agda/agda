@@ -1551,7 +1551,7 @@ instance Reify Sort where
 
     reify s = do
       s <- instantiateFull s
-      SortKit{..} <- infallibleSortKit
+      SortKit{ nameOfUniv } <- infallibleSortKit
       case s of
         I.Univ u (I.ClosedLevel 0) -> return $! A.Def' (nameOfUniv USmall u) A.NoSuffix
         I.Univ u (I.ClosedLevel n) -> return $! A.Def' (nameOfUniv USmall u) (A.Suffix n)

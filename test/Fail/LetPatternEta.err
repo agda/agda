@@ -1,0 +1,12 @@
+LetPatternEta.agda:13.14-20: warning: -W[no]ShouldBeEtaRecordPattern
+Irrefutable matching on non-eta record constructor
+when checking that the expression
+λ w @ (wrap a) → refl {x = wrap a} has type (w : Wrap A) → w ≡ w
+
+LetPatternEta.agda:13.24-41: error: [UnequalTerms]
+The terms
+  wrap a
+and
+  w
+are not equal at type Wrap A
+when checking that the expression refl {x = wrap a} has type w ≡ w

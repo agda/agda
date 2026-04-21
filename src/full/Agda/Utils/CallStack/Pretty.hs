@@ -18,7 +18,8 @@ import Agda.Syntax.Common.Pretty
   )
 
 instance Pretty SrcLoc where
-  pretty SrcLoc {..} = hsep [physicalLoc, "in", logicalLoc]
+  pretty SrcLoc{ srcLocPackage, srcLocModule, srcLocFile, srcLocStartLine,
+        srcLocStartCol } = hsep [physicalLoc, "in", logicalLoc]
       where
         physicalLoc = hcat [text srcLocFile, colon, pshow srcLocStartLine, colon, pshow srcLocStartCol]
         logicalLoc = hcat [text srcLocPackage, colon, text srcLocModule]

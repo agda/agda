@@ -52,7 +52,8 @@ import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad  as TCM
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import qualified Agda.TypeChecking.Pretty as TCM
-import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..))
+import Agda.TypeChecking.Positivity.Warnings
 import Agda.TypeChecking.Warnings ( raiseWarningsOnUsage )
 
 import qualified Agda.Syntax.Abstract as A
@@ -495,6 +496,7 @@ warningHighlighting' b w = case tcWarning w of
   CoInfectiveImport{}                   -> errorWarningHighlighting w
   InvalidDisplayForm{}                  -> deadcodeHighlighting w
   UnusedVariablesInDisplayForm xs       -> foldMap deadcodeHighlighting xs
+  ShouldBeEtaRecordPattern              -> errorWarningHighlighting w
   TooManyArgumentsToSort _ args         -> errorWarningHighlighting args
   RewritesNothing                       -> cosmeticProblemHighlighting w
   RecursiveRecordNeedsInductivity _x    -> errorWarningHighlighting w

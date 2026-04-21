@@ -2,7 +2,8 @@
 
 module Internal.TypeChecking.Positivity.Occurrence ( tests ) where
 
-import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..))
+import Agda.TypeChecking.Positivity.Warnings
 import Agda.Utils.SemiRing
 import Agda.Utils.List ( uniqOn )
 
@@ -55,7 +56,7 @@ instance CoArbitrary Where where
                              = variant 11 . coarbitrary a
   coarbitrary (InClause a)   = variant 7 . coarbitrary a
   coarbitrary Matched        = variant 8
-  coarbitrary IsIndex        = variant 9
+  coarbitrary InIndex        = variant 9
   coarbitrary (InDefOf a)    = variant 10 . coarbitrary a
 
 instance Arbitrary Occurrence where

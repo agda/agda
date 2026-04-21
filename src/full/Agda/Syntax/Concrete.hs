@@ -17,6 +17,7 @@ module Agda.Syntax.Concrete
   , rawApp, rawAppP
   , isSingleIdentifierP, removeParenP
   , isPattern, isAbsurdP, isBinderP
+  , PossiblyProjectionPattern(..)
   , observeHiding
   , observeRelevance
   , observeModifiers
@@ -242,8 +243,9 @@ data Pattern
   | WildP Range                            -- ^ @_@
   | AbsurdP Range                          -- ^ @()@
   | AsP Range Name Pattern                 -- ^ @x\@p@
-  | DotP KwRange Range Expr                -- ^ @.e@, the 'KwRange' is for the dot,
-                                           --   the 'Range' for the whole thing (including the dot).
+  | DotP KwRange Range !PossiblyProjectionPattern Expr
+      -- ^ @.e@, the 'KwRange' is for the dot, the 'Range' for the whole thing (including the dot).
+      --   If the dot pattern came from parsing e.g. @.{e}@ it cannot be a projection pattern.
   | LitP Range Literal                     -- ^ @0@, @1@, etc.
   | RecP KwRange Range [FieldAssignment' Pattern]
       -- ^ @record {x = p; y = q}@.  The 'KwRange' is for the @record@ keyword.
@@ -253,6 +255,12 @@ data Pattern
                                            --   @Just p@ after expanding ellipsis to @p@.
   | WithP Range Pattern                    -- ^ @| p@, for with-patterns.
   deriving Eq
+
+-- | Can a dot pattern be interpreted as projection pattern?
+data PossiblyProjectionPattern
+  = CouldBeProjectionPattern    -- ^ Yes.
+  | CannotBeProjectionPattern   -- ^ No.
+  deriving (Eq, Show)
 
 data DoStmt
   = DoBind Range Pattern Expr [LamClause]   -- ^ @p ← e where cs@
@@ -852,8 +860,7 @@ exprToPattern fallback = loop
     Underscore  r _      -> pure $ WildP r
     Absurd      r        -> pure $ AbsurdP r
     As          r x e    -> pushUnderBracesP r (AsP r x) <$> loop e
-    e0@(Dot       kwr e) -> pure $ pushUnderBracesE r (DotP kwr r) e
-      where r = getRange e0
+    e0@(Dot     kwr e)   -> pure $ pushDotUnderBraces kwr (getRange e0) e
     -- Wen, 2020-08-27: We disallow Float patterns, since equality for floating
     -- point numbers is not stable across architectures and with different
     -- compiler flags.
@@ -884,11 +891,12 @@ exprToPattern fallback = loop
     InstanceP _ p   -> InstanceP r $ fmap f p
     p               -> f p
 
-  pushUnderBracesE :: Range -> (Expr -> Pattern) -> (Expr -> Pattern)
-  pushUnderBracesE r f = \case
-    HiddenArg   _ p -> HiddenP   r $ fmap f p
-    InstanceArg _ p -> InstanceP r $ fmap f p
-    p               -> f p
+  pushDotUnderBraces :: KwRange -> Range -> Expr -> Pattern
+  pushDotUnderBraces kwr r = \case
+    HiddenArg   _ e -> HiddenP   r $ fmap (DotP kwr r CannotBeProjectionPattern) e
+    InstanceArg _ e -> InstanceP r $ fmap (DotP kwr r CannotBeProjectionPattern) e
+    Paren       _ e -> DotP kwr r CannotBeProjectionPattern e
+    e               -> DotP kwr r CouldBeProjectionPattern e
 
 isAbsurdP :: Pattern -> Maybe (Range, Hiding)
 isAbsurdP = \case
@@ -1147,7 +1155,7 @@ instance HasRange Pattern where
   getRange (QuoteP r)         = r
   getRange (HiddenP r _)      = r
   getRange (InstanceP r _)    = r
-  getRange (DotP _kwr r _)    = r
+  getRange (DotP _kwr r _ _)  = r
   getRange (RecP _kwr r _)    = r
   getRange (EqualP r _)       = r
   getRange (EllipsisP r _)    = r
@@ -1169,7 +1177,7 @@ instance SetRange Pattern where
   setRange r (QuoteP _)         = QuoteP r
   setRange r (HiddenP _ p)      = HiddenP r p
   setRange r (InstanceP _ p)    = InstanceP r p
-  setRange r (DotP _ _ e)       = DotP empty r e
+  setRange r (DotP _ _ ppp e)   = DotP empty r ppp e
   setRange r (RecP _ _ fs)      = RecP empty r fs
   setRange r (EqualP _ es)      = EqualP r es
   setRange r (EllipsisP _ mp)   = EllipsisP r mp
@@ -1321,7 +1329,7 @@ instance KillRange Pattern where
   killRange (WildP _)         = WildP noRange
   killRange (AbsurdP _)       = AbsurdP noRange
   killRange (AsP _ n p)       = killRangeN (AsP noRange) n p
-  killRange (DotP _ _ e)      = killRangeN (DotP empty noRange) e
+  killRange (DotP _ _ ppp e)  = killRangeN (DotP empty noRange ppp) e
   killRange (LitP _ l)        = killRangeN (LitP noRange) l
   killRange (QuoteP _)        = QuoteP noRange
   killRange (RecP _ _ fs)     = killRangeN (RecP empty noRange) fs
@@ -1426,7 +1434,7 @@ instance NFData Pattern where
   rnf (WildP _)        = ()
   rnf (AbsurdP _)      = ()
   rnf (AsP _ a b)      = rnf a `seq` rnf b
-  rnf (DotP _ _ a)     = rnf a
+  rnf (DotP _ _ _ a)   = rnf a
   rnf (LitP _ a)       = rnf a
   rnf (RecP _ _ a)     = rnf a
   rnf (EqualP _ es)    = rnf es

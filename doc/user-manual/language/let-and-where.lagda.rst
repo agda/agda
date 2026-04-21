@@ -88,7 +88,7 @@ a let expression of the form
 
 .. code-block:: agda
 
-  let (c x  y z) = t
+  let (c x y z) = t
   in  u
 
 will be translated internally to as
@@ -101,6 +101,8 @@ will be translated internally to as
   in  u
 
 This is not allowed if ``R`` is declared ``coinductive``.
+If ``R`` lacks eta-equality, e.g. by being declared with ``no-eta-equality``,
+then warning :option:`ShouldBeEtaRecordPattern` is triggered (since Agda 2.9.0).
 
 
 .. _let-open:
