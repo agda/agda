@@ -253,9 +253,6 @@ data Pragma
     -- ^ Range is range of REWRITE keyword.
   | CompilePragma (Ranged BackendName) QName String
   | StaticPragma QName
-  | EtaPragma QName
-    -- ^ For coinductive records, use pragma instead of regular
-    --   @eta-equality@ definition (as it is might make Agda loop).
   | InjectivePragma QName
   | InjectiveForInferencePragma QName
   | InlinePragma Bool QName -- INLINE or NOINLINE

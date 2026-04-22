@@ -232,7 +232,6 @@ instance Hilite A.Pragma where
     A.CompilePragma b x _foreign    -> singleAspect Keyword b <> hilite x
     A.RewritePragma r xs            -> singleAspect Keyword r <> hilite xs
     A.StaticPragma x                -> hilite x
-    A.EtaPragma x                   -> hilite x
     A.InjectivePragma x             -> hilite x
     A.InjectiveForInferencePragma x -> hilite x
     A.NotProjectionLikePragma x     -> hilite x

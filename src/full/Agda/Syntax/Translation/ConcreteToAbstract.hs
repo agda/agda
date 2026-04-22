@@ -3178,9 +3178,8 @@ instance ToAbstract C.Pragma where
           return [ A.BuiltinPragma rb q ]
     where b = builtinById (rangedThing rb)
 
-  toAbstract (C.EtaPragma _ x) = do
-    map A.EtaPragma . maybeToList <$> do
-      scopeCheckDef (PragmaExpectsDefinedSymbol "ETA") x
+  toAbstract pragma@(C.EtaPragma _ x) = do
+    uselessPragma pragma "The ETA pragma has been removed, use the attaching ETA_EQUALITY pragma instead"
 
   toAbstract pragma@(C.DisplayPragma _ lhs rhs) = do
     maybeToList <$> do

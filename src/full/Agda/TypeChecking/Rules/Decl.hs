@@ -853,8 +853,6 @@ checkPragma r p = do
             Just InstanceInfo{ instanceOverlap = old } -> typeError $ DuplicateOverlapPragma q old new
             Nothing -> uselessPragma =<< pretty new <+> "pragma can only be applied to instances"
 
-        A.EtaPragma q -> uselessPragma "The ETA pragma has been removed, use the attaching ETA_EQUALITY pragma instead"
-
 -- | Type check a bunch of mutual inductive recursive definitions.
 --
 -- All definitions which have so far been assigned to the given mutual
