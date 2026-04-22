@@ -73,13 +73,14 @@ checkRecDef
   -> QName                     -- ^ Record type identifier.
   -> PositivityCheck           -- ^ Report positivity errors for this record type?
   -> UniverseCheck             -- ^ Check universes?
+  -> ForceEtaEquality          -- ^ @{-# ETA_EQUALITY #-}@ pragma attached to this record definition?
   -> A.RecordDirectives        -- ^ (Co)Inductive, (No)Eta, (Co)Pattern, Constructor?
   -> A.DataDefParams           -- ^ Record parameters.
   -> A.Expr                    -- ^ Approximate type of constructor (@fields@ -> dummy).
                                --   Does not include record parameters.
   -> [A.Field]                 -- ^ Field signatures.
   -> TCM ()
-checkRecDef i name pc uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars ps) contel0 fields = do
+checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars ps) contel0 fields = do
 
   -- Andreas, 2022-10-06, issue #6165:
   -- The target type of the constructor is a meaningless dummy expression which does not type-check.
@@ -197,14 +198,14 @@ checkRecDef i name pc uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gp
       -- Compute eta status from record directives and options.
       let noEta = NoEta patCopat
       etaenabled <- etaEnabled
-      haveEta <- if not $ null rangeETA
-        -- We force eta-equality since we have an ETA pragma.
-        then case eta of
+      haveEta <- case forceEta of
+        -- We force eta-equality since we have an ETA_EQUALITY pragma.
+        YesForceRecordEta -> case eta of
           Just (NoEta _)             -> typeError $ EtaPragmaVsNoEtaEquality
           _                          -> pure $ EtaEquality YesEta EtaFromPragma
         -- We do not have an ETA pragma, so we first look at possible eta-equality directives
         -- and then at the defaults.
-        else case (eta, conInduction, etaenabled) of
+        NoForceRecordEta -> case (eta, conInduction, etaenabled) of
           (Nothing, Inductive, True) -> pure $ EtaEquality YesEta EtaFromOption
           (Nothing, _, _)            -> pure $ EtaEquality noEta  EtaFromOption
           (Just noEta@NoEta{}, _, _) -> pure $ EtaEquality noEta  EtaFromDirective

@@ -428,7 +428,8 @@ instance EmbPrj DeclarationWarning' where
     EmptyPolarityPragma r             -> icodeN 35 EmptyPolarityPragma r
     UselessImport r                   -> icodeN 36 UselessImport r
     InvalidDataOrRecDefParameter r a b c -> icodeN 37 InvalidDataOrRecDefParameter r a b c
-    InvalidRewriteAttribute r            -> icodeN 38 InvalidTacticAttribute r
+    InvalidRewriteAttribute r         -> icodeN 38 InvalidTacticAttribute r
+    InvalidEtaEqualityPragma r        -> icodeN 39 InvalidEtaEqualityPragma r
 
   value = vcase $ \case
     N2 0  a            -> valuN UnknownNamesInFixityDecl a
@@ -470,6 +471,7 @@ instance EmbPrj DeclarationWarning' where
     N2 36 r            -> valuN UselessImport r
     N5 37 r a b c      -> valuN InvalidDataOrRecDefParameter r a b c
     N2 38 r            -> valuN InvalidRewriteAttribute r
+    N2 39 r            -> valuN InvalidEtaEqualityPragma r
     _ -> malformed
 
 instance EmbPrj OpenOrImport

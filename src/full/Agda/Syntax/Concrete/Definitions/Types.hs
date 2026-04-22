@@ -62,7 +62,7 @@ data NiceDeclaration
   | NiceImport OpenShortHand KwRange QName (Either AsName RawOpenArgs) ImportDirective
   | NicePragma Range Pragma
   | NiceRecSig Range Erased Access IsAbstract PositivityCheck
-      UniverseCheck Name Parameters Expr
+      UniverseCheck ForceRecordEta Name Parameters Expr
   | NiceDataSig Range Erased Access IsAbstract PositivityCheck
       UniverseCheck Name Parameters Expr
   | NiceFunClause Range Access IsAbstract TerminationCheck CoverageCheck Catchall Declaration
@@ -78,7 +78,7 @@ data NiceDeclaration
       --   An alias should know that it is an instance.
   | NiceDataDef Range Origin IsAbstract PositivityCheck UniverseCheck Name DefParameters [NiceConstructor]
   | NiceLoneConstructor KwRange [NiceConstructor]
-  | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [RecordDirective] DefParameters [Declaration]
+  | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck ForceRecordEta Name [RecordDirective] DefParameters [Declaration]
       -- ^ @(Maybe Range)@ gives range of the 'pattern' declaration.
   | NicePatternSyn Range Access Name [WithHiding Name] Pattern
   | NiceGeneralize Range Access ArgInfo TacticAttribute Name Expr
@@ -216,8 +216,8 @@ instance HasRange NiceDeclaration where
   getRange (FunDef r _ _ _ _ _ _ _)        = r
   getRange (NiceDataDef r _ _ _ _ _ _ _)   = r
   getRange (NiceLoneConstructor kwr ds)    = fuseRange kwr ds
-  getRange (NiceRecDef r _ _ _ _ _ _ _ _)  = r
-  getRange (NiceRecSig r _ _ _ _ _ _ _ _)  = r
+  getRange (NiceRecDef r _ _ _ _ _ _ _ _ _)= r
+  getRange (NiceRecSig r _ _ _ _ _ _ _ _ _)= r
   getRange (NiceDataSig r _ _ _ _ _ _ _ _) = r
   getRange (NicePatternSyn r _ _ _ _)      = r
   getRange (NiceGeneralize r _ _ _ _ _)    = r
@@ -239,14 +239,14 @@ instance Pretty NiceDeclaration where
     NiceOpen _ x _                 -> text "open" <+> pretty x
     NiceImport _ x _ _ _           -> text "import" <+> pretty x
     NicePragma{}                   -> text "{-# ... #-}"
-    NiceRecSig _ _ _ _ _ _ x _ _   -> text "record" <+> pretty x
+    NiceRecSig _ _ _ _ _ _ _ x _ _ -> text "record" <+> pretty x
     NiceDataSig _ _ _ _ _ _ x _ _  -> text "data" <+> pretty x
     NiceFunClause{}                -> text "<function clause>"
     FunSig _ _ _ _ _ _ _ _ x _     -> pretty x <+> colon <+> text "_"
     FunDef _ _ _ _ _ _ x _         -> pretty x <+> text "= _"
     NiceDataDef _ _ _ _ _ x _ _    -> text "data" <+> pretty x <+> text "where"
     NiceLoneConstructor _ _        -> text "data _ where"
-    NiceRecDef _ _ _ _ _ x  _ _ _  -> text "record" <+> pretty x <+> text "where"
+    NiceRecDef _ _ _ _ _ _ x  _ _ _ -> text "record" <+> pretty x <+> text "where"
     NicePatternSyn _ _ x _ _       -> text "pattern" <+> pretty x
     NiceGeneralize _ _ _ _ x _     -> text "variable" <+> pretty x
     NiceUnquoteDecl _ _ _ _ _ _ _xs _  -> text "<unquote declarations>"
@@ -295,6 +295,7 @@ data DataRecOrFun
   | RecName
     { _kindPosCheck :: PositivityCheck
     , _kindUniCheck :: UniverseCheck
+    , _kindForceEta :: ForceRecordEta
     }
     -- ^ Name of a record type
   | FunName ArgInfo TerminationCheck CoverageCheck
@@ -319,7 +320,7 @@ sameKind = curry \case
 mergeDataRecOrFun :: DataRecOrFun -> DataRecOrFun -> Maybe DataRecOrFun
 mergeDataRecOrFun = curry \case
   (DataName pc uc , DataName pc' uc') -> Just $ DataName (pc <> pc') (uc <> uc')
-  (RecName  pc uc , RecName  pc' uc') -> Just $ RecName  (pc <> pc') (uc <> uc')
+  (RecName  pc uc eta, RecName  pc' uc' eta') -> Just $ RecName  (pc <> pc') (uc <> uc') (eta <> eta')
   (f@FunName{}    , FunName{}       ) -> Just f
   _ -> Nothing
 
@@ -342,7 +343,7 @@ coverageCheck _ = YesCoverageCheck
 
 positivityCheck :: DataRecOrFun -> PositivityCheck
 positivityCheck (DataName pc _) = pc
-positivityCheck (RecName pc _)  = pc
+positivityCheck (RecName pc _ _)= pc
 positivityCheck (FunName _ _ _) = YesPositivityCheck
 
 mutualChecks :: DataRecOrFun -> MutualChecks
@@ -350,5 +351,10 @@ mutualChecks k = MutualChecks [terminationCheck k] [coverageCheck k] [positivity
 
 universeCheck :: DataRecOrFun -> UniverseCheck
 universeCheck (DataName _ uc) = uc
-universeCheck (RecName _ uc)  = uc
+universeCheck (RecName _ uc _)= uc
 universeCheck (FunName _ _ _) = YesUniverseCheck
+
+forceRecordEta :: DataRecOrFun -> ForceRecordEta
+forceRecordEta (DataName _ _)    = empty
+forceRecordEta (RecName _ _ eta) = eta
+forceRecordEta (FunName _ _ _)   = empty

@@ -129,6 +129,9 @@ data DeclarationWarning'
       --   Such parameters can only be names with hiding.
       --   The first 'Text' says what is wrong and thus ignored.
       --   The second 'Text' may contain extra details or clarification.
+  | InvalidEtaEqualityPragma Range
+      -- ^ A {-\# ETA_EQUALITY \#-} pragma
+      --   that does not apply to any record type.
   | InvalidNoPositivityCheckPragma Range
       -- ^ A {-\# NO_POSITIVITY_CHECK \#-} pragma
       --   that does not apply to any data or record type.
@@ -215,6 +218,7 @@ declarationWarningName' = \case
   InvalidCatchallPragma           {} -> InvalidCatchallPragma_
   InvalidConstructorBlock         {} -> InvalidConstructorBlock_
   InvalidDataOrRecDefParameter    {} -> InvalidDataOrRecDefParameter_
+  InvalidEtaEqualityPragma        {} -> InvalidEtaEqualityPragma_
   InvalidNoPositivityCheckPragma  {} -> InvalidNoPositivityCheckPragma_
   InvalidNoUniverseCheckPragma    {} -> InvalidNoUniverseCheckPragma_
   InvalidTerminationCheckPragma   {} -> InvalidTerminationCheckPragma_
@@ -270,6 +274,7 @@ unsafeDeclarationWarning' = \case
   InvalidCatchallPragma{}           -> False
   InvalidConstructorBlock{}         -> False
   InvalidDataOrRecDefParameter{}    -> False
+  InvalidEtaEqualityPragma{}        -> False
   InvalidNoPositivityCheckPragma{}  -> False
   InvalidNoUniverseCheckPragma{}    -> False
   InvalidTerminationCheckPragma{}   -> False
@@ -584,6 +589,9 @@ instance Pretty DeclarationWarning' where
 
     InvalidCatchallPragma _ -> fsep $
       pwords "The CATCHALL pragma can only precede a function clause."
+
+    InvalidEtaEqualityPragma _ -> fsep $
+      pwords "The ETA_EQUALITY pragma can only precede a record definition."
 
     InvalidNoUniverseCheckPragma _ -> fsep $
       pwords "NO_UNIVERSE_CHECKING pragmas can only precede a data/record definition."

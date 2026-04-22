@@ -160,6 +160,7 @@ import Agda.Utils.Impossible
     'CATCHALL'                { TokKeyword KwCATCHALL $$ }
     'DISPLAY'                 { TokKeyword KwDISPLAY $$ }
     'ETA'                     { TokKeyword KwETA $$ }
+    'ETA_EQUALITY'            { TokKeyword KwETA_EQUALITY $$ }
     'FOREIGN'                 { TokKeyword KwFOREIGN $$ }
     'COMPILE'                 { TokKeyword KwCOMPILE $$ }
     'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $$ }
@@ -1731,6 +1732,11 @@ EtaPragma :: { Pragma }
 EtaPragma
   : '{-#' 'ETA' PragmaQName '#-}'
     { EtaPragma (getRange ($1,$2,$3,$4)) $3 }
+
+EtaEqualityPragma :: { Pragma }
+EtaEqualityPragma
+  : '{-#' 'ETA_EQUALITY' '#-}'
+    { EtaEqualityPragma (getRange ($1,$2,$3)) }
 
 NoTerminationCheckPragma :: { Pragma }
 NoTerminationCheckPragma

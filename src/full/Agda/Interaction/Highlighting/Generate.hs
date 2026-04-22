@@ -592,6 +592,7 @@ warningHighlighting' b w = case tcWarning w of
     UselessMacro{}                   -> deadcodeHighlighting w
     UselessPrivate{}                 -> deadcodeHighlighting w
     InvalidCatchallPragma{}          -> deadcodeHighlighting w
+    InvalidEtaEqualityPragma{}       -> deadcodeHighlighting w
     InvalidNoPositivityCheckPragma{} -> deadcodeHighlighting w
     InvalidNoUniverseCheckPragma{}   -> deadcodeHighlighting w
     InvalidTerminationCheckPragma{}  -> deadcodeHighlighting w

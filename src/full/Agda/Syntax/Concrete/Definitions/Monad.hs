@@ -71,6 +71,8 @@ data NiceState = NiceState
     -- ^ Positivity checking pragma waiting for a definition.
   , _uniChk   :: UniverseCheck
     -- ^ Universe checking pragma waiting for a data/rec signature or definition.
+  , _forceEta :: ForceRecordEta
+    -- ^ @ETA_EQUALITY@ pragma waiting for a record signature or definition.
   , _catchall :: Catchall
     -- ^ Catchall pragma waiting for a function clause.
   , _covChk  :: CoverageCheck
@@ -113,6 +115,7 @@ initNiceState = NiceState
   , _termChk  = TerminationCheck
   , _posChk   = YesPositivityCheck
   , _uniChk   = YesUniverseCheck
+  , _forceEta = empty
   , _catchall = empty
   , _covChk   = YesCoverageCheck
   , niceWarn  = []
@@ -220,6 +223,17 @@ coverageCheckPragma f e = f (_covChk e) <&> \ s -> e { _covChk = s }
 
 withCoverageCheckPragma :: CoverageCheck -> Nice a -> Nice a
 withCoverageCheckPragma = locallyState coverageCheckPragma . const
+
+-- | Lens for field '_forceEta'.
+
+etaEqualityPragma :: Lens' NiceState ForceRecordEta
+etaEqualityPragma f e = f (_forceEta e) <&> \ s -> e { _forceEta = s }
+
+withEtaEqualityPragma :: ForceRecordEta -> Nice a -> Nice a
+withEtaEqualityPragma = locallyState etaEqualityPragma . const
+
+getEtaEqualityFromSig :: Name -> ForceRecordEta
+getEtaEqualityFromSig x = maybe empty forceRecordEta <$> getSig x
 
 -- | Lens for field '_posChk'.
 

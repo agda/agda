@@ -4008,6 +4008,29 @@ instance Monoid UniverseCheck where
   mempty = empty
 
 -----------------------------------------------------------------------------
+-- * Force record to have eta equality
+-----------------------------------------------------------------------------
+
+-- | Force record type to have eta equality? (Default is no).
+data ForceRecordEta = YesForceRecordEta | NoForceRecordEta
+  deriving (Eq, Ord, Show, Bounded, Enum, Generic)
+
+instance KillRange ForceRecordEta where
+  killRange = id
+
+instance NFData ForceRecordEta
+
+instance Null ForceRecordEta where
+  empty = NoForceRecordEta
+
+instance Semigroup ForceRecordEta where
+  YesForceRecordEta  <> _   = YesForceRecordEta
+  NoForceRecordEta   <> eta = eta
+
+instance Monoid ForceRecordEta where
+  mempty = empty
+
+-----------------------------------------------------------------------------
 -- * Coverage
 -----------------------------------------------------------------------------
 

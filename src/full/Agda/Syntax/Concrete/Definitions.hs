@@ -220,7 +220,7 @@ replaceSigs ps = if Map.null ps then id else \case
         let x = if isNoName x' then noName (nameRange x') else x'
         let ai = setOrigin Inserted argi
         Just (x, Axiom r acc abst inst ai x' e)
-      NiceRecSig  r erased acc abst _ _ x pars t -> retAx r erased acc abst x pars t
+      NiceRecSig  r erased acc abst _ _ _ x pars t -> retAx r erased acc abst x pars t
       NiceDataSig r erased acc abst _ _ x pars t -> retAx r erased acc abst x pars t
       _ -> Nothing
       where
@@ -398,7 +398,8 @@ niceDeclarations fixs ds = do
         Data r erased x tel t cs -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          (,ds) <$> dataOrRec pc uc NiceDataDef
+          (,ds) <$> dataOrRec pc uc empty
+                      (\ r o a pc uc _eta x tel cs -> NiceDataDef r o a pc uc x tel cs)
                       (flip NiceDataSig erased) (niceAxioms DataBlock) r
                       x (Just (tel, t)) (Just (parametersToDefParameters tel, cs))
 
@@ -413,15 +414,18 @@ niceDeclarations fixs ds = do
              DataName pc uc -> pure (pc, uc)
              _ -> __IMPOSSIBLE__
           defpars <- niceDefParameters IsData tel
-          (,ds) <$> dataOrRec pc uc NiceDataDef
-                      (flip NiceDataSig defaultErased) (niceAxioms DataBlock) r
+          (,ds) <$> dataOrRec pc uc empty
+                      (\ r o a pc uc _eta x tel cs -> NiceDataDef r o a pc uc x tel cs)
+                      (flip NiceDataSig defaultErased)
+                      (niceAxioms DataBlock) r
                       x Nothing (Just (defpars, cs))
 
         RecordSig r erased x tel t -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          _ <- addLoneSig r x $ RecName pc uc
-          return ( [NiceRecSig r erased PublicAccess ConcreteDef pc uc x
+          eta <- use etaEqualityPragma
+          _ <- addLoneSig r x $ RecName pc uc eta
+          return ( [NiceRecSig r erased PublicAccess ConcreteDef pc uc eta x
                       tel t]
                  , ds
                  )
@@ -429,9 +433,10 @@ niceDeclarations fixs ds = do
         Record r erased x dir tel t cs -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          (,ds) <$> dataOrRec pc uc
-                      (\r o a pc uc x tel cs ->
-                        NiceRecDef r o a pc uc x dir tel cs)
+          eta <- use etaEqualityPragma
+          (,ds) <$> dataOrRec pc uc eta
+                      (\r o a pc uc eta x tel cs ->
+                        NiceRecDef r o a pc uc eta x dir tel cs)
                       (flip NiceRecSig erased) return r x
                       (Just (tel, t)) (Just (parametersToDefParameters tel, cs))
 
@@ -442,13 +447,15 @@ niceDeclarations fixs ds = do
           -- Universe check is performed if both the current value of
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
-          (pc, uc) <- retrieveTypeSig (RecName pc uc) x >>= \case
-            RecName pc uc -> pure (pc, uc)
+          eta <- use etaEqualityPragma
+          (pc, uc, eta) <- retrieveTypeSig (RecName pc uc eta) x >>= \case
+            RecName pc uc eta -> pure (pc, uc, eta)
             _ -> __IMPOSSIBLE__
+          -- eta <- liftA2 (<>) (use etaEqualityPragma) (getEtaEqualityFromSig x)
           defpars <- niceDefParameters (IsRecord ()) tel
-          (,ds) <$> dataOrRec pc uc
-                      (\r o a pc uc x tel cs ->
-                        NiceRecDef r o a pc uc x dir tel cs)
+          (,ds) <$> dataOrRec pc uc eta
+                      (\r o a pc uc eta x tel cs ->
+                        NiceRecDef r o a pc uc eta x dir tel cs)
                       (flip NiceRecSig defaultErased) return r x
                       Nothing (Just (defpars, cs))
 
@@ -608,6 +615,13 @@ niceDeclarations fixs ds = do
         declarationWarning $ InvalidNoUniverseCheckPragma r
         nice1 ds
 
+     EtaEqualityPragma r ->
+      if canHaveEtaEqualityPragma ds then
+        withEtaEqualityPragma YesForceRecordEta $ nice1 ds
+      else do
+        declarationWarning $ InvalidEtaEqualityPragma r
+        nice1 ds
+
      -- Polarity pragmas have been handled with fixity declarations, can be deleted.
      PolarityPragma{} -> return ([], ds)
 
@@ -683,6 +697,15 @@ niceDeclarations fixs ds = do
       Pragma p | isAttachedPragma p -> canHaveNoUniverseCheckPragma ds
       _                             -> False
 
+    canHaveEtaEqualityPragma :: [Declaration] -> Bool
+    canHaveEtaEqualityPragma []     = False
+    canHaveEtaEqualityPragma (d:ds) = case d of
+      Record{}                      -> True
+      RecordSig{}                   -> True
+      RecordDef{}                   -> True
+      Pragma p | isAttachedPragma p -> canHaveEtaEqualityPragma ds
+      _                             -> False
+
     -- Pragma that attaches to the following declaration.
     isAttachedPragma :: Pragma -> Bool
     isAttachedPragma = \case
@@ -690,6 +713,7 @@ niceDeclarations fixs ds = do
       CatchallPragma{}          -> True
       NoPositivityCheckPragma{} -> True
       NoUniverseCheckPragma{}   -> True
+      EtaEqualityPragma{}       -> True
       _                         -> False
 
     -- Remove the data or record type signature,
@@ -706,9 +730,10 @@ niceDeclarations fixs ds = do
     dataOrRec :: forall a decl.
          PositivityCheck
       -> UniverseCheck
-      -> (Range -> Origin -> IsAbstract -> PositivityCheck -> UniverseCheck -> Name -> DefParameters -> [decl] -> NiceDeclaration)
+      -> ForceRecordEta
+      -> (Range -> Origin -> IsAbstract -> PositivityCheck -> UniverseCheck -> ForceRecordEta -> Name -> DefParameters -> [decl] -> NiceDeclaration)
          -- Construct definition.
-      -> (Range -> Access -> IsAbstract -> PositivityCheck -> UniverseCheck -> Name -> Parameters -> Expr -> NiceDeclaration)
+      -> (Range -> Access -> IsAbstract -> PositivityCheck -> UniverseCheck -> ForceRecordEta -> Name -> Parameters -> Expr -> NiceDeclaration)
          -- Construct signature.
       -> ([a] -> Nice [decl])        -- Constructor checking.
       -> Range
@@ -716,7 +741,7 @@ niceDeclarations fixs ds = do
       -> Maybe (Parameters, Expr)    -- Parameters and type.  If not @Nothing@ a signature is created.
       -> Maybe (DefParameters, [a])  -- Parameters and constructors.  If not @Nothing@, a definition body is created.
       -> Nice [NiceDeclaration]
-    dataOrRec pc uc mkDef mkSig niceD r x mt mcs = do
+    dataOrRec pc uc eta mkDef mkSig niceD r x mt mcs = do
       mds <- mapM (secondM niceD) mcs
       -- We set origin to UserWritten if the user split the data/rec herself,
       -- and to Inserted if the she wrote a single declaration that we're
@@ -725,8 +750,8 @@ niceDeclarations fixs ds = do
       let o | isJust mt && isJust mcs = Inserted
             | otherwise               = UserWritten
       return $ catMaybes $
-        [ mt  <&> \ (tel, t)  -> mkSig (fuseRange x t) PublicAccess ConcreteDef pc uc x tel t
-        , mds <&> \ (tel, ds) -> mkDef r o ConcreteDef pc uc x tel ds
+        [ mt  <&> \ (tel, t)  -> mkSig (fuseRange x t) PublicAccess ConcreteDef pc uc eta x tel t
+        , mds <&> \ (tel, ds) -> mkDef r o ConcreteDef pc uc eta x tel ds
           -- If a type is given (mt /= Nothing), we have to delete the types in @tel@
           -- for the data definition, lest we duplicate them. And also drop modalities (#1886).
         ]
