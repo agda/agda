@@ -1,16 +1,6 @@
-EtaData.agda:8.1-14: warning: -W[no]UselessPragma
-ETA pragma conflicts with no-eta-equality declaration
-when checking the pragma ETA R
+EtaData.agda:13.1-21: warning: -W[no]InvalidEtaEqualityPragma
+The ETA_EQUALITY pragma can only precede a record definition.
 
-EtaData.agda:17.1-17: warning: -W[no]UselessPragma
-ETA pragma is only applicable to coinductive records
-when checking the pragma ETA Prod
-
-EtaData.agda:34.10-14: error: [UnequalTerms]
-The terms
-  x
-and
-  pair (fst x) (snd x)
-are not equal at type Prod A B
-when checking that the expression refl has type
-x ≡ pair (fst x) (snd x)
+EtaData.agda:6.8-9: error: [EtaPragmaVsNoEtaEquality]
+Record has both ETA pragma and no-eta-equality directive
+when checking the definition of R

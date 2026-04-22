@@ -14,13 +14,12 @@ cong f refl = refl
 postulate
   funExt : ∀{a b}{A : Set a} {B : (x : A) → Set b} {f g : (x : A) → B x} → (∀ (x : A) → f x ≡ g x) → f ≡ g
 
+{-# ETA_EQUALITY #-}
 record Acc {a} {A : Set a} {r} (R : A → A → Set r) (x : A) : Set (a ⊔ r) where
   inductive; eta-equality
   constructor acc
   field step : ∀ y → R y x → Acc R y
 open Acc public
-
-{-# ETA Acc #-}
 
 -- Naively testing Acc R x for being a singleton will infinitely unfold its definition.
 -- We need to keep track of which record types we already unfolded!
