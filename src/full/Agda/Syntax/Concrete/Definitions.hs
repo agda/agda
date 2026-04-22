@@ -692,7 +692,7 @@ niceDeclarations fixs ds = do
       Record{}                      -> True
       RecordSig{}                   -> True
       RecordDef{}                   -> True
-      Pragma p | isAttachedPragma p -> canHaveNoPositivityCheckPragma ds
+      Pragma p | isAttachedPragma p -> canHaveNoUniverseCheckPragma ds
       _                             -> False
 
     -- Pragma that attaches to the following declaration.
