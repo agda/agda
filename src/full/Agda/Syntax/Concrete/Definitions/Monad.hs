@@ -232,9 +232,6 @@ etaEqualityPragma f e = f (_forceEta e) <&> \ s -> e { _forceEta = s }
 withEtaEqualityPragma :: ForceRecordEta -> Nice a -> Nice a
 withEtaEqualityPragma = locallyState etaEqualityPragma . const
 
-getEtaEqualityFromSig :: Name -> ForceRecordEta
-getEtaEqualityFromSig x = maybe empty forceRecordEta <$> getSig x
-
 -- | Lens for field '_posChk'.
 
 positivityCheckPragma :: Lens' NiceState PositivityCheck

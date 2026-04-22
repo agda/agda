@@ -212,7 +212,7 @@ instance Hilite A.Declaration where
       A.DataSig _di er x tel e               -> hl er <> hl x <> hl tel <> hl e
       A.DataDef _di x _pc _uc pars cs        -> hl x <> hl pars <> hl cs
       A.RecSig _di er x tel e                -> hl er <> hl x <> hl tel <> hl e
-      A.RecDef _di x _pc _uc dir bs e ds     -> hl x <> hl dir <> hl bs <> hl e <> hl ds
+      A.RecDef _di x _pc _uc _eta dir bs e ds-> hl x <> hl dir <> hl bs <> hl e <> hl ds
       A.PatternSynDef x xs p                 -> hl x <> hl xs <> hl p
       A.UnquoteDecl _mi _di xs e             -> hl xs <> hl e
       A.UnquoteDef _di xs e                  -> hl xs <> hl e

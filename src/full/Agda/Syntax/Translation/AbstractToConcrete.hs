@@ -1333,7 +1333,7 @@ instance ToConcrete A.Declaration where
       return [ C.RecordSig (getRange i) erased x'
                  (map C.DomainFull $ catMaybes tel') t' ]
 
-  toConcrete (A.RecDef  i x _pc _uc dir bs t cs) =
+  toConcrete (A.RecDef  i x _pc _uc _eta dir bs t cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree $ dataDefParams bs) $ \ tel' -> do
       dirs <- toConcrete dir

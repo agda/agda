@@ -73,7 +73,7 @@ checkRecDef
   -> QName                     -- ^ Record type identifier.
   -> PositivityCheck           -- ^ Report positivity errors for this record type?
   -> UniverseCheck             -- ^ Check universes?
-  -> ForceEtaEquality          -- ^ @{-# ETA_EQUALITY #-}@ pragma attached to this record definition?
+  -> ForceRecordEta            -- ^ @{-# ETA_EQUALITY #-}@ pragma attached to this record definition?
   -> A.RecordDirectives        -- ^ (Co)Inductive, (No)Eta, (Co)Pattern, Constructor?
   -> A.DataDefParams           -- ^ Record parameters.
   -> A.Expr                    -- ^ Approximate type of constructor (@fields@ -> dummy).

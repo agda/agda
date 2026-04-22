@@ -2887,7 +2887,6 @@ data DataOrRecSigData = DataOrRecSigData
       -- ^ Is it a record signature, and if yes,
       --   what is the range of the 'EtaPragma' attached to it, if any.
   } deriving (Show, Generic)
-type DataOrRecordEta = DataOrRecord' Range
 
 pattern DataOrRecSig :: Int -> DataOrRecordEta -> Defn
 pattern DataOrRecSig{ datarecPars, datarecEta } = DataOrRecSigDefn (DataOrRecSigData datarecPars datarecEta)
@@ -3303,13 +3302,6 @@ lensConstructor f = \case
 lensRecord :: Lens' Defn RecordData
 lensRecord f = \case
   RecordDefn d -> RecordDefn <$> f d
-  _ -> __IMPOSSIBLE__
-
--- Lenses for data/record signatures
-
-lensRecSigEta :: Lens' DataOrRecSigData Range
-lensRecSigEta f = \case
-  DataOrRecSigData n (IsRecord r) -> DataOrRecSigData n . IsRecord <$> f r
   _ -> __IMPOSSIBLE__
 
 -- Lenses for Record

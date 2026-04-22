@@ -317,6 +317,7 @@ unsafePragma p =
     CompilePragma{}            -> singleton $ PragmaCompiled r
     DisplayPragma{}            -> empty
     EtaPragma{}                -> singleton $ SafeFlagEta r
+    EtaEqualityPragma{}        -> empty
     ForeignPragma{}            -> empty
     ImpossiblePragma{}         -> empty
     InjectivePragma{}          -> singleton $ SafeFlagInjective r
@@ -391,6 +392,7 @@ instance HasRange DeclarationWarning' where
     InvalidConstructorBlock r          -> r
     InvalidCoverageCheckPragma r       -> r
     InvalidDataOrRecDefParameter r _ _ _ -> r
+    InvalidEtaEqualityPragma r         -> r
     InvalidNoPositivityCheckPragma r   -> r
     InvalidNoUniverseCheckPragma r     -> r
     InvalidTerminationCheckPragma r    -> r

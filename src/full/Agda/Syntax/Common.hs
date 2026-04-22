@@ -294,6 +294,7 @@ instance KillRange a => KillRange (DataOrRecord' a) where
 
 type DataOrRecord = DataOrRecord' PatternOrCopattern
 type DataOrRecord_ = DataOrRecord' ()
+type DataOrRecordEta = DataOrRecord' ForceRecordEta
 
 pattern IsRecord_ :: DataOrRecord_
 pattern IsRecord_ = IsRecord ()

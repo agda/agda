@@ -355,6 +355,6 @@ universeCheck (RecName _ uc _)= uc
 universeCheck (FunName _ _ _) = YesUniverseCheck
 
 forceRecordEta :: DataRecOrFun -> ForceRecordEta
-forceRecordEta (DataName _ _)    = empty
+forceRecordEta (DataName _ _)    = mempty
 forceRecordEta (RecName _ _ eta) = eta
-forceRecordEta (FunName _ _ _)   = empty
+forceRecordEta (FunName _ _ _)   = mempty
