@@ -206,50 +206,40 @@ loneSigsFromLoneNames = Map.fromListWith __IMPOSSIBLE__ . map (\(r,x,k) -> (x, L
 terminationCheckPragma :: Lens' NiceState TerminationCheck
 terminationCheckPragma f e = f (_termChk e) <&> \ s -> e { _termChk = s }
 
+-- | Set 'terminationCheckPragma' to given value for a local computation.
+
 withTerminationCheckPragma :: TerminationCheck -> Nice a -> Nice a
-withTerminationCheckPragma tc f = do
-  tc_old <- use terminationCheckPragma
-  terminationCheckPragma .= tc
-  result <- f
-  terminationCheckPragma .= tc_old
-  return result
+withTerminationCheckPragma = locallyState terminationCheckPragma . const
+
+-- | Lens for field '_covChk'.
 
 coverageCheckPragma :: Lens' NiceState CoverageCheck
 coverageCheckPragma f e = f (_covChk e) <&> \ s -> e { _covChk = s }
 
+-- | Set 'coverageCheckPragma' to given value for a local computation.
+
 withCoverageCheckPragma :: CoverageCheck -> Nice a -> Nice a
-withCoverageCheckPragma tc f = do
-  tc_old <- use coverageCheckPragma
-  coverageCheckPragma .= tc
-  result <- f
-  coverageCheckPragma .= tc_old
-  return result
+withCoverageCheckPragma = locallyState coverageCheckPragma . const
 
 -- | Lens for field '_posChk'.
 
 positivityCheckPragma :: Lens' NiceState PositivityCheck
 positivityCheckPragma f e = f (_posChk e) <&> \ s -> e { _posChk = s }
 
+-- | Set 'positivityCheckPragma' to given value for a local computation.
+
 withPositivityCheckPragma :: PositivityCheck -> Nice a -> Nice a
-withPositivityCheckPragma pc f = do
-  pc_old <- use positivityCheckPragma
-  positivityCheckPragma .= pc
-  result <- f
-  positivityCheckPragma .= pc_old
-  return result
+withPositivityCheckPragma = locallyState positivityCheckPragma . const
 
 -- | Lens for field '_uniChk'.
 
 universeCheckPragma :: Lens' NiceState UniverseCheck
 universeCheckPragma f e = f (_uniChk e) <&> \ s -> e { _uniChk = s }
 
+-- | Set 'universeCheckPragma' to given value for a local computation.
+
 withUniverseCheckPragma :: UniverseCheck -> Nice a -> Nice a
-withUniverseCheckPragma uc f = do
-  uc_old <- use universeCheckPragma
-  universeCheckPragma .= uc
-  result <- f
-  universeCheckPragma .= uc_old
-  return result
+withUniverseCheckPragma = locallyState universeCheckPragma . const
 
 -- | Get universe check pragma from a data/rec signature.
 --   Defaults to 'YesUniverseCheck'.
@@ -270,13 +260,10 @@ popCatchallPragma = do
   catchallPragma .= empty
   return ca
 
+-- | Set 'catchallPragma' to given value for a local computation.
+
 withCatchallPragma :: Catchall -> Nice a -> Nice a
-withCatchallPragma ca f = do
-  ca_old <- use catchallPragma
-  catchallPragma .= ca
-  result <- f
-  catchallPragma .= ca_old
-  return result
+withCatchallPragma = locallyState catchallPragma . const
 
 -- | Add a new warning.
 niceWarning :: DeclarationWarning -> Nice ()
