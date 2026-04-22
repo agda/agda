@@ -409,7 +409,6 @@ niceDeclarations fixs ds = do
           -- Universe check is performed if both the current value of
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
-          uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
           (pc, uc) <- retrieveTypeSig (DataName pc uc) x >>= \case
              DataName pc uc -> pure (pc, uc)
              _ -> __IMPOSSIBLE__
@@ -443,7 +442,6 @@ niceDeclarations fixs ds = do
           -- Universe check is performed if both the current value of
           -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
-          uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
           (pc, uc) <- retrieveTypeSig (RecName pc uc) x >>= \case
             RecName pc uc -> pure (pc, uc)
             _ -> __IMPOSSIBLE__

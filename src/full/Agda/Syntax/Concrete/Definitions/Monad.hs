@@ -241,12 +241,6 @@ universeCheckPragma f e = f (_uniChk e) <&> \ s -> e { _uniChk = s }
 withUniverseCheckPragma :: UniverseCheck -> Nice a -> Nice a
 withUniverseCheckPragma = locallyState universeCheckPragma . const
 
--- | Get universe check pragma from a data/rec signature.
---   Defaults to 'YesUniverseCheck'.
-
-getUniverseCheckFromSig :: Name -> Nice UniverseCheck
-getUniverseCheckFromSig x = maybe YesUniverseCheck universeCheck <$> getSig x
-
 -- | Lens for field '_catchall'.
 
 catchallPragma :: Lens' NiceState Catchall
