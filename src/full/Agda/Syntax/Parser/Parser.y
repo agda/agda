@@ -317,6 +317,7 @@ Token
     | 'COMPILE'                 { TokKeyword KwCOMPILE $1 }
     | 'DISPLAY'                 { TokKeyword KwDISPLAY $1 }
     | 'ETA'                     { TokKeyword KwETA $1 }
+    | 'ETA_EQUALITY'            { TokKeyword KwETA_EQUALITY $1 }
     | 'FOREIGN'                 { TokKeyword KwFOREIGN $1 }
     | 'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $1 }
     | 'INCOHERENT'              { TokKeyword KwINCOHERENT $1 }
