@@ -26,10 +26,10 @@ unique = _
 -- Passing already visited non-recursive records is fine!
 
 mutual
+  {-# ETA_EQUALITY #-}
   record S (n : Nat) : Set where
     inductive; eta-equality
     field inn : T n
-  {-# ETA S #-}
 
   T : Nat → Set
   T zero = ⊤

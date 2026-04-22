@@ -1645,6 +1645,7 @@ DeclarationPragma
   | CatchallPragma           { $1 }
   | DisplayPragma            { $1 }
   | EtaPragma                { $1 }
+  | EtaEqualityPragma        { $1 }
   | NoPositivityCheckPragma  { $1 }
   | NoUniverseCheckPragma    { $1 }
   | PolarityPragma           { $1 }

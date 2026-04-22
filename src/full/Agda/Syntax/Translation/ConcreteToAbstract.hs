@@ -3254,16 +3254,15 @@ instance ToAbstract C.Pragma where
     stWarningOnImport `setTCLens` Just str
     pure []
 
-  -- Termination, Coverage, Positivity, Universe, and Catchall
-  -- pragmes are handled by the nicifier
+
+  -- Pragmas that are handled by the nicifier:
   toAbstract C.TerminationCheckPragma{}  = __IMPOSSIBLE__
   toAbstract C.NoCoverageCheckPragma{}   = __IMPOSSIBLE__
   toAbstract C.NoPositivityCheckPragma{} = __IMPOSSIBLE__
   toAbstract C.NoUniverseCheckPragma{}   = __IMPOSSIBLE__
   toAbstract C.CatchallPragma{}          = __IMPOSSIBLE__
-
-  -- Polarity pragmas are handled by the niceifier.
-  toAbstract C.PolarityPragma{} = __IMPOSSIBLE__
+  toAbstract C.EtaEqualityPragma{}       = __IMPOSSIBLE__
+  toAbstract C.PolarityPragma{}          = __IMPOSSIBLE__
 
 uselessPragma :: HasRange p => p -> String -> ScopeM [a]
 uselessPragma pragma = ([] <$) . warning . UselessPragma (getRange pragma) . P.fwords
@@ -3449,6 +3448,7 @@ checkNoTerminationPragma b ds =
       C.InjectiveForInferencePragma{} -> []
       C.DisplayPragma _ _ _         -> []
       C.CatchallPragma _            -> []
+      C.EtaEqualityPragma _         -> []
       C.NoCoverageCheckPragma _     -> []
       C.PolarityPragma _ _ _        -> []
       C.NoUniverseCheckPragma _     -> []

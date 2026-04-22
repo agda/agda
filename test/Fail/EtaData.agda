@@ -2,19 +2,17 @@
 
 -- Andreas, 2024-06-22, conflicting ETA pragma
 
+{-# ETA_EQUALITY #-}
 record R : Set where
   coinductive; no-eta-equality
-
-{-# ETA R #-}
 
 -- Andreas, 2014-07-02 wondering about the ETA pragma (legacy?)
 
 open import Common.Equality
 
+{-# ETA_EQUALITY #-}
 data Prod (A B : Set) : Set where
   pair : A → B → Prod A B
-
-{-# ETA Prod #-}
 
 -- WAS: The ETA pragma does not exist anymore.
 

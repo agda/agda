@@ -172,8 +172,8 @@ checkDecl d = setCurrentRange d $ do
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
       A.FunDef i x cs          -> impossible $ check x i $ checkFunDef i x $ List1.toList cs
       A.DataDef i x pc uc ps cs -> impossible $ check x i $ checkDataDef i x pc uc ps cs
-      A.RecDef i x pc uc dir ps tel cs -> impossible $ check x i $ do
-                                    checkRecDef i x pc uc dir ps tel cs
+      A.RecDef i x pc uc eta dir ps tel cs -> impossible $ check x i $ do
+                                    checkRecDef i x pc uc eta dir ps tel cs
                                     blockId <- defMutual <$> getConstInfo x
 
                                     -- Andreas, 2016-10-01 testing whether
@@ -441,8 +441,8 @@ highlight_ hlmod d = do
       highlight (A.Section i er x tel [])
       when (hlmod == DoHighlightModuleContents) $ mapM_ (highlight_ hlmod) (deepUnscopeDecls ds)
     A.RecSig{}               -> highlight d
-    A.RecDef i x pc uc dir ps tel cs ->
-      highlight (A.RecDef i x pc uc dir ps dummy cs)
+    A.RecDef i x pc uc eta dir ps tel cs ->
+      highlight (A.RecDef i x pc uc eta dir ps dummy cs)
       -- The telescope has already been highlighted.
       where
       -- Andreas, 2016-01-22, issue 1790
@@ -853,13 +853,7 @@ checkPragma r p = do
             Just InstanceInfo{ instanceOverlap = old } -> typeError $ DuplicateOverlapPragma q old new
             Nothing -> uselessPragma =<< pretty new <+> "pragma can only be applied to instances"
 
-        A.EtaPragma q -> do
-          getConstInfo q <&> theDef >>= \case
-            DataOrRecSig _ (IsRecord r')
-              | null r' -> modifyGlobalDefinition q $ set (lensTheDef . lensDataOrRecSig . lensRecSigEta) r
-              | otherwise -> uselessPragma "Duplicate ETA pragma"
-            Record{} -> uselessPragma "ETA pragma needs to be placed after record signature, but before record definition"
-            _ -> uselessPragma "ETA pragma is only applicable to record types"
+        A.EtaPragma q -> uselessPragma "The ETA pragma has been removed, use the attaching ETA_EQUALITY pragma instead"
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 --

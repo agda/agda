@@ -86,6 +86,7 @@ tokens :-
 <pragma_>   "FOREIGN"                  { endWith $ beginWith fpragma $ keyword KwFOREIGN }
 <pragma_>   "DISPLAY"                  { keyword KwDISPLAY }
 <pragma_>   "ETA"                      { keyword KwETA }
+<pragma_>   "ETA_EQUALITY"             { keyword KwETA_EQUALITY }
 <pragma_>   "IMPOSSIBLE"               { keyword KwIMPOSSIBLE }
 <pragma_>   "INJECTIVE"                { keyword KwINJECTIVE }
 <pragma_>   "INJECTIVE_FOR_INFERENCE"  { keyword KwINJECTIVE_FOR_INFERENCE }

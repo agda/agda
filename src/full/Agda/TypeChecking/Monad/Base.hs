@@ -2883,13 +2883,13 @@ pattern Axiom{ axiomConstTransp } = AxiomDefn (AxiomData axiomConstTransp)
 
 data DataOrRecSigData = DataOrRecSigData
   { _datarecPars :: !Int
-  , _datarecEta  :: !DataOrRecordEta
-      -- ^ Is it a record signature, and if yes,
-      --   what is the range of the 'EtaPragma' attached to it, if any.
+       -- ^ Number of parameters.
+  , _datarecKind :: !DataOrRecord_
+       -- ^ Is it a @data@ or @record@ signature?
   } deriving (Show, Generic)
 
-pattern DataOrRecSig :: Int -> DataOrRecordEta -> Defn
-pattern DataOrRecSig{ datarecPars, datarecEta } = DataOrRecSigDefn (DataOrRecSigData datarecPars datarecEta)
+pattern DataOrRecSig :: Int -> DataOrRecord_ -> Defn
+pattern DataOrRecSig{ datarecPars, datarecKind } = DataOrRecSigDefn (DataOrRecSigData datarecPars datarecKind)
 
 -- | Indicates the reason behind a function having not been marked
 -- projection-like.
@@ -3351,10 +3351,10 @@ instance Pretty Defn where
 instance Pretty DataOrRecSigData where
   pretty (DataOrRecSigData n eta) = "DataOrRecSig" <+> pretty n <+> pretty eta
 
-instance Pretty DataOrRecordEta where
+instance Pretty a => Pretty (DataOrRecord' a) where
   pretty = \case
     IsData -> "data"
-    IsRecord r -> "record" <+> if null r then empty else "ETA"
+    IsRecord a -> "record" <+> pretty a
 
 instance Pretty ProjectionLikenessMissing where
   pretty MaybeProjection = "MaybeProjection"

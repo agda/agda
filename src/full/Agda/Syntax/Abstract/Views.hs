@@ -469,7 +469,7 @@ instance ExprLike Declaration where
   recurseExpr :: forall m. RecurseExprFn m Declaration
   recurseExpr f d =
     case d of
-      Axiom a d i mp eta x e    -> Axiom a d i mp eta x <$> rec e
+      Axiom a d i mp x e        -> Axiom a d i mp x <$> rec e
       Generalize s i j x e      -> Generalize s i j x <$> rec e
       Field i x e               -> Field i x <$> rec e
       Primitive i x e           -> Primitive i x <$> rec e
@@ -482,7 +482,7 @@ instance ExprLike Declaration where
       FunDef i f cs             -> FunDef i f <$> rec cs
       DataSig i er d tel e      -> DataSig i er d <$> rec tel <*> rec e
       DataDef i d pc uc bs cs   -> DataDef i d pc uc <$> rec bs <*> rec cs
-      RecSig i eta er r tel e   -> RecSig i eta er r <$> rec tel <*> rec e
+      RecSig i er r tel e       -> RecSig i er r <$> rec tel <*> rec e
       RecDef i r pc uc eta dir bs e ds -> RecDef i r pc uc eta dir <$> rec bs <*> rec e <*> rec ds
       PatternSynDef f xs p      -> PatternSynDef f xs <$> rec p
       UnquoteDecl i is xs e     -> UnquoteDecl i is xs <$> rec e
@@ -548,7 +548,7 @@ instance DeclaredNames Declaration where
       Mutual _ decls               -> declaredNames decls
       DataSig _ _ q _ _            -> singleton (WithKind DataName q)
       DataDef _ q _ _ _ decls      -> singleton (WithKind DataName q) <> foldMap con decls
-      RecSig _ _ _ q _ _             -> singleton (WithKind RecName q)
+      RecSig _ _ q _ _             -> singleton (WithKind RecName q)
       RecDef _ q _ _ _ dir _ _ decls -> singleton (WithKind RecName q) <> declaredNames dir <> declaredNames decls
       PatternSynDef q _ _          -> singleton (WithKind PatternSynName q)
       UnquoteDecl _ _ qs _         -> fromList $ map (WithKind OtherDefName) qs  -- could be Fun or Axiom

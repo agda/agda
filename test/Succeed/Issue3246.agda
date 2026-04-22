@@ -41,8 +41,7 @@ mutual
 
   {-# STATIC g #-}
 
+  {-# ETA_EQUALITY #-}
   record R : Set where
     coinductive
     field foo : R
-
-  {-# ETA R #-}

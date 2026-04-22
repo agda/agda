@@ -45,12 +45,12 @@ mutual
             (A : Record Sig → Set) →
             Signature
 
+  {-# ETA_EQUALITY #-}
   record Record (Sig : Signature) : Set where
     eta-equality
     inductive
     constructor rec
     field fun : Record-fun Sig
-  {-# ETA Record #-}
 
   Record-fun : Signature → Set
   Record-fun ∅             = ⊤
