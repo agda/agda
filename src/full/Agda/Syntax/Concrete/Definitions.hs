@@ -397,12 +397,7 @@ niceDeclarations fixs ds = do
 
         Data r erased x tel t cs -> do
           pc <- use positivityCheckPragma
-          -- Andreas, 2018-10-27, issue #3327
-          -- Propagate {-# NO_UNIVERSE_CHECK #-} pragma from signature to definition.
-          -- Universe check is performed if both the current value of
-          -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
-          uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
           (,ds) <$> dataOrRec pc uc NiceDataDef
                       (flip NiceDataSig erased) (niceAxioms DataBlock) r
                       x (Just (tel, t)) (Just (parametersToDefParameters tel, cs))
@@ -434,12 +429,7 @@ niceDeclarations fixs ds = do
 
         Record r erased x dir tel t cs -> do
           pc <- use positivityCheckPragma
-          -- Andreas, 2018-10-27, issue #3327
-          -- Propagate {-# NO_UNIVERSE_CHECK #-} pragma from signature to definition.
-          -- Universe check is performed if both the current value of
-          -- 'universeCheckPragma' AND the one from the signature say so.
           uc <- use universeCheckPragma
-          uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
           (,ds) <$> dataOrRec pc uc
                       (\r o a pc uc x tel cs ->
                         NiceRecDef r o a pc uc x dir tel cs)
