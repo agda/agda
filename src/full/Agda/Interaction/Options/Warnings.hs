@@ -183,7 +183,6 @@ errorWarnings = Set.fromList
   , SafeFlagNoPositivityCheck_
   , SafeFlagPolarity_
   , SafeFlagNoUniverseCheck_
-  , SafeFlagEta_
   , SafeFlagInjective_
   , SafeFlagNoCoverageCheck_
   , TerminationIssue_
@@ -379,7 +378,6 @@ data WarningName
   | DuplicateRewriteRule_
   | LocalRewriteOutsideTelescope_
   | InferredLocalRewrite_
-  | SafeFlagEta_
   | SafeFlagInjective_
   | SafeFlagNoCoverageCheck_
   | SafeFlagNonTerminating_
@@ -640,7 +638,6 @@ warningNameDescription = \case
   DuplicateRewriteRule_            -> "Duplicate rewrite rules."
   LocalRewriteOutsideTelescope_    -> "'@rewrite' arguments are (currently) only allowed in module telescopes."
   InferredLocalRewrite_            -> "Tried to solve a meta with an '@rewrite' function."
-  SafeFlagEta_                     -> "`ETA' pragmas with the safe flag."
   SafeFlagInjective_               -> "`INJECTIVE' pragmas with the safe flag."
   SafeFlagNoCoverageCheck_         -> "`NON_COVERING` pragmas with the safe flag."
   SafeFlagNonTerminating_          -> "`NON_TERMINATING' pragmas with the safe flag."

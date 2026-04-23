@@ -603,7 +603,6 @@ warningHighlighting' b w = case tcWarning w of
     InvalidRewriteAttribute{}        -> deadcodeHighlighting w
     OpenImportAbstract{}             -> cosmeticProblemHighlighting w
     OpenImportPrivate{}              -> cosmeticProblemHighlighting w
-    SafeFlagEta                   {} -> errorWarningHighlighting w
     SafeFlagInjective             {} -> errorWarningHighlighting w
     SafeFlagNoCoverageCheck       {} -> errorWarningHighlighting w
     SafeFlagNoPositivityCheck     {} -> errorWarningHighlighting w

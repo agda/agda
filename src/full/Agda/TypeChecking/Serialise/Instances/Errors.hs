@@ -417,7 +417,6 @@ instance EmbPrj DeclarationWarning' where
     MissingDataDeclaration a          -> icodeN 32 MissingDataDeclaration a
     HiddenGeneralize r                -> icodeN 33 HiddenGeneralize r
     UselessMacro r                    -> icodeN 34 UselessMacro r
-    SafeFlagEta                    {} -> __IMPOSSIBLE__
     SafeFlagInjective              {} -> __IMPOSSIBLE__
     SafeFlagNoCoverageCheck        {} -> __IMPOSSIBLE__
     SafeFlagNoPositivityCheck      {} -> __IMPOSSIBLE__
