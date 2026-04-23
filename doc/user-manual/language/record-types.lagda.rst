@@ -622,10 +622,8 @@ record directive:
   pred record{ sublists = ts } = ts
 
 If both ``eta-equality`` and ``pattern`` are given for a record types,
-Agda will alert the user of a redundant ``pattern`` directive.
-However, if η is inferred but not declared explicitly, Agda will just
-ignore a redundant ``pattern`` directive; this is because the default
-can be changed globally by option :option:`--no-eta-equality`.
+Agda will alert the user of a redundant ``pattern`` directive
+with warning :option:`UselessPatternDeclarationForRecord`.
 
 .. note::
 
@@ -687,7 +685,7 @@ which can be useful to assist the termination checker.
 
 Eta equality for coinductive records is not allowed, since this combination
 could easily make Agda loop. This can be overridden at your own risk by using
-the :ref:`ETA <eta-pragma>` instead. Pattern matching on coinductive records is
+the :ref:`ETA_EQUALITY <eta-pragma>` instead. Pattern matching on coinductive records is
 likewise not allowed.
 
 You can read more about coinductive records in the section on
