@@ -509,14 +509,17 @@ isEtaRecordConstructor c = isRecordConstructor c <&> \case
 
 -- | Eta should be off for unguarded recursive records.
 --   Projections do not preserve guardedness.
---   Eta can be forced with the ETA pragma.
+--   Eta can be forced with the @ETA_EQUALITY@ pragma.
 unguardedRecord :: QName -> TCM ()
 unguardedRecord q = getConstInfo q <&> theDef >>= \case
     Record{ recEtaEquality' = EtaEquality eta etaProvenance } -> do
       when (eta == YesEta) do
         case etaProvenance of
+          -- Default eta: user might not be aware of the danger, so give a hard error.
           EtaFromOption    -> setCurrentRange q $ typeError $ UnguardedEtaRecord q
+          -- Declared eta: user has some awareness, so just give a warning.
           EtaFromDirective -> setCurrentRange q $ warning $ UnguardedEtaRecordW q
+          -- User has turned off the warning with the @ETA_EQUALITY@ pragma.
           EtaFromPragma    -> return ()
     _ -> __IMPOSSIBLE__
 

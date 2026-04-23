@@ -38,7 +38,6 @@ import Agda.TypeChecking.Rules.Data
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
--- import Agda.Utils.Boolean
 import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.List
 import Agda.Utils.List1 (pattern (:|) )
@@ -99,9 +98,9 @@ checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDef
     -- get type of record
     def <- instantiateDef =<< getConstInfo name
     t   <- instantiateFull $ defType def
-    let (npars, rangeETA) =
+    let npars =
           case theDef def of
-            DataOrRecSig n (IsRecord r) -> (n, r)
+            DataOrRecSig n IsRecord_ -> n
             _ -> __IMPOSSIBLE__
 
     -- If the record type is erased, then hard compile-time mode is
@@ -203,7 +202,7 @@ checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDef
         YesForceRecordEta -> case eta of
           Just (NoEta _)             -> typeError $ EtaPragmaVsNoEtaEquality
           _                          -> pure $ EtaEquality YesEta EtaFromPragma
-        -- We do not have an ETA pragma, so we first look at possible eta-equality directives
+        -- We do not have an ETA_EQUALITY pragma, so we first look at possible eta-equality directives
         -- and then at the defaults.
         NoForceRecordEta -> case (eta, conInduction, etaenabled) of
           (Nothing, Inductive, True) -> pure $ EtaEquality YesEta EtaFromOption

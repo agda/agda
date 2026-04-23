@@ -200,12 +200,12 @@ prettyWarning = \case
 
     CoinductiveEtaRecord name -> vcat
       [ fsep $ pwords "Not switching on eta-equality for coinductive records."
-      , fsep $ pwords "If you must, use pragma" ++ [ "{-# ETA", prettyTCM name, "#-}" ]
+      , fsep $ pwords "If you must, use pragma" ++ [ "{-# ETA_EQUALITY #-}" ]
       ]
 
     UnguardedEtaRecordW name -> vcat
       [ fsep $ pwords "Recursive occurrence of this record in its definition is unguarded, so eta-equality for this record might lead to non-termination in the type checker."
-      , fsep $ pwords "To disable this warning, use pragma" ++ [ "{-# ETA", prettyTCM name, "#-}" ]
+      , fsep $ pwords "To suppress this warning, use pragma" ++ [ "{-# ETA_EQUALITY #-}" ]
       ]
 
     UnsupportedIndexedMatch doc -> vcat

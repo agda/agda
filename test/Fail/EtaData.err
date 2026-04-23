@@ -2,5 +2,5 @@ EtaData.agda:13.1-21: warning: -W[no]InvalidEtaEqualityPragma
 The ETA_EQUALITY pragma can only precede a record definition.
 
 EtaData.agda:6.8-9: error: [EtaPragmaVsNoEtaEquality]
-Record has both ETA pragma and no-eta-equality directive
+Record has both ETA_EQUALITY pragma and no-eta-equality directive
 when checking the definition of R

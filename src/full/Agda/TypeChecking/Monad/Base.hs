@@ -5099,7 +5099,7 @@ data Warning
       -- ^ A record type declared as both @coinductive@ and having @eta-equality@.
   | UnguardedEtaRecordW QName
       -- ^ A record type with @eta-equality@ which unguarded.
-      --   This warning can be switched off via the ETA pragma.
+      --   This warning can be switched off via the @ETA_EQUALITY@ pragma.
 
   | UnsolvedMetaVariables    (Set1 Range)  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas (Set1 Range)  -- ^ Do not use directly with 'warning'
@@ -5712,7 +5712,7 @@ data TypeError
         | ShouldBeRecordType Type
         | ShouldBeRecordPattern
         | EtaPragmaVsNoEtaEquality
-            -- ^ A record has been declared as both @ETA@ and @no-eta-equality@.
+            -- ^ A record has been declared as both @ETA_EQUALITY@ and @no-eta-equality@.
         | CannotApply A.Expr Type
             -- ^ The given expression is used as a function
             --   but its type is not a function type.

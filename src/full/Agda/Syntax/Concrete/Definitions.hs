@@ -454,7 +454,6 @@ niceDeclarations fixs ds = do
           (pc, uc, eta) <- retrieveTypeSig (RecName pc uc eta) x >>= \case
             RecName pc uc eta -> pure (pc, uc, eta)
             _ -> __IMPOSSIBLE__
-          -- eta <- liftA2 (<>) (use etaEqualityPragma) (getEtaEqualityFromSig x)
           defpars <- niceDefParameters (IsRecord ()) tel
           (,ds) <$> dataOrRec pc uc eta
                       (\r o a pc uc eta x tel cs ->
@@ -1238,7 +1237,7 @@ niceDeclarations fixs ds = do
               OverlapPragma{}           -> top
 
               ImpossiblePragma{}        -> top     -- error thrown in scope checker
-              EtaPragma{}               -> top     -- needs to come before record definition
+              EtaPragma{}               -> top     -- does not matter, pragma removed
               WarningOnUsage{}          -> top
               WarningOnImport{}         -> top
               InjectivePragma{}         -> top     -- only needs name, not definition

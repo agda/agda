@@ -290,7 +290,7 @@ instance PrettyTCM TypeError where
     ShouldBeRecordPattern -> fsep $
       pwords "Expected record pattern"
 
-    EtaPragmaVsNoEtaEquality -> fwords $ "Record has both ETA pragma and no-eta-equality directive"
+    EtaPragmaVsNoEtaEquality -> fwords $ "Record has both ETA_EQUALITY pragma and no-eta-equality directive"
 
     WrongHidingInLHS -> fwords "Unexpected implicit argument"
 
@@ -1677,9 +1677,10 @@ instance PrettyTCM TypeError where
     UnexpectedTypeSignatureForParameter xs -> do
       fsep (pwords "Unexpected type signature for" ++ [ pluralS xs "parameter" ]) <+> sep (fmap prettyA xs)
 
-    UnguardedEtaRecord x ->
-      fwords "Unguarded eta record"
-
+    UnguardedEtaRecord name -> vcat
+      [ fsep $ pwords "Recursive occurrence of this record in its definition is unguarded, so eta-equality for this record might lead to non-termination in the type checker."
+      , fsep $ pwords "To suppress this error, use pragma" ++ [ "{-# ETA_EQUALITY #-}" ]
+      ]
 
     UnusableAtModality why mod t -> do
       compatible <- cubicalCompatibleOption
