@@ -217,9 +217,6 @@ If you know what you are doing, you can override Agda and force a coinductive re
   record R : Set where
     ...
 
-This pragma is intended for experiments and not recommended in production code.
-It might be removed in future versions of Agda.
-
 .. _old-coinduction:
 
 Old Coinduction
