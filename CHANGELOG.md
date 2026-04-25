@@ -140,6 +140,20 @@ Pragmas and options
 
 * New `primRewriteNoMatch` primitive in `Agda.Builtin.Equality.Rewrite` for controlling rewrite rule matching. See the section in the [rewriting documentation](https://agda.readthedocs.io/en/v2.9.0/language/rewriting.html#controlling-rewrite-rule-matching-with-primrewritenomatch) for more info.
 
+* The `ETA` pragma has been removed.
+
+* Eta-equality for record types is no longer inferred.
+  Previously Agda would switch off eta for a recursive record type automatically
+  if there was a risk that the type checker could loop due to infinite eta expansion.
+  Now, Agda will only flag it with an `UnguardedEtaRecord` error, so one has to add
+  a `no-eta-equality` directive manually.
+  If one wants eta enabled nevertheless, one can use the new `ETA_EQUALITY` pragma.
+  This pragma replaces the old `ETA` pragma and can also be used to turn on eta for
+  `coinductive` record types.
+  See the documentation on
+  [unguarded records](https://agda.readthedocs.io/en/v2.9.0/language/record-types.html#unguarded-records)
+  and [the `ETA_EQUALITY` pragma](https://agda.readthedocs.io/en/v2.9.0/language/coinduction.html#eta-pragma).
+
 Errors
 ------
 
