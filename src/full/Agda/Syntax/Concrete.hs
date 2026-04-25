@@ -688,6 +688,7 @@ data Pragma
     -- ^ Applies to the following function clause.
   | EtaEqualityPragma           Range
     -- ^ Applies to the following record type.
+    --   Force @eta-equality@ for the attached @record@ type for unguarded and @coinductive@ records.
   | TerminationCheckPragma      Range (TerminationCheck Name)
     -- ^ Applies to the following function (and all that are mutually recursive with it)
     --   or to the functions in the following mutual block.

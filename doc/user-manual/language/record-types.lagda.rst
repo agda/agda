@@ -588,7 +588,9 @@ Inductive records are recursive records that only allow values of finite depth.
   open Tree
 
 Inductive record types (see :ref:`recursive-records`) have η-equality enabled by
-default with the exception of :ref:`unguarded-records`.
+default (unless :option:`--no-eta-equality` is given).
+(Unguarded records should be annotated with ``no-eta-equality``,
+see section :ref:`unguarded-records`.)
 
 ::
 

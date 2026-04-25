@@ -1,6 +1,11 @@
-EtaData.agda:13.1-21: warning: -W[no]InvalidEtaEqualityPragma
+EtaData.agda:5.1-21: warning: -W[no]InvalidEtaEqualityPragma
 The ETA_EQUALITY pragma can only precede a record definition.
 
-EtaData.agda:6.8-9: error: [EtaPragmaVsNoEtaEquality]
-Record has both ETA_EQUALITY pragma and no-eta-equality directive
-when checking the definition of R
+EtaData.agda:24.10-14: error: [UnequalTerms]
+The terms
+  x
+and
+  pair (fst x) (snd x)
+are not equal at type Prod A B
+when checking that the expression refl has type
+x ≡ pair (fst x) (snd x)
