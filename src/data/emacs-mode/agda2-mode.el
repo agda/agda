@@ -1760,12 +1760,9 @@ ways."
         (rx (or "{-" "-}")))
        (string-end-rx
         (rx (not "\\") "\""))
-       (char-end-rx
-        (rx (not "\\") "'"))
        (code-rx
         (rx (or
              (submatch-n 1 "\"")
-             (submatch-n 1 "'")
              ;; We want to make sure that we only match proper comments so that we don't
              ;; stop lexing on identifiers like foo--bar.
              (and (or bol (any "." "{" "}" "(" ")" ";" space)) (submatch-n 1 "--"))
@@ -1802,8 +1799,6 @@ ways."
               (advance-to-comment-end)))))
        (advance-to-string-end ()
          (re-search-forward string-end-rx nil t))
-       (advance-to-char-end ()
-         (re-search-forward char-end-rx nil t))
        (end-of-code-block (str)
          (pcase file-type
            ('latex (equal str "\\end{code}"))
@@ -1824,8 +1819,6 @@ ways."
            (advance-to-code-block))
           ("\""
            (advance-to-string-end))
-          ("'"
-           (advance-to-char-end))
           ("{-"
            (advance-to-comment-end))
           ("--"
