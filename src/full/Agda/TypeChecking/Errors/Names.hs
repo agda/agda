@@ -130,6 +130,7 @@ typeErrorName = \case
   GeneralizedVarInLetOpenedModule                            {} -> GeneralizedVarInLetOpenedModule_
   HidingMismatch                                             {} -> HidingMismatch_
   IdiomBracketError                                          {} -> IdiomBracketError_
+  InvalidatedLocalRewriteRule                                {} -> InvalidatedLocalRewriteRule_
   InvalidBuiltin                                             {} -> InvalidBuiltin_
   InvalidDottedExpression                                    {} -> InvalidDottedExpression_
   IllTypedPatternAfterWithAbstraction                        {} -> IllTypedPatternAfterWithAbstraction_

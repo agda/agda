@@ -667,6 +667,11 @@ illegalRule s reason = do
   unsafeRule s reason
   mzero
 
+-- | We hard error on local rewrite rules invalidated by pattern matching to
+--   avoid continuing in ill-typed contexts
+invalidatedRule :: MonadTCError m => m a
+invalidatedRule = typeError InvalidatedLocalRewriteRule
+
 -- | Add a let bound variable.
 {-# INLINE addLetBinding #-}
 addLetBinding :: (MonadWarning m) => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a

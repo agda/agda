@@ -76,15 +76,16 @@ lrewSmartWith LRewUserWritten = False
 
 data RewDom' t = RewDom
   { rewDomOrigin :: LocalRewriteOrigin
-    -- ^ Rewrite rule originates from a with-abstraction
+    -- ^ Whether the rewrite rule is user-written or comes from a "smart with"
+    --   abstraction
   , rewDomEq     :: LocalEquation' t
     -- ^ Elaborated "@rewrite" equation
   , rewDomRew    :: Maybe RewriteRule
     -- ^ "@rewrite" equation transformed into a directed rewrite rule.
     --
     -- @Nothing@ iff invalidated by a substitution. If we are checking
-    -- against an "@rewrite" domain, this is fine, but if we are inside an "@rewrite"
-    -- context, this is probably an internal error.
+    -- against an "@rewrite" domain, this is fine, but if we are inside an
+    -- "@rewrite" context, this is probably an internal error.
   } deriving (Show, Generic)
 
 type RewDom = RewDom' Term

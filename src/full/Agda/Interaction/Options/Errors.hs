@@ -175,6 +175,7 @@ data ErrorName
   | ModuleNameHashCollision_
   | HidingMismatch_
   | IdiomBracketError_
+  | InvalidatedLocalRewriteRule_
   | InvalidBuiltin_
   | InvalidDottedExpression_
   | IllTypedPatternAfterWithAbstraction_

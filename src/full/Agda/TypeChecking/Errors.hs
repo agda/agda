@@ -1672,6 +1672,9 @@ instance PrettyTCM TypeError where
           <+> do inTopContext $ addContext tel $ prettyTCM core
         ]
 
+    InvalidatedLocalRewriteRule ->
+      "Local rewrite rule invalidated after a pattern-match"
+
     UnexpectedParameter par -> do
       text "Unexpected parameter" <+> prettyA par
 

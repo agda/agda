@@ -547,7 +547,7 @@ prettyWarning = \case
 
         SmartWithOccursFail -> (fsep . concat)
           [ illegalSince q
-          , pwords "the LHS occurs on the RHS or in an earlier 'smart with' rewrite rule"
+          , pwords "the LHS occurs in the RHS or an earlier 'smart with' rewrite rule"
           ]
 
     ConfluenceCheckingIncompleteBecauseOfMeta f -> (fsep . concat)

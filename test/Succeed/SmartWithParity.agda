@@ -61,14 +61,23 @@ _+_ {p = p} {q = q} (su n) m
   rewrite inv-xor {p} {q}
   = su (n + m)
 
++ze : n + ze ≡[ ap Nat xor-even ]≡ n
++ze {n = ze}   = refl
++ze {n = su {p = p} n}
+  with p xor even       | xor-even {p}
+     | inv p xor even   | inv-xor {p} {even}
+     | xor-even {inv p}
+... | _ | refl | _ | refl | refl = ap su (+ze {n = n})
+
 xor-even-inv : xor-even {inv p} ≡ inv-xor {p} {even} ∙ ap inv (xor-even {p})
 xor-even-inv {p = odd}  = refl
 xor-even-inv {p = even} = refl
 
-+ze : n + ze ≡[ ap Nat xor-even ]≡ n
-+ze {n = ze}   = refl
-+ze {n = su {p = p} n}
-  with inv p xor even   | inv-xor {p} {even}
-     | p xor even       | xor-even {p}
+-- '--without-K' version
++ze' : n + ze ≡[ ap Nat xor-even ]≡ n
++ze' {n = ze}   = refl
++ze' {n = su {p = p} n}
+  with p xor even       | xor-even {p}
+     | inv p xor even   | inv-xor {p} {even}
      | xor-even {inv p} | xor-even-inv {p}
-... | _ | refl | _ | refl | _ | refl = ap su (+ze {n = n})
+... | _ | refl | _ | refl | _ | refl = ap su (+ze' {n = n})
