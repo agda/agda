@@ -47,7 +47,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Unquote
-import Agda.TypeChecking.Records
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting
@@ -173,8 +172,8 @@ checkDecl d = setCurrentRange d $ do
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
       A.FunDef i x cs          -> impossible $ check x i $ checkFunDef i x $ List1.toList cs
       A.DataDef i x pc uc ps cs -> impossible $ check x i $ checkDataDef i x pc uc ps cs
-      A.RecDef i x pc uc dir ps tel cs -> impossible $ check x i $ do
-                                    checkRecDef i x pc uc dir ps tel cs
+      A.RecDef i x pc uc eta dir ps tel cs -> impossible $ check x i $ do
+                                    checkRecDef i x pc uc eta dir ps tel cs
                                     blockId <- defMutual <$> getConstInfo x
 
                                     -- Andreas, 2016-10-01 testing whether
@@ -336,7 +335,7 @@ revisitRecordPatternTranslation qs = do
   -- and the set of function definitions in the mutual block
   classify q = inConcreteOrAbstractMode q $ \ def -> do
     case theDef def of
-      Record{ recEtaEquality' = Inferred YesEta } -> return $ Just $ Left q
+      Record{ recEtaEquality' = EtaEquality YesEta _ } -> return $ Just $ Left q
       Function
         { funProjection = Left MaybeProjection
             -- Andreas, 2017-08-10, issue #2664:
@@ -442,8 +441,8 @@ highlight_ hlmod d = do
       highlight (A.Section i er x tel [])
       when (hlmod == DoHighlightModuleContents) $ mapM_ (highlight_ hlmod) (deepUnscopeDecls ds)
     A.RecSig{}               -> highlight d
-    A.RecDef i x pc uc dir ps tel cs ->
-      highlight (A.RecDef i x pc uc dir ps dummy cs)
+    A.RecDef i x pc uc eta dir ps tel cs ->
+      highlight (A.RecDef i x pc uc eta dir ps dummy cs)
       -- The telescope has already been highlighted.
       where
       -- Andreas, 2016-01-22, issue 1790
@@ -587,16 +586,13 @@ checkGeneralize s i info x e = do
       GeneralizableVar $ SomeGeneralizableArgs n
 
 -- | Type check an axiom.
-checkAxiom :: KindOfName -> A.DefInfo -> ArgInfo ->
-              Maybe PragmaPolarities -> QName -> A.Expr -> TCM ()
-checkAxiom = checkAxiom' Nothing
-
--- | Data and record type signatures need to remember the generalized
+--
+--   Data and record type signatures need to remember the generalized
 --   parameters for when checking the corresponding definition, so for these we
 --   pass in the parameter telescope separately.
-checkAxiom' :: Maybe A.GeneralizeTelescope -> KindOfName -> A.DefInfo -> ArgInfo ->
-               Maybe PragmaPolarities -> QName -> A.Expr -> TCM ()
-checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaultOpenLevelsToZero $ do
+checkAxiom :: Maybe A.GeneralizeTelescope -> KindOfName -> A.DefInfo -> ArgInfo ->
+              Maybe PragmaPolarities -> QName -> A.Expr -> TCM ()
+checkAxiom gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaultOpenLevelsToZero $ do
   -- Andreas, 2016-07-19 issues #418 #2102:
   -- We freeze metas in type signatures of abstract definitions, to prevent
   -- leakage of implementation details.
@@ -708,8 +704,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         case kind of   -- #4833: set abstract already here so it can be inherited by with functions
           FunName   -> fun
           MacroName -> set funMacro True fun
-          DataName  -> DataOrRecSig npars
-          RecName   -> DataOrRecSig npars
+          DataName  -> DataOrRecSig npars IsData
+          RecName   -> DataOrRecSig npars (IsRecord empty)
           AxiomName -> defaultAxiom     -- Old comment: NB: used also for data and record type sigs
           _         -> __IMPOSSIBLE__
         where
@@ -857,15 +853,6 @@ checkPragma r p = do
             Just InstanceInfo{ instanceOverlap = old } -> typeError $ DuplicateOverlapPragma q old new
             Nothing -> uselessPragma =<< pretty new <+> "pragma can only be applied to instances"
 
-        A.EtaPragma q -> isRecord q >>= \case
-            Nothing -> noRecord
-            Just RecordData{ _recInduction = ind, _recEtaEquality' = eta }
-              | ind /= Just CoInductive  -> noRecord
-              | Specified NoEta{} <- eta -> uselessPragma "ETA pragma conflicts with no-eta-equality declaration"
-              | otherwise -> modifyRecEta q $ const $ Specified YesEta
-          where
-            noRecord = uselessPragma "ETA pragma is only applicable to coinductive records"
-
 -- | Type check a bunch of mutual inductive recursive definitions.
 --
 -- All definitions which have so far been assigned to the given mutual
@@ -911,7 +898,7 @@ checkTypeSignature' gtel (A.Axiom funSig i info mp x e) =
               -- Issue #418, #3744, in fact don't go to AbstractMode at all
             | otherwise -> inConcreteMode
           PublicAccess  -> inConcreteMode
-    in abstr $ checkAxiom' gtel funSig i info mp x e
+    in abstr $ checkAxiom gtel funSig i info mp x e
 checkTypeSignature' _ _ =
   __IMPOSSIBLE__   -- type signatures are always axioms
 

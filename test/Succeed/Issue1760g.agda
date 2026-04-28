@@ -6,7 +6,7 @@ data ⊥ : Set where
 {-# NON_TERMINATING     #-}
 mutual
   record U : Set where
-    pattern; constructor roll
+    no-eta-equality; pattern; constructor roll
     field ap : U → U
 
   lemma : U → ⊥

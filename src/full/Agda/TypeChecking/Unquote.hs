@@ -1044,8 +1044,8 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
       Left _    -> throwError $ MissingDeclaration x
       Right def -> do
         npars <- case theDef def of
-                   DataOrRecSig n -> return n
-                   _              -> throwError $ DefineDataNotData x
+                   DataOrRecSig n IsData -> return n
+                   _ -> throwError $ DefineDataNotData x
 
         -- For some reasons, reifying parameters and adding them to the context via
         -- `addContext` before `toAbstract_` is different from substituting the type after

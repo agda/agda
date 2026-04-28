@@ -1,7 +1,0 @@
-NoEtaInMutual.agda:24.10-14: error: [UnequalTerms]
-The terms
-  x
-and
-  y
-are not equal at type ⊤
-when checking that the expression refl has type x ≡ y

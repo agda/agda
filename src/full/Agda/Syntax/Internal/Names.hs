@@ -159,7 +159,7 @@ instance NamesIn Definition where
 instance NamesIn Defn where
   namesAndMetasIn' sg = \case
     Axiom _            -> mempty
-    DataOrRecSig _     -> mempty
+    DataOrRecSig _ _   -> mempty
     GeneralizableVar _ -> mempty
     PrimitiveSort _ s  -> namesAndMetasIn' sg s
     AbstractDefn{}     -> __IMPOSSIBLE__

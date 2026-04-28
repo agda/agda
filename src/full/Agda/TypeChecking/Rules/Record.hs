@@ -4,7 +4,7 @@
 
 module Agda.TypeChecking.Rules.Record where
 
-import Prelude hiding (null, not, (&&), (||))
+import Prelude hiding (null, (&&), (||))
 
 import Data.Maybe
 import qualified Data.Set as Set
@@ -38,7 +38,6 @@ import Agda.TypeChecking.Rules.Data
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
-import Agda.Utils.Boolean
 import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.List
 import Agda.Utils.List1 (pattern (:|) )
@@ -73,13 +72,14 @@ checkRecDef
   -> QName                     -- ^ Record type identifier.
   -> PositivityCheck           -- ^ Report positivity errors for this record type?
   -> UniverseCheck             -- ^ Check universes?
+  -> ForceRecordEta            -- ^ @{-# ETA_EQUALITY #-}@ pragma attached to this record definition?
   -> A.RecordDirectives        -- ^ (Co)Inductive, (No)Eta, (Co)Pattern, Constructor?
   -> A.DataDefParams           -- ^ Record parameters.
   -> A.Expr                    -- ^ Approximate type of constructor (@fields@ -> dummy).
                                --   Does not include record parameters.
   -> [A.Field]                 -- ^ Field signatures.
   -> TCM ()
-checkRecDef i name pc uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars ps) contel0 fields = do
+checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars ps) contel0 fields = do
 
   -- Andreas, 2022-10-06, issue #6165:
   -- The target type of the constructor is a meaningless dummy expression which does not type-check.
@@ -100,8 +100,8 @@ checkRecDef i name pc uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gp
     t   <- instantiateFull $ defType def
     let npars =
           case theDef def of
-            DataOrRecSig n -> n
-            _              -> __IMPOSSIBLE__
+            DataOrRecSig n IsRecord_ -> n
+            _ -> __IMPOSSIBLE__
 
     -- If the record type is erased, then hard compile-time mode is
     -- entered.
@@ -160,8 +160,6 @@ checkRecDef i name pc uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gp
       -- Add record type to signature.
       reportSDoc "tc.rec" 15 $ "adding record type to signature"
 
-      etaenabled <- etaEnabled
-
       let getName :: A.Declaration -> [Dom QName]
           getName = \case
             A.Field _ x arg          -> [ x <$ domFromArg arg ]
@@ -171,16 +169,17 @@ checkRecDef i name pc uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gp
           setTactic dom f = f & dTactic .~ (dom ^. dTactic)
           fs = zipWith' setTactic (telToList ftel) $ concatMap getName fields
 
+          -- Andreas, 2020-04-19, issue #4560
+          -- If the user declared the record constructor as @pattern@,
+          -- then switch on pattern matching for no-eta-equality.
+          -- Default is no pattern matching, but definition by copatterns instead.
+          patCopat = maybe CopatternMatching (const PatternMatching) pat
+          eta      = ((patCopat <$) . rangedThing) <$> eta0
           -- indCo is what the user wrote: inductive/coinductive/Nothing.
           -- We drop the Range.
           indCo = rangedThing <$> ind
           -- A constructor is inductive unless declared coinductive.
           conInduction = fromMaybe Inductive indCo
-          -- Andreas, 2016-09-20, issue #2197.
-          -- Eta is inferred by the positivity checker.
-          -- We should turn it off until it is proven to be safe.
-          noEta    = Inferred $ NoEta patCopat
-          haveEta0 = maybe noEta Specified eta
           con = ConHead conName (IsRecord patCopat) conInduction $ map' argFromDom fs
 
           -- A record is irrelevant if all of its fields are.
@@ -193,16 +192,35 @@ checkRecDef i name pc uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gp
             | null (telToList ftel)       = relevant    -- #6270: eta unit types don't need to be irrelevant
             | otherwise                   = minimum $ irrelevant : map' getRelevance (telToList ftel)
 
-      -- Andreas, 2017-01-26, issue #2436
-      -- Disallow coinductive records with eta-equality
-      -- Andreas, 2024-06-14, PR #7300
-      -- Just make this a deadcode warning.
-      haveEta <-
-        if (conInduction == CoInductive && theEtaEquality haveEta0 == YesEta) then do
-          noEta <$ do
-            setCurrentRange eta0 $ warning $ CoinductiveEtaRecord name
-        else pure haveEta0
       reportSDoc "tc.rec" 30 $ "record constructor is " <+> prettyTCM con
+
+      -- Compute eta status from record directives and options.
+      let noEta = NoEta patCopat
+      etaenabled <- etaEnabled
+      haveEta <- case forceEta of
+        -- We force eta-equality since we have an ETA_EQUALITY pragma.
+        YesForceRecordEta -> case eta of
+          Just (NoEta _)             -> typeError $ EtaPragmaVsNoEtaEquality
+          _                          -> pure $ EtaEquality YesEta EtaFromPragma
+        -- We do not have an ETA_EQUALITY pragma, so we first look at possible eta-equality directives
+        -- and then at the defaults.
+        NoForceRecordEta -> case (eta, conInduction, etaenabled) of
+          (Nothing, Inductive, True) -> pure $ EtaEquality YesEta EtaFromOption
+          (Nothing, _, _)            -> pure $ EtaEquality noEta  EtaFromOption
+          (Just noEta@NoEta{}, _, _) -> pure $ EtaEquality noEta  EtaFromDirective
+          (Just YesEta, Inductive,_) -> pure $ EtaEquality YesEta EtaFromDirective
+          (Just YesEta, CoInductive, _)     -> EtaEquality noEta  EtaFromOption <$ do
+            -- Andreas, 2017-01-26, issue #2436
+            -- Disallow coinductive records with eta-equality
+            -- Andreas, 2024-06-14, PR #7300
+            -- Just make this a deadcode warning.
+            setCurrentRange eta0 $ warning $ CoinductiveEtaRecord name
+
+      -- Warn about 'pattern' directive if eta is on.
+      case (haveEta, pat) of
+        (EtaEquality YesEta _, Just r) -> setCurrentRange r $
+          warning $ UselessPatternDeclarationForRecord "eta"
+        _ -> pure ()
 
       -- Add the record definition.
 
@@ -373,14 +391,6 @@ checkRecDef i name pc uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gp
       -- the constructor.
       modifySignature $ updateDefinition conName $ \def ->
         def { defMatchable = Set.fromList $ map' unDom fs }
-
-  where
-  -- Andreas, 2020-04-19, issue #4560
-  -- If the user declared the record constructor as @pattern@,
-  -- then switch on pattern matching for no-eta-equality.
-  -- Default is no pattern matching, but definition by copatterns instead.
-  patCopat = maybe CopatternMatching (const PatternMatching) pat
-  eta      = ((patCopat <$) . rangedThing) <$> eta0
 
 
 {-| @checkRecordProjections m r q tel ftel fs@.

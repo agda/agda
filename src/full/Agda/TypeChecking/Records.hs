@@ -503,38 +503,25 @@ isRecordConstructor c = getConstInfo' c >>= \case
     _                          -> return Nothing
 
 isEtaRecordConstructor :: (HasCallStack, HasConstInfo m) => QName -> m (Maybe (QName, RecordData))
-isEtaRecordConstructor c = isRecordConstructor c >>= \case
-  Nothing -> return Nothing
-  Just (d, def) -> if isEtaRecordDef def then return $ Just (d, def) else return Nothing
+isEtaRecordConstructor c = isRecordConstructor c <&> \case
+  Nothing -> Nothing
+  Just (d, def) -> if isEtaRecordDef def then Just (d, def) else Nothing
 
--- | Turn off eta for unguarded recursive records.
+-- | Eta should be off for unguarded recursive records.
 --   Projections do not preserve guardedness.
-unguardedRecord :: QName -> PatternOrCopattern -> TCM ()
-unguardedRecord q pat = modifyRecEta q \ eta -> setEtaEquality eta $ NoEta pat
-
--- | Turn on eta for non-recursive and inductive guarded recursive records,
---   unless user declared otherwise.
---   Projections do not preserve guardedness.
-updateEtaForRecord :: QName -> TCM ()
-updateEtaForRecord q = whenM etaEnabled $ do
-
-  -- Do we need to switch on eta for record q?
-  switchEta <- getConstInfo q <&> theDef <&> \case
-    Record{ recInduction = ind, recEtaEquality' = eta }
-      | Inferred NoEta{} <- eta, ind /= Just CoInductive -> True
-      | otherwise -> False
+--   Eta can be forced with the @ETA_EQUALITY@ pragma.
+unguardedRecord :: QName -> TCM ()
+unguardedRecord q = getConstInfo q <&> theDef >>= \case
+    Record{ recEtaEquality' = EtaEquality eta etaProvenance } -> do
+      when (eta == YesEta) do
+        case etaProvenance of
+          -- Default eta: user might not be aware of the danger, so give a hard error.
+          EtaFromOption    -> setCurrentRange q $ typeError $ UnguardedEtaRecord q
+          -- Declared eta: user has some awareness, so just give a warning.
+          EtaFromDirective -> setCurrentRange q $ warning $ UnguardedEtaRecordW q
+          -- User has turned off the warning with the @ETA_EQUALITY@ pragma.
+          EtaFromPragma    -> return ()
     _ -> __IMPOSSIBLE__
-
-  when switchEta $ modifyRecEta q $ const $ Inferred YesEta
-
--- | Turn on eta for inductive guarded recursive records.
---   Projections do not preserve guardedness.
-recursiveRecord :: QName -> TCM ()
-recursiveRecord = updateEtaForRecord
-
--- | Turn on eta for non-recursive record, unless user declared otherwise.
-nonRecursiveRecord :: QName -> TCM ()
-nonRecursiveRecord = updateEtaForRecord
 
 -- | Check whether record type is marked as recursive.
 --

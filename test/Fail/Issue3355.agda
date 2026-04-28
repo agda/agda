@@ -1,6 +1,8 @@
 -- Andreas, 2026-02-27, issues #3355 and #3008:
 -- Allow NO_POSITIVITY_CHECK in records and where blocks.
 
+{-# OPTIONS --no-eta-equality #-}  -- Needed lest Agda complains about unguarded records.
+
 -- 1. Still ignored outside mutual block before non-data/record definition.
 ---------------------------------------------------------------------------
 

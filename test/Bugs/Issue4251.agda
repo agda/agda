@@ -29,7 +29,7 @@ postulate
   fung : (c : Cocone) → Y' (Cocone.x c) → Path c
 
 record CoconeDep (P : X → Set) : Set where
-  inductive
+  inductive; no-eta-equality
   field
     x' : P (Cocone.x m)
 

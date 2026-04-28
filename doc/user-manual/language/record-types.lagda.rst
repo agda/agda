@@ -548,8 +548,9 @@ R.a x ; b = R.b x ; c = R.c x }``.
   eta-R : (x : R) → x ≡ record { a = R.a x ; b = R.b x ; c = R.c x }
   eta-R r = refl
 
-By default, all non-recursive record types enjoy η-equality. The keywords
-``eta-equality``/``no-eta-equality`` enable/disable η rules for the record type
+Record types enjoy η-equality by default (option:`--eta-equality`)
+with the exception of coinductive records.
+The keywords ``eta-equality``/``no-eta-equality`` enable/disable η rules for the record type
 being declared.
 
 ::
@@ -587,8 +588,9 @@ Inductive records are recursive records that only allow values of finite depth.
   open Tree
 
 Inductive record types (see :ref:`recursive-records`) have η-equality enabled by
-default if this does not lead to potential infinite η-expansion (as determined
-by the :ref:`positivity checker<positivity-checking>`).
+default (unless :option:`--no-eta-equality` is given).
+(Unguarded records should be annotated with ``no-eta-equality``,
+see section :ref:`unguarded-records`.)
 
 ::
 
@@ -622,10 +624,8 @@ record directive:
   pred record{ sublists = ts } = ts
 
 If both ``eta-equality`` and ``pattern`` are given for a record types,
-Agda will alert the user of a redundant ``pattern`` directive.
-However, if η is inferred but not declared explicitly, Agda will just
-ignore a redundant ``pattern`` directive; this is because the default
-can be changed globally by option :option:`--no-eta-equality`.
+Agda will alert the user of a redundant ``pattern`` directive
+with warning :option:`UselessPatternDeclarationForRecord`.
 
 .. note::
 
@@ -654,6 +654,48 @@ can be changed globally by option :option:`--no-eta-equality`.
   ``bar ≡ con 0``. Now either ``eta bar`` reduces to
   ``refl : bar ≡ con 0`` (contradicting the ``no-eta-equality`` directive)
   or else ``eta bar`` is a stuck term (breaking canonicity).
+
+.. _unguarded-records:
+
+Unguarded records
+~~~~~~~~~~~~~~~~~
+
+η-equality is not always safe for recursive records as it could lead to infinite η-expansion.
+This is the case for so-called unguarded records where the recursive occurrence is not
+guarded by a type former that does not have η (and thus stops infinite expansion).
+η-equality should be turned off for such records:
+
+::
+
+  record Empty : Set where
+    inductive
+    no-eta-equality; pattern
+    field emp : Empty
+
+  isReallyEmpty : Empty → {A : Set} → A
+  isReallyEmpty record{ emp = x } = isReallyEmpty x
+
+Agda points out unguarded records that have η, see warning :option:`UnguardedEtaRecord`.
+Agda's unguarded-record detection is not perfect,
+so in some cases it is safe to have η despite Agda's warning.
+In such cases, one can prefix the ``record`` declaration with the
+:ref:`ETA_EQUALITY <eta-pragma>` pragma to silence the warning.
+
+::
+
+  mutual
+    {-# ETA_EQUALITY #-}
+    record NonEmptyTuple (A : Set) (n : Nat) : Set where
+      inductive; eta-equality
+      field theTuple : FTuple A n
+
+    FTuple : (A : Set) (n : Nat) → Set
+    FTuple A zero    = A
+    FTuple A (suc n) = Pair A (NonEmptyTuple A n)
+
+  nonEmptyTupleEta : {A : Set} {n : Nat} (t : NonEmptyTuple A n)
+    → t ≡ record { theTuple = NonEmptyTuple.theTuple t }
+  nonEmptyTupleEta t = refl
 
 Coinductive records
 ~~~~~~~~~~~~~~~~~~~
@@ -687,7 +729,7 @@ which can be useful to assist the termination checker.
 
 Eta equality for coinductive records is not allowed, since this combination
 could easily make Agda loop. This can be overridden at your own risk by using
-the :ref:`ETA <eta-pragma>` instead. Pattern matching on coinductive records is
+the :ref:`ETA_EQUALITY <eta-pragma>` instead. Pattern matching on coinductive records is
 likewise not allowed.
 
 You can read more about coinductive records in the section on

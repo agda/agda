@@ -28,7 +28,7 @@ Index of pragmas
 
 * :ref:`DISPLAY <display-pragma>`
 
-* :ref:`ETA <eta-pragma>`
+* :ref:`ETA_EQUALITY <eta-pragma>`
 
 * :ref:`FOREIGN <foreign-function-interface>`
 

@@ -341,7 +341,7 @@ instance Apply Defn where
   apply d [] = d
   apply d args = case d of
     Axiom{} -> d
-    DataOrRecSig n -> DataOrRecSig (n - length args)
+    DataOrRecSig n eta -> DataOrRecSig (n - length args) eta
     GeneralizableVar gv -> GeneralizableVar $ apply gv args
     AbstractDefn d -> AbstractDefn $ apply d args
     Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
@@ -701,7 +701,7 @@ instance Abstract System where
 instance Abstract Defn where
   abstract tel d = case d of
     Axiom{} -> d
-    DataOrRecSig n -> DataOrRecSig (size tel + n)
+    DataOrRecSig n eta -> DataOrRecSig (size tel + n) eta
     GeneralizableVar gv -> GeneralizableVar $ abstract tel gv
     AbstractDefn d -> AbstractDefn $ abstract tel d
     Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv

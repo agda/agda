@@ -112,6 +112,7 @@ typeErrorName = \case
   DuplicateOverlapPragma                                     {} -> DuplicateOverlapPragma_
   DuplicatePrimitiveBinding                                  {} -> DuplicatePrimitiveBinding_
   EmptyTypeOfSizes                                           {} -> EmptyTypeOfSizes_
+  EtaPragmaVsNoEtaEquality                                   {} -> EtaPragmaVsNoEtaEquality_
   ExpectedBindingForParameter                                {} -> ExpectedBindingForParameter_
   ExpectedIntervalLiteral                                    {} -> ExpectedIntervalLiteral_
   FieldOutsideRecord                                         {} -> FieldOutsideRecord_
@@ -237,6 +238,7 @@ typeErrorName = \case
   UnexpectedParameter                                        {} -> UnexpectedParameter_
   UnexpectedTypeSignatureForParameter                        {} -> UnexpectedTypeSignatureForParameter_
   UnexpectedWithPatterns                                     {} -> UnexpectedWithPatterns_
+  UnguardedEtaRecord                                         {} -> UnguardedEtaRecord_
   UnknownBackend                                             {} -> UnknownBackend_
   UnusableAtModality                                         {} -> UnusableAtModality_
   UnusedVariableInPatternSynonym                             {} -> UnusedVariableInPatternSynonym_

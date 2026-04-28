@@ -1570,9 +1570,6 @@ instance TermSize a => TermSize (Substitution' a) where
 -- * KillRange instances.
 ---------------------------------------------------------------------------
 
-instance KillRange DataOrRecord where
-  killRange = id
-
 instance KillRange ConHead where
   killRange (ConHead c d i fs) = killRangeN ConHead c d i fs
 

@@ -1,0 +1,5 @@
+UnguardedEtaRecord.agda:6.8-9: error: [UnguardedEtaRecord]
+Recursive occurrence of this record in its definition is unguarded,
+so eta-equality for this record might lead to non-termination in
+the type checker.
+To suppress this error, use pragma {-# ETA_EQUALITY #-}

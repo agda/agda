@@ -183,7 +183,6 @@ errorWarnings = Set.fromList
   , SafeFlagNoPositivityCheck_
   , SafeFlagPolarity_
   , SafeFlagNoUniverseCheck_
-  , SafeFlagEta_
   , SafeFlagInjective_
   , SafeFlagNoCoverageCheck_
   , TerminationIssue_
@@ -281,6 +280,7 @@ data WarningName
   | InvalidConstructorBlock_
   | InvalidCoverageCheckPragma_
   | InvalidDataOrRecDefParameter_
+  | InvalidEtaEqualityPragma_
   | InvalidNoPositivityCheckPragma_
   | InvalidNoUniverseCheckPragma_
   | DuplicateRecordDirective_
@@ -337,6 +337,7 @@ data WarningName
   | NotStrictlyPositive_
   | ConstructorDoesNotFitInData_
   | CoinductiveEtaRecord_
+  | UnguardedEtaRecordW_
   | UnsupportedIndexedMatch_
   | OldBuiltin_
   | BuiltinDeclaresIdentifier_
@@ -377,7 +378,6 @@ data WarningName
   | DuplicateRewriteRule_
   | LocalRewriteOutsideTelescope_
   | InferredLocalRewrite_
-  | SafeFlagEta_
   | SafeFlagInjective_
   | SafeFlagNoCoverageCheck_
   | SafeFlagNonTerminating_
@@ -446,6 +446,7 @@ string2WarningName = (`HMap.lookup` warnings) where
 
 warningNameToString :: WarningName -> String
 warningNameToString = \case
+  UnguardedEtaRecordW_ -> "UnguardedEtaRecord"
   UnusedImportsAll_ -> "UnusedImports=all"
   w -> initWithDefault __IMPOSSIBLE__ $ show w
 
@@ -536,6 +537,7 @@ warningNameDescription = \case
   InvalidConstructorBlock_         -> "`constructor' blocks outside of `interleaved mutual' blocks."
   InvalidCoverageCheckPragma_      -> "Coverage checking pragmas before non-function or `mutual' blocks."
   InvalidDataOrRecDefParameter_    -> "Invalid decorations of parameters of a `data' or `record' definition (that is separate of the `data' or `record' declaration)."
+  InvalidEtaEqualityPragma_        -> "Eta equality pragmas before something other than a `record' type declaration."
   InvalidNoPositivityCheckPragma_  -> "Positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "Universe checking pragmas before non-`data' or `record' declaration."
   DuplicateRecordDirective_        -> "Conflicting directives in a record declaration."
@@ -595,6 +597,7 @@ warningNameDescription = \case
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   ConstructorDoesNotFitInData_     -> "Failed constructor size checks."
   CoinductiveEtaRecord_            -> "Record type declared as both coinductive and having eta-equality."
+  UnguardedEtaRecordW_             -> "Record type declared with eta-equality that has an unguarded recursive occurrence."
   UnsupportedIndexedMatch_         -> "Failures to compute full equivalence when splitting on indexed family."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   BuiltinDeclaresIdentifier_       -> "`BUILTIN' pragmas that declare a new identifier but have been given an existing one."
@@ -635,7 +638,6 @@ warningNameDescription = \case
   DuplicateRewriteRule_            -> "Duplicate rewrite rules."
   LocalRewriteOutsideTelescope_    -> "'@rewrite' arguments are (currently) only allowed in module telescopes."
   InferredLocalRewrite_            -> "Tried to solve a meta with an '@rewrite' function."
-  SafeFlagEta_                     -> "`ETA' pragmas with the safe flag."
   SafeFlagInjective_               -> "`INJECTIVE' pragmas with the safe flag."
   SafeFlagNoCoverageCheck_         -> "`NON_COVERING` pragmas with the safe flag."
   SafeFlagNonTerminating_          -> "`NON_TERMINATING' pragmas with the safe flag."
