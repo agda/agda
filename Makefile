@@ -511,6 +511,10 @@ fast-build-succeed-test :
 	@$(call decorate, "Suite of successful --build-library tests (using agda-fast)", \
 		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/BuildSucceed)
 
+# For CI
+.PHONY : interaction ##
+interaction : interaction-simple interaction-custom
+
 .PHONY : interaction-simple ##
 interaction-simple :
 	@$(call decorate, "Suite of interaction tests (simple)", \
