@@ -124,6 +124,7 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
+import Data.HashMap.Strict qualified as HMap
 import Data.List (partition, sortBy)
 import Data.Monoid
 
@@ -171,12 +172,26 @@ import qualified Agda.Utils.VarSet as VarSet
 generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> ([Maybe Name] -> Telescope -> TCM a) -> TCM a
 generalizeTelescope vars typecheckAction ret | Map.null vars = typecheckAction (ret [])
 generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
+  sectionsBefore <- useTC (stSignature . sigSections)
+  definitionsBefore <- useTC (stSignature . sigDefinitions)
+  anonymousModulesBefore <- viewTC eAnonymousModules
   let s = Map.keysSet vars
-  ((cxtNames, tel, letbinds), namedMetas, allmetas) <-
+  ((cxtNames, tel, letbinds, anonymousModules), namedMetas, allmetas) <-
     createMetasAndTypeCheck s $ typecheckAction $ \ tel -> do
       xs <- take' (size tel) <$> getContextNames'
       lbs <- getLetBindings -- This gives let-bindings valid in the current context
-      return (xs, tel, lbs)
+      anons <- viewTC eAnonymousModules
+      return (xs, tel, lbs, anons)
+  sectionsAfter <- useTC (stSignature . sigSections)
+  definitionsAfter <- useTC (stSignature . sigDefinitions)
+  let sectionApps = Map.keysSet $ Map.difference sectionsAfter sectionsBefore
+      sectionDefs = Set.fromList
+        [ q
+        | q <- HMap.keys definitionsAfter
+        , not $ HMap.member q definitionsBefore
+        , Set.member (qnameModule q) sectionApps
+        ]
+      newAnonymousModules = take' (length anonymousModules - length anonymousModulesBefore) anonymousModules
 
   reportSDoc "tc.generalize.metas" 60 $ vcat
     [ "open metas =" <+> (text . show . fmap ((miNameSuggestion &&& miGeneralizable) . mvInfo)) (openMetas $ allmetas)
@@ -213,14 +228,19 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   -- And we shouldn't forget about the let-bindings (#3470)
   --   Γ (r : R) Θ ⊢ letbinds
   --   Γ Δ Θρ      ⊢ letbinds' = letbinds(lift |Θ| ρ)
-  -- And modules created in the telescope (#6916)
-  --   TODO
+  -- And sections created by module applications in the telescope (#6916)
+  --   Γ (r : R) ⊢ Σ            Σ = sectionApps
+  --   Γ Δ       ⊢ Σρ
   letbinds' <- applySubst (liftS (size tel) sub) <$> instantiateFull letbinds
+  rewriteGeneralizedSectionsAndDefinitions sub sectionApps sectionDefs
   let addLet (x, LetBinding isAxiom o v dom) = addLetBinding' isAxiom o x v dom
+      addAnonymousModule (m, n) = withAnonymousModule m n
 
   updateContext sub (cxPrepend genTelCxt . cxDrop 1) $
     updateContext (raiseS (size tel')) (cxPrepend newTelCxt) $
-      foldr addLet (ret genTelVars $ abstract genTel tel') letbinds'
+      foldr addAnonymousModule
+        (foldr addLet (ret genTelVars $ abstract genTel tel') letbinds')
+        newAnonymousModules
 
 
 -- | Generalize a type over a set of (used) generalizable variables.
@@ -258,6 +278,17 @@ createMetasAndTypeCheck s typecheckAction = do
     x <- locallyTC eGeneralizedVars (const genvals) typecheckAction
     return (metamap, x)
   return (x, namedMetas, allmetas)
+
+rewriteGeneralizedSectionsAndDefinitions :: Substitution -> Set ModuleName -> Set QName -> TCM ()
+rewriteGeneralizedSectionsAndDefinitions sub sections definitions = do
+  forM_ (Set.toList sections) $ \ m ->
+    whenJustM (Map.lookup m <$> useTC (stSignature . sigSections)) $ \ sec -> do
+      tel <- applySubst sub <$> instantiateFull (sec ^. secTelescope)
+      modifySignature $ over sigSections $ Map.adjust (set secTelescope tel) m
+  forM_ (Set.toList definitions) $ \ q ->
+    whenJustM (HMap.lookup q <$> useTC (stSignature . sigDefinitions)) $ \ def -> do
+      t <- applySubst sub <$> instantiateFull (defType def)
+      modifySignature $ updateDefinition q $ updateDefType $ const t
 
 -- | Add a placeholder variable that will be substituted with a record value packing up all the
 --   generalized variables.
