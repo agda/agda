@@ -184,12 +184,12 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
       return (xs, tel, lbs, anons)
   sectionsAfter <- useTC (stSignature . sigSections)
   definitionsAfter <- useTC (stSignature . sigDefinitions)
-  let sectionApps = Map.keysSet $ Map.difference sectionsAfter sectionsBefore
+  let newSections = Map.keysSet $ Map.difference sectionsAfter sectionsBefore
       sectionDefs = Set.fromList
         [ q
         | q <- HMap.keys definitionsAfter
         , not $ HMap.member q definitionsBefore
-        , Set.member (qnameModule q) sectionApps
+        , Set.member (qnameModule q) newSections
         ]
       newAnonymousModules = take' (length anonymousModules - length anonymousModulesBefore) anonymousModules
 
@@ -228,20 +228,25 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   -- And we shouldn't forget about the let-bindings (#3470)
   --   Γ (r : R) Θ ⊢ letbinds
   --   Γ Δ Θρ      ⊢ letbinds' = letbinds(lift |Θ| ρ)
+  letbinds' <- applySubst (liftS (size tel) sub) <$> instantiateFull letbinds
   -- And sections created by module applications in the telescope (#6916)
   --   Γ (r : R) ⊢ Σ            Σ = sectionApps
   --   Γ Δ       ⊢ Σρ
-  letbinds' <- applySubst (liftS (size tel) sub) <$> instantiateFull letbinds
-  rewriteGeneralizedSectionsAndDefinitions sub sectionApps sectionDefs
-  let addLet (x, LetBinding isAxiom o v dom) = addLetBinding' isAxiom o x v dom
-      addAnonymousModule (m, n) = withAnonymousModule m n
+  forM_ newSections \ m -> do
+    sec <- fromMaybe __IMPOSSIBLE__ <$> getSection m
+    tel <- applySubst sub <$> instantiateFull (sec ^. secTelescope)
+    modifySignature $ over sigSections $ Map.adjust (set secTelescope tel) m
+      -- TODO: do we need to update the module checkpoint for m
+  forM_ sectionDefs \ q -> do
+    t <- applySubst sub <$> do instantiateFull . defType =<< getConstInfo q
+    modifySignature $ updateDefinition q $ updateDefType $ const t
 
+  let addLet (x, LetBinding isAxiom o v dom) = addLetBinding' isAxiom o x v dom
   updateContext sub (cxPrepend genTelCxt . cxDrop 1) $
     updateContext (raiseS (size tel')) (cxPrepend newTelCxt) $
-      foldr addAnonymousModule
-        (foldr addLet (ret genTelVars $ abstract genTel tel') letbinds')
-        newAnonymousModules
-
+      flip (foldr $ uncurry withAnonymousModule) newAnonymousModules $
+      flip (foldr addLet) letbinds' $
+      ret genTelVars $ abstract genTel tel'
 
 -- | Generalize a type over a set of (used) generalizable variables.
 generalizeType :: Set QName -> TCM Type -> TCM ([Maybe QName], Type)
@@ -278,17 +283,6 @@ createMetasAndTypeCheck s typecheckAction = do
     x <- locallyTC eGeneralizedVars (const genvals) typecheckAction
     return (metamap, x)
   return (x, namedMetas, allmetas)
-
-rewriteGeneralizedSectionsAndDefinitions :: Substitution -> Set ModuleName -> Set QName -> TCM ()
-rewriteGeneralizedSectionsAndDefinitions sub sections definitions = do
-  forM_ (Set.toList sections) $ \ m ->
-    whenJustM (Map.lookup m <$> useTC (stSignature . sigSections)) $ \ sec -> do
-      tel <- applySubst sub <$> instantiateFull (sec ^. secTelescope)
-      modifySignature $ over sigSections $ Map.adjust (set secTelescope tel) m
-  forM_ (Set.toList definitions) $ \ q ->
-    whenJustM (HMap.lookup q <$> useTC (stSignature . sigDefinitions)) $ \ def -> do
-      t <- applySubst sub <$> instantiateFull (defType def)
-      modifySignature $ updateDefinition q $ updateDefType $ const t
 
 -- | Add a placeholder variable that will be substituted with a record value packing up all the
 --   generalized variables.
