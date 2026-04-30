@@ -772,7 +772,10 @@ isDatatype ind at = do
         Datatype{dataSort = s, dataPars = np, dataCons = cs, dataHIT = hit}
           | otherwise -> do
               let (ps, is) = splitAt np args
-              return (IsData, d, s, ps, is, cs, hit)
+              -- The sort is allowed to depend on parameters, so we need to
+              -- apply a substitution
+              let s' = applySubst (parallelS $ reverse $ map' unArg ps) s
+              return (IsData, d, s', ps, is, cs, hit)
         Record{recPars = np, recConHead = con, recInduction = i, recEtaEquality'}
           | i == Just CoInductive && ind /= CoInductive ->
               throw CoinductiveDatatype
