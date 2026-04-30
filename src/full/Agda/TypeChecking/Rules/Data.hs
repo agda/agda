@@ -713,9 +713,7 @@ checkNoLocalRewrites :: QName -> TCM ()
 checkNoLocalRewrites d = do
   def <- getConstInfo d
   case theDef def of
-    Datatype { dataPars = npars
-             , dataIxs = nixs
-             , dataSort = s}
+    Datatype { dataPars = npars }
      -> do
       let t = defType def
       TelV params t' <- telViewUpTo npars t

@@ -130,7 +130,7 @@ unsafeEscapeContext n = unsafeModifyContext $ cxDrop n
 -- | Delete the last @n@ bindings from the context. Any occurrences of
 --   these variables are replaced with the given @err@.
 --
---   Does not (currently) delete local rewrite rules
+--   Does not (currently) delete local rewrite rules (but perhaps it should)
 escapeContext :: MonadAddContext m => Impossible -> Int -> m a -> m a
 escapeContext err n = updateContext (strengthenS err n) $ cxDrop n
 
