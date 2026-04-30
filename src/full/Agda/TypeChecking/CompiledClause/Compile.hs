@@ -415,7 +415,22 @@ expandCatchalls single n cs =
         -- The following pattern match cannot fail (by construction of @ps@).
         (ps0, _:ps1) = splitAt n ps
 
-        n' = countPatternVars ps1
+        -- Catch-all expansion substitutes into clause bodies, so it must count
+        -- every binder to the right of the expanded pattern, including IApply
+        -- variables. `countPatternVars` intentionally ignores IApplyP.
+        n' = countClausePatternVars ps1
+
+    countClausePatternVars :: [Arg Pattern] -> Int
+    countClausePatternVars = sum . map (go . unArg)
+      where
+        go = \case
+          VarP{}        -> 1
+          DotP{}        -> 1
+          IApplyP{}     -> 1
+          ConP _ _ ps   -> countClausePatternVars $ map (fmap namedThing) ps
+          LitP{}        -> 0
+          DefP _ _ ps   -> countClausePatternVars $ map (fmap namedThing) ps
+          ProjP{}       -> 0
 
 -- | Make sure (by eta-expansion) that clause has arity at least @n@
 --   where @n@ is also the length of the provided list.

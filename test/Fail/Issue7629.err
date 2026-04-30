@@ -1,0 +1,5 @@
+Issue7629.agda:66.1-16: error: [ShouldBeEmpty]
+fst (0ℚ <' eq/ wa wb i) should be empty, but that's not obvious to
+me
+when checking the clause left hand side
+boom wa wb i ()
