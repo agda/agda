@@ -1,3 +1,6 @@
+-- Andreas, 2026-05-01, issue #7629
+-- Internal error due to bug in clause compiler concerning HITs.
+
 {-# OPTIONS --cubical #-}
 
 module Issue7629 where
@@ -62,5 +65,12 @@ _<'_ (eq/ wa wb i) y = toPath wa wb y i
 0ℚ : ℚ
 0ℚ = [ wrap zero ]
 
-boom : (wa wb : Wrap) → (i : I) → fst (0ℚ <' eq/ wa wb i) → Set
-boom wa wb i ()
+test : (wa wb : Wrap) → (i : I) → fst (0ℚ <' eq/ wa wb i) → Set
+test wa wb i ()
+
+-- WAS: Internal error.
+
+-- Expected error: [ShouldBeEmpty]
+-- fst (0ℚ <' eq/ wa wb i) should be empty, but that's not obvious to me
+-- when checking the clause left hand side
+-- test wa wb i ()

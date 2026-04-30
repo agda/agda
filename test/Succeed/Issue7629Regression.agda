@@ -1,3 +1,7 @@
+-- Andreas, 2026-05-01, issue #7629
+-- Internal error due to bug in clause compiler concerning HITs.
+-- Regression test.
+
 {-# OPTIONS --cubical #-}
 
 module Issue7629Regression where
@@ -76,3 +80,5 @@ zeroRat = [ pos zero , zero ]
 test : Σ Rat (λ q → fst (less zeroRat q)) → Set
 test ([ q ] , q+) = Rat
 test (eq/ ab cd adEqCb i , q+) = Rat
+
+-- Should succeed.
