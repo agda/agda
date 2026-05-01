@@ -606,6 +606,9 @@ data LHSResult = LHSResult
   , lhsVarTele      :: Telescope
     -- ^ Δ : The types of the pattern variables, in internal dependency order.
     -- Corresponds to 'clauseTel'.
+    -- Like the other components (e.g. `lhsBodyType`), this telescope lives
+    -- in the ambient context.
+    -- To print it, we need /not/ drop Δ from the ambient context.
   , lhsPatterns     :: [NamedArg DeBruijnPattern]
     -- ^ The patterns in internal syntax.
   , lhsHasAbsurd    :: Bool
@@ -711,7 +714,9 @@ checkLeftHandSide :: forall a.
      -- ^ Patterns that have been stripped away by with-desugaring.
      -- ^ These should not contain any proper matches.
   -> (LHSResult -> TCM a)
-     -- ^ Continuation.
+     -- ^ Continuation, called in the context constructed from
+     --   the 'lhsVarTele' via 'computeLHSContext'.
+     --   All components of 'LHSResult' live in this context, including 'lhsVarTele'.
   -> TCM a
 checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
  Bench.billToCPS [Bench.Typing, Bench.CheckLHS] $

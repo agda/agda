@@ -692,7 +692,7 @@ instance Monoid ClausesPostChecks where
   mempty  = CPC empty
   mappend = (<>)
 
--- | The LHS part of checkClause.
+-- | The LHS part of 'checkClause'.
 checkClauseLHS :: Type -> IsWithFunction Substitution -> A.SpineClause -> (LHSResult -> TCM a) -> TCM a
 checkClauseLHS t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats _rhs0 _wh _catchall) ret = do
     reportSDoc "tc.lhs.top" 30 $ "Checking clause" $$ prettyA c
@@ -779,14 +779,14 @@ checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats r
         reportSDoc "tc.lhs.top" 10 $ vcat
           [ "Clause before translation:"
           , nest 2 $ vcat
-            [ "delta =" <+> do escapeContext impossible (size delta) $ prettyTCM delta
+            [ "delta =" <+> prettyTCM delta
             , "ps    =" <+> do P.fsep <$> prettyTCMPatterns ps
             , "body  =" <+> maybe "_|_" prettyTCM body
             , "type  =" <+> prettyTCM t
             ]
           ]
 
-        reportSDoc "tc.lhs.top" 90 $ escapeContext impossible (size delta) $ vcat
+        reportSDoc "tc.lhs.top" 90 $ vcat
           [ "Clause before translation (raw):"
           , nest 2 $ vcat
             [ "ps    =" <+> text (show ps)
