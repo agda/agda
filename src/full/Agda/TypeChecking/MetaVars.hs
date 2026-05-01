@@ -728,13 +728,13 @@ etaExpandMetaTCM kinds m =
                     u <- withMetaInfo' meta $
                       newRecordMetaCtx (miNameSuggestion (mvInfo meta))
                         (mvFrozen meta) r ps tel (idP $ size tel) $ teleArgs tel
+                    reportSDoc "tc.meta.eta" 15 $ sep
+                        [ "eta expanding: " <+> pretty m <+> " --> "
+                        , nest 2 $ prettyTCM u
+                        ]
                     -- Andreas, 2019-03-18, AIM XXIX, issue #3597
                     -- When meta is frozen instantiate it with in-turn frozen metas.
                     inTopContext $ do
-                      reportSDoc "tc.meta.eta" 15 $ sep
-                          [ "eta expanding: " <+> pretty m <+> " --> "
-                          , nest 2 $ prettyTCM u
-                          ]
                       -- Andreas, 2012-03-29: No need for occurrence check etc.
                       -- we directly assign the solution for the meta
                       -- 2012-05-23: We also bypass the check for frozen.
