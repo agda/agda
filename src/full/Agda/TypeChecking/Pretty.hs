@@ -401,6 +401,12 @@ instance (Pretty a, PrettyTCM a, EndoSubst a) => PrettyTCM (Substitution' a) whe
       u            = lookupS rho2 0
 {-# SPECIALIZE prettyTCM :: (Pretty a, PrettyTCM a, EndoSubst a) => Substitution' a -> TCM Doc #-}
 
+instance {-# OVERLAPPABLE #-} PrettyTCM a => PrettyTCM (IsWithFunction a) where
+  prettyTCM = \case
+    NoWithFunction -> "(no with function)"
+    WithFunction a -> prettyTCM a
+{-# SPECIALIZE prettyTCM :: PrettyTCM a => IsWithFunction a -> TCM Doc #-}
+
 instance PrettyTCM Clause where
   prettyTCM cl = do
     x <- qualify_ <$> freshName_ ("<unnamedclause>" :: String)

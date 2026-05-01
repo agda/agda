@@ -2292,7 +2292,7 @@ data IPClause = IPClause
   { ipcQName    :: QName              -- ^ The name of the function.
   , ipcClauseNo :: ClauseNumber       -- ^ The number of the clause of this function.
   , ipcType     :: Type               -- ^ The type of the function
-  , ipcWithSub  :: Maybe Substitution -- ^ Module parameter substitution
+  , ipcWithSub  :: IsWithFunction Substitution -- ^ Module parameter substitution
   , ipcClause   :: A.SpineClause      -- ^ The original AST clause.
   , ipcClosure  :: Closure ()         -- ^ Environment for rechecking the clause.
   }
@@ -2939,7 +2939,7 @@ data FunctionData = FunctionData
   , _funExtLam         :: Maybe ExtLamInfo
       -- ^ Is this function generated from an extended lambda?
       --   If yes, then return the number of hidden and non-hidden lambda-lifted arguments.
-  , _funWith           :: Maybe QName
+  , _funWith           :: IsWithFunction QName
       -- ^ Is this a generated with-function?
       --   If yes, then what's the name of the parent function?
   , _funIsKanOp        :: Maybe QName
@@ -2963,7 +2963,7 @@ pattern Function
   -> SmallSet FunctionFlag
   -> Maybe Bool
   -> Maybe ExtLamInfo
-  -> Maybe QName
+  -> IsWithFunction QName
   -> Maybe QName
   -> IsOpaque
   -> Defn
@@ -3356,6 +3356,11 @@ instance Pretty a => Pretty (DataOrRecord' a) where
     IsData -> "data"
     IsRecord a -> "record" <+> pretty a
 
+instance Pretty a => Pretty (IsWithFunction a) where
+  pretty = \case
+    NoWithFunction -> "NoWithFunction"
+    WithFunction a -> "WithFunction" <+> pretty a
+
 instance Pretty ProjectionLikenessMissing where
   pretty MaybeProjection = "MaybeProjection"
   pretty NeverProjection = "NeverProjection"
@@ -3546,7 +3551,7 @@ emptyFunctionData_ erasure = FunctionData
     , _funFlags       = SmallSet.fromList [ FunErasure | erasure ]
     , _funTerminates  = Nothing
     , _funExtLam      = Nothing
-    , _funWith        = Nothing
+    , _funWith        = empty
     , _funCovering    = []
     , _funIsKanOp     = Nothing
     , _funOpaque      = TransparentDef
@@ -3627,7 +3632,7 @@ isExtendedLambda def =
 isWithFunction :: Defn -> Bool
 isWithFunction def =
   case def of
-    Function { funWith = Just{} } -> True
+    Function { funWith = WithFunction{} } -> True
     _ -> False
 
 isCopatternLHS :: Foldable f => f Clause -> Bool
@@ -7239,6 +7244,10 @@ instance KillRange ProjectionLikenessMissing where
 
 instance KillRange BuiltinSort where
   killRange = id
+
+instance KillRange a => KillRange (IsWithFunction a) where
+  killRange NoWithFunction = NoWithFunction
+  killRange (WithFunction a) = WithFunction (killRange a)
 
 instance KillRange Defn where
   killRange def =

@@ -80,6 +80,7 @@ import qualified Agda.Utils.SmallSet as SmallSet
 import Agda.Utils.Update
 
 import Agda.Utils.Impossible
+import Agda.Utils.Tuple (snd3, fst3)
 
 ---------------------------------------------------------------------------
 -- * Definitions by pattern matching
@@ -120,8 +121,8 @@ checkFunDef i name cs = do
               -- happens.
               whenM (isOpenMeta <$> lookupMetaInstantiation x) $
                 setCurrentRange i $ warning $ MissingTypeSignatureForOpaque name (Info.defOpaque i)
-              checkFunDef' t info Nothing Nothing i name cs
-          _ -> checkFunDef' t info Nothing Nothing i name cs
+              checkFunDef' t info Nothing i name cs
+          _ -> checkFunDef' t info Nothing i name cs
 
         -- If it's a macro check that it ends in Term → TC ⊤
         let ismacro = isMacro . theDef $ def
@@ -166,7 +167,7 @@ checkAlias t ai i name e mc =
                         , clauseRHS          = A.RHS e mc
                         , clauseWhereDecls   = A.noWhereDecls
                         , clauseCatchall     = empty } in
-  atClause name 0 t Nothing clause $ do
+  atClause name 0 t NoWithFunction clause $ do
   reportSDoc "tc.def.alias" 10 $ "checkAlias" <+> vcat
     [ text (prettyShow name) <+> colon  <+> prettyTCM t
     , text (prettyShow name) <+> equals <+> prettyTCM e
@@ -224,33 +225,33 @@ checkAlias t ai i name e mc =
 
 
 -- | Type check a definition by pattern matching.
-checkFunDef' :: Type             -- ^ the type we expect the function to have
-             -> ArgInfo          -- ^ is it irrelevant (for instance)
-             -> Maybe ExtLamInfo -- ^ does the definition come from an extended lambda
-                                 --   (if so, we need to know some stuff about lambda-lifted args)
-             -> Maybe QName      -- ^ is it a with function (if so, what's the name of the parent function)
-             -> A.DefInfo        -- ^ range info
-             -> QName            -- ^ the name of the function
-             -> [A.Clause]       -- ^ the clauses to check
-             -> TCM ()
-checkFunDef' t ai extlam with i name cs =
-  checkFunDefS t ai extlam with i name Nothing cs
+checkFunDef' ::
+     Type             -- ^ The type we expect the function to have.
+  -> ArgInfo          -- ^ Is it irrelevant or erased etc.?
+  -> Maybe ExtLamInfo -- ^ Does the definition come from an extended lambda?
+                      --   If so, we need to know some stuff about lambda-lifted args.
+  -> A.DefInfo        -- ^ 'Range' info.
+  -> QName            -- ^ The name of the function.
+  -> [A.Clause]       -- ^ The clauses to check.
+  -> TCM ()
+checkFunDef' t ai extlam i name cs =
+  checkFunDefS t ai extlam NoWithFunction i name cs
 
 -- | Type check a definition by pattern matching.
-checkFunDefS :: Type             -- ^ the type we expect the function to have
-             -> ArgInfo          -- ^ is it irrelevant (for instance)
-             -> Maybe ExtLamInfo -- ^ does the definition come from an extended lambda
-                                 --   (if so, we need to know some stuff about lambda-lifted args)
-             -> Maybe QName      -- ^ is it a with function (if so, what's the name of the parent function)
-             -> A.DefInfo        -- ^ range info
-             -> QName            -- ^ the name of the function
-             -> Maybe (Substitution, Map Name LetBinding)
-                                 -- ^ substitution (from with abstraction) that needs to be applied
-                                 --   to module parameters, and let-bindings inherited from parent
-                                 --   clause
-             -> [A.Clause]       -- ^ the clauses to check
-             -> TCM ()
-checkFunDefS t ai extlam with i name withSubAndLets cs = do
+checkFunDefS ::
+     Type             -- ^ The type we expect the function to have.
+  -> ArgInfo          -- ^ Is it irrelevant or erased etc.?
+  -> Maybe ExtLamInfo -- ^ Does the definition come from an extended lambda?
+                      --   If so, we need to know some stuff about lambda-lifted args.
+  -> IsWithFunction (QName, Substitution, Map Name LetBinding)
+       -- ^ Is it a with function (if so, what's the name of the parent function)?
+       -- ^ In that case, also substitution (from with abstraction) that needs to be applied
+       --   to module parameters, and let-bindings inherited from parent clause.
+  -> A.DefInfo        -- ^ 'Range' info.
+  -> QName            -- ^ The name of the function.
+  -> [A.Clause]       -- ^ The clauses to check.
+  -> TCM ()
+checkFunDefS t ai extlam with i name cs = do
 
     traceCall (CheckFunDefCall (getRange i) name True) $ do
         reportSDoc "tc.def.fun" 10 $
@@ -277,9 +278,9 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
         -- Check the clauses
         cs <- traceCall NoHighlighting $ do -- To avoid flicker.
           forM (zip' cs [0..]) $ \ (c, clauseNo) -> do
-            atClause name clauseNo t (fst <$> withSubAndLets) c $ do
+            atClause name clauseNo t (snd3 <$> with) c $ do
               (c,b) <- applyModalityToContextFunBody ai $ do
-                checkClause t withSubAndLets c
+                checkClause t with c
               -- Andreas, 2013-11-23 do not solve size constraints here yet
               -- in case we are checking the body of an extended lambda.
               -- 2014-04-24: The size solver requires each clause to be
@@ -455,7 +456,7 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
              , _funInv            = inv
              , _funOpaque         = Info.defOpaque i
              , _funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
-             , _funWith           = with
+             , _funWith           = fmap fst3 with
              , _funCovering       = covering
              }
           lang <- getLanguage
@@ -549,9 +550,9 @@ insertPatternsLHSCore pats = \case
   core                  -> A.LHSWith core pats []
 
 -- | Parameters for creating a @with@-function.
-data WithFunctionProblem
-  = NoWithFunction
-  | WithFunction
+type WithFunctionProblem = IsWithFunction WithFunctionProblemData
+
+data WithFunctionProblemData = WithFunctionProblemData
     { wfParentName   :: QName                            -- ^ Parent function name.
     , wfName         :: QName                            -- ^ With function name.
     , wfParentType   :: Type                             -- ^ Type of the parent function.
@@ -692,7 +693,7 @@ instance Monoid ClausesPostChecks where
   mappend = (<>)
 
 -- | The LHS part of checkClause.
-checkClauseLHS :: Type -> Maybe Substitution -> A.SpineClause -> (LHSResult -> TCM a) -> TCM a
+checkClauseLHS :: Type -> IsWithFunction Substitution -> A.SpineClause -> (LHSResult -> TCM a) -> TCM a
 checkClauseLHS t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats _rhs0 _wh _catchall) ret = do
     reportSDoc "tc.lhs.top" 30 $ "Checking clause" $$ prettyA c
     () <- List1.unlessNull (trailingWithPatterns aps) $ \ withPats -> do
@@ -707,18 +708,22 @@ checkClauseLHS t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats _rhs0
 -- | Type check a function clause.
 
 checkClause
-  :: Type          -- ^ Type of function defined by this clause.
-  -> Maybe (Substitution, Map Name LetBinding)  -- ^ Module parameter substitution arising from with-abstraction, and inherited let-bindings.
-  -> A.SpineClause -- ^ Clause.
-  -> TCM (Clause, ClausesPostChecks)  -- ^ Type-checked clause
+  :: Type
+       -- ^ Type of function defined by this clause.
+  -> IsWithFunction (QName, Substitution, Map Name LetBinding)
+       -- ^ Parent function, module parameter substitution arising from with-abstraction, and inherited let-bindings.
+  -> A.SpineClause
+       -- ^ Clause.
+  -> TCM (Clause, ClausesPostChecks)
+       -- ^ Type-checked clause
 
 checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
-  let withSub = fst <$> withSubAndLets
+  let withSub = snd3 <$> withSubAndLets
   cxtNames <- getContextNames
   checkClauseLHS t withSub c $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit ixsplit) -> do
 
     let installInheritedLets k
-          | Just (withSub, lets) <- withSubAndLets = do
+          | WithFunction (_f, withSub, lets) <- withSubAndLets = do
             lets' <- traverse makeOpen $ applySubst (patSubst `composeS` withSub) lets
             locallyTC eLetBindings (lets' <>) k
           | otherwise = k
@@ -731,8 +736,8 @@ checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats r
         -- type. If we're checking a with-function that's already the case,
         -- otherwise we need to abstract over the module telescope.
         t' <- case withSub of
-                Just{}  -> return t
-                Nothing -> do
+                WithFunction{} -> return t
+                NoWithFunction -> do
                   theta <- lookupSection (qnameModule x)
                   return $! abstract theta t
 
@@ -1142,12 +1147,12 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
         -- should not be carried over.
         lets <- Map.filter ((== UserWritten) . letOrigin) <$> (traverse getOpen =<< viewTC eLetBindings)
 
-        return (v, WithFunction x aux t delta delta1 delta2 vtys t' ps npars perm' perm finalPerm cs argsS lets)
+        return (v, WithFunction (WithFunctionProblemData x aux t delta delta1 delta2 vtys t' ps npars perm' perm finalPerm cs argsS lets))
 
 -- | Invoked in empty context.
 checkWithFunction :: [Name] -> WithFunctionProblem -> TCM (Maybe Term)
 checkWithFunction _ NoWithFunction = return Nothing
-checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs npars perm' perm finalPerm cs argsS lets) = do
+checkWithFunction cxtNames (WithFunction (WithFunctionProblemData f aux t delta delta1 delta2 vtys b qs npars perm' perm finalPerm cs argsS lets)) = do
   let -- Δ₁ ws Δ₂ ⊢ withSub : Δ′    (where Δ′ is the context of the parent lhs)
       withSub :: Substitution
       withSub = let as = fmap (snd . unArg) vtys in
@@ -1260,7 +1265,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   -- Check the with function
   let info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess abstr (getRange cs)
   ai <- defArgInfo <$> getConstInfo f
-  checkFunDefS withFunType ai Nothing (Just f) info aux (Just (withSub, lets)) $ List1.toList cs
+  checkFunDefS withFunType ai Nothing (WithFunction (f, withSub, lets)) info aux $ List1.toList cs
   return $ Just $ call_in_parent
 
 -- | Type check a where clause.
@@ -1338,7 +1343,7 @@ newSection e m gtel@(A.GeneralizeTel _ tel) cont = do
 
 -- | Set the current clause number.
 
-atClause :: QName -> Int -> Type -> Maybe Substitution -> A.SpineClause -> TCM a -> TCM a
+atClause :: QName -> Int -> Type -> IsWithFunction Substitution -> A.SpineClause -> TCM a -> TCM a
 atClause name i t sub cl ret = do
   clo <- buildClosure ()
   localTC (set eClause (IPClause name i t sub cl clo)) ret

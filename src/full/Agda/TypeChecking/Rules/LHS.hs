@@ -10,7 +10,6 @@ module Agda.TypeChecking.Rules.LHS
   , checkSortOfSplitVar
   , LetOrClause(LetLHS, ClauseLHS)
   , buildLHSSubstitutions
-  , LHSSubstitutionCase(..)
   ) where
 
 import Prelude hiding ( null )
@@ -640,14 +639,6 @@ instance InstantiateFull LHSResult where
     <*> pure psplit
     <*> pure ixsplit
 
--- | Building substitutions from out patterns needs to handle with-functions
---   specially.
-data LHSSubstitutionCase = NormalFunction | WithFunction Int Substitution
-
-lhsSubstitutionCase :: Int -> Maybe Substitution -> LHSSubstitutionCase
-lhsSubstitutionCase arity Nothing        = NormalFunction
-lhsSubstitutionCase arity (Just withSub) = WithFunction arity withSub
-
 -- | Compute substitution from the out patterns @ps@
 --
 ---  We have two slightly different cases here: normal function and
@@ -681,18 +672,17 @@ lhsSubstitutionCase arity (Just withSub) = WithFunction arity withSub
 --      To compute Θ we can look at the arity of the with-function
 --      and compare it to numPats. This works since the with-function
 --      type is fully reduced.
-buildLHSSubstitutions :: Context -> NAPs -> LHSSubstitutionCase
+buildLHSSubstitutions :: Context -> NAPs -> IsWithFunction (Arity, Substitution)
   -> (Substitution, Substitution)
 buildLHSSubstitutions cxt ps isWithFun = do
-  let notProj ProjP{} = False
-      notProj _       = True
-      numPats = length $ takeWhile (notProj . namedArg) ps
-      patSub = map' (patternToTerm . namedArg) (reverse $ take' numPats ps) ++#
+  let notProjPats = takeWhile (isNothing . isProjP) ps
+      numPats = length notProjPats
+      patSub = map' (patternToTerm . namedArg) (reverse notProjPats) ++#
         EmptyS impossible
       (weakSub, withSub) = case isWithFun of
-        NormalFunction             ->
+        NoWithFunction             ->
           (wkS (numPats - length cxt) idS, idS)
-        WithFunction arity withSub ->
+        WithFunction (arity, withSub) ->
           -- if numPats < arity, Θ is empty
           (wkS (max 0 $ numPats - arity) idS, withSub)
       paramSub = patSub `composeS` weakSub `composeS` withSub
@@ -715,7 +705,7 @@ checkLeftHandSide :: forall a.
      -- ^ The patterns.
   -> Type
      -- ^ The expected type @a = Γ → b@.
-  -> Maybe Substitution
+  -> IsWithFunction Substitution
      -- ^ Module parameter substitution from with-abstraction.
   -> [ProblemEq]
      -- ^ Patterns that have been stripped away by with-desugaring.
@@ -779,7 +769,7 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
           ]
 
         let (patSub, paramSub) = buildLHSSubstitutions cxt qs0 $
-              lhsSubstitutionCase arity_a withSub'
+              fmap (arity_a,) withSub'
 
         eqs <- addContext delta $ checkPatternLinearity eqs
 
@@ -848,7 +838,9 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
 
   -- after we have introduced variables, we can add the patterns stripped by
   -- with-desugaring to the state.
-  let withSub = fromMaybe __IMPOSSIBLE__ withSub'
+  let withSub = case withSub' of
+        NoWithFunction -> __IMPOSSIBLE__
+        WithFunction sub -> sub
   withEqs <- updateProblemEqs $ applySubst withSub strippedPats
   -- Jesper, 2017-05-13: re-check the stripped patterns here!
   inTopContext $ addContext (st0 ^. lhsTel) $

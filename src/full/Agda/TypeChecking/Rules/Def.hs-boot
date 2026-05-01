@@ -9,7 +9,7 @@ import qualified Agda.Syntax.Internal as I
 
 checkFunDef :: DefInfo -> QName -> [Clause] -> TCM ()
 
-checkFunDef' :: I.Type -> ArgInfo -> Maybe ExtLamInfo -> Maybe QName -> DefInfo -> QName -> [Clause] -> TCM ()
+checkFunDef' :: I.Type -> ArgInfo -> Maybe ExtLamInfo -> DefInfo -> QName -> [Clause] -> TCM ()
 
 newSection ::
    Erased -> ModuleName -> A.GeneralizeTelescope -> TCM a -> TCM a

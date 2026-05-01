@@ -449,6 +449,15 @@ instance EmbPrj BuiltinSort where
     (N1 3)   -> valuN SortLevelUniv
     _        -> malformed
 
+instance EmbPrj a => EmbPrj (IsWithFunction a) where
+  icod_ NoWithFunction   = icodeN' NoWithFunction
+  icod_ (WithFunction a) = icodeN' WithFunction a
+
+  value = vcase \case
+    N0   -> valuN NoWithFunction
+    N1 a -> valuN WithFunction a
+    _ -> malformed
+
 instance EmbPrj Defn where
   icod_ (Axiom       a)                                 = icodeN 0 Axiom a
   icod_ (Function    a b s t u c d e f g h i j k)       = icodeN 1 (\ a b s -> Function a b s t) a b s u c d e f g h i j k

@@ -310,7 +310,7 @@ collectComponents opts costs ii mDefName whereNames metaId = do
             | otherwise     -> done
           -- We can't use pattern lambdas as components nor with-functions.
           -- If the function is in the same mutual block, do not include it.
-          f@Function{ funWith = Nothing, funExtLam = Nothing }
+          f@Function{ funWith = NoWithFunction, funExtLam = Nothing }
             | Just qname == mDefName   -> addThisFn
             | notMutual, isToLevel typ -> addLevel
             | notMutual, shouldKeep    -> addFn
