@@ -1202,7 +1202,7 @@ data AllowPartialCover
 -- | Entry point from @Interaction.MakeCase@.
 splitClauseWithAbsurd :: SplitClause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
 splitClauseWithAbsurd c x =
-  split' CheckEmpty Inductive NoAllowPartialCover DontInsertTrailing c (BlockingVar x [] [] True False)
+  split' CheckEmpty Inductive NoAllowPartialCover DontInsertTrailing c (BlockingVar x [] [] True False False)
   -- Andreas, 2016-05-03, issue 1950:
   -- Do not introduce trailing pattern vars after split,
   -- because this does not work for with-clauses.
@@ -1211,7 +1211,7 @@ splitClauseWithAbsurd c x =
 --   @splitLast CoInductive@ is used in the @refine@ tactics.
 
 splitLast :: Induction -> Telescope -> [NamedArg DeBruijnPattern] -> TCM (Either SplitError Covering)
-splitLast ind tel ps = split ind NoAllowPartialCover sc (BlockingVar 0 [] [] True False)
+splitLast ind tel ps = split ind NoAllowPartialCover sc (BlockingVar 0 [] [] True False False)
   where sc = SClause tel (toSplitPatterns ps) empty empty target
         -- TODO 2ltt: allows (Empty_fib -> Empty_strict) which is not conservative
         target = (Just $ defaultDom $ El (mkProp 0) $ __DUMMY_TERM_WITH__ "splitLastTarget")
@@ -1288,7 +1288,7 @@ split' :: CheckEmpty
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
 split' checkEmpty ind allowPartialCover inserttrailing
-       sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap lazy) =
+       sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap lazy absurd) =
  liftTCM $ runExceptT $ do
   debugInit tel x ps cps
 
@@ -1431,7 +1431,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
               throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
 
       let t' = set lensSort s $ unDom t
-      liftTCM $ inContextOfT $ checkSortOfSplitVar dr t' delta2 target
+      liftTCM $ inContextOfT $ checkSortOfSplitVar absurd dr t' delta2 target
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where
