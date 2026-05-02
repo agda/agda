@@ -39,11 +39,15 @@ record types:
     constructor tt
 
 When defining a function from a data type in ``Prop`` to a type in
-``Set``, pattern matching is restricted to the :ref:`absurd pattern <absurd-patterns>` ``()``:
+``Set``, pattern matching is restricted to :ref:`absurd patterns <absurd-patterns>`
+like ``()``:
 ::
 
   absurd : (A : Set) → ⊥ → A
   absurd A ()
+
+Casing on other patterns is allowed so long as one of the sub-patterns
+is absurd.
 
 Unlike for ``Set``, all elements of a type in ``Prop`` are
 definitionally equal. This implies all applications of ``absurd`` are

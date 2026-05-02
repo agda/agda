@@ -408,6 +408,19 @@ Changes to type checker and other components defining the Agda language.
   fields for any cohesion modality which has a left adjoint (currently
   just sharp and continuous).
 
+* Added support for casing on `Prop`-valued arguments when the pattern contains a
+  (nested) absurd clause. For example, the following is now accepted:
+  ```agda
+  data Empty : Set where
+
+  data Squash (A : Set) : Prop where
+    squash : A → Squash A
+
+  escape : Squash Empty → Empty
+  escape (squash ())
+  ```
+  (Issue [#8546](https://github.com/agda/agda/issues/8546).)
+
 Reflection
 ----------
 
