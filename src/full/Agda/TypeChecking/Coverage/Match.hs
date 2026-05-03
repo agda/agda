@@ -132,7 +132,7 @@ no :: Monad m => m (Match a)
 no = return No
 
 blockedOnConstructor :: Monad m => Nat -> ConHead -> ConPatternInfo -> m (Match a)
-blockedOnConstructor i c ci = return $ Block NotBlockedOnResult [BlockingVar i [c] [] False (conPLazy ci)]
+blockedOnConstructor i c ci = return $ Block NotBlockedOnResult [BlockingVar i [c] [] False $ conPLazy ci]
 
 blockedOnLiteral :: Monad m => Nat -> Literal -> m (Match a)
 blockedOnLiteral i l = return $ Block NotBlockedOnResult [BlockingVar i [] [l] False False]
