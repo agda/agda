@@ -87,9 +87,6 @@ data BlockingVar = BlockingVar
     --   position.
   , blockingVarLazy :: Bool
     -- ^ True if at least one clause has a lazy pattern in this position.
-  , blockingVarAbsurd :: Bool
-    -- ^ True if at least one clause has a constructor pattern in this
-    --   position whose sub-patterns contain an absurd pattern.
   } deriving (Show)
 
 type BlockingVars = [BlockingVar]
@@ -120,13 +117,12 @@ match cs ps = foldr choice (return No) $ zipWith matchIt [0..] cs
 type MatchResult = Match (DList (Nat, SplitPattern))
 
 instance Pretty BlockingVar where
-  pretty (BlockingVar i cs ls o l a) = cat
+  pretty (BlockingVar i cs ls o l) = cat
     [ text ("variable " ++ show i)
     , if null cs then empty else " blocked on constructors" <+> pretty cs
     , if null ls then empty else " blocked on literals" <+> pretty ls
     , if o then " (overlapping)" else empty
     , if l then " (lazy)" else empty
-    , if a then " (absurd)" else empty
     ]
 
 yes :: Monad m => a -> m (Match a)
@@ -135,22 +131,11 @@ yes = return . Yes
 no :: Monad m => m (Match a)
 no = return No
 
-blockedOnConstructor :: Monad m => Nat -> ConHead -> ConPatternInfo -> Bool -> m (Match a)
-blockedOnConstructor i c ci absurd = return $ Block NotBlockedOnResult [BlockingVar i [c] [] False (conPLazy ci) absurd]
+blockedOnConstructor :: Monad m => Nat -> ConHead -> ConPatternInfo -> m (Match a)
+blockedOnConstructor i c ci = return $ Block NotBlockedOnResult [BlockingVar i [c] [] False (conPLazy ci)]
 
 blockedOnLiteral :: Monad m => Nat -> Literal -> m (Match a)
-blockedOnLiteral i l = return $ Block NotBlockedOnResult [BlockingVar i [] [l] False False False]
-
--- | Check if a (typechecked) pattern contains an absurd sub-pattern.
-patternContainsAbsurd :: Pattern' a -> Bool
-patternContainsAbsurd = \case
-  VarP info _ -> patOrigin info == PatOAbsurd
-  ConP _ _ ps -> any (patternContainsAbsurd . namedArg) ps
-  DefP _ _ ps -> any (patternContainsAbsurd . namedArg) ps
-  DotP{}      -> False
-  LitP{}      -> False
-  ProjP{}     -> False
-  IApplyP{}   -> False
+blockedOnLiteral i l = return $ Block NotBlockedOnResult [BlockingVar i [] [l] False False]
 
 blockedOnProjection :: Monad m => m (Match a)
 blockedOnProjection = return $ Block (BlockedOnProj False) []
@@ -168,9 +153,9 @@ overlapping = map' setBlockingVarOverlap
 zipBlockingVars :: BlockingVars -> BlockingVars -> BlockingVars
 zipBlockingVars xs ys = map' upd xs
   where
-    upd (BlockingVar x cons lits o l a) = case List.find ((x ==) . blockingVarNo) ys of
-      Just (BlockingVar _ cons' lits' o' l' a') -> BlockingVar x (cons ++ cons') (lits ++ lits') (o || o') (l || l') (a || a')
-      Nothing -> BlockingVar x cons lits True l a
+    upd (BlockingVar x cons lits o l) = case List.find ((x ==) . blockingVarNo) ys of
+      Just (BlockingVar _ cons' lits' o' l') -> BlockingVar x (cons ++ cons') (lits ++ lits') (o || o') (l || l')
+      Nothing -> BlockingVar x cons lits True l
 
 setBlockedOnResultOverlap :: BlockedOnResult -> BlockedOnResult
 setBlockedOnResultOverlap b = case b of
@@ -344,7 +329,7 @@ matchPat p q = case p of
                            --    Issue #4179: If the inferred pattern is a literal
                            -- v  we need to turn it into a constructor pattern.
   ConP c ci ps -> unDotP q >>= unLitP >>= \case
-    VarP _ x -> blockedOnConstructor (splitPatVarIndex x) c ci innerAbsurd
+    VarP _ x -> blockedOnConstructor (splitPatVarIndex x) c ci
     ConP c' i qs
       | c == c'   -> matchPats ps qs
       | otherwise -> no
@@ -352,9 +337,7 @@ matchPat p q = case p of
     DefP{}   -> no
     LitP{}    -> __IMPOSSIBLE__  -- excluded by typing and unLitP
     ProjP{}   -> __IMPOSSIBLE__  -- excluded by typing
-    IApplyP _ _ _ x -> blockedOnConstructor (splitPatVarIndex x) c ci innerAbsurd
-    where
-      innerAbsurd = any (patternContainsAbsurd . namedArg) ps
+    IApplyP _ _ _ x -> blockedOnConstructor (splitPatVarIndex x) c ci
 
   DefP o c ps -> unDotP q >>= \case
     VarP _ x -> no
