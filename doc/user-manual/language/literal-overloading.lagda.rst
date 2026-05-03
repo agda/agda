@@ -112,7 +112,16 @@ the ``NumFin`` instance can be simply:
     NumFin {n} .Number.Constraint m         = True (suc m ≤? n)
     NumFin {n} .Number.fromNat    m {{m<n}} = #_ m {m<n = m<n}
 
+.. note::
 
+  Overloading numeric literals only works in expressions, not in patterns.
+  The following is rejected:
+
+  .. code-block:: agda
+
+    isZero : ∀ {n} → Fin n → Bool
+    isZero 0 = true   -- error: zero is not a constructor of the datatype Fin
+    isZero _ = false
 
 .. _agda-prelude: https://github.com/UlfNorell/agda-prelude
 
