@@ -108,9 +108,8 @@ data LetOrClause
 -- | Extra read-only state for the LHS checker.
 --
 data LHSContext = LHSContext
-  { lhsRange          :: Range  -- ^ The range of the whole lhs of a clause.
-  , lhsContextSize    :: Nat    -- ^ Original size of the context in which the lhs checker runs.
-  , lhsIsAbsurdClause :: Bool   -- ^ Whether the LHS contains an absurd pattern @()@.
+  { lhsRange       :: Range  -- ^ The range of the whole lhs of a clause.
+  , lhsContextSize :: Nat    -- ^ Original size of the context in which the lhs checker runs.
   }
 
 -- | A pattern is flexible if it is dotted or implicit, or a record pattern
@@ -856,8 +855,7 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
   let st = over (lhsProblem . problemEqs) (++! withEqs) st0
 
   -- doing the splits:
-  let initLHSContext = LHSContext { lhsRange = lhsRng, lhsContextSize = size cxt
-                                  , lhsIsAbsurdClause = containsAbsurdPattern ps }
+  let initLHSContext = LHSContext { lhsRange = lhsRng, lhsContextSize = size cxt }
   (result, block) <- unsafeInTopContext $ runWriterT $ (`runReaderT` initLHSContext) $ checkLHS f st
   return result
 
@@ -1393,7 +1391,7 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Issue #7503: use principal sort for checking if split is ok
       let a' = set lensSort s a
-      inAbsurdClause <- asks lhsIsAbsurdClause
+      let inAbsurdClause = containsAbsurdPattern focusPat
       addContext delta1 $ checkSortOfSplitVar inAbsurdClause dr a' delta2 (Just target)
 
       -- Jesper, 2019-09-13: if the data type we split on is a strict

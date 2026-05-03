@@ -25,8 +25,5 @@ escape-eq {false} {true} (squash ())
 escape-eq {true} {false} (squash ())
 escape-eq {true} {true} _ = refl
 
-escape-wide : Squash Bool → Squash Empty → Bool
-escape-wide (squash _) (squash ())
-
 escape-deep : Squash (Unsquash (Squash Empty)) → Bool
 escape-deep (squash (unsquash (squash ())))
