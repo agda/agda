@@ -23,6 +23,7 @@ import Data.Monoid (Sum(..), getSum)
 import qualified Data.Text.Lazy as TL
 
 import Agda.Benchmarking
+import Agda.Interaction.Options.Types( optParallelChecking, Parallelism(..) )
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
@@ -60,7 +61,7 @@ benchmarking = liftTCM $
 print :: MonadTCM tcm => tcm ()
 print = liftTCM $ whenM (B.isBenchmarkOn [] <$> benchmarking) $ do
   b <- B.getBenchmark
-  extra <- ifM (hasProfileOption Profile.Modules)
+  extra <- ifM moduleThroughputEnabled
     (moduleThroughputDoc b)
     (pure mempty)
   -- Andreas, 2017-07-29, issue #2602:
@@ -73,6 +74,19 @@ print = liftTCM $ whenM (B.isBenchmarkOn [] <$> benchmarking) $ do
   -- takes precedence). It needs to be > 1 to avoid triggering #2602 though. Also use
   -- displayDebugMessage instead of reportSLn to avoid requiring -v profile:2.
   displayDebugMessage "profile" 2 $ pretty b $+$ extra
+
+moduleThroughputEnabled :: TCM Bool
+moduleThroughputEnabled = do
+  modulesProfiling <- hasProfileOption Profile.Modules
+  sequential       <- sequentialTypeChecking
+  pure $ modulesProfiling && sequential
+
+sequentialTypeChecking :: TCM Bool
+sequentialTypeChecking = do
+  opts <- commandLineOptions
+  pure $ case optParallelChecking opts of
+    Sequential -> True
+    Parallel{} -> False
 
 data ModuleThroughput = ModuleThroughput
   { mtModuleName :: TopLevelModuleName
