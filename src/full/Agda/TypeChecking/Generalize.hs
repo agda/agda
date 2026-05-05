@@ -358,11 +358,12 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   let (generalizable, nongeneralizable)         = partition isGeneralizable mvs
       (generalizableOpen', generalizableClosed) = partition isOpen generalizable
       (openSortMetas, generalizableOpen)        = partition isSort generalizableOpen'
-      nongeneralizableOpen                      = filter isOpen nongeneralizable
+      (nongeneralizableOpen, nongenClosed)      = partition isOpen nongeneralizable
 
   reportSDoc "tc.generalize" 30 $ nest 2 $ vcat
     [ "generalizable        = " <+> prettyList_ (map' (prettyTCM . fst) generalizable)
     , "generalizableOpen    = " <+> prettyList_ (map' (prettyTCM . fst) generalizableOpen)
+    , "nongenClosed         = " <+> prettyList_ (map' (prettyTCM . fst) nongenClosed)
     , "openSortMetas        = " <+> prettyList_ (map' (prettyTCM . fst) openSortMetas)
     ]
 
@@ -494,8 +495,16 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
           Map.member x (solvedMetas allmetas) =
           Just (x, ii)
       inscope _ = Nothing
-  ips <- Map.fromDistinctAscList . mapMaybe inscope . fst . BiMap.toDistinctAscendingLists <$> useTC stInteractionPoints
-  pruneUnsolvedMetas genRecName genRecCon genTel genRecFields ips shouldGeneralize allSortedMetas
+  ips :: Map MetaId InteractionId
+    <- Map.fromDistinctAscList . mapMaybe inscope . fst . BiMap.toDistinctAscendingLists <$> useTC stInteractionPoints
+
+  -- Andreas, 2026-05-05, issue #4228, issue #5831
+  -- Replace genTel also in context of solved interaction points so that showing the goal in context
+  -- does not leak internals of the generalization machinery.
+  let closedIPMetas = filter (`Map.member` ips) $ map fst nongenClosed
+
+  pruneUnsolvedMetas genRecName genRecCon genTel genRecFields ips shouldGeneralize $
+    allSortedMetas ++! closedIPMetas
 
   -- Fill in the missing details of the telescope record.
   dropCxt __IMPOSSIBLE__ $ fillInGenRecordDetails genRecName genRecCon genRecFields genRecMeta genTel
@@ -519,12 +528,8 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
 -- dependency order. The telescope is the generalized telescope.
 pruneUnsolvedMetas :: QName -> ConHead -> Telescope -> [QName] -> Map MetaId InteractionId -> (MetaId -> Bool) -> [MetaId] -> TCM ()
 pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints isGeneralized metas = do
-      unless (all isGeneralized metas) $
-        prune [] genTel metas
-      -- Andreas, 2026-05-05, issue #4228, issue #5831
-      -- Replace genTel in context of solved interaction points so that showing the goal in context
-      -- does not leak internals of the generalization machinery.
-      rebindSolvedInteractionPoints
+    unless (all isGeneralized metas) $
+      prune [] genTel metas
   where
     prune :: ListTel -> Telescope -> [MetaId] -> TCM ()
     prune _ _ [] = return ()
@@ -747,64 +752,6 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           newNamedValueMeta DontRunMetaOccursCheck
                             (miNameSuggestion $ mvInfo mv)
                             (jComparison $ mvJudgement mv) _Aρ
-
-    rebindSolvedInteractionPoints :: TCM ()
-    rebindSolvedInteractionPoints =
-      forM_ (Map.toList interactionPoints) $ \ (x, ii) -> do
-        mv <- lookupLocalMeta x
-        case mvInstantiation mv of
-          InstV{} -> rebindSolvedInteractionPoint ii x mv
-          OpenMeta{} -> return ()
-          BlockedConst{} -> return ()
-          PostponedTypeCheckingProblem{} -> return ()
-
-    rebindSolvedInteractionPoint :: InteractionId -> MetaId -> MetaVariable -> TCM ()
-    rebindSolvedInteractionPoint ii x mv =
-      enterClosure mv $ \ _ ->
-        whenJustM (findGenRec mv) $ \ i -> do
-          cp <- viewTC eCurrentCheckpoint
-          _ΓrΔ <- getContextTelescope
-          let (_Γ, _Δ) = (telFromList gs, telFromList ds)
-                where (gs, _ : ds) = splitAt (size _ΓrΔ - i - 1) (telToList _ΓrΔ)
-
-          _A <- case mvJudgement mv of
-                  IsSort{}  -> return Nothing
-                  HasType{} -> Just <$> getMetaTypeInContext x
-
-          δ <- checkpointSubstitution cp
-
-          v <- case _A of
-                 Nothing -> Sort . MetaS x . map' Apply <$> getMetaContextArgs mv
-                 Just{}  -> MetaV x . map' Apply <$> getMetaContextArgs mv
-
-          instantiate v >>= \case
-            MetaV{} -> return ()
-            _ -> do
-
-              let σ   = sub (size genTel)
-                  γ   = strengthenS impossible (i + 1) `composeS` δ `composeS` raiseS 1
-                  _Θγ = applySubst γ genTel
-                  _Δσ = applySubst σ _Δ
-                  ρ   = liftS i σ
-
-              (newCxt, rΘ) <- do
-                (rΔ, CxExtend _ rΓ) <- cxSplitAt i <$> getContext
-                let setName dom@(unDom -> (s,ty)) = CtxVar <$> freshName_ s <*> (pure $ dom $> ty)
-                rΘ <- mapM setName $ reverse $ telToList _Θγ
-                let rΔσ = zipWith' (\ name dom -> CtxVar name (snd <$> dom))
-                              (map' ctxEntryName rΔ)
-                              (reverse $ telToList _Δσ)
-                return (cxPrepend rΔσ $ cxPrepend rΘ rΓ, rΘ)
-
-              y <- updateContext ρ (const newCxt) $ localScope $ do
-                outsideLocalVars i $ addNamedVariablesToScope rΘ
-                (y, _) <- newMetaFromOld mv ρ _A
-                sol <- instantiateFull $ applySubst ρ v
-                tel <- getContextTelescope
-                noConstraints $ assignTerm' y (telToArgs tel) sol
-                return y
-
-              connectInteractionPoint ii y
 
     -- If x is a hole, update the hole to point to y instead.
     setInteractionPoint :: MetaId -> MetaId -> TCM ()
