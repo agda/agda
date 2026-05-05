@@ -518,9 +518,13 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
 -- | Prune unsolved metas (#3672). The input includes also the generalized metas and is sorted in
 -- dependency order. The telescope is the generalized telescope.
 pruneUnsolvedMetas :: QName -> ConHead -> Telescope -> [QName] -> Map MetaId InteractionId -> (MetaId -> Bool) -> [MetaId] -> TCM ()
-pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints isGeneralized metas
-  | all isGeneralized metas = return ()
-  | otherwise               = prune [] genTel metas
+pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints isGeneralized metas = do
+      unless (all isGeneralized metas) $
+        prune [] genTel metas
+      -- Andreas, 2026-05-05, issue #4228, issue #5831
+      -- Replace genTel in context of solved interaction points so that showing the goal in context
+      -- does not leak internals of the generalization machinery.
+      rebindSolvedInteractionPoints
   where
     prune :: ListTel -> Telescope -> [MetaId] -> TCM ()
     prune _ _ [] = return ()
@@ -743,6 +747,64 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           newNamedValueMeta DontRunMetaOccursCheck
                             (miNameSuggestion $ mvInfo mv)
                             (jComparison $ mvJudgement mv) _Aρ
+
+    rebindSolvedInteractionPoints :: TCM ()
+    rebindSolvedInteractionPoints =
+      forM_ (Map.toList interactionPoints) $ \ (x, ii) -> do
+        mv <- lookupLocalMeta x
+        case mvInstantiation mv of
+          InstV{} -> rebindSolvedInteractionPoint ii x mv
+          OpenMeta{} -> return ()
+          BlockedConst{} -> return ()
+          PostponedTypeCheckingProblem{} -> return ()
+
+    rebindSolvedInteractionPoint :: InteractionId -> MetaId -> MetaVariable -> TCM ()
+    rebindSolvedInteractionPoint ii x mv =
+      enterClosure mv $ \ _ ->
+        whenJustM (findGenRec mv) $ \ i -> do
+          cp <- viewTC eCurrentCheckpoint
+          _ΓrΔ <- getContextTelescope
+          let (_Γ, _Δ) = (telFromList gs, telFromList ds)
+                where (gs, _ : ds) = splitAt (size _ΓrΔ - i - 1) (telToList _ΓrΔ)
+
+          _A <- case mvJudgement mv of
+                  IsSort{}  -> return Nothing
+                  HasType{} -> Just <$> getMetaTypeInContext x
+
+          δ <- checkpointSubstitution cp
+
+          v <- case _A of
+                 Nothing -> Sort . MetaS x . map' Apply <$> getMetaContextArgs mv
+                 Just{}  -> MetaV x . map' Apply <$> getMetaContextArgs mv
+
+          instantiate v >>= \case
+            MetaV{} -> return ()
+            _ -> do
+
+              let σ   = sub (size genTel)
+                  γ   = strengthenS impossible (i + 1) `composeS` δ `composeS` raiseS 1
+                  _Θγ = applySubst γ genTel
+                  _Δσ = applySubst σ _Δ
+                  ρ   = liftS i σ
+
+              (newCxt, rΘ) <- do
+                (rΔ, CxExtend _ rΓ) <- cxSplitAt i <$> getContext
+                let setName dom@(unDom -> (s,ty)) = CtxVar <$> freshName_ s <*> (pure $ dom $> ty)
+                rΘ <- mapM setName $ reverse $ telToList _Θγ
+                let rΔσ = zipWith' (\ name dom -> CtxVar name (snd <$> dom))
+                              (map' ctxEntryName rΔ)
+                              (reverse $ telToList _Δσ)
+                return (cxPrepend rΔσ $ cxPrepend rΘ rΓ, rΘ)
+
+              y <- updateContext ρ (const newCxt) $ localScope $ do
+                outsideLocalVars i $ addNamedVariablesToScope rΘ
+                (y, _) <- newMetaFromOld mv ρ _A
+                sol <- instantiateFull $ applySubst ρ v
+                tel <- getContextTelescope
+                noConstraints $ assignTerm' y (telToArgs tel) sol
+                return y
+
+              connectInteractionPoint ii y
 
     -- If x is a hole, update the hole to point to y instead.
     setInteractionPoint :: MetaId -> MetaId -> TCM ()
