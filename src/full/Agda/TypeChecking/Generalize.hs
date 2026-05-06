@@ -358,11 +358,12 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   let (generalizable, nongeneralizable)         = partition isGeneralizable mvs
       (generalizableOpen', generalizableClosed) = partition isOpen generalizable
       (openSortMetas, generalizableOpen)        = partition isSort generalizableOpen'
-      nongeneralizableOpen                      = filter isOpen nongeneralizable
+      (nongeneralizableOpen, nongenClosed)      = partition isOpen nongeneralizable
 
   reportSDoc "tc.generalize" 30 $ nest 2 $ vcat
     [ "generalizable        = " <+> prettyList_ (map' (prettyTCM . fst) generalizable)
     , "generalizableOpen    = " <+> prettyList_ (map' (prettyTCM . fst) generalizableOpen)
+    , "nongenClosed         = " <+> prettyList_ (map' (prettyTCM . fst) nongenClosed)
     , "openSortMetas        = " <+> prettyList_ (map' (prettyTCM . fst) openSortMetas)
     ]
 
@@ -494,8 +495,16 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
           Map.member x (solvedMetas allmetas) =
           Just (x, ii)
       inscope _ = Nothing
-  ips <- Map.fromDistinctAscList . mapMaybe inscope . fst . BiMap.toDistinctAscendingLists <$> useTC stInteractionPoints
-  pruneUnsolvedMetas genRecName genRecCon genTel genRecFields ips shouldGeneralize allSortedMetas
+  ips :: Map MetaId InteractionId
+    <- Map.fromDistinctAscList . mapMaybe inscope . fst . BiMap.toDistinctAscendingLists <$> useTC stInteractionPoints
+
+  -- Andreas, 2026-05-05, issue #4228, issue #5831
+  -- Replace genTel also in context of solved interaction points so that showing the goal in context
+  -- does not leak internals of the generalization machinery.
+  let closedIPMetas = filter (`Map.member` ips) $ map fst nongenClosed
+
+  pruneUnsolvedMetas genRecName genRecCon genTel genRecFields ips shouldGeneralize $
+    allSortedMetas ++! closedIPMetas
 
   -- Fill in the missing details of the telescope record.
   dropCxt __IMPOSSIBLE__ $ fillInGenRecordDetails genRecName genRecCon genRecFields genRecMeta genTel
@@ -518,9 +527,9 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
 -- | Prune unsolved metas (#3672). The input includes also the generalized metas and is sorted in
 -- dependency order. The telescope is the generalized telescope.
 pruneUnsolvedMetas :: QName -> ConHead -> Telescope -> [QName] -> Map MetaId InteractionId -> (MetaId -> Bool) -> [MetaId] -> TCM ()
-pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints isGeneralized metas
-  | all isGeneralized metas = return ()
-  | otherwise               = prune [] genTel metas
+pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints isGeneralized metas = do
+    unless (all isGeneralized metas) $
+      prune [] genTel metas
   where
     prune :: ListTel -> Telescope -> [MetaId] -> TCM ()
     prune _ _ [] = return ()

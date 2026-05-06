@@ -6,7 +6,7 @@ variable
 
 postulate
   works : Set a → {a : Set} → a
-  fails : Set a → {a : Set} → {!a!}
+  fails : Set a → {a : Set} → {!a!}  -- C-c C-SPC
 
 module _ (A : Set a) (a : A) where
   x : A
