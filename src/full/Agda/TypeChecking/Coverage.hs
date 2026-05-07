@@ -509,7 +509,8 @@ cover infermissing f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       -> (SplitError -> TCM CoverResult)
       -> TCM CoverResult
     continue xs allowPartialCover handle = do
-      r <- altM1 (\ x -> fmap (,x) <$> split Inductive allowPartialCover (blockingVarAbsurd x) sc x) xs
+      let inAbsurdClause = any (isNothing . clauseBody) cs
+      r <- altM1 (\ x -> fmap (,x) <$> split Inductive allowPartialCover inAbsurdClause sc x) xs
       case r of
         Left err -> handle err
         -- If we get the empty covering, we have reached an impossible case
@@ -1202,7 +1203,7 @@ data AllowPartialCover
 -- | Entry point from @Interaction.MakeCase@.
 splitClauseWithAbsurd :: SplitClause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
 splitClauseWithAbsurd c x =
-  split' CheckEmpty Inductive NoAllowPartialCover DontInsertTrailing False c (BlockingVar x [] [] True False False)
+  split' CheckEmpty Inductive NoAllowPartialCover DontInsertTrailing False c (BlockingVar x [] [] True False)
   -- Andreas, 2016-05-03, issue 1950:
   -- Do not introduce trailing pattern vars after split,
   -- because this does not work for with-clauses.
@@ -1211,7 +1212,7 @@ splitClauseWithAbsurd c x =
 --   @splitLast CoInductive@ is used in the @refine@ tactics.
 
 splitLast :: Induction -> Telescope -> [NamedArg DeBruijnPattern] -> TCM (Either SplitError Covering)
-splitLast ind tel ps = split ind NoAllowPartialCover False sc (BlockingVar 0 [] [] True False False)
+splitLast ind tel ps = split ind NoAllowPartialCover False sc (BlockingVar 0 [] [] True False)
   where sc = SClause tel (toSplitPatterns ps) empty empty target
         -- TODO 2ltt: allows (Empty_fib -> Empty_strict) which is not conservative
         target = (Just $ defaultDom $ El (mkProp 0) $ __DUMMY_TERM_WITH__ "splitLastTarget")
@@ -1292,7 +1293,7 @@ split' :: CheckEmpty
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
 split' checkEmpty ind allowPartialCover inserttrailing inAbsurdClause
-       sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap lazy _absurd) =
+       sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap lazy) =
  liftTCM $ runExceptT $ do
   debugInit tel x ps cps
 

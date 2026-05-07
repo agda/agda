@@ -23,7 +23,7 @@ import Prelude hiding ( null )
 import Data.DList (DList)
 import Data.Foldable (toList)
 import qualified Data.List as List
-import Data.Maybe (mapMaybe, fromMaybe, isNothing)
+import Data.Maybe (mapMaybe, fromMaybe)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -87,9 +87,6 @@ data BlockingVar = BlockingVar
     --   position.
   , blockingVarLazy :: Bool
     -- ^ True if at least one clause has a lazy pattern in this position.
-  , blockingVarAbsurd :: Bool
-    -- ^ True if all clauses with a constructor pattern in this position
-    --   are absurd (have no body).
   } deriving (Show)
 
 type BlockingVars = [BlockingVar]
@@ -113,26 +110,19 @@ match cs ps = foldr choice (return No) $ zipWith matchIt [0..] cs
             => Nat  -- Clause number.
             -> Clause
             -> m (Match (Nat, SplitInstantiation))
-    matchIt i c = do
-      result <- fmap (\s -> (i, toList s)) <$> matchClause ps c
-      -- If the clause has a body, the vars blocking on it are not (in general) absurd.
-      return $ if isNothing (clauseBody c) then result
-               else case result of
-                      Block r vs -> Block r (map (\v -> v { blockingVarAbsurd = False }) vs)
-                      _          -> result
+    matchIt i c = fmap (\s -> (i, toList s)) <$> matchClause ps c
 
 -- | If matching succeeds, we return the instantiation of the clause pattern vector
 --   to obtain the split clause pattern vector.
 type MatchResult = Match (DList (Nat, SplitPattern))
 
 instance Pretty BlockingVar where
-  pretty (BlockingVar i cs ls o l a) = cat
+  pretty (BlockingVar i cs ls o l) = cat
     [ text ("variable " ++ show i)
     , if null cs then empty else " blocked on constructors" <+> pretty cs
     , if null ls then empty else " blocked on literals" <+> pretty ls
     , if o then " (overlapping)" else empty
     , if l then " (lazy)" else empty
-    , if a then " (absurd)" else empty
     ]
 
 yes :: Monad m => a -> m (Match a)
@@ -142,10 +132,10 @@ no :: Monad m => m (Match a)
 no = return No
 
 blockedOnConstructor :: Monad m => Nat -> ConHead -> ConPatternInfo -> m (Match a)
-blockedOnConstructor i c ci = return $ Block NotBlockedOnResult [BlockingVar i [c] [] False (conPLazy ci) True]
+blockedOnConstructor i c ci = return $ Block NotBlockedOnResult [BlockingVar i [c] [] False $ conPLazy ci]
 
 blockedOnLiteral :: Monad m => Nat -> Literal -> m (Match a)
-blockedOnLiteral i l = return $ Block NotBlockedOnResult [BlockingVar i [] [l] False False True]
+blockedOnLiteral i l = return $ Block NotBlockedOnResult [BlockingVar i [] [l] False False]
 
 blockedOnProjection :: Monad m => m (Match a)
 blockedOnProjection = return $ Block (BlockedOnProj False) []
@@ -163,9 +153,9 @@ overlapping = map' setBlockingVarOverlap
 zipBlockingVars :: BlockingVars -> BlockingVars -> BlockingVars
 zipBlockingVars xs ys = map' upd xs
   where
-    upd (BlockingVar x cons lits o l a) = case List.find ((x ==) . blockingVarNo) ys of
-      Just (BlockingVar _ cons' lits' o' l' a') -> BlockingVar x (cons ++ cons') (lits ++ lits') (o || o') (l || l') (a && a')
-      Nothing -> BlockingVar x cons lits True l a
+    upd (BlockingVar x cons lits o l) = case List.find ((x ==) . blockingVarNo) ys of
+      Just (BlockingVar _ cons' lits' o' l') -> BlockingVar x (cons ++ cons') (lits ++ lits') (o || o') (l || l')
+      Nothing -> BlockingVar x cons lits True l
 
 setBlockedOnResultOverlap :: BlockedOnResult -> BlockedOnResult
 setBlockedOnResultOverlap b = case b of
