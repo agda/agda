@@ -20,6 +20,7 @@ module ErasedDefinition where
   record R (x : A) : Set where
     y : A
     y = a
+    field foo : A
 
   f : (@0 x : A) → R x → A
   f x r = R.y {x} r

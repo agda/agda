@@ -60,6 +60,7 @@ import Agda.TypeChecking.Monad.Benchmark (billTo)
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Syntax.Common.Pretty (prettyShow)
@@ -86,12 +87,21 @@ initialInstanceCandidates blockOverlap instTy = do
       reportSDoc "tc.instance.cands" 30 $ "Instance type is a variable. "
       runBlocked (getContextCands Nothing)
     OutputTypeName n -> Bench.billTo [Bench.Typing, Bench.InstanceSearch, Bench.InitialCandidates] do
-      reportSDoc "tc.instance.cands" 30 $ "Found instance type head: " <+> prettyTCM n
-      runBlocked do
-        local  <- getContextCands (Just n)
-        global <- getScopeDefs n
-        lift $ tickCandidates n $ length local + length global
-        pure $ local <> global
+      runBlocked (isSingletonType instTy) >>= \case
+        -- Andreas, 2026-05-07, issue #8553
+        -- If we can find a solution by eta-expansion, we do not have go through tedious search.
+        -- Also, 'dropSameCandidates' makes wrong decisions when all candidates are equal
+        -- modulo eta but differ in their unsolved instance metas.
+        -- So we cut the search short here.
+        Right (Just v) -> return $ Right $ singleton $
+          Candidate LocalCandidate v instTy Overlaps -- not sure about "Overlaps" but this might not matter
+        _ -> do
+          reportSDoc "tc.instance.cands" 30 $ "Found instance type head: " <+> prettyTCM n
+          runBlocked do
+            local  <- getContextCands (Just n)
+            global <- getScopeDefs n
+            lift $ tickCandidates n $ length local + length global
+            pure $ local <> global
   where
     -- Ticky profiling for statistics about a class.
     tickCandidates n size = whenProfile Profile.Instances do
