@@ -898,7 +898,11 @@ debugCandidateTerm = debugCandidate' False True
 checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe ([(Candidate, TCErr)], [(Candidate, Term)]))
 checkCandidates m t cands =
   verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++! prettyShow m) $
-  ifM (anyMetaTypes cands) (return Nothing) $ Just <$> do
+  -- Andreas, 2026-05-07: Ulf, 2015-10-31 commit 711bc27
+  -- If there are candidates of meta type we won't be able to solve the constraint
+  -- anyway and trying can be very expensive since checking a candidate might
+  -- lead to further instance problems (exponential in depth).
+  ifM (anyM (isMetaV . candidateType) cands) (return Nothing) $ Just <$> do
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ "target:" <+> prettyTCM t
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ "candidates", vcat (map' debugCandidate cands) ]
@@ -913,13 +917,8 @@ checkCandidates m t cands =
 
     return cands'
   where
-    anyMetaTypes :: [Candidate] -> TCM Bool
-    anyMetaTypes [] = return False
-    anyMetaTypes (Candidate _ _ a _ : cands) = do
-      a <- instantiate a
-      case unEl a of
-        MetaV{} -> return True
-        _       -> anyMetaTypes cands
+    isMetaV :: Type -> TCM Bool
+    isMetaV a = isJust . isMeta <$> instantiate a
 
     checkDepth :: Term -> Type -> TCM YesNo -> TCM YesNo
     checkDepth c a k = locallyTC eInstanceDepth succ $ do
@@ -980,7 +979,7 @@ checkCandidates m t cands =
             stealConstraints pid
             let
               blocking = foldMap (allBlockingMetas . constraintUnblocker) cons
-              !ok = getAll $! flip allMetas t (All . not . flip Set.member blocking)
+              !ok = getAll $! allMetas (All . not . flip Set.member blocking) t
             pure (cons, ok)
           debugConstraints
 
