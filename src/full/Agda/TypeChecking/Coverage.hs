@@ -509,7 +509,7 @@ cover infermissing f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       -> (SplitError -> TCM CoverResult)
       -> TCM CoverResult
     continue xs allowPartialCover handle = do
-      let inAbsurdClause = any (isNothing . clauseBody) cs
+      let inAbsurdClause = all (isNothing . clauseBody) cs
       r <- altM1 (\ x -> fmap (,x) <$> split Inductive allowPartialCover inAbsurdClause sc x) xs
       case r of
         Left err -> handle err
