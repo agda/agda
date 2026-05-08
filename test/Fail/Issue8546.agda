@@ -14,4 +14,5 @@ data Payload : Bool → Set where
 
 bad-escape : ∀ (b : Bool) → Squash (Payload b) → Bool
 bad-escape false (squash ())
+-- casing on one absurd doesn't let us case arbitrarily:
 bad-escape true (squash (payload x)) = x
