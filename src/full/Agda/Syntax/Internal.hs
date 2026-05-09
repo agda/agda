@@ -639,6 +639,9 @@ data PatternInfo = PatternInfo
   , patAsNames :: [Name]
   } deriving (Show, Eq, Generic)
 
+instance Null PatternInfo where
+  empty = defaultPatternInfo
+
 defaultPatternInfo :: PatternInfo
 defaultPatternInfo = PatternInfo PatOSystem []
 
@@ -670,7 +673,7 @@ data Pattern' x
   | ConP ConHead ConPatternInfo [NamedArg (Pattern' x)]
     -- ^ @c ps@
     --   The subpatterns do not contain any projection copatterns.
-  | LitP PatternInfo Literal
+  | LitP LitPatternInfo Literal
     -- ^ E.g. @5@, @"hello"@.
   | ProjP ProjOrigin QName
     -- ^ Projection copattern.  Can only appear by itself.
@@ -690,7 +693,7 @@ dotP :: Term -> Pattern' a
 dotP = DotP defaultPatternInfo
 
 litP :: Literal -> Pattern' a
-litP = LitP defaultPatternInfo
+litP = LitP empty
 
 -- | Type used when numbering pattern variables.
 data DBPatVar = DBPatVar
@@ -710,6 +713,41 @@ namedDBVarP m = (fmap . fmap) (\x -> DBPatVar x m) . namedVarP
 -- | Make an absurd pattern with the given de Bruijn index.
 absurdP :: Int -> DeBruijnPattern
 absurdP = VarP (PatternInfo PatOAbsurd []) . DBPatVar absurdPatternName
+
+-- | For the sake of reducing clauses before they have compiled,
+-- we keep a match priority in the constructors (and literals)
+-- of patterns that is computed during lhs checking and
+-- decides whether a mismatch should be treated as a hard 'No'.
+-- Matches that get available earlier have a lower priority.
+-- Lower priority wins, meaning that if we combine a
+-- 'DontKnow' with a 'No' we take the one with the lower priority.
+newtype MatchPrio = MatchPrio { theMatchPrio :: Int }
+  deriving (Eq, Ord, Show, Enum, KillRange, NFData)
+
+instance Null MatchPrio where
+  empty = MatchPrio 0
+
+instance Semigroup MatchPrio where
+  MatchPrio p <> MatchPrio p' = MatchPrio $ min p p'
+
+instance Monoid MatchPrio where
+  mempty = empty
+
+-- | Extra information attached to a 'LitP'.
+data LitPatternInfo = LitPatternInfo
+  { litPInfo :: PatternInfo
+      -- ^ Information on the origin of the pattern.
+  , litPPrio :: MatchPrio
+      -- ^ Time when this pattern was constructed during LHS checking.
+      --   This field is used during pattern matching with the non-compiled clauses.
+  }
+  deriving (Eq, Show, Generic)
+
+instance Null LitPatternInfo where
+  empty = LitPatternInfo empty empty
+
+instance KillRange LitPatternInfo where
+  killRange (LitPatternInfo a b) = killRangeN LitPatternInfo a b
 
 -- | The @ConPatternInfo@ states whether the constructor belongs to
 --   a record type (@True@) or data type (@False@).
@@ -742,11 +780,14 @@ data ConPatternInfo = ConPatternInfo
     --   ('Agda.TypeChecking.CompiledClause.Compile.compileClauses') when the
     --   variables they bind are unused. The GHC backend compiles lazy matches
     --   to lazy patterns in Haskell (TODO: not yet).
+  , conPPrio :: !MatchPrio
+    -- ^ Time when this pattern was constructed during LHS checking.
+    --   This field is used during pattern matching with the non-compiled clauses.
   }
   deriving (Show, Generic)
 
 noConPatternInfo :: ConPatternInfo
-noConPatternInfo = ConPatternInfo defaultPatternInfo False False Nothing False
+noConPatternInfo = ConPatternInfo defaultPatternInfo False False Nothing False empty
 
 -- | Build partial 'ConPatternInfo' from 'ConInfo'
 toConPatternInfo :: ConInfo -> ConPatternInfo
@@ -803,7 +844,7 @@ instance PatternVars a => PatternVars [a] where
 patternInfo :: Pattern' x -> Maybe PatternInfo
 patternInfo (VarP i _)        = Just i
 patternInfo (DotP i _)        = Just i
-patternInfo (LitP i _)        = Just i
+patternInfo (LitP i _)        = Just $ litPInfo i
 patternInfo (ConP _ ci _)     = Just $ conPInfo ci
 patternInfo ProjP{}           = Nothing
 patternInfo (IApplyP i _ _ _) = Just i
@@ -1636,7 +1677,7 @@ instance KillRange PatternInfo where
   killRange (PatternInfo o xs) = killRangeN PatternInfo o xs
 
 instance KillRange ConPatternInfo where
-  killRange (ConPatternInfo i mr b mt lz) = killRangeN (ConPatternInfo i mr b) mt lz
+  killRange (ConPatternInfo i mr b mt lz prio) = killRangeN (ConPatternInfo i mr b) mt lz prio
 
 instance KillRange DBPatVar where
   killRange (DBPatVar x i) = killRangeN DBPatVar x i
@@ -1927,6 +1968,7 @@ instance NFData PatOrigin
 instance NFData x => NFData (Pattern' x)
 instance NFData DBPatVar
 instance NFData ConPatternInfo
+instance NFData LitPatternInfo
 instance NFData a => NFData (Substitution' a)
 instance NFData DefSing
 instance NFData NLPat
