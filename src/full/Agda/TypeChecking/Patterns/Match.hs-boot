@@ -11,7 +11,10 @@ import Agda.TypeChecking.Substitute (DeBruijn)
 
 import Agda.Utils.Impossible
 
-data Match a = Yes Simplification (IntMap (Arg a)) | No | DontKnow OnlyLazy (Blocked ())
+data Match a
+  = Yes Simplification (IntMap (Arg a))
+  | No MatchPrio
+  | DontKnow MatchPrio OnlyLazy (Blocked ())
 
 data OnlyLazy = OnlyLazy | NonLazy
 

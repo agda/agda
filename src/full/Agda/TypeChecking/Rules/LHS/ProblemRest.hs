@@ -2,6 +2,8 @@
 
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
+import Prelude hiding (null)
+
 import Control.Monad
 import Control.Monad.Except
 
@@ -21,6 +23,7 @@ import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Implicit
 
 import Agda.Utils.Functor
+import Agda.Utils.Null
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -105,14 +108,14 @@ initLHSState delta eqs ps a ret = do
   let problem = Problem eqs ps ret
       qs0     = teleNamedArgs delta
 
-  updateProblemRest $ LHSState delta qs0 problem (Arg (defaultArgInfo { argInfoModality = unitModality }) a) [] False
+  updateProblemRest $ LHSState delta qs0 problem (Arg (defaultArgInfo { argInfoModality = unitModality }) a) [] False empty
 
 -- | Try to move patterns from the problem rest into the problem.
 --   Possible if type of problem rest has been updated to a function type.
 updateProblemRest
   :: forall m a. (PureTCM m, MonadError TCErr m, MonadTrace m, MonadFresh NameId m)
   => LHSState a -> m (LHSState a)
-updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit ixsplit) = addContext tel0 $ do
+updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit ixsplit prio) = addContext tel0 $ do
   ps <- insertImplicitPatternsT ExpandLast ps $ unArg a
   reportSDoc "tc.lhs.imp" 20 $
     "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
@@ -164,4 +167,12 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit ixspl
     , _lhsTarget  = a $> b
     , _lhsPartialSplit = psplit
     , _lhsIndexedSplit = ixsplit
+    , _lhsMatchPrio    = succ prio
+        -- Andreas, 2026-05-09, issue #8559
+        -- We approximate the split causality by simply increasing the prio
+        -- at each call to 'updateProblemRest'.
+        -- This is somewhat crude but sufficient to pass #3054 and #8559 and fail #2964
+        -- as intended.
+        -- Should there be examples where this simply heuristics is not adequate,
+        -- it needs to be refined.
     }

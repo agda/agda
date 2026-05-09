@@ -409,7 +409,7 @@ instance NamesIn PatternSynDefn where
   namesAndMetasIn' sg (PatternSynDefn _args p) = namesAndMetasIn' sg p
 
 instance NamesIn ConPatternInfo where
-  namesAndMetasIn' sg (ConPatternInfo _ _ _ ty _) = namesAndMetasIn' sg ty
+  namesAndMetasIn' sg (ConPatternInfo _ _ _ ty _ _) = namesAndMetasIn' sg ty
 
 instance NamesIn (A.Pattern' a) where
   namesAndMetasIn' sg = \case

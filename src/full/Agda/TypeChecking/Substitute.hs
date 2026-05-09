@@ -1349,10 +1349,10 @@ usePatternInfo i p = case patternOrigin p of
   Just _          -> case p of
     (VarP _ x) -> VarP i x
     (DotP _ u) -> DotP i u
-    (ConP c (ConPatternInfo _ r ft b l) ps)
-      -> ConP c (ConPatternInfo i r ft b l) ps
+    (ConP c (ConPatternInfo _ r ft b l prio) ps)
+      -> ConP c (ConPatternInfo i r ft b l prio) ps
     DefP _ q ps -> DefP i q ps
-    (LitP _ l) -> LitP i l
+    (LitP (LitPatternInfo _ prio) l) -> LitP (LitPatternInfo i prio) l
     ProjP{} -> __IMPOSSIBLE__
     (IApplyP _ t u x) -> IApplyP i t u x
 

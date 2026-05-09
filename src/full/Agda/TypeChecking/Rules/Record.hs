@@ -548,7 +548,9 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                                     , conPRecord = True
                                     , conPFallThrough = False
                                     , conPType   = Just $ argFromDom $ fmap snd rt
-                                    , conPLazy   = True }
+                                    , conPLazy   = True
+                                    , conPPrio   = empty
+                                    }
             conp   = defaultNamedArg $ ConP con cpi $ teleNamedArgs ftel
             body   = Just $ bodyMod $ var (size ftel2)
             cltel  = ptel `abstract` ftel
