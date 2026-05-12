@@ -172,6 +172,12 @@ import qualified Agda.Utils.VarSet as VarSet
 generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> ([Maybe Name] -> Telescope -> TCM a) -> TCM a
 generalizeTelescope vars typecheckAction ret | Map.null vars = typecheckAction (ret [])
 generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
+  -- Andreas, May 2026, issue #6670.
+  -- The substitution sub (below) needs to be applied to the sections
+  -- and definitions created during createMetasAndTypeCheck in the
+  -- same way as it is applied to the generated let-bindings.
+  -- We obtain the newly created sections and definitions as a diff
+  -- between the "before" and "after" state.
   sectionsBefore <- useTC (stSignature . sigSections)
   definitionsBefore <- useTC (stSignature . sigDefinitions)
   anonymousModulesBefore <- viewTC eAnonymousModules
@@ -236,7 +242,7 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
     sec <- fromMaybe __IMPOSSIBLE__ <$> getSection m
     tel <- applySubst sub <$> instantiateFull (sec ^. secTelescope)
     modifySignature $ over sigSections $ Map.adjust (set secTelescope tel) m
-      -- TODO: do we need to update the module checkpoint for m
+      -- TODO: do we need to update the module checkpoint for m?
   forM_ sectionDefs \ q -> do
     t <- applySubst sub <$> do instantiateFull . defType =<< getConstInfo q
     modifySignature $ updateDefinition q $ updateDefType $ const t
