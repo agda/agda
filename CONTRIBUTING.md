@@ -33,3 +33,7 @@ generally do not encourage LLM-assisted contributions.
 In particular, due to the limited time of the core team for reviewing issue
 reports and pull requests, we do not accept any contributions by external
 contributors that are created by or with the assistance of LLMs.
+
+Members of the Agda organization using LLMs for creating a contribution are
+expected to take full responsibility for both the quality and the legality of
+the code.
