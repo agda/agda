@@ -1,0 +1,309 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE MagicHash #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-matches #-}</span><span>
+</span><span id="line-5"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-binds #-}</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-8"></span><span class="annot"><span class="hs-comment">-- | The parser monad used by the operator parser</span></span><span>
+</span><span id="line-9"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html"><span class="hs-identifier">Agda.Syntax.Concrete.Operators.Parser.Monad</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#MemoKey"><span class="hs-identifier">MemoKey</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#PrecedenceKey"><span class="hs-identifier">PrecedenceKey</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#Parser"><span class="hs-identifier">Parser</span></a></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#parse"><span class="hs-identifier">parse</span></a></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#sat%27"><span class="hs-identifier">sat'</span></a></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#sat"><span class="hs-identifier">sat</span></a></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#doc"><span class="hs-identifier">doc</span></a></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#memoise"><span class="hs-identifier">memoise</span></a></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#memoiseIfPrinting"><span class="hs-identifier">memoiseIfPrinting</span></a></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#grammar"><span class="hs-identifier">grammar</span></a></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#LeftPK"><span class="hs-identifier">LeftPK</span></a></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#RightPK"><span class="hs-identifier">RightPK</span></a></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Hashable</span></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#if ! (__GLASGOW_HASKELL__ &lt;= 908)
+</span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Exts</span></span><span class="hs-cpp">
+#endif
+</span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Word</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Word64</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html"><span class="hs-identifier">Agda.Syntax.Common</span></a></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.Parser.MemoisedCPS.html"><span class="hs-identifier">Agda.Utils.Parser.MemoisedCPS</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Parser</span></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Hash.html"><span class="hs-identifier">Agda.Utils.Hash</span></a></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="annot"><span class="hs-comment">-- | Memoisation keys.</span></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">data</span><span> </span><span id="MemoKey"><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#MemoKey"><span class="hs-identifier hs-var">MemoKey</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="NodeK"><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#NodeK"><span class="hs-identifier hs-var">NodeK</span></a></span></span><span>      </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#PrecedenceKey"><span class="hs-identifier hs-type">PrecedenceKey</span></a></span><span>
+</span><span id="line-43"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="PostLeftsK"><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#PostLeftsK"><span class="hs-identifier hs-var">PostLeftsK</span></a></span></span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#PrecedenceKey"><span class="hs-identifier hs-type">PrecedenceKey</span></a></span><span>
+</span><span id="line-44"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="PreRightsK"><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#PreRightsK"><span class="hs-identifier hs-var">PreRightsK</span></a></span></span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#PrecedenceKey"><span class="hs-identifier hs-type">PrecedenceKey</span></a></span><span>
+</span><span id="line-45"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="TopK"><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#TopK"><span class="hs-identifier hs-var">TopK</span></a></span></span><span>
+</span><span id="line-46"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="AppK"><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#AppK"><span class="hs-identifier hs-var">AppK</span></a></span></span><span>
+</span><span id="line-47"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span id="NonfixK"><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#NonfixK"><span class="hs-identifier hs-var">NonfixK</span></a></span></span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681726244"><span id="local-6989586621681726253"><span class="annot"><span class="annottext">MemoKey -&gt; MemoKey -&gt; Bool
+(MemoKey -&gt; MemoKey -&gt; Bool)
+-&gt; (MemoKey -&gt; MemoKey -&gt; Bool) -&gt; Eq MemoKey
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: MemoKey -&gt; MemoKey -&gt; Bool
+== :: MemoKey -&gt; MemoKey -&gt; Bool
+$c/= :: MemoKey -&gt; MemoKey -&gt; Bool
+/= :: MemoKey -&gt; MemoKey -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681726258"><span id="local-6989586621681726268"><span id="local-6989586621681726272"><span class="annot"><span class="annottext">Int -&gt; MemoKey -&gt; ShowS
+[MemoKey] -&gt; ShowS
+MemoKey -&gt; String
+(Int -&gt; MemoKey -&gt; ShowS)
+-&gt; (MemoKey -&gt; String) -&gt; ([MemoKey] -&gt; ShowS) -&gt; Show MemoKey
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; MemoKey -&gt; ShowS
+showsPrec :: Int -&gt; MemoKey -&gt; ShowS
+$cshow :: MemoKey -&gt; String
+show :: MemoKey -&gt; String
+$cshowList :: [MemoKey] -&gt; ShowS
+showList :: [MemoKey] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681726277"><span id="local-6989586621681726279"><span class="annot"><span class="annottext">(forall x. MemoKey -&gt; Rep MemoKey x)
+-&gt; (forall x. Rep MemoKey x -&gt; MemoKey) -&gt; Generic MemoKey
+forall x. Rep MemoKey x -&gt; MemoKey
+forall x. MemoKey -&gt; Rep MemoKey x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. MemoKey -&gt; Rep MemoKey x
+from :: forall x. MemoKey -&gt; Rep MemoKey x
+$cto :: forall x. Rep MemoKey x -&gt; MemoKey
+to :: forall x. Rep MemoKey x -&gt; MemoKey
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-keyword">data</span><span> </span><span id="PrecedenceKey"><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#PrecedenceKey"><span class="hs-identifier hs-var">PrecedenceKey</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="PrecKey"><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#PrecKey"><span class="hs-identifier hs-var">PrecKey</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="Agda.Syntax.Common.html#PrecedenceLevel"><span class="hs-identifier hs-type">PrecedenceLevel</span></a></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681726287"><span id="local-6989586621681726293"><span class="annot"><span class="annottext">PrecedenceKey -&gt; PrecedenceKey -&gt; Bool
+(PrecedenceKey -&gt; PrecedenceKey -&gt; Bool)
+-&gt; (PrecedenceKey -&gt; PrecedenceKey -&gt; Bool) -&gt; Eq PrecedenceKey
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: PrecedenceKey -&gt; PrecedenceKey -&gt; Bool
+== :: PrecedenceKey -&gt; PrecedenceKey -&gt; Bool
+$c/= :: PrecedenceKey -&gt; PrecedenceKey -&gt; Bool
+/= :: PrecedenceKey -&gt; PrecedenceKey -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681726296"><span id="local-6989586621681726303"><span id="local-6989586621681726306"><span class="annot"><span class="annottext">Int -&gt; PrecedenceKey -&gt; ShowS
+[PrecedenceKey] -&gt; ShowS
+PrecedenceKey -&gt; String
+(Int -&gt; PrecedenceKey -&gt; ShowS)
+-&gt; (PrecedenceKey -&gt; String)
+-&gt; ([PrecedenceKey] -&gt; ShowS)
+-&gt; Show PrecedenceKey
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; PrecedenceKey -&gt; ShowS
+showsPrec :: Int -&gt; PrecedenceKey -&gt; ShowS
+$cshow :: PrecedenceKey -&gt; String
+show :: PrecedenceKey -&gt; String
+$cshowList :: [PrecedenceKey] -&gt; ShowS
+showList :: [PrecedenceKey] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#RightPK"><span class="hs-identifier hs-type">RightPK</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#PrecedenceLevel"><span class="hs-identifier hs-type">PrecedenceLevel</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#PrecedenceKey"><span class="hs-identifier hs-type">PrecedenceKey</span></a></span><span>
+</span><span id="line-54"></span><span class="hs-keyword">pattern</span><span> </span><span id="RightPK"><span id="%24mRightPK"><span id="%24bRightPK"><span class="annot"><span class="annottext">$mRightPK :: forall {r}. PrecedenceKey -&gt; (Double -&gt; r) -&gt; ((# #) -&gt; r) -&gt; r
+$bRightPK :: Double -&gt; PrecedenceKey
+</span><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#RightPK"><span class="hs-identifier hs-var hs-var hs-var">RightPK</span></a></span></span></span></span><span> </span><span class="annot"><a href="#local-6989586621681726310"><span class="hs-identifier hs-type">l</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#PrecKey"><span class="hs-identifier hs-type">PrecKey</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">False</span></span><span> </span><span id="local-6989586621681726310"><span class="annot"><a href="#local-6989586621681726310"><span class="hs-identifier hs-var">l</span></a></span></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#LeftPK"><span class="hs-identifier hs-type">LeftPK</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.html#PrecedenceLevel"><span class="hs-identifier hs-type">PrecedenceLevel</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#PrecedenceKey"><span class="hs-identifier hs-type">PrecedenceKey</span></a></span><span>
+</span><span id="line-57"></span><span class="hs-keyword">pattern</span><span> </span><span id="LeftPK"><span id="%24mLeftPK"><span id="%24bLeftPK"><span class="annot"><span class="annottext">$mLeftPK :: forall {r}. PrecedenceKey -&gt; (Double -&gt; r) -&gt; ((# #) -&gt; r) -&gt; r
+$bLeftPK :: Double -&gt; PrecedenceKey
+</span><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#LeftPK"><span class="hs-identifier hs-var hs-var hs-var">LeftPK</span></a></span></span></span></span><span> </span><span class="annot"><a href="#local-6989586621681726313"><span class="hs-identifier hs-type">l</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#PrecKey"><span class="hs-identifier hs-type">PrecKey</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span> </span><span id="local-6989586621681726313"><span class="annot"><a href="#local-6989586621681726313"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-cpp">
+
+#if __GLASGOW_HASKELL__ &lt;= 908
+</span><span class="hs-identifier">doubleToWord64</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Double</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">Word64</span><span>
+</span><span id="line-61"></span><span class="hs-identifier">doubleToWord64</span><span> </span><span class="hs-identifier">x</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">fromIntegral</span><span> </span><span class="hs-operator">$</span><span> </span><span class="hs-identifier">hash</span><span> </span><span class="hs-identifier">x</span><span class="hs-cpp">
+#else
+</span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#doubleToWord64"><span class="hs-identifier hs-type">doubleToWord64</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span>
+</span><span id="line-64"></span><span id="doubleToWord64"><span class="annot"><span class="annottext">doubleToWord64 :: Double -&gt; Word64
+</span><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#doubleToWord64"><span class="hs-identifier hs-var hs-var">doubleToWord64</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">D#</span></span><span> </span><span id="local-6989586621681726315"><span class="annot"><span class="annottext">Double#
+</span><a href="#local-6989586621681726315"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64# -&gt; Word64
+</span><span class="hs-identifier hs-var">W64#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Double# -&gt; Word64#
+</span><span class="hs-identifier hs-var">castDoubleToWord64#</span></span><span> </span><span class="annot"><span class="annottext">Double#
+</span><a href="#local-6989586621681726315"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-67"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681726321"><span class="annot"><span class="hs-identifier hs-type">Hashable</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#PrecedenceKey"><span class="hs-identifier hs-type">PrecedenceKey</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-68"></span><span>  </span><span id="local-6989586621681726339"><span class="annot"><span class="annottext">hashWithSalt :: Int -&gt; PrecedenceKey -&gt; Int
+</span><a href="#local-6989586621681726339"><span class="hs-identifier hs-var hs-var hs-var">hashWithSalt</span></a></span></span><span> </span><span id="local-6989586621681726341"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681726341"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#PrecKey"><span class="hs-identifier hs-type">PrecKey</span></a></span><span> </span><span id="local-6989586621681726342"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681726342"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621681726343"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621681726343"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">(Word -&gt; Int) -&gt; Word -&gt; Int
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><span class="annottext">Int -&gt; Word
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681726341"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621681726342"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="Agda.Utils.Hash.html#combineWord"><span class="hs-operator hs-var">`combineWord`</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Word
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Double -&gt; Word64
+</span><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#doubleToWord64"><span class="hs-identifier hs-var">doubleToWord64</span></a></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621681726343"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681726351"><span class="annot"><span class="hs-identifier hs-type">Hashable</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#MemoKey"><span class="hs-identifier hs-type">MemoKey</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-72"></span><span>  </span><span id="local-6989586621681726363"><span class="annot"><span class="annottext">hashWithSalt :: Int -&gt; MemoKey -&gt; Int
+</span><span class="hs-identifier hs-var hs-var hs-var">hashWithSalt</span></span></span><span> </span><span id="local-6989586621681726364"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681726364"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-73"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#NodeK"><span class="hs-identifier hs-type">NodeK</span></a></span><span> </span><span id="local-6989586621681726365"><span class="annot"><span class="annottext">PrecedenceKey
+</span><a href="#local-6989586621681726365"><span class="hs-identifier hs-var">pk</span></a></span></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; PrecedenceKey -&gt; Int
+forall a. Hashable a =&gt; Int -&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">hashWithSalt</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681726364"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">PrecedenceKey
+</span><a href="#local-6989586621681726365"><span class="hs-identifier hs-var">pk</span></a></span><span>
+</span><span id="line-74"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#PostLeftsK"><span class="hs-identifier hs-type">PostLeftsK</span></a></span><span> </span><span id="local-6989586621681726366"><span class="annot"><span class="annottext">PrecedenceKey
+</span><a href="#local-6989586621681726366"><span class="hs-identifier hs-var">pk</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; PrecedenceKey -&gt; Int
+forall a. Hashable a =&gt; Int -&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">hashWithSalt</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681726364"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">2</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">PrecedenceKey
+</span><a href="#local-6989586621681726366"><span class="hs-identifier hs-var">pk</span></a></span><span>
+</span><span id="line-75"></span><span>    </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#PreRightsK"><span class="hs-identifier hs-type">PreRightsK</span></a></span><span> </span><span id="local-6989586621681726367"><span class="annot"><span class="annottext">PrecedenceKey
+</span><a href="#local-6989586621681726367"><span class="hs-identifier hs-var">pk</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; PrecedenceKey -&gt; Int
+forall a. Hashable a =&gt; Int -&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">hashWithSalt</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681726364"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">3</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">PrecedenceKey
+</span><a href="#local-6989586621681726367"><span class="hs-identifier hs-var">pk</span></a></span><span>
+</span><span id="line-76"></span><span>    </span><span class="annot"><span class="annottext">MemoKey
+</span><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#TopK"><span class="hs-identifier hs-var">TopK</span></a></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+</span><a href="Agda.Utils.Hash.html#combineInt"><span class="hs-identifier hs-var">combineInt</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681726364"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">4</span></span><span>
+</span><span id="line-77"></span><span>    </span><span class="annot"><span class="annottext">MemoKey
+</span><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#AppK"><span class="hs-identifier hs-var">AppK</span></a></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+</span><a href="Agda.Utils.Hash.html#combineInt"><span class="hs-identifier hs-var">combineInt</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681726364"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">5</span></span><span>
+</span><span id="line-78"></span><span>    </span><span class="annot"><span class="annottext">MemoKey
+</span><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#NonfixK"><span class="hs-identifier hs-var">NonfixK</span></a></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+</span><a href="Agda.Utils.Hash.html#combineInt"><span class="hs-identifier hs-var">combineInt</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681726364"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">6</span></span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="annot"><span class="hs-comment">-- | The parser monad.</span></span><span>
+</span><span id="line-81"></span><span class="hs-keyword">type</span><span> </span><span id="Parser"><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#Parser"><span class="hs-identifier hs-var">Parser</span></a></span></span><span> </span><span id="local-6989586621681726369"><span class="annot"><a href="#local-6989586621681726369"><span class="hs-identifier hs-type">tok</span></a></span></span><span> </span><span id="local-6989586621681726370"><span class="annot"><a href="#local-6989586621681726370"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span class="hs-cpp">
+#ifdef DEBUG_PARSING
+</span><span>  </span><span class="hs-identifier">Parser.ParserWithGrammar</span><span class="hs-cpp">
+#else
+</span><span>  </span><span class="annot"><a href="Agda.Utils.Parser.MemoisedCPS.html#Parser"><span class="hs-identifier hs-type">Parser.Parser</span></a></span><span class="hs-cpp">
+#endif
+</span><span>    </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#MemoKey"><span class="hs-identifier hs-type">MemoKey</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726369"><span class="hs-identifier hs-type">tok</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#MaybePlaceholder"><span class="hs-identifier hs-type">MaybePlaceholder</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726369"><span class="hs-identifier hs-type">tok</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621681726370"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span class="annot"><span class="hs-comment">-- | Runs the parser.</span></span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#parse"><span class="hs-identifier hs-type">parse</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621681726183"><span class="annot"><a href="#local-6989586621681726183"><span class="hs-identifier hs-type">tok</span></a></span></span><span> </span><span id="local-6989586621681726184"><span class="annot"><a href="#local-6989586621681726184"><span class="hs-identifier hs-type">a</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726183"><span class="hs-identifier hs-type">tok</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726184"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Syntax.Common.html#MaybePlaceholder"><span class="hs-identifier hs-type">MaybePlaceholder</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726183"><span class="hs-identifier hs-type">tok</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681726184"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-92"></span><span id="parse"><span class="annot"><span class="annottext">parse :: forall tok a. Parser tok a -&gt; [MaybePlaceholder tok] -&gt; [a]
+</span><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#parse"><span class="hs-identifier hs-var hs-var">parse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser MemoKey tok (MaybePlaceholder tok) a
+-&gt; [MaybePlaceholder tok] -&gt; [a]
+forall a.
+Parser MemoKey tok (MaybePlaceholder tok) a
+-&gt; [MaybePlaceholder tok] -&gt; [a]
+forall (p :: * -&gt; *) k r tok a.
+ParserClass p k r tok =&gt;
+p a -&gt; [tok] -&gt; [a]
+</span><a href="Agda.Utils.Parser.MemoisedCPS.html#parse"><span class="hs-identifier hs-var">Parser.parse</span></a></span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- | Parses a token satisfying the given predicate. The computed value</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- is returned.</span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span id="local-6989586621681726199"><span id="local-6989586621681726200"><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#sat%27"><span class="hs-identifier hs-type">sat'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#MaybePlaceholder"><span class="hs-identifier hs-type">MaybePlaceholder</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726199"><span class="hs-identifier hs-type">tok</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621681726200"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726199"><span class="hs-identifier hs-type">tok</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726200"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-98"></span><span id="sat%27"><span class="annot"><span class="annottext">sat' :: forall tok a. (MaybePlaceholder tok -&gt; Maybe a) -&gt; Parser tok a
+</span><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#sat%27"><span class="hs-identifier hs-var hs-var">sat'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(MaybePlaceholder tok -&gt; Maybe a)
+-&gt; Parser MemoKey tok (MaybePlaceholder tok) a
+forall a.
+(MaybePlaceholder tok -&gt; Maybe a)
+-&gt; Parser MemoKey tok (MaybePlaceholder tok) a
+forall (p :: * -&gt; *) k r tok a.
+ParserClass p k r tok =&gt;
+(tok -&gt; Maybe a) -&gt; p a
+</span><a href="Agda.Utils.Parser.MemoisedCPS.html#sat%27"><span class="hs-identifier hs-var">Parser.sat'</span></a></span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="annot"><span class="hs-comment">-- | Parses a token satisfying the given predicate.</span></span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span id="local-6989586621681726204"><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#sat"><span class="hs-identifier hs-type">sat</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#MaybePlaceholder"><span class="hs-identifier hs-type">MaybePlaceholder</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726204"><span class="hs-identifier hs-type">tok</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-103"></span><span>       </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726204"><span class="hs-identifier hs-type">tok</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.Common.html#MaybePlaceholder"><span class="hs-identifier hs-type">MaybePlaceholder</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726204"><span class="hs-identifier hs-type">tok</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-104"></span><span id="sat"><span class="annot"><span class="annottext">sat :: forall tok.
+(MaybePlaceholder tok -&gt; Bool) -&gt; Parser tok (MaybePlaceholder tok)
+</span><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#sat"><span class="hs-identifier hs-var hs-var">sat</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(MaybePlaceholder tok -&gt; Bool)
+-&gt; Parser MemoKey tok (MaybePlaceholder tok) (MaybePlaceholder tok)
+forall (p :: * -&gt; *) k r tok.
+ParserClass p k r tok =&gt;
+(tok -&gt; Bool) -&gt; p tok
+</span><a href="Agda.Utils.Parser.MemoisedCPS.html#sat"><span class="hs-identifier hs-var">Parser.sat</span></a></span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- | Uses the given document as the printed representation of the</span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- given parser. The document's precedence is taken to be 'atomP'.</span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span id="local-6989586621681726211"><span id="local-6989586621681726212"><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#doc"><span class="hs-identifier hs-type">doc</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726211"><span class="hs-identifier hs-type">tok</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726212"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726211"><span class="hs-identifier hs-type">tok</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726212"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-110"></span><span id="doc"><span class="annot"><span class="annottext">doc :: forall tok a. Doc -&gt; Parser tok a -&gt; Parser tok a
+</span><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#doc"><span class="hs-identifier hs-var hs-var">doc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc
+-&gt; Parser MemoKey tok (MaybePlaceholder tok) a
+-&gt; Parser MemoKey tok (MaybePlaceholder tok) a
+forall (p :: * -&gt; *) k r tok a.
+ParserClass p k r tok =&gt;
+Doc -&gt; p a -&gt; p a
+</span><a href="Agda.Utils.Parser.MemoisedCPS.html#doc"><span class="hs-identifier hs-var">Parser.doc</span></a></span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- | Memoises the given parser.</span><span>
+</span><span id="line-113"></span><span class="hs-comment">--</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- Every memoised parser must be annotated with a /unique/ key.</span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- (Parametrised parsers must use distinct keys for distinct inputs.)</span><span>
+</span><span id="line-116"></span><span>
+</span><span id="line-117"></span><span id="local-6989586621681726220"><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#memoise"><span class="hs-identifier hs-type">memoise</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#MemoKey"><span class="hs-identifier hs-type">MemoKey</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726220"><span class="hs-identifier hs-type">tok</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726220"><span class="hs-identifier hs-type">tok</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726220"><span class="hs-identifier hs-type">tok</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726220"><span class="hs-identifier hs-type">tok</span></a></span></span><span>
+</span><span id="line-118"></span><span id="memoise"><span class="annot"><span class="annottext">memoise :: forall tok. MemoKey -&gt; Parser tok tok -&gt; Parser tok tok
+</span><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#memoise"><span class="hs-identifier hs-var hs-var">memoise</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MemoKey
+-&gt; Parser MemoKey tok (MaybePlaceholder tok) tok
+-&gt; Parser MemoKey tok (MaybePlaceholder tok) tok
+forall (p :: * -&gt; *) k r tok.
+(ParserClass p k r tok, Hashable k, Show k) =&gt;
+k -&gt; p r -&gt; p r
+</span><a href="Agda.Utils.Parser.MemoisedCPS.html#memoise"><span class="hs-identifier hs-var">Parser.memoise</span></a></span><span>
+</span><span id="line-119"></span><span>
+</span><span id="line-120"></span><span class="hs-comment">-- | Memoises the given parser, but only if printing, not if parsing.</span><span>
+</span><span id="line-121"></span><span class="hs-comment">--</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- Every memoised parser must be annotated with a /unique/ key.</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- (Parametrised parsers must use distinct keys for distinct inputs.)</span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span id="local-6989586621681726384"><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#memoiseIfPrinting"><span class="hs-identifier hs-type">memoiseIfPrinting</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#MemoKey"><span class="hs-identifier hs-type">MemoKey</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726384"><span class="hs-identifier hs-type">tok</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726384"><span class="hs-identifier hs-type">tok</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726384"><span class="hs-identifier hs-type">tok</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726384"><span class="hs-identifier hs-type">tok</span></a></span></span><span>
+</span><span id="line-126"></span><span id="memoiseIfPrinting"><span class="annot"><span class="annottext">memoiseIfPrinting :: forall tok. MemoKey -&gt; Parser tok tok -&gt; Parser tok tok
+</span><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#memoiseIfPrinting"><span class="hs-identifier hs-var hs-var">memoiseIfPrinting</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MemoKey
+-&gt; Parser MemoKey tok (MaybePlaceholder tok) tok
+-&gt; Parser MemoKey tok (MaybePlaceholder tok) tok
+forall (p :: * -&gt; *) k r tok.
+(ParserClass p k r tok, Hashable k, Show k) =&gt;
+k -&gt; p r -&gt; p r
+</span><a href="Agda.Utils.Parser.MemoisedCPS.html#memoiseIfPrinting"><span class="hs-identifier hs-var">Parser.memoiseIfPrinting</span></a></span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- | Tries to print the parser, or returns 'empty', depending on the</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- implementation. This function might not terminate.</span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span id="local-6989586621681726223"><span id="local-6989586621681726224"><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#grammar"><span class="hs-identifier hs-type">grammar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726223"><span class="hs-identifier hs-type">tok</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681726224"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span></span></span><span>
+</span><span id="line-132"></span><span id="grammar"><span class="annot"><span class="annottext">grammar :: forall tok a. Parser tok a -&gt; Doc
+</span><a href="Agda.Syntax.Concrete.Operators.Parser.Monad.html#grammar"><span class="hs-identifier hs-var hs-var">grammar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser MemoKey tok (MaybePlaceholder tok) a -&gt; Doc
+forall a.
+Show MemoKey =&gt;
+Parser MemoKey tok (MaybePlaceholder tok) a -&gt; Doc
+forall (p :: * -&gt; *) k r tok a.
+(ParserClass p k r tok, Show k) =&gt;
+p a -&gt; Doc
+</span><a href="Agda.Utils.Parser.MemoisedCPS.html#grammar"><span class="hs-identifier hs-var">Parser.grammar</span></a></span><span>
+</span><span id="line-133"></span></pre></body></html>
