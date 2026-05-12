@@ -10,6 +10,13 @@ documentation and test suite. For new features, the desirability and design
 should be discussed in advance via a feature request before creating a pull
 request.
 
+New contributors who are interested to contribute to Agda more structurally are
+encouraged to get in contact with the core developers via the #developers
+channel on the Agda Zulip
+(https://agda.zulipchat.com/#narrow/channel/259645-developers) or in person at
+one of the biannual Agda Meetings
+(https://wiki.portal.chalmers.se/agda/Main/AgdaMeetings).
+
 ## Coding guidelines
 
 All contributions are expected to be of high quality and not violate the
