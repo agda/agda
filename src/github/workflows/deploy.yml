@@ -50,7 +50,7 @@ jobs:
       LINUX_ARGS: "--flags=optimise-heavily --enable-executable-static  --enable-split-sections"
       MACOS_ARGS: "--flags=optimise-heavily"
       WIN64_ARGS: "--flags=optimise-heavily --enable-split-sections"
-      MATRIX_OS: ${{ matrix.os }}
+
     runs-on: ${{ matrix.os }}
     steps:
 
@@ -62,46 +62,56 @@ jobs:
       # We would like to disable SC2129 "Consider using { cmd1; cmd2; } >> file"
       # for the entire script but just placing it in the beginning does not work.
       # # shellcheck disable=SC2129
+      # We first set the variables to defaults and then override them with OS-specific variants.
+      # Note that we only use filenames without spaces so we do not have to quote them.
+      # We will sometimes do so nevertheless to pacify shellcheck.
+      # We also use ${{ env.ARGS }} instead of ${ARGS} to skip the "did you mean ${args}?" warning.
       run: |
-        bindist="Agda"
+        bindist=Agda
+        exe=agda
+        content_type=application/x-xz
 
-        if [[ "$OSTYPE" == "msys"* ]]; then
+        if [[ "${{ runner.os }}" == Windows ]]; then
 
-          filename="win64.zip"
-          exe="agda.exe"
-          echo args="${ARGS} ${WIN64_ARGS}"                         >> "${GITHUB_OUTPUT}"
-          echo content-type="application/zip"                       >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="cd ${bindist} && 7z a ${filename} -bb -mx=9 && mv ${filename} .." >> "${GITHUB_OUTPUT}"
+          args="${{ env.ARGS}} ${WIN64_ARGS}"
+          content_type=application/zip
+          exe=agda.exe
+          filename=win64.zip
 
-        elif [[ "$MATRIX_OS" == "macos-15-intel" ]]; then
+          compress_cmd="cd ${bindist} && 7z a ${filename} -bb -mx=9 && mv ${filename} .."
 
-          filename="macOS-x64.tar.xz"
-          exe="agda"
-          echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
-          echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="tar -a -cvf ${filename} -C ${bindist}" "${exe}"  >> "${GITHUB_OUTPUT}"
+        elif [[ "${{ matrix.os }}" == macos-15-intel ]]; then
 
-        elif [[ "$MATRIX_OS" == "macos-latest" ]]; then
+          args="${{ env.ARGS }} ${MACOS_ARGS}"
+          filename=macOS-x64.tar.xz
 
-          filename="macOS-arm64.tar.xz"
-          exe="agda"
-          echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
-          echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="tar -a -cvf ${filename} -C ${bindist}" "${exe}"  >> "${GITHUB_OUTPUT}"
+          compress_cmd="tar -a -cvf ${filename} -C ${bindist} ${exe}"
 
-        elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        elif [[ "${{ matrix.os }}" == macos-latest ]]; then
 
-          filename="linux.tar.xz"
-          exe="agda"
-          echo args="${ARGS} ${LINUX_ARGS}"                         >> "${GITHUB_OUTPUT}"
-          echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="tar -a -cvf ${filename} -C ${bindist}" "${exe}"  >> "${GITHUB_OUTPUT}"
+          args="${{ env.ARGS }} ${MACOS_ARGS}"
+          filename=macOS-arm64.tar.xz
 
+          compress_cmd="tar -a -cvf ${filename} -C ${bindist} ${exe}"
+
+        elif [[ "${{ runner.os }}" == Linux ]]; then
+
+          args="${{ env.ARGS }} ${LINUX_ARGS}"
+          filename=linux.tar.xz
+
+          compress_cmd="tar -a -cvf ${filename} -C ${bindist} ${exe}"
+
+        else
+          exit 1
         fi
 
-        echo bindist="${bindist}"                                 >> "${GITHUB_OUTPUT}"
-        echo exe="${exe}"                                         >> "${GITHUB_OUTPUT}"
-        echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
+        echo args="${args}"                  >> "${GITHUB_OUTPUT}"
+        echo bindist="${bindist}"            >> "${GITHUB_OUTPUT}"
+        echo compress_cmd="${compress_cmd}"  >> "${GITHUB_OUTPUT}"
+        echo content_type="${content_type}"  >> "${GITHUB_OUTPUT}"
+        echo exe="${exe}"                    >> "${GITHUB_OUTPUT}"
+        echo filename="${filename}"          >> "${GITHUB_OUTPUT}"
+
 
     - name: Display build variables
       run: |
@@ -109,8 +119,8 @@ jobs:
         echo "GITHUB_REF_NAME = ${GITHUB_REF_NAME}"
 
         echo "args            = ${{ steps.vars.outputs.args         }}"
-        echo "compress-cmd    = ${{ steps.vars.outputs.compress-cmd }}"
-        echo "content-type    = ${{ steps.vars.outputs.content-type }}"
+        echo "compress_cmd    = ${{ steps.vars.outputs.compress_cmd }}"
+        echo "content_type    = ${{ steps.vars.outputs.content_type }}"
         echo "filename        = ${{ steps.vars.outputs.filename     }}"
 
     - name: Set up Alpine Linux with GHC
@@ -219,11 +229,11 @@ jobs:
       run: |
         cabal update # Liang-Ting (2024-01-26): Alpine Linux has its own GHC toolchain
         cabal configure ${{ steps.vars.outputs.args }}
-        cabal build exe:agda --only-dependencies
+        cabal build --only-dependencies
 
     - name: Build dependencies
       if: ${{ steps.cache.outputs.cache-hit != 'true' && runner.os != 'Linux' }}
-      run: cabal build exe:agda --only-dependencies
+      run: cabal build --only-dependencies
 
     - name: Build Agda (on Alpine Linux)
       if: ${{ runner.os == 'Linux' }}
@@ -235,27 +245,24 @@ jobs:
       run: cabal build exe:agda
 
     - name: Move artefacts to ${{ steps.vars.outputs.bindist }}
+      # To locate the executable on Alpine, we fall back to "find"
+      # because "cabal" malfunctions if we are not in the alpine.sh
       run: |
         bindist="${{ steps.vars.outputs.bindist }}"
         mkdir -p "${bindist}"
-
-        if [[ "$OSTYPE" == "msys"* ]]; then
-
-          find dist-newstyle/build \( -name 'agda.exe' \) -type f -exec cp {} "${bindist}" \;
-          strip "${bindist}"/*
-
+        if [[ ${{ runner.os }} == Linux ]]; then
+          exepath=$(find dist-newstyle/build -name agda -type f)
         else
-
-          find dist-newstyle/build \( -name 'agda' \) -type f -exec cp {} "${bindist}" \;
-          strip "${bindist}"/*
-
+          exepath=$(cabal list-bin exe:agda)
         fi
-
-        file "${{ steps.vars.outputs.bindist }}/agda"
+        exe=$(basename "${exepath}")
+        cp "${exepath}" "${bindist}/"
+        strip "${bindist}/${exe}"
+        file "${bindist}/agda"
 
     - name: Pack artefacts
       run: |
-        ${{ steps.vars.outputs.compress-cmd }}
+        ${{ steps.vars.outputs.compress_cmd }}
 
     - uses: actions/upload-artifact@v7
       with:
@@ -271,32 +278,31 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, macos-15-intel, ubuntu-latest]
-    env:
-      MATRIX_OS: ${{ matrix.os }}
+
     runs-on: ${{ matrix.os }}
     steps:
     - name: Set up platform-dependent variables
       id: vars
       run: |
-        if [[ "$OSTYPE" == "msys"* ]]; then
+        if [[ "${{ runner.os }}" == Windows ]]; then
 
           osname="win64"
           ext="zip"
           decompress_cmd_base="7z x"
 
-        elif [[ "$MATRIX_OS" == "macos-15-intel" ]]; then
+        elif [[ "${{ matrix.os }}" == "macos-15-intel" ]]; then
 
           osname="macOS-x64"
           ext="tar.xz"
           decompress_cmd_base="tar -xf"
 
-        elif [[ "$MATRIX_OS" == "macos-latest" ]]; then
+        elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
 
           osname="macOS-arm64"
           ext="tar.xz"
           decompress_cmd_base="tar -xf"
 
-        elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        elif [[ "${{ runner.os }}" == Linux ]]; then
 
           osname="linux"
           ext="tar.xz"
@@ -306,26 +312,26 @@ jobs:
 
         filename="${osname}.${ext}"
         echo filename="${filename}"                              >> "${GITHUB_OUTPUT}"
-        echo decompress-cmd="${decompress_cmd_base} ${filename}" >> "${GITHUB_OUTPUT}"
+        echo decompress_cmd="${decompress_cmd_base} ${filename}" >> "${GITHUB_OUTPUT}"
 
     - name: Display variables
       run: |
         echo "filename        = ${{ steps.vars.outputs.filename       }}"
-        echo "decompress-cmd  = ${{ steps.vars.outputs.decompress-cmd }}"
+        echo "decompress_cmd  = ${{ steps.vars.outputs.decompress_cmd }}"
 
     - uses: actions/download-artifact@v8
       with:
         name: ${{ steps.vars.outputs.filename }}
 
-    - name: Unpack artefacts
+    - name: Unpack artifacts
       run: |
-        ${{ steps.vars.outputs.decompress-cmd }}
+        ${{ steps.vars.outputs.decompress_cmd }}
 
     - name: Run `agda --setup`
 # Liang-Ting Chen (2025-06-21): Agda is currently not notarized on macOS, so
 # the special attribute needs to be cleared before use.
       run: |
-        if [[ "$MATRIX_OS" == "macos"* ]]; then
+        if [[ "${{ runner.os }}" == macOS ]]; then
           xattr -c agda
         fi
 
