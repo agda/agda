@@ -60,6 +60,7 @@ import Agda.TypeChecking.Monad.Benchmark (billTo)
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Syntax.Common.Pretty (prettyShow)
@@ -86,12 +87,21 @@ initialInstanceCandidates blockOverlap instTy = do
       reportSDoc "tc.instance.cands" 30 $ "Instance type is a variable. "
       runBlocked (getContextCands Nothing)
     OutputTypeName n -> Bench.billTo [Bench.Typing, Bench.InstanceSearch, Bench.InitialCandidates] do
-      reportSDoc "tc.instance.cands" 30 $ "Found instance type head: " <+> prettyTCM n
-      runBlocked do
-        local  <- getContextCands (Just n)
-        global <- getScopeDefs n
-        lift $ tickCandidates n $ length local + length global
-        pure $ local <> global
+      runBlocked (isSingletonType instTy) >>= \case
+        -- Andreas, 2026-05-07, issue #8553
+        -- If we can find a solution by eta-expansion, we do not have go through tedious search.
+        -- Also, 'dropSameCandidates' makes wrong decisions when all candidates are equal
+        -- modulo eta but differ in their unsolved instance metas.
+        -- So we cut the search short here.
+        Right (Just v) -> return $ Right $ singleton $
+          Candidate LocalCandidate v instTy Overlaps -- not sure about "Overlaps" but this might not matter
+        _ -> do
+          reportSDoc "tc.instance.cands" 30 $ "Found instance type head: " <+> prettyTCM n
+          runBlocked do
+            local  <- getContextCands (Just n)
+            global <- getScopeDefs n
+            lift $ tickCandidates n $ length local + length global
+            pure $ local <> global
   where
     -- Ticky profiling for statistics about a class.
     tickCandidates n size = whenProfile Profile.Instances do
@@ -898,7 +908,11 @@ debugCandidateTerm = debugCandidate' False True
 checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe ([(Candidate, TCErr)], [(Candidate, Term)]))
 checkCandidates m t cands =
   verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++! prettyShow m) $
-  ifM (anyMetaTypes cands) (return Nothing) $ Just <$> do
+  -- Andreas, 2026-05-07: Ulf, 2015-10-31 commit 711bc27
+  -- If there are candidates of meta type we won't be able to solve the constraint
+  -- anyway and trying can be very expensive since checking a candidate might
+  -- lead to further instance problems (exponential in depth).
+  ifM (anyM (isMetaV . candidateType) cands) (return Nothing) $ Just <$> do
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ "target:" <+> prettyTCM t
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ "candidates", vcat (map' debugCandidate cands) ]
@@ -913,13 +927,8 @@ checkCandidates m t cands =
 
     return cands'
   where
-    anyMetaTypes :: [Candidate] -> TCM Bool
-    anyMetaTypes [] = return False
-    anyMetaTypes (Candidate _ _ a _ : cands) = do
-      a <- instantiate a
-      case unEl a of
-        MetaV{} -> return True
-        _       -> anyMetaTypes cands
+    isMetaV :: Type -> TCM Bool
+    isMetaV a = isJust . isMeta <$> instantiate a
 
     checkDepth :: Term -> Type -> TCM YesNo -> TCM YesNo
     checkDepth c a k = locallyTC eInstanceDepth succ $ do
@@ -980,7 +989,7 @@ checkCandidates m t cands =
             stealConstraints pid
             let
               blocking = foldMap (allBlockingMetas . constraintUnblocker) cons
-              !ok = getAll $! flip allMetas t (All . not . flip Set.member blocking)
+              !ok = getAll $! allMetas (All . not . flip Set.member blocking) t
             pure (cons, ok)
           debugConstraints
 
