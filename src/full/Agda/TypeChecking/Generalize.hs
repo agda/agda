@@ -124,7 +124,6 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.HashMap.Strict qualified as HMap
 import Data.List (partition, sortBy)
 import Data.Monoid
 
@@ -172,14 +171,8 @@ import qualified Agda.Utils.VarSet as VarSet
 generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> ([Maybe Name] -> Telescope -> TCM a) -> TCM a
 generalizeTelescope vars typecheckAction ret | Map.null vars = typecheckAction (ret [])
 generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
-  -- Andreas, May 2026, issue #6670.
-  -- The substitution sub (below) needs to be applied to the sections
-  -- and definitions created during createMetasAndTypeCheck in the
-  -- same way as it is applied to the generated let-bindings.
-  -- We obtain the newly created sections and definitions as a diff
-  -- between the "before" and "after" state.
-  sectionsBefore <- useTC (stSignature . sigSections)
-  definitionsBefore <- useTC (stSignature . sigDefinitions)
+  -- Andreas, May 2026, issue #6670:
+  -- createMetasAndTypeCheck may add some new anonymous modules.
   anonymousModulesBefore <- viewTC eAnonymousModules
   let s = Map.keysSet vars
   ((cxtNames, tel, letbinds, anonymousModules), namedMetas, allmetas) <-
@@ -188,16 +181,7 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
       lbs <- getLetBindings -- This gives let-bindings valid in the current context
       anons <- viewTC eAnonymousModules
       return (xs, tel, lbs, anons)
-  sectionsAfter <- useTC (stSignature . sigSections)
-  definitionsAfter <- useTC (stSignature . sigDefinitions)
-  let newSections = Map.keysSet $ Map.difference sectionsAfter sectionsBefore
-      sectionDefs = Set.fromList
-        [ q
-        | q <- HMap.keys definitionsAfter
-        , not $ HMap.member q definitionsBefore
-        , Set.member (qnameModule q) newSections
-        ]
-      newAnonymousModules = take' (length anonymousModules - length anonymousModulesBefore) anonymousModules
+  let newAnonymousModules = take' (length anonymousModules - length anonymousModulesBefore) anonymousModules
 
   reportSDoc "tc.generalize.metas" 60 $ vcat
     [ "open metas =" <+> (text . show . fmap ((miNameSuggestion &&& miGeneralizable) . mvInfo)) (openMetas $ allmetas)
@@ -238,15 +222,6 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   -- And sections created by module applications in the telescope (#6916)
   --   Γ (r : R) ⊢ Σ            Σ = sectionApps
   --   Γ Δ       ⊢ Σρ
-  forM_ newSections \ m -> do
-    sec <- fromMaybe __IMPOSSIBLE__ <$> getSection m
-    tel <- applySubst sub <$> instantiateFull (sec ^. secTelescope)
-    modifySignature $ over sigSections $ Map.adjust (set secTelescope tel) m
-      -- TODO: do we need to update the module checkpoint for m?
-  forM_ sectionDefs \ q -> do
-    t <- applySubst sub <$> do instantiateFull . defType =<< getConstInfo q
-    modifySignature $ updateDefinition q $ updateDefType $ const t
-
   let addLet (x, LetBinding isAxiom o v dom) = addLetBinding' isAxiom o x v dom
   updateContext sub (cxPrepend genTelCxt . cxDrop 1) $
     updateContext (raiseS (size tel')) (cxPrepend newTelCxt) $
