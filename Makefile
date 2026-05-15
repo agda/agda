@@ -423,7 +423,12 @@ test : check-whitespace \
        std-lib-interaction \
        user-manual-test \
        doc-test \
-       size-solver-test
+       size-solver-test \
+	   test-suite-covers-errors \
+	   test-suite-covers-warnings \
+	   user-manual-covers-options \
+	   user-manual-covers-warnings \
+	   build-succeed-test \
 
 .PHONY : test-using-std-lib ## Run all tests which use the standard library.
 test-using-std-lib : std-lib-test \
