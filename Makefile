@@ -429,6 +429,8 @@ test : check-whitespace \
 	   user-manual-covers-options \
 	   user-manual-covers-warnings \
 	   build-succeed-test \
+	   build-fail-test \
+	   cubical-succeed
 
 .PHONY : test-using-std-lib ## Run all tests which use the standard library.
 test-using-std-lib : std-lib-test \
