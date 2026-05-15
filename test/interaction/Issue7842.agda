@@ -17,3 +17,5 @@ cong :
 cong {x = x} f eq = {!subst (λ y → x ≡ y → f x ≡ f y) ? ? eq!}
 
 -- giving should produce InteractionError.CannotGive
+-- András-2026-03-14: the pattern violation seemed to be a bug in occurs checking,
+-- so this should not actually produce a CannotGive
