@@ -35,6 +35,7 @@ import Agda.Interaction.Options.Lenses
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Pattern (containsAbsurdPattern)
 import Agda.Syntax.Abstract.Views (asView, deepUnscope)
 import Agda.Syntax.Concrete (FieldAssignment'(..),LensInScope(..))
 import Agda.Syntax.Common as Common hiding (DataOrRecord)
@@ -1391,7 +1392,8 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Issue #7503: use principal sort for checking if split is ok
       let a' = set lensSort s a
-      addContext delta1 $ checkSortOfSplitVar dr a' delta2 (Just target)
+      let inAbsurdClause = containsAbsurdPattern focusPat
+      addContext delta1 $ checkSortOfSplitVar inAbsurdClause dr a' delta2 (Just target)
 
       -- Jesper, 2019-09-13: if the data type we split on is a strict
       -- set, we locally enable --with-K during unification.
@@ -2083,8 +2085,8 @@ checkParameters dc d pars = liftTCM $ do
 
 checkSortOfSplitVar :: (MonadTCM m, PureTCM m, MonadError TCErr m,
                         LensSort a, PrettyTCM a, LensSort ty, PrettyTCM ty)
-                    => DataOrRecord -> a -> Telescope -> Maybe ty -> m ()
-checkSortOfSplitVar dr a tel mtarget = do
+                    => Bool -> DataOrRecord -> a -> Telescope -> Maybe ty -> m ()
+checkSortOfSplitVar inAbsurdClause dr a tel mtarget = do
   let s = getSort a
   sa <- liftTCM $ reduce s
   case sortUniv sa of
@@ -2097,6 +2099,7 @@ checkSortOfSplitVar dr a tel mtarget = do
 
   where
     checkPropSplit
+      | inAbsurdClause = return ()
       | IsRecord InductionAndEta { recordInduction=Nothing } <- dr = return ()
       | Just target <- mtarget = do
         reportSDoc "tc.sort.check" 20 $ "target prop:" <+> prettyTCM target
