@@ -688,7 +688,7 @@ mapForcedArguments c xs k = do
 -- | Extract recursive calls from one clause.
 termClause :: Clause -> TerM Calls
 termClause clause = do
-  Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = body } <- etaExpandClause clause
+  Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = body } <- snd <$> etaExpandClause clause
   liftTCM $ reportSDoc "term.check.clause" 25 $ vcat
     [ "termClause"
     , nest 2 $ "tel =" <+> prettyTCM tel
