@@ -142,15 +142,16 @@ type NodeMap v = HT.HashTableLL Node v
 lookupNode :: Node -> NodeMap v -> (v -> IO a) -> IO a -> IO a
 lookupNode node map found notfound = HT.lookupCPS node map found notfound
 
-{-# NOINLINE isMutual #-}
-isMutual :: QName -> OccM Bool
-isMutual q = do
-  mutuals <- asks mutuals
-  lift $ lift $ HT.hasKey mutuals q
+{-# INLINE lookupMutual #-}
+lookupMutual :: QName -> (Int -> OccM a) -> OccM a -> OccM a
+lookupMutual q found notfound = ReaderT \e -> TCM \tcs tce ->
+  HT.lookupCPS q (mutuals e)
+    (\x -> unTCM (runReaderT (found x) e) tcs tce)
+    (unTCM (runReaderT notfound e) tcs tce)
 
 {-# NOINLINE insertMutual #-}
-insertMutual :: Mutuals -> QName -> IO ()
-insertMutual muts q = HT.insert muts q ()
+insertMutual :: Mutuals -> QName -> Int -> IO ()
+insertMutual muts q arity = HT.insert muts q arity
 
 {-# NOINLINE insertNode #-}
 insertNode :: Node -> v -> NodeMap v -> IO ()
@@ -296,8 +297,10 @@ keep track of the "path" during traversal that leads from the current position t
 data DefArgInEnv = DefArgInEnv Int [Occurrence]
   deriving Show
 
--- | Set of mutual definition names in the block.
-type Mutuals = HT.HashTableLU QName ()
+-- | Mutual definition names in the block.
+--   Each name is mapped to an arity. It's meaningful for 'FunctionDefn'-s; see 'preprocessMutuals'
+--   for docs. For everything else it's set to @maxBound :: Int@.
+type Mutuals = HT.HashTableLU QName Int
 
 data OccEnv = OccEnv {
     topDef     :: QName         -- ^ The definition we're working under (as n-th definition in the mutual block)
@@ -358,6 +361,13 @@ getOccurrencesFromType a = (optPolarity <$> pragmaOptions) >>= \case
             pure (p:ps)
           _ -> pure []
     liftReduce (go a)
+
+addRawEdge :: Range -> Occurrence -> Node -> Node -> OccM ()
+addRawEdge rng occ src tgt = do
+  path   <- asks path
+  graph  <- asks graph
+  let e = Edge occ (OccursWhere rng path)
+  lift $ lift $ addEdgeToGraph src tgt e graph
 
 addEdge :: Range -> Node -> OccM ()
 addEdge rng src = do
@@ -441,26 +451,37 @@ instance ComputeOccurrences Term where
         _      -> __IMPOSSIBLE__
 
       _ -> do
-        isMut <- isMutual d
-        expand \ret -> case isMut of
+        lookupMutual d
 
           -- it's a mutual definition
-          True -> ret do
-            addEdge (getRange d) (DefNode d)
+          (\arity -> do
+            let range = getRange d
+            addEdge range (DefNode d)
             expand \ret -> case es of
               [] -> ret $ pure ()  -- we skip the mutualDefOcc in this case
               es -> ret do
-                let elims d p i es = expand \ret -> case es of
+                def <- lift $ getConstInfo d
+                let defOcc = mutualDefOcc def
+                let elims d p i arity es = expand \ret -> case es of
                       []   -> ret $ pure ()
-                      e:es -> ret do occurrencesInMutDefArg d p i e
-                                     elims d p (i + 1) es
+                      e:es -> ret $ expand \ret -> case i < arity of
 
-                defOcc <- lift (mutualDefOcc <$> getConstInfo d)
-                elims d defOcc 0 es
+                        True  -> ret do
+                          occurrencesInMutDefArg d p i e
+                          elims d p (i + 1) arity es
+
+                        -- we're over the formal arity of the definition so every arg occurs Mixed
+                        -- in its definition
+                        False -> ret do
+                          addRawEdge range Mixed (ArgNode d i) (DefNode d)
+                          occurrencesInMutDefArg d p i e
+                          elims d p (i + 1) arity es
+                elims d defOcc 0 arity es
+          )
 
           -- it's not a mutual definition, we use existing defArgOccurrences
           -- in each argument in the Elims
-          False -> ret do
+          (do
             def <- lift $ getConstInfo d
             case theDef def of
               Constructor{} -> do
@@ -493,6 +514,7 @@ instance ComputeOccurrences Term where
                 let defOcc = mutualDefOcc def
                 let argOccs = defArgOccurrences def
                 underOcc defOcc $ elims d (defType def) 0 argOccs es
+          )
 
     Con _ _ es -> ret $ occurrences es
     MetaV m es -> ret $ underPathSetOcc MetaArg Mixed (occurrences es)
@@ -593,8 +615,8 @@ instance ComputeOccurrences Int where
   occurrences _ = pure ()
 
 -- | Compute occurrences in a given definition.
-computeDefOccurrences :: QName -> OccM ()
-computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
+computeDefOccurrences :: QName -> Maybe [Clause] -> OccM ()
+computeDefOccurrences q clauses = inConcreteOrAbstractMode q \def -> do
   reportSDoc "tc.pos" 25 do
     let a = defAbstract def
     m   <- viewTC eAbstractMode
@@ -613,9 +635,13 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
   let defOcc = mutualDefOcc def
   underPathOcc (`InDefOf` q) defOcc $ expand \ret -> case theDef def of
 
-    Function{funClauses = cs} -> ret do
+    Function{} -> ret do
+      -- eta-expanded clauses are already computed by
+      -- etaExpandFunctionClauses
+      cs <- case clauses of
+        Just cs -> pure cs
+        Nothing -> __IMPOSSIBLE__
 
-      cs <- lift $ mapM etaExpandClause =<< instantiateFull cs
       performAnalysis <- lift $ optOccurrence <$> pragmaOptions
       if performAnalysis then do
         let clauses i cs = expand \ret -> case cs of
@@ -731,17 +757,51 @@ computeDefOccurrences q = inConcreteOrAbstractMode q \def -> do
     GeneralizableVar{} -> ret mempty
     AbstractDefn{}     -> ret __IMPOSSIBLE__
 
+-- | Pre-pass that eta-expands function clauses and records the "formal arity" of the function in
+--   the signature. Any argument beyond this arity is considered to have 'Mixed' polarity.
+--   The analysis does not compute terms (or types) and cannot see arities that depend on argument values,
+--   it can only look at arities of eta-expanded definition clauses.
+--   See also issue 8564.
+--   We return the original names paired with the eta-expanded clauses.
+--   We also build up 'Mutuals' and record arities for each QName.
+--   A definition that's not a Function gets @maxBound@ for arity.
+preprocessMutuals :: [QName] -> Mutuals -> TCM [(QName, Maybe [Clause])]
+preprocessMutuals qs mutuals = forM qs \q -> inConcreteOrAbstractMode q \def -> case theDef def of
+
+  -- Postulates and primities are taken to be external to the mutual block.
+  -- User-given polarity pragmas may influence occurrence computation
+  -- in their arguments, but that's it.
+  Axiom{}     -> pure (q, Nothing)
+  Primitive{} -> pure (q, Nothing)
+
+  Function {funClauses = cs} -> do
+    cs <- mapM etaExpandClause =<< instantiateFull cs
+    let !arity   = case cs of []       -> 0
+                              (c,_):cs -> foldl' (\acc (arity, _) -> min acc arity) c cs
+    let !clauses = map' snd cs
+    lift $ insertMutual mutuals q arity
+
+    reportSDoc "tc.pos.preprocess" 30 $
+      "added function" <+> prettyTCM q <+> "to mutual block with arity" <+> pretty arity
+    pure (q, Just clauses)
+
+  _ -> do
+    reportSDoc "tc.pos.preprocess" 30 $
+      "added definition" <+> prettyTCM q <+> "to mutual block"
+    lift $ insertMutual mutuals q maxBound
+    pure (q, Nothing)
+
 buildOccurrenceGraph :: [QName] -> TCM (OccGraph, Mutuals)
 buildOccurrenceGraph qs = do
   inf <- maybe Nothing (\x -> Just $! nameOfInf x) <$> coinductionKit
 
   mutuals <- lift HT.empty
-  lift $ forM_ qs $ insertMutual mutuals
+  qs      <- preprocessMutuals qs mutuals
 
   graph <- lift HT.empty
-  TCM \st tce -> forM_ qs \q -> do
+  TCM \st tce -> forM_ qs \(q, clauses) -> do
     let env = OccEnv q [] inf 0 mutuals (DefNode q) Root StrictPos graph
-    unTCM (runReaderT (computeDefOccurrences q) env) st tce
+    unTCM (runReaderT (computeDefOccurrences q clauses) env) st tce
 
   pure (graph, mutuals)
 
