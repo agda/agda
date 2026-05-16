@@ -509,8 +509,15 @@ cover infermissing f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       -> (SplitError -> TCM CoverResult)
       -> TCM CoverResult
     continue xs allowPartialCover handle = do
-      let inAbsurdClause = any (isNothing . clauseBody) cs
-      r <- altM1 (\ x -> fmap (,x) <$> split Inductive allowPartialCover inAbsurdClause sc x) xs
+      absurdBlockingVarNos <- do
+        let absurdCs = filter (isNothing . clauseBody) cs
+        match absurdCs ps >>= \case
+          Block _ nvs -> return $ map blockingVarNo nvs
+          _           -> return []
+      r <- altM1 (\ x ->
+        let inAbsurdClause = blockingVarNo x `elem` absurdBlockingVarNos
+        in  fmap (,x) <$> split Inductive allowPartialCover inAbsurdClause sc x
+        ) xs
       case r of
         Left err -> handle err
         -- If we get the empty covering, we have reached an impossible case
