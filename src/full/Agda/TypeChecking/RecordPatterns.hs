@@ -253,7 +253,7 @@ recordRHSToCopatterns ::
 recordRHSToCopatterns cl0 = do
   reportSLn "tc.inline.con" 40 $ "enter recordRHSToCopatterns"
 
-  etaExpandClause cl0 >>= \case
+  (snd <$> etaExpandClause cl0) >>= \case
 
     -- RHS must be fully applied coinductive constructor/record expression.
     cl@Clause{ namedClausePats = ps

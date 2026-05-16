@@ -1,0 +1,7 @@
+Issue8565.agda:25.13-17: error: [UnequalTerms]
+The terms
+  x
+and
+  y
+are not equal at type Int
+when checking that the expression refl has type foo b x ≡ foo b y
