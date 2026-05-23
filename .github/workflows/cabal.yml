@@ -152,7 +152,9 @@ jobs:
         - description: macOS
           ghc-ver: 9.14.1
           os: macos-26
-        - description: Windows
+        - cabal-flags: --enable-tests --flags=use-xdg-data-home --flags=debug --flags=debug-serialisation
+            --flags=debug-parsing
+          description: Windows
           ghc-ver: 9.14.1
           os: windows-2025
         os:

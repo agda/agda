@@ -101,6 +101,13 @@ jobs:
           - os: windows-2025
             description: Windows
             ghc-ver: '9.14.1'
+            cabal-flags: >-
+              --enable-tests
+              --flags=use-xdg-data-home
+              --flags=debug
+              --flags=debug-serialisation
+              --flags=debug-parsing
+            # --flags=enable-cluster-counting
 
     # Default values
     env:
