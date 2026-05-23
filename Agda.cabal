@@ -467,6 +467,7 @@ library
 
   if flag(enable-cluster-counting)
     cpp-options:    -DCOUNT_CLUSTERS
+    extra-libraries: icuuc
     build-depends:
       text-icu             >= 0.7.1.0   && < 0.9
 
