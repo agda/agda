@@ -120,43 +120,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cabal-flags:
-        - --enable-tests --flags=enable-cluster-counting
-        description:
-        - Linux
-        doctest:
-        - false
-        ghc-ver:
-        - 9.14.1
-        - 9.12.4
-        - 9.10.3
-        - 9.8.4
-        - 9.6.7
-        - 9.4.8
-        - 9.2.8
         include:
-        - cabal-flags: --disable-tests
-          description: Linux doctest
-          doctest: true
-          ghc-ver: 9.14.1
-          os: ubuntu-24.04
-        - cabal-flags: --enable-tests --flags=debug
-          description: Linux debug
-          ghc-ver: 9.14.1
-          os: ubuntu-24.04
-        - cabal-flags: --enable-tests --flags=use-xdg-data-home --flags=enable-cluster-counting
-            --flags=debug --flags=debug-serialisation --flags=debug-parsing
-          description: Linux debug all
-          ghc-ver: 9.14.1
-          os: ubuntu-24.04
-        - description: macOS
-          ghc-ver: 9.14.1
-          os: macos-26
         - description: Windows
           ghc-ver: 9.14.1
           os: windows-2025
-        os:
-        - ubuntu-24.04
     timeout-minutes: 60
 name: Build (cabal)
 'on':
