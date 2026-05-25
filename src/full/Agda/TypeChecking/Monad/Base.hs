@@ -5996,6 +5996,7 @@ data TypeError
         | NeedOptionCubical Cubical String
             -- ^ Flavor of cubical needed for the given reason.
         | NeedOptionPatternMatching
+        | NeedOptionIrrelevance
         | NeedOptionProp
         | NeedOptionRewriting
         | NeedOptionSizedTypes String

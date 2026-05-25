@@ -1340,6 +1340,9 @@ instance PrettyTCM TypeError where
     NeedOptionPatternMatching -> fsep $
       pwords "Pattern matching is disabled (use option --pattern-matching to enable it)"
 
+    NeedOptionIrrelevance -> fsep $
+      pwords "Irrelevance modality is disabled (use options --irrelevance and --no-irrelevance to enable/disable irrelevance)"
+
     NeedOptionProp       -> fsep $
       pwords "Universe Prop is disabled (use options --prop and --no-prop to enable/disable Prop)"
 

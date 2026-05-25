@@ -725,6 +725,15 @@ Experimental features
 
     Default: ``--require-unique-meta-solutions``
 
+.. option:: --irrelevance, --no-irrelevance
+
+     .. versionadded:: 2.9.0
+
+     Enable or disable declaration and use of irrelevant function spaces, record
+     fields, and declarations (see :ref:`irrelevance <irrelevance>`).
+
+     Default: ``--irrelevance``.
+
 .. option:: --prop, --no-prop
 
      .. versionadded:: 2.6.0

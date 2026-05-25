@@ -92,6 +92,14 @@ import Agda.Utils.Monad
 
 import Agda.Utils.Impossible
 
+checkIrrelevanceAllowed :: LensRelevance a => a -> TCM ()
+checkIrrelevanceAllowed x = unlessM isIrrelevanceEnabled $
+  when (isIrrelevant x) $ typeError NeedOptionIrrelevance
+
+checkAllIrrelevanceAllowed :: (Traversable f, LensRelevance a) => f a -> TCM ()
+checkAllIrrelevanceAllowed xs = unlessM isIrrelevanceEnabled $
+  when (any isIrrelevant xs) $ typeError NeedOptionIrrelevance
+
 -- | Check whether something can be used in a position of the given relevance.
 --
 --   This is a substitute for double-checking that only makes sure

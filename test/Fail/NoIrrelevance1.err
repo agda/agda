@@ -1,0 +1,4 @@
+NoIrrelevance1.agda:3.15-25: error: [NeedOptionIrrelevance]
+Irrelevance modality is disabled (use options --irrelevance and
+--no-irrelevance to enable/disable irrelevance)
+when checking that the expression .Set → Set is a type

@@ -409,6 +409,10 @@ setIncludeDirs incs root = do
       process keep modFile ms
 
 {-# SPECIALIZE NOINLINE isPropEnabled :: TCM Bool #-}
+isIrrelevanceEnabled :: HasOptions m => m Bool
+isIrrelevanceEnabled = optIrrelevance <$> pragmaOptions
+
+{-# SPECIALIZE NOINLINE isPropEnabled :: TCM Bool #-}
 isPropEnabled :: HasOptions m => m Bool
 isPropEnabled = optProp <$> pragmaOptions
 

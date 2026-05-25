@@ -214,6 +214,7 @@ data ErrorName
   | NeedOptionCopatterns_
   | NeedOptionCubical_
   | NeedOptionPatternMatching_
+  | NeedOptionIrrelevance_
   | NeedOptionProp_
   | NeedOptionRewriting_
   | NeedOptionSizedTypes_

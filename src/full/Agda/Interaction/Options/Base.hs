@@ -49,6 +49,7 @@ module Agda.Interaction.Options.Base
     , lensOptUseUnicode
     , lensOptVerbose
     , lensOptProfiling
+    , lensOptIrrelevance
     , lensOptProp
     , lensOptLevelUniverse
     , lensOptTwoLevel
@@ -118,6 +119,7 @@ module Agda.Interaction.Options.Base
     , optShowImplicit
     , optShowGeneralized
     , optShowIrrelevant
+    , optIrrelevance
     , optProp
     , optLevelUniverse
     , optTwoLevel
@@ -286,6 +288,7 @@ impliedPragmaOptions =
 optShowImplicit              :: PragmaOptions -> Bool
 optShowGeneralized           :: PragmaOptions -> Bool
 optShowIrrelevant            :: PragmaOptions -> Bool
+optIrrelevance               :: PragmaOptions -> Bool
 optProp                      :: PragmaOptions -> Bool
 optLevelUniverse             :: PragmaOptions -> Bool
 optTwoLevel                  :: PragmaOptions -> Bool
@@ -352,6 +355,7 @@ optForcedArgumentRecursion   :: PragmaOptions -> Bool
 optShowImplicit              = collapseDefault . _optShowImplicit
 optShowGeneralized           = collapseDefault . _optShowGeneralized
 optShowIrrelevant            = collapseDefault . _optShowIrrelevant
+optIrrelevance               = collapseDefault . _optIrrelevance
 optProp                      = collapseDefault . _optProp
 optLevelUniverse             = collapseDefault . _optLevelUniverse
 optTwoLevel                  = collapseDefault . _optTwoLevel
@@ -460,6 +464,9 @@ lensOptVerbose f o = f (_optVerbose o) <&> \ i -> o{ _optVerbose = i }
 
 lensOptProfiling :: Lens' PragmaOptions _
 lensOptProfiling f o = f (_optProfiling o) <&> \ i -> o{ _optProfiling = i }
+
+lensOptIrrelevance :: Lens' PragmaOptions _
+lensOptIrrelevance f o = f (_optIrrelevance o) <&> \ i -> o{ _optIrrelevance = i }
 
 lensOptProp :: Lens' PragmaOptions _
 lensOptProp f o = f (_optProp o) <&> \ i -> o{ _optProp = i }
@@ -941,6 +948,7 @@ infectiveCoinfectiveOptions =
   , infectiveOption (isJust . optCubical)     "--cubical[={full,erased,no-glue}]"
   , cubicalWithoutGlue
   , infectiveOption optGuarded                "--guarded"
+  , infectiveOption optIrrelevance            "--irrelevance"
   , infectiveOption optProp                   "--prop"
   , infectiveOption optTwoLevel               "--two-level"
   , infectiveOption optRewriting              "--rewriting"
@@ -1525,6 +1533,9 @@ universePragmaOptions = ("Universes",) $ concat
   , pragmaFlag      "cumulativity" lensOptCumulativity
                     "enable subtyping of universes" "(e.g. Set =< Set₁)"
                     $ Just "disable subtyping of universes"
+  , pragmaFlag      "irrelevance" lensOptIrrelevance
+                    "enable the use of the irrelevance modality" ""
+                    $ Just "disable the use of the irrelevance modality"
   , pragmaFlag      "prop" lensOptProp
                     "enable the use of the Prop universe" ""
                     $ Just "disable the use of the Prop universe"

@@ -19,6 +19,9 @@ that anything prepended by a dot (``.``) is marked irrelevant, which means that 
 will only be typechecked but never evaluated or compared for equality.
 Arguments marked as irrelevant are erased by the :ref:`compiler <ghc-backend>`.
 
+Irrelevance annotations are enabled by default. You can use the options
+`--irrelevance`/`--no-irrelevance` to enable/disable them.
+
 .. note::
   This section is about compile-time irrelevance. Agda also supports a weaker
   form of irrelevance called :ref:`runtime-irrelevance` that can be used for
