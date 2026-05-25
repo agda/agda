@@ -1,0 +1,4 @@
+NoIrrelevance5.agda:3.11-20: error: [NeedOptionIrrelevance]
+Irrelevance modality is disabled (use options --irrelevance and
+--no-irrelevance to enable/disable irrelevance)
+when checking the parameters of module NoIrrelevance5

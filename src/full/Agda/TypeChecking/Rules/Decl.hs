@@ -39,6 +39,7 @@ import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Generalize
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.InstanceArguments
+import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Level.Solve
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Positivity.Occurrence
@@ -603,6 +604,8 @@ checkAxiom gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ default
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms are irrelevant
   -- even if not declared as such (Issue 610).
   rel <- max (getRelevance info0) <$> viewTC eRelevance
+
+  checkIrrelevanceAllowed rel
 
   -- Andrea, 2019-07-16 Cohesion is purely based on left-division, it
   -- does not take envModality into account.

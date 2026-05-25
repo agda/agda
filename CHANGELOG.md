@@ -154,6 +154,9 @@ Pragmas and options
   [unguarded records](https://agda.readthedocs.io/en/v2.9.0/language/record-types.html#unguarded-records)
   and [the `ETA_EQUALITY` pragma](https://agda.readthedocs.io/en/v2.9.0/language/coinduction.html#eta-pragma).
 
+* New options `--relevance` (default on) and `--no-irrelevance` to allow or
+  disallow the irrelevance modality.
+
 Errors
 ------
 

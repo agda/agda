@@ -171,6 +171,7 @@ typeErrorName = \case
   NeedOptionCopatterns                                       {} -> NeedOptionCopatterns_
   NeedOptionCubical                                          {} -> NeedOptionCubical_
   NeedOptionPatternMatching                                  {} -> NeedOptionPatternMatching_
+  NeedOptionIrrelevance                                      {} -> NeedOptionIrrelevance_
   NeedOptionProp                                             {} -> NeedOptionProp_
   NeedOptionRewriting                                        {} -> NeedOptionRewriting_
   NeedOptionSizedTypes                                       {} -> NeedOptionSizedTypes_

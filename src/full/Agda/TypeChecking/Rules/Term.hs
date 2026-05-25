@@ -310,7 +310,7 @@ checkTelescope' lamOrPi (b : tel) ret =
 
 -- | Check the domain of a function type.
 --   Used in @checkTypedBindings@ and to typecheck @A.Fun@ cases.
-checkDomain :: (LensLock a, LensModality a, LensRewriteAnn a)
+checkDomain :: (LensLock a, LensModality a, LensRewriteAnn a, LensRelevance a)
   => LamOrPi -> Maybe Name -> List1 a -> A.Expr -> TCM (Maybe RewDom, Type)
 checkDomain lamOrPi n xs e = do
     -- Get cohesion and quantity of arguments, as well as if they are local
@@ -324,6 +324,8 @@ checkDomain lamOrPi n xs e = do
 
     let (r :| rs) = fmap (getRewriteAnn) xs
     unless (all (r ==) rs) $ __IMPOSSIBLE__
+
+    checkAllIrrelevanceAllowed xs
 
     -- Also get whether the domain is a local rewrite rule. If it is, and there
     -- are multiple arguments, we warn that this is unnecessary
@@ -373,7 +375,7 @@ checkDomain lamOrPi n xs e = do
         modEnv (LamNotPi _) = workOnTypes
         modEnv PiNotLam     = id
 
-checkPiDomain :: (LensLock a, LensModality a,  LensRewriteAnn a)
+checkPiDomain :: (LensLock a, LensModality a,  LensRewriteAnn a, LensRelevance a)
               => Maybe Name -> List1 a -> A.Expr -> TCM (Maybe RewDom, Type)
 checkPiDomain = checkDomain PiNotLam
 
@@ -539,6 +541,8 @@ checkLambda' cmp r tac xps typ body target = do
   reportSDoc "tc.term.lambda" 60 $ vcat
     [ "info           =" <+> (text . show) info
     ]
+
+  checkAllIrrelevanceAllowed xs
 
   -- Consume @tac@:
   case tac of
@@ -1989,6 +1993,8 @@ checkLetBinding' b@(A.LetBind i info x t e) ret = do
       | getOrigin info == Inserted = checkDontExpandLast
       | otherwise                  = checkExpr'
 
+  checkIrrelevanceAllowed info
+
   t <- workOnTypes $ isType_ t
   v <- applyModalityToContext info $ check CmpLeq e t
 
@@ -1997,6 +2003,8 @@ checkLetBinding' b@(A.LetBind i info x t e) ret = do
 checkLetBinding' b@(A.LetAxiom i info x t) ret = do
   t <- workOnTypes $ isType_ t
   current <- currentModule
+
+  checkIrrelevanceAllowed info
 
   -- Note: if addConstant is called under a nontrivial context then
   -- it'll automatically quantify the type we give it over the context
@@ -2008,6 +2016,9 @@ checkLetBinding' b@(A.LetAxiom i info x t) ret = do
 
 checkLetBinding' b@(A.LetPatBind i ai p e) ret = do
     p <- expandPatternSynonyms p
+
+    checkIrrelevanceAllowed ai
+
     (v, t) <- applyModalityToContext ai $ inferExpr' ExpandLast e
     let -- construct a type  t -> dummy  for use in checkLeftHandSide
         t0 = El (getSort t) $ Pi (defaultArgDom ai t) (NoAbs underscore __DUMMY_TYPE__)

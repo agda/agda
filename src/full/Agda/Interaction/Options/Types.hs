@@ -111,6 +111,7 @@ data PragmaOptions = PragmaOptions
   , _optUseUnicode                :: WithDefault' UnicodeOrAscii 'True -- Would like to write UnicodeOk instead of True here
   , _optVerbose                   :: !Verbosity
   , _optProfiling                 :: ProfileOptions
+  , _optIrrelevance               :: WithDefault 'True
   , _optProp                      :: WithDefault 'False
   , _optLevelUniverse             :: WithDefault 'False
   , _optTwoLevel                  :: WithDefault 'False
