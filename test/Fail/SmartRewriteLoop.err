@@ -1,0 +1,8 @@
+SmartRewriteLoop.agda:8.1-10: warning: -W[no]SmartWithOccursFail
+_ : f x ≡ f (f x)  is not a legal rewrite rule, since the LHS
+occurs in the RHS or an earlier 'smart with' rewrite rule
+when checking that the pattern refl has type f x ≡ f (f x)
+
+SmartRewriteLoop.agda:8.1-10: error: [InvalidatedLocalRewriteRule]
+Local rewrite rule invalidated after a pattern-match
+when checking that the pattern refl has type f x ≡ f (f x)

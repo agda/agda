@@ -277,11 +277,13 @@ occursCheckSmartWithRewriteRule r = do
   let toFresh  = (applyRenLocalRewrite (AnySub $ raiseS 1) r)
         { rewRHS = var freshVar }
 
+  reportSDoc "rewriting" 30 $ "Occurs checking rewrite rule:"
+  reportSDoc "rewriting" 30 $ nest 2 $ addContext freshDom $
+    "toFresh =" <+> prettyTCM toFresh
   fmap (not . or) $ forM toCheck \t -> do
-    t' <- addContext freshDom $ addLocalRewrite toFresh $ reduce $ raise 1 t
-    reportSDoc "rewriting" 30 $ "Occurs checking rewrite rule:"
-    reportSDoc "rewriting" 30 $ nest 2 $ addContext freshDom $
-      "toFresh =" <+> prettyTCM toFresh
+    -- We really do need to 'normalise' here so we don't miss a variable.
+    -- 'reduce' is not enough!
+    t' <- addContext freshDom $ addLocalRewrite toFresh $ normalise $ raise 1 t
     reportSDoc "rewriting" 30 $ nest 2 $
       "t =" <+> prettyTCM t
     reportSDoc "rewriting" 30 $ nest 2 $ addContext freshDom $
