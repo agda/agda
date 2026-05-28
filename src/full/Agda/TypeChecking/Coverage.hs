@@ -510,10 +510,14 @@ cover infermissing f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       -> TCM CoverResult
     continue xs allowPartialCover handle = do
       absurdBlockingVarNos <- do
-        let absurdCs = filter (isNothing . clauseBody) cs
-        match absurdCs ps >>= \case
+        let (absurdCs, nonAbsurdCs) = List.partition (isNothing . clauseBody) cs
+        absurdVars <- match absurdCs ps >>= \case
           Block _ nvs -> return $ map blockingVarNo nvs
           _           -> return []
+        nonAbsurdVars <- match nonAbsurdCs ps >>= \case
+          Block _ nvs -> return $ map blockingVarNo nvs
+          _           -> return []
+        return $ filter (`notElem` nonAbsurdVars) absurdVars
       r <- altM1 (\ x ->
         let inAbsurdClause = blockingVarNo x `elem` absurdBlockingVarNos
         in  fmap (,x) <$> split Inductive allowPartialCover inAbsurdClause sc x
