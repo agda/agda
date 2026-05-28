@@ -129,6 +129,9 @@ data DeclarationWarning'
       --   Such parameters can only be names with hiding.
       --   The first 'Text' says what is wrong and thus ignored.
       --   The second 'Text' may contain extra details or clarification.
+  | InvalidEtaEqualityPragma Range
+      -- ^ A {-\# ETA_EQUALITY \#-} pragma
+      --   that does not apply to any record type.
   | InvalidNoPositivityCheckPragma Range
       -- ^ A {-\# NO_POSITIVITY_CHECK \#-} pragma
       --   that does not apply to any data or record type.
@@ -162,7 +165,6 @@ data DeclarationWarning'
       --   by @{-\# TERMINATING \#-}@ and @{-\# NON_TERMINATING \#-}@.
   | PragmaCompiled Range
       -- ^ @COMPILE@ pragmas are not allowed in safe mode.
-  | SafeFlagEta               Range -- ^ @ETA@                 pragma is unsafe.
   | SafeFlagInjective         Range -- ^ @INJECTIVE@           pragma is unsafe.
   | SafeFlagNoCoverageCheck   Range -- ^ @NON_COVERING@        pragma is unsafe.
   | SafeFlagNoPositivityCheck Range -- ^ @NO_POSITIVITY_CHECK@ pragma is unsafe.
@@ -215,6 +217,7 @@ declarationWarningName' = \case
   InvalidCatchallPragma           {} -> InvalidCatchallPragma_
   InvalidConstructorBlock         {} -> InvalidConstructorBlock_
   InvalidDataOrRecDefParameter    {} -> InvalidDataOrRecDefParameter_
+  InvalidEtaEqualityPragma        {} -> InvalidEtaEqualityPragma_
   InvalidNoPositivityCheckPragma  {} -> InvalidNoPositivityCheckPragma_
   InvalidNoUniverseCheckPragma    {} -> InvalidNoUniverseCheckPragma_
   InvalidTerminationCheckPragma   {} -> InvalidTerminationCheckPragma_
@@ -229,7 +232,6 @@ declarationWarningName' = \case
   PolarityPragmasButNotPostulates {} -> PolarityPragmasButNotPostulates_
   PragmaNoTerminationCheck        {} -> PragmaNoTerminationCheck_
   PragmaCompiled                  {} -> PragmaCompiled_
-  SafeFlagEta                     {} -> SafeFlagEta_
   SafeFlagInjective               {} -> SafeFlagInjective_
   SafeFlagNoCoverageCheck         {} -> SafeFlagNoCoverageCheck_
   SafeFlagNoPositivityCheck       {} -> SafeFlagNoPositivityCheck_
@@ -270,6 +272,7 @@ unsafeDeclarationWarning' = \case
   InvalidCatchallPragma{}           -> False
   InvalidConstructorBlock{}         -> False
   InvalidDataOrRecDefParameter{}    -> False
+  InvalidEtaEqualityPragma{}        -> False
   InvalidNoPositivityCheckPragma{}  -> False
   InvalidNoUniverseCheckPragma{}    -> False
   InvalidTerminationCheckPragma{}   -> False
@@ -284,7 +287,6 @@ unsafeDeclarationWarning' = \case
   PolarityPragmasButNotPostulates{} -> False
   PragmaNoTerminationCheck{}        -> True  -- not safe
   PragmaCompiled{}                  -> True  -- not safe
-  SafeFlagEta                    {} -> True
   SafeFlagInjective              {} -> True
   SafeFlagNoCoverageCheck        {} -> True
   SafeFlagNoPositivityCheck      {} -> True
@@ -311,7 +313,8 @@ unsafePragma p =
     CatchallPragma{}           -> empty
     CompilePragma{}            -> singleton $ PragmaCompiled r
     DisplayPragma{}            -> empty
-    EtaPragma{}                -> singleton $ SafeFlagEta r
+    EtaPragma{}                -> empty
+    EtaEqualityPragma{}        -> empty
     ForeignPragma{}            -> empty
     ImpossiblePragma{}         -> empty
     InjectivePragma{}          -> singleton $ SafeFlagInjective r
@@ -386,6 +389,7 @@ instance HasRange DeclarationWarning' where
     InvalidConstructorBlock r          -> r
     InvalidCoverageCheckPragma r       -> r
     InvalidDataOrRecDefParameter r _ _ _ -> r
+    InvalidEtaEqualityPragma r         -> r
     InvalidNoPositivityCheckPragma r   -> r
     InvalidNoUniverseCheckPragma r     -> r
     InvalidTerminationCheckPragma r    -> r
@@ -399,7 +403,6 @@ instance HasRange DeclarationWarning' where
     PolarityPragmasButNotPostulates xs -> getRange xs
     PragmaCompiled r                   -> r
     PragmaNoTerminationCheck r         -> r
-    SafeFlagEta r                      -> r
     SafeFlagInjective r                -> r
     SafeFlagNoCoverageCheck r          -> r
     SafeFlagNoPositivityCheck r        -> r
@@ -585,6 +588,9 @@ instance Pretty DeclarationWarning' where
     InvalidCatchallPragma _ -> fsep $
       pwords "The CATCHALL pragma can only precede a function clause."
 
+    InvalidEtaEqualityPragma _ -> fsep $
+      pwords "The ETA_EQUALITY pragma can only precede a record definition."
+
     InvalidNoUniverseCheckPragma _ -> fsep $
       pwords "NO_UNIVERSE_CHECKING pragmas can only precede a data/record definition."
 
@@ -611,7 +617,6 @@ instance Pretty DeclarationWarning' where
         <?>
       fsep (fmap (pretty . fst) nrs)
 
-    SafeFlagEta               _ -> unsafePragma "ETA"
     SafeFlagInjective         _ -> unsafePragma "INJECTIVE"
     SafeFlagNoCoverageCheck   _ -> unsafePragma "NON_COVERING"
     SafeFlagNoPositivityCheck _ -> unsafePragma "NO_POSITIVITY_CHECK"

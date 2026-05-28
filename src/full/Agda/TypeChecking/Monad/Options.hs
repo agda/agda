@@ -463,6 +463,7 @@ positivityCheckEnabled = optPositivityCheck <$> pragmaOptions
 typeInType :: HasOptions m => m Bool
 typeInType = not . optUniverseCheck <$> pragmaOptions
 
+-- | Is eta-equality enabled according to the options (@--(no-)eta-equality@)?
 etaEnabled :: HasOptions m => m Bool
 etaEnabled = optEta <$> pragmaOptions
 

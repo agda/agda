@@ -9,7 +9,7 @@ data _<_ : Nat → Nat → Set where
 
 record Acc (a : Nat) : Prop where
   inductive
-  pattern
+  no-eta-equality; pattern
   constructor acc
   field acc< : (∀ b → b < a → Acc b)
 

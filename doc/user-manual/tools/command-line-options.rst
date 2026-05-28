@@ -1681,6 +1681,12 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      :ref:`NO_UNIVERSE_CHECK <no_universe_check-pragma>` pragmas before declarations other than ``data`` or ``record`` declarations.
 
+.. option:: InvalidEtaEqualityPragma
+
+     .. versionadded:: 2.9.0
+
+     :ref:`ETA_EQUALITY <eta-pragma>` pragmas before declarations other than ``record`` declarations.
+
 .. option:: InvalidTacticAttribute
 
      .. versionadded:: 2.9.0
@@ -2013,6 +2019,16 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Non-``opaque`` names mentioned in an ``unfolding`` clause.
 
+.. option:: UnguardedEtaRecord
+
+     .. versionadded:: 2.9.0
+
+     A record with ``eta-equality`` that Agda inferred as unguarded,
+     meaning it has recursive occurences that are not protected
+     by a type former that does not have eta equality
+     (such as a ``data`` or a ``no-eta-equality``
+     ``record`` type).
+
 .. option:: UnknownAttribute
 
      .. versionadded:: 2.8.0
@@ -2338,12 +2354,6 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
      .. versionadded:: 2.6.1
 
      Failed confluence checks while joining critical pairs.
-
-.. option:: SafeFlagEta
-
-     .. versionadded:: 2.6.1
-
-     :ref:`ETA <eta-pragma>` pragmas with the :option:`--safe` flag.
 
 .. option:: SafeFlagInjective
 

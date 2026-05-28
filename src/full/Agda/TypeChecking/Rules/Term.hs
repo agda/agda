@@ -977,7 +977,7 @@ checkExtendedLambda cmp i di erased qname cs e t = do
           useTerPragma $
             (defaultDefn info qname t lang fun)
               { defMutual = j }
-        checkFunDef' t info (Just $ ExtLamInfo lamMod False empty) Nothing di qname $
+        checkFunDef' t info (Just $ ExtLamInfo lamMod False empty) di qname $
           List1.toList cs
         whenNothingM (viewTC eMutualBlock) $
           -- Andrea 10-03-2018: Should other checks be performed here too? e.g. termination/positivity/..
@@ -2022,7 +2022,7 @@ checkLetBinding' b@(A.LetPatBind i ai p e) ret = do
         ]
       ]
     fvs <- getContextSize
-    checkLeftHandSide (CheckPattern p EmptyTel t) noRange LetLHS [p0] t0 Nothing [] $ \ (LHSResult _ delta0 ps _ _t _ asb _ _) -> setCurrentRange p $ bindAsPatterns asb $ do
+    checkLeftHandSide (CheckPattern p EmptyTel t) noRange LetLHS [p0] t0 NoWithFunction [] $ \ (LHSResult _ delta0 ps _ _t _ asb _ _) -> setCurrentRange p $ bindAsPatterns asb $ do
           -- After dropping the free variable patterns there should be a single pattern left.
       let p = case drop fvs ps of [p] -> namedArg p; _ -> __IMPOSSIBLE__
           -- Also strip the context variables from the telescope

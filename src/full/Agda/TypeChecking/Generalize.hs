@@ -171,12 +171,17 @@ import qualified Agda.Utils.VarSet as VarSet
 generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> ([Maybe Name] -> Telescope -> TCM a) -> TCM a
 generalizeTelescope vars typecheckAction ret | Map.null vars = typecheckAction (ret [])
 generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
+  -- Andreas, May 2026, issue #6670:
+  -- createMetasAndTypeCheck may add some new anonymous modules.
+  anonymousModulesBefore <- viewTC eAnonymousModules
   let s = Map.keysSet vars
-  ((cxtNames, tel, letbinds), namedMetas, allmetas) <-
+  ((cxtNames, tel, letbinds, anonymousModules), namedMetas, allmetas) <-
     createMetasAndTypeCheck s $ typecheckAction $ \ tel -> do
       xs <- take' (size tel) <$> getContextNames'
       lbs <- getLetBindings -- This gives let-bindings valid in the current context
-      return (xs, tel, lbs)
+      anons <- viewTC eAnonymousModules
+      return (xs, tel, lbs, anons)
+  let newAnonymousModules = take' (length anonymousModules - length anonymousModulesBefore) anonymousModules
 
   reportSDoc "tc.generalize.metas" 60 $ vcat
     [ "open metas =" <+> (text . show . fmap ((miNameSuggestion &&& miGeneralizable) . mvInfo)) (openMetas $ allmetas)
@@ -213,15 +218,16 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   -- And we shouldn't forget about the let-bindings (#3470)
   --   Γ (r : R) Θ ⊢ letbinds
   --   Γ Δ Θρ      ⊢ letbinds' = letbinds(lift |Θ| ρ)
-  -- And modules created in the telescope (#6916)
-  --   TODO
   letbinds' <- applySubst (liftS (size tel) sub) <$> instantiateFull letbinds
+  -- And sections created by module applications in the telescope (#6916)
+  --   Γ (r : R) ⊢ Σ            Σ = sectionApps
+  --   Γ Δ       ⊢ Σρ
   let addLet (x, LetBinding isAxiom o v dom) = addLetBinding' isAxiom o x v dom
-
   updateContext sub (cxPrepend genTelCxt . cxDrop 1) $
     updateContext (raiseS (size tel')) (cxPrepend newTelCxt) $
-      foldr addLet (ret genTelVars $ abstract genTel tel') letbinds'
-
+      flip (foldr $ uncurry withAnonymousModule) newAnonymousModules $
+      flip (foldr addLet) letbinds' $
+      ret genTelVars $ abstract genTel tel'
 
 -- | Generalize a type over a set of (used) generalizable variables.
 generalizeType :: Set QName -> TCM Type -> TCM ([Maybe QName], Type)
@@ -333,11 +339,12 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   let (generalizable, nongeneralizable)         = partition isGeneralizable mvs
       (generalizableOpen', generalizableClosed) = partition isOpen generalizable
       (openSortMetas, generalizableOpen)        = partition isSort generalizableOpen'
-      nongeneralizableOpen                      = filter isOpen nongeneralizable
+      (nongeneralizableOpen, nongenClosed)      = partition isOpen nongeneralizable
 
   reportSDoc "tc.generalize" 30 $ nest 2 $ vcat
     [ "generalizable        = " <+> prettyList_ (map' (prettyTCM . fst) generalizable)
     , "generalizableOpen    = " <+> prettyList_ (map' (prettyTCM . fst) generalizableOpen)
+    , "nongenClosed         = " <+> prettyList_ (map' (prettyTCM . fst) nongenClosed)
     , "openSortMetas        = " <+> prettyList_ (map' (prettyTCM . fst) openSortMetas)
     ]
 
@@ -469,8 +476,16 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
           Map.member x (solvedMetas allmetas) =
           Just (x, ii)
       inscope _ = Nothing
-  ips <- Map.fromDistinctAscList . mapMaybe inscope . fst . BiMap.toDistinctAscendingLists <$> useTC stInteractionPoints
-  pruneUnsolvedMetas genRecName genRecCon genTel genRecFields ips shouldGeneralize allSortedMetas
+  ips :: Map MetaId InteractionId
+    <- Map.fromDistinctAscList . mapMaybe inscope . fst . BiMap.toDistinctAscendingLists <$> useTC stInteractionPoints
+
+  -- Andreas, 2026-05-05, issue #4228, issue #5831
+  -- Replace genTel also in context of solved interaction points so that showing the goal in context
+  -- does not leak internals of the generalization machinery.
+  let closedIPMetas = filter (`Map.member` ips) $ map fst nongenClosed
+
+  pruneUnsolvedMetas genRecName genRecCon genTel genRecFields ips shouldGeneralize $
+    allSortedMetas ++! closedIPMetas
 
   -- Fill in the missing details of the telescope record.
   dropCxt __IMPOSSIBLE__ $ fillInGenRecordDetails genRecName genRecCon genRecFields genRecMeta genTel
@@ -493,9 +508,9 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
 -- | Prune unsolved metas (#3672). The input includes also the generalized metas and is sorted in
 -- dependency order. The telescope is the generalized telescope.
 pruneUnsolvedMetas :: QName -> ConHead -> Telescope -> [QName] -> Map MetaId InteractionId -> (MetaId -> Bool) -> [MetaId] -> TCM ()
-pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints isGeneralized metas
-  | all isGeneralized metas = return ()
-  | otherwise               = prune [] genTel metas
+pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints isGeneralized metas = do
+    unless (all isGeneralized metas) $
+      prune [] genTel metas
   where
     prune :: ListTel -> Telescope -> [MetaId] -> TCM ()
     prune _ _ [] = return ()
@@ -972,7 +987,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = noMutualBlock $ d
            , recTel          = dummyTel (length genRecFields) -- Filled in later
            , recMutual       = Just []
            , recPositivityCheck = NoPositivityCheck
-           , recEtaEquality' = Inferred YesEta
+           , recEtaEquality' = EtaEquality YesEta EtaFromPragma
            , recPatternMatching = CopatternMatching
            , recInduction    = Nothing
            , recTerminates   = Just True    -- not recursive

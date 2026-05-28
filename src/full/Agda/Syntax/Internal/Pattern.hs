@@ -316,9 +316,13 @@ instance CountPatternVars (Pattern' x) where
   countPatternVars p =
     case p of
       VarP{}      -> 1
+      LitP{}      -> 0
+      ProjP{}     -> 0
       ConP _ _ ps -> countPatternVars ps
       DotP{}      -> 1   -- dot patterns are treated as variables in the clauses
-      _           -> 0
+      -- Andreas, 2026-05-01, issue #7629, need to also count interval variables:
+      IApplyP{}   -> 1
+      DefP _ _ ps -> countPatternVars ps
 
 -- Computing modalities of pattern variables ------------------------------
 

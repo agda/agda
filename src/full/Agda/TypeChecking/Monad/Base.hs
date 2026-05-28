@@ -2295,7 +2295,7 @@ data IPClause = IPClause
   { ipcQName    :: QName              -- ^ The name of the function.
   , ipcClauseNo :: ClauseNumber       -- ^ The number of the clause of this function.
   , ipcType     :: Type               -- ^ The type of the function
-  , ipcWithSub  :: Maybe Substitution -- ^ Module parameter substitution
+  , ipcWithSub  :: IsWithFunction Substitution -- ^ Module parameter substitution
   , ipcClause   :: A.SpineClause      -- ^ The original AST clause.
   , ipcClosure  :: Closure ()         -- ^ Environment for rechecking the clause.
   }
@@ -2787,10 +2787,19 @@ projArgInfo :: Projection -> ArgInfo
 projArgInfo (Projection _ _ _ _ lams) =
   maybe __IMPOSSIBLE__ getArgInfo $ lastMaybe $ getProjLams lams
 
+-- | Provenance of the eta equality.
+-- Keep constructors in order @'EtaFromOption' < 'EtaFromDirective' < 'EtaFromPragma'@.
+data EtaProvenance
+  = EtaFromOption      -- ^ Default stemming from option ('etaEnabled') and inductivity.
+  | EtaFromDirective   -- ^ User specified @(no-)eta-equality@ in record directive.
+  | EtaFromPragma      -- ^ User specified eta-equality through pragma, overruling safety checks.
+  deriving (Eq, Ord, Show, Generic, Enum, Bounded)
+
 -- | Should a record type admit eta-equality?
-data EtaEquality
-  = Specified { theEtaEquality :: !HasEta }  -- ^ User specified 'eta-equality' or 'no-eta-equality'.
-  | Inferred  { theEtaEquality :: !HasEta }  -- ^ Positivity checker inferred whether eta is safe.
+data EtaEquality = EtaEquality
+  { theEtaEquality :: !HasEta          -- ^ Eta or no eta?
+  , etaProvenance  :: !EtaProvenance   -- ^ Where does this information come from?
+  }
   deriving (Show, Eq, Generic)
 
 instance PatternMatchingAllowed EtaEquality where
@@ -2800,9 +2809,13 @@ instance CopatternMatchingAllowed EtaEquality where
   copatternMatchingAllowed = copatternMatchingAllowed . theEtaEquality
 
 -- | Make sure we do not overwrite a user specification.
-setEtaEquality :: EtaEquality -> HasEta -> EtaEquality
-setEtaEquality e@Specified{} _ = e
-setEtaEquality _ b = Inferred b
+setEtaEquality ::
+     EtaEquality   -- ^ New value.  Must have higher provenance than old value.
+  -> EtaEquality   -- ^ Old value.
+  -> EtaEquality   -- ^ New value, or crash if invariant is violated.
+setEtaEquality eta@(EtaEquality _ newProvenance) (EtaEquality _ oldProvenance)
+  | newProvenance > oldProvenance = eta
+  | otherwise = __IMPOSSIBLE__
 
 data FunctionFlag
   = FunStatic  -- ^ Should calls to this function be normalised at compile-time?
@@ -2872,11 +2885,14 @@ pattern Axiom :: Bool -> Defn
 pattern Axiom{ axiomConstTransp } = AxiomDefn (AxiomData axiomConstTransp)
 
 data DataOrRecSigData = DataOrRecSigData
-  { _datarecPars :: Int
+  { _datarecPars :: !Int
+       -- ^ Number of parameters.
+  , _datarecKind :: !DataOrRecord_
+       -- ^ Is it a @data@ or @record@ signature?
   } deriving (Show, Generic)
 
-pattern DataOrRecSig :: Int -> Defn
-pattern DataOrRecSig{ datarecPars } = DataOrRecSigDefn (DataOrRecSigData datarecPars)
+pattern DataOrRecSig :: Int -> DataOrRecord_ -> Defn
+pattern DataOrRecSig{ datarecPars, datarecKind } = DataOrRecSigDefn (DataOrRecSigData datarecPars datarecKind)
 
 -- | Indicates the reason behind a function having not been marked
 -- projection-like.
@@ -2926,7 +2942,7 @@ data FunctionData = FunctionData
   , _funExtLam         :: Maybe ExtLamInfo
       -- ^ Is this function generated from an extended lambda?
       --   If yes, then return the number of hidden and non-hidden lambda-lifted arguments.
-  , _funWith           :: Maybe QName
+  , _funWith           :: IsWithFunction QName
       -- ^ Is this a generated with-function?
       --   If yes, then what's the name of the parent function?
   , _funIsKanOp        :: Maybe QName
@@ -2950,7 +2966,7 @@ pattern Function
   -> SmallSet FunctionFlag
   -> Maybe Bool
   -> Maybe ExtLamInfo
-  -> Maybe QName
+  -> IsWithFunction QName
   -> Maybe QName
   -> IsOpaque
   -> Defn
@@ -3271,6 +3287,11 @@ pattern PrimitiveSort
 
 -- TODO: lenses for all Defn variants
 
+lensDataOrRecSig :: Lens' Defn DataOrRecSigData
+lensDataOrRecSig f = \case
+  DataOrRecSigDefn d -> DataOrRecSigDefn <$> f d
+  _ -> __IMPOSSIBLE__
+
 lensFunction :: Lens' Defn FunctionData
 lensFunction f = \case
   FunctionDefn d -> FunctionDefn <$> f d
@@ -3331,7 +3352,17 @@ instance Pretty Defn where
     PrimitiveSortDefn d -> pretty d
 
 instance Pretty DataOrRecSigData where
-  pretty (DataOrRecSigData n) = "DataOrRecSig" <+> pretty n
+  pretty (DataOrRecSigData n eta) = "DataOrRecSig" <+> pretty n <+> pretty eta
+
+instance Pretty a => Pretty (DataOrRecord' a) where
+  pretty = \case
+    IsData -> "data"
+    IsRecord a -> "record" <+> pretty a
+
+instance Pretty a => Pretty (IsWithFunction a) where
+  pretty = \case
+    NoWithFunction -> "NoWithFunction"
+    WithFunction a -> "WithFunction" <+> pretty a
 
 instance Pretty ProjectionLikenessMissing where
   pretty MaybeProjection = "MaybeProjection"
@@ -3523,7 +3554,7 @@ emptyFunctionData_ erasure = FunctionData
     , _funFlags       = SmallSet.fromList [ FunErasure | erasure ]
     , _funTerminates  = Nothing
     , _funExtLam      = Nothing
-    , _funWith        = Nothing
+    , _funWith        = empty
     , _funCovering    = []
     , _funIsKanOp     = Nothing
     , _funOpaque      = TransparentDef
@@ -3604,7 +3635,7 @@ isExtendedLambda def =
 isWithFunction :: Defn -> Bool
 isWithFunction def =
   case def of
-    Function { funWith = Just{} } -> True
+    Function { funWith = WithFunction{} } -> True
     _ -> False
 
 isCopatternLHS :: Foldable f => f Clause -> Bool
@@ -5074,6 +5105,9 @@ data Warning
       --   produced 'TCErr'.
   | CoinductiveEtaRecord QName
       -- ^ A record type declared as both @coinductive@ and having @eta-equality@.
+  | UnguardedEtaRecordW QName
+      -- ^ A record type with @eta-equality@ which unguarded.
+      --   This warning can be switched off via the @ETA_EQUALITY@ pragma.
 
   | UnsolvedMetaVariables    (Set1 Range)  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas (Set1 Range)  -- ^ Do not use directly with 'warning'
@@ -5355,6 +5389,7 @@ warningName = \case
   NotStrictlyPositive{}        -> NotStrictlyPositive_
   ConstructorDoesNotFitInData{}-> ConstructorDoesNotFitInData_
   CoinductiveEtaRecord{}       -> CoinductiveEtaRecord_
+  UnguardedEtaRecordW{}        -> UnguardedEtaRecordW_
   UnsupportedIndexedMatch{}    -> UnsupportedIndexedMatch_
   OldBuiltin{}                 -> OldBuiltin_
   BuiltinDeclaresIdentifier{}  -> BuiltinDeclaresIdentifier_
@@ -5684,6 +5719,8 @@ data TypeError
         | ShouldBePath Type
         | ShouldBeRecordType Type
         | ShouldBeRecordPattern
+        | EtaPragmaVsNoEtaEquality
+            -- ^ A record has been declared as both @ETA_EQUALITY@ and @no-eta-equality@.
         | CannotApply A.Expr Type
             -- ^ The given expression is used as a function
             --   but its type is not a function type.
@@ -5820,6 +5857,7 @@ data TypeError
     -- Positivity and polarity errors
         | DatatypeIndexPolarity
             -- ^ An index of a data type has a polarity different from 'Mixed'.
+        | UnguardedEtaRecord QName
 
     -- Sized type errors
         | CannotSolveSizeConstraints (List1 (ProblemConstraint, HypSizeConstraint)) Doc
@@ -7218,11 +7256,15 @@ instance KillRange ProjectionLikenessMissing where
 instance KillRange BuiltinSort where
   killRange = id
 
+instance KillRange a => KillRange (IsWithFunction a) where
+  killRange NoWithFunction = NoWithFunction
+  killRange (WithFunction a) = WithFunction (killRange a)
+
 instance KillRange Defn where
   killRange def =
     case def of
       Axiom a -> Axiom a
-      DataOrRecSig n -> DataOrRecSig n
+      DataOrRecSig n eta -> DataOrRecSig n (killRange eta)
       GeneralizableVar a -> GeneralizableVar a
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function a b c d e f g h i j k l m n ->
@@ -7361,6 +7403,7 @@ instance NFData CompilerPragma
 instance NFData System
 instance NFData ExtLamInfo
 instance NFData EtaEquality
+instance NFData EtaProvenance
 instance NFData FunctionFlag
 instance NFData CompKit
 instance NFData AxiomData

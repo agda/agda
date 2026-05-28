@@ -189,8 +189,8 @@ and `this commit <https://github.com/agda/agda/commit/d771ac257ee9a1f9662364e5db
 
 .. _eta-pragma:
 
-The ``ETA`` pragma
-__________________
+The ``ETA_EQUALITY`` pragma
+___________________________
 
 Agda does not permit the ``eta-equality`` directive in ``coinductive`` ``record`` declarations,
 since η for coinductive types is unsafe in general and can make the type checker loop.
@@ -209,15 +209,13 @@ For instance, the following code would lead to infinite η expansion when checki
   test : foo .force ≡ foo
   test = refl
 
-If you know what you are doing, you can override Agda and force a coinductive record to support η via the ``ETA`` pragma.
+If you know what you are doing, you can override Agda and force a coinductive record to support η via the ``ETA_EQUALITY`` pragma.
 
 .. code-block:: agda
 
-  {-# ETA R #-}
-
-Note however that ``ETA`` is not allowed in :option:`--safe` mode, for reasons mentioned above.
-This pragma is intended for experiments and not recommended in production code.
-It might be removed in future versions of Agda.
+  {-# ETA_EQUALITY #-}
+  record R : Set where
+    ...
 
 .. _old-coinduction:
 

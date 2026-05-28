@@ -671,8 +671,7 @@ data Pragma
     -- ^ Throws an internal error in the scope checker.
     --   The 'String's are words to be displayed with the error.
   | EtaPragma                   Range QName
-    -- ^ For coinductive records, use pragma instead of regular
-    --   @eta-equality@ definition (as it is might make Agda loop).
+    -- ^ Removed, replaced by 'EtaEqualityPragma'.
   | WarningOnUsage              Range QName Text
     -- ^ Applies to the named function
   | WarningOnImport             Range Text
@@ -687,6 +686,9 @@ data Pragma
   -- Attached (more or less) pragmas handled in the nicifier (Concrete.Definitions):
   | CatchallPragma              Range
     -- ^ Applies to the following function clause.
+  | EtaEqualityPragma           Range
+    -- ^ Applies to the following record type.
+    --   Force @eta-equality@ for the attached @record@ type for unguarded and @coinductive@ records.
   | TerminationCheckPragma      Range (TerminationCheck Name)
     -- ^ Applies to the following function (and all that are mutually recursive with it)
     --   or to the functions in the following mutual block.
@@ -1127,6 +1129,7 @@ instance HasRange Pragma where
   getRange (InlinePragma r _ _)              = r
   getRange (ImpossiblePragma r _)            = r
   getRange (EtaPragma r _)                   = r
+  getRange (EtaEqualityPragma r)             = r
   getRange (TerminationCheckPragma r _)      = r
   getRange (NoCoverageCheckPragma r)         = r
   getRange (WarningOnUsage r _ _)            = r
@@ -1355,6 +1358,7 @@ instance KillRange Pragma where
   killRange (CatchallPragma _)                = CatchallPragma noRange
   killRange (DisplayPragma _ lhs rhs)         = killRangeN (DisplayPragma noRange) lhs rhs
   killRange (EtaPragma _ q)                   = killRangeN (EtaPragma noRange) q
+  killRange (EtaEqualityPragma _)             = EtaEqualityPragma noRange
   killRange (NoPositivityCheckPragma _)       = NoPositivityCheckPragma noRange
   killRange (PolarityPragma _ q occs)         = killRangeN (\q -> PolarityPragma noRange q occs) q
   killRange (NoUniverseCheckPragma _)         = NoUniverseCheckPragma noRange
@@ -1502,6 +1506,7 @@ instance NFData Pragma where
   rnf (InlinePragma _ _ a)              = rnf a
   rnf (ImpossiblePragma _ a)            = rnf a
   rnf (EtaPragma _ a)                   = rnf a
+  rnf (EtaEqualityPragma _)             = ()
   rnf (TerminationCheckPragma _ a)      = rnf a
   rnf (NoCoverageCheckPragma _)         = ()
   rnf (WarningOnUsage _ a b)            = rnf a `seq` rnf b

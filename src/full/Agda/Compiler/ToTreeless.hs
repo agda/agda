@@ -203,7 +203,7 @@ alwaysInline :: QName -> TCM Bool
 alwaysInline q = do
   def <- theDef <$> getConstInfo q
   pure $ case def of  -- always inline with functions and pattern lambdas
-    Function{funClauses = cs} -> (isJust (funExtLam def) && not recursive) || isJust (funWith def)
+    Function{funClauses = cs} -> (isJust (funExtLam def) && not recursive) || isWithFunction def
             where
               recursive = any (couldBeRecursive . clauseRecursive) cs
     _ -> False

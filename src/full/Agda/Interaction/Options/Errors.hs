@@ -152,6 +152,7 @@ data ErrorName
   | DuplicateOverlapPragma_
   | DuplicatePrimitiveBinding_
   | EmptyTypeOfSizes_
+  | EtaPragmaVsNoEtaEquality_
   | ExpectedBindingForParameter_
   | ExpectedIntervalLiteral_
   | FieldOutsideRecord_
@@ -286,6 +287,7 @@ data ErrorName
   | UnexpectedParameter_
   | UnexpectedTypeSignatureForParameter_
   | UnexpectedWithPatterns_
+  | UnguardedEtaRecord_
   | UnknownBackend_
   | UnusableAtModality_
   | UnusedVariableInPatternSynonym_

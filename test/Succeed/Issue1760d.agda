@@ -7,6 +7,7 @@ record U₁ : Set
 data D₁   : Set
 
 record U₁ where
+  no-eta-equality
   field ap : U₁ → U₁
 
 data D₁ where
@@ -18,6 +19,7 @@ record U₂ : Set
 data D₂   : Set
 
 record U₂ where
+  no-eta-equality
   field ap : U₂ → U₂
 
 {-# NO_POSITIVITY_CHECK #-}

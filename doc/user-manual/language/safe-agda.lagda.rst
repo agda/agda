@@ -42,10 +42,6 @@ Here is a list of the features :option:`--safe` is incompatible with:
 * pragma :ref:`INJECTIVE <injective-pragma>`;
   allows to prove false by declaring a non-injective function as injective.
 
-* pragma :ref:`ETA <eta-pragma>`;
-  can be used force eta-equality for unguarded recursive records
-  which can make Agda loop.
-
 * :option:`--injective-type-constructors`; together with excluded
   middle leads to an inconsistency via Chung-Kil Hur's construction.
 

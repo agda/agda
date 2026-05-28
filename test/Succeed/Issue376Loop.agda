@@ -3,13 +3,13 @@
 {-# OPTIONS --allow-unsolved-metas #-}
 
 -- unguarded recursive record
+{-# ETA_EQUALITY #-}
 record R : Set where
   eta-equality
   inductive
   constructor cons
   field
     r : R
-
 
 postulate F : (R → Set) → Set
 

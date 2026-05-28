@@ -1,20 +1,10 @@
-{-# OPTIONS --guardedness #-}
-
--- Andreas, 2024-06-22, conflicting ETA pragma
-
-record R : Set where
-  coinductive; no-eta-equality
-
-{-# ETA R #-}
-
 -- Andreas, 2014-07-02 wondering about the ETA pragma (legacy?)
 
 open import Common.Equality
 
+{-# ETA_EQUALITY #-}
 data Prod (A B : Set) : Set where
   pair : A → B → Prod A B
-
-{-# ETA Prod #-}
 
 -- WAS: The ETA pragma does not exist anymore.
 
@@ -32,3 +22,15 @@ snd (pair a b) = b
 -- Just an illusion...
 test : {A B : Set} (x : Prod A B) → x ≡ pair (fst x) (snd x)
 test x = refl
+
+-- Expected warning: -W[no]InvalidEtaEqualityPragma
+-- The ETA_EQUALITY pragma can only precede a record definition.
+
+-- Expected error: [UnequalTerms]
+-- The terms
+--   x
+-- and
+--   pair (fst x) (snd x)
+-- are not equal at type Prod A B
+-- when checking that the expression refl has type
+-- x ≡ pair (fst x) (snd x)

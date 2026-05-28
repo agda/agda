@@ -2,7 +2,7 @@
 mutual
 
   record R (A : Set) : Set where
-    inductive
+    inductive; no-eta-equality
     field
       f₁ : A
       f₂ : R′ A

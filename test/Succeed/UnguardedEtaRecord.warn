@@ -1,0 +1,14 @@
+
+UnguardedEtaRecord.agda:4.8-9: warning: -W[no]UnguardedEtaRecord
+Recursive occurrence of this record in its definition is unguarded,
+so eta-equality for this record might lead to non-termination in
+the type checker.
+To suppress this warning, use pragma {-# ETA_EQUALITY #-}
+
+———— All done; warnings encountered ————————————————————————
+
+UnguardedEtaRecord.agda:4.8-9: warning: -W[no]UnguardedEtaRecord
+Recursive occurrence of this record in its definition is unguarded,
+so eta-equality for this record might lead to non-termination in
+the type checker.
+To suppress this warning, use pragma {-# ETA_EQUALITY #-}

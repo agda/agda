@@ -34,12 +34,17 @@ import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 
--- | If matching is inconclusive (@DontKnow@) we want to know whether it is on a
---   lazy pattern and whether it is due to a particular meta variable.
-data Match a = Yes Simplification (IntMap (Arg a))
-             | No
-             | DontKnow OnlyLazy (Blocked ())
-  deriving Functor
+-- | Result of matching a pattern against a term.
+data Match a
+  = Yes Simplification (IntMap (Arg a))
+      -- ^ Matches with the given substitution for the pattern variables.
+  | No MatchPrio
+      -- ^ Mismatch where the constructor/literal pattern has the given priority.
+  | DontKnow MatchPrio OnlyLazy (Blocked ())
+      -- ^ Stuck where the constructor/literal pattern has the given priority.
+      -- If matching is inconclusive we also want to know whether it is on a
+      -- lazy pattern and whether it is due to a particular meta variable.
+  deriving (Show, Functor)
 
 instance Null (Match a) where
   empty = Yes empty empty
@@ -61,18 +66,22 @@ buildSubstitution err n vs = foldr cons idS $ matchedArgs' n vs
   where cons Nothing  = strengthenS' err 1
         cons (Just v) = consS (unArg v)
 
-
+-- | Combining match results.
+-- When combining 'No' and 'DontKnow', the lower priority wins!
+-- See issue #3054 / #8559.
 instance Semigroup (Match a) where
+  m <> m' = case (m, m') of
     -- @NotBlocked (StuckOn e)@ means blocked by a variable.
     -- In this case, no instantiation of meta-variables will make progress.
-    DontKnow l b <> DontKnow l' b' = DontKnow (l <> l') (b <> b')
-    DontKnow l m <> _              = DontKnow l m
-    _            <> DontKnow l m   = DontKnow l m
-    -- One could imagine DontKnow _ _ <> No = No, but would break the
-    -- equivalence to case-trees (Issue 2964).
-    No         <> _                = No
-    _          <> No               = No
-    Yes s us   <> Yes s' vs        = Yes (s <> s') (us <> vs)
+    (DontKnow p l b , DontKnow p' l' b' ) -> DontKnow (p <> p') (l <> l') (b <> b')
+    (DontKnow{}     , Yes{}             ) -> m
+    (DontKnow p _ _ , No p'             ) -> if p < p' then m else m'
+    (Yes{}          , DontKnow{}        ) -> m'
+    (No p           , DontKnow p' _ _   ) -> if p' < p then m' else m
+    (No p           , No p'             ) -> No (p <> p')
+    (No{}           , Yes{}             ) -> m
+    (Yes{}          , No{}              ) -> m'
+    (Yes s us       , Yes s' vs         ) -> Yes (s <> s') (us <> vs)
 
 instance Monoid (Match a) where
     mempty = empty
@@ -80,6 +89,7 @@ instance Monoid (Match a) where
 
 -- | Whether the inconclusive matches are only on lazy patterns.
 data OnlyLazy = OnlyLazy | NonLazy
+  deriving (Show)
 
 instance Semigroup OnlyLazy where
   NonLazy  <> _        = NonLazy
@@ -120,8 +130,8 @@ foldMatch match = loop where
       (p : ps, v : vs) -> do
         (r, v') <- match p v
         case r of
-          No | Just{} <- isProjP p -> return (No, v' : vs)
-          No -> do
+          No prio | Just{} <- isProjP p -> return (No prio, v' : vs)
+          No _ -> do
             -- Issue 2964: Even when the first pattern doesn't match we should
             -- continue to the next patterns (and potentially block on them)
             -- because the splitting order in the case tree may not be
@@ -131,10 +141,10 @@ foldMatch match = loop where
             -- contain ill-typed terms due to eta-expansion at wrong
             -- type.
             return (r <> r', v' : vs)
-          DontKnow OnlyLazy _ -> do
+          DontKnow _ OnlyLazy _ -> do
             (r', _vs') <- loop ps vs
             return (r <> r', v' : vs)
-          DontKnow NonLazy m -> return (DontKnow NonLazy m, v' : vs)
+          DontKnow prio NonLazy m -> return (DontKnow prio NonLazy m, v' : vs)
           Yes{} -> do
             (r', vs') <- loop ps vs
             return (r <> r', v' : vs')
@@ -190,10 +200,10 @@ matchCopattern pat@ProjP{} elim@(Proj _ q) = do
          _         -> __IMPOSSIBLE__
   q       <- getOriginalProjection q
   return $ if p == q then (Yes YesSimplification empty, elim)
-                     else (No,                          elim)
+                     else (No empty,                    elim)
 -- The following two cases are not impossible, see #2964
-matchCopattern ProjP{} elim@Apply{}   = return (No , elim)
-matchCopattern _       elim@Proj{}    = return (No , elim)
+matchCopattern ProjP{} elim@Apply{}   = return (No empty, elim)
+matchCopattern _       elim@Proj{}    = return (No empty, elim)
 matchCopattern p       (Apply v) = second Apply <$> matchPattern p v
 matchCopattern p       e@(IApply x y r) = second (mergeElim e) <$> matchPattern p (defaultArg r)
 
@@ -224,30 +234,31 @@ matchPattern :: MonadMatch m
              => DeBruijnPattern
              -> Arg Term
              -> m (Match Term, Arg Term)
-matchPattern p u = case (p, u) of
+matchPattern p u = debugMatchPattern $ case (p, u) of
   (ProjP{}, _            ) -> __IMPOSSIBLE__
   (IApplyP _ _ _ x , arg ) -> return (Yes NoSimplification entry, arg)
     where entry = singleton (dbPatVarIndex x, arg)
   (VarP _ x , arg          ) -> return (Yes NoSimplification entry, arg)
     where entry = singleton (dbPatVarIndex x, arg)
   (DotP _ _ , arg@(Arg _ v)) -> return (Yes NoSimplification empty, arg)
-  (LitP _ l , arg@(Arg _ v)) -> do
+  (LitP LitPatternInfo{ litPPrio = prio } l , arg@(Arg _ v)) -> do
     w <- reduceB v
     let arg' = arg $> ignoreBlocking w
     case w of
       NotBlocked _ (Lit l')
-          | l == l'            -> return (Yes YesSimplification empty , arg')
-          | otherwise          -> return (No                          , arg')
-      Blocked b _              -> return (DontKnow NonLazy $ Blocked b ()     , arg')
-      NotBlocked r t           -> return (DontKnow NonLazy $ NotBlocked r' () , arg')
+          | l == l'   -> return (Yes YesSimplification empty , arg')
+          | otherwise -> return (No prio                     , arg')
+      Blocked b _     -> return (DontKnow prio NonLazy $ Blocked b ()     , arg')
+      NotBlocked r t  -> return (DontKnow prio NonLazy $ NotBlocked r' () , arg')
         where r' = stuckOn (Apply arg') r
 
   -- Case constructor pattern.
   (ConP c cpi ps, Arg info v) -> do
+    let prio = conPPrio cpi
     let lazy = if conPLazy cpi then OnlyLazy else NonLazy
-    if not (conPRecord cpi) then fallback c lazy ps (Arg info v) else do
+    if not (conPRecord cpi) then fallback c prio lazy ps (Arg info v) else do
     isEtaRecordConstructor (conName c) >>= \case
-      Nothing -> fallback c lazy ps (Arg info v)
+      Nothing -> fallback c prio lazy ps (Arg info v)
       -- Case: Eta record constructor.
       -- This case is necessary if we want to use the clauses before
       -- record pattern translation (e.g., in type-checking definitions by copatterns).
@@ -262,7 +273,7 @@ matchPattern p u = case (p, u) of
         -- `v` might be an application of a *different* constructor.
         -- In that case we certainly have no match.
         case v of
-          Con c' _ _ | c /= c' -> return (No, u)
+          Con c' _ _ | c /= c' -> return (No prio, u)
           _ -> do
             let fs = map argFromDom $ _recFields def
             unless (size fs == size ps) __IMPOSSIBLE__
@@ -271,15 +282,31 @@ matchPattern p u = case (p, u) of
   (DefP o q ps, v) -> do
     let f (Def q' vs) | q == q' = Just (Def q, vs)
         f _                     = Nothing
-    fallback' f NonLazy ps v
+    fallback' f empty NonLazy ps v
  where
+  debugMatchPattern go = do
+    reportSDoc "tc.match" 20 $
+       vcat [ "matchPattern"
+            , nest 2 $ "p =" <+> prettyTCM p
+            , nest 2 $ "u =" <+> prettyTCM u
+            ]
+    reportSDoc "tc.match" 60 $
+       vcat [ nest 2 $ "p (raw) =" <+> (text . show) p
+            ]
+    (m, t) <- go
+    reportSDoc "tc.match" 50 $
+      vcat [ nest 2 $ "result = " <+> (text . show) m ]
+    -- reportSDoc "tc.match" 20 $
+    --   vcat [ nest 2 $ "result = " <+> prettyTCM m ]
+    return (m, t)
+
     -- Default: not an eta record constructor.
   fallback :: MonadMatch m
-           => ConHead -> OnlyLazy -> [NamedArg DeBruijnPattern] -> Arg Term -> m (Match Term, Arg Term)
-  fallback c lazy ps v = do
+           => ConHead -> MatchPrio -> OnlyLazy -> [NamedArg DeBruijnPattern] -> Arg Term -> m (Match Term, Arg Term)
+  fallback c prio lazy ps v = do
     let f (Con c' ci' vs) | c == c' = Just (Con c' ci',vs)
         f _                         = Nothing
-    fallback' f lazy ps v
+    fallback' f prio lazy ps v
 
   -- Regardless of blocking, constructors and a properly applied @hcomp@
   -- can be matched on.
@@ -298,11 +325,12 @@ matchPattern p u = case (p, u) of
   -- DefP hcomp and ConP matching.
   fallback' :: MonadMatch m
             => (Term -> Maybe (Elims -> Term , Elims))
+            -> MatchPrio
             -> OnlyLazy
             -> [NamedArg DeBruijnPattern]
             -> Arg Term
             -> m (Match Term, Arg Term)
-  fallback' mtc lazy ps (Arg info v) = do
+  fallback' mtc prio lazy ps (Arg info v) = do
         isMatchable <- isMatchable'
 
         w <- reduceB v
@@ -333,9 +361,9 @@ matchPattern p u = case (p, u) of
                 (m, vs1) <- matchPatterns ps (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
                 return (yesSimplification m, Arg info $ bld (mergeElims vs vs1))
               Nothing
-                                    -> return (No                          , arg)
-          Blocked b _               -> return (DontKnow lazy $ Blocked b ()     , arg)
-          NotBlocked r _            -> return (DontKnow lazy $ NotBlocked r' () , arg)
+                                    -> return (No prio                               , arg)
+          Blocked b _               -> return (DontKnow prio lazy $ Blocked b ()     , arg)
+          NotBlocked r _            -> return (DontKnow prio lazy $ NotBlocked r' () , arg)
             where r' = stuckOn (Apply arg) r
 
 yesSimplification :: Match a -> Match a
@@ -369,7 +397,7 @@ matchPatternP p arg@(Arg info q) = do
     ConP c cpi ps ->
       case q of
         ConP c' _ qs | c == c'   -> matchPatternsP ps ((map . fmap) namedThing qs)
-                     | otherwise -> return No
+                     | otherwise -> return $ No (conPPrio cpi)
         LitP{} -> fmap toLitP <$> termMatch
           where toLitP (DotP _ (Lit l)) = litP l   -- All bindings should be to literals
                 toLitP _                = __IMPOSSIBLE__

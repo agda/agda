@@ -1760,12 +1760,9 @@ ways."
         (rx (or "{-" "-}")))
        (string-end-rx
         (rx (not "\\") "\""))
-       (char-end-rx
-        (rx (not "\\") "'"))
        (code-rx
         (rx (or
              (submatch-n 1 "\"")
-             (submatch-n 1 "'")
              ;; We want to make sure that we only match proper comments so that we don't
              ;; stop lexing on identifiers like foo--bar.
              (and (or bol (any "." "{" "}" "(" ")" ";" space)) (submatch-n 1 "--"))
@@ -1782,6 +1779,12 @@ ways."
        ;; Make sure that we don't use case-sensitive matching
        ;; so that we can pick up on all capitalizations of #+BEGIN_SRC.
        (case-fold-search t)
+       ;; The `stk' is used to store the lexer state.
+       ;; It is a list whose elements whose elements take the following form:
+       ;;
+       ;; -- A 'comment, which is use when we are inside a comment.
+       ;; -- A 'bracket, which is used to track the number of brackets we are inside.
+       ;; -- A NUMBER, which is used to track the starting positions of holes.
        stk)
       ((advance-to-code-block ()
          (when code-start-rx (re-search-forward code-start-rx nil t)))
@@ -1796,8 +1799,6 @@ ways."
               (advance-to-comment-end)))))
        (advance-to-string-end ()
          (re-search-forward string-end-rx nil t))
-       (advance-to-char-end ()
-         (re-search-forward char-end-rx nil t))
        (end-of-code-block (str)
          (pcase file-type
            ('latex (equal str "\\end{code}"))
@@ -1818,8 +1819,6 @@ ways."
            (advance-to-code-block))
           ("\""
            (advance-to-string-end))
-          ("'"
-           (advance-to-char-end))
           ("{-"
            (advance-to-comment-end))
           ("--"
@@ -1828,13 +1827,18 @@ ways."
            (push (- (point) 2) stk))
           ("!}"
            (let ((start (pop stk)))
-             (unless stk
+             ;; We skip inserting a hole when the head of the stack
+             ;; is also a hole position marker to avoid putting holes
+             ;; inside of holes.
+             (unless (numberp (car stk))
                (agda2-make-goal start (point) (pop goals)))))
           ("?"
-           (goto-char (match-beginning 1))
-           (delete-char 1)
-           (insert "{!!}")
-           (agda2-make-goal (- (point) 4) (point) (pop goals)))
+           ;; Same idea; don't put holes inside of holes.
+           (unless (numberp (car stk))
+             (goto-char (match-beginning 1))
+             (delete-char 1)
+             (insert "{!!}")
+             (agda2-make-goal (- (point) 4) (point) (pop goals))))
           ("{"
            (push 'bracket stk))
           ("}"
@@ -2283,9 +2287,12 @@ FILEPOS should have the form (FILE . POSITION).
 
 If `agda2-highlight-in-progress' is nil, then nothing happens.
 
-If there is a buffer already visiting FILE that is displayed in
-some windows, then the point is updated to POSITION in all of those
-windows.
+If there is a buffer already visiting FILE whose window
+is selected, then the point is updated to POSITION in the `selected-window'.
+
+If there is a buffer already visiting FILE that is currently visible
+in only non-selected windows, then the point is updated to POSITION
+in all of those windows.
 
 If there is a buffer visiting FILE that is not displayed in any windows,
 then update the point, but do not display it.
@@ -2303,10 +2310,16 @@ If there is no buffer visiting FILE, do nothing."
     (xref-push-marker-stack)
     (if-let* ((buffer (find-buffer-visiting (car filepos))))
         (if-let* ((windows (get-buffer-window-list buffer 'no-minibuffer 'all-frames)))
-            ;; Buffer is visible, update points in all windows.
-            (dolist (window windows)
-              (with-selected-window window
-                (goto-char (cdr filepos))))
+            (if (eq buffer (window-buffer (selected-window)))
+                ;; Buffer is visible and focused, only update the point in the
+                ;; focused window.
+                ;;
+                ;; See #8505
+                (goto-char (cdr filepos))
+              ;; Buffer is visible, update points in all windows.
+              (dolist (window windows)
+                (with-selected-window window
+                  (goto-char (cdr filepos)))))
           ;; Buffer exists, but is not visible.
           ;; We do not display the buffer here, as can be jarring for slow loads.
           ;; See https://github.com/agda/agda/pull/8458#issuecomment-4032442448

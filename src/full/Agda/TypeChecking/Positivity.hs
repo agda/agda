@@ -196,7 +196,8 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
                     setCurrentRange (nameBindingSite q) $
                       warning $ RecursiveRecordNeedsInductivity q
 
-            -- if we find an unguarded record, mark it as such
+            -- Recursivity needs to be declared for inductive records.
+            -- Eta should be off for unguarded records.
             case dr of
               IsData -> return ()
               IsRecord pat -> do
@@ -206,20 +207,13 @@ checkStrictlyPositive mi qset = Bench.billTo [Bench.Positivity] do
                 case loop of
                   o | o <= StrictPos -> do
                     reportSDoc "tc.pos.record" 5 $ how "not guarded" StrictPos
-                    unguardedRecord q pat
+                    unguardedRecord q
                     checkInduction q
-                  -- otherwise, if the record is recursive, mark it as well
                   o | o <= GuardPos -> do
                     reportSDoc "tc.pos.record" 5 $ how "recursive" GuardPos
-                    recursiveRecord q
                     checkInduction q
-                  -- If the record is not recursive, switch on eta
-                  -- unless it is coinductive or a no-eta-equality record.
-                  Unused -> do
-                    reportSDoc "tc.pos.record" 10 $
-                      "record type " <+> prettyTCM q <+>
-                      "is not recursive"
-                    nonRecursiveRecord q
+                  Unused -> reportSDoc "tc.pos.record" 10 $
+                    "record type" <+> prettyTCM q <+> "is not recursive"
                   _ -> return ()
 
   reportSDoc "tc.pos.tick" 100 $ "checked positivity"

@@ -4,7 +4,7 @@
 -- {-# OPTIONS -v reify:60 #-}
 
 record R : Set where
-  pattern; inductive
+  inductive; no-eta-equality; pattern
   field foo : R
 
 postulate

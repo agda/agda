@@ -1,7 +1,7 @@
 module Issue402 where
 
 record Unit : Set where
-  inductive
+  inductive; no-eta-equality
   constructor inn
   field
     out : Unit

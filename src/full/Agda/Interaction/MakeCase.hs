@@ -243,7 +243,7 @@ getClauseZipperForIP f clauseNo = do
         ]
       __IMPOSSIBLE__
 
-recheckAbstractClause :: Type -> Maybe Substitution -> A.SpineClause -> TCM (Clause, Context, [AsBinding])
+recheckAbstractClause :: Type -> IsWithFunction Substitution -> A.SpineClause -> TCM (Clause, Context, [AsBinding])
 recheckAbstractClause t sub acl = checkClauseLHS t sub acl $ \ lhs -> do
   let cl = Clause { clauseLHSRange    = getRange acl
                   , clauseFullRange   = getRange acl

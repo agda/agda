@@ -580,6 +580,8 @@ instance Pretty Pragma where
       hsep $ [hlKeyword "IMPOSSIBLE"] ++ map text strs
     pretty (EtaPragma _ x) =
       hsep $ [hlKeyword "ETA", pretty x]
+    pretty (EtaEqualityPragma _) =
+      hsep $ [hlKeyword "ETA_EQUALITY"]
     pretty (TerminationCheckPragma _ tc) =
       case tc of
         TerminationCheck       -> __IMPOSSIBLE__

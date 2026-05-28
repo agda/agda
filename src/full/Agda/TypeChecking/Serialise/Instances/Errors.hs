@@ -152,6 +152,7 @@ instance EmbPrj Warning where
     IgnoringRew a b                             -> icodeN 77 IgnoringRew a b
     InferredLocalRewrite a b                    -> icodeN 78 InferredLocalRewrite a b
     ShouldBeEtaRecordPattern                    -> icodeN 79 ShouldBeEtaRecordPattern
+    UnguardedEtaRecordW a                       -> icodeN 80 UnguardedEtaRecordW a
 
   value = vcase $ \ case
     N3 0 a b      -> valuN UnreachableClauses a b
@@ -235,6 +236,7 @@ instance EmbPrj Warning where
     N3 77 a b     -> valuN IgnoringRew a b
     N3 78 a b     -> valuN InferredLocalRewrite a b
     N1 79         -> valuN ShouldBeEtaRecordPattern
+    N2 80 a       -> valuN UnguardedEtaRecordW a
     _ -> malformed
 
 instance EmbPrj UselessPublicReason
@@ -415,7 +417,6 @@ instance EmbPrj DeclarationWarning' where
     MissingDataDeclaration a          -> icodeN 32 MissingDataDeclaration a
     HiddenGeneralize r                -> icodeN 33 HiddenGeneralize r
     UselessMacro r                    -> icodeN 34 UselessMacro r
-    SafeFlagEta                    {} -> __IMPOSSIBLE__
     SafeFlagInjective              {} -> __IMPOSSIBLE__
     SafeFlagNoCoverageCheck        {} -> __IMPOSSIBLE__
     SafeFlagNoPositivityCheck      {} -> __IMPOSSIBLE__
@@ -426,7 +427,8 @@ instance EmbPrj DeclarationWarning' where
     EmptyPolarityPragma r             -> icodeN 35 EmptyPolarityPragma r
     UselessImport r                   -> icodeN 36 UselessImport r
     InvalidDataOrRecDefParameter r a b c -> icodeN 37 InvalidDataOrRecDefParameter r a b c
-    InvalidRewriteAttribute r            -> icodeN 38 InvalidTacticAttribute r
+    InvalidRewriteAttribute r         -> icodeN 38 InvalidTacticAttribute r
+    InvalidEtaEqualityPragma r        -> icodeN 39 InvalidEtaEqualityPragma r
 
   value = vcase $ \case
     N2 0  a            -> valuN UnknownNamesInFixityDecl a
@@ -468,6 +470,7 @@ instance EmbPrj DeclarationWarning' where
     N2 36 r            -> valuN UselessImport r
     N5 37 r a b c      -> valuN InvalidDataOrRecDefParameter r a b c
     N2 38 r            -> valuN InvalidRewriteAttribute r
+    N2 39 r            -> valuN InvalidEtaEqualityPragma r
     _ -> malformed
 
 instance EmbPrj OpenOrImport

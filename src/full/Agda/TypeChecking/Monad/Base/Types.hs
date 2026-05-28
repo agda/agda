@@ -239,6 +239,21 @@ data NamedMeta = NamedMeta
   , nmid         :: {-# UNPACK #-} !MetaId
   }
 
+---------------------------------------------------------------------------
+-- * @with@ functions
+---------------------------------------------------------------------------
+
+data IsWithFunction a
+  = NoWithFunction
+  | WithFunction !a
+  deriving (Eq, Show, Generic, Functor, Foldable, Traversable)
+
+instance Null (IsWithFunction a) where
+  empty = NoWithFunction
+  null = \case
+    NoWithFunction -> True
+    WithFunction{} -> False
+
 -- Feel free to move more types from Agda.TypeChecking.Monad.Base here when needed...
 
 -- Null instances
@@ -261,3 +276,4 @@ instance NFData FileDictWithBuiltins
 instance NFData SourceFile
 instance NFData IsBuiltinModule
 instance NFData TopLevelModuleNameWithSourceFile
+instance NFData a => NFData (IsWithFunction a)

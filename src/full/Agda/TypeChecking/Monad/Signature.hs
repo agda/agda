@@ -691,7 +691,7 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
             mutual = case oldDef of { Function{funMutual = m} -> m              ; _ -> Nothing }
             extlam = case oldDef of { Function{funExtLam = e} -> e              ; _ -> Nothing }
-            with   = case oldDef of { Function{funWith = w}   -> copyName <$> w ; _ -> Nothing }
+            with   = case oldDef of { Function{funWith = w}   -> copyName <$> w ; _ -> empty }
             -- Andreas, 2015-05-11, to fix issue 1413:
             -- Even if we apply the record argument (must be @var 0@), we stay a projection.
             -- This is because we may abstract the record argument later again.

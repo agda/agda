@@ -3,7 +3,7 @@
 mutual
 
   record R : Set where
-    inductive
+    inductive; no-eta-equality
     field
       x : T
 

@@ -9,12 +9,11 @@ mutual
     []  : Colist A
     _∷_ : A → ∞Colist A → Colist A
 
+  {-# ETA_EQUALITY #-}
   record ∞Colist (A : Set) : Set where
     coinductive
     constructor delay
     field       force : Colist A
-
-{-# ETA ∞Colist #-}
 
 open ∞Colist
 

@@ -7,4 +7,5 @@ mutual
     lam : (D → D) → D
 
   record U : Set where
+    no-eta-equality
     field ap : U → U

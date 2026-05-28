@@ -10,7 +10,6 @@ module Agda.TypeChecking.Rules.LHS
   , checkSortOfSplitVar
   , LetOrClause(LetLHS, ClauseLHS)
   , buildLHSSubstitutions
-  , LHSSubstitutionCase(..)
   ) where
 
 import Prelude hiding ( null )
@@ -460,26 +459,27 @@ transferOrigins ps qs = do
     transfer :: A.Pattern -> DeBruijnPattern -> TCM DeBruijnPattern
     transfer p q = case (asView p , q) of
 
-      ((asB , A.ConP pi _ ps) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
-        let cpi = ConPatternInfo (PatternInfo PatOCon asB) r ft mb l
+      ((asB , A.ConP pi _ ps) , ConP c (ConPatternInfo i r ft mb l prio) qs) -> do
+        let cpi = ConPatternInfo (PatternInfo PatOCon asB) r ft mb l prio
         ConP c cpi <$> transfers ps qs
 
-      ((asB , A.RecP _kwr pi fs) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+      ((asB , A.RecP _kwr pi fs) , ConP c (ConPatternInfo i r ft mb l prio) qs) -> do
         let Def d _  = unEl $ unArg $ fromMaybe __IMPOSSIBLE__ mb
             axs = map' (nameConcrete . qnameName . unArg) (conFields c) `withArgsFrom` qs
-            cpi = ConPatternInfo (PatternInfo PatORec asB) r ft mb l
+            cpi = ConPatternInfo (PatternInfo PatORec asB) r ft mb l prio
         ps <- insertMissingFieldsFail ConORec d (const $ A.WildP empty) fs axs
         ConP c cpi <$> transfers ps qs
 
-      ((asB , p) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
-        let cpi = ConPatternInfo (PatternInfo (patOrig p) asB) r ft mb l
+      ((asB , p) , ConP c (ConPatternInfo i r ft mb l prio) qs) -> do
+        let cpi = ConPatternInfo (PatternInfo (patOrig p) asB) r ft mb l prio
         return $ ConP c cpi qs
 
       ((asB , p) , VarP _ x) -> return $! VarP (PatternInfo (patOrig p) asB) x
 
       ((asB , p) , DotP _ u) -> return $! DotP (PatternInfo (patOrig p) asB) u
 
-      ((asB , p) , LitP _ l) -> return $! LitP (PatternInfo (patOrig p) asB) l
+      ((asB , p) , LitP (LitPatternInfo _ prio) l) ->
+        return $! LitP (LitPatternInfo (PatternInfo (patOrig p) asB) prio) l
 
       _ -> return q
 
@@ -607,6 +607,9 @@ data LHSResult = LHSResult
   , lhsVarTele      :: Telescope
     -- ^ Δ : The types of the pattern variables, in internal dependency order.
     -- Corresponds to 'clauseTel'.
+    -- Like the other components (e.g. `lhsBodyType`), this telescope lives
+    -- in the ambient context.
+    -- To print it, we need /not/ drop Δ from the ambient context.
   , lhsPatterns     :: [NamedArg DeBruijnPattern]
     -- ^ The patterns in internal syntax.
   , lhsHasAbsurd    :: Bool
@@ -639,14 +642,6 @@ instance InstantiateFull LHSResult where
     <*> instantiateFull' as
     <*> pure psplit
     <*> pure ixsplit
-
--- | Building substitutions from out patterns needs to handle with-functions
---   specially.
-data LHSSubstitutionCase = NormalFunction | WithFunction Int Substitution
-
-lhsSubstitutionCase :: Int -> Maybe Substitution -> LHSSubstitutionCase
-lhsSubstitutionCase arity Nothing        = NormalFunction
-lhsSubstitutionCase arity (Just withSub) = WithFunction arity withSub
 
 -- | Compute substitution from the out patterns @ps@
 --
@@ -681,18 +676,17 @@ lhsSubstitutionCase arity (Just withSub) = WithFunction arity withSub
 --      To compute Θ we can look at the arity of the with-function
 --      and compare it to numPats. This works since the with-function
 --      type is fully reduced.
-buildLHSSubstitutions :: Context -> NAPs -> LHSSubstitutionCase
+buildLHSSubstitutions :: Context -> NAPs -> IsWithFunction (Arity, Substitution)
   -> (Substitution, Substitution)
 buildLHSSubstitutions cxt ps isWithFun = do
-  let notProj ProjP{} = False
-      notProj _       = True
-      numPats = length $ takeWhile (notProj . namedArg) ps
-      patSub = map' (patternToTerm . namedArg) (reverse $ take' numPats ps) ++#
+  let notProjPats = takeWhile (isNothing . isProjP) ps
+      numPats = length notProjPats
+      patSub = map' (patternToTerm . namedArg) (reverse notProjPats) ++#
         EmptyS impossible
       (weakSub, withSub) = case isWithFun of
-        NormalFunction             ->
+        NoWithFunction             ->
           (wkS (numPats - length cxt) idS, idS)
-        WithFunction arity withSub ->
+        WithFunction (arity, withSub) ->
           -- if numPats < arity, Θ is empty
           (wkS (max 0 $ numPats - arity) idS, withSub)
       paramSub = patSub `composeS` weakSub `composeS` withSub
@@ -715,13 +709,15 @@ checkLeftHandSide :: forall a.
      -- ^ The patterns.
   -> Type
      -- ^ The expected type @a = Γ → b@.
-  -> Maybe Substitution
+  -> IsWithFunction Substitution
      -- ^ Module parameter substitution from with-abstraction.
   -> [ProblemEq]
      -- ^ Patterns that have been stripped away by with-desugaring.
      -- ^ These should not contain any proper matches.
   -> (LHSResult -> TCM a)
-     -- ^ Continuation.
+     -- ^ Continuation, called in the context constructed from
+     --   the 'lhsVarTele' via 'computeLHSContext'.
+     --   All components of 'LHSResult' live in this context, including 'lhsVarTele'.
   -> TCM a
 checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
  Bench.billToCPS [Bench.Typing, Bench.CheckLHS] $
@@ -741,7 +737,7 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
       eqs0 = zipWith3 ProblemEq (map' namedArg cps) (map' var $ downFrom $ size tel) (flattenTel tel)
 
   let finalChecks :: LHSState a -> TCM a
-      finalChecks (LHSState delta qs0 (Problem eqs rps _) b psplit ixsplit) = do
+      finalChecks (LHSState delta qs0 (Problem eqs rps _) b psplit ixsplit _prio) = do
 
         reportSDoc "tc.lhs.top" 20 $ vcat
           [ "lhs: final checks with remaining equations"
@@ -779,7 +775,7 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
           ]
 
         let (patSub, paramSub) = buildLHSSubstitutions cxt qs0 $
-              lhsSubstitutionCase arity_a withSub'
+              fmap (arity_a,) withSub'
 
         eqs <- addContext delta $ checkPatternLinearity eqs
 
@@ -848,7 +844,9 @@ checkLeftHandSide call lhsRng f ps a withSub' strippedPats =
 
   -- after we have introduced variables, we can add the patterns stripped by
   -- with-desugaring to the state.
-  let withSub = fromMaybe __IMPOSSIBLE__ withSub'
+  let withSub = case withSub' of
+        NoWithFunction -> __IMPOSSIBLE__
+        WithFunction sub -> sub
   withEqs <- updateProblemEqs $ applySubst withSub strippedPats
   -- Jesper, 2017-05-13: re-check the stripped patterns here!
   inTopContext $ addContext (st0 ^. lhsTel) $
@@ -1000,7 +998,7 @@ checkLHS mf = updateModality checkLHS_ where
  {-# INLINE updateModality #-}
     -- If the target type is irrelevant or in Prop,
     -- we need to check the lhs in irr. cxt. (see Issue 939).
- updateModality cont = \st@(LHSState tel ip problem target psplit _) -> do
+ updateModality cont = \st@(LHSState tel ip problem target psplit _ _prio) -> do
       let m = getModality target
       applyModalityToContext m $ do
         cont $ over (lhsTel . listTel)
@@ -1008,7 +1006,7 @@ checkLHS mf = updateModality checkLHS_ where
         -- Andreas, 2018-10-23, issue #3309
         -- the modalities in the clause telescope also need updating.
 
- checkLHS_ st@(LHSState tel ip problem target psplit ixsplit) = do
+ checkLHS_ st@(LHSState tel ip problem target psplit ixsplit prio) = do
   reportSDoc "tc.lhs" 40 $ "tel is" <+> prettyTCM tel
   reportSDoc "tc.lhs" 40 $ "ip is" <+> pretty ip
   reportSDoc "tc.lhs" 40 $ "target is" <+> addContext tel (prettyTCM target)
@@ -1131,7 +1129,7 @@ checkLHS mf = updateModality checkLHS_ where
           ip'      = ip ++! [projP]
           -- drop the projection pattern (already splitted)
           problem' = over problemRestPats (drop 1) problem
-      liftTCM $ updateLHSState (LHSState tel ip' problem' target' psplit ixsplit)
+      liftTCM $ updateLHSState (LHSState tel ip' problem' target' psplit ixsplit prio)
 
 
     -- Split a Partial.
@@ -1284,7 +1282,7 @@ checkLHS mf = updateModality checkLHS_ where
       -- Compute the new state
       let problem' = set problemEqs eqs' problem
       reportSDoc "tc.lhs.split.partial" 60 $ text (show problem')
-      liftTCM $ updateLHSState (LHSState delta' ip' problem' target' (psplit ++! [Just o_n]) ixsplit)
+      liftTCM $ updateLHSState (LHSState delta' ip' problem' target' (psplit ++! [Just o_n]) ixsplit prio)
 
 
     splitLit :: Telescope      -- The types of arguments before the one we split on
@@ -1327,7 +1325,7 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Compute the new state
       let problem' = set problemEqs eqs' problem
-      liftTCM $ updateLHSState (LHSState delta' ip' problem' target' psplit ixsplit)
+      liftTCM $ updateLHSState (LHSState delta' ip' problem' target' psplit ixsplit prio)
 
 
     splitCon :: Telescope      -- The types of arguments before the one we split on
@@ -1543,7 +1541,9 @@ checkLHS mf = updateModality checkLHS_ where
                                    , conPRecord = isRec
                                    , conPFallThrough = False
                                    , conPType   = Just $ Arg info a'
-                                   , conPLazy   = False } -- Don't mark eta-record matches as lazy (#4254)
+                                   , conPLazy   = False  -- Don't mark eta-record matches as lazy (#4254)
+                                   , conPPrio   = prio
+                                   }
 
           -- compute final context and substitution
           let crho    = ConP c cpi $ applySubst rho0 $ (telePatterns gamma boundary)
@@ -1605,7 +1605,7 @@ checkLHS mf = updateModality checkLHS_ where
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
-          st' <- liftTCM $ updateLHSState $ LHSState delta' ip' problem' target'' psplit (ixsplit || not (null ixs))
+          st' <- liftTCM $ updateLHSState $ LHSState delta' ip' problem' target'' psplit (ixsplit || not (null ixs)) prio
 
           reportSDoc "tc.lhs.top" 12 $ sep
             [ "new problem from rest"

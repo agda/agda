@@ -13,7 +13,7 @@ data C where
   inC : B -> C
 
 record D : Set where
-  inductive
+  inductive; no-eta-equality
   field
     outD : D -> D
 

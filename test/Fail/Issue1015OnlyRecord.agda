@@ -4,7 +4,7 @@
 open import Common.Size
 
 record R (i : Size) : Set where
-  inductive; pattern
+  inductive; no-eta-equality; pattern
   constructor delay
   field
     force : (j : Size< i) → R j

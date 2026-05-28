@@ -1,0 +1,15 @@
+
+Issue8529.agda:7.1-26: warning: -W[no]InvalidNoUniverseCheckPragma
+NO_UNIVERSE_CHECKING pragmas can only precede a data/record
+definition.
+
+Issue8529.agda:8.1-26: warning: -W[no]InvalidNoUniverseCheckPragma
+NO_UNIVERSE_CHECKING pragmas can only precede a data/record
+definition.
+Issue8529.agda:11.5-9: error: [ConstructorDoesNotFitInData]
+Constructor wrap
+of inferred sort Set₁
+does not fit into data type of sort Set.
+(Reason: Set₁ is not less or equal than Set)
+when checking that the type D2 of an argument to the constructor
+wrap fits in the sort Set of the datatype.

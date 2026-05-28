@@ -1,0 +1,3 @@
+EtaPragmaVsNoEtaEquality.agda:5.8-9: error: [EtaPragmaVsNoEtaEquality]
+Record has both ETA_EQUALITY pragma and no-eta-equality directive
+when checking the definition of R

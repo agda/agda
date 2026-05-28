@@ -426,13 +426,12 @@ instance EmbPrj Occurrence where
   value _ = malformed
 
 instance EmbPrj EtaEquality where
-  icod_ (Specified a) = icodeN 0 Specified a
-  icod_ (Inferred a)  = icodeN 1 Inferred a
-
+  icod_ (EtaEquality a b) = icodeN' EtaEquality a b
   value = vcase valu where
-    valu (N2 0 a) = valuN Specified a
-    valu (N2 1 a) = valuN Inferred a
+    valu (N2 a b) = valuN EtaEquality a b
     valu _        = malformed
+
+instance EmbPrj EtaProvenance
 
 instance EmbPrj ProjectionLikenessMissing
 
@@ -450,6 +449,15 @@ instance EmbPrj BuiltinSort where
     (N1 3)   -> valuN SortLevelUniv
     _        -> malformed
 
+instance EmbPrj a => EmbPrj (IsWithFunction a) where
+  icod_ NoWithFunction   = icodeN' NoWithFunction
+  icod_ (WithFunction a) = icodeN' WithFunction a
+
+  value = vcase \case
+    N0   -> valuN NoWithFunction
+    N1 a -> valuN WithFunction a
+    _ -> malformed
+
 instance EmbPrj Defn where
   icod_ (Axiom       a)                                 = icodeN 0 Axiom a
   icod_ (Function    a b s t u c d e f g h i j k)       = icodeN 1 (\ a b s -> Function a b s t) a b s u c d e f g h i j k
@@ -460,7 +468,7 @@ instance EmbPrj Defn where
   icod_ (PrimitiveSort a b)                             = icodeN 6 PrimitiveSort a b
   icod_ AbstractDefn{}                                  = __IMPOSSIBLE__
   icod_ (GeneralizableVar a)                            = icodeN 7 GeneralizableVar a
-  icod_ (DataOrRecSig a)                                = icodeN 8 DataOrRecSig a
+  icod_ (DataOrRecSig a b)                              = icodeN 8 DataOrRecSig a b
     -- Andreas, 2024-10-27
     -- DataOrRecSig is possible via unquoteDecl in meta-programming, see #7576
 
@@ -474,7 +482,7 @@ instance EmbPrj Defn where
     N6 5 a b c d e (N1 f)                    -> valuN Primitive a b c d e f
     N3 6 a b                                 -> valuN PrimitiveSort a b
     N2 7 a                                   -> valuN GeneralizableVar a
-    N2 8 a                                   -> valuN DataOrRecSig a
+    N3 8 a b                                 -> valuN DataOrRecSig a b
     _                                        -> malformed
 
 instance EmbPrj LazySplit where
@@ -576,9 +584,13 @@ instance EmbPrj I.Clause where
   value = valueN Clause
 
 instance EmbPrj I.ConPatternInfo where
-  icod_ (ConPatternInfo a b c d e) = icodeN' ConPatternInfo a b c d e
+  icod_ (ConPatternInfo a b c d e f) = icodeN' ConPatternInfo a b c d e f
 
   value = valueN ConPatternInfo
+
+instance EmbPrj MatchPrio where
+  icod_ (MatchPrio n) = icodeN' MatchPrio n
+  value = valueN MatchPrio
 
 instance EmbPrj I.DBPatVar where
   icod_ (DBPatVar a b) = icodeN' DBPatVar a b
@@ -589,6 +601,10 @@ instance EmbPrj I.PatternInfo where
   icod_ (PatternInfo a b) = icodeN' PatternInfo a b
 
   value = valueN PatternInfo
+
+instance EmbPrj I.LitPatternInfo where
+  icod_ (LitPatternInfo a b) = icodeN' LitPatternInfo a b
+  value = valueN LitPatternInfo
 
 instance EmbPrj I.PatOrigin where
   icod_ PatOSystem       = icodeN' PatOSystem

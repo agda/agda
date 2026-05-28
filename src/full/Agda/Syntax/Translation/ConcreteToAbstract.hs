@@ -2033,11 +2033,11 @@ instance ToAbstract NiceDeclaration where
       scopeCheckDataDef r o a pc uc x pars cons
 
   -- Record definitions (mucho interesting)
-    C.NiceRecSig r er p a pc uc x ls t -> do
-      singleton <$> scopeCheckDataOrRecSig IsRecord_ r er p a pc uc x ls t
+    C.NiceRecSig r er p a pc uc eta x ls t -> do
+      singleton <$> scopeCheckDataOrRecSig (IsRecord eta) r er p a pc uc x ls t
 
-    C.NiceRecDef r o a pc uc x directives pars fields -> singleton <$>
-      scopeCheckRecDef r o a pc uc x directives pars fields
+    C.NiceRecDef r o a pc uc eta x directives pars fields -> singleton <$>
+      scopeCheckRecDef r o a pc uc eta x directives pars fields
 
     NiceModule r p a e x@(C.QName name) tel ds -> notAffectedByOpaque $ do
       reportSDoc "scope.decl" 70 $ vcat $
@@ -2293,7 +2293,7 @@ declarationWarning w = withCurrentCallStack \ stk -> do
 
 -- | Scope check a data or record signature.
 scopeCheckDataOrRecSig ::
-     DataOrRecord_
+     DataOrRecordEta
        -- ^ Whether we are checking a data or record signature.
   -> Range
         -- ^ The range of the data or record signature.
@@ -2323,7 +2323,7 @@ scopeCheckDataOrRecSig dataOrRec r er p a pc uc x ls t = do
         IsData -> do
           (,) <$> toAbstract (GenTel $ map makeDomainFull ls)
               <*> toAbstract (C.Generalized t)
-        IsRecord_ -> do
+        IsRecord _ -> do
           -- Minor hack: record types don't have indices so we include t when
           -- computing generalised parameters, but in the type checker any named
           -- generalizable arguments in the sort should be bound variables.
@@ -2331,7 +2331,7 @@ scopeCheckDataOrRecSig dataOrRec r er p a pc uc x ls t = do
               <*> toAbstract t
     f  <- getConcreteFixity x
     x' <- freshAbstractQName f x
-    mErr <- bindName'' p (ifThenElse dataOrRec DataName RecName) (generalizedVarsMetadata $ generalizeTelVars ls') x x'
+    mErr <- bindName'' p namekind (generalizedVarsMetadata $ generalizeTelVars ls') x x'
     whenJust mErr $ \case
       err@(ClashingDefinition cn an _) | qnameModule (clashingQName an) == qnameModule x' -> do
         resolveName (C.QName x) >>= \case
@@ -2341,12 +2341,19 @@ scopeCheckDataOrRecSig dataOrRec r er p a pc uc x ls t = do
           -- (which removes the type signature) and suggest it as a possible fix.
           DefinedName p ax NoSuffix | anameKind ax == AxiomName -> do
             let suggestion = case dataOrRec of
-                  IsData    -> NiceDataDef r Inserted a pc uc x (parametersToDefParameters ls) []
-                  IsRecord_ -> NiceRecDef r Inserted a pc uc x [] (parametersToDefParameters ls) []
+                  IsData       -> NiceDataDef r Inserted a pc uc x (parametersToDefParameters ls) []
+                  IsRecord eta -> NiceRecDef r Inserted a pc uc eta x [] (parametersToDefParameters ls) []
             typeError $ ClashingDefinition cn an (Just suggestion)
           _ -> typeError err
       otherErr -> typeError otherErr
-    return $ (ifThenElse dataOrRec A.DataSig A.RecSig) (mkDefInfo x f p a r) er x' ls' t'
+    return $ mkSig (mkDefInfo x f p a r) er x' ls' t'
+  where
+    namekind = case dataOrRec of
+      IsData     -> DataName
+      IsRecord _ -> RecName
+    mkSig = case dataOrRec of
+      IsData     -> A.DataSig
+      IsRecord _ -> A.RecSig
 
 -- | Scope check a data definition.
 --   The data signature must have been checked already.
@@ -2423,6 +2430,8 @@ scopeCheckRecDef ::
        -- ^ Whether to report positivity errors for this record type.
   -> UniverseCheck
        -- ^ Whether to check field types for universe consistency.
+  -> ForceRecordEta
+       -- ^ Whether this record comes with a @{-# ETA_EQUALITY #-}@ pragma.
   -> C.Name
        -- ^ The name of the record type.
   -> [RecordDirective]
@@ -2432,7 +2441,7 @@ scopeCheckRecDef ::
   -> [C.Declaration]
        -- ^ The fields of the record type and other declarations in the record module.
   -> ScopeM A.Declaration
-scopeCheckRecDef r o a pc uc x directives pars fields =
+scopeCheckRecDef r o a pc uc forceEta x directives pars fields =
   notAffectedByOpaque do
     reportSLn "scope.rec.def" 40 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
 
@@ -2520,7 +2529,7 @@ scopeCheckRecDef r o a pc uc x directives pars fields =
       f <- getConcreteFixity x
       let params = DataDefParams gvars pars
       let dir' = RecordDirectives ind eta pat cm'
-      return $ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' pc uc dir' params contel afields
+      return $ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' pc uc forceEta dir' params contel afields
 
 -- | Retrieve the abstract name of a data or record type
 --   that was created by scope checking the data or record signature.
@@ -3169,9 +3178,8 @@ instance ToAbstract C.Pragma where
           return [ A.BuiltinPragma rb q ]
     where b = builtinById (rangedThing rb)
 
-  toAbstract (C.EtaPragma _ x) = do
-    map A.EtaPragma . maybeToList <$> do
-      scopeCheckDef (PragmaExpectsDefinedSymbol "ETA") x
+  toAbstract pragma@(C.EtaPragma _ x) = do
+    uselessPragma pragma "The ETA pragma has been removed, use the attaching ETA_EQUALITY pragma instead"
 
   toAbstract pragma@(C.DisplayPragma _ lhs rhs) = do
     maybeToList <$> do
@@ -3245,16 +3253,15 @@ instance ToAbstract C.Pragma where
     stWarningOnImport `setTCLens` Just str
     pure []
 
-  -- Termination, Coverage, Positivity, Universe, and Catchall
-  -- pragmes are handled by the nicifier
+
+  -- Pragmas that are handled by the nicifier:
   toAbstract C.TerminationCheckPragma{}  = __IMPOSSIBLE__
   toAbstract C.NoCoverageCheckPragma{}   = __IMPOSSIBLE__
   toAbstract C.NoPositivityCheckPragma{} = __IMPOSSIBLE__
   toAbstract C.NoUniverseCheckPragma{}   = __IMPOSSIBLE__
   toAbstract C.CatchallPragma{}          = __IMPOSSIBLE__
-
-  -- Polarity pragmas are handled by the niceifier.
-  toAbstract C.PolarityPragma{} = __IMPOSSIBLE__
+  toAbstract C.EtaEqualityPragma{}       = __IMPOSSIBLE__
+  toAbstract C.PolarityPragma{}          = __IMPOSSIBLE__
 
 uselessPragma :: HasRange p => p -> String -> ScopeM [a]
 uselessPragma pragma = ([] <$) . warning . UselessPragma (getRange pragma) . P.fwords
@@ -3440,6 +3447,7 @@ checkNoTerminationPragma b ds =
       C.InjectiveForInferencePragma{} -> []
       C.DisplayPragma _ _ _         -> []
       C.CatchallPragma _            -> []
+      C.EtaEqualityPragma _         -> []
       C.NoCoverageCheckPragma _     -> []
       C.PolarityPragma _ _ _        -> []
       C.NoUniverseCheckPragma _     -> []

@@ -1017,15 +1017,15 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
             (m, es0) <- matchCopatterns pats es0
             let es = es0 ++! es1
             case m of
-              No               -> goCls cls es
+              No _ -> goCls cls es
               -- Szumi, 2024-03-29, issue #7181:
               -- If a lazy match is stuck and all non-lazy matches are conclusive,
               -- then reduction should not be stuck on the current clause and it
               -- should be fine to continue matching on the next clause.
               -- This assumes it's impossible for a lazy match to be stuck if
               -- all non-lazy matches succeed.
-              DontKnow OnlyLazy _ -> goCls cls es
-              DontKnow NonLazy  b -> rewrite b (applyE v) rewr es
+              DontKnow _ OnlyLazy _ -> goCls cls es
+              DontKnow _ NonLazy  b -> rewrite b (applyE v) rewr es
               Yes simpl vs -- vs is the subst. for the variables bound in body
                 | couldBeRecursive (clauseRecursive cl)
                 , RecursiveReductions `SmallSet.notMember` allowedReductions ->

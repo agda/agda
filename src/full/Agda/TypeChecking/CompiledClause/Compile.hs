@@ -415,6 +415,10 @@ expandCatchalls single n cs =
         -- The following pattern match cannot fail (by construction of @ps@).
         (ps0, _:ps1) = splitAt n ps
 
+        -- Andreas, 2026-05-01, issue #7629.
+        -- Catch-all expansion substitutes into clause bodies, so it must count
+        -- every binder to the right of the expanded pattern, including IApply
+        -- variables.
         n' = countPatternVars ps1
 
 -- | Make sure (by eta-expansion) that clause has arity at least @n@

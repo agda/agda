@@ -128,7 +128,7 @@ Courses using Agda
 - `HoTTEST Summer School 2022 <https://www.uwo.ca/math/faculty/kapulkin/seminars/hottest_summer_school_2022.html>`__,
   online lectures by assorted instructors.
 - `Advanced Programming Paradigms <https://www.msengineering.ch/theory-modules/2024-2025-tsm-advprpa>`__, Postgraduate course jointly offered by the Universities of Applied Sciences in Switzerland, by Daniel Kröni and Farhad Mehta.
-- `Advanced Functional Programming <https://utrechtuniversity.github.io/infoafp>`__, master level course at Utrecht Universiy by Wouter Swierstra and Lawrence Chonavel.
+- `Advanced Functional Programming <https://utrechtuniversity.github.io/infoafp>`__, master level course at Utrecht University by Wouter Swierstra and Lawrence Chonavel.
 
 Miscellaneous
 =============
