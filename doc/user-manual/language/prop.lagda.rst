@@ -46,7 +46,7 @@ like ``()``:
   absurd : (A : Set) → ⊥ → A
   absurd A ()
 
-Casing on other patterns is allowed so long as one of the sub-patterns
+Matching on other patterns is allowed so long as one of the sub-patterns
 is absurd.
 
 Unlike for ``Set``, all elements of a type in ``Prop`` are
