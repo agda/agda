@@ -406,7 +406,7 @@ newtype KeepNames a = KeepNames a
 
 instance {-# OVERLAPPABLE #-} AddContext a => AddContext [a] where
   addContext = flip (foldr addContext); {-# INLINABLE addContext #-}
-  contextSize = sum . map contextSize
+  contextSize = sum . map' contextSize
 
 instance AddContext Context where
   addContext = flip (foldl $ flip addContext); {-# INLINABLE addContext #-}

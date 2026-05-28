@@ -2,17 +2,21 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# LANGUAGE NondecreasingIndentation  #-}
-{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds -ddump-to-file #-}
+-- {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds -ddump-to-file #-}
 
 {- | The occurs check for unification.  Does pruning on the fly.
 
-  When hitting a meta variable:
+When hitting a meta variable:
 
   - Compute flex/rigid for its arguments.
   - Compare to allowed variables.
   - Mark arguments with rigid occurrences of disallowed variables for deletion.
   - Attempt to delete marked arguments.
   - We don't need to check for success, we can just continue occurs checking.
+
+We also check modality usability for all bound variables; see issue 8570. In the example there, we
+elaborate a term as a type (using resourcing rules for types), but then solve a term metavariable
+with it. Hence, well-resourcing needs to be re-checked when we solve the metavariable.
 -}
 
 module Agda.TypeChecking.MetaVars.Occurs (
@@ -32,7 +36,7 @@ import Data.Functor
 
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.IntMap as IntMap
+import qualified Data.IntMap.Strict as IntMap
 
 import qualified Agda.Benchmarking as Bench
 
@@ -155,13 +159,14 @@ data UnfoldStrategy = YesUnfold | NoUnfold
 
 data OccursCxt = OccursCxt
   { occUnfold   :: !UnfoldStrategy
-  , occMeta     :: !MetaId          -- ^ The meta @m@ we want to solve.
-  , occVars     :: !VarMap          -- ^ The allowed variables @xs@ with their variance.
-  , occRHS      :: !Term            -- ^ The proposed solution @v@ for the meta (@m xs := v@).
-  , occLocals   :: !Int             -- ^ Number of local binders (relative to the invocation of
-                                    --   occurs checking).
-  , occModality :: !Modality        -- ^ Modality of current position.
-  , occFlexRig  :: !(FlexRig' ())   -- ^ Flexibility of current position.
+  , occMeta     :: !MetaId            -- ^ The meta @m@ we want to solve.
+  , occVars     :: !VarMap            -- ^ The allowed variables @xs@ with their variance.
+  , occRHS      :: !Term              -- ^ The proposed solution @v@ for the meta (@m xs := v@).
+  , occLocals   :: !Int               -- ^ Number of local binders (relative to the invocation of
+                                      --   occurs checking).
+  , occLocalModalities :: ![Modality] -- ^ Modalities of local variables.
+  , occModality :: !Modality          -- ^ Modality of current position.
+  , occFlexRig  :: !(FlexRig' ())     -- ^ Flexibility of current position.
   }
 
 instance LensFlexRig OccursCxt () where
@@ -353,9 +358,9 @@ flexibly = local $ set lensFlexRig $ Flexible ()
 -- ** Managing modality during occurs check.
 -- | Updates both the 'feModality' and the modalities of each variable
 -- in the 'occVars'.
-{-# INLINE occUnderModality #-}
-occUnderModality :: Modality -> OccursM a -> OccursM a
-occUnderModality mod = local \e -> e
+{-# INLINE occUnderArgModality #-}
+occUnderArgModality :: Modality -> OccursM a -> OccursM a
+occUnderArgModality mod = local \e -> e
   { occModality = composeModality mod (occModality e)
   , occVars     = if mod == unitModality then occVars e
                   else mapVarMap (fmap (inverseApplyModalityButNotQuantity mod)) (occVars e)
@@ -412,25 +417,11 @@ metaOccurs2 m x y = metaOccurs m x >> metaOccurs m y
 metaOccurs3 :: (Occurs a, Occurs b, Occurs c) => MetaId -> a -> b -> c -> TCM ()
 metaOccurs3 m x y z = metaOccurs m x >> metaOccurs m y >> metaOccurs m z
 
--- variable check:
---   - Bound variables are always allowed to occur:
---   - free vars not in the varmap are forbidden
---   - the modality of the free var has to be `moreUsableModality` than `o`
-
 -- | Going under a binder.
 {-# INLINE underBinder #-}
-underBinder :: OccursM z -> OccursM z
-underBinder = underBinders 1
-
-{-# INLINE underBinders #-}
--- | Going under @n@ binders.
-underBinders :: Nat -> OccursM z -> OccursM z
-underBinders n = local \e -> e {occLocals = occLocals e + n}
-
--- | Changing the 'Modality'.
-{-# INLINE underModality #-}
-underModality :: (LensModality o) => o -> OccursM z -> OccursM z
-underModality = local . mapModality . composeModality . getModality
+underBinder :: Modality -> OccursM z -> OccursM z
+underBinder mod = local \e ->
+  e {occLocals = occLocals e + 1, occLocalModalities = mod : occLocalModalities e}
 
 -- | Changing the 'Relevance'.
 {-# INLINE underRelevance #-}
@@ -448,17 +439,18 @@ underQuantity = local . mapQuantity . composeQuantity . getQuantity
 variableCheck :: Int -> OccursM Bool
 variableCheck i = do
   locals <- asks occLocals
-  -- Bound variables are allowed to occur
-  if i < locals then
-    pure True
+  -- For bound variables, check if they are usable in current modality
+  if i < locals then do
+    currentMod <- asks occModality
+    localMods <- asks occLocalModalities
+    let mod = indexWithDefault __IMPOSSIBLE__ localMods i
+    pure $! mod `moreUsableModality` currentMod
   else do
     vars <- asks occVars
     case lookupVarMap (i - locals) vars of
       -- free vars not listed in @occVars@ are forbidden
       Nothing -> pure False
-
-      -- otherwise the modality of the var has to be more usable
-      -- than the current modality
+      -- otherwise check the usability of modality
       Just o -> do
         currentMod <- asks occModality
         let !mod = getModality o
@@ -479,6 +471,7 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
        , occRHS    = v
        , occLocals = 0
        , occModality = getModality mv
+       , occLocalModalities = []
        , occFlexRig = StronglyRigid
        }
   initOccursCheck m mv
@@ -520,7 +513,7 @@ instance Occurs Term where
         expand \ret -> case v of
           Var i es -> ret do
             allowed <- variableCheck i
-            mod     <- asks occModality
+
             reportSDoc "tc.meta.occurs.modal" 60 $ vcat
               [ "checking variable" <+> prettyTCM (var i) <+> parens (pretty (var i))
               , nest 2 "allowed:" <+> pretty allowed
@@ -545,8 +538,7 @@ instance Occurs Term where
                       (strongly $ abort neverUnblock $ MetaCannotDependOn m (occRHS ctx) i)
                 -- is a singleton type with unique inhabitant sv
                 (Just sv) -> return $ sv `applyE` es
-          Lam h f     -> ret do
-            Lam h <$> occurs f
+          Lam h f     -> ret $ Lam h <$> occursInAbs (getModality h) f
           Level l     -> ret $ Level <$> occurs_ l
           Lit l       -> ret $ return v
           Dummy{}     -> ret $ return v
@@ -558,7 +550,7 @@ instance Occurs Term where
           Con c ci vs -> ret do
             definitionCheck (conName c)
             Con c ci <$> conArgs vs (occurs vs)  -- if strongly rigid, remain so, except with unreduced IApply arguments.
-          Pi a b      -> ret $ Pi <$> occurs_ a <*> occurs b
+          Pi a b      -> ret $ Pi <$> occurs a <*> occursInAbs (getModality a) b
           Sort s      -> ret $ Sort <$> do underRelevance shapeIrrelevant $ occurs_ s
           MetaV m' es -> ret do
             m' <- metaCheck m'
@@ -600,14 +592,14 @@ instance Occurs Term where
     v <- instantiate v
     case v of
       Var i vs   -> metaOccurs m vs
-      Lam h f    -> metaOccurs m f
+      Lam h f    -> metaOccursInAbs m f
       Level l    -> metaOccurs m l
       Lit l      -> return ()
       Dummy{}    -> return ()
       DontCare v -> metaOccurs m v
       Def d vs   -> metaOccurs2 m d vs
       Con c _ vs -> metaOccurs m vs
-      Pi a b     -> metaOccurs2 m a b
+      Pi a b     -> metaOccurs m a >> metaOccursInAbs m b
       Sort s     -> metaOccurs m s              -- vv m is already an unblocker
       MetaV m' vs | m == m'   -> patternViolation' neverUnblock 50 $ "Found occurrence of " ++ prettyShow m
                   | otherwise -> addOrUnblocker (unblockOnMeta m') $ metaOccurs m vs
@@ -675,7 +667,7 @@ instance Occurs Sort where
       PiSort a s1 s2 -> do
         s1' <- flexibly $ occurs_ s1
         a'  <- (a $>) <$> do flexibly $ occurs (unDom a)
-        s2' <- mapAbstraction (El s1' <$> a') (flexibly . underBinder . occurs_) s2
+        s2' <- mapAbstraction (El s1' <$> a') (flexibly . underBinder (getModality a) . occurs_) s2
         return $ PiSort a' s1' s2'
       FunSort s1 s2 -> FunSort <$> flexibly (occurs_ s1) <*> flexibly (occurs_ s2)
       Univ u a -> do
@@ -742,19 +734,13 @@ instance Occurs Elims where
     Apply a -> metaOccurs m a
     IApply x y a -> metaOccurs3 m x y a
 
-instance Occurs (Abs Term) where
-  occurs (NoAbs s x) = NoAbs s <$> occurs x
-  occurs x = mapAbstraction_ (\body -> underBinder $ occurs body) x
+occursInAbs :: (Occurs a, Subst a) => Modality -> Abs a -> OccursM (Abs a)
+occursInAbs mod (NoAbs s x) = NoAbs s <$> occurs x
+occursInAbs mod x           = mapAbstraction_ (underBinder mod . occurs) x
 
-  metaOccurs m (Abs   _ x) = metaOccurs m x
-  metaOccurs m (NoAbs _ x) = metaOccurs m x
-
-instance Occurs (Abs Type) where
-  occurs (NoAbs s x) = NoAbs s <$> occurs_ x
-  occurs x = mapAbstraction_ (\body -> underBinder $ occurs_ body) x
-
-  metaOccurs m (Abs   _ x) = metaOccurs m x
-  metaOccurs m (NoAbs _ x) = metaOccurs m x
+metaOccursInAbs :: Occurs a => MetaId -> Abs a -> TCM ()
+metaOccursInAbs m (Abs _ x)   = metaOccurs m x
+metaOccursInAbs m (NoAbs _ x) = metaOccurs m x
 
 instance Occurs a => Occurs (Arg a) where
   occurs arg = expand \ret -> case arg of
@@ -762,8 +748,8 @@ instance Occurs a => Occurs (Arg a) where
       debugModalities
       verboseBracket "tc.meta.occurs.arg" 70 ("going under arg " <> show (P.pretty (getModality info))) $
         expand \ret -> if isIrrelevant info
-          then ret $ onlyReduceTypes $ occUnderModality (getModality info) $ debugModalities >> occurs v
-          else ret $ occUnderModality (getModality info) $ debugModalities >> occurs v
+          then ret $ onlyReduceTypes $ occUnderArgModality (getModality info) $ debugModalities >> occurs v
+          else ret $ occUnderArgModality (getModality info) $ debugModalities >> occurs v
   metaOccurs m = metaOccurs m . unArg
 
 instance Occurs a => Occurs (Dom a) where
