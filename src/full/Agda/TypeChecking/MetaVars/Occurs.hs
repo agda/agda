@@ -2,7 +2,6 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# LANGUAGE NondecreasingIndentation  #-}
--- {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds -ddump-to-file #-}
 
 {- | The occurs check for unification.  Does pruning on the fly.
 
@@ -108,10 +107,10 @@ When doing the occurs check on d, we need to look at the definition of
 d to discover that it mentions X.
 
 To this end, we extend the state by names of definitions that have to
-be checked when they occur.  At the beginning, this is initialized
-with the names in the current mutual block.  Each time we encounter a
+be checked when they occur. At the beginning, this is initialized
+with the names in the current mutual block. Each time we encounter a
 name in the list during occurs check, we delete it (if check is
-successful).  aThis way, we do not duplicate work.
+successful). This way, we do not duplicate work.
 
 -}
 
