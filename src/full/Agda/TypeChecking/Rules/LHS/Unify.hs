@@ -902,8 +902,9 @@ solutionStep retry s
     Right True | usable ->
       case solveVar (m - 1 - i) p s of
         Nothing | retry == RetryNormalised -> do
-          u <- normalise u
           s <- lensVarTel normalise s
+          -- #8577: Need to normalise 'u' under 'varTel'
+          u <- addContext (varTel s) $ normalise u
           solutionStep DontRetryNormalised s step{ solutionTerm = u }
         Nothing ->
           return $! UnifyStuck [UnifyRecursiveEq (varTel s) a i u]

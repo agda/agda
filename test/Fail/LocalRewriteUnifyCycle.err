@@ -1,0 +1,10 @@
+LocalRewriteUnifyCycle.agda:9.7-11: error: [SplitError.UnificationStuck]
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  f n m ≟ m
+Possible reason why unification failed:
+  Cannot solve variable m of type Nat with solution f 0 m because the
+  variable occurs in the solution, or in the type of one of the
+  variables in the solution.
+when checking that the pattern refl has type f n m ≡ m
