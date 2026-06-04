@@ -230,6 +230,7 @@ import Agda.Interaction.Options.Warnings
 import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) )
 import Agda.Syntax.Common (Cubical(..))
 import Agda.Syntax.Common.Pretty
+import Agda.Syntax.Position (PrintRange(PrintRange))
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 
 import qualified Agda.Setup.EmacsMode as EmacsMode
@@ -898,7 +899,7 @@ infectiveOption opt s = ICOption
   , icOptionOK          = \current imported ->
                            opt imported <= opt current
   , icOptionWarning     = \m -> fsep $
-      pwords "Importing module" ++ [pretty m] ++ pwords "using the" ++
+      pwords "Importing module" ++ [pretty $ PrintRange m] ++ pwords "using the" ++
       [text s] ++ pwords "flag from a module which does not."
   }
 
@@ -918,7 +919,7 @@ coinfectiveOption opt s = ICOption
   , icOptionOK          = \current imported ->
                            opt current <= opt imported
   , icOptionWarning     = \m -> fsep $
-      pwords "Importing module" ++ [pretty m] ++
+      pwords "Importing module" ++ [pretty $ PrintRange m] ++
       pwords "not using the" ++ [text s] ++
       pwords "flag from a module which does."
   }
@@ -983,7 +984,7 @@ infectiveCoinfectiveOptions =
             (Just CWithoutGlue, Just CErased) -> False
             _ -> True
       , icOptionWarning = \m -> fsep $
-          pwords "Importing module" ++ [pretty m] ++
+          pwords "Importing module" ++ [pretty $ PrintRange m] ++
           pwords "which might contain glue to a module with the option" ++
           pwords (flagName ++ ".")
       }
