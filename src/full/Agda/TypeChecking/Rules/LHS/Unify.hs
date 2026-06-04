@@ -903,6 +903,7 @@ solutionStep retry s
       case solveVar (m - 1 - i) p s of
         Nothing | retry == RetryNormalised -> do
           s <- lensVarTel normalise s
+          -- #8577: Need to normalise 'u' under 'varTel'
           u <- addContext (varTel s) $ normalise u
           solutionStep DontRetryNormalised s step{ solutionTerm = u }
         Nothing ->
