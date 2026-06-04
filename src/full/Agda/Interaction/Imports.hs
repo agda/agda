@@ -893,7 +893,7 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
       -- Check that imported options are compatible with current ones (issue #2487),
       -- but give primitive modules a pass.
       -- Compute updated warnings if needed.
-      ws' <- fromMaybe ws <$> getOptionsCompatibilityWarnings isMain isPrim currentOptions i
+      ws' <- fromMaybe ws <$> getOptionsCompatibilityWarnings isMain currentOptions mi
       return mi{ miWarnings = ws' }
 
 -- | If checking produced non-benign warnings, error out.
@@ -937,16 +937,23 @@ checkOptionsCompatible current imported importedModule = flip execStateT True $ 
 
 getOptionsCompatibilityWarnings ::
      MainInterface
-  -> Bool           -- ^ Are we looking at a primitvie module?
   -> PragmaOptions
-  -> Interface
+  -> ModuleInfo
   -> TCM (Maybe (Set TCWarning))
-getOptionsCompatibilityWarnings isMain False currentOptions Interface{ iOptionsUsed, iTopLevelModuleName } = do
-  ifM (checkOptionsCompatible currentOptions iOptionsUsed iTopLevelModuleName)
-    {-then-} (return Nothing) -- No warnings to collect because options were compatible.
-    {-else-} (Just <$> getAllWarnings' isMain ErrorWarnings)
--- Options consistency checking is disabled for always-available primitive modules.
-getOptionsCompatibilityWarnings _ True _ _ = return Nothing
+getOptionsCompatibilityWarnings isMain currentOptions = \case
+  ModuleInfo{ miPrimitive = False, miInterface = Interface{ iOptionsUsed, iTopLevelModuleName = m }, miSourceFile } -> do
+
+    -- Add range to name of imported module.
+    m' <- if not $ null $ getRange m then pure m else do
+      path <- srcFilePath miSourceFile
+      pure $ setRange (rangeFromAbsolutePath path) m
+
+    ifM (checkOptionsCompatible currentOptions iOptionsUsed m')
+      {-then-} (return Nothing) -- No warnings to collect because options were compatible.
+      {-else-} (Just <$> getAllWarnings' isMain ErrorWarnings)
+
+  -- Options consistency checking is disabled for always-available primitive modules.
+  _ -> return Nothing
 
 -- | Try to get the interface from interface file or cache.
 

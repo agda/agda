@@ -1,5 +1,7 @@
 Issue202.agda:6.1-25: error: [CoInfectiveImport]
-Importing module Imports.Test not using the
---no-universe-polymorphism flag from a module which does.
+Importing module
+Imports.Test (at Imports/Test.agda:1.1)
+not using the --no-universe-polymorphism flag from a module which
+does.
 when scope checking the declaration
   open import Imports.Test
