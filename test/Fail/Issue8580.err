@@ -1,0 +1,4 @@
+Issue8580.agda:6.11-12: error: [UnusedVariableInPatternSynonym]
+Unused variable in pattern synonym: _
+when scope checking the declaration
+  pattern S _ = Set

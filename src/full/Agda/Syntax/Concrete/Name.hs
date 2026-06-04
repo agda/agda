@@ -64,6 +64,7 @@ instance Underscore Name where
   underscore = NoName noRange __IMPOSSIBLE__
   isUnderscore NoName{} = True
   isUnderscore (Name {nameNameParts = Id x :| []}) = isUnderscore x
+  isUnderscore (Name {nameNameParts = Hole :| []}) = True
   isUnderscore _ = False
 
 instance Null Name where

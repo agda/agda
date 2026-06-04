@@ -2216,6 +2216,7 @@ instance ToAbstract NiceDeclaration where
 
     NicePatternSyn r a n as p -> do
       reportSLn "scope.pat" 30 $ "found nice pattern syn: " ++ prettyShow n
+      reportSLn "scope.pat" 40 $ "arguments: " ++ prettyShow as
       (as, p) <- withLocalVars $ do
          -- Expand puns if optHiddenArgumentPuns is True.
          p <- parsePatternSyn =<< expandPunsOpt p
@@ -2240,9 +2241,9 @@ instance ToAbstract NiceDeclaration where
       return $ singleton $ A.PatternSynDef y (map (fmap BindName) as) p   -- only for highlighting, so use unexpanded version
       where
         checkPatSynParam :: WithHiding C.Name -> ScopeM (WithHiding A.Name)
-        checkPatSynParam (WithHiding h x) = do
-          let err = setCurrentRange x . typeError
-          resolveName (C.QName x) >>= \case
+        checkPatSynParam (WithHiding h x)
+          | isUnderscore x = err $ UnusedVariableInPatternSynonym x
+          | otherwise = resolveName (C.QName x) >>= \case
             VarName a (PatternBound h')
               | isInstance h, not (isInstance h') -> err $ IllegalInstanceVariableInPatternSynonym x
               | otherwise -> return $ WithHiding h a
@@ -2251,6 +2252,8 @@ instance ToAbstract NiceDeclaration where
             UnknownName -> err $ UnusedVariableInPatternSynonym x
             -- Other cases are impossible because parsing the pattern syn rhs would have failed.
             _ -> __IMPOSSIBLE__
+          where
+            err = setCurrentRange x . typeError
 
     d@NiceLoneConstructor{} -> [] <$ do
       declarationWarning $ InvalidConstructorBlock $ getRange d
