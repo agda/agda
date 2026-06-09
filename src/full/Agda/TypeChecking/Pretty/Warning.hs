@@ -414,6 +414,16 @@ prettyWarning = \case
             , pwords "the left-hand side is neither a defined symbol nor a constructor"
             ]
 
+        LHSNotNeutral -> do
+          (fsep . concat)
+            [ illegalSince q
+            , pwords "the left-hand side of a rewrite rule introduced by smart with is not neutral"]
+
+        RHSContainsClosures -> do
+          (fsep . concat)
+            [ illegalSince q
+            , pwords "the right-hand side of a rewrite rule introduced by smart with contains unguarded lambdas (which can cause non-termination)"]
+
         VariablesNotBoundByLHS xs -> do
           (fsep . concat)
             [ illegalSince q
@@ -823,12 +833,12 @@ instance PrettyTCM DataOrRecord_ where
     IsData{}   -> "data"
     IsRecord{} -> "record"
 
-instance PrettyTCM RewriteSource where
+instance PrettyTCM RewriteOrigin where
   prettyTCM s = prettyTCM (defName <$> s)
 
-instance PrettyTCM SerialisableRewriteSource where
+instance PrettyTCM SerialisableRewriteOrigin where
   prettyTCM = \case
-    LocalRewrite g n t ->
+    LocalRewrite (LocalRewriteInfo o g n t) ->
       maybe "_" prettyTCM n <+> ":" <+> addContext g (prettyTCM t)
     GlobalRewrite q    -> prettyTCM q
 

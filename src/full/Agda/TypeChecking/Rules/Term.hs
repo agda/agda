@@ -345,7 +345,7 @@ checkDomain lamOrPi n xs e = do
         equalSort (getSort t) LockUniv
 
     cxt <- getContext
-    let s = LocalRewrite cxt n t
+    let i = LocalRewriteInfo LRewUserWritten cxt n t
 
   -- For now, we disallow '@rewrite' domains on pi types
   -- In the future, this should be allowed only when the pi type is not in
@@ -355,10 +355,10 @@ checkDomain lamOrPi n xs e = do
     r <- case lamOrPi of
       -- TODO: Disabling this check on 'rewMatches' is a hack
       PiNotLam | isRewrite r && not rewMatches -> IsNotRewrite <$
-        runMaybeT (illegalRule s LocalRewriteOutsideTelescope)
-      _                      -> pure r
+        runMaybeT (illegalRule (LocalRewrite i) LocalRewriteOutsideTelescope)
+      _                                        -> pure r
 
-    rDom <- checkRewDom LRewUserWritten n r t
+    rDom <- checkRewDom i r
 
     return (rDom, t)
   where
@@ -370,14 +370,10 @@ checkDomain lamOrPi n xs e = do
         modEnv PiNotLam     = id
 
 
-checkRewDom ::
-  LocalRewriteOrigin -> Maybe Name -> RewriteAnn -> Type -> TCM (Maybe RewDom)
-checkRewDom o n r t = do
-  cxt <- getContext
-  let s = LocalRewrite cxt n t
-
-  eq  <- checkEquationValid s r t
-  rew <- traverse (checkLocalRewriteRule o s) eq
+checkRewDom :: LocalRewriteInfo -> RewriteAnn -> TCM (Maybe RewDom)
+checkRewDom i@(LocalRewriteInfo o _ _ t) r = do
+  eq  <- checkEquationValid (LocalRewrite i) r t
+  rew <- traverse (checkLocalRewriteRule i) eq
   let rDom = RewDom o <$> eq <*> fmap pure (join rew)
   whenJust rDom \rDom' -> reportSDoc "rewriting" 30 $
       "Successfully elaborated: " <+> prettyTCM (rewDomEq rDom') <+>

@@ -334,14 +334,14 @@ recheckLocalRewrites (ExtendTel x xs) = do
       rd' <- forA (rewDom d) \rd -> do
         cxt <- getContext
         -- TODO: Names/sane error messages
-        let s = LocalRewrite cxt Nothing (unDom d)
-        recheckRewDom s rd
+        let i = LocalRewriteInfo (rewDomOrigin rd) cxt Nothing (unDom d)
+        recheckRewDom i rd
       pure $ dRew .~ rd' $ d
 
 -- | Recheck a local rewrite rule
-recheckRewDom :: RewriteSource -> RewDom -> TCM RewDom
-recheckRewDom s d = do
-  rew <- checkLocalRewriteRule (rewDomOrigin d) s (rewDomEq d)
+recheckRewDom :: LocalRewriteInfo -> RewDom -> TCM RewDom
+recheckRewDom i d = do
+  rew <- checkLocalRewriteRule i $ rewDomEq d
   case rew of
     Just rew' -> pure $ d { rewDomRew = pure rew' }
     Nothing   -> invalidatedRule

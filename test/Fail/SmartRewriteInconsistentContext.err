@@ -1,0 +1,12 @@
+SmartRewriteInconsistentContext.agda:8.1-23: warning: -W[no]RewriteLHSNotNeutral
+_ : true ≡ w  is not a legal rewrite rule, since the left-hand side
+of a rewrite rule introduced by smart with is not neutral
+when checking that the clause foo p rewrite p = ? has type
+true ≡ false → Bool
+
+SmartRewriteInconsistentContext.agda:8.1-6: error: [ImpossibleConstructor.UnifyConflict]
+The case for the constructor refl is impossible
+because unification ended with a conflicting equation
+  true ≟ false
+Possible solution: remove the clause, or use an absurd pattern ().
+when checking that the pattern refl has type true ≡ false

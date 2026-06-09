@@ -89,6 +89,7 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
+import Agda.Utils.CallStack (HasCallStack)
 
 type CoverM = ExceptT SplitError TCM
 
@@ -825,13 +826,15 @@ fixTargetType q tag sc@SClause{ scTel = sctel, scSubst = sigma } target = do
 -- | Add more patterns to split clause if the target type is a function type.
 --   Returns the domains of the function type (if any).
 insertTrailingArgs
-  :: Bool         -- ^ Force insertion even when there is a 'domTactic'?
+  :: HasCallStack
+  => Bool         -- ^ Force insertion even when there is a 'domTactic'?
   -> SplitClause
   -> TCM (Telescope, SplitClause)
 insertTrailingArgs force sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scCheckpoints = cps, scTarget = target } = do
   let fallback = return (empty, sc)
   caseMaybe target fallback $ \ a -> do
     if isJust (domTactic a) && not force then fallback else do
+    reportSDoc "rewriting" 30 $ "sctel: " <+> prettyTCM sctel
     (TelV tel b) <- addContext sctel $ telViewUpTo (-1) $ unDom a
     reportSDoc "tc.cover.target" 15 $ sep
       [ "target type telescope: " <+> do
@@ -934,8 +937,11 @@ computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
                    ++! applySubst rho2 (teleNamedArgs gamma) -- rho0?
       -- Compute final context and substitution
       let rho3    = consS defp rho1            -- Δ₁' ⊢ ρ₃ : Δ₁(x:D)
-          delta2' = applySplitPSubst rho3 delta2  -- Δ₂' = Δ₂ρ₃
-          delta'  = delta1' `abstract` delta2' -- Δ'  = Δ₁'Δ₂'
+
+      delta2' <- addContext delta1' $ liftTCM $
+        substTelRecheck (fromPatternSubstitution $ fromSplitPSubst rho3) delta2  -- Δ₂' = Δ₂ρ₃
+
+      let delta'  = delta1' `abstract` delta2' -- Δ'  = Δ₁'Δ₂'
           rho     = liftS (size delta2) rho3   -- Δ' ⊢ ρ : Δ₁(x:D)Δ₂
 
       -- debugTel "delta'" delta'

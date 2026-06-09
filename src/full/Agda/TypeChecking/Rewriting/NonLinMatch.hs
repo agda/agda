@@ -61,6 +61,7 @@ import Agda.Utils.VarSet qualified as VarSet
 import Agda.Utils.StrictState
 
 import Agda.Utils.Impossible
+import Agda.Utils.CallStack (HasCallStack)
 
 
 -- | Monad for non-linear matching.
@@ -478,7 +479,7 @@ getTypedHead x = do
 
 -- | Utility function for getting the type of a head term. Includes a case
 --   for variables (which are valid heads of local rewrite rules)
-getLocalHeadType :: PureTCM m => Term -> m (Maybe (Maybe QName, Type))
+getLocalHeadType :: (PureTCM m, HasCallStack) => Term -> m (Maybe (Maybe QName, Type))
 getLocalHeadType =  \case
   Def f []   -> Just . (Just f,) . defType <$> getConstInfo f
   Con (ConHead { conName = c }) _ [] -> do

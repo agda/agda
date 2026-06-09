@@ -255,15 +255,22 @@ instance EmbPrj Context where
     N2 0 a -> valuN Context a
     _      -> malformed
 
-instance EmbPrj SerialisableRewriteSource where
+instance EmbPrj SerialisableRewriteOrigin where
   icod_ = \case
-    LocalRewrite a b c -> icodeN 0 LocalRewrite a b c
-    GlobalRewrite a    -> icodeN 1 GlobalRewrite a
+    LocalRewrite  a -> icodeN 0 LocalRewrite a
+    GlobalRewrite a -> icodeN 1 GlobalRewrite a
 
   value = vcase $ \case
-    N4 0 a b c -> valuN LocalRewrite a b c
-    N2 1 a     -> valuN GlobalRewrite a
-    _          -> malformed
+    N2 0 a -> valuN LocalRewrite a
+    N2 1 a -> valuN GlobalRewrite a
+    _      -> malformed
+
+instance EmbPrj LocalRewriteInfo where
+  icod_ (LocalRewriteInfo a b c d) = icodeN 0 LocalRewriteInfo a b c d
+
+  value = vcase $ \case
+    N5 0 a b c d -> valuN LocalRewriteInfo a b c d
+    _            -> malformed
 
 instance EmbPrj IllegalRewriteRuleReason where
   icod_ = \case
@@ -285,6 +292,8 @@ instance EmbPrj IllegalRewriteRuleReason where
     DuplicateRewriteRule                        -> icodeN 15 DuplicateRewriteRule
     LocalRewriteOutsideTelescope                -> icodeN 16 LocalRewriteOutsideTelescope
     SmartWithOccursFail                         -> icodeN 17 SmartWithOccursFail
+    LHSNotNeutral                               -> icodeN 18 LHSNotNeutral
+    RHSContainsClosures                         -> icodeN 19 RHSContainsClosures
 
   value = vcase $ \case
     N1 0     -> valuN LHSNotDefinitionOrConstructor

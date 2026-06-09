@@ -60,7 +60,9 @@ digestUnifyLog log = forM log \(UnificationStep s step out, s') -> do
   let illegal     = Left $ Illegal step
       unsupported = Left $ UnsupportedYet step
       ret step    = pure (DUnificationStep s step out, s')
-  case step of
+  if refreshRews $ unifyRefreshRews out
+  then Left RewriteMatch
+  else case step of
     Solution a b c d e   -> ret $ DSolution a b c d e
     EtaExpandVar a b c   -> ret $ DEtaExpandVar a b c
     Deletion{}           -> illegal
@@ -74,6 +76,7 @@ digestUnifyLog log = forM log \(UnificationStep s step out, s') -> do
 instance PrettyTCM NoLeftInv where
   prettyTCM (UnsupportedYet s) = fsep $ pwords "It relies on" ++ [explainStep s <> ","] ++ pwords "which is not yet supported"
   prettyTCM UnsupportedCxt     = fwords "it relies on higher-dimensional unification, which is not yet supported"
+  prettyTCM RewriteMatch       = fwords "It matches on variable bound in a local rewrite rule"
   prettyTCM (Illegal s)        = fsep $ pwords "It relies on" ++ [explainStep s <> ","] ++ pwords "which is incompatible with" ++ [text "Cubical Agda"]
   prettyTCM NoCubical          = fwords "Cubical Agda is disabled"
   prettyTCM WithKEnabled       = fwords "The K rule is enabled"
@@ -90,6 +93,7 @@ data NoLeftInv
   | SplitOnStrict  -- ^ splitting on a Strict Set.
   | SplitOnFlat    -- ^ splitting on a @♭ argument
   | UnsupportedCxt
+  | RewriteMatch
   | CantTransport  (Closure (Abs Type))
   | CantTransport' (Closure Type)
   deriving Show

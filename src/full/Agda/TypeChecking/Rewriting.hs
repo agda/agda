@@ -90,6 +90,7 @@ import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.Impossible
 import Agda.Utils.Either
 import Agda.Utils.List1 (nonEmpty)
+import Agda.Utils.CallStack (HasCallStack)
 
 -- | Require '--rewriting' for global REWRITE rules
 requireOptionRewriting :: TCM ()
@@ -179,13 +180,13 @@ rewriteRelationDom rel = do
   return (delta, a)
 
 checkEquationValid ::
-  RewriteSource -> RewriteAnn -> Type -> TCM (Maybe LocalEquation)
+  RewriteOrigin -> RewriteAnn -> Type -> TCM (Maybe LocalEquation)
 checkEquationValid s rewAnn t
   | isRewrite rewAnn = runMaybeT $ checkIsRewriteRelation s t
   | otherwise        = pure Nothing
 
 checkIsRewriteRelation ::
-  RewriteSource -> Type -> MaybeT TCM LocalEquation
+  RewriteOrigin -> Type -> MaybeT TCM LocalEquation
 checkIsRewriteRelation q t = do
   rels <- lift getBuiltinRewriteRelations
   reportSDoc "rewriting.relations" 40 $ vcat
@@ -259,8 +260,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
 --
 --   Assumes LHS of rewrite rule is neutral and telescope of rewrite rule
 --   is empty
-occursCheckSmartWithRewriteRule ::
-  RewriteRule -> TCM Bool
+occursCheckSmartWithRewriteRule :: RewriteRule -> TCM Bool
 occursCheckSmartWithRewriteRule r = do
   tel  <- getContextTelescope
   let eqs = rewDomEq <$> smartWithRewDoms tel
@@ -291,23 +291,160 @@ occursCheckSmartWithRewriteRule r = do
     let fvs = freeVarSet t'
     pure $ freshVar `VarSet.member` fvs
 
-checkLocalRewriteRule :: LocalRewriteOrigin -> RewriteSource -> LocalEquation
+checkLocalRewriteRule :: LocalRewriteInfo -> LocalEquation
   -> TCM (Maybe RewriteRule)
-checkLocalRewriteRule o s eq = runMaybeT $
+checkLocalRewriteRule i eq = runMaybeT $ do
+  cxt <- getContext
+  let o = LocalRewrite i
   -- For now, we fail if the local rewrite rule contains metas ANYWHERE
   -- I think it should be possible to do better than this, but it is hard
   Set1.ifNull (allMetas Set.singleton eq)
   {- then -} (do
-    rew <- checkRewriteRule' eq s
-    when (lrewSmartWith o) $
+    rew <- checkRewriteRule' eq o
+    when (lrewSmartWith $ lrewInfoOrigin i) $
       -- TODO: We should also check that the LHS is neutral, but maybe that
       -- should go inside checkRewriteRule'...
       unlessM (lift $ occursCheckSmartWithRewriteRule rew) $
-        illegalRule s SmartWithOccursFail
+        illegalRule o SmartWithOccursFail
     pure rew)
-  {- else -} (illegalRule s . ContainsUnsolvedMetaVariables)
+  {- else -} (illegalRule o . ContainsUnsolvedMetaVariables)
 
-checkRewriteRule' :: LocalEquation -> RewriteSource -> MaybeT TCM RewriteRule
+-- | Checks for unguarded lambdas (semantically, closures in the evaluated term)
+--
+--   For termination of "smart with" rewrite rules, such unguarded lambdas on
+--   the RHS
+--   Assumes the input term is normalised
+--   We consider a lambda guarded if it is hidden behind a fully stuck
+--   application
+noClosures :: Term -> TCM Bool
+noClosures (Lam ai b)   = pure False
+noClosures t@(Var x es) =
+  (||) <$> fullyStuck t <*> noClosuresElims es
+noClosures t@(Def f es) =
+  (||) <$> fullyStuck t <*> noClosuresElims es
+-- Constructors are never considered guarding
+noClosures (Con c i es) = noClosuresElims es
+-- TODO: I don't think it is possible to project a closure out of a pi-type
+-- but this feels weird...
+noClosures Pi{}         = pure True
+-- Literals cannot contain closures
+noClosures (Lit _)      = pure True
+-- Sorts never contain closures
+noClosures Sort{}       = pure True
+-- Levels never contain closures
+noClosures Level{}      = pure True
+noClosures MetaV{}      = __IMPOSSIBLE__
+-- TODO: Is this actually impossible?
+noClosures DontCare{}   = __IMPOSSIBLE__
+noClosures Dummy{}      = __IMPOSSIBLE__
+
+noClosuresElims :: Elims -> TCM Bool
+noClosuresElims es =
+  fmap and $ traverse noClosures $ mapMaybe unApply es
+  where
+    unApply (Apply t) = Just (unArg t)
+    unApply _         = Nothing
+
+-- We only consider an application to be fully stuck if it is stays stuck
+-- after applying to further 'Elims'
+fullyStuck :: Term -> TCM Bool
+fullyStuck t = do
+  t' <- reduceB t
+  case t' of
+    NotBlocked nb _ -> case nb of
+      -- If we are genuinely stuck pattern matching on an argument, then we
+      -- wi
+      StuckOn _        -> pure True
+      -- Underapplied definitions can become unstuck after applying to further
+      -- arguments
+      Underapplied     -> pure False
+      -- TODO: Can we ever hit this case?
+      MissingClauses _ -> pure True
+      AbsurdMatch      -> pure True
+      ReallyNotBlocked -> pure True
+    -- TODO: Can we ever hit this case?
+    Blocked    _  _ -> pure False
+
+checkRewriteRuleLHS :: RewriteOrigin -> Telescope -> Term -> Type
+  -> MaybeT TCM (RewriteHead, Elims -> Term, Type, [Int], Elims)
+checkRewriteRuleLHS s gamma1 lhs b = do
+  case lhs of
+    Def f es -> do
+      def <- getConstInfo f
+      checkAxFunOrCon f def
+      when (isSmartWithRewrite s) $ checkFullyStuck lhs
+      return (RewDefHead f , Def f , defType def , [] , es)
+    Con c ci vs -> do
+      -- Constructor applications are never neutral
+      when (isSmartWithRewrite s) $
+        illegalRule s LHSNotNeutral
+      let hd = Con c ci
+      ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c b
+      pars <- addContext gamma1 $ checkParametersAreGeneral c pars
+      return (RewDefHead $ conName c , hd , t , pars , vs)
+    -- Even if we skip the 'x > size gamma1' check here, we will still catch bad
+    -- local variable rewrite rule heads later, but
+    Var x es | isLocalRewrite s && x > size gamma1 -> do
+      t <- addContext gamma1 $ typeOfBV x
+      when (isSmartWithRewrite s) $ checkFullyStuck lhs
+      return (RewVarHead (x - size gamma1), Var x , t , [] , es)
+    _ -> do
+      reportSDoc "rewriting.rule.check" 30 $ hsep
+        [ "LHSNotDefinitionOrConstructor: ", prettyTCM lhs ]
+      illegalRule s LHSNotDefinitionOrConstructor
+  where
+    -- Smart with rewrite rule LHSs must be fully stuck/neutral
+    checkFullyStuck :: Term -> MaybeT TCM ()
+    checkFullyStuck t = do
+      unlessM (lift $ fullyStuck t) $ illegalRule s LHSNotNeutral
+
+    checkAxFunOrCon :: QName -> Definition -> MaybeT TCM ()
+    checkAxFunOrCon f def = case theDef def of
+      Axiom{}        -> return ()
+      def@Function{} -> do
+        whenJust (maybeRight (funProjection def)) $ \proj -> case projProper proj of
+          Nothing -> illegalRule s $ HeadSymbolIsProjectionLikeFunction f
+          Just{} -> __IMPOSSIBLE__
+            -- Andreas, 2024-08-20
+            -- A projection ought to be impossible in the head, since they are represented
+            -- in post-fix in the internal syntax.
+            -- Thus, a lone projection @p@ will be @λ x → x .p@
+            -- and an applied projection @p t@ will be @t .p@.
+        whenM (isJust . optConfluenceCheck <$> pragmaOptions) $ do
+          let simpleClause cl = (patternsToElims (namedClausePats cl) , clauseBody cl)
+          cls <- instantiateFull $ map simpleClause $ funClauses def
+          unless (noMetas cls) $ illegalRule s $ HeadSymbolContainsMetas f
+
+      Constructor{}  -> return ()
+      AbstractDefn{} -> return ()
+      Primitive{}    -> return () -- TODO: is this fine?
+      Datatype{}     -> illegalHead
+      Record{}       -> illegalHead
+      DatatypeDefn{} -> illegalHead
+      RecordDefn{}   -> illegalHead
+      DataOrRecSig{} -> illegalHead
+      PrimitiveSort{}-> illegalHead
+      GeneralizableVar{} -> __IMPOSSIBLE__
+
+      where
+        illegalHead = illegalRule s $ HeadSymbolIsTypeConstructor f
+
+    checkParametersAreGeneral :: ConHead -> Args -> MaybeT TCM [Int]
+    checkParametersAreGeneral c vs = do
+        is <- loop vs
+        unless (fastDistinct is) $ errorNotGeneral
+        return is
+      where
+        loop []       = return []
+        loop (v : vs) = case unArg v of
+          Var i [] -> (i :) <$> loop vs
+          _        -> errorNotGeneral
+
+        errorNotGeneral :: MaybeT TCM a
+        errorNotGeneral = illegalRule s $ ConstructorParametersNotGeneral c $
+          fromMaybe __IMPOSSIBLE__ $ nonEmpty vs
+
+checkRewriteRule' :: LocalEquation -> RewriteOrigin -> MaybeT TCM RewriteRule
 checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
   reportSDoc "rewriting" 30 $
     "Checking rewrite rule: " <+> prettyTCM eq
@@ -336,32 +473,22 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
   -- original definition.
   lhs <- modifyAllowedReductions (const $ SmallSet.singleton InlineReductions) $ reduce lhs
 
-  -- Find head symbol f of the lhs, its type, its parameters (in case of a constructor), and its arguments.
-  (f , hd , t , pars , es) <- case lhs of
-    Def f es -> do
-      def <- getConstInfo f
-      checkAxFunOrCon f def
-      return (RewDefHead f , Def f , defType def , [] , es)
-    Con c ci vs -> do
-      let hd = Con c ci
-      ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c b
-      pars <- addContext gamma1 $ checkParametersAreGeneral c pars
-      return (RewDefHead $ conName c , hd , t , pars , vs)
-    Var x es | isLocalRewrite s -> do
-      t <- addContext gamma1 $ typeOfBV x
-      return (RewVarHead (x - size gamma1), Var x , t , [] , es)
-    _ -> do
-      reportSDoc "rewriting.rule.check" 30 $ hsep
-        [ "LHSNotDefinitionOrConstructor: ", prettyTCM lhs ]
-      illegalRule s LHSNotDefinitionOrConstructor
-
-  ifNotAlreadyAdded s f $ do
-
   let rewGamma = if isLocalRewrite s then gamma1 else gamma
-
       telStart = size rewGamma
 
-  addContext gamma1 $ do
+  -- Find head symbol f of the lhs, its type, its parameters (in case of a constructor), and its arguments.
+  (f , hd , t , pars , es) <- checkRewriteRuleLHS s gamma1 lhs b
+
+  -- case s of
+  --   GlobalRewrite _                    -> True
+  --   LocalRewrite i   -> case lrewInfoOrigin i of
+  --     LRewSmartWith   -> True
+  --     LRewUserWritten -> False
+
+  when (isSmartWithRewrite s) $ unlessM (lift $ noClosures rhs) $
+    illegalRule s RHSContainsClosures
+
+  ifNotAlreadyAdded s f $ addContext gamma1 $ do
 
     checkNoLhsReduction telStart f hd es
 
@@ -390,8 +517,8 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
         freeVarsRhs = telVars `VarSet.intersection` freeVarSet rhs
         freeVars    = freeVarsLhs <> freeVarsRhs
         usedVars    = case s of
-          LocalRewrite _ _ _ -> VarSet.empty
-          GlobalRewrite def  -> case theDef def of
+          LocalRewrite _ -> VarSet.empty
+          GlobalRewrite def    -> case theDef def of
             Function{}         -> usedArgs def
             Axiom{}            -> telVars
             AbstractDefn{}     -> telVars
@@ -442,7 +569,7 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
     return rew
   where
     ifNotAlreadyAdded ::
-         RewriteSource -> RewriteHead -> MaybeT TCM RewriteRule
+         RewriteOrigin -> RewriteHead -> MaybeT TCM RewriteRule
       -> MaybeT TCM RewriteRule
     ifNotAlreadyAdded (GlobalRewrite def) (RewDefHead f) cont = do
       rews <- getGlobalRewriteRulesFor f
@@ -451,7 +578,7 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
         Just rew -> illegalRule (GlobalRewrite def) DuplicateRewriteRule
         Nothing -> cont
     ifNotAlreadyAdded (GlobalRewrite def) (RewVarHead x) cont = __IMPOSSIBLE__
-    ifNotAlreadyAdded (LocalRewrite _ _ _) f cont = cont
+    ifNotAlreadyAdded (LocalRewrite _) f cont = cont
 
     checkNoLhsReduction ::
          Nat -> RewriteHead -> (Elims -> Term) -> Elims
@@ -481,37 +608,6 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
                  compareElims pol [] a (headToTerm telStart f []) es es'
         unless ok fail
 
-    checkAxFunOrCon :: QName -> Definition -> MaybeT TCM ()
-    checkAxFunOrCon f def = case theDef def of
-      Axiom{}        -> return ()
-      def@Function{} -> do
-        whenJust (maybeRight (funProjection def)) $ \proj -> case projProper proj of
-          Nothing -> illegalRule s $ HeadSymbolIsProjectionLikeFunction f
-          Just{} -> __IMPOSSIBLE__
-            -- Andreas, 2024-08-20
-            -- A projection ought to be impossible in the head, since they are represented
-            -- in post-fix in the internal syntax.
-            -- Thus, a lone projection @p@ will be @λ x → x .p@
-            -- and an applied projection @p t@ will be @t .p@.
-        whenM (isJust . optConfluenceCheck <$> pragmaOptions) $ do
-          let simpleClause cl = (patternsToElims (namedClausePats cl) , clauseBody cl)
-          cls <- instantiateFull $ map simpleClause $ funClauses def
-          unless (noMetas cls) $ illegalRule s $ HeadSymbolContainsMetas f
-
-      Constructor{}  -> return ()
-      AbstractDefn{} -> return ()
-      Primitive{}    -> return () -- TODO: is this fine?
-      Datatype{}     -> illegalHead
-      Record{}       -> illegalHead
-      DatatypeDefn{} -> illegalHead
-      RecordDefn{}   -> illegalHead
-      DataOrRecSig{} -> illegalHead
-      PrimitiveSort{}-> illegalHead
-      GeneralizableVar{} -> __IMPOSSIBLE__
-
-      where
-        illegalHead = illegalRule s $ HeadSymbolIsTypeConstructor f
-
     usedArgs :: Definition -> VarSet
     usedArgs def = VarSet.fromList $ map snd $ usedIxs
       where
@@ -520,21 +616,6 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
         usedIxs = filter (used . fst) allIxs
         used Pos.Unused = False
         used _          = True
-
-    checkParametersAreGeneral :: ConHead -> Args -> MaybeT TCM [Int]
-    checkParametersAreGeneral c vs = do
-        is <- loop vs
-        unless (fastDistinct is) $ errorNotGeneral
-        return is
-      where
-        loop []       = return []
-        loop (v : vs) = case unArg v of
-          Var i [] -> (i :) <$> loop vs
-          _        -> errorNotGeneral
-
-        errorNotGeneral :: MaybeT TCM a
-        errorNotGeneral = illegalRule s $ ConstructorParametersNotGeneral c $
-          fromMaybe __IMPOSSIBLE__ $ nonEmpty vs
 
 checkRewConstraint :: LocalEquation -> TCM ()
 checkRewConstraint
@@ -574,7 +655,7 @@ rewriteWith t hd rew@(RewriteRule gamma _ ps rhs b) es = do
 
 -- | @rewrite b v rules es@ tries to rewrite @v@ applied to @es@ with the
 --   rewrite rules @rules@. @b@ is the default blocking tag.
-rewrite ::
+rewrite :: HasCallStack =>
      Blocked_ -> (Elims -> Term) -> RewriteRules -> Elims
   -> ReduceM (Reduced (Blocked Term) Term)
 rewrite block hd rules es = do

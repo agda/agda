@@ -92,7 +92,9 @@ piSmartAbstract (Arg info (v, OtherType a)) b = do
     let r = IsRewrite empty RewFine
     let eqDom' = setRewriteAnn r $ setHiding Hidden $
           defaultDom ("eq", eqTy)
-    rd <- checkRewDom LRewSmartWith Nothing r eqTy
+    cxt <- getContext
+    let i = LocalRewriteInfo LRewSmartWith cxt Nothing eqTy
+    rd <- checkRewDom i r
     pure $ (dRew .~ rd) eqDom'
 
   pure $ mkPi aDom $ mkPi eqDom $ raise 2 b
@@ -127,7 +129,9 @@ piSmartAbstract (Arg info (prf,
     let r = IsRewrite empty RewFine
     let eqDom' = setRewriteAnn r $ setHiding Hidden $
           defaultDom ("w-eq", eqTy)
-    rd <- checkRewDom LRewSmartWith Nothing r eqTy
+    cxt <- getContext
+    let i = LocalRewriteInfo LRewSmartWith cxt Nothing eqTy
+    rd <- checkRewDom i r
     pure $ (dRew .~ rd) eqDom'
 
   let pDom = setArgInfo info $ defaultDom ("prf", raise 2 prfTy)
@@ -150,7 +154,9 @@ piSmartAbstract (Arg info (prf,
     let r = IsRewrite empty RewFine
     let eqDom' = setRewriteAnn r $ setHiding Hidden $
           defaultDom ("prf-eq", eqTy)
-    rd <- checkRewDom LRewSmartWith Nothing r eqTy
+    cxt <- getContext
+    let i = LocalRewriteInfo LRewSmartWith cxt Nothing eqTy
+    rd <- checkRewDom i r
     pure $ (dRew .~ rd) eqDom'
 
   pure $ mkPi aDom $ mkPi eqDom $ mkPi pDom $ mkPi eqpDom $ raise 4 b

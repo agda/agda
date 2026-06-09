@@ -659,10 +659,14 @@ defaultAddLetBinding' isAxiom o x v t ret = do
     vt <- makeOpen $ LetBinding isAxiom o v t
     localTC (over eLetBindings (Map.insert x vt)) ret
 
-unsafeRule :: (MonadWarning m) => RewriteSource -> IllegalRewriteRuleReason -> MaybeT m ()
+unsafeRule ::
+     (MonadWarning m)
+  => RewriteOrigin -> IllegalRewriteRuleReason -> MaybeT m ()
 unsafeRule s reason = lift $ warning $ IllegalRewriteRule (defName <$> s) reason
 
-illegalRule :: (MonadWarning m) => RewriteSource -> IllegalRewriteRuleReason -> MaybeT m a
+illegalRule ::
+     (MonadWarning m)
+  => RewriteOrigin -> IllegalRewriteRuleReason -> MaybeT m a
 illegalRule s reason = do
   unsafeRule s reason
   mzero
