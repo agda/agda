@@ -1,0 +1,9 @@
+SmartRewriteIndirectLoopCopattern.agda:18.1-10: warning: -W[no]RewriteRHSContainsClosures
+_ : f x ≡ wah f  is not a legal rewrite rule, since the right-hand
+side of a rewrite rule introduced by smart with contains unguarded
+lambdas (which can cause non-termination)
+when checking that the pattern refl has type f x ≡ wah f
+
+SmartRewriteIndirectLoopCopattern.agda:18.1-10: error: [InvalidatedLocalRewriteRule]
+Local rewrite rule invalidated after a pattern-match
+when checking that the pattern refl has type f x ≡ wah f

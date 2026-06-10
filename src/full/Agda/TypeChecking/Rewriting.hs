@@ -314,14 +314,12 @@ checkLocalRewriteRule i eq = runMaybeT $ do
 --   For termination of "smart with" rewrite rules, such unguarded lambdas on
 --   the RHS
 --   Assumes the input term is normalised
---   We consider a lambda guarded if it is hidden behind a fully stuck
---   application
+--   We consider a lambda guarded if it is hidden behind a neutral application
 noClosures :: Term -> TCM Bool
 noClosures (Lam ai b)   = pure False
-noClosures t@(Var x es) =
-  (||) <$> fullyStuck t <*> noClosuresElims es
-noClosures t@(Def f es) =
-  (||) <$> fullyStuck t <*> noClosuresElims es
+-- Underapplied variable and definition applications are effectively closures
+noClosures t@(Var x es) = not <$> isUnderapplied t
+noClosures t@(Def f es) = not <$> isUnderapplied t
 -- Constructors are never considered guarding
 noClosures (Con c i es) = noClosuresElims es
 -- TODO: I don't think it is possible to project a closure out of a pi-type
@@ -345,23 +343,20 @@ noClosuresElims es =
     unApply (Apply t) = Just (unArg t)
     unApply _         = Nothing
 
--- We only consider an application to be fully stuck if it is stays stuck
--- after applying to further 'Elims'
-fullyStuck :: Term -> TCM Bool
-fullyStuck t = do
+-- | Returns whether a term is only stuck due to being underapplied
+--   (in which case, it cannot be considered neutral, because further
+--   applications may un-stick it)
+isUnderapplied :: Term -> TCM Bool
+isUnderapplied t = do
   t' <- reduceB t
   case t' of
     NotBlocked nb _ -> case nb of
-      -- If we are genuinely stuck pattern matching on an argument, then we
-      -- wi
-      StuckOn _        -> pure True
-      -- Underapplied definitions can become unstuck after applying to further
-      -- arguments
-      Underapplied     -> pure False
+      Underapplied     -> pure True
+      StuckOn _        -> pure False
       -- TODO: Can we ever hit this case?
-      MissingClauses _ -> pure True
-      AbsurdMatch      -> pure True
-      ReallyNotBlocked -> pure True
+      MissingClauses _ -> pure False
+      AbsurdMatch      -> pure False
+      ReallyNotBlocked -> pure False
     -- TODO: Can we ever hit this case?
     Blocked    _  _ -> pure False
 
@@ -372,7 +367,7 @@ checkRewriteRuleLHS s gamma1 lhs b = do
     Def f es -> do
       def <- getConstInfo f
       checkAxFunOrCon f def
-      when (isSmartWithRewrite s) $ checkFullyStuck lhs
+      when (isSmartWithRewrite s) $ checkNeutral lhs
       return (RewDefHead f , Def f , defType def , [] , es)
     Con c ci vs -> do
       -- Constructor applications are never neutral
@@ -386,17 +381,17 @@ checkRewriteRuleLHS s gamma1 lhs b = do
     -- local variable rewrite rule heads later, but
     Var x es | isLocalRewrite s && x > size gamma1 -> do
       t <- addContext gamma1 $ typeOfBV x
-      when (isSmartWithRewrite s) $ checkFullyStuck lhs
+      when (isSmartWithRewrite s) $ checkNeutral lhs
       return (RewVarHead (x - size gamma1), Var x , t , [] , es)
     _ -> do
       reportSDoc "rewriting.rule.check" 30 $ hsep
         [ "LHSNotDefinitionOrConstructor: ", prettyTCM lhs ]
       illegalRule s LHSNotDefinitionOrConstructor
   where
-    -- Smart with rewrite rule LHSs must be fully stuck/neutral
-    checkFullyStuck :: Term -> MaybeT TCM ()
-    checkFullyStuck t = do
-      unlessM (lift $ fullyStuck t) $ illegalRule s LHSNotNeutral
+    -- Smart with rewrite rule LHSs must be neutral
+    checkNeutral :: Term -> MaybeT TCM ()
+    checkNeutral t = do
+      whenM (lift $ isUnderapplied t) $ illegalRule s LHSNotNeutral
 
     checkAxFunOrCon :: QName -> Definition -> MaybeT TCM ()
     checkAxFunOrCon f def = case theDef def of
