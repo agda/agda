@@ -19,6 +19,7 @@ import Agda.Utils.List
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Tuple ((&&&))
+import Agda.Utils.StrictReader qualified as Strict
 
 {-# INLINE solvingProblem #-}
 solvingProblem :: MonadConstraint m => ProblemId -> m a -> m a
@@ -209,6 +210,22 @@ instance MonadConstraint m => MonadConstraint (ReaderT e m) where
   solveSomeAwakeConstraints = (lift .) . solveSomeAwakeConstraints
   stealConstraints          = lift . stealConstraints
   modifyConstraints         = (lift .) . modifyConstraints
+  wakeConstraints           = lift . wakeConstraints
+
+instance MonadConstraint m => MonadConstraint (Strict.ReaderT e m) where
+  {-# INLINE addConstraint #-}
+  addConstraint             = (lift .) . addConstraint
+  {-# INLINE addAwakeConstraint #-}
+  addAwakeConstraint        = (lift .) . addAwakeConstraint
+  {-# INLINE solveConstraint #-}
+  solveConstraint           = lift . solveConstraint
+  {-# INLINE solveSomeAwakeConstraints #-}
+  solveSomeAwakeConstraints = (lift .) . solveSomeAwakeConstraints
+  {-# INLINE stealConstraints #-}
+  stealConstraints          = lift . stealConstraints
+  {-# INLINE modifyConstraints #-}
+  modifyConstraints         = (lift .) . modifyConstraints
+  {-# INLINE wakeConstraints #-}
   wakeConstraints           = lift . wakeConstraints
 
 -- | Add new a constraint

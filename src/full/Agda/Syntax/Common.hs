@@ -1207,21 +1207,21 @@ inverseApplyQuantity :: LensQuantity a => Quantity -> a -> a
 inverseApplyQuantity q = mapQuantity (q `inverseComposeQuantity`)
 
 -- | Check for 'Quantity0'.
-
+{-# INLINE hasQuantity0 #-}
 hasQuantity0 :: LensQuantity a => a -> Bool
 hasQuantity0 a
   | Quantity0{} <- getQuantity a = True
   | otherwise = False
 
 -- | Check for 'Quantity1'.
-
+{-# INLINE hasQuantity1 #-}
 hasQuantity1 :: LensQuantity a => a -> Bool
 hasQuantity1 a
   | Quantity1{} <- getQuantity a = True
   | otherwise = False
 
 -- | Check for 'Quantityω'.
-
+{-# INLINE hasQuantityω #-}
 hasQuantityω :: LensQuantity a => a -> Bool
 hasQuantityω a
   | Quantityω{} <- getQuantity a = True
@@ -1603,14 +1603,17 @@ class LensRelevance a where
 
   getRelevance :: a -> Relevance
 
+  {-# inline setRelevance #-}
   setRelevance :: Relevance -> a -> a
   setRelevance h = mapRelevance (const h)
 
   mapRelevance :: (Relevance -> Relevance) -> a -> a
 
+  {-# INLINE getRelevance #-}
   default getRelevance :: LensModality a => a -> Relevance
   getRelevance = modRelevance . getModality
 
+  {-# INLINE mapRelevance #-}
   default mapRelevance :: LensModality a => (Relevance -> Relevance) -> a -> a
   mapRelevance f = mapModality $ \ ai -> ai { modRelevance = f $ modRelevance ai }
 

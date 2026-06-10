@@ -364,6 +364,7 @@ debugConstraints = verboseS "tc.constr" 50 $ do
 updateBlocker :: (PureTCM m) => Blocker -> m Blocker
 updateBlocker = instantiate
 
+{-# INLINE addAndUnblocker #-}
 addAndUnblocker :: (PureTCM m, MonadBlock m) => Blocker -> m a -> m a
 addAndUnblocker u
   | u == alwaysUnblock = id
@@ -371,6 +372,7 @@ addAndUnblocker u
       u <- updateBlocker u
       patternViolation (unblockOnBoth u u')
 
+{-# INLINE addOrUnblocker #-}
 addOrUnblocker :: (PureTCM m, MonadBlock m) => Blocker -> m a -> m a
 addOrUnblocker u
   | u == neverUnblock = id

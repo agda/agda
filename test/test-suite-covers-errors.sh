@@ -62,6 +62,7 @@ FunctionTypeInSizeUniv
 GeneralizeCyclicDependency
 GeneralizationPrepruneErrorCyclicDependencies
 GeneralizationPrepruneErrorFailedToInstantiate
+Interaction.CannotGive
 ModuleNameHashCollision
 SplitError.CosplitNoTarget
 SplitError.GenericSplitError

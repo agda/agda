@@ -119,6 +119,10 @@ instance MonadWriter w m => MonadWriter w (ReaderT r m) where
   {-# INLINE pass #-}
   pass   = \(ReaderT m) -> ReaderT (oneShot \r -> pass (m r))
 
+instance (MonadFail m) => MonadFail (ReaderT r m) where
+  fail msg = lift (fail msg)
+  {-# INLINE fail #-}
+
 ----------------------------------------------------------------------------------------------------
 
 newtype Reader r a = Reader {runReader :: r -> a}

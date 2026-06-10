@@ -52,6 +52,7 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Tuple
 import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.StrictReader qualified as Strict
 
 import Agda.Utils.Impossible
 
@@ -125,6 +126,22 @@ instance MonadMetaSolver m => MonadMetaSolver (ReaderT r m) where
   etaExpandMeta k m = lift $ etaExpandMeta k m
   updateMetaVar m f = lift $ updateMetaVar m f
   speculateMetas fallback m = ReaderT $ \x -> speculateMetas (runReaderT fallback x) (runReaderT m x)
+
+instance MonadMetaSolver m => MonadMetaSolver (Strict.ReaderT r m) where
+  {-# INLINE newMeta' #-}
+  newMeta' inst f i p perm j = lift $ newMeta' inst f i p perm j
+  {-# INLINE assignV #-}
+  assignV dir m us v cmp = lift $ assignV dir m us v cmp
+  {-# INLINE assignTerm' #-}
+  assignTerm' m us v = lift $ assignTerm' m us v
+  {-# INLINE etaExpandMeta #-}
+  etaExpandMeta k m = lift $ etaExpandMeta k m
+  {-# INLINE updateMetaVar #-}
+  updateMetaVar m f = lift $ updateMetaVar m f
+  {-# INLINE speculateMetas #-}
+  speculateMetas fallback m =
+    Strict.ReaderT (\x -> speculateMetas (Strict.runReaderT fallback x)
+                                         (Strict.runReaderT m x))
 
 -- | Switch off assignment of metas.
 dontAssignMetas :: (MonadTCEnv m, MonadDebug m) => m a -> m a

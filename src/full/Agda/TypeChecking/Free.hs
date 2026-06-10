@@ -36,10 +36,7 @@ module Agda.TypeChecking.Free
       FlexRig
     , FlexRig'(..)
     , Free(..)
-    , FreeEnv
-    , FreeEnv'(..)
     , IgnoreSorts(..)
-    , IsVarSet(..)
     , LensFlexRig(..)
     , VarCounts(..)
     , VarMap
@@ -49,7 +46,6 @@ module Agda.TypeChecking.Free
     , composeFlexRig
     , lookupVarMap
     , mapVarMap
-
     -- * Legacy API
     , allVars
     , filterVarMap

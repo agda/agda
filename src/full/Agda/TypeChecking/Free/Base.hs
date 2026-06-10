@@ -260,39 +260,6 @@ constructorFlexRig (ConHead _ _ i fs) es = case i of
 instance Pretty a => Pretty (VarOcc' a) where
   pretty (VarOcc a b) = pretty a <+> pretty b
 
----------------------------------------------------------------------------
--- * Storing variable occurrences (semimodule).
-
--- | Any representation @c@ of a set of variables need to be able to be modified by
---   a variable occurrence. This is to ensure that free variable analysis is
---   compositional. For instance, it should be possible to compute `fv (v [u/x])`
---   from `fv v` and `fv u`.
---
---   In algebraic terminology, a variable set @a@ needs to be (almost) a left semimodule
---   to the semiring 'VarOcc'.
-class (Singleton MetaId a, Monoid a, Monoid c) => IsVarSet a c | c -> a where
-  -- | Laws
-  --    * Respects monoid operations:
-  --      ```
-  --        withVarOcc o mempty   == mempty
-  --        withVarOcc o (x <> y) == withVarOcc o x <> withVarOcc o y
-  --      ```
-  --    * Respects VarOcc composition:
-  --      ```
-  --        withVarOcc oneVarOcc             = id
-  --        withVarOcc (composeVarOcc o1 o2) = withVarOcc o1 . withVarOcc o2
-  --      ```
-  --    * Respects VarOcc aggregation:
-  --      ```
-  --        withVarOcc (o1 <> o2) x = withVarOcc o1 x <> withVarOcc o2 x
-  --      ```
-  --      Since the corresponding unit law may fail,
-  --      ```
-  --        withVarOcc mempty x = mempty
-  --      ```
-  --      it is not quite a semimodule.
-  withVarOcc :: VarOcc' a -> c -> c
-
 -- | Representation of a variable set as map from de Bruijn indices
 --   to 'VarOcc'.
 type TheVarMap' a = IntMap (VarOcc' a)
@@ -325,35 +292,6 @@ instance Semigroup a => Monoid (VarMap' a) where
   mconcat = VarMap . IntMap.unionsWith (<>) . map theVarMap
   -- mconcat = VarMap . IntMap.unionsWith mappend . coerce   -- ghc 8.6.5 does not seem to like this coerce
 
-instance (Singleton MetaId a, Monoid a) => IsVarSet a (VarMap' a) where
-  withVarOcc o = mapVarMap $ fmap $ composeVarOcc o
-
----------------------------------------------------------------------------
--- * Simple flexible/rigid variable collection.
-
--- | Keep track of 'FlexRig' for every variable, but forget the involved meta vars.
-type TheFlexRigMap = IntMap (FlexRig' ())
-newtype FlexRigMap = FlexRigMap { theFlexRigMap :: TheFlexRigMap }
-  deriving (Show, Singleton (Variable, FlexRig' ()))
-
-mapFlexRigMap :: (TheFlexRigMap -> TheFlexRigMap) -> FlexRigMap -> FlexRigMap
-mapFlexRigMap f = FlexRigMap . f . theFlexRigMap
-
-instance Semigroup FlexRigMap where
-  FlexRigMap m <> FlexRigMap m' = FlexRigMap $ IntMap.unionWith addFlexRig m m'
-
-instance Monoid FlexRigMap where
-  mempty  = FlexRigMap IntMap.empty
-  mappend = (<>)
-  mconcat = FlexRigMap . IntMap.unionsWith addFlexRig . map theFlexRigMap
-
--- | Compose everything with the 'varFlexRig' part of the 'VarOcc'.
-instance IsVarSet () FlexRigMap where
-  withVarOcc o = mapFlexRigMap $ fmap $ composeFlexRig $ () <$ varFlexRig o
-
-instance Singleton MetaId () where
-  singleton _ = ()
-
 ---------------------------------------------------------------------------
 -- * Plain variable occurrence counting.
 
@@ -367,61 +305,11 @@ instance Monoid VarCounts where
   mempty = VarCounts IntMap.empty
   mappend = (<>)
 
-instance IsVarSet () VarCounts where
-  withVarOcc _ = id
-
-instance Singleton Variable VarCounts where
-  singleton i = VarCounts $ IntMap.singleton i 1
-
----------------------------------------------------------------------------
--- * Environment for collecting free variables.
-
 -- | Where should we skip sorts in free variable analysis?
-
 data IgnoreSorts
   = IgnoreNot            -- ^ Do not skip.
   | IgnoreInAnnotations  -- ^ Skip when annotation to a type.
   | IgnoreAll            -- ^ Skip unconditionally.
   deriving (Eq, Show)
 
--- | The current context.
-
-data FreeEnv' a b c = FreeEnv
-  { feExtra     :: !b
-    -- ^ Additional context, e.g., whether to ignore free variables in sorts.
-  , feFlexRig   :: !(FlexRig' a)
-    -- ^ Are we flexible or rigid?
-  , feModality  :: !Modality
-    -- ^ What is the current relevance and quantity?
-  , feSingleton :: !(b -> Maybe Variable -> c)
-    -- ^ Method to return a single variable.
-  }
-
-type Variable    = Int
-type SingleVar c = Variable -> c
-
-type FreeEnv c = FreeEnv' MetaSet IgnoreSorts c
-
--- | Ignore free variables in sorts.
-feIgnoreSorts :: FreeEnv' a IgnoreSorts c -> IgnoreSorts
-feIgnoreSorts = feExtra
-
-instance LensFlexRig (FreeEnv' a b c) a where
-  lensFlexRig f e = f (feFlexRig e) <&> \ fr -> e { feFlexRig = fr }
-
-instance LensModality (FreeEnv' a b c) where
-  getModality = feModality
-  mapModality f e = e { feModality = f (feModality e) }
-
-instance LensRelevance (FreeEnv' a b c) where
-instance LensQuantity (FreeEnv' a b c) where
-
--- | The initial context.
-
-initFreeEnv :: Monoid c => b -> SingleVar c -> FreeEnv' a b c
-initFreeEnv e sing = FreeEnv
-  { feExtra       = e
-  , feFlexRig     = Unguarded
-  , feModality    = unitModality      -- multiplicative monoid
-  , feSingleton   = \_ -> maybe mempty sing
-  }
+type Variable = Int

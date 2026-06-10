@@ -68,11 +68,13 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
 
   -- default implementation of transformed debug monad
 
+  {-# INLINE formatDebugMessage #-}
   default formatDebugMessage
     :: (MonadTrans t, MonadDebug n, m ~ t n)
     => VerboseKey -> VerboseLevel -> TCM Doc -> m Doc
   formatDebugMessage k n d = lift $ formatDebugMessage k n d
 
+  {-# INLINE traceDebugMessage #-}
   default traceDebugMessage
     :: (MonadTransControl t, MonadDebug n, m ~ t n)
     => VerboseKey -> VerboseLevel -> Doc -> m a -> m a
@@ -83,6 +85,7 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
     :: (MonadTransControl t, MonadDebug n, m ~ t n)
     => VerboseKey -> VerboseLevel -> String -> m a -> m a
   verboseBracket k n s = liftThrough $ verboseBracket k n s
+  {-# INLINE verboseBracket #-}
 #else
   default verboseBracket
     :: (MonadTransControl t, MonadDebug n, m ~ t n)
@@ -95,21 +98,25 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
     :: (MonadTrans t, MonadDebug n, m ~ t n)
     => m Verbosity
   getVerbosity = lift getVerbosity
+  {-# INLINE getVerbosity #-}
 
   default getProfileOptions
     :: (MonadTrans t, MonadDebug n, m ~ t n)
     => m ProfileOptions
   getProfileOptions = lift getProfileOptions
+  {-# INLINE getProfileOptions #-}
 
   default isDebugPrinting
     :: (MonadTrans t, MonadDebug n, m ~ t n)
     => m Bool
   isDebugPrinting = lift isDebugPrinting
+  {-# INLINE isDebugPrinting #-}
 
   default nowDebugPrinting
     :: (MonadTransControl t, MonadDebug n, m ~ t n)
     => m a -> m a
   nowDebugPrinting = liftThrough nowDebugPrinting
+  {-# INLINE nowDebugPrinting #-}
 
 -- Default implementations (working around the restriction to only
 -- have one default signature).
