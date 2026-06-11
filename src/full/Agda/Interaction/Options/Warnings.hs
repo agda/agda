@@ -622,7 +622,7 @@ warningNameDescription = \case
   NotARewriteRule_                 -> "`REWRITE pragmas referring to identifiers that are neither definitions nor constructors.'"
   RewriteLHSNotDefinitionOrConstructor_             -> "Rewrite rule head symbol is not a defined symbol or constructor."
   RewriteLHSNotNeutral_                             -> "'Smart with'-introduced rewrite rule LHS is not neutral."
-  RewriteRHSContainsClosures_                       -> "'Smart with'-introduced rewrite rule RHS contains unguarded lambdas."
+  RewriteRHSContainsClosures_                       -> "'Smart with'-introduced rewrite rule RHS contains closures (e.g. lambdas or underapplied functions)."
   RewriteVariablesNotBoundByLHS_                    -> "Rewrite rule does not bind all of its variables."
   RewriteVariablesBoundMoreThanOnce_                -> "Constructor-headed rewrite rule has non-linear parameters."
   RewriteVariablesBoundInSingleton_                 -> "Rewrite rule binds some variables in possibly definitionally singular contexts."

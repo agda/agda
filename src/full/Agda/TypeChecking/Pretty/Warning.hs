@@ -422,7 +422,7 @@ prettyWarning = \case
         RHSContainsClosures -> do
           (fsep . concat)
             [ illegalSince q
-            , pwords "the right-hand side of a rewrite rule introduced by smart with contains unguarded lambdas (which can cause non-termination)"]
+            , pwords "the right-hand side of a rewrite rule introduced by with/rewrite contains closures (e.g. lambdas or underapplied functions) which can cause non-termination."]
 
         VariablesNotBoundByLHS xs -> do
           (fsep . concat)

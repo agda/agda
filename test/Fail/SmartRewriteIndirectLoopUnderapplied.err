@@ -1,9 +1,15 @@
-SmartRewriteIndirectLoopUnderapplied.agda:14.1-10: warning: -W[no]RewriteRHSContainsClosures
-_ : f x ≡ wah f  is not a legal rewrite rule, since the right-hand
-side of a rewrite rule introduced by smart with contains unguarded
-lambdas (which can cause non-termination)
-when checking that the pattern refl has type f x ≡ wah f
+SmartRewriteIndirectLoopUnderapplied.agda:14.1-27: warning: -W[no]RewriteRHSContainsClosures
+_ : f x ≡ w  is not a legal rewrite rule, since the right-hand side
+of a rewrite rule introduced by with/rewrite contains closures
+(e.g. lambdas or underapplied functions) which can cause
+non-termination.
+when checking that the clause foo f x p rewrite p = refl has type
+(f : Nat → Unit → Nat → Nat) (x : Nat) →
+f x ≡ wah f → f x ⟨⟩ x ≡ 42
 
-SmartRewriteIndirectLoopUnderapplied.agda:14.1-10: error: [InvalidatedLocalRewriteRule]
-Local rewrite rule invalidated after a pattern-match
+SmartRewriteIndirectLoopUnderapplied.agda:14.1-10: error: [SplitError.UnificationStuck]
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  f x ≟ wah f
 when checking that the pattern refl has type f x ≡ wah f

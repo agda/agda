@@ -309,43 +309,76 @@ checkLocalRewriteRule i eq = runMaybeT $ do
     pure rew)
   {- else -} (illegalRule o . ContainsUnsolvedMetaVariables)
 
--- | Checks for unguarded lambdas (semantically, closures in the evaluated term)
+-- | Compute whether a term contains closures (lambdas or underapplied
+--   functions, unguarded by a stuck computation)
 --
---   For termination of "smart with" rewrite rules, such unguarded lambdas on
---   the RHS
---   Assumes the input term is normalised
---   We consider a lambda guarded if it is hidden behind a neutral application
-noClosures :: Term -> TCM Bool
-noClosures (Lam ai b)   = pure False
--- Underapplied variable and definition applications are effectively closures
-noClosures t@(Var x es) = not <$> isUnderapplied t
-noClosures t@(Def f es) = not <$> isUnderapplied t
--- Constructors are never considered guarding
-noClosures (Con c i es) = noClosuresElims es
--- TODO: I don't think it is possible to project a closure out of a pi-type
--- but this feels weird...
-noClosures Pi{}         = pure True
--- Literals cannot contain closures
-noClosures (Lit _)      = pure True
--- Sorts never contain closures
-noClosures Sort{}       = pure True
--- Levels never contain closures
-noClosures Level{}      = pure True
-noClosures MetaV{}      = __IMPOSSIBLE__
--- TODO: Is this actually impossible?
-noClosures DontCare{}   = __IMPOSSIBLE__
-noClosures Dummy{}      = __IMPOSSIBLE__
+--   To ensure termination of '--smart-with' rewrite rules, right-hand sides
+--   may not contain closures
+--   Assumes the term is already normalised
+class ContainsClosures a where
+  containsClosures :: TypeOf a -> a -> TCM Bool
 
-noClosuresElims :: Elims -> TCM Bool
-noClosuresElims es =
-  fmap and $ traverse noClosures $ mapMaybe unApply es
-  where
-    unApply (Apply t) = Just (unArg t)
-    unApply _         = Nothing
+instance ContainsClosures (Arg Term) where
+  containsClosures (Dom' _ t) (Arg _ v) = containsClosures t v
+
+instance ContainsClosures Elims where
+  containsClosures (t, hd) [] = pure False
+  containsClosures (t, hd) (Apply u : es) = do
+    (a, b) <- assertPi t
+    let t'  = absApp b (unArg u)
+    let hd' = hd . (Apply u :)
+    (||) <$> containsClosures a u <*> containsClosures (t', hd') es
+  containsClosures (t, hd) (IApply x y i : es) = do
+    (s, q, l, b, u, v) <- assertPath t
+    let t' = El s $ unArg b `apply` [ defaultArg i ]
+    let hd' = hd . (IApply x y i:)
+    containsClosures (t', hd') es
+  containsClosures (t, hd) (Proj o f : es) = do
+    (a, b) <- assertProjOf f t
+    let u = hd []
+        t' = b `absApp` u
+    hd' <- applyE <$> applyDef o f (argFromDom a $> u)
+    containsClosures (t',hd') es
+
+instance ContainsClosures Term where
+  containsClosures t v = do
+    t <- abortIfBlocked t
+    case (unEl t, v) of
+      -- Pi-typed values are always closures
+      (Pi _ _, _)     -> pure True
+      -- TODO: Do we consider paths to be closures?
+      -- TODO: Do we need to handle eta records specially?
+      -- Non-pi-typed variable/definition applications may still be
+      -- underapplied due to copatterns
+      (_, Var x es)   -> isUnderapplied v
+      (_, Def f es)   -> isUnderapplied v
+      (_, Con c i es) -> do
+        ct <- assertConOf c t
+        containsClosures (ct, Con c i) es
+      -- It shouldn't be possible to project a closure out of a pi-type,
+      -- so I think this is fine.
+      (_, Pi{})       -> pure False
+      (_, Level{})    -> pure False
+      (_, Lit{})      -> pure False
+      (_, Sort{})     -> pure False
+      -- I think we can ignore closures in irrelevant position
+      (_, DontCare{}) -> pure False
+      -- We already checked for pi-typed values
+      (_, Lam{})      -> __IMPOSSIBLE__
+      (_, Dummy{})    -> __IMPOSSIBLE__
+      (_, MetaV{})    -> __IMPOSSIBLE__
 
 -- | Returns whether a term is only stuck due to being underapplied
 --   (in which case, it cannot be considered neutral, because further
 --   applications may un-stick it)
+--
+--   Warning: If multiple possible reductions could apply to a term (e.g.
+--   because of rewrite rules), and only one of them is stuck because of
+--   'Underapplied', then this function may still return 'False'.
+--   I *think* the only way this could happen is if non-'--smart-with' rewrite
+--   rules are involved, in which case, we do not aim try to ensure termination
+--   (rewrite rules in general have no termination checking) and so this is
+--   not such a big deal.
 isUnderapplied :: Term -> TCM Bool
 isUnderapplied t = do
   t' <- reduceB t
@@ -474,13 +507,7 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
   -- Find head symbol f of the lhs, its type, its parameters (in case of a constructor), and its arguments.
   (f , hd , t , pars , es) <- checkRewriteRuleLHS s gamma1 lhs b
 
-  -- case s of
-  --   GlobalRewrite _                    -> True
-  --   LocalRewrite i   -> case lrewInfoOrigin i of
-  --     LRewSmartWith   -> True
-  --     LRewUserWritten -> False
-
-  when (isSmartWithRewrite s) $ unlessM (lift $ noClosures rhs) $
+  when (isSmartWithRewrite s) $ whenM (lift $ containsClosures b rhs) $
     illegalRule s RHSContainsClosures
 
   ifNotAlreadyAdded s f $ addContext gamma1 $ do

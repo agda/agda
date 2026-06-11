@@ -314,6 +314,8 @@ instance EmbPrj IllegalRewriteRuleReason where
     N1 15    -> valuN DuplicateRewriteRule
     N1 16    -> valuN LocalRewriteOutsideTelescope
     N1 17    -> valuN SmartWithOccursFail
+    N1 18    -> valuN LHSNotNeutral
+    N1 19    -> valuN RHSContainsClosures
     _        -> malformed
 
 instance EmbPrj OptionWarning where
