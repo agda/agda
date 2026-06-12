@@ -699,6 +699,24 @@ primRewriteNoMatch = do
     then redReturn $ unArg x
     else return $ NoReduction $ notReduced <$> [l, a, x]
 
+primQrec :: TCM PrimFun
+primQrec = do
+  box <- primQuotientConstructor
+  box <- case box of
+    Def box [] -> return box
+    _          -> __IMPOSSIBLE__
+  return $ primFun __IMPOSSIBLE__ 10 $ \args -> do
+    case args of
+      [a, r, p, a', r', p', f, r'', s, x] -> do
+        x <- reduceB' x
+        case unArg <$> x of
+          NotBlocked _ (Def d [_ , _ , _ , _ , Apply x]) | d == box ->
+            redReturn (apply (unArg f) [x])
+          _ ->
+            return $ NoReduction $
+            map notReduced [a, r, p, a', r', p', f, r'', s] ++ [reduced x]
+      _ -> return (NoReduction (map notReduced args))
+
 mkPrimFun1TCM :: (FromTerm a, ToTerm b) =>
                  TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
 mkPrimFun1TCM mt f = do
@@ -1003,6 +1021,9 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
   , Prim_glueU            |-> prim_glueU'
   , Prim_unglueU          |-> prim_unglueU'
   , PrimLockUniv          |-> primLockUniv'
+
+  , PrimQrec              |->> primQrec
   ]
   where
-  (|->) = \p f -> (p, do PrimImpl t f <- f; return (Just t, f))
+  (|->>) = \p f -> (p, do f <- f; return (Nothing, f))
+  (|->)  = \p f -> (p, do PrimImpl t f <- f; return (Just t, f))

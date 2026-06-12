@@ -291,6 +291,9 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $ List.loo
   -- Rewriting
   , PrimRewriteNoMatch |-> return "\\ _ _ x -> x"
 
+  -- Quotients
+  , PrimQrec |-> return "\\_ _ _ _ _ _ f _ _ x -> f x"
+
   -- Cubical
   , PrimIMin          |-> return "(&&)"
   , PrimIMax          |-> return "(||)"

@@ -334,6 +334,10 @@ coreBuiltins =
   , (builtinPropOmega                        |-> BuiltinSort SortPropOmega)
   , (builtinSetOmega                         |-> BuiltinSort SortSetOmega)
   , (builtinSSetOmega                        |-> BuiltinSort SortStrictSetOmega)
+  , (builtinQuotientConstructor              |-> BuiltinUnknown Nothing
+                                                   (\_ _ ->
+                                                     unlessM currentModuleIsBuiltinModuleWithSafePostulates $
+                                                       typeError $ TrustedBuiltin BuiltinQuotientConstructor))
   , (builtinAgdaClause                       |-> BuiltinData tset [builtinAgdaClauseClause, builtinAgdaClauseAbsurd])
   , (builtinAgdaClauseClause                 |-> BuiltinDataCons (ttelescope --> tlist (targ tpat) --> tterm --> tclause))
   , (builtinAgdaClauseAbsurd                 |-> BuiltinDataCons (ttelescope --> tlist (targ tpat) --> tclause))

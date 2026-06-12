@@ -121,6 +121,7 @@ data BuiltinId
   | BuiltinFromNat
   | BuiltinFromNeg
   | BuiltinFromString
+  | BuiltinQuotientConstructor
   | BuiltinQName
   | BuiltinAgdaSort
   | BuiltinAgdaSortSet
@@ -341,6 +342,7 @@ instance IsBuiltin BuiltinId where
     BuiltinFromNat                           -> "FROMNAT"
     BuiltinFromNeg                           -> "FROMNEG"
     BuiltinFromString                        -> "FROMSTRING"
+    BuiltinQuotientConstructor               -> "QUOTIENTCONSTRUCTOR"
     BuiltinQName                             -> "QNAME"
     BuiltinAgdaSort                          -> "AGDASORT"
     BuiltinAgdaSortSet                       -> "AGDASORTSET"
@@ -537,6 +539,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinLevelUniv,
   builtinIntervalUniv,
   builtinFromNat, builtinFromNeg, builtinFromString,
+  builtinQuotientConstructor,
   builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
   builtinAgdaSortProp, builtinAgdaSortPropLit, builtinAgdaSortInf,
   builtinAgdaSortUnsupported,
@@ -665,6 +668,7 @@ builtinLevelUniv                         = BuiltinLevelUniv
 builtinFromNat                           = BuiltinFromNat
 builtinFromNeg                           = BuiltinFromNeg
 builtinFromString                        = BuiltinFromString
+builtinQuotientConstructor               = BuiltinQuotientConstructor
 builtinQName                             = BuiltinQName
 builtinAgdaSort                          = BuiltinAgdaSort
 builtinAgdaSortSet                       = BuiltinAgdaSortSet
@@ -905,6 +909,8 @@ data PrimitiveId
   | PrimStringEquality
   | PrimShowString
   | PrimStringUncons
+  -- Quotients
+  | PrimQrec
   -- "Other stuff"
   | PrimErase
   | PrimEraseEquality
@@ -1043,6 +1049,8 @@ instance IsBuiltin PrimitiveId where
     PrimStringEquality                    -> "primStringEquality"
     PrimShowString                        -> "primShowString"
     PrimStringUncons                      -> "primStringUncons"
+    -- Quotients
+    PrimQrec                              -> "qrec"
     -- "Other stuff"
     PrimErase                             -> "primErase"
     PrimEraseEquality                     -> "primEraseEquality"

@@ -288,6 +288,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primLevelUniv,
     primProp, primSet, primStrictSet, primPropOmega, primSetOmega, primSSetOmega,
     primFromNat, primFromNeg, primFromString,
+    primQuotientConstructor,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
@@ -421,6 +422,7 @@ primLevelUniv                         = getBuiltin builtinLevelUniv
 primFromNat                           = getBuiltin builtinFromNat
 primFromNeg                           = getBuiltin builtinFromNeg
 primFromString                        = getBuiltin builtinFromString
+primQuotientConstructor               = getBuiltin builtinQuotientConstructor
 primQName                             = getBuiltin builtinQName
 primArg                               = getBuiltin builtinArg
 primArgArg                            = getBuiltin builtinArgArg
