@@ -412,7 +412,7 @@ checkRewriteRuleLHS s gamma1 lhs b = do
       return (RewDefHead $ conName c , hd , t , pars , vs)
     -- Even if we skip the 'x > size gamma1' check here, we will still catch bad
     -- local variable rewrite rule heads later, but
-    Var x es | isLocalRewrite s && x > size gamma1 -> do
+    Var x es | isLocalRewrite s && x >= size gamma1 -> do
       t <- addContext gamma1 $ typeOfBV x
       when (isSmartWithRewrite s) $ checkNeutral lhs
       return (RewVarHead (x - size gamma1), Var x , t , [] , es)
