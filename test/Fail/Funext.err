@@ -1,0 +1,13 @@
+Funext.agda:1.1-32: error: [InfectiveImport]
+Importing module
+Agda.Builtin.Funext (at agda-default-include-path/Agda/Builtin/Funext.agda:1.1)
+using the --erasure flag from a module which does not.
+when scope checking the declaration
+  open import Agda.Builtin.Funext
+
+Funext.agda:1.1-32: error: [InfectiveImport]
+Importing module
+Agda.Builtin.Funext (at agda-default-include-path/Agda/Builtin/Funext.agda:1.1)
+using the --funext flag from a module which does not.
+when scope checking the declaration
+  open import Agda.Builtin.Funext

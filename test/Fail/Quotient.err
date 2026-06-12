@@ -1,0 +1,27 @@
+Quotient.agda:1.1-34: error: [InfectiveImport]
+Importing module
+Agda.Builtin.Quotient (at agda-default-include-path/Agda/Builtin/Quotient.agda:1.1)
+using the --erasure flag from a module which does not.
+when scope checking the declaration
+  open import Agda.Builtin.Quotient
+
+Quotient.agda:1.1-34: error: [InfectiveImport]
+Importing module
+Agda.Builtin.Quotient (at agda-default-include-path/Agda/Builtin/Quotient.agda:1.1)
+using the --funext flag from a module which does not.
+when scope checking the declaration
+  open import Agda.Builtin.Quotient
+
+Quotient.agda:1.1-34: error: [InfectiveImport]
+Importing module
+Agda.Builtin.Quotient (at agda-default-include-path/Agda/Builtin/Quotient.agda:1.1)
+using the --polarity flag from a module which does not.
+when scope checking the declaration
+  open import Agda.Builtin.Quotient
+
+Quotient.agda:1.1-34: error: [InfectiveImport]
+Importing module
+Agda.Builtin.Quotient (at agda-default-include-path/Agda/Builtin/Quotient.agda:1.1)
+using the --quotients flag from a module which does not.
+when scope checking the declaration
+  open import Agda.Builtin.Quotient

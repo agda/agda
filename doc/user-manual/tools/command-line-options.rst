@@ -1328,6 +1328,48 @@ Erasure
 
      Default, opposite of :option:`--erase-record-parameters`.
 
+.. option:: --funext, --no-funext
+
+     .. versionadded:: 2.9.0
+
+     Enables use of `Agda.Builtin.Funext`. This module contains an
+     erased postulate of function extensionality. The idea is that it
+     should be safe to use this postulate (in the absence of any Agda
+     bugs):
+
+     * If `--erased-matches` is not used, then canonicity should hold
+       for non-erased terms (if all opaque definitions are made
+       transparent, the context only contains erased assumptions, and
+       the context plus the postulates are jointly consistent).
+
+     * If `--erased-matches` is used, then reduction might get stuck,
+       but compiled programs should still run correctly.
+
+     Implies :option:`--erasure`. Default: ``--no-funext``.
+
+.. option:: --propext, --no-propext
+
+     .. versionadded:: 2.9.0
+
+     Enables use of `Agda.Builtin.Propext`. This module contains an
+     erased postulate of propositional extensionality. The idea is
+     that it should be safe to use this postulate, see
+     :option:`--funext`.
+
+     Implies :option:`--erasure`. Default: ``--no-propext``.
+
+.. option:: --quotients, --no-quotients
+
+     .. versionadded:: 2.9.0
+
+     Enables use of `Agda.Builtin.Quotient`. This module gives access
+     to an implementation of set quotients with an eliminator that
+     computes for the point constructor. The implementation uses
+     erased postulates. The idea is that it should be safe to use
+     these postulates, see :option:`--funext`.
+
+     Implies :option:`--funext`. Default: ``--no-quotients``.
+
 .. option:: --lossy-unification
 
      .. versionadded:: 2.6.4
@@ -2504,9 +2546,12 @@ are infective:
 * :option:`--erased-matches`
 * :option:`--erasure`
 * :option:`--flat-split`
+* :option:`--funext`
 * :option:`--guarded`
 * :option:`--polarity`
 * :option:`--prop`
+* :option:`--propext`
+* :option:`--quotients`
 * :option:`--rewriting`
 * :option:`--local-rewriting`
 * :option:`--two-level`
@@ -2572,6 +2617,7 @@ again, the source file is re-typechecked instead:
 * :option:`--exact-split`
 * :option:`--experimental-irrelevance`
 * :option:`--flat-split`
+* :option:`--funext`
 * :option:`--guarded`
 * :option:`--hidden-argument-puns`
 * :option:`--infer-absurd-clauses`
@@ -2599,8 +2645,10 @@ again, the source file is re-typechecked instead:
 * :option:`--omega-in-omega`
 * :option:`--polarity`
 * :option:`--prop`
+* :option:`--propext`
 * :option:`--qualified-instances`
 * :option:`--quote-metas`
+* :option:`--quotients`
 * :option:`--rewriting`
 * :option:`--local-rewriting`
 * :option:`--safe`
