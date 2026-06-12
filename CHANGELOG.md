@@ -338,6 +338,13 @@ Changes to type checker and other components defining the Agda language.
 * (**BREAKING**): Instance search will no longer eta-expand non-instance
   (visible and hidden) variables of record type in the context to find
   instance fields ([PR #8367](https://github.com/agda/agda/pull/8367)).
+
+  This change allows instance search to work in more contexts
+  (specifically, instance search can now happen even when the types of
+  non-instance arguments are yet-unsolved metavariables, e.g. when they
+  are bound by `∀ x → ...`), and prevents instance search from
+  head-normalising the types of non-instance variables in the context.
+
   This means code like the following will no longer work, since it
   relied on eta-expanding the **visible** argument `r : R` to find the
   instance field.
@@ -354,18 +361,60 @@ Changes to type checker and other components defining the Agda language.
   fails r = use
   ```
 
-  It can be repaired by explicitly eta-expanding the record pattern:
+  In this case the code can be repaired by explicitly eta-expanding the record
+  pattern:
 
   ```agda
   succeeds : R → Set
   succeeds r@record{} = use -- or just record{}, if r is unused
   ```
 
-  This change allows instance search to work in more contexts
-  (specifically, instance search can now happen even when the types of
-  non-instance arguments are yet-unsolved metavariables, e.g. when they
-  are bound by `∀ x → ...`), and prevents instance search from
-  head-normalising the types of non-instance variables in the context.
+  In other cases more substantial changes might be required. For example, in the
+  code below the record values `Aa` and `Bb` are parameters so they cannot be
+  eta-expanded directly:
+
+  ```agda
+  record IsPointed (A : Set) : Set where
+    field
+      point : A
+  open IsPointed {{...}}
+
+  record PointedSet : Set1 where
+    field
+      Carrier : Set
+      {{IsPointed[Carrier]}} : IsPointed Carrier
+  open PointedSet
+
+  record PointedFunction (Aa Bb : PointedSet) : Set where
+    field
+      run : Aa .Carrier -> Bb .Carrier
+      preserves-point : run point ≡ point
+  ```
+
+  Here it is possible to work around the problem by marking the projection
+  `IsPointed[Carrier]` as an `instance` and then applying the record module
+  `PointedSet` to the respective values `Aa` and `Bb`:
+
+  ```agda
+  record PointedSet : Set1 where
+    field
+      Carrier : Set
+      instance
+        {{IsPointed[Carrier]}} : IsPointed Carrier
+  open PointedSet
+
+  record PointedFunction (Aa Bb : PointedSet) : Set where
+    open PointedSet Aa renaming (Carrier to AA)
+    open PointedSet Bb renaming (Carrier to BB)
+    field
+        run : AA -> BB
+        preserves-point : run point ≡ point
+  ```
+
+  In general, instance search is intended to work well with unbundled structures
+  such as `IsPointed`, while using it with bundled structures such as
+  `PointedSet` might require some more creative workarounds such as the one
+  above.
 
 * Instance search now finds instance fields in *functions* that produce
   eta records ([Issue #8337](github.com/agda/agda/issues/8337)), as
