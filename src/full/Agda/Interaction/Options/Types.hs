@@ -213,6 +213,12 @@ data PragmaOptions = PragmaOptions
       -- ^ Can we use modal polarities (@++, @+, etc.)?
   , _optOccurrence                :: WithDefault 'True
       -- ^ Perform automated occurrence analysis for functions?
+  , _optFunext                    :: WithDefault 'False
+      -- ^ Can @Agda.Builtin.Funext@ be used?
+  , _optPropext                    :: WithDefault 'False
+      -- ^ Can @Agda.Builtin.Propext@ be used?
+  , _optQuotients                 :: WithDefault 'False
+      -- ^ Can @Agda.Builtin.Quotient@ be used?
   , _optImportSorts               :: WithDefault 'True
       -- ^ Should every top-level module start with an implicit statement
       --   @open import Agda.Primitive using (Set; Prop)@?

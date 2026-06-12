@@ -1,0 +1,13 @@
+Propext.agda:1.1-33: error: [InfectiveImport]
+Importing module
+Agda.Builtin.Propext (at agda-default-include-path/Agda/Builtin/Propext.agda:1.1)
+using the --erasure flag from a module which does not.
+when scope checking the declaration
+  open import Agda.Builtin.Propext
+
+Propext.agda:1.1-33: error: [InfectiveImport]
+Importing module
+Agda.Builtin.Propext (at agda-default-include-path/Agda/Builtin/Propext.agda:1.1)
+using the --propext flag from a module which does not.
+when scope checking the declaration
+  open import Agda.Builtin.Propext

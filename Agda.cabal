@@ -131,11 +131,14 @@ extra-source-files:
     src/data/lib/prim/Agda/Builtin/FromNat.agda
     src/data/lib/prim/Agda/Builtin/FromNeg.agda
     src/data/lib/prim/Agda/Builtin/FromString.agda
+    src/data/lib/prim/Agda/Builtin/Funext.agda
     src/data/lib/prim/Agda/Builtin/IO.agda
     src/data/lib/prim/Agda/Builtin/Int.agda
     src/data/lib/prim/Agda/Builtin/List.agda
     src/data/lib/prim/Agda/Builtin/Maybe.agda
     src/data/lib/prim/Agda/Builtin/Nat.agda
+    src/data/lib/prim/Agda/Builtin/Propext.agda
+    src/data/lib/prim/Agda/Builtin/Quotient.agda
     src/data/lib/prim/Agda/Builtin/Reflection.agda
     src/data/lib/prim/Agda/Builtin/Reflection/External.agda
     src/data/lib/prim/Agda/Builtin/Reflection/Properties.agda
@@ -189,11 +192,14 @@ data-files:
     lib/prim/Agda/Builtin/FromNat.agda
     lib/prim/Agda/Builtin/FromNeg.agda
     lib/prim/Agda/Builtin/FromString.agda
+    lib/prim/Agda/Builtin/Funext.agda
     lib/prim/Agda/Builtin/IO.agda
     lib/prim/Agda/Builtin/Int.agda
     lib/prim/Agda/Builtin/List.agda
     lib/prim/Agda/Builtin/Maybe.agda
     lib/prim/Agda/Builtin/Nat.agda
+    lib/prim/Agda/Builtin/Propext.agda
+    lib/prim/Agda/Builtin/Quotient.agda
     lib/prim/Agda/Builtin/Reflection.agda
     lib/prim/Agda/Builtin/Reflection/External.agda
     lib/prim/Agda/Builtin/Reflection/Properties.agda
