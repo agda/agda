@@ -1,0 +1,27 @@
+Quotient.agda:1.1-41: error: [InfectiveImport]
+Importing module
+Agda.Builtin.Erased.Quotient (at agda-default-include-path/Agda/Builtin/Erased/Quotient.agda:1.1)
+using the --erased-funext flag from a module which does not.
+when scope checking the declaration
+  open import Agda.Builtin.Erased.Quotient
+
+Quotient.agda:1.1-41: error: [InfectiveImport]
+Importing module
+Agda.Builtin.Erased.Quotient (at agda-default-include-path/Agda/Builtin/Erased/Quotient.agda:1.1)
+using the --erased-quotients flag from a module which does not.
+when scope checking the declaration
+  open import Agda.Builtin.Erased.Quotient
+
+Quotient.agda:1.1-41: error: [InfectiveImport]
+Importing module
+Agda.Builtin.Erased.Quotient (at agda-default-include-path/Agda/Builtin/Erased/Quotient.agda:1.1)
+using the --erasure flag from a module which does not.
+when scope checking the declaration
+  open import Agda.Builtin.Erased.Quotient
+
+Quotient.agda:1.1-41: error: [InfectiveImport]
+Importing module
+Agda.Builtin.Erased.Quotient (at agda-default-include-path/Agda/Builtin/Erased/Quotient.agda:1.1)
+using the --polarity flag from a module which does not.
+when scope checking the declaration
+  open import Agda.Builtin.Erased.Quotient

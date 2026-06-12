@@ -157,6 +157,31 @@ Pragmas and options
 * New options `--relevance` (default on) and `--no-irrelevance` to allow or
   disallow the irrelevance modality.
 
+* The new options `--erased-funext`, `--erased-propext` and
+  `--erased-quotients` enable use of `Agda.Builtin.Erased.Funext`,
+  `Agda.Builtin.Erased.Propext` and `Agda.Builtin.Erased.Quotient`,
+  respectively.
+
+  All options imply `--erasure`, and `--erased-quotients` implies
+  `--erased-funext`.
+
+  These modules contain erased postulates. The idea is that it should
+  be safe to use these postulates (in the absence of any Agda bugs):
+
+  * If `--erased-matches` is not used, then canonicity should hold for
+    non-erased terms (if all opaque definitions are made transparent,
+    the context only contains erased assumptions, and the context plus
+    the postulates are jointly consistent).
+
+  * If `--erased-matches` is used, then reduction might get stuck, but
+    compiled programs should still run correctly.
+
+  `Agda.Builtin.Erased.Funext` postulates function extensionality,
+  `Agda.Builtin.Erased.Propext` postulates propositional
+  extensionality, and `Agda.Builtin.Erased.Quotient` gives access to
+  an implementation of set quotients with an eliminator that computes
+  for the point constructor.
+
 Errors
 ------
 

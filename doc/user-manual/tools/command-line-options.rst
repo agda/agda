@@ -1328,6 +1328,49 @@ Erasure
 
      Default, opposite of :option:`--erase-record-parameters`.
 
+.. option:: --erased-funext, --no-erased-funext
+
+     .. versionadded:: 2.9.0
+
+     Enables use of `Agda.Builtin.Erased.Funext`. This module contains
+     an erased postulate of function extensionality. The idea is that
+     it should be safe to use this postulate (in the absence of any
+     Agda bugs):
+
+     * If `--erased-matches` is not used, then canonicity should hold
+       for non-erased terms (if all opaque definitions are made
+       transparent, the context only contains erased assumptions, and
+       the context plus the postulates are jointly consistent).
+
+     * If `--erased-matches` is used, then reduction might get stuck,
+       but compiled programs should still run correctly.
+
+     Implies :option:`--erasure`. Default: ``--no-erased-funext``.
+
+.. option:: --erased-propext, --no-erased-propext
+
+     .. versionadded:: 2.9.0
+
+     Enables use of `Agda.Builtin.Erased.Propext`. This module
+     contains an erased postulate of propositional extensionality. The
+     idea is that it should be safe to use this postulate, see
+     :option:`--erased-funext`.
+
+     Implies :option:`--erasure`. Default: ``--no-erased-propext``.
+
+.. option:: --erased-quotients, --no-erased-quotients
+
+     .. versionadded:: 2.9.0
+
+     Enables use of `Agda.Builtin.Erased.Quotient`. This module gives
+     access to an implementation of set quotients with an eliminator
+     that computes for the point constructor. The higher
+     "constructors" are erased postulates. The idea is that it should
+     be safe to use these postulates, see :option:`--erased-funext`.
+
+     Implies :option:`--erased-funext`. Default:
+     ``--no-erased-quotients``.
+
 .. option:: --lossy-unification
 
      .. versionadded:: 2.6.4
@@ -2501,7 +2544,10 @@ used in all modules that depend on this module. The following options
 are infective:
 
 * :option:`--cohesion`
+* :option:`--erased-funext`
 * :option:`--erased-matches`
+* :option:`--erased-propext`
+* :option:`--erased-quotients`
 * :option:`--erasure`
 * :option:`--flat-split`
 * :option:`--guarded`
@@ -2567,7 +2613,10 @@ again, the source file is re-typechecked instead:
 * :option:`--cumulativity`
 * :option:`--double-check`
 * :option:`--erase-record-parameters`
+* :option:`--erased-funext`
 * :option:`--erased-matches`
+* :option:`--erased-propext`
+* :option:`--erased-quotients`
 * :option:`--erasure`
 * :option:`--exact-split`
 * :option:`--experimental-irrelevance`
