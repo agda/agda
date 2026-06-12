@@ -768,8 +768,10 @@ checkPrimitive i x (Arg info e) =
         -- The primitive's type is "trusted", i.e. taken from the
         -- primitive declaration in the Agda file.
         unlessM currentModuleIsBuiltinModuleWithSafePostulates $
-          -- At the time of writing this code is dead, because there
-          -- are no trusted primitives.
+          -- At the time of writing this code is seemingly dead
+          -- (unless the builtin modules are edited): there is a
+          -- trusted primitive, but other errors seem to be triggered
+          -- before this one.
           typeError $ TrustedPrimitive x
         noConstraints $ isType_ e
       Just t' -> do

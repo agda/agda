@@ -233,6 +233,7 @@ typeErrorName = \case
   TooManyFields                                              {} -> TooManyFields_
   TooManyPatternsInWithClause                                {} -> TooManyPatternsInWithClause_
   TriedToCopyConstrainedPrim                                 {} -> TriedToCopyConstrainedPrim_
+  TrustedBuiltin                                             {} -> TrustedBuiltin_
   TrustedPrimitive                                           {} -> TrustedPrimitive_
   InvalidInstanceHeadType                                    {} -> InvalidInstanceHeadType_
   UnboundVariablesInPatternSynonym                           {} -> UnboundVariablesInPatternSynonym_

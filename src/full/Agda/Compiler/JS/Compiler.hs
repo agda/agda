@@ -851,6 +851,7 @@ primitives = Set.fromList
   , PrimShowMeta
   , PrimMetaToNat
   -- , PrimMetaToNatInjective      -- missing
+  , PrimQrec
   , builtinIMin
   , builtinIMax
   , builtinINeg

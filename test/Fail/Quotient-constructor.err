@@ -1,0 +1,4 @@
+Quotient-constructor.agda:4.1-40: error: [TrustedBuiltin]
+The trusted builtin BuiltinQuotientConstructor is only allowed in
+certain "builtin" modules
+when checking the pragma BUILTIN QUOTIENTCONSTRUCTOR [_]

@@ -1,0 +1,4 @@
+Trusted-primitive-2.agda:10.3-13: error: [DuplicatePrimitiveBinding]
+Duplicate binding for primitive thing qrec, previous binding to
+Agda.Builtin.Erased.Quotient.qrec
+when checking that the type of the primitive function qrec is Set

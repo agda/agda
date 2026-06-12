@@ -708,6 +708,10 @@ instance PrettyTCM TypeError where
         things i = [verbalize $ getHiding i,
                     "at modality " ++ verbalize (getModality i)]
 
+    TrustedBuiltin x -> fsep $
+      pwords "The trusted builtin" ++ [text (show x)] ++
+      pwords "is only allowed in certain \"builtin\" modules"
+
     TrustedPrimitive x -> fsep $
       pwords "The trusted primitive" ++ [prettyTCM x] ++
       pwords "is only allowed in certain \"builtin\" modules"
