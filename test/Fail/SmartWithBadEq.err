@@ -1,0 +1,21 @@
+SmartWithBadEq.agda:12.1-16.18: warning: -W[no]RewriteLHSNotNeutral
+_ : true ≡ w  is not a legal rewrite rule, since the left-hand side
+of a rewrite rule introduced by with/rewrite is not neutral
+when checking that the clause
+f with true
+f | true = ?
+f | false = ?
+  where
+    mutual
+      syntax eq ...
+      postulate eq : true ≡ false
+      eq = refl
+has type Nat
+
+SmartWithBadEq.agda:16.14-18: error: [UnequalTerms]
+The terms
+  true
+and
+  false
+are not equal at type Bool
+when checking that the expression refl has type true ≡ false

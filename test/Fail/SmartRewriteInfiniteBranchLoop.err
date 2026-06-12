@@ -2,7 +2,7 @@ SmartRewriteInfiniteBranchLoop.agda:16.1-12: warning: -W[no]RewriteRHSContainsCl
 _ : f 0 ≡ branch f  is not a legal rewrite rule, since the
 right-hand side of a rewrite rule introduced by with/rewrite
 contains closures (e.g. lambdas or underapplied functions) which
-can cause non-termination.
+can cause non-termination
 when checking that the pattern refl has type f 0 ≡ branch f
 
 SmartRewriteInfiniteBranchLoop.agda:16.1-12: error: [InvalidatedLocalRewriteRule]

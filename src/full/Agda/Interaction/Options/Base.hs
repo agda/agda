@@ -1778,7 +1778,7 @@ rewritingPragmaOptions = ("Rewriting and confluence",) $ concat
     ]
   , pragmaFlag      "smart-with" lensOptSmartWith
                     "elaborate with-abstractions using local rewrite rules" ""
-                    $ Just "disable 'smart with'"
+                    $ Just "elaborate with-abstractions using generalisation"
   ]
 
 equalityCheckingPragmaOptions :: (String, [OptDescr (Flag PragmaOptions)])

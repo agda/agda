@@ -794,7 +794,8 @@ assignWrapper dir x es v doAssign = do
 allRewDoms :: Telescope -> [RewDom]
 allRewDoms = mapMaybe rewDom . flattenTel
 
--- | Invariant: Smart with rewrite domains should have empty rewrite telescopes
+-- | Invariant: '--smart-with' rewrite domains should have empty rewrite
+--   telescopes
 smartWithRewDoms :: Telescope -> [RewDom]
 smartWithRewDoms = filter (lrewSmartWith . rewDomOrigin) . allRewDoms
 

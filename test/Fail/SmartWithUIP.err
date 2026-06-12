@@ -8,7 +8,7 @@ when checking that the pattern refl has type u ≡ ⟨⟩
 
 SmartWithUIP.agda:28.1-29.36: warning: -W[no]SmartWithOccursFail
 _ : u ≡ w  is not a legal rewrite rule, since the LHS occurs in the
-RHS or an earlier 'smart with' rewrite rule
+RHS or an earlier '--smart-with' rewrite rule
 when checking that the clause
 SmartWithUIP.-rewrite58 {_} {x = x} u eq _ refl rewrite unitp u
   = refl

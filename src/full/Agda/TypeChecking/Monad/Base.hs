@@ -6244,9 +6244,9 @@ isSmartWithRewrite (GlobalRewrite _) =
 data IllegalRewriteRuleReason
   = LHSNotDefinitionOrConstructor
   | LHSNotNeutral
-  -- ^ For now this error message only applies to "smart with" rewrite rules
+  -- ^ For now this error message only applies to '--smart-with' rewrite rules
   -- I think it might make sense to extend this to other rewrite rules in the
-  -- future (non-neutral LHSs don't really work)
+  -- future (non-neutral LHSs are kinda broken)
   | VariablesNotBoundByLHS VarSet
   | VariablesBoundMoreThanOnce VarSet
   | VariablesBoundInSingleton VarSet

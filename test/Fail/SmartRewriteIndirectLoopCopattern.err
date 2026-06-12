@@ -2,7 +2,7 @@ SmartRewriteIndirectLoopCopattern.agda:18.1-10: warning: -W[no]RewriteRHSContain
 _ : f x ≡ wah f  is not a legal rewrite rule, since the right-hand
 side of a rewrite rule introduced by with/rewrite contains closures
 (e.g. lambdas or underapplied functions) which can cause
-non-termination.
+non-termination
 when checking that the pattern refl has type f x ≡ wah f
 
 SmartRewriteIndirectLoopCopattern.agda:18.1-10: error: [InvalidatedLocalRewriteRule]

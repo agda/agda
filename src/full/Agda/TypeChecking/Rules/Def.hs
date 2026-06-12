@@ -575,7 +575,6 @@ data WithFunctionProblemData = WithFunctionProblemData
     , wfName         :: QName                            -- ^ With function name.
     , wfParentType   :: Type                             -- ^ Type of the parent function.
     , wfParentTel    :: Telescope                        -- ^ Context of the parent patterns.
-    -- , wfBeforeTel    :: Telescope                        -- ^ Types of arguments to the with function before the with expressions (for "smart with" this is just the permuted parent telescope)
     , wfExprs        :: List1 (Arg (Term, EqualityView)) -- ^ With and rewrite expressions and their types.
     , wfRHSType      :: Type                             -- ^ Type of the right hand side.
     , wfParentPats   :: [NamedArg DeBruijnPattern]       -- ^ Parent patterns.

@@ -255,8 +255,8 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
 
   pure $ GlobalRewriteRule q g f ps  rhs b False top
 
--- | Checks for termination and confluence of a smart with rewrite rules
---   w.r.t. other smart with rewrite rules in the context
+-- | Checks for termination and confluence of a '--smart-with' rewrite rules
+--   w.r.t. other '--smart-with' rewrite rules in the context
 --
 --   Assumes LHS of rewrite rule is neutral and telescope of rewrite rule
 --   is empty
@@ -421,7 +421,7 @@ checkRewriteRuleLHS s gamma1 lhs b = do
         [ "LHSNotDefinitionOrConstructor: ", prettyTCM lhs ]
       illegalRule s LHSNotDefinitionOrConstructor
   where
-    -- Smart with rewrite rule LHSs must be neutral
+    -- '--smart-with' rewrite rule LHSs must be neutral
     checkNeutral :: Term -> MaybeT TCM ()
     checkNeutral t = do
       whenM (lift $ isUnderapplied t) $ illegalRule s LHSNotNeutral

@@ -61,8 +61,8 @@ import Agda.Utils.Impossible
 -- * Function type domain
 ---------------------------------------------------------------------------
 
--- | Local rewrite rules are either user-written or introduced via "smart with"
---   abstractions
+-- | Local rewrite rules are either user-written or introduced by
+--   'with'/'rewrite' under '--smart-with'
 data LocalRewriteOrigin = LRewUserWritten | LRewSmartWith
   deriving (Show, Generic, Enum, Bounded)
 
@@ -76,8 +76,8 @@ lrewSmartWith LRewUserWritten = False
 
 data RewDom' t = RewDom
   { rewDomOrigin :: LocalRewriteOrigin
-    -- ^ Whether the rewrite rule is user-written or comes from a "smart with"
-    --   abstraction
+    -- ^ Whether the rewrite rule is user-written or comes from a
+    --   'with'/'rewrite' under '--smart-with'
   , rewDomEq     :: LocalEquation' t
     -- ^ Elaborated "@rewrite" equation
   , rewDomRew    :: Maybe RewriteRule

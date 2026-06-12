@@ -1,6 +1,6 @@
 SmartWithOverlap.agda:15.1-19.24: warning: -W[no]SmartWithOccursFail
 _ : not b ≡ w  is not a legal rewrite rule, since the LHS occurs on
-the RHS or in an earlier 'smart with' rewrite rule
+the RHS or in an earlier '--smart-with' rewrite rule
 when checking that the clause
 SmartWithOverlap.with-8 b true with not b
 SmartWithOverlap.with-8 b true | true = 42

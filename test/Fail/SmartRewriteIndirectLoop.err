@@ -1,9 +1,14 @@
-SmartRewriteIndirectLoop.agda:8.1-10: warning: -W[no]RewriteRHSContainsClosures
-_ : f x ≡ (λ y → f y y)  is not a legal rewrite rule, since the
-right-hand side of a rewrite rule introduced by smart with contains
-unguarded lambdas (which can cause non-termination)
-when checking that the pattern refl has type f x ≡ (λ y → f y y)
+SmartRewriteIndirectLoop.agda:8.1-27: warning: -W[no]RewriteRHSContainsClosures
+_ : f x ≡ w  is not a legal rewrite rule, since the right-hand side
+of a rewrite rule introduced by with/rewrite contains closures
+(e.g. lambdas or underapplied functions) which can cause
+non-termination.
+when checking that the clause foo f x p rewrite p = refl has type
+(f : Nat → Nat → Nat) (x : Nat) → f x ≡ (λ y → f y y) → f x x ≡ 42
 
-SmartRewriteIndirectLoop.agda:8.1-10: error: [InvalidatedLocalRewriteRule]
-Local rewrite rule invalidated after a pattern-match
+SmartRewriteIndirectLoop.agda:8.1-10: error: [SplitError.UnificationStuck]
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  f x ≟ λ y → f y y
 when checking that the pattern refl has type f x ≡ (λ y → f y y)

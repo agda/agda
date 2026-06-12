@@ -12,3 +12,5 @@ f : Nat
 f with true
 f | true  = {!!}
 f | false = {!!}
+  where eq : true ≡ false
+        eq = refl

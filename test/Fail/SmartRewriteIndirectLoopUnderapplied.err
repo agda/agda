@@ -2,7 +2,7 @@ SmartRewriteIndirectLoopUnderapplied.agda:14.1-27: warning: -W[no]RewriteRHSCont
 _ : f x ≡ w  is not a legal rewrite rule, since the right-hand side
 of a rewrite rule introduced by with/rewrite contains closures
 (e.g. lambdas or underapplied functions) which can cause
-non-termination.
+non-termination
 when checking that the clause foo f x p rewrite p = refl has type
 (f : Nat → Unit → Nat → Nat) (x : Nat) →
 f x ≡ wah f → f x ⟨⟩ x ≡ 42

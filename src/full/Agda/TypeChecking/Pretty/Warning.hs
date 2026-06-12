@@ -417,12 +417,12 @@ prettyWarning = \case
         LHSNotNeutral -> do
           (fsep . concat)
             [ illegalSince q
-            , pwords "the left-hand side of a rewrite rule introduced by smart with is not neutral"]
+            , pwords "the left-hand side of a rewrite rule introduced by with/rewrite is not neutral"]
 
         RHSContainsClosures -> do
           (fsep . concat)
             [ illegalSince q
-            , pwords "the right-hand side of a rewrite rule introduced by with/rewrite contains closures (e.g. lambdas or underapplied functions) which can cause non-termination."]
+            , pwords "the right-hand side of a rewrite rule introduced by with/rewrite contains closures (e.g. lambdas or underapplied functions) which can cause non-termination"]
 
         VariablesNotBoundByLHS xs -> do
           (fsep . concat)
@@ -557,7 +557,7 @@ prettyWarning = \case
 
         SmartWithOccursFail -> (fsep . concat)
           [ illegalSince q
-          , pwords "the LHS occurs in the RHS or an earlier 'smart with' rewrite rule"
+          , pwords "the LHS occurs in the RHS or an earlier '--smart-with' rewrite rule"
           ]
 
     ConfluenceCheckingIncompleteBecauseOfMeta f -> (fsep . concat)

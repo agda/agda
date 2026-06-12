@@ -1,0 +1,12 @@
+SmartWithBadEqFun.agda:18,1-4: error: [SplitError.UnificationStuck]
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  not ≟ id
+when checking that the pattern refl has type not ≡ id
+———— Warnings ——————————————————————————————————————————————
+SmartWithBadEqFun.agda:18,1-19: warning: -W[no]RewriteLHSNotNeutral
+_ : not ≡ w  is not a legal rewrite rule, since the left-hand side
+of a rewrite rule introduced by with/rewrite is not neutral
+when checking that the clause f p rewrite p = 42 has type
+not ≡ id → Nat

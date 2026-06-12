@@ -534,7 +534,8 @@ inUserRewVars :: Telescope -> VarSet
 inUserRewVars tel = case allRewVars tel of
   (_, xs, _) -> xs
 
--- | Returns all variables that occur in generated (smart with) rewrite rules
+-- | Returns all variables that occur in generated ('--smart-with') rewrite
+--   rules
 inSmartWithRewVars :: Telescope -> VarSet
 inSmartWithRewVars tel = case allRewVars tel of
   (_, _, xs) -> xs

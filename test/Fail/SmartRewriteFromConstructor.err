@@ -1,6 +1,6 @@
 SmartRewriteFromConstructor.agda:12.1-25: warning: -W[no]RewriteLHSNotNeutral
 _ : true ≡ w  is not a legal rewrite rule, since the left-hand side
-of a rewrite rule introduced by smart with is not neutral
+of a rewrite rule introduced by with/rewrite is not neutral
 when checking that the clause foo b p rewrite p = refl has type
 (b : Bool) → true ≡ not b → not true ≡ not (not b)
 

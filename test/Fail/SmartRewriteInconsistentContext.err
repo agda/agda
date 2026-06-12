@@ -1,6 +1,6 @@
 SmartRewriteInconsistentContext.agda:8.1-23: warning: -W[no]RewriteLHSNotNeutral
 _ : true ≡ w  is not a legal rewrite rule, since the left-hand side
-of a rewrite rule introduced by smart with is not neutral
+of a rewrite rule introduced by with/rewrite is not neutral
 when checking that the clause foo p rewrite p = ? has type
 true ≡ false → Bool
 
