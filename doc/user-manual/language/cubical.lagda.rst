@@ -245,7 +245,7 @@ definitional equalities compared to the standard Agda definitions:
                cong (λ a → g (f a)) p ≡ cong g (cong f p)
   congComp f g p = refl
 
-Path types also let us prove new things are not provable in standard Agda.
+Path types also let us prove new things that are not provable in standard Agda.
 For example, function extensionality, stating that pointwise equal functions
 are equal, has an extremely simple proof:
 
