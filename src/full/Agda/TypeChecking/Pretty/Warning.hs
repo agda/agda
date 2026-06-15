@@ -414,10 +414,15 @@ prettyWarning = \case
             , pwords "the left-hand side is neither a defined symbol nor a constructor"
             ]
 
-        LHSNotNeutral -> do
+        LHSNotNeutral r -> do
           (fsep . concat)
             [ illegalSince q
-            , pwords "the left-hand side of a rewrite rule introduced by with/rewrite is not neutral"]
+            , pwords "the left-hand side of a rewrite rule introduced by with/rewrite is"
+            , case r of
+                LHSConstructorHeaded -> pwords
+                  "headed by a constructor"
+                LHSUnderapplied      -> pwords
+                  "underapplied"]
 
         RHSContainsClosures -> do
           (fsep . concat)

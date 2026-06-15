@@ -272,6 +272,8 @@ instance EmbPrj LocalRewriteInfo where
     N5 0 a b c d -> valuN LocalRewriteInfo a b c d
     _            -> malformed
 
+instance EmbPrj RewriteLHSNotNeutralReason
+
 instance EmbPrj IllegalRewriteRuleReason where
   icod_ = \case
     LHSNotDefinitionOrConstructor               -> icodeN 0 LHSNotDefinitionOrConstructor
@@ -292,7 +294,7 @@ instance EmbPrj IllegalRewriteRuleReason where
     DuplicateRewriteRule                        -> icodeN 15 DuplicateRewriteRule
     LocalRewriteOutsideTelescope                -> icodeN 16 LocalRewriteOutsideTelescope
     SmartWithOccursFail                         -> icodeN 17 SmartWithOccursFail
-    LHSNotNeutral                               -> icodeN 18 LHSNotNeutral
+    LHSNotNeutral a                             -> icodeN 18 LHSNotNeutral a
     RHSContainsClosures                         -> icodeN 19 RHSContainsClosures
 
   value = vcase $ \case
@@ -314,7 +316,7 @@ instance EmbPrj IllegalRewriteRuleReason where
     N1 15    -> valuN DuplicateRewriteRule
     N1 16    -> valuN LocalRewriteOutsideTelescope
     N1 17    -> valuN SmartWithOccursFail
-    N1 18    -> valuN LHSNotNeutral
+    N2 18 a  -> valuN LHSNotNeutral a
     N1 19    -> valuN RHSContainsClosures
     _        -> malformed
 

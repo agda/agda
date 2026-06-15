@@ -405,7 +405,7 @@ checkRewriteRuleLHS s gamma1 lhs b = do
     Con c ci vs -> do
       -- Constructor applications are never neutral
       when (isSmartWithRewrite s) $
-        illegalRule s LHSNotNeutral
+        illegalRule s $ LHSNotNeutral LHSConstructorHeaded
       let hd = Con c ci
       ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c b
       pars <- addContext gamma1 $ checkParametersAreGeneral c pars
@@ -423,8 +423,8 @@ checkRewriteRuleLHS s gamma1 lhs b = do
   where
     -- '--smart-with' rewrite rule LHSs must be neutral
     checkNeutral :: Term -> MaybeT TCM ()
-    checkNeutral t = do
-      whenM (lift $ isUnderapplied t) $ illegalRule s LHSNotNeutral
+    checkNeutral t = whenM (lift $ isUnderapplied t) $ illegalRule s $
+      LHSNotNeutral LHSUnderapplied
 
     checkAxFunOrCon :: QName -> Definition -> MaybeT TCM ()
     checkAxFunOrCon f def = case theDef def of
@@ -697,14 +697,10 @@ rewrite block hd rules es = do
         , "blocking tag" <+> text (show block)
         ]) $ do
       return $ NoReduction $ block $> hd es
-    loop block t (rew:rews) es
-     | let n = rewArity rew, length es >= n = do
-          let (es1, es2) = List.genericSplitAt n es
-          result <- rewriteWith t hd rew es1
-          case result of
-            Left (Blocked m u)    -> loop (block `mappend` Blocked m ()) t rews es
-            Left (NotBlocked _ _) -> loop block t rews es
-            Right w               -> return $ YesReduction YesSimplification $ w `applyE` es2
-     | otherwise = loop (block `mappend` NotBlocked Underapplied ()) t rews es
-
+    loop block t (rew:rews) es = do
+      let (es1, es2) = List.genericSplitAt (rewArity rew) es
+      result <- rewriteWith t hd rew es1
+      case result of
+        Left  b -> loop (block `mappend` (b $> ())) t rews es
+        Right w -> return $ YesReduction YesSimplification $ w `applyE` es2
     rewArity = length . rewPats

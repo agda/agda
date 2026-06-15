@@ -2,7 +2,7 @@ SmartRewriteIndirectLoop.agda:8.1-27: warning: -W[no]RewriteRHSContainsClosures
 _ : f x ≡ w  is not a legal rewrite rule, since the right-hand side
 of a rewrite rule introduced by with/rewrite contains closures
 (e.g. lambdas or underapplied functions) which can cause
-non-termination.
+non-termination
 when checking that the clause foo f x p rewrite p = refl has type
 (f : Nat → Nat → Nat) (x : Nat) → f x ≡ (λ y → f y y) → f x x ≡ 42
 
