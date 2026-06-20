@@ -15,6 +15,10 @@ import Control.Monad.Except   ( MonadError(..) )
 
 import Data.DList ( DList )
 import Data.DList qualified as DL
+import Data.IntMap.Strict ( IntMap )
+import Data.IntMap.Strict qualified as IntMap
+import Data.Map.Strict ( Map )
+import Data.Map.Strict qualified as Map
 import Data.Set   ( Set )
 import Data.Set   qualified as Set
 
@@ -131,6 +135,13 @@ data TerEnv = TerEnv
     --   (See issue #1015).
   , terUsableVars :: !VarSet
     -- ^ Pattern variables that can be compared to argument variables using SIZELT.
+  , terProjectedNameToNode :: !(Map (QName, [QName]) CallGraph.Node)
+    -- ^ Map from (name, [projection]) to call-graph node.
+    --   (See issue #8596 for why projected names merit distinct nodes).
+  , terNodeToName :: !(IntMap QName)
+    -- ^ Map from call-graph node back to function names.
+  , terNameToProjections :: !(Map QName [[QName]])
+    -- ^ Map from function names to the list of all available projection paths.
   }
 
 -- | An empty termination environment.
@@ -161,6 +172,9 @@ defaultTerEnv = TerEnv
   , terGuarded                  = le -- not initially guarded
   , terUseSizeLt                = False -- initially, not under data constructor
   , terUsableVars               = empty
+  , terProjectedNameToNode      = Map.empty
+  , terNodeToName               = IntMap.empty
+  , terNameToProjections        = Map.empty
   }
 
 -- | Termination monad service class.
@@ -337,6 +351,24 @@ terModifyUsableVars f = terLocal $ \ e -> e { terUsableVars = f $ terUsableVars 
 
 terSetUsableVars :: VarSet -> TerM a -> TerM a
 terSetUsableVars = terModifyUsableVars . const
+
+terGetProjectedNameToNode :: TerM (Map (QName, [QName]) CallGraph.Node)
+terGetProjectedNameToNode = terAsks terProjectedNameToNode
+
+terSetProjectedNameToNode :: Map (QName, [QName]) CallGraph.Node -> TerM a -> TerM a
+terSetProjectedNameToNode fwd = terLocal $ \ e -> e { terProjectedNameToNode = fwd }
+
+terGetNodeToName :: TerM (IntMap QName)
+terGetNodeToName = terAsks terNodeToName
+
+terSetNodeToName :: IntMap QName -> TerM a -> TerM a
+terSetNodeToName bwd = terLocal $ \ e -> e { terNodeToName = bwd }
+
+terGetNameToProjections :: TerM (Map QName [[QName]])
+terGetNameToProjections = terAsks terNameToProjections
+
+terSetNameToProjections :: Map QName [[QName]] -> TerM a -> TerM a
+terSetNameToProjections modes = terLocal $ \ e -> e { terNameToProjections = modes }
 
 -- | Lens for 'terUseSizeLt'.
 
