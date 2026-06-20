@@ -142,6 +142,8 @@ data TerEnv = TerEnv
     -- ^ Map from call-graph node back to function names.
   , terNameToProjections :: !(Map QName [[QName]])
     -- ^ Map from function names to the list of all available projection paths.
+  , terProjectedNameToMaskArgs :: !(Map (QName, [QName]) (ListInf Bool))
+    -- ^ Precomputed argument mask per @(name, [projection])@ pair, if @--without-K@.
   }
 
 -- | An empty termination environment.
@@ -175,6 +177,7 @@ defaultTerEnv = TerEnv
   , terProjectedNameToNode      = Map.empty
   , terNodeToName               = IntMap.empty
   , terNameToProjections        = Map.empty
+  , terProjectedNameToMaskArgs  = Map.empty
   }
 
 -- | Termination monad service class.
@@ -369,6 +372,12 @@ terGetNameToProjections = terAsks terNameToProjections
 
 terSetNameToProjections :: Map QName [[QName]] -> TerM a -> TerM a
 terSetNameToProjections modes = terLocal $ \ e -> e { terNameToProjections = modes }
+
+terGetProjectedNameToMaskArgs :: TerM (Map (QName, [QName]) (ListInf Bool))
+terGetProjectedNameToMaskArgs = terAsks terProjectedNameToMaskArgs
+
+terSetProjectedNameToMaskArgs :: Map (QName, [QName]) (ListInf Bool) -> TerM a -> TerM a
+terSetProjectedNameToMaskArgs m = terLocal $ \ e -> e { terProjectedNameToMaskArgs = m }
 
 -- | Lens for 'terUseSizeLt'.
 

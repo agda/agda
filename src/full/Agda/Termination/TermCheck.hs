@@ -216,7 +216,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
            , terUserNames = namesSCC
            }
      -- Pre-compute the copattern projection lists and assign node ids, per issue #8596.
-     (projectedNameToNode, nodeToName, nameToProjections) <- buildNodeAndProjectionMaps allNames
+     (projectedNameToNode, nodeToName, nameToProjections, projectedNameToMaskArgs) <- buildNodeAndProjectionMaps allNames
      let runTerm cont = runTerDefault $ do
            cutoff <- terGetCutOff
            reportSLn "term.top" 10 $ "Termination checking " ++ prettyShow namesSCC ++
@@ -224,6 +224,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
            terSetProjectedNameToNode projectedNameToNode $
              terSetNodeToName nodeToName $
              terSetNameToProjections nameToProjections $
+             terSetProjectedNameToMaskArgs projectedNameToMaskArgs $
              terLocal setNames cont
 
      -- New check currently only makes a difference for copatterns and record types.
@@ -511,7 +512,7 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name \ def -> do
   -- which are not of data or record type.
 
   withoutKEnabled <- liftTCM withoutKOption
-  applyWhen withoutKEnabled (setMasks t) $ do
+  applyWhen withoutKEnabled (setResultMask t) $ do
 
     -- If the result should be disregarded, set all calls to unguarded.
     applyWhenM terGetMaskResult terUnguarded $ do
@@ -575,22 +576,39 @@ termType = return mempty
   mkPats n  = map' mkPat <$> getContextVars
   mkPat (i, x) = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i
 
--- | Mask arguments and result for termination checking
---   according to type of function.
---   Only arguments of types ending in data/record or Size are counted in.
-setMasks :: Type -> TerM a -> TerM a
-setMasks t cont = do
-  (ds, d) <- liftTCM $ do
+-- | Mask the result for termination checking according to type of function.
+--   (Masking for arguments is handled per-clause in 'termClause'.)
+
+setResultMask :: Type -> TerM a -> TerM a
+setResultMask t cont = do
+  d <- liftTCM $ do
     TelV tel core <- telViewPath t
-    -- Check argument types
-    ds <- checkArgumentTypes tel
-    -- Check result types
     d  <- addContext tel $ isNothing <.> isDataOrRecord . unEl $ core
     when d $
       reportSLn "term.mask" 20 $ "result type is not data or record type, ignoring guardedness for --without-K"
-    return (ds, d)
-  terSetMaskArgs (ListInf.pad ds True) $ terSetMaskResult d $ cont
+    return d
+  terSetMaskResult d cont
 
+-- | Precompute the argument masks for a @(name, [projection])@ pair.  Strips
+--   and classifies the leading Π-arguments (which occupy the argument-pattern
+--   slots reached before the next projection), then follows the next projection
+--   in @path@ into its field type and recurses.
+
+argumentMasksForPath :: Type -> [QName] -> TCM (ListInf.ListInf Bool)
+argumentMasksForPath t path = do
+  TelV tel core <- telViewPath t
+  ds <- checkArgumentTypes tel
+  case path of
+    []         -> return (ListInf.pad ds True)
+    (d : path') -> addContext tel $ reduce core >>= getDefType d >>= \case
+      Just projTy -> reduce projTy >>= \case
+        El _ (Pi dom b) -> underAbstraction dom b $ \ft -> do
+          -- Projection patterns occupy one slot in the clause pattern list, but
+          -- should always be considered unmasked. Hence the @False@:
+          rest <- argumentMasksForPath ft path'
+          return $ ListInf.append ds (False :< rest)
+        _ -> return (ListInf.pad ds True)
+      Nothing     -> return (ListInf.pad ds True)
   where
     checkArgumentTypes :: Telescope -> TCM [Bool]
     checkArgumentTypes EmptyTel = return []
@@ -704,7 +722,15 @@ termClause clause = do
     , nest 2 $ "tel =" <+> prettyTCM tel
     , nest 2 $ "ps  =" <+> do addContext tel $ prettyTCMPatternList ps
     ]
-  forM' body $ \ v -> addContext tel $ do
+  maskArgs <- do
+    f    <- terGetCurrent
+    path <- liftTCM $ mapM getOriginalProjection $
+              mapMaybe (fmap (headAmbQ . snd) . isProjP . namedArg) ps
+    modeMasks <- terGetProjectedNameToMaskArgs
+    case Map.lookup (f, path) modeMasks of
+      Just m  -> return m
+      Nothing -> terGetMaskArgs  -- --with-K: map is empty; fallback is "mask nothing"
+  terSetMaskArgs maskArgs $ forM' body $ \ v -> addContext tel $ do
     -- TODO: combine the following two traversals, avoid full normalisation.
     -- Parse dot patterns as patterns as far as possible.
     ps <- postTraversePatternM parseDotP ps
@@ -994,20 +1020,31 @@ projNode f path = fromMaybe __IMPOSSIBLE__ . Map.lookup (f, path) <$> terGetProj
 --   'termFunction' walks per-function, and thus only needs the names.
 buildNodeAndProjectionMaps
   :: Set QName
-  -> TCM (Map.Map (QName, [QName]) Node, IntMap.IntMap QName, Map.Map QName [[QName]])
+  -> TCM ( Map.Map (QName, [QName]) Node
+         , IntMap.IntMap QName
+         , Map.Map QName [[QName]]
+         , Map.Map (QName, [QName]) (ListInf.ListInf Bool)
+         )
 buildNodeAndProjectionMaps allNames = do
+  withoutK <- withoutKOption
   pairs <- forM (Set.toList allNames) $ \ g -> do
-    cls <- defClauses <$> ignoreAbstractMode (getConstInfo g)
-    ms <- forM cls $ \ cl ->
+    def <- ignoreAbstractMode (getConstInfo g)
+    ms <- forM (defClauses def) $ \ cl ->
       mapM getOriginalProjection $
         mapMaybe (fmap (headAmbQ . snd) . isProjP . namedArg) $ namedClausePats cl
-    return (g, List.nub ms)
-  let projectionsOf (g, ps) = if null ps then [(g, [])] else map (g,) ps
+    return (g, defType def, List.nub ms)
+  let projectionsOf (g, _, ps) = if null ps then [(g, [])] else map (g,) ps
       allProjectionLists = concatMap projectionsOf pairs
       projectedNameToNode = Map.fromList $ zip allProjectionLists [0..]
       nodeToName = IntMap.fromList $ zip [0..] $ map fst allProjectionLists
-      nameToProjections = Map.fromList [ (g, if null ms then [[]] else ms) | (g, ms) <- pairs ]
-  return (projectedNameToNode, nodeToName, nameToProjections)
+      nameToProjections = Map.fromList [ (g, if null ms then [[]] else ms) | (g, _, ms) <- pairs ]
+  projectedNameToMaskArgs <- if withoutK
+    then do
+      let typeOf = Map.fromList [ (g, t) | (g, t, _) <- pairs ]
+      Map.fromList <$> forM allProjectionLists (\ (g, path) ->
+        ((g, path),) <$> argumentMasksForPath (typeOf Map.! g) path)
+    else return Map.empty
+  return (projectedNameToNode, nodeToName, nameToProjections, projectedNameToMaskArgs)
 
 -- | Two projection paths are comparable if one is a prefix of the other.
 comparableProjPath :: [QName] -> [QName] -> Bool
