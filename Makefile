@@ -27,7 +27,7 @@ include ./mk/pretty.mk
 # Or set it in ./mk/config.mk, which is .gitignored
 PARALLEL_TESTS ?= $(shell getconf _NPROCESSORS_ONLN)
 
-AGDA_BIN_SUFFIX = -$(VERSION)
+AGDA_BIN_SUFFIX ?= -$(VERSION)
 AGDA_TESTS_OPTIONS ?=-i -j$(PARALLEL_TESTS)
 
 # A cabal/stack dictionary
