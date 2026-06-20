@@ -131,9 +131,29 @@ else
 endif
 	agda --setup --emacs-mode compile --emacs-mode setup
 
+.PHONY: build ## Build Agda and test suite in place (with debug printing, like the test suite expects)
+build:
+ifdef HAS_STACK
+	$(STACK_SLOW) build Agda $(STACK_OPT_NO_DOCS) $(STACK_OPT_TESTS) --flag Agda:debug
+else
+	$(CABAL) build -fdebug exe:agda exe:agda-tests
+endif
+
+.PHONY: fast-build ## Build Agda and test suite with -O0 for faster iteration
+fast-build:
+ifdef HAS_STACK
+	$(STACK_FAST) build Agda $(STACK_OPT_NO_DOCS) $(STACK_OPT_TESTS) $(STACK_OPT_FAST)
+else
+	$(CABAL) build --builddir=$(FAST_BUILD_DIR) $(CABAL_OPT_FAST) exe:agda exe:agda-tests
+endif
+
 .PHONY: setup-agda
 setup-agda:
 	$(AGDA_BIN) --setup
+
+.PHONY: fast-setup-agda
+fast-setup-agda:
+	$(AGDA_FAST_BIN) --setup
 
 # GHC doesn't realise that the Template Haskell changes in the VersionCommit module
 # even if the source code does not. Simply touching the source is not enough to force
@@ -443,6 +463,9 @@ test-using-std-lib : std-lib-test \
 .PHONY : test-quick ## Run successful and failing tests.
 test-quick : common succeed fail
 
+.PHONY : fast-test-quick ## Run successful and failing tests (using agda-fast).
+fast-test-quick : fast-common fast-succeed fast-fail
+
 .PHONY : check-encoding ## Make sure that Parser.y is ASCII. [Issue #5465]
 check-encoding :
 	@$(call decorate, "Check that Parser.y is ASCII", \
@@ -459,63 +482,79 @@ check-mdo :
           test/check-mdo.sh)
 
 .PHONY : bugs ##
-bugs :
+bugs : setup-agda
 	@$(call decorate, "Suite of tests for bugs", \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Bugs)
 
 .PHONY : internal-tests ##
-internal-tests :
+internal-tests : setup-agda
 	@$(call decorate, "Internal test suite", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Internal )
 
 .PHONY : fast-internal-tests ##
-fast-internal-tests :
+fast-internal-tests : fast-setup-agda
 	@$(call decorate, "Internal test suite (using agda-fast)", \
 		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Internal )
 
 .PHONY : common ##
-common :
+common : setup-agda
 	@$(call decorate, "Suite of successful tests: mini-library Common", \
 		$(MAKE) -C test/Common )
 
+.PHONY : fast-common ##
+fast-common : fast-setup-agda
+	@$(call decorate, "Suite of successful tests: mini-library Common (using agda-fast)", \
+		$(MAKE) -C test/Common AGDA_BIN=$(AGDA_FAST_BIN) )
+
 .PHONY : succeed ##
-succeed :
+succeed : setup-agda
 	@$(call decorate, "Suite of successful tests", \
 		echo $(shell command -v $(AGDA_BIN)) > test/helpers/exec-tc/executables && \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed ; \
 		rm test/helpers/exec-tc/executables )
 
 .PHONY : fast-succeed ##
-fast-succeed :
+fast-succeed : fast-setup-agda
 	@$(call decorate, "Suite of successful tests (using agda-fast)", \
 		echo $(shell command -v $(AGDA_FAST_BIN)) > test/helpers/exec-tc/executables && \
 		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed ; \
 		rm test/helpers/exec-tc/executables )
 
 .PHONY : fail ##
-fail :
+fail : setup-agda
 	@$(call decorate, "Suite of failing tests", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail)
 
 .PHONY : fast-fail ##
-fast-fail :
+fast-fail : fast-setup-agda
 	@$(call decorate, "Suite of failing tests (using agda-fast)", \
 		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail)
 
 .PHONY: build-fail-test ##
-build-fail-test :
+build-fail-test : setup-agda
 	@$(call decorate, "Suite of failing --build-library tests", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/BuildFail)
 
 .PHONY: build-succeed-test ##
-build-succeed-test :
+build-succeed-test : setup-agda
 	@$(call decorate, "Suite of successful --build-library tests", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/BuildSucceed)
 
+.PHONY: build-test ##
+build-test : build-fail-test build-succeed-test
+
+.PHONY : fast-build-fail-test ##
+fast-build-fail-test : fast-setup-agda
+	@$(call decorate, "Suite of failing --build-library tests (using agda-fast)", \
+		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/BuildFail)
+
 .PHONY : fast-build-succeed-test ##
-fast-build-succeed-test :
+fast-build-succeed-test : fast-setup-agda
 	@$(call decorate, "Suite of successful --build-library tests (using agda-fast)", \
 		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/BuildSucceed)
+
+.PHONY : fast-build-test ##
+fast-build-test : fast-build-fail-test fast-build-succeed-test
 
 .PHONY : interaction ##
 interaction :
