@@ -71,8 +71,8 @@ else
 AGDA_BIN            ?= $(or $(shell $(CABAL) list-bin exe:agda 2>/dev/null),$(BUILD_DIR)/build/agda/agda)
 AGDA_MODE           ?= $(or $(shell $(CABAL) list-bin exe:agda-mode 2>/dev/null),$(BUILD_DIR)/build/agda-mode/agda-mode)
 AGDA_TESTS_BIN      ?= $(or $(shell $(CABAL) list-bin exe:agda-tests 2>/dev/null),$(BUILD_DIR)/build/agda-tests/agda-tests)
-AGDA_FAST_BIN       ?= $(or $(shell $(CABAL) list-bin --builddir=$(FAST_BUILD_DIR) exe:agda 2>/dev/null),$(FAST_BUILD_DIR)/build/agda/agda)
-AGDA_FAST_TESTS_BIN ?= $(or $(shell $(CABAL) list-bin --builddir=$(FAST_BUILD_DIR) exe:agda-tests 2>/dev/null),$(FAST_BUILD_DIR)/build/agda-tests/agda-tests)
+AGDA_FAST_BIN       ?= $(or $(shell $(CABAL) list-bin -O0 --builddir=$(FAST_BUILD_DIR) exe:agda 2>/dev/null),$(FAST_BUILD_DIR)/build/agda/agda)
+AGDA_FAST_TESTS_BIN ?= $(or $(shell $(CABAL) list-bin -O0 --builddir=$(FAST_BUILD_DIR) exe:agda-tests 2>/dev/null),$(FAST_BUILD_DIR)/build/agda-tests/agda-tests)
 endif
 
 AGDA_BIN            := $(abspath $(AGDA_BIN))

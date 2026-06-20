@@ -38,7 +38,7 @@ STACK_OPT_NO_DOCS = --no-haddock
 CABAL_OPT_TESTS   = --enable-tests
 STACK_OPT_TESTS   = --test --no-run-tests
 
-CABAL_OPT_FAST    = --ghc-options=-O0 -fdebug
+CABAL_OPT_FAST    = -O0 -fdebug
 STACK_OPT_FAST    = --fast --flag Agda:debug
 
 CABAL_FLAG_ICU    = -fenable-cluster-counting
@@ -451,6 +451,23 @@ test : check-whitespace \
        user-manual-test \
        doc-test \
        size-solver-test
+
+.PHONY : ci-test ## Build, then run exactly what the CI test workflow (.github/workflows/test.yml) runs.
+ci-test : build
+	@$(call decorate, "CI / whitespace job", \
+	  $(MAKE) check-whitespace check-encoding check-mdo)
+	@$(call decorate, "CI / test job", \
+	  $(MAKE) bugs common succeed fail examples interactive api-test internal-tests compiler-test)
+	@$(call decorate, "CI / interaction-latex-html job", \
+	  $(MAKE) build-succeed-test build-fail-test && \
+	  $(MAKE) DONT_RUN_LATEX=Y latex-html-test && \
+	  $(MAKE) testing-emacs-mode user-manual-test user-manual-covers-options user-manual-covers-warnings \
+	          test-suite-covers-warnings test-suite-covers-errors interaction)
+	@$(call decorate, "CI / cubical job", \
+	  $(MAKE) cubical-test cubical-succeed)
+	@$(call decorate, "CI / stdlib-test job", \
+	  $(MAKE) AGDA_OPTS="-j" std-lib-test && \
+	  $(MAKE) benchmark-without-logs std-lib-compiler-test std-lib-succeed std-lib-interaction)
 
 .PHONY : test-using-std-lib ## Run all tests which use the standard library.
 test-using-std-lib : std-lib-test \
