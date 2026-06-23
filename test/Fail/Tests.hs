@@ -122,6 +122,7 @@ fdebugTestFilter =
   , disable "Fail/Issue4175"
   , disable "Fail/Issue641"
   , disable "Fail/Issue641-all-interfaces"
+  , disable "Fail/Issue6492"
   ]
   where disable = RFInclude
 
