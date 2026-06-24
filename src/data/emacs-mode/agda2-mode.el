@@ -115,6 +115,15 @@ argument, and does not need to be listed here."
   :type 'string
   :group 'agda2)
 
+(defcustom agda2-restart-timeout
+  5
+  "The number of seconds to wait before timing out restart attempts.
+
+If nil, never time out."
+  :type '(choice (const :tag "No timeout")
+                 (number :tag "Number of seconds"))
+  :group 'agda2)
+
 (defcustom agda2-information-window-max-height
   0.35
   "The maximum height of the information window.
@@ -493,6 +502,7 @@ agda2-include-dirs is not bound." :warning))
  ;; If Agda is not running syntax highlighting does not work properly.
  (unless (eq 'run (agda2-process-status))
    (agda2-restart))
+
  ;; Make sure that Font Lock mode is not used.
  (font-lock-mode 0)
  (agda2-highlight-setup)
@@ -559,7 +569,7 @@ agda2-include-dirs is not bound." :warning))
       (set-process-coding-system agda2-process 'utf-8 'utf-8)
       (set-process-query-on-exit-flag agda2-process nil)
       (set-process-filter agda2-process 'agda2-output-filter)
-      (setq agda2-in-progress nil
+      (setq agda2-in-progress 'busy
             agda2-file-buffer (current-buffer))
 
       (with-current-buffer agda2-bufname
@@ -567,6 +577,15 @@ agda2-include-dirs is not bound." :warning))
               mode-name            "Agda executable"
               agda2-last-responses nil)
         (set-buffer-file-coding-system 'utf-8))
+
+      ;; Block until we see an initial prompt.
+      ;;
+      ;; This avoids a race condition triggered by sending a command before we've had
+      ;; a chance to read any process output, which in turn makes `agda2-output-filter'
+      ;; erroneously set `agda2-in-progress' to nil when it sees the initial prompt.
+      (while agda2-in-progress
+        (unless (accept-process-output agda2-process agda2-restart-timeout nil t)
+          (error "Failed to start the Agda process")))
 
       (agda2-remove-annotations))))
 
