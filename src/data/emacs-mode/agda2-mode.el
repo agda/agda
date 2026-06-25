@@ -473,6 +473,9 @@ The following paragraph does not apply to Emacs 23 or newer.
 
 Special commands:
 \\{agda2-mode-map}"
+  :group 'agda2
+  :interactive t
+  :after-hook (agda2-initialize)
 
  (if (boundp 'agda2-include-dirs)
      (display-warning 'agda2 "Note that the variable agda2-include-dirs is
@@ -499,17 +502,12 @@ agda2-include-dirs is not bound." :warning))
  ;; Deactivate highlighting if the buffer is edited before
  ;; typechecking is complete.
  (add-hook 'first-change-hook 'agda2-abort-highlighting nil 'local)
- ;; If Agda is not running syntax highlighting does not work properly.
- (unless (eq 'run (agda2-process-status))
-   (agda2-restart))
+
 
  ;; Make sure that Font Lock mode is not used.
  (font-lock-mode 0)
  (agda2-highlight-setup)
- (condition-case err
-     (agda2-highlight-reload)
-   (error (message "Highlighting not loaded: %s"
-                   (error-message-string err))))
+
  (agda2-comments-and-paragraphs-setup)
  (force-mode-line-update)
  ;; Don't take script into account when determining word boundaries
@@ -523,6 +521,15 @@ agda2-include-dirs is not bound." :warning))
  (add-hook 'change-major-mode-hook 'agda2-quit nil 'local)
  ;; Enable Xref
  (add-hook 'xref-backend-functions #'agda2-xref-backend -90 t))
+
+(defun agda2-initialize ()
+  "Initialize the `agda2-process'."
+  (unless (eq 'run (agda2-process-status))
+    (agda2-restart))
+  (condition-case err
+      (agda2-highlight-reload)
+    (error (message "Highlighting not loaded: %s"
+                    (error-message-string err)))))
 
 (defun agda2-restart ()
   "Tries to start or restart the Agda process."
