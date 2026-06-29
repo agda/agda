@@ -146,8 +146,9 @@ checkIApplyConfluence f cl = case cl of
                 -- then it's probably a good idea to remind the user of what's going on,
                 -- instead of presenting a mysterious error.
                 traceCall why (compareTerm cmp ty u v `catchError` maybeDropCall)
-
-            updateContext clSub (const clCxt) $
+            -- There might be new rewrite rules (e.g. from a "--smart-with" so
+            -- we need to refresh here)
+            updateContext' RefreshRews clSub (const clCxt) $
               compareTermOnFace' k CmpEq phi trhs lhs body
 
 -- | current context is of the form Γ.Δ

@@ -173,16 +173,25 @@ withFunctionType delta1 vtys delta2 b bndry = addContext delta1 $ do
   return (d1wd2b, (nwithargs, nwithpats))
 
 smartWithFunctionType ::
-     List1 (Arg (Term, EqualityView))   -- ^ with and rewrite-expressions and their type.
+     Telescope                          -- ^ context
+  -> List1 (Arg (Term, EqualityView))   -- ^ with and rewrite-expressions and their type.
   -> Type                               -- ^ type of rhs.
+  -> Boundary                           -- ^ boundary of rhs.
   -> TCM (Type, (Nat1, Nat))
-smartWithFunctionType vtys b = do
-  b' <- foldrM piSmartAbstract b vtys
+smartWithFunctionType delta vtys b bndry = do
+  b' <- addContext delta $ foldrM piSmartAbstract b vtys
 
   let nwithargs = countSmartWithArgs $ fmap (snd . unArg) vtys
   let nwithpats = countSmartWithPats vtys
 
-  return (b', (nwithargs, nwithpats))
+  TelV wtel _ <- telViewUpTo nwithargs b'
+
+  let bndry' = Boundary [(i,(lams u0, lams u1)) | (i,(u0,u1)) <- theBoundary bndry]
+        where lams = teleNoAbs wtel
+
+  b'' <- telePiPath_ delta b' bndry'
+
+  return (b'', (nwithargs, nwithpats))
 
 -- | Count the number of arguments introduced into the type of the with-function.
 countSmartWithArgs :: (Functor f, Foldable f) => f EqualityView -> Nat1

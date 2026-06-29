@@ -1259,9 +1259,15 @@ checkWithFunction cxtNames (WithFunction (SmartWithFunctionProblemData f aux t d
 
   -- TODO: Should we flush instance constraints (#7882)?
 
-  (b', (nwithargs, nwithpats))
-    <- addContext delta $ smartWithFunctionType vtys b
-  let withFunType = delta `abstract` b'
+
+  reportSDoc "tc.with.bndry" 40 $ addContext delta
+                                $ text "ps =" <+> pretty qs
+  bndry <- recoverBoundary f qs
+  reportSDoc "tc.with.bndry" 40 $ addContext delta
+                                $ text "bndry =" <+> pretty bndry
+
+  (withFunType, (nwithargs, nwithpats))
+    <- smartWithFunctionType delta vtys b bndry
 
   reportSDoc "rewriting" 30 $ "I guess printing the type is what is breaking..."
   reportSDoc "tc.with.type" 10 $ sep [ "with-function type:", nest 2 $ prettyTCM withFunType ]
@@ -1352,12 +1358,7 @@ checkWithFunction cxtNames (WithFunction (WithFunctionProblemData f aux t delta 
     let ps = renaming impossible (reverseP perm') `applySubst` qs
     reportSDoc "tc.with.bndry" 40 $ addContext delta1 $ addContext delta2
                                   $ text "ps =" <+> pretty ps
-    let vs = iApplyVars ps
-    bndry <- if null vs then return empty else do
-      iz <- primIZero
-      io <- primIOne
-      let tm = Def f (patternsToElims ps)
-      return $! Boundary [(i,(inplaceS i iz `applySubst` tm, inplaceS i io `applySubst` tm)) | i <- vs]
+    bndry <- recoverBoundary f ps
     reportSDoc "tc.with.bndry" 40 $ addContext delta1 $ addContext delta2
                                   $ text "bndry =" <+> pretty bndry
     withFunctionType delta1 vtys delta2 b bndry
@@ -1425,6 +1426,17 @@ checkWithFunction cxtNames (WithFunction (WithFunctionProblemData f aux t delta 
   ai <- defArgInfo <$> getConstInfo f
   checkFunDefS withFunType ai Nothing (WithFunction (f, withSub, lets)) info aux $ List1.toList cs
   return $ Just $ call_in_parent
+
+-- | Recover boundary from a list of patterns
+recoverBoundary :: QName -> [NamedArg DeBruijnPattern] -> TCM Boundary
+recoverBoundary f ps = do
+  let vs = iApplyVars ps
+  bndry <- if null vs then return empty else do
+    iz <- primIZero
+    io <- primIOne
+    let tm = Def f (patternsToElims ps)
+    return $! Boundary [(i,(inplaceS i iz `applySubst` tm, inplaceS i io `applySubst` tm)) | i <- vs]
+  return bndry
 
 -- | Type check a where clause.
 checkWhere
