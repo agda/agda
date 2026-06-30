@@ -430,6 +430,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
   -- that require local rewrite rules, we will have substituted those
   -- variables for ones in 'delta'
   t' <- dropRewDomsType DropAll t
+  reportSDoc "tc.with.strip" 10 $ "t' = " <+> prettyTCM t'
 
   -- Andreas, 2015-11-09 Issue 1710: self starts with parent-function, not with-function!
   (ps', strippedPats) <- runWriterT $ addContext delta $

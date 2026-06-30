@@ -2036,7 +2036,11 @@ prettyLock a = (pretty (getLock a) <+>)
 data RewState
   = RewInvalidated -- ^ The local rewrite rule has been invalidated by a
                    --   substitution
-  | RewFine        -- ^ Every other case (e.g. not checked yet)
+  | RewDropped     -- ^ The local rewrite rule has been explicitly dropped
+                   --   (either it failed to typecheck or was dropped
+                   --   internally in some part of the codebase which shouldn't
+                   --   care about rewrite rules)
+  | RewFine        -- ^ The rewrite rule has been checked and is valid
   deriving (Show, Generic)
 
 data RewriteAnn
@@ -2076,6 +2080,7 @@ instance NFData RewriteAnn where
 instance Pretty RewriteAnn where
   pretty = \case
     (IsRewrite _ RewInvalidated) -> "@rewrite (invalidated!)"
+    (IsRewrite _ RewDropped)     -> "@rewrite (dropped!)"
     (IsRewrite _ RewFine)        -> "@rewrite"
     IsNotRewrite                 -> empty
 

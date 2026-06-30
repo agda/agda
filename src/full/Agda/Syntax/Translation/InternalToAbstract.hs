@@ -1653,7 +1653,8 @@ instance Reify i => Reify (Dom i) where
     reify d = Arg (mapRewriteAnn updateRewAnn $ d ^. dInfo) <$> reify (unDom d)
       where
         updateRewAnn = \case
-          IsRewrite r s | invalidRew d -> IsRewrite r RewInvalidated
+          IsRewrite r s | invalidRew d         -> IsRewrite r RewInvalidated
+          IsRewrite r s | isNothing $ rewDom d -> IsRewrite r RewDropped
           rew           -> rew
     {-# INLINE reify #-}
 

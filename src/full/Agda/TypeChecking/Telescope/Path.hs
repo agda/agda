@@ -98,6 +98,15 @@ telePiPath_ tel t bndry = do
    argsLam args tm = strengthenS impossible 1 `applySubst`
      foldr (\ Arg{argInfo = ai, unArg = x} -> Lam ai . Abs x) tm args
 
+-- | Drop rewrite annotations on a nested pi-type using 'telView'
+--   Also needs to drop '@rewrite' inside path types
+dropRewDomsType :: DropStrategy -> Type -> TCM Type
+dropRewDomsType s t = do
+  (TelV tel b, bnd) <- telViewPathBoundary t
+  let tel' = dropRewDoms s tel
+  let bnd' = fullBoundary tel' bnd
+  telePiPath_ tel' b bnd'
+
 -- | arity of the type, including both Pi and Path.
 --   Does not reduce the type.
 arityPiPath :: Type -> TCM Int

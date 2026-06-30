@@ -792,9 +792,3 @@ foldrTelescopeM f b = go
     go EmptyTel = b
     go (ExtendTel a tel) =
       f ((absName tel,) <$> a) $ underAbstraction a tel go
-
--- | Drop rewrite annotations on a nested pi-type using 'telView'
-dropRewDomsType :: DropStrategy -> Type -> TCM Type
-dropRewDomsType s t = do
-  TelV tel b <- telView t
-  pure $ dropRewDoms s tel `abstract` b
