@@ -568,13 +568,6 @@ buildEquiv (DUnificationStep st step@(DInjectivity k a d pars ixs c) output) nex
                   { _funClauses    = []
                   , _funCompiled   = Just cc
                   , _funSplitTree  = Nothing
-                  , _funProjection = Right Projection
-                      { projProper   = Nothing
-                      , projOrig     = projname
-                      , projFromType = Arg (getArgInfo fty) d
-                      , projIndex    = size pars + 1
-                      , projLams     = ProjLams []
-                      }
                   , _funMutual     = Just []
                   , _funTerminates = Just True
                   }
