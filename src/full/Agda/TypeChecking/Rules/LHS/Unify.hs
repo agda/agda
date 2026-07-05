@@ -549,6 +549,10 @@ unifyStep s step@Solution{} = solutionStep RetryNormalised s step
 
 unifyStep s (Injectivity k a d pars ixs c) = do
   ifM (consOfHIT $ conName c) (return $ UnifyStuck []) $ do
+  -- Path constructors (refl) should not be decomposed by injectivity:
+  -- the identity type has a special transp clause that doesn't distribute
+  -- over refl like regular constructors.
+  ifM (lift $ isPathCons $ conName c) (return $ UnifyStuck []) $ do
   withoutK <- withoutKOption
 
   -- Split equation telescope into parts before and after current equation
