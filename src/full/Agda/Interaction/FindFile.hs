@@ -27,6 +27,7 @@ import Control.Monad.Trans
 import Data.Maybe (catMaybes, fromMaybe, isJust)
 import qualified Data.Map as Map
 import qualified Data.Text as T
+import System.Directory ( canonicalizePath )
 import System.FilePath
 
 import Agda.Interaction.Library ( findProjectRoot )
@@ -174,7 +175,10 @@ findFile'' dirs m = do
     Nothing -> do
       files          <- liftIO $ fileList agdaFileExtensions
       existingFiles  <- liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
-      case nubOn id existingFiles of
+      -- Resolve symlinks before deduplication (issue #8608)
+      existingCanon  <- liftIO $ mapM (canonicalizePath . filePath) existingFiles
+      let existingUnique = nubOn fst (zip existingCanon existingFiles)
+      case map snd existingUnique of
         [file]   -> do
           let (i, dict') = registerFileIdWithBuiltin file dict
           let src = SourceFile i

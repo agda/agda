@@ -585,7 +585,7 @@ buildEquiv (DUnificationStep st step@(DInjectivity k a d pars ixs c) output) nex
             return projname
 
         let makeTau :: [QName] -> Substitution
-            makeTau projs = 
+            makeTau projs =
               let h_k_idx = neqs - k - 1
                   tauTerms = map (\ pn -> Lam defaultArgInfo $ Abs "i" $
                     Def pn [] `apply` [argN $ var h_k_idx `apply` [argN $ var 0]]) projs
@@ -606,7 +606,10 @@ buildEquiv (DUnificationStep st step@(DInjectivity k a d pars ixs c) output) nex
         -- the outer telescope segments (phi + eqTel2' + ctel).
         --
         -- Telescope layout (innermost to outermost):
+        --
+        -- @
         --   eqTel2' | ctel | eqTel1' | phi | gamma
+        -- @
         --
         -- When no HDU thunk is available (non-indexed types or HDU failure),
         -- the projection retract alone suffices with @leftInv = raiseS 1@.
@@ -628,7 +631,7 @@ buildEquiv (DUnificationStep st step@(DInjectivity k a d pars ixs c) output) nex
                     liftTerm t = applySubst raiseFull t
                     -- tau_full: identity on gamma/phi/eqTel2', HDU on eqTel1',
                     --           projection on ctel.
-                    tauList = 
+                    tauList =
                       [var j | j <- [0 .. nGamma]]
                       ++ [var (nGamma + 1)]
                       ++ [liftTerm (lookupS tau_hdu (nHdu - 1 - j)) | j <- [0 .. nHdu - 1]]
