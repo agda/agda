@@ -498,7 +498,7 @@ buildEquiv (DUnificationStep st step@(DEtaExpandVar fv _d _args) output) next = 
           return $ ((working_tel,rho,tau,raiseS 1),phi)
 
 buildEquiv (DUnificationStep st step@(DInjectivity k a d pars ixs c) output) next = runExceptT $ do
-        -- | Construct the left inverse retract for a constructor injectivity step.
+        -- Construct the left inverse retract for a constructor injectivity step.
         --
         -- The Injectivity step replaces one constructor equation
         --   @c us = c vs : D pars@ (at position @k@ in the equation telescope)
@@ -618,8 +618,8 @@ buildEquiv (DUnificationStep st step@(DInjectivity k a d pars ixs c) output) nex
                 -- HDU succeeded: embed its left inverse in the full telescope.
                 -- See module header for the telescope layout.
                 let nGamma = size gamma
-                    nEq2  = size (eqTel next) - k - nctel   -- |eqTel2'| (equations after k)
-                    nHdu  = k                                -- |eqTel1'| (equations before k)
+                    nEq2  = size (eqTel next) - k - nctel   -- size of eqTel2' (equations after k)
+                    nHdu  = k                                -- size of eqTel1' (equations before k)
                     -- HDU terms reference its local context (varTel + hduTel).
                     -- In the full working telescope, phi + eqTel2' + ctel
                     -- sit outside the HDU scope.  raiseS shifts all internal
