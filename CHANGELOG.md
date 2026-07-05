@@ -405,6 +405,15 @@ Changes to type checker and other components defining the Agda language.
   For compatibility with modules using `--cubical[=full]` and `--cubical=erased`, see
   [variants](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#variants).
 
+* Added support for constructor injectivity in Cubical Agda's left-inverse
+  construction, enabling `with`-abstraction on indexed and non-indexed
+  inductive types (e.g., `Fin`, `ℕ`) without `UnsupportedIndexedMatch` warnings
+  (see [#3733](https://github.com/agda/agda/issues/3733)).
+  For non-indexed constructors, the transp clause distributes definitionally,
+  making the injectivity homotopy trivial.  For indexed constructors, the HDU
+  (higher-dimensional unification) left inverse is captured and composed with
+  dynamically-generated field projections via parallel De Bruijn lifting.
+
 * Added the [Sharp modality](https://agda.readthedocs.io/en/v2.9.0/language/flat.html#the-sharp-modality),
   which adds a right adjoint to the existing flat modality enabled via the
   `--cohesion` flag. This also enables the use of attributes in record

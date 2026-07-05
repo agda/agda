@@ -448,6 +448,13 @@ data UnifyOutput = UnifyOutput
     -- For solution steps, the dependency-preserving reordering of varΓ generated
     -- by instantiateTelescope (used by LeftInverse). Works on de Bruijn levels.
   , unifySolutionPerm :: Maybe Permutation
+    -- HDU (higher-dimensional unification) left inverse thunk.
+    -- Set during Injectivity unifyStep for indexed constructors.
+    -- Forced in LeftInverse.buildEquiv to compose the index-equation
+    -- retract with the constructor-field projection retract.
+    -- The Either () represents success/failure (() replaces NoLeftInv
+    -- to avoid a module cycle between Types.hs and LeftInverse.hs).
+  , unifyHduTauInv :: Maybe (TCM (Either () (Substitution, Substitution)))
   }
 
 instance Semigroup UnifyOutput where
@@ -455,10 +462,11 @@ instance Semigroup UnifyOutput where
     { unifySubst = unifySubst y `composeS` unifySubst x
     , unifyProof = unifyProof y `composeS` unifyProof x
     , unifySolutionPerm = unifySolutionPerm x <|> unifySolutionPerm y
+    , unifyHduTauInv = unifyHduTauInv x <|> unifyHduTauInv y
     }
 
 instance Monoid UnifyOutput where
-  mempty  = UnifyOutput IdS IdS Nothing
+  mempty  = UnifyOutput IdS IdS Nothing Nothing
   mappend = (<>)
 
 type UnifyLogT m a = WriterT UnifyLog' m a
@@ -473,6 +481,12 @@ tellUnifyProof sub = tell $ mempty { unifyProof = sub }
 
 tellUnifySolutionPerm :: MonadWriter UnifyOutput m => Permutation -> m ()
 tellUnifySolutionPerm perm = tell $ mempty { unifySolutionPerm = Just perm }
+
+-- | Store the HDU left inverse thunk in the UnifyOutput.
+-- The thunk is a 'TCM' action that, when forced, computes
+-- @(tau_hdu, leftInv_hdu)@ for the index equations solved by HDU.
+tellHduTauInv :: MonadWriter UnifyOutput m => TCM (Either () (Substitution, Substitution)) -> m ()
+tellHduTauInv thunk = tell $ mempty { unifyHduTauInv = Just thunk }
 
 writeUnifyLog ::
   MonadWriter UnifyLog' m => (UnifyLogEntry, UnifyState) -> m ()

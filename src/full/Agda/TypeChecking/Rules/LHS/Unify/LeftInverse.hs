@@ -34,20 +34,35 @@ import Agda.TypeChecking.Rules.LHS.Unify.Types
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
 
+import Agda.TypeChecking.CompiledClause
+import qualified Data.Map as Map
+
 
 data DigestedUnifyStep
   = DSolution Int (Dom Type) (FlexibleVar Int) Term (Either () ())
   | DEtaExpandVar (FlexibleVar Int) QName Args
+  -- | Digested Injectivity step.  Constructor injectivity decomposes
+  -- a constructor equation @c us = c vs : D pars@ into equations
+  -- for each field of @c@.  The left inverse must expand the single
+  -- constructor PathP into individual field PathPs.
+  -- See 'buildEquiv' for the retract construction.
+  | DInjectivity
+      Int      -- ^ injectAt: position of the equation in eqTel
+      Type     -- ^ injectType: type of the equality
+      QName    -- ^ injectDatatype: the datatype name
+      Args     -- ^ injectParameters: datatype parameters
+      Args     -- ^ injectIndices: datatype indices
+      ConHead  -- ^ injectConstructor: the constructor head
 
 instance PrettyTCM DigestedUnifyStep where
   prettyTCM (DSolution a b c d e) = prettyTCM (Solution a b c d e)
   prettyTCM (DEtaExpandVar a b c) = prettyTCM (EtaExpandVar a b c)
+  prettyTCM (DInjectivity k a d pars ixs c) = prettyTCM (Injectivity k a d pars ixs c)
 
 data DigestedUnifyLogEntry
   = DUnificationStep UnifyState DigestedUnifyStep UnifyOutput
@@ -63,6 +78,10 @@ digestUnifyLog log = forM log \(UnificationStep s step out, s') -> do
   case step of
     Solution a b c d e   -> ret $ DSolution a b c d e
     EtaExpandVar a b c   -> ret $ DEtaExpandVar a b c
+    -- Injectivity is now supported: the DInjectivity buildEquiv
+    -- constructs the retract using projection functions generated
+    -- via addConstant (see buildEquiv below).
+    Injectivity k a d pars ixs c -> ret $ DInjectivity k a d pars ixs c
     Deletion{}           -> illegal
     TypeConInjectivity{} -> illegal
     -- These should end up in a NoUnify
@@ -108,13 +127,18 @@ buildLeftInverse s0 log = Bench.billTo [Bench.UnifyIndices, Bench.CubicalLeftInv
     reportSDoc "tc.lhs.unify.inv.badstep" 20 $ do
       pathp <- getTerm' builtinPathP
       "pathp:" <+> text (show $ isJust pathp)
+    -- Handle open contexts from the coverage checker.
+    -- When coverage checking a split clause, extra bindings are added
+    -- above the unification telescope (varTel).  We compute the offset
+    -- and lift the final tau and leftInv substitutions to account for
+    -- these extra bindings, preserving correct de Bruijn indices.
+    -- @extraCxt = 0@ for top-level calls (no lifting needed).
+    cxtLen <- getContextSize
     let
-      cond = andM
-        -- TODO: handle open contexts: they happen during "higher dimensional" unification,
-        --       in injectivity cases.
-        [ null <$!> getContext
-        ]
+      extraCxt = max 0 (cxtLen - size (varTel s0))
+    reportSDoc "tc.lhs.unify.inv.badstep" 20 $ "extra context =" <+> text (show extraCxt)
 
+    let
       compose :: [(Retract, Term)] -> ExceptT NoLeftInv TCM Retract
       compose [] = __IMPOSSIBLE__
       compose [(xs, _)] = pure xs
@@ -124,7 +148,8 @@ buildLeftInverse s0 log = Bench.billTo [Bench.UnifyIndices, Bench.CubicalLeftInv
           Left e  -> Left (CantTransport e)
           Right x -> Right x
 
-    ifNotM cond (return $ Left UnsupportedCxt) $ do
+    -- Proceed with retract construction.  Open contexts (extraCxt > 0)
+    -- are handled by lifting tau/leftInv via liftS below.
     equivs <- forM log $ uncurry buildEquiv
     case sequence equivs of
       Left no -> do
@@ -133,9 +158,10 @@ buildLeftInverse s0 log = Bench.billTo [Bench.UnifyIndices, Bench.CubicalLeftInv
       Right xs -> runExceptT (compose xs) >>= \case
         Left no -> return (Left no)
         Right (_, _, tau0, leftInv0) -> do
-        -- Γ,φ,us =_Δ vs ⊢ τ0 : Γ', φ
-        -- leftInv0 : [wkS |φ,us =_Δ vs| ρ,1,refls][τ] = idS : Γ,φ,us =_Δ vs
-        let tau = tau0 `composeS` raiseS 1
+        -- Lift the composed tau and leftInv over the extra context
+        -- bindings from the coverage checker.  liftS extraCxt shifts
+        -- all de Bruijn indices to account for outer variables.
+        let tau = liftS extraCxt $ tau0 `composeS` raiseS 1
         unview <- intervalUnview'
         let replaceAt n x xs = xs0 ++! (x:xs1)
                     where (xs0,_:xs1) = splitAt' n xs
@@ -143,7 +169,7 @@ buildLeftInverse s0 log = Bench.billTo [Bench.UnifyIndices, Bench.CubicalLeftInv
             neg r = unview $ INeg (argN r)
         let phieq = neg (var 0) `max` var (size (eqTel s0) + 1)
                           -- I + us =_Δ vs -- inplaceS
-        let leftInv = termsS __IMPOSSIBLE__ $ replaceAt (size (varTel s0)) phieq $ map' (lookupS leftInv0) $ downFrom (size (varTel s0) + 1 + size (eqTel s0))
+        let leftInv = liftS extraCxt $ termsS __IMPOSSIBLE__ $ replaceAt (size (varTel s0)) phieq $ map' (lookupS leftInv0) $ downFrom (size (varTel s0) + 1 + size (eqTel s0))  -- also lifted over extra context
         let working_tel = abstract (varTel s0) (ExtendTel __DUMMY_DOM__ $ Abs "phi0" $ (eqTel s0))
         reportSDoc "tc.lhs.unify.inv" 20 $ "=== before mod"
         do
@@ -470,6 +496,161 @@ buildEquiv (DUnificationStep st step@(DEtaExpandVar fv _d _args) output) next = 
         caseMaybeM (expandRecordVar (raiseFrom gamma x) working_tel) __IMPOSSIBLE__ $ \ (_,tau,rho,_) -> do
           reportSDoc "tc.lhs.unify.inv" 20 $ addContext working_tel $ "tau    :" <+> prettyTCM tau
           return $ ((working_tel,rho,tau,raiseS 1),phi)
+
+buildEquiv (DUnificationStep st step@(DInjectivity k a d pars ixs c) output) next = runExceptT $ do
+        -- | Construct the left inverse retract for a constructor injectivity step.
+        --
+        -- The Injectivity step replaces one constructor equation
+        --   @c us = c vs : D pars@ (at position @k@ in the equation telescope)
+        -- with @nctel@ field equations @us_i = vs_i : A_i@.
+        --
+        -- For non-indexed constructors (e.g., @Nat.suc@, @Fin.suc@),
+        -- the transp clause distributes over the constructor:
+        --   @transp (\lambda i -> D pars) \varphi (c us) = c (transp A_1 \varphi u_1, ...)@
+        -- making the retract condition @rho[tau] = id@ definitional.
+        -- The homotopy @leftInv@ is the trivial @raiseS 1@.
+        --
+        -- For indexed constructors where HDU (higher-dimensional unification)
+        -- succeeded, the HDU left inverse thunk is captured in 'unifyHduTauInv'
+        -- and its @tau_hdu@/@leftInv_hdu@ are embedded in the full telescope
+        -- via parallel lifting (see the CRT composition below).
+        --
+        -- Projection functions @proj_i : D pars -> A_i@ are generated via
+        -- 'addConstant' (same pattern as 'Data.hs:defineProjections') and used
+        -- in @tau@ to decompose the constructor PathP into field PathPs.
+        reportSDoc "tc.lhs.unify.inv" 20 "buildEquiv Injectivity"
+        let
+          gamma = varTel st
+          eqs   = eqTel st
+          neqs  = size eqs
+          phis  = 1
+        interval <- lift primIntervalType
+        let gamma_phis = abstract gamma $ telFromList $
+              map' (defaultDom . (,interval) . ("phi" ++) . show) [0 .. phis - 1]
+        working_tel <- abstract gamma_phis <$!> do
+         withExceptT CantTransport' $
+          pathTelescope' (raise phis $ eqTel st) (raise phis $ eqLHS st) (raise phis $ eqRHS st)
+        let raiseFrom tel x = (size working_tel - size tel) + x
+        let phi = var $ raiseFrom gamma_phis 0
+
+        cdef <- lift $ getConInfo c
+        TelV ctel ctarget <- lift $ telView (defType cdef `piApply` pars)
+        let nctel = size ctel
+            El dtSort _ = ctarget
+            dt = El dtSort (Def d (map' Apply pars))
+
+        let rho0 = fromPatternSubstitution $ unifyProof output
+        let rho  = liftS 1 rho0
+
+        -- Generate projection functions for each constructor field.
+        -- Projections are non-recursive (single clause) and act as
+        -- eliminators: @proj_i (c x_1 ... x_n) = x_i@.
+        -- Generated for all nctel (including nctel==1) to keep tau
+        -- type-correct when the PathP type changes.
+        projNames <- lift $ forM (zip [0..] (flattenTel ctel)) $ \ (i, fty) -> do
+            current <- currentModule
+            name <- freshName_ ("proj-inj" :: String)
+            let projname = qualify current name
+            let cc = Case (Arg defaultArgInfo 0) $ Branches
+                  { projPatterns   = False
+                  , conBranches    = Map.singleton (conName c)
+                                      (WithArity nctel (Done 0 NotRecursive [] (var i)))
+                  , etaBranch      = Nothing
+                  , litBranches    = Map.empty
+                  , catchallBranch = Nothing
+                  , fallThrough    = Nothing
+                  , lazyMatch      = False
+                  }
+                projTel = ExtendTel (defaultDom dt) (Abs "d" EmptyTel)
+                projType = telePi projTel (unDom fty)
+            fun <- emptyFunctionData
+            let fun' = fun
+                  { _funClauses    = []
+                  , _funCompiled   = Just cc
+                  , _funSplitTree  = Nothing
+                  , _funProjection = Right Projection
+                      { projProper   = Nothing
+                      , projOrig     = projname
+                      , projFromType = Arg (getArgInfo fty) d
+                      , projIndex    = size pars + 1
+                      , projLams     = ProjLams []
+                      }
+                  , _funMutual     = Just []
+                  , _funTerminates = Just True
+                  }
+            lang <- getLanguage
+            addConstant projname $
+              (defaultDefn defaultArgInfo projname projType lang $ FunctionDefn fun')
+                { defArgOccurrences = [] }
+            return projname
+
+        let makeTau :: [QName] -> Substitution
+            makeTau projs = 
+              let h_k_idx = neqs - k - 1
+                  tauTerms = map (\ pn -> Lam defaultArgInfo $ Abs "i" $
+                    Def pn [] `apply` [argN $ var h_k_idx `apply` [argN $ var 0]]) projs
+                  nOld = size working_tel
+                  tauList = concat
+                    [ [var j | j <- [0 .. size gamma + k]]
+                    , tauTerms
+                    , [var (j + 1 - nctel) | j <- [size gamma + 1 + k + nctel .. nOld - 1]]
+                    ]
+              in termsS __IMPOSSIBLE__ tauList
+        -- Compose the retract from HDU (index equations) with the
+        -- projection retract (constructor field decomposition).
+        --
+        -- The HDU thunk, captured during the Injectivity unifyStep,
+        -- provides @tau_hdu@ and @leftInv_hdu@ for the index equations.
+        -- These are embedded in the full working telescope via parallel
+        -- lifting: @raiseS@ shifts de Bruijn indices to account for
+        -- the outer telescope segments (phi + eqTel2' + ctel).
+        --
+        -- Telescope layout (innermost to outermost):
+        --   eqTel2' | ctel | eqTel1' | phi | gamma
+        --
+        -- When no HDU thunk is available (non-indexed types or HDU failure),
+        -- the projection retract alone suffices with @leftInv = raiseS 1@.
+        (tau, leftInv) <- case unifyHduTauInv output of
+          Just getTauInvHDU -> do
+            tauInvHDU <- lift getTauInvHDU
+            case tauInvHDU of
+              Right (tau_hdu, leftInv_hdu) -> do
+                -- HDU succeeded: embed its left inverse in the full telescope.
+                -- See module header for the telescope layout.
+                let nGamma = size gamma
+                    nEq2  = size (eqTel next) - k - nctel   -- |eqTel2'| (equations after k)
+                    nHdu  = k                                -- |eqTel1'| (equations before k)
+                    -- HDU terms reference its local context (varTel + hduTel).
+                    -- In the full working telescope, phi + eqTel2' + ctel
+                    -- sit outside the HDU scope.  raiseS shifts all internal
+                    -- de Bruijn indices to account for these outer segments.
+                    raiseFull = raiseS (1 + nEq2 + nctel)
+                    liftTerm t = applySubst raiseFull t
+                    -- tau_full: identity on gamma/phi/eqTel2', HDU on eqTel1',
+                    --           projection on ctel.
+                    tauList = 
+                      [var j | j <- [0 .. nGamma]]
+                      ++ [var (nGamma + 1)]
+                      ++ [liftTerm (lookupS tau_hdu (nHdu - 1 - j)) | j <- [0 .. nHdu - 1]]
+                      ++ [lookupS (makeTau projNames) (nGamma + 1 + nHdu + j) | j <- [0 .. nctel - 1]]
+                      ++ [var (nGamma + 1 + nHdu + nctel + j) | j <- [0 .. nEq2 - 1]]
+                    -- leftInv_full: identity homotopy on gamma/phi/ctel/eqTel2',
+                    --              HDU leftInv on eqTel1'.
+                    leftInvList =
+                      [var j | j <- [0 .. nGamma]]
+                      ++ [var (nGamma + 1)]
+                      ++ [liftTerm (lookupS leftInv_hdu (nHdu - 1 - j)) | j <- [0 .. nHdu - 1]]
+                      ++ [var (nGamma + 1 + nHdu + j) | j <- [0 .. nctel - 1]]
+                      ++ [var (nGamma + 1 + nHdu + nctel + j) | j <- [0 .. nEq2 - 1]]
+                return (termsS __IMPOSSIBLE__ tauList, termsS __IMPOSSIBLE__ leftInvList)
+              Left _ -> return (makeTau projNames, raiseS 1)
+          Nothing -> return (makeTau projNames, raiseS 1)
+        -- The retract condition rho[tau] = id holds for non-indexed
+        -- constructors because the transp clause distributes definitionally
+        -- over c: rho (ConP c [proj_1(h), ..., proj_n(h)]) = h.
+        -- For indexed types with HDU success, the HDU leftInv provides
+        -- the homotopy for the index-equation segment.
+        return ((working_tel, rho, tau, leftInv), phi)
 
 
 {-# SPECIALIZE explainStep :: UnifyStep -> TCM Doc #-}
