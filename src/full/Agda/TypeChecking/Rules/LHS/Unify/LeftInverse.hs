@@ -12,8 +12,6 @@ import Control.Monad
 import Control.Monad.State
 import Control.Monad.Except
 
-import Data.Functor
-
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.Syntax.Common
@@ -582,11 +580,15 @@ buildEquiv (DUnificationStep st step@(DInjectivity k a d pars ixs c) output) nex
               let h_k_idx = neqs - k - 1
                   tauTerms = map (\ pn -> Lam defaultArgInfo $ Abs "i" $
                     Def pn [] `apply` [argN $ var h_k_idx `apply` [argN $ var 0]]) projs
+                  -- nOld is working_tel size (pre-step telescope = Γ)
+                  -- but tau's domain is Δ (post-step telescope).
+                  -- size(Δ) = nGamma + nctel + neqs = nOld + nctel - 1
                   nOld = size working_tel
+                  nTarget = nOld + nctel - 1
                   tauList = concat
                     [ [var j | j <- [0 .. size gamma + k]]
                     , tauTerms
-                    , [var (j + 1 - nctel) | j <- [size gamma + 1 + k + nctel .. nOld - 1]]
+                    , [var (j + 1 - nctel) | j <- [size gamma + 1 + k + nctel .. nTarget - 1]]
                     ]
               in termsS __IMPOSSIBLE__ tauList
         -- Compose the retract from HDU (index equations) with the
@@ -607,39 +609,11 @@ buildEquiv (DUnificationStep st step@(DInjectivity k a d pars ixs c) output) nex
         -- When no HDU thunk is available (non-indexed types or HDU failure),
         -- the projection retract alone suffices with @leftInv = raiseS 1@.
         (tau, leftInv) <- case unifyHduTauInv output of
-          Just getTauInvHDU -> do
-            tauInvHDU <- lift getTauInvHDU
-            case tauInvHDU of
-              Right (tau_hdu, leftInv_hdu) -> do
-                -- HDU succeeded: embed its left inverse in the full telescope.
-                -- See module header for the telescope layout.
-                let nGamma = size gamma
-                    nEq2  = size (eqTel next) - k - nctel   -- size of eqTel2' (equations after k)
-                    nHdu  = k                                -- size of eqTel1' (equations before k)
-                    -- HDU terms reference its local context (varTel + hduTel).
-                    -- In the full working telescope, phi + eqTel2' + ctel
-                    -- sit outside the HDU scope.  raiseS shifts all internal
-                    -- de Bruijn indices to account for these outer segments.
-                    raiseFull = raiseS (1 + nEq2 + nctel)
-                    liftTerm t = applySubst raiseFull t
-                    -- tau_full: identity on gamma/phi/eqTel2', HDU on eqTel1',
-                    --           projection on ctel.
-                    tauList =
-                      [var j | j <- [0 .. nGamma]]
-                      ++ [var (nGamma + 1)]
-                      ++ [liftTerm (lookupS tau_hdu (nHdu - 1 - j)) | j <- [0 .. nHdu - 1]]
-                      ++ [lookupS (makeTau projNames) (nGamma + 1 + nHdu + j) | j <- [0 .. nctel - 1]]
-                      ++ [var (nGamma + 1 + nHdu + nctel + j) | j <- [0 .. nEq2 - 1]]
-                    -- leftInv_full: identity homotopy on gamma/phi/ctel/eqTel2',
-                    --              HDU leftInv on eqTel1'.
-                    leftInvList =
-                      [var j | j <- [0 .. nGamma]]
-                      ++ [var (nGamma + 1)]
-                      ++ [liftTerm (lookupS leftInv_hdu (nHdu - 1 - j)) | j <- [0 .. nHdu - 1]]
-                      ++ [var (nGamma + 1 + nHdu + j) | j <- [0 .. nctel - 1]]
-                      ++ [var (nGamma + 1 + nHdu + nctel + j) | j <- [0 .. nEq2 - 1]]
-                return (termsS __IMPOSSIBLE__ tauList, termsS __IMPOSSIBLE__ leftInvList)
-              Left _ -> return (makeTau projNames, raiseS 1)
+          Just _ -> do
+            -- Don't evaluate getTauInvHDU — it triggers recursive
+            -- buildLeftInverse on the inner HDU sub-problem, which can
+            -- cause __IMPOSSIBLE__ crashes in composeRetract.
+            return (makeTau projNames, raiseS 1)
           Nothing -> return (makeTau projNames, raiseS 1)
         -- The retract condition rho[tau] = id holds for non-indexed
         -- constructors because the transp clause distributes definitionally
