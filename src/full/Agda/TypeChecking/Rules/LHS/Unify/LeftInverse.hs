@@ -624,58 +624,12 @@ buildEquiv (DUnificationStep st step@(DInjectivity k a d pars ixs c) output) nex
         -- When no HDU thunk is available (non-indexed types or HDU failure),
         -- the projection retract alone suffices with @leftInv = raiseS 1@.
         (tau, leftInv) <- case unifyHduTauInv output of
-          Just getTauInvHDU -> do
-            tauInvHDU <- lift getTauInvHDU
-            case tauInvHDU of
-              Right (tau_hdu, leftInv_hdu) -> do
-                -- CRT composition: embed HDU left inverse in full telescope.
-                --
-                -- HDU context (gamma + eqTel1 + ctel, size = nGamma + k + nctel):
-                --   de Bruijn: [ctel] (innermost) | [eqTel1] | [gamma] (outermost)
-                --
-                -- Working telescope Γ (gamma + phi + pathTel, nGamma + 1 + neqs):
-                --   de Bruijn: [eqTel2'] | [eq_k] | [eqTel1'] | [phi] | [gamma]
-                --
-                -- The lift substitution maps each HDU de Bruijn position to its
-                -- corresponding Γ position.  ctel entries (not in Γ) map to a dummy.
-                -- HDU terms for eqTel1' do not reference ctel, so the dummy is safe.
-                let nGamma = size gamma
-                    nHdu  = k
-                    nEq2  = neqs - k - 1            -- eqTel2' size in Γ
-                    hduSize = nGamma + nHdu + nctel
-                    -- liftSubst: HDU context → Γ context
-                    -- Gamma block (HDU indices nctel+k .. nctel+k+nGamma-1)
-                    --   maps to Γ indices neqs+1 .. neqs+nGamma
-                    -- EqTel1 block (HDU indices nctel .. nctel+k-1)
-                    --   maps to Γ indices neqs-k .. neqs-1
-                    -- Ctel block (HDU indices 0 .. nctel-1)
-                    --   maps to dummy var 0 (HDU eqTel1' terms don't reference ctel)
-                    liftList =
-                      [var j | j <- [neqs + nGamma, neqs + nGamma - 1 .. neqs + 1]]
-                      ++ [var j | j <- [neqs - 1, neqs - 2 .. neqs - nHdu]]
-                      ++ replicate nctel (var 0)
-                    liftSubst = termsS __IMPOSSIBLE__ liftList
-                    liftTerm t = applySubst liftSubst t
-
-                    -- tau_full (Δ → Γ): same structure as makeTau but with
-                    -- HDU terms replacing the eqTel1' identity entries
-                    tauList =
-                      [var j | j <- [0 .. nGamma]]
-                      ++ [liftTerm (lookupS tau_hdu (nHdu - 1 - j)) | j <- [0 .. nHdu - 1]]
-                      ++ [lookupS (makeTau projNames) (nGamma + 1 + nHdu + j) | j <- [0 .. nctel - 1]]
-                      ++ [var (nGamma + 1 + nHdu + nctel + j) | j <- [0 .. nEq2 - 1]]
-                    -- leftInv_full (Γ×I → Γ): identity on gamma/phi/eqTel2',
-                    -- HDU leftInv on eqTel1', identity on eq_k
-                    leftInvList =
-                      [var j | j <- [0 .. nGamma]]
-                      ++ [liftTerm (lookupS leftInv_hdu (nHdu - 1 - j)) | j <- [0 .. nHdu - 1]]
-                      ++ [var (nGamma + 1 + nHdu)]
-                      ++ [var (nGamma + 1 + nHdu + 1 + j) | j <- [0 .. nEq2 - 1]]
-
-                let tauSub    = termsS __IMPOSSIBLE__ tauList
-                    leftInvSub = termsS __IMPOSSIBLE__ leftInvList
-                return (tauSub, leftInvSub)
-              Left _ -> return (makeTau projNames, raiseS 1)
+          Just _ -> do
+            -- CRT composition (deferred): the piecewise de Bruijn lift
+            -- is mathematically correct but activates recursive
+            -- buildLeftInverse calls via getTauInvHDU thunk evaluation.
+            -- Deferred until the HDU thunk isolation issue is resolved.
+            return (makeTau projNames, raiseS 1)
           Nothing -> return (makeTau projNames, raiseS 1)
         -- The retract condition rho[tau] = id holds for non-indexed
         -- constructors because the transp clause distributes definitionally
