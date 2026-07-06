@@ -1009,12 +1009,12 @@ Summary of variant compatibilities:
 +=====================+=======+======+==========+
 | |cng|               | |v|   | |x|  | |x|      |
 +---------------------+-------+------+----------+
-| |ec|                | |v|   | |v|  | |v| [#]_ |
+| |ec|                | |v|   | |v|  | |v| (1)  |
 +---------------------+-------+------+----------+
 | |c|                 | |v|   | |v|  | |v|      |
 +---------------------+-------+------+----------+
 
-.. [#] only if :option:`--erasure` is enabled and is used in erased positions.
+(1) only if :option:`--erasure` is enabled and is used in erased positions.
        See :ref:`below<erased-cubical>`.
 
 .. _erased-cubical:
