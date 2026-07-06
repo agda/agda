@@ -590,7 +590,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   -- We capture its left inverse thunk (the 4th component of Unifies)
   -- so that LeftInverse.buildEquiv can compose it with the
   -- constructor-field projection retract for the full injectivity proof.
-  res <- lift $ addContext (varTel s) $ unifyIndices' Nothing
+  res <- lift $ addContext (varTel s) $ unifyIndices' (Just __IMPOSSIBLE__)
            hduTel
            (allFlexVars notforced hduTel)
            (raise (size ctel) dtype)
