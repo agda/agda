@@ -43,7 +43,7 @@ jobs:
       # Could be turned off with --disable-documentation.
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - uses: haskell-actions/setup@v2
       id: setup-haskell
