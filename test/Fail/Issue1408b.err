@@ -1,4 +1,4 @@
-/data/work/functional-programming/agda/test/Fail/Issue1408b.agda:20.12-14: error: [UnsolvedConstraints]
+Issue1408b.agda:20.12-14: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Is empty: y ≅ x (stuck)
-      [ at /data/work/functional-programming/agda/test/Fail/Issue1408b.agda:20.12-14 ]
+      [ at Issue1408b.agda:20.12-14 ]
