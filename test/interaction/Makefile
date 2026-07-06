@@ -155,3 +155,17 @@ $(Tests) : %.cmp : %.out
 	 fi
 	@$(cleanup_$*)
 	@rm -rf $(TMPDIR) $(BUILDDIR)
+
+debug:
+	@echo "filter             = $(filter)"
+	@echo "run_test           = $(run_test)"
+	@echo "AgdaFiles          = $(AgdaFiles)"
+	@echo "AgdaFilesWithoutIn = $(AgdaFilesWithoutIn)"
+	@echo "OutFiles           = $(OutFiles)"
+	@echo "Tests              = $(Tests)"
+	@echo "AGDA_OPT           = $(AGDA_OPT)"
+	@echo "BUILDDIR           = $(BUILDDIR)"
+	@echo "TMPDIR             = $(TMPDIR)"
+	@echo "pwd                = $(pwd)"
+	@echo "pwdPlusDelimiter   = $(pwdPlusDelimiter)"
+	@echo "uname              = $(uname)"
