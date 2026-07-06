@@ -150,7 +150,7 @@ jobs:
       # uconv --version
 
     - name: Restore cache from approximate key
-      uses: actions/cache/restore@v5
+      uses: actions/cache/restore@v6
       id: cache
       with:
         # Andreas, 2023-01-24:
@@ -196,7 +196,7 @@ jobs:
           stack-work.tzst
 
     - name: Save cache
-      uses: actions/cache/save@v5
+      uses: actions/cache/save@v6
       if:   steps.cache.outputs.cache-hit != 'true'  # don't save cache when build fails as it may get in the way
       with:
         key:  *cache_key

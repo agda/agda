@@ -174,7 +174,7 @@ jobs:
       # https://github.com/haskell/cabal/issues/8706
 
     - name: Restore cache from approximate key
-      uses: actions/cache/restore@v5
+      uses: actions/cache/restore@v6
       id: cache
       with:
         # We don't cache dist-newstyle because it is too fat (e.g. >400MB on GHC 9.4.4)
@@ -240,7 +240,7 @@ jobs:
     #   continue-on-error: true
 
     - name: Save cache
-      uses: actions/cache/save@v5
+      uses: actions/cache/save@v6
       if:   always() && steps.cache.outputs.cache-hit != 'true'
       with:
         key:  ${{ steps.cache.outputs.cache-primary-key }}
