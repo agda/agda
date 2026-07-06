@@ -68,6 +68,16 @@ data DigestedUnifyLogEntry
 type DigestedUnifyLog = [(DigestedUnifyLogEntry,UnifyState)]
 
 -- | Pre-process a UnifyLog so that we catch unsupported steps early.
+-- | Check if a constructor has any field with non-standard modality
+-- (erased, irrelevant, or quantity-0).  These fields require generated
+-- projection functions to inherit the field's modality contract, which
+-- is not yet implemented in buildEquiv's addConstant code.
+hasErasedConstructorFields :: ConHead -> TCM Bool
+hasErasedConstructorFields c = do
+  cdef  <- getConInfo c
+  TelV ctel _ <- telView (defType cdef)
+  pure $ any (\d -> getModality d /= defaultModality) (flattenTel ctel)
+
 digestUnifyLog :: UnifyLog -> Either NoLeftInv DigestedUnifyLog
 digestUnifyLog log = forM log \(UnificationStep s step out, s') -> do
   let illegal     = Left $ Illegal step
@@ -76,9 +86,6 @@ digestUnifyLog log = forM log \(UnificationStep s step out, s') -> do
   case step of
     Solution a b c d e   -> ret $ DSolution a b c d e
     EtaExpandVar a b c   -> ret $ DEtaExpandVar a b c
-    -- Injectivity is now supported: the DInjectivity buildEquiv
-    -- constructs the retract using projection functions generated
-    -- via addConstant (see buildEquiv below).
     Injectivity k a d pars ixs c -> ret $ DInjectivity k a d pars ixs c
     Deletion{}           -> illegal
     TypeConInjectivity{} -> illegal
@@ -496,6 +503,14 @@ buildEquiv (DUnificationStep st step@(DEtaExpandVar fv _d _args) output) next = 
           return $ ((working_tel,rho,tau,raiseS 1),phi)
 
 buildEquiv (DUnificationStep st step@(DInjectivity k a d pars ixs c) output) next = runExceptT $ do
+        -- Honest boundary declaration: constructors with non-standard
+        -- modality fields (erased, irrelevant, quantity-0) require
+        -- generated projections that inherit the field's modality contract.
+        -- The projection generation code creates Relevant projections,
+        -- which cannot be used in erased cubical transp/comp contexts.
+        erased <- lift $ hasErasedConstructorFields c
+        if erased then throwError (UnsupportedYet (Injectivity k a d pars ixs c))
+        else return ()
         -- Construct the left inverse retract for a constructor injectivity step.
         --
         -- The Injectivity step replaces one constructor equation
@@ -562,17 +577,17 @@ buildEquiv (DUnificationStep st step@(DInjectivity k a d pars ixs c) output) nex
                 projTel = ExtendTel (defaultDom dt) (Abs "d" EmptyTel)
                 projType = telePi projTel (unDom fty)
             fun <- emptyFunctionData
-            let fun' = fun
+            lang <- getLanguage
+            let funDef = fun
                   { _funClauses    = []
                   , _funCompiled   = Just cc
                   , _funSplitTree  = Nothing
                   , _funMutual     = Just []
                   , _funTerminates = Just True
                   }
-            lang <- getLanguage
             addConstant projname $
-              (defaultDefn defaultArgInfo projname projType lang $ FunctionDefn fun')
-                { defArgOccurrences = [] }
+              (defaultDefn defaultArgInfo projname projType lang $
+               FunctionDefn funDef) { defArgOccurrences = [] }
             return projname
 
         let makeTau :: [QName] -> Substitution
