@@ -1,4 +1,3 @@
-Checking Issue4172-2 (/data/work/functional-programming/agda/test/Fail/Issue4172-2.agda).
 /data/work/functional-programming/agda/test/Fail/Issue4172-2.agda:10.1-8: error: [SplitError.ErasedDatatype.NoK]
 Cannot branch on erased argument of datatype D false because the K
 rule is turned off

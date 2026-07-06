@@ -1,4 +1,3 @@
-Checking InjectivityPartial (/data/work/functional-programming/agda/test/Fail/InjectivityPartial.agda).
 /data/work/functional-programming/agda/test/Fail/InjectivityPartial.agda:16.1-7: error: [CoverageIssue]
 Incomplete pattern matching for f. Missing cases:
   f (suc x)

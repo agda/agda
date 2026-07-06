@@ -1,4 +1,3 @@
-Checking Issue3966 (/data/work/functional-programming/agda/test/Fail/Issue3966.agda).
 /data/work/functional-programming/agda/test/Fail/Issue3966.agda:34.1-43: error: [SplitError.UnificationStuck]
 I'm not sure if there should be a case for the constructor refl,
 because I get stuck when trying to solve the following unification

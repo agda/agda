@@ -1,4 +1,3 @@
-Checking Issue1408b (/data/work/functional-programming/agda/test/Fail/Issue1408b.agda).
 /data/work/functional-programming/agda/test/Fail/Issue1408b.agda:20.12-14: error: [UnsolvedConstraints]
 Failed to solve the following constraints:
   Is empty: y ≅ x (stuck)
