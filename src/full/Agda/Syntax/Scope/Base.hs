@@ -1181,11 +1181,13 @@ restrictPrivate s = setNameSpace PrivateNS emptyNameSpace
 
 -- | Remove private things from the given module from a scope.
 restrictLocalPrivate :: ModuleName -> Scope -> Scope
-restrictLocalPrivate m =
+restrictLocalPrivate m scope =
+  recomputeNameParts $
   mapScopeNS PrivateNS
     (Map.mapMaybe rName)
     (Map.mapMaybe rMod)
     (Set.filter (not . (`isInModule` m)))
+    scope
   where
     rName as = List1.nonEmpty $ List1.filter (not . (`isInModule`        m) . anameName) as
     rMod  as = List1.nonEmpty $ List1.filter (not . (`isLtChildModuleOf` m) . amodName)  as
