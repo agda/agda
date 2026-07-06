@@ -31,13 +31,16 @@ jobs:
         echo "github.ref_name   = ${{ github.ref_name   }}"
         echo "github.ref_type   = ${{ github.ref_type   }}"
     - if: github.ref != 'refs/heads/master'
+      name: Possibly cancel workflow early
       uses: styfle/cancel-workflow-action@0.13.1
       with:
         access_token: ${{ github.token }}
-    - uses: actions/checkout@v6
+    - name: Checkout repo
+      uses: actions/checkout@v6
       with:
         submodules: recursive
     - id: setup-haskell
+      name: Setup Haskell
       uses: haskell-actions/setup@v2
       with:
         cabal-update: false
@@ -96,17 +99,20 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v6
+    - name: Checkout repo
+      uses: actions/checkout@v6
       with:
         submodules: recursive
     - id: setup-haskell
+      name: Setup Haskell
       uses: haskell-actions/setup@v2
       with:
         cabal-update: false
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
-    - uses: actions/download-artifact@v8
+    - name: Download artifacts
+      uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -123,17 +129,20 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v6
+    - name: Checkout repo
+      uses: actions/checkout@v6
       with:
         submodules: recursive
     - id: setup-haskell
+      name: Setup Haskell
       uses: haskell-actions/setup@v2
       with:
         cabal-update: false
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
-    - uses: actions/download-artifact@v8
+    - name: Download artifacts
+      uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -185,17 +194,20 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v6
+    - name: Checkout repo
+      uses: actions/checkout@v6
       with:
         submodules: recursive
     - id: setup-haskell
+      name: Setup Haskell
       uses: haskell-actions/setup@v2
       with:
         cabal-update: false
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
-    - uses: actions/download-artifact@v8
+    - name: Download artifacts
+      uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -225,17 +237,20 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v6
+    - name: Checkout repo
+      uses: actions/checkout@v6
       with:
         submodules: recursive
     - id: setup-haskell
+      name: Setup Haskell
       uses: haskell-actions/setup@v2
       with:
         cabal-update: false
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
-    - uses: actions/download-artifact@v8
+    - name: Download artifacts
+      uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
