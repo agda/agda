@@ -121,7 +121,12 @@ htmlhelp_basename = 'Agdadoc'
 
 # -- Options for LaTeX output ------------------------------------------------
 
-# latex_additional_files = ["mystyle.sty"]
+# Andreas, 2026-07-06: The following setting fixes a CI
+# "TeX capacity exceeded" error connected to the use of tabulary
+# environments by Sphinx.
+# The problem might be flaky, so this setting can maybe be dropped again
+# in the future if the problem does not resurface.
+latex_table_style = ['standard']
 
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
