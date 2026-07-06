@@ -1,14 +1,10 @@
-(agda2-status-action "")
-(agda2-info-action "*Type-checking*" "" nil)
-(agda2-highlight-clear)
-(agda2-info-action "*Type-checking*" "Checking Issue2728 (Issue2728.agda)." t)
-(agda2-status-action "")
-(agda2-info-action "*All Errors*" "Issue2728.agda:2.11-14: error: [UnknownNamesInFixityDecl] The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module): _+_ when scope checking the declaration record R where infix 0 _+_" nil)
-((last . 1) . (agda2-goals-action '()))
-(agda2-status-action "")
-(agda2-info-action "*Type-checking*" "" nil)
-(agda2-highlight-clear)
-(agda2-info-action "*Type-checking*" "Checking Issue2728 (Issue2728.agda)." t)
-(agda2-status-action "Checked")
-(agda2-info-action "*All Done*" "" nil)
-((last . 1) . (agda2-goals-action '()))
+RunAgda.hs:«line»:«col»: error: [GHC-87110]
+Could not load module ‘System.Process’.
+It is a member of the hidden package ‘process-1.6.26.1’.
+You can run ‘:set -package process’ to expose it.
+(Note: this unloads all the modules in the current scope.)
+Use :set -v to see a list of the files searched for.
+|
+16 | import System.Process
+| ^^^^^^^^^^^^^^^^^^^^^
+

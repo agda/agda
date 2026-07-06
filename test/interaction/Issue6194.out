@@ -1,1 +1,10 @@
-B
+RunAgda.hs:«line»:«col»: error: [GHC-87110]
+Could not load module ‘System.Process’.
+It is a member of the hidden package ‘process-1.6.26.1’.
+You can run ‘:set -package process’ to expose it.
+(Note: this unloads all the modules in the current scope.)
+Use :set -v to see a list of the files searched for.
+|
+16 | import System.Process
+| ^^^^^^^^^^^^^^^^^^^^^
+
