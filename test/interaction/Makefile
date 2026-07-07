@@ -30,7 +30,7 @@ AgdaFiles=$(shell ls -t *agda)
 # Lawrence, 2025-04-13: skip files with .in
 # (these now have a tasty test runner),
 # unless they have a .sh file
-AgdaFilesWithoutIn=$(shell for file in $(AgdaFiles); do (test -f ${file/.*/.in} && test ! -f ${file/.*/.sh} ) || echo $$file; done)
+AgdaFilesWithoutIn=$(shell for file in $(AgdaFiles); do (test ! -f $${file%.*}.in || test -f $${file%.*}.sh) && echo $$file; done)
 OutFiles=$(patsubst %.lagda,%.out,$(patsubst %.agda,%.out,$(AgdaFilesWithoutIn)))
 Tests=$(patsubst %.lagda,%.cmp,$(patsubst %.agda,%.cmp,$(AgdaFilesWithoutIn)))
 
