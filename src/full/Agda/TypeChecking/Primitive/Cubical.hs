@@ -553,11 +553,22 @@ primTransHComp cmd ts nelims = do
             -- definition.
             case theDef info of
               r@Record{recComp = kit, recEtaEquality' = eta}
-                | doR r, Just as <- allApplyElims es, DoTransp <- cmd, Just transpR <- nameOfTransp kit ->
-                  -- Optimisation: If the record has no parameters then we can ditch the transport.
-                  if recPars r == 0
-                     then redReturn $ unArg u0
-                     else redReturn $ Def transpR [] `apply` (map (fmap lam_i) as ++ [ignoreBlocking sphi, u0])
+                | doR r, Just as <- allApplyElims es, DoTransp <- cmd, Just transpR <- nameOfTransp kit -> do
+                  -- Guard: if the base value is an interval endpoint (i0/i1),
+                  -- record transp reduction would blindly project fields from it
+                  -- and crash in conApp.  Reduce u0 first, then use intervalView
+                  -- to catch endpoints even after reduction.
+                  u0red <- reduceB' u0
+                  vi <- intervalView $ unArg $ ignoreBlocking u0red
+                  case vi of
+                    IZero -> fallback
+                    IOne  -> fallback
+                    _     -> do
+                      -- Optimisation: If the record has no parameters then we can ditch the transport.
+                      let u0' = unArg u0
+                      if recPars r == 0
+                         then redReturn $ u0'
+                         else redReturn $ Def transpR [] `apply` (map (fmap lam_i) as ++ [ignoreBlocking sphi, u0])
 
                 -- Records know how to hcomp themselves:
                 | doR r, Just as <- allApplyElims es, DoHComp <- cmd, Just hCompR <- nameOfHComp kit ->
