@@ -77,7 +77,13 @@ applyTermE err' = \m es -> case es of
     case coerce m of
       Var i es'   -> Var i $! es' ++! es
       Def f es'   -> defApp f es' es  -- remove projection redexes
-      Con c ci args -> conApp @t err' c ci args es
+      Con c ci args
+        -- Nullary constructors (i0, i1, true, false, etc.) have no record
+        -- fields.  A projection applied to them is always invalid.  Use
+        -- @BraveTerm@ instance which returns 'Dummy' for stuck projections,
+        -- instead of calling 'conApp' which would crash in __IMPOSSIBLE__.
+        | null (conFields c) -> coerce $ applyE (coerce (Con c ci args) :: BraveTerm) es
+        | otherwise -> conApp @t err' c ci args es
       Lam _ b     ->
         case es of
           Apply a : es0      -> lazyAbsApp (coerce b :: Abs t) (coerce $ unArg a) `app` es0
@@ -153,14 +159,7 @@ conApp fallback ch@(ConHead c _ _ fs) ci args topEs = go topEs where
     Proj o f : es -> lookupProj fs args where
 
       fieldNotFound :: Term
-      -- If the constructor has no record fields (e.g. interval endpoints
-      -- i0/i1), the projection is semantically invalid — skip it and
-      -- continue with the remaining eliminations.
-      -- If the constructor HAS fields (record constructor, possibly
-      -- underapplied), the projection should be valid, so we crash.
-      fieldNotFound
-        | null fs   = traceProjFailure f $ go es
-        | otherwise = traceProjFailure f $ stuck __IMPOSSIBLE__
+      fieldNotFound = traceProjFailure f $ stuck __IMPOSSIBLE__
 
       -- attempt to return a projected term
       project :: Arg QName -> Arg Term -> Term
