@@ -553,6 +553,10 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   -- the identity type has a special transp clause that doesn't distribute
   -- over refl like regular constructors.
   ifM (lift $ isPathCons $ conName c) (return $ UnifyStuck []) $ do
+  -- Interval endpoints (i0, i1) are nullary constructors of the interval
+  -- type I with no record fields.  Injectivity is meaningless for them:
+  -- the retract would generate projections that crash on these values.
+  ifM (lift $ isIntervalCons $ conName c) (return $ UnifyStuck []) $ do
   withoutK <- withoutKOption
 
   -- Split equation telescope into parts before and after current equation

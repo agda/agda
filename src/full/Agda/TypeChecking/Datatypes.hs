@@ -85,6 +85,15 @@ isPathCons c = do
     Record{} -> return False
     _  -> __IMPOSSIBLE__
 
+-- | Check if a constructor is an interval endpoint (@i0@ or @i1@).
+--   Interval endpoints are nullary constructors of the interval type @I@
+--   and have no record fields — injectivity is meaningless for them.
+isIntervalCons :: (HasBuiltins m) => QName -> m Bool
+isIntervalCons c = do
+  iz <- getBuiltinName' builtinIZero
+  io <- getBuiltinName' builtinIOne
+  return $ Just c == iz || Just c == io
+
 -- | @getFullyAppliedConType c t@ computes the constructor parameters
 --   from data type @t@ and returns them
 --   plus the instantiated type of constructor @c@.
