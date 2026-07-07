@@ -3,6 +3,7 @@
 
 {-# OPTIONS --two-level #-}
 {-# OPTIONS --prop #-}
+{-# OPTIONS --cubical #-}
 
 open Agda.Primitive
 open import Agda.Primitive.Cubical

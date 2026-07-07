@@ -1,3 +1,5 @@
+{-# OPTIONS --cubical #-}
+
 open import Agda.Primitive.Cubical
 
 test : (J : IUniv) → J → J

@@ -1,4 +1,4 @@
-ReifyPartialP.agda:12.13-14: error: [UnequalTypes]
+ReifyPartialP.agda:14.13-14: error: [UnequalTypes]
 The type
   PartialP φ (λ .p → (λ { (φ = i1) → B (a _) }) p)
 is not a subtype of
