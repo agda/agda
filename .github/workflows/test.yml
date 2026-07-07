@@ -41,10 +41,8 @@ jobs:
       uses: haskell-actions/setup@v2
       with:
         cabal-update: false
-        enable-stack: true
-        ghcup-version: 'latest'
+        enable-stack: false
         ghc-version: ${{ env.GHC_VER }}
-        stack-version: '2.15.7'
     - name: Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml
       run: cp stack-${{ env.GHC_VER }}.yaml stack.yaml
     - name: Update package index
@@ -104,10 +102,8 @@ jobs:
       uses: haskell-actions/setup@v2
       with:
         cabal-update: false
-        enable-stack: true
-        ghcup-version: 'latest'
+        enable-stack: false
         ghc-version: ${{ env.GHC_VER }}
-        stack-version: '2.15.7'
     - uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -132,10 +128,8 @@ jobs:
       uses: haskell-actions/setup@v2
       with:
         cabal-update: false
-        enable-stack: true
-        ghcup-version: 'latest'
+        enable-stack: false
         ghc-version: ${{ env.GHC_VER }}
-        stack-version: '2.15.7'
     - uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -195,10 +189,8 @@ jobs:
       uses: haskell-actions/setup@v2
       with:
         cabal-update: false
-        enable-stack: true
-        ghcup-version: 'latest'
+        enable-stack: false
         ghc-version: ${{ env.GHC_VER }}
-        stack-version: '2.15.7'
     - uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -236,10 +228,8 @@ jobs:
       uses: haskell-actions/setup@v2
       with:
         cabal-update: false
-        enable-stack: true
-        ghcup-version: 'latest'
+        enable-stack: false
         ghc-version: ${{ env.GHC_VER }}
-        stack-version: '2.15.7'
     - uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
