@@ -554,12 +554,9 @@ primTransHComp cmd ts nelims = do
             case theDef info of
               r@Record{recComp = kit, recEtaEquality' = eta}
                 | doR r, Just as <- allApplyElims es, DoTransp <- cmd, Just transpR <- nameOfTransp kit -> do
-                  -- Guard: if the base value is an interval endpoint (i0/i1),
-                  -- record transp reduction would blindly project fields from it
-                  -- and crash in conApp.  Reduce u0 first, then use intervalView
-                  -- to catch endpoints even after reduction.
                   u0red <- reduceB' u0
                   vi <- intervalView $ unArg $ ignoreBlocking u0red
+                  reportSDoc "tc.transp" 60 $ "transp record guard: vi=" <> text (show vi) <> " u0=" <> prettyTCM (unArg u0)
                   case vi of
                     IZero -> fallback
                     IOne  -> fallback

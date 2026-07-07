@@ -153,7 +153,14 @@ conApp fallback ch@(ConHead c _ _ fs) ci args topEs = go topEs where
     Proj o f : es -> lookupProj fs args where
 
       fieldNotFound :: Term
-      fieldNotFound = traceProjFailure f $ coerce $ applyE (coerce (Con ch ci args) :: t) es
+      -- If the constructor has no record fields (e.g. interval endpoints
+      -- i0/i1), the projection is semantically invalid — skip it and
+      -- continue with the remaining eliminations.
+      -- If the constructor HAS fields (record constructor, possibly
+      -- underapplied), the projection should be valid, so we crash.
+      fieldNotFound
+        | null fs   = traceProjFailure f $ go es
+        | otherwise = traceProjFailure f $ stuck __IMPOSSIBLE__
 
       -- attempt to return a projected term
       project :: Arg QName -> Arg Term -> Term
