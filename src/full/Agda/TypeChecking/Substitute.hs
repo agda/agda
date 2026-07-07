@@ -78,11 +78,10 @@ applyTermE err' = \m es -> case es of
       Var i es'   -> Var i $! es' ++! es
       Def f es'   -> defApp f es' es  -- remove projection redexes
       Con c ci args
-        -- Nullary constructors (i0, i1, true, false, etc.) have no record
-        -- fields.  A projection applied to them is always invalid.  Use
-        -- @BraveTerm@ instance which returns 'Dummy' for stuck projections,
-        -- instead of calling 'conApp' which would crash in __IMPOSSIBLE__.
-        | null (conFields c) -> coerce $ applyE (coerce (Con c ci args) :: BraveTerm) es
+        -- Nullary constructors (i0, i1, true, false...) have no record
+        -- fields.  Any projection applied to them is invalid.
+        -- Skip all eliminations by returning the bare constructor.
+        | null (conFields c) -> coerce (Con c ci args)
         | otherwise -> conApp @t err' c ci args es
       Lam _ b     ->
         case es of
