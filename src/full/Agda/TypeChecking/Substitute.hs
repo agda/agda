@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeApplications    #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -fno-warn-orphans -Wno-overlapping-patterns #-}
 
 -- | This module contains the definition of hereditary substitution
 -- and application operating on internal syntax which is in β-normal
@@ -78,15 +78,13 @@ applyTermE err' = \m es -> case es of
       Var i es'   -> Var i $! es' ++! es
       Def f es'   -> defApp f es' es  -- remove projection redexes
       Con c ci args
-        -- Nullary constructors (i0, i1, true, false...) have no record
-        -- fields.  Any projection applied to them is invalid.
-        -- Skip all eliminations by returning the bare constructor.
         | null (conFields c) -> coerce (Con c ci args)
         | otherwise -> conApp @t err' c ci args es
-      Lam _ b     ->
+      Lam info b     ->
         case es of
           Apply a : es0      -> lazyAbsApp (coerce b :: Abs t) (coerce $ unArg a) `app` es0
           IApply _ _ a : es0 -> lazyAbsApp (coerce b :: Abs t) (coerce a)         `app` es0
+          Proj{} : _         -> coerce $ Lam info b
           _                  -> err __IMPOSSIBLE__
       MetaV x es' -> MetaV x $! es' ++! es
       Lit{}       -> err __IMPOSSIBLE__
