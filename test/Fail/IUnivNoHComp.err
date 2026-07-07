@@ -1,4 +1,4 @@
-IUnivNoHComp.agda:4.12-21: error: [UnequalTypes]
+IUnivNoHComp.agda:6.12-21: error: [UnequalTypes]
 The types
   IUniv
 and
