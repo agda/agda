@@ -153,7 +153,7 @@ conApp fallback ch@(ConHead c _ _ fs) ci args topEs = go topEs where
     Proj o f : es -> lookupProj fs args where
 
       fieldNotFound :: Term
-      fieldNotFound = traceProjFailure f $ Con ch ci (args ++! topEs)
+      fieldNotFound = traceProjFailure f $ coerce $ applyE (coerce (Con ch ci args) :: t) es
 
       -- attempt to return a projected term
       project :: Arg QName -> Arg Term -> Term
