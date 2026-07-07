@@ -42,6 +42,7 @@ jobs:
       with:
         cabal-update: false
         enable-stack: true
+        ghcup-version: 'latest'
         ghc-version: ${{ env.GHC_VER }}
         stack-version: '2.15.7'
     - name: Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml
@@ -104,6 +105,7 @@ jobs:
       with:
         cabal-update: false
         enable-stack: true
+        ghcup-version: 'latest'
         ghc-version: ${{ env.GHC_VER }}
         stack-version: '2.15.7'
     - uses: actions/download-artifact@v8
@@ -131,6 +133,7 @@ jobs:
       with:
         cabal-update: false
         enable-stack: true
+        ghcup-version: 'latest'
         ghc-version: ${{ env.GHC_VER }}
         stack-version: '2.15.7'
     - uses: actions/download-artifact@v8
@@ -193,6 +196,7 @@ jobs:
       with:
         cabal-update: false
         enable-stack: true
+        ghcup-version: 'latest'
         ghc-version: ${{ env.GHC_VER }}
         stack-version: '2.15.7'
     - uses: actions/download-artifact@v8
@@ -233,6 +237,7 @@ jobs:
       with:
         cabal-update: false
         enable-stack: true
+        ghcup-version: 'latest'
         ghc-version: ${{ env.GHC_VER }}
         stack-version: '2.15.7'
     - uses: actions/download-artifact@v8
