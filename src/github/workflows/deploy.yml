@@ -55,7 +55,7 @@ jobs:
     steps:
 
     - name: Check out the master branch
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Set up platform-dependent variables
       id: vars
@@ -215,7 +215,7 @@ jobs:
       # cabal build --dry-run creates dist-newstyle/cache/plan.json
 
     - name: Cache dependencies
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       if: ${{ runner.os != 'Linux' }}
       id: cache
       with:
@@ -345,7 +345,7 @@ jobs:
     # if: ${{ success() }}
     steps:
 
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         sparse-checkout: .
 

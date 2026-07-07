@@ -2589,6 +2589,7 @@ again, the source file is re-typechecked instead:
 * :option:`--no-guardedness`
 * :option:`--no-import-sorts`
 * :option:`--no-load-primitives`
+* :option:`--no-occurrence-analysis`
 * :option:`--no-pattern-matching`
 * :option:`--no-positivity-check`
 * :option:`--no-projection-like`

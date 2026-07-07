@@ -22,6 +22,7 @@ Books on Agda
 Tutorials and lecture notes
 ===========================
 
+- Brent Yorgey (2026). `Proving the Fundamental Theorem of Arithmetic in Agda <https://byorgey.github.io/blog/posts/2026/06/26/FTA.lagda.html>`__
 - Ingo Blechschmidt (2025). `Let's Play Agda <https://lets-play-agda.quasicoherent.io/>`__
 - Martín Escardó and Dan Licata (2022). `Lecture notes for the HoTTEST Summer School <https://martinescardo.github.io/HoTTEST-Summer-School/>`__.
 - Danel Ahman and Andrej Bauer (2021). `Logic in Computer Science <https://www.andrej.com/zapiski/ISRM-LOGRAC-2022/>`__.

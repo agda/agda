@@ -103,18 +103,21 @@ jobs:
         echo "github.ref_name   = ${{ github.ref_name   }}"
         echo "github.ref_type   = ${{ github.ref_type   }}"
 
-    - uses: styfle/cancel-workflow-action@0.13.1
+    - name: Possibly cancel workflow early
+      uses: styfle/cancel-workflow-action@0.13.1
       # Andreas, 2022-12-05, issue #6388: do not cancel on `master`!
       if: github.ref != 'refs/heads/master'
       with:
         access_token: ${{ github.token }}
 
     - &checkout
-      uses: actions/checkout@v6
+      name: Checkout repo
+      uses: actions/checkout@v7
       with:
         submodules: recursive
 
     - &haskell_setup
+      name: Setup Haskell
       uses: haskell-actions/setup@v2
       id: setup-haskell
       with:
@@ -147,7 +150,7 @@ jobs:
       # uconv --version
 
     - name: Restore cache from approximate key
-      uses: actions/cache/restore@v5
+      uses: actions/cache/restore@v6
       id: cache
       with:
         # Andreas, 2023-01-24:
@@ -193,7 +196,7 @@ jobs:
           stack-work.tzst
 
     - name: Save cache
-      uses: actions/cache/save@v5
+      uses: actions/cache/save@v6
       if:   steps.cache.outputs.cache-hit != 'true'  # don't save cache when build fails as it may get in the way
       with:
         key:  *cache_key
@@ -211,6 +214,7 @@ jobs:
     - *haskell_setup
 
     - &download_artifact
+      name: Download artifacts
       uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}

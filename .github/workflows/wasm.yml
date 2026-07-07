@@ -41,7 +41,7 @@ jobs:
         remove-dotnet: true
         remove-haskell: true
         root-reserve-mb: 30000
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: recursive
     - uses: cachix/install-nix-action@v31
