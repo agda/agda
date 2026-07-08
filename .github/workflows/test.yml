@@ -94,8 +94,6 @@ jobs:
   cubical:
     needs: build
     runs-on: ubuntu-24.04
-    env:
-      GHCRTS: "-M6G"
     steps:
     - uses: actions/checkout@v6
       with:
@@ -116,8 +114,6 @@ jobs:
   interaction-latex-html:
     needs: build
     runs-on: ubuntu-24.04
-    env:
-      GHCRTS: "-M6G"
     steps:
     - uses: actions/checkout@v6
       with:
@@ -174,7 +170,7 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     env:
-      GHCRTS: "-M6G"
+      GHCRTS: "-M5G"
     steps:
     - uses: actions/checkout@v6
       with:
@@ -193,14 +189,14 @@ jobs:
         # ASR (2021-01-17). `cabal update` is required due to #5138.
         # We should also use `stack` in this test.
         cabal update
-        make AGDA_OPTS="-j +RTS -M6G -RTS" std-lib-test
+        make AGDA_OPTS="-j +RTS -M5G -RTS" std-lib-test
     - if: always()
       name: Benchmark
       run: |
         make benchmark-without-logs
         make benchmark-summary
     - name: Standard library compiler tests
-      run: make AGDA_OPTS="+RTS -M6G -RTS" std-lib-compiler-test
+      run: make AGDA_OPTS="+RTS -M5G -RTS" std-lib-compiler-test
     - name: Successful tests using the standard library
       run: make std-lib-succeed
     - name: Interaction tests using the standard library
@@ -208,8 +204,6 @@ jobs:
   test:
     needs: build
     runs-on: ubuntu-24.04
-    env:
-      GHCRTS: "-M6G"
     steps:
     - uses: actions/checkout@v6
       with:
