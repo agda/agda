@@ -1,10 +1,8 @@
-RunAgda.hs:«line»:«col»: error: [GHC-87110]
-Could not load module ‘System.Process’.
-It is a member of the hidden package ‘process-1.6.26.1’.
-You can run ‘:set -package process’ to expose it.
-(Note: this unloads all the modules in the current scope.)
+Issue983.hs:«line»:«col»: error: [GHC-61948]
+Could not find module ‘Agda.Version’.
+Perhaps you meant Data.Version (from base-4.22.0.0)
 Use :set -v to see a list of the files searched for.
 |
-16 | import System.Process
-| ^^^^^^^^^^^^^^^^^^^^^
+6 | import Agda.Version
+| ^^^^^^^^^^^^^^^^^^^
 
