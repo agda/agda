@@ -1,10 +1,14 @@
-RunAgda.hs:«line»:«col»: error: [GHC-87110]
-Could not load module ‘System.Process’.
-It is a member of the hidden package ‘process-1.6.26.1’.
-You can run ‘:set -package process’ to expose it.
-(Note: this unloads all the modules in the current scope.)
-Use :set -v to see a list of the files searched for.
-|
-16 | import System.Process
-| ^^^^^^^^^^^^^^^^^^^^^
-
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Issue2728-3 (Issue2728-3.agda)." t)
+(agda2-status-action "Checked")
+(agda2-info-action "*All Done*" "" nil)
+((last . 1) . (agda2-goals-action '()))
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Issue2728-3 (Issue2728-3.agda)." t)
+(agda2-status-action "")
+(agda2-info-action "*All Errors*" "Issue2728-3.agda:4.11-18: error: [SafeFlagPostulate] Cannot postulate B with safe flag when scope checking the declaration B : Set" nil)
+((last . 1) . (agda2-goals-action '()))
