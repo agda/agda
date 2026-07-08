@@ -94,6 +94,8 @@ jobs:
   cubical:
     needs: build
     runs-on: ubuntu-24.04
+    env:
+      GHCRTS: "-M6G"
     steps:
     - uses: actions/checkout@v6
       with:
@@ -114,6 +116,8 @@ jobs:
   interaction-latex-html:
     needs: build
     runs-on: ubuntu-24.04
+    env:
+      GHCRTS: "-M6G"
     steps:
     - uses: actions/checkout@v6
       with:
@@ -169,6 +173,8 @@ jobs:
   stdlib-test:
     needs: build
     runs-on: ubuntu-24.04
+    env:
+      GHCRTS: "-M6G"
     steps:
     - uses: actions/checkout@v6
       with:
@@ -202,6 +208,8 @@ jobs:
   test:
     needs: build
     runs-on: ubuntu-24.04
+    env:
+      GHCRTS: "-M6G"
     steps:
     - uses: actions/checkout@v6
       with:
