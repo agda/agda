@@ -61,10 +61,6 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Internal.Pattern
 
-import Agda.Termination.TermCheck as TermCheck
-import Agda.Termination.Monad (runTerDefault, notMasked)
-import Agda.Termination.Order (isDecr)
-
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.MetaVars (smartWithRewDoms)
 import Agda.TypeChecking.Monad
@@ -259,6 +255,18 @@ checkGlobalRewriteRule q = runMaybeT $ setCurrentRange q do
 
   pure $ GlobalRewriteRule q g f ps  rhs b False top
 
+-- | Adds a fresh variable and a modified version of the local rewrite rule
+--   targeting this fresh variable to the context
+addLocalRewriteToFresh :: RewriteRule -> TCM a -> TCM a
+addLocalRewriteToFresh rew cont = do
+  let freshVar = 0
+  let freshDom = defaultDom $ rewType rew
+  let toFresh  = (applyRenLocalRewrite (AnySub $ raiseS 1) rew)
+        { rewRHS = var freshVar }
+  reportSDoc "rewriting" 30 $ nest 2 $ addContext freshDom $
+    "toFresh =" <+> prettyTCM toFresh
+  addContext freshDom $ addLocalRewrite toFresh $ cont
+
 -- | Checks for termination and confluence of a '--smart-with' rewrite rules
 --   w.r.t. other '--smart-with' rewrite rules in the context
 --
@@ -276,24 +284,13 @@ occursCheckSmartWithRewrite r = do
   -- any other reductions).
   let toCheck = rewRHS r : (lEqLHS <$> eqs) ++ (lEqRHS <$> eqs)
 
-  let freshVar = 0
-  let freshDom = defaultDom $ rewType r
-  let toFresh  = (applyRenLocalRewrite (AnySub $ raiseS 1) r)
-        { rewRHS = var freshVar }
-
   reportSDoc "rewriting" 30 $ "Occurs checking rewrite rule:"
-  reportSDoc "rewriting" 30 $ nest 2 $ addContext freshDom $
-    "toFresh =" <+> prettyTCM toFresh
   fmap (not . or) $ forM toCheck \t -> do
     -- We really do need to 'normalise' here so we don't miss a variable.
     -- 'reduce' is not enough!
-    t' <- addContext freshDom $ addLocalRewrite toFresh $ normalise $ raise 1 t
-    reportSDoc "rewriting" 30 $ nest 2 $
-      "t =" <+> prettyTCM t
-    reportSDoc "rewriting" 30 $ nest 2 $ addContext freshDom $
-      "t' =" <+> prettyTCM t'
+    t' <- addLocalRewriteToFresh r $ normalise $ raise 1 t
     let fvs = freeVarSet t'
-    pure $ freshVar `VarSet.member` fvs
+    pure $ 0 `VarSet.member` fvs
 
 checkLocalRewriteRule :: LocalRewriteInfo -> LocalEquation
   -> TCM (Maybe RewriteRule)
@@ -314,7 +311,6 @@ checkLocalRewriteRule i eq = runMaybeT $ do
 
 -- | Run extra smart with rewrite rule checks:
 --   * RHS may not contain closures
---   * LHS may not be a structural subterm of RHS
 --   * LHS may not occur in RHS or any prior '--smart-with' rewrite
 --
 --   The LHS should have already been checked for neutrality
@@ -327,24 +323,13 @@ checkSmartWithRewrite o lhs rew = do
   -- The normalisation proof requires the RHS to not contain any closures
   -- even after eta-expanding. In practice, this is quite restrictive, so
   -- we allow eta-contracted functions.
-  -- I conjecture we still have normalisation.
-  whenM (lift $ containsClosures $ rewRHS rew) $
+  -- Note we check for closures in the scope of the rewrite rule targetting
+  -- a fresh variable. This rules out bad rewrites like 'xs 0 ~> sup xs'
+  -- where 'sup : (Nat -> Ord) -> Ord'.
+  -- I conjecture this is enough to retain normalisation.
+  let rhs' = raise 1 $ rewRHS rew
+  whenM (lift $ addLocalRewriteToFresh rew $ containsClosures rhs') $
     illegalRule o RHSContainsClosures
-
-  -- Unfortunately, the occurs checks are not enough to rule out
-  -- contradicting the structural order on terms, because applications and
-  -- inductive record projections are size preserving.
-  -- The normalisation proof does not require such a condition because we do
-  -- not consider size-preserving projections and the closure check
-  -- is done on eta-expanded terms.
-  --
-  -- TODO: It might be a good idea to try and reimplement this check
-  -- in a more specialised way, without relying on the termination checker.
-  cmp <- lift $ runTerDefault $ do
-    rhsPat <- TermCheck.termToPattern $ rewRHS rew
-    TermCheck.compareTerm lhs $ notMasked rhsPat
-  when (isDecr cmp) $
-    illegalRule o LHSSubterm
 
   -- Occurs checks
   unlessM (lift $ occursCheckSmartWithRewrite rew) $

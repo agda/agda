@@ -429,11 +429,6 @@ prettyWarning = \case
             [ illegalSince q
             , pwords "the right-hand side of a rewrite rule introduced by with/rewrite contains closures (e.g. lambdas or underapplied functions) which can cause non-termination"]
 
-        LHSSubterm -> do
-          (fsep . concat)
-            [ illegalSince q
-            , pwords "the left-hand side of a rewrite rule introduced by with/rewrite is a structural subterm of the right-hand side (which can cause non-termination)"]
-
         VariablesNotBoundByLHS xs -> do
           (fsep . concat)
             [ illegalSince q
