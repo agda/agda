@@ -31,18 +31,22 @@ jobs:
         echo "github.ref_name   = ${{ github.ref_name   }}"
         echo "github.ref_type   = ${{ github.ref_type   }}"
     - if: github.ref != 'refs/heads/master'
+      name: Possibly cancel workflow early
       uses: styfle/cancel-workflow-action@0.13.1
       with:
         access_token: ${{ github.token }}
-    - uses: actions/checkout@v6
+    - name: Checkout repo
+      uses: actions/checkout@v7
       with:
         submodules: recursive
     - id: setup-haskell
+      name: Setup Haskell
       uses: haskell-actions/setup@v2
       with:
         cabal-update: false
-        enable-stack: false
+        enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
+        stack-version: latest
     - name: Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml
       run: cp stack-${{ env.GHC_VER }}.yaml stack.yaml
     - name: Update package index
@@ -58,7 +62,7 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
       name: Restore cache from approximate key
-      uses: actions/cache/restore@v5
+      uses: actions/cache/restore@v6
       with:
         key: test.yml-1-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
@@ -85,7 +89,7 @@ jobs:
         retention-days: 1
     - if: steps.cache.outputs.cache-hit != 'true'
       name: Save cache
-      uses: actions/cache/save@v5
+      uses: actions/cache/save@v6
       with:
         key: test.yml-1-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
@@ -95,10 +99,20 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v6
+    - name: Checkout repo
+      uses: actions/checkout@v7
       with:
         submodules: recursive
-    - uses: actions/download-artifact@v7
+    - id: setup-haskell
+      name: Setup Haskell
+      uses: haskell-actions/setup@v2
+      with:
+        cabal-update: false
+        enable-stack: true
+        ghc-version: ${{ env.GHC_VER }}
+        stack-version: latest
+    - name: Download artifacts
+      uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -115,10 +129,20 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v6
+    - name: Checkout repo
+      uses: actions/checkout@v7
       with:
         submodules: recursive
-    - uses: actions/download-artifact@v7
+    - id: setup-haskell
+      name: Setup Haskell
+      uses: haskell-actions/setup@v2
+      with:
+        cabal-update: false
+        enable-stack: true
+        ghc-version: ${{ env.GHC_VER }}
+        stack-version: latest
+    - name: Download artifacts
+      uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -144,7 +168,7 @@ jobs:
       run: make build-fail-test
     - if: always()
       name: Suite of tests for the LaTeX and HTML backends
-      run: export AGDA_TESTS_OPTIONS="-j1"; yes y | make DONT_RUN_LATEX=Y latex-html-test
+      run: make DONT_RUN_LATEX=Y latex-html-test
     - if: always()
       name: Testing the Emacs mode
       run: make testing-emacs-mode
@@ -165,16 +189,25 @@ jobs:
       run: make test-suite-covers-errors
     - if: always()
       name: Suite of interaction tests
-      run: export AGDA_TESTS_OPTIONS="-j1"; yes y | make interaction
+      run: make interaction
   stdlib-test:
     needs: build
     runs-on: ubuntu-24.04
-    env:
     steps:
-    - uses: actions/checkout@v6
+    - name: Checkout repo
+      uses: actions/checkout@v7
       with:
         submodules: recursive
-    - uses: actions/download-artifact@v7
+    - id: setup-haskell
+      name: Setup Haskell
+      uses: haskell-actions/setup@v2
+      with:
+        cabal-update: false
+        enable-stack: true
+        ghc-version: ${{ env.GHC_VER }}
+        stack-version: latest
+    - name: Download artifacts
+      uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -204,10 +237,20 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v6
+    - name: Checkout repo
+      uses: actions/checkout@v7
       with:
         submodules: recursive
-    - uses: actions/download-artifact@v7
+    - id: setup-haskell
+      name: Setup Haskell
+      uses: haskell-actions/setup@v2
+      with:
+        cabal-update: false
+        enable-stack: true
+        ghc-version: ${{ env.GHC_VER }}
+        stack-version: latest
+    - name: Download artifacts
+      uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
