@@ -144,7 +144,7 @@ jobs:
       run: make build-fail-test
     - if: always()
       name: Suite of tests for the LaTeX and HTML backends
-      run: make DONT_RUN_LATEX=Y latex-html-test
+      run: AGDA_TESTS_OPTIONS="-j1" make DONT_RUN_LATEX=Y latex-html-test
     - if: always()
       name: Testing the Emacs mode
       run: make testing-emacs-mode
