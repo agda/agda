@@ -465,7 +465,7 @@ ghcPostModule cenv menv _isMain _moduleName ghcDefs = do
     hsModuleName <- curHsMod
     writeModule $ HS.Module
       hsModuleName
-      (map HS.OtherPragma $ Set.toAscList headerPragmas)
+      (map HS.OtherPragma $ Set.toAscList $ Set.insert "{-# OPTIONS_GHC -O0 -fmax-simplifier-iterations=1 -fno-spec-constr -fno-float-in #-}" headerPragmas)
       -- The MAlonzo.Code modules make proper import declarations in the AST.
       mazImports
       -- The other imports are already rendered to strings.
