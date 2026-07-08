@@ -61,6 +61,10 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Internal.Pattern
 
+import Agda.Termination.TermCheck as TermCheck
+import Agda.Termination.Monad (runTerDefault, notMasked)
+import Agda.Termination.Order (isDecr)
+
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.MetaVars (smartWithRewDoms)
 import Agda.TypeChecking.Monad
@@ -140,7 +144,7 @@ addRewriteRules :: [QName] -> TCM ()
 addRewriteRules qs = do
 
   -- Check the rewrite rules
-  rews <- mapMaybeM checkRewriteRule qs
+  rews <- mapMaybeM checkGlobalRewriteRule qs
 
   -- Add rewrite rules to the signature
   forM_ rews $ \rew -> do
@@ -223,8 +227,8 @@ checkIsRewriteRelation q t = do
 --   Remember that @rel : Δ → A → A → Set i@, so
 --   @rel us : (lhs rhs : A[us/Δ]) → Set i@.
 --   Returns the checked rewrite rule to be added to the signature.
-checkRewriteRule :: QName -> TCM (Maybe GlobalRewriteRule)
-checkRewriteRule q = runMaybeT $ setCurrentRange q do
+checkGlobalRewriteRule :: QName -> TCM (Maybe GlobalRewriteRule)
+checkGlobalRewriteRule q = runMaybeT $ setCurrentRange q do
   lift requireOptionRewriting
   rels <- lift getBuiltinRewriteRelations
   reportSDoc "rewriting.relations" 40 $ vcat
@@ -246,7 +250,7 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
         illegalRule (GlobalRewrite def) $ BeforeMutualFunctionDefinition r
 
   eq <- checkIsRewriteRelation (GlobalRewrite def) (defType def)
-  RewriteRule g h ps rhs b <- checkRewriteRule' eq (GlobalRewrite def)
+  RewriteRule g h ps rhs b <- checkRewriteRule eq $ GlobalRewrite def
   f <- case h of
     RewDefHead f -> pure f
     RewVarHead x -> illegalRule (GlobalRewrite def) LHSNotDefinitionOrConstructor
@@ -260,8 +264,8 @@ checkRewriteRule q = runMaybeT $ setCurrentRange q do
 --
 --   Assumes LHS of rewrite rule is neutral and telescope of rewrite rule
 --   is empty
-occursCheckSmartWithRewriteRule :: RewriteRule -> TCM Bool
-occursCheckSmartWithRewriteRule r = do
+occursCheckSmartWithRewrite :: RewriteRule -> TCM Bool
+occursCheckSmartWithRewrite r = do
   tel  <- getContextTelescope
   let eqs = rewDomEq <$> smartWithRewDoms tel
   -- Invariant: LHS of new local rewrite rule should not occur on the RHS of
@@ -300,73 +304,74 @@ checkLocalRewriteRule i eq = runMaybeT $ do
   -- I think it should be possible to do better than this, but it is hard
   Set1.ifNull (allMetas Set.singleton eq)
   {- then -} (do
-    rew <- checkRewriteRule' eq o
+    rew <- checkRewriteRule eq o
+
     when (lrewSmartWith $ lrewInfoOrigin i) $
-      -- TODO: We should also check that the LHS is neutral, but maybe that
-      -- should go inside checkRewriteRule'...
-      unlessM (lift $ occursCheckSmartWithRewriteRule rew) $
-        illegalRule o SmartWithOccursFail
+      checkSmartWithRewrite o (lEqLHS eq) rew
+
     pure rew)
   {- else -} (illegalRule o . ContainsUnsolvedMetaVariables)
 
--- | Compute whether a term contains closures (lambdas or underapplied
+-- | Run extra smart with rewrite rule checks:
+--   * RHS may not contain closures
+--   * LHS may not be a structural subterm of RHS
+--   * LHS may not occur in RHS or any prior '--smart-with' rewrite
+--
+--   The LHS should have already been checked for neutrality
+checkSmartWithRewrite ::
+     RewriteOrigin  -- ^ Origin of the rewrite rule
+  -> Term           -- ^ LHS of the rewrite rule as a term
+  -> RewriteRule    -- ^ The rewrite rule
+  -> MaybeT TCM ()  -- ^ Returns 'Just' on success, otherwise 'Nothing'
+checkSmartWithRewrite o lhs rew = do
+  -- The normalisation proof requires the RHS to not contain any closures
+  -- even after eta-expanding. In practice, this is quite restrictive, so
+  -- we allow eta-contracted functions.
+  -- I conjecture we still have normalisation.
+  whenM (lift $ containsClosures $ rewRHS rew) $
+    illegalRule o RHSContainsClosures
+
+  -- Unfortunately, the occurs checks are not enough to rule out
+  -- contradicting the structural order on terms, because applications and
+  -- inductive record projections are size preserving.
+  -- The normalisation proof does not require such a condition because we do
+  -- not consider size-preserving projections and the closure check
+  -- is done on eta-expanded terms.
+  --
+  -- TODO: It might be a good idea to try and reimplement this check
+  -- in a more specialised way, without relying on the termination checker.
+  cmp <- lift $ runTerDefault $ do
+    rhsPat <- TermCheck.termToPattern $ rewRHS rew
+    TermCheck.compareTerm lhs $ notMasked rhsPat
+  when (isDecr cmp) $
+    illegalRule o LHSSubterm
+
+  -- Occurs checks
+  unlessM (lift $ occursCheckSmartWithRewrite rew) $
+    illegalRule o SmartWithOccursFail
+
+-- | Decide whether a term contains closures (lambdas or underapplied
 --   functions, unguarded by a stuck computation)
 --
 --   To ensure termination of '--smart-with' rewrite rules, right-hand sides
 --   may not contain closures
---   Assumes the term is already normalised
-class ContainsClosures a where
-  containsClosures :: TypeOf a -> a -> TCM Bool
-
-instance ContainsClosures (Arg Term) where
-  containsClosures (Dom' _ t) (Arg _ v) = containsClosures t v
-
-instance ContainsClosures Elims where
-  containsClosures (t, hd) [] = pure False
-  containsClosures (t, hd) (Apply u : es) = do
-    (a, b) <- assertPi t
-    let t'  = absApp b (unArg u)
-    let hd' = hd . (Apply u :)
-    (||) <$> containsClosures a u <*> containsClosures (t', hd') es
-  containsClosures (t, hd) (IApply x y i : es) = do
-    (s, q, l, b, u, v) <- assertPath t
-    let t' = El s $ unArg b `apply` [ defaultArg i ]
-    let hd' = hd . (IApply x y i:)
-    containsClosures (t', hd') es
-  containsClosures (t, hd) (Proj o f : es) = do
-    (a, b) <- assertProjOf f t
-    let u = hd []
-        t' = b `absApp` u
-    hd' <- applyE <$> applyDef o f (argFromDom a $> u)
-    containsClosures (t',hd') es
-
-instance ContainsClosures Term where
-  containsClosures t v = do
-    t <- abortIfBlocked t
-    case (unEl t, v) of
-      -- Pi-typed values are always closures
-      (Pi _ _, _)     -> pure True
-      -- TODO: Do we consider paths to be closures?
-      -- TODO: Do we need to handle eta records specially?
-      -- Non-pi-typed variable/definition applications may still be
-      -- underapplied due to copatterns
-      (_, Var x es)   -> isUnderapplied v
-      (_, Def f es)   -> isUnderapplied v
-      (_, Con c i es) -> do
-        ct <- assertConOf c t
-        containsClosures (ct, Con c i) es
-      -- It shouldn't be possible to project a closure out of a pi-type,
-      -- so I think this is fine.
-      (_, Pi{})       -> pure False
-      (_, Level{})    -> pure False
-      (_, Lit{})      -> pure False
-      (_, Sort{})     -> pure False
-      -- I think we can ignore closures in irrelevant position
-      (_, DontCare{}) -> pure False
-      -- We already checked for pi-typed values
-      (_, Lam{})      -> __IMPOSSIBLE__
-      (_, Dummy{})    -> __IMPOSSIBLE__
-      (_, MetaV{})    -> __IMPOSSIBLE__
+--
+--   Assumes term is already normalised
+--   Does not attempt to eta contract or expand
+containsClosures :: Term -> TCM Bool
+containsClosures (Lam _ _)    = pure True
+containsClosures (Con c i es) =
+  anyM (containsClosures . unArg) $ argsFromElims es
+containsClosures t@(Var x es) = isUnderapplied t
+containsClosures t@(Def f es) = isUnderapplied t
+containsClosures Pi{}         = pure False
+containsClosures Level{}      = pure False
+containsClosures Lit{}        = pure False
+containsClosures Sort{}       = pure False
+-- I think we can ignore closures in irrelevant position
+containsClosures DontCare{}   = pure False
+containsClosures Dummy{}      = __IMPOSSIBLE__
+containsClosures MetaV{}      = __IMPOSSIBLE__
 
 -- | Returns whether a term is only stuck due to being underapplied
 --   (in which case, it cannot be considered neutral, because further
@@ -472,8 +477,8 @@ checkRewriteRuleLHS s gamma1 lhs b = do
         errorNotGeneral = illegalRule s $ ConstructorParametersNotGeneral c $
           fromMaybe __IMPOSSIBLE__ $ nonEmpty vs
 
-checkRewriteRule' :: LocalEquation -> RewriteOrigin -> MaybeT TCM RewriteRule
-checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
+checkRewriteRule :: LocalEquation -> RewriteOrigin -> MaybeT TCM RewriteRule
+checkRewriteRule eq@(LocalEquation gamma1 lhs rhs b) s = do
   reportSDoc "rewriting" 30 $
     "Checking rewrite rule: " <+> prettyTCM eq
 
@@ -506,9 +511,6 @@ checkRewriteRule' eq@(LocalEquation gamma1 lhs rhs b) s = do
 
   -- Find head symbol f of the lhs, its type, its parameters (in case of a constructor), and its arguments.
   (f , hd , t , pars , es) <- checkRewriteRuleLHS s gamma1 lhs b
-
-  when (isSmartWithRewrite s) $ whenM (lift $ containsClosures b rhs) $
-    illegalRule s RHSContainsClosures
 
   ifNotAlreadyAdded s f $ addContext gamma1 $ do
 

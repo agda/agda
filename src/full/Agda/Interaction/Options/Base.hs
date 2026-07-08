@@ -1028,8 +1028,6 @@ infectiveCoinfectiveOptions =
   , infectiveOption optRewriting              "--rewriting"
   , infectiveOption optLocalRewriting         "--local-rewriting"
   , infectiveOption optLocalRewriteMatches   "--local-rewrite-matches"
-  -- TODO: Does "smart-with" actually need to be infective?
-  , infectiveOption optSmartWith             "--smart-with"
 
   , infectiveOption optSizedTypes             "--sized-types"
   , infectiveOption optGuardedness            "--guardedness"

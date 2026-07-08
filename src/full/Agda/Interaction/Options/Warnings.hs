@@ -382,6 +382,7 @@ data WarningName
   | LocalRewriteOutsideTelescope_
   | SmartWithOccursFail_
   | RewriteRHSContainsClosures_
+  | RewriteLHSSubterm_
   | InferredLocalRewrite_
   | SafeFlagInjective_
   | SafeFlagNoCoverageCheck_
@@ -623,6 +624,7 @@ warningNameDescription = \case
   RewriteLHSNotDefinitionOrConstructor_             -> "Rewrite rule head symbol is not a defined symbol or constructor."
   RewriteLHSNotNeutral_                             -> "'--smart-with'-introduced rewrite rule LHS is not neutral."
   RewriteRHSContainsClosures_                       -> "'--smart-with'-introduced rewrite rule RHS contains closures (e.g. lambdas or underapplied functions)."
+  RewriteLHSSubterm_                                -> "'--smart-with' rewrite LHS is structurally smaller then RHS."
   RewriteVariablesNotBoundByLHS_                    -> "Rewrite rule does not bind all of its variables."
   RewriteVariablesBoundMoreThanOnce_                -> "Constructor-headed rewrite rule has non-linear parameters."
   RewriteVariablesBoundInSingleton_                 -> "Rewrite rule binds some variables in possibly definitionally singular contexts."

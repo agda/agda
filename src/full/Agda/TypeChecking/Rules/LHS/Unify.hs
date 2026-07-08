@@ -121,11 +121,13 @@ module Agda.TypeChecking.Rules.LHS.Unify
   ( UnificationResult
   , UnificationResult'(..)
   , NoLeftInv(..)
+  , RewVarSplit(..)
   , unifyIndices'
   , unifyIndices
   , recheckLocalRewrites
   , recheckLocalRewritesType
-  , substTelRecheck ) where
+  , substTelRecheck
+  , allowRewVarSplit ) where
 
 import Prelude hiding (null)
 
@@ -875,6 +877,21 @@ unifyStep s (TypeConInjectivity k d us vs) = do
     , eqRHS = vs ++! dropAt k (eqRHS s)
     }
 
+-- | Whether we are allowed to split on a variable that might occur in a local
+--   rewrite rule
+data RewVarSplit = VarSplitAllowed RefreshRews | VarSplitDisallowed
+
+allowRewVarSplit :: HasOptions m => Int -> Telescope -> m RewVarSplit
+allowRewVarSplit i tel = do
+  localRew <- anyLocalRewritingOption
+  if localRew && i `VarSet.member` inRewVars tel then do
+    badTel <- disallowedMatchRewVars tel
+    if i `VarSet.member` badTel
+    then pure VarSplitDisallowed
+    else pure $ VarSplitAllowed RefreshRews
+  else
+    pure $ VarSplitAllowed RetainRews
+
 data RetryNormalised = RetryNormalised | DontRetryNormalised
   deriving (Eq, Show)
 
@@ -937,87 +954,81 @@ solutionStep retry s
         fmap var $ VarSet.toAscList $ inRewVars $ varTel s)
     ]
 
-  -- TODO: Tidy this stuff
-  localRew <- anyLocalRewritingOption
-  stk <- if localRew && i `VarSet.member` inRewVars (varTel s) then do
-      badMatch <- VarSet.member i <$> disallowedMatchRewVars (varTel s)
-      if badMatch
-      then pure True
-      else tellUnifyRefreshRews $> False
-    else pure False
+  allow <- allowRewVarSplit i $ varTel s
 
-  if stk then return $ UnifyStuck [UnifyVarInRewrite (varTel s) a i u]
-  else do
+  case allow of
+    VarSplitDisallowed   ->
+      return $ UnifyStuck [UnifyVarInRewrite (varTel s) a i u]
 
-  -- Check that the type of the variable is equal to the type of the equation
-  -- (not just a subtype), otherwise we cannot instantiate (see Issue 2407).
-  let dom'@(unDom -> a') = getVarType (m-1-i) s
-  equalTypes <- addContext (varTel s) $ do
-    reportSDoc "tc.lhs.unify" 45 $ "Equation type: " <+> prettyTCM a
-    reportSDoc "tc.lhs.unify" 45 $ "Variable type: " <+> prettyTCM a'
-    lift $ pureBlockOrEqualType a a'
+    VarSplitAllowed refr -> do
+    when (refreshRews refr) tellUnifyRefreshRews
 
-  -- The conditions on the relevances are as follows (see #2640):
-  -- - If the type of the equation is relevant, then the solution must be
-  --   usable in a relevant position.
-  -- - If the type of the equation is (shape-)irrelevant, then the solution
-  --   must be usable in a μ-relevant position where μ is the relevance
-  --   of the variable being solved.
-  --
-  -- Jesper, Andreas, 2018-10-17: the quantity of the equation is morally
-  -- always @Quantity0@, since the indices of the data type are runtime erased.
-  -- Thus, we need not change the quantity of the solution.
-  envmod <- currentModality
-  let eqrel  = getRelevance dom
-      eqmod  = getModality dom
-      varmod = getModality dom'
-      mod    = applyUnless (shapeIrrelevant `moreRelevant` eqrel) (setRelevance eqrel)
-             $ applyUnless (usableQuantity envmod) (setQuantity zeroQuantity)
-             $ varmod
-  reportSDoc "tc.lhs.unify" 65 $ text $ "Equation modality: " ++! show (getModality dom)
-  reportSDoc "tc.lhs.unify" 65 $ text $ "Variable modality: " ++! show varmod
-  reportSDoc "tc.lhs.unify" 65 $ text $ "Solution must be usable in a " ++! show mod ++! " position."
-  -- Andreas, 2018-10-18
-  -- Currently, the modality check has problems with meta-variables created in the type signature,
-  -- and thus, in quantity 0, that get into terms using the unifier, and there are checked to be
-  -- non-erased, i.e., have quantity ω.
-  -- Ulf, 2019-12-13. We still do it though.
-  -- Andrea, 2020-10-15: It looks at meta instantiations now.
-  eusable <- addContext (varTel s) $ runExceptT $ usableMod mod u
-  caseEitherM (return eusable) (return . UnifyBlocked) $ \ usable -> do
+    -- Check that the type of the variable is equal to the type of the equation
+    -- (not just a subtype), otherwise we cannot instantiate (see Issue 2407).
+    let dom'@(unDom -> a') = getVarType (m-1-i) s
+    equalTypes <- addContext (varTel s) $ do
+      reportSDoc "tc.lhs.unify" 45 $ "Equation type: " <+> prettyTCM a
+      reportSDoc "tc.lhs.unify" 45 $ "Variable type: " <+> prettyTCM a'
+      lift $ pureBlockOrEqualType a a'
 
-  reportSDoc "tc.lhs.unify" 45 $ "Modality ok: " <+> prettyTCM usable
-  unless usable $ reportSDoc "tc.lhs.unify" 65 $ "Rejected solution: " <+> prettyTCM u
+    -- The conditions on the relevances are as follows (see #2640):
+    -- - If the type of the equation is relevant, then the solution must be
+    --   usable in a relevant position.
+    -- - If the type of the equation is (shape-)irrelevant, then the solution
+    --   must be usable in a μ-relevant position where μ is the relevance
+    --   of the variable being solved.
+    --
+    -- Jesper, Andreas, 2018-10-17: the quantity of the equation is morally
+    -- always @Quantity0@, since the indices of the data type are runtime erased.
+    -- Thus, we need not change the quantity of the solution.
+    envmod <- currentModality
+    let eqrel  = getRelevance dom
+        eqmod  = getModality dom
+        varmod = getModality dom'
+        mod    = applyUnless (shapeIrrelevant `moreRelevant` eqrel) (setRelevance eqrel)
+              $ applyUnless (usableQuantity envmod) (setQuantity zeroQuantity)
+              $ varmod
+    reportSDoc "tc.lhs.unify" 65 $ text $ "Equation modality: " ++! show (getModality dom)
+    reportSDoc "tc.lhs.unify" 65 $ text $ "Variable modality: " ++! show varmod
+    reportSDoc "tc.lhs.unify" 65 $ text $ "Solution must be usable in a " ++! show mod ++! " position."
+    -- Andreas, 2018-10-18
+    -- Currently, the modality check has problems with meta-variables created in the type signature,
+    -- and thus, in quantity 0, that get into terms using the unifier, and there are checked to be
+    -- non-erased, i.e., have quantity ω.
+    -- Ulf, 2019-12-13. We still do it though.
+    -- Andrea, 2020-10-15: It looks at meta instantiations now.
+    eusable <- addContext (varTel s) $ runExceptT $ usableMod mod u
+    caseEitherM (return eusable) (return . UnifyBlocked) $ \ usable -> do
 
-  -- We need a Flat equality to solve a Flat variable.
-  -- This also ought to take care of the need for a usableCohesion check.
-  if not (getCohesion eqmod `moreCohesion` getCohesion varmod) then return $ UnifyStuck [] else do
+    reportSDoc "tc.lhs.unify" 45 $ "Modality ok: " <+> prettyTCM usable
+    unless usable $ reportSDoc "tc.lhs.unify" 65 $ "Rejected solution: " <+> prettyTCM u
 
-  reportSDoc "rewriting" 30 $ "Test 1: " <> prettyTCM s
-  case equalTypes of
-    Left block  -> return $ UnifyBlocked block
-    Right False -> return $ UnifyStuck []
-    Right True | usable ->
-      case solveVar (m - 1 - i) p s of
-        Nothing | retry == RetryNormalised -> do
-          s <- lensVarTel normalise s
-          -- #8577: Need to normalise 'u' under 'varTel'
-          u <- addContext (varTel s) $ normalise u
-          solutionStep DontRetryNormalised s step{ solutionTerm = u }
-        Nothing ->
-          return $! UnifyStuck [UnifyRecursiveEq (varTel s) a i u]
-        Just (s', sub, perm) -> do
-          reportSDoc "rewriting" 30 $ "Test 2: " <> prettyTCM s'
-          let rho = sub `composeS` dotSub
-          tellUnifySubst rho
-          let (s'', sigma) = solveEq k (applyPatSubst rho u) s'
-          reportSDoc "rewriting" 30 $ "Test 3: " <> prettyTCM s''
-          tellUnifyProof sigma
-          tellUnifySolutionPerm perm
-          return $ Unifies s''
-          -- Andreas, 2019-02-23, issue #3578: do not eagerly reduce
-          -- Unifies <$> liftTCM (reduce s'')
-    Right True -> return $! UnifyStuck [UnifyUnusableModality (varTel s) a i u mod]
+    -- We need a Flat equality to solve a Flat variable.
+    -- This also ought to take care of the need for a usableCohesion check.
+    if not (getCohesion eqmod `moreCohesion` getCohesion varmod) then return $ UnifyStuck [] else do
+
+    case equalTypes of
+      Left block  -> return $ UnifyBlocked block
+      Right False -> return $ UnifyStuck []
+      Right True | usable ->
+        case solveVar (m - 1 - i) p s of
+          Nothing | retry == RetryNormalised -> do
+            s <- lensVarTel normalise s
+            -- #8577: Need to normalise 'u' under 'varTel'
+            u <- addContext (varTel s) $ normalise u
+            solutionStep DontRetryNormalised s step{ solutionTerm = u }
+          Nothing ->
+            return $! UnifyStuck [UnifyRecursiveEq (varTel s) a i u]
+          Just (s', sub, perm) -> do
+            let rho = sub `composeS` dotSub
+            tellUnifySubst rho
+            let (s'', sigma) = solveEq k (applyPatSubst rho u) s'
+            tellUnifyProof sigma
+            tellUnifySolutionPerm perm
+            return $ Unifies s''
+            -- Andreas, 2019-02-23, issue #3578: do not eagerly reduce
+            -- Unifies <$> liftTCM (reduce s'')
+      Right True -> return $! UnifyStuck [UnifyUnusableModality (varTel s) a i u mod]
 solutionStep _ _ _ = __IMPOSSIBLE__
 
 unify :: UnifyState -> UnifyStrategy -> UnifyLogT TCM (UnificationResult' UnifyState)

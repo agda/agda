@@ -13,6 +13,8 @@ module Agda.Termination.TermCheck
     ( termDecl
     , termMutual
     , Result
+    , termToPattern
+    , compareTerm
     ) where
 
 import Prelude hiding ( null, zip, zipWith )

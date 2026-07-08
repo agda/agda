@@ -296,6 +296,7 @@ instance EmbPrj IllegalRewriteRuleReason where
     SmartWithOccursFail                         -> icodeN 17 SmartWithOccursFail
     LHSNotNeutral a                             -> icodeN 18 LHSNotNeutral a
     RHSContainsClosures                         -> icodeN 19 RHSContainsClosures
+    LHSSubterm                                  -> icodeN 20 LHSSubterm
 
   value = vcase $ \case
     N1 0     -> valuN LHSNotDefinitionOrConstructor
@@ -318,6 +319,7 @@ instance EmbPrj IllegalRewriteRuleReason where
     N1 17    -> valuN SmartWithOccursFail
     N2 18 a  -> valuN LHSNotNeutral a
     N1 19    -> valuN RHSContainsClosures
+    N1 20    -> valuN LHSSubterm
     _        -> malformed
 
 instance EmbPrj OptionWarning where
