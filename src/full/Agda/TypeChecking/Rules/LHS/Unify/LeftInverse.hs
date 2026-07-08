@@ -172,11 +172,6 @@ buildLeftInverse s0 log = Bench.billTo [Bench.UnifyIndices, Bench.CubicalLeftInv
 
     -- Proceed with retract construction.  Open contexts (extraCxt > 0)
     -- are handled by lifting tau/leftInv via liftS below.
-    -- However, open-context injectivity during coverage checking
-    -- (extraCxt > 0) is extremely expensive for large inductive types
-    -- (e.g. RingSolver.Exponentiation with hundreds of constructor
-    -- injectivity cases).  Skip retract in open contexts to avoid OOM.
-    if extraCxt > 0 then return (Left UnsupportedCxt) else do
     equivs <- forM log $ uncurry buildEquiv
     case sequence equivs of
       Left no -> do
