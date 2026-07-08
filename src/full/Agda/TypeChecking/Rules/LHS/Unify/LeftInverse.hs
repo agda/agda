@@ -78,6 +78,23 @@ hasErasedConstructorFields c = do
   TelV ctel _ <- telView (defType cdef)
   pure $ any (\d -> getModality d /= defaultModality) (flattenTel ctel)
 
+-- | Check if a constructor has any field whose type is a PathP
+-- (Pi with interval domain).  Such fields cannot be safely projected
+-- by the injectivity retract because cubical transp will substitute
+-- interval endpoints (i0, i1) at face boundaries, and @conApp@
+-- crashes when projecting from these non-record values.
+hasConstructorPathFields :: ConHead -> TCM Bool
+hasConstructorPathFields c = do
+  cdef  <- getConInfo c
+  TelV ctel _ <- telView (defType cdef)
+  interval <- El intervalSort <$> primInterval
+  pure $ any (\d -> hasIntervalDomain interval (unDom d)) (flattenTel ctel)
+  where
+    hasIntervalDomain :: Type -> Type -> Bool
+    hasIntervalDomain interval (El _ (Pi dom _)) =
+      unEl (unDom dom) == unEl interval
+    hasIntervalDomain _ _ = False
+
 digestUnifyLog :: UnifyLog -> Either NoLeftInv DigestedUnifyLog
 digestUnifyLog log = forM log \(UnificationStep s step out, s') -> do
   let illegal     = Left $ Illegal step
@@ -510,6 +527,13 @@ buildEquiv (DUnificationStep st step@(DInjectivity k a d pars ixs c) output) nex
         -- which cannot be used in erased cubical transp/comp contexts.
         erased <- lift $ hasErasedConstructorFields c
         if erased then throwError (UnsupportedYet (Injectivity k a d pars ixs c))
+        else return ()
+        -- Constructors with PathP fields have field types that are Pi with
+        -- interval domain.  The retract projections would be applied to i0/i1
+        -- at face boundaries during cubical transp, crashing conApp.
+        -- Skip injectivity for these constructors.
+        hasPath <- lift $ hasConstructorPathFields c
+        if hasPath then throwError (UnsupportedYet (Injectivity k a d pars ixs c))
         else return ()
         -- Construct the left inverse retract for a constructor injectivity step.
         --
