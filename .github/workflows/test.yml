@@ -144,7 +144,7 @@ jobs:
       run: make build-fail-test
     - if: always()
       name: Suite of tests for the LaTeX and HTML backends
-      run: AGDA_TESTS_OPTIONS="-j1" make DONT_RUN_LATEX=Y latex-html-test
+      run: export AGDA_TESTS_OPTIONS="-j1"; yes y | make DONT_RUN_LATEX=Y latex-html-test
     - if: always()
       name: Testing the Emacs mode
       run: make testing-emacs-mode
@@ -165,7 +165,7 @@ jobs:
       run: make test-suite-covers-errors
     - if: always()
       name: Suite of interaction tests
-      run: AGDA_TESTS_OPTIONS="-j1" make interaction
+      run: export AGDA_TESTS_OPTIONS="-j1"; yes y | make interaction
   stdlib-test:
     needs: build
     runs-on: ubuntu-24.04
