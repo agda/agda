@@ -855,6 +855,12 @@ Pattern matching and equality
      definitional equalities unless marked ``CATCHALL`` (see
      :ref:`case-trees`).
 
+     Turns on the following warnings:
+
+     * :option:`CoverageNoExactSplit`
+     * :option:`InlineNoExactSplit`
+     * :option:`ShouldBeEtaRecordPattern`
+
      Default: ``--no-exact-split``.
 
 .. option:: --hidden-argument-puns, --no-hidden-argument-puns
@@ -1997,6 +2003,8 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      .. versionadded:: 2.9.0
 
      Irrefutable record pattern without eta.
+
+     Off by default, enabled with :option:`--exact-split`.
 
 .. option:: TooManyArgumentsToSort
 
