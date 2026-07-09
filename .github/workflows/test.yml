@@ -112,14 +112,6 @@ jobs:
       with:
         submodules: recursive
     - name: Setup Haskell
-      uses: haskell-actions/setup@v2
-      id: setup-haskell
-      with:
-        ghc-version: ${{ env.GHC_VER }}
-        stack-version: latest
-        enable-stack: true
-        cabal-update: false
-    - name: Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml
       run: cp stack-${{ env.GHC_VER }}.yaml stack.yaml
     - name: Update package index
       run: '${STACK} update
