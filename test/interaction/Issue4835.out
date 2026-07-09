@@ -13,3 +13,5 @@
 (agda2-info-action "*All Done*" "" nil)
 ((last . 1) . (agda2-goals-action '()))
 
+OK
+OK
