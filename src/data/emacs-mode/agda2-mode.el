@@ -277,6 +277,7 @@ constituents.")
     (agda2-elaborate-give                    ,(kbd "C-c C-m")     (local)        "Elaborate and Give")
     (agda2-refine                            "\C-c\C-r"           (local)        "Refine")
     (agda2-mimer-maybe-all                   "\C-c\C-a"           (local global) "Auto")
+    (agda2-lemmings-maybe                    "\C-c\C-g"           (local)        "Search")
     (agda2-make-case                         "\C-c\C-c"           (local)        "Case")
     (agda2-goal-type                         "\C-c\C-t"           (local)        "Goal type")
     (agda2-show-context                      "\C-c\C-e"           (local)        "Context (environment)")
@@ -1560,7 +1561,19 @@ Either only one if point is a goal, or all of them."
   (call-interactively (if (agda2-goal-at (point))
                           'agda2-mimer
                           'agda2-mimerAll))
-)
+  )
+
+(defun agda2-lemmings-maybe ()
+  (interactive)
+  (call-interactively 'agda2-lemmings)
+  )
+
+(agda2-maybe-normalised-asis
+ agda2-lemmings
+ "Run search on goal"
+ "Cmd_search"
+ 'goal
+ )
 
 (agda2-maybe-normalised-asis
   agda2-mimer
