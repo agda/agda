@@ -392,7 +392,7 @@ jobs:
       if: always() # run test even if a previous test failed
 
     - name: "Suite of interaction tests"
-      run: export AGDA_TESTS_OPTIONS="-j1"; make interaction
+      run: yes y | make interaction
       if: always() # run test even if a previous test failed
       # 2m 39s (2022-06-17)
       # This test has erratic outages (#5619), so we place it late in the queue.
