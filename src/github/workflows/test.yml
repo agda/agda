@@ -293,6 +293,8 @@ jobs:
   stdlib-test:
     needs: build
     runs-on: *runs_on
+    env:
+      GHCRTS: -M6G
 
     steps:
     - *checkout

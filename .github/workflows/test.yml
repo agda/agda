@@ -176,6 +176,8 @@ jobs:
       name: Suite of interaction tests
       run: yes y | make interaction
   stdlib-test:
+    env:
+      GHCRTS: -M6G
     needs: build
     runs-on: ubuntu-24.04
     steps:
