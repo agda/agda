@@ -608,6 +608,16 @@ compareAtom cmp t m n =
 
         notEqual = failConversion cmp m n t
 
+        -- fix/cubical-path-unify: under --cubical, map equality QName to Path QName
+        canonicalEqName :: QName -> TCM QName
+        canonicalEqName q = do
+          eqName <- primEqualityName
+          if Just q /= Just eqName then return q else do
+            p <- getBuiltinName' builtinPathP
+            case p of
+              Just pn -> return pn
+              Nothing -> return q
+
         dir = fromCmp cmp
         rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
 
@@ -668,7 +678,15 @@ compareAtom cmp t m n =
               unlessM (bothAbsurd f f') $ do
 
               -- 2. If the heads are unequal, the only chance is subtyping between SIZE and SIZELT.
-              if f /= f' then trySizeUniv cmp t m n f es f' es' else do
+              if f /= f' then do
+                cubical <- isJust <$> cubicalOption
+                if not cubical then trySizeUniv cmp t m n f es f' es' else do
+                  -- fix/cubical-path-unify: normalize equality QName to Path
+                  fC  <- canonicalEqName f
+                  fC' <- canonicalEqName f'
+                  if fC == fC' then return ()
+                  else trySizeUniv cmp t m n f es f' es'
+              else do
 
               -- 3. If the heads are equal:
               -- 3a. If there are no arguments, we are done.
