@@ -718,8 +718,8 @@ interpret (Cmd_autoAll norm) = do
 -- Lemmings
 interpret (Cmd_search norm ii rng str) = do
   rng <- syncInteractionRange ii rng
-  res <- Lemmings.lemmings ii rng str
-  display_info $ Info_Auto res -- TODO: Lemmings will need its own Info_ 
+  res <- Lemmings.lemmings norm ii rng str
+  display_info $ Info_SearchAbout res "TODO: impelement" -- TODO: Lemmings will need its own Info_ 
   
 
 interpret (Cmd_context norm ii _ _) = do
