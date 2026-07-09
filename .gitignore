@@ -98,3 +98,12 @@ stack.yaml
 TAGS
 trash.txt
 \#*\#
+
+# Local development artifacts
+.reasonix/
+GapTest.agda
+agda.hp
+full_test.sh
+nohup.out
+reasonix.toml
+run_tests.sh
