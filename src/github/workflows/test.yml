@@ -213,6 +213,8 @@ jobs:
     - *checkout
 
     - &download_artifact
+      # v7 (not v8): @v8 has a transient digest-mismatch bug that
+      # prevents cache refresh after dependency updates.
       name: Download artifacts
       uses: actions/download-artifact@v7
       with:

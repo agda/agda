@@ -104,6 +104,7 @@ jobs:
       with:
         submodules: recursive
     - name: Download artifacts
+      # v7 (not v8): @v8 has a transient digest-mismatch bug that prevents cache refresh
       uses: actions/download-artifact@v7
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -126,6 +127,7 @@ jobs:
       with:
         submodules: recursive
     - name: Download artifacts
+      # v7 (not v8): @v8 has a transient digest-mismatch bug that prevents cache refresh
       uses: actions/download-artifact@v7
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -183,6 +185,7 @@ jobs:
       with:
         submodules: recursive
     - name: Download artifacts
+      # v7 (not v8): @v8 has a transient digest-mismatch bug that prevents cache refresh
       uses: actions/download-artifact@v7
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -218,6 +221,7 @@ jobs:
       with:
         submodules: recursive
     - name: Download artifacts
+      # v7 (not v8): @v8 has a transient digest-mismatch bug that prevents cache refresh
       uses: actions/download-artifact@v7
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
