@@ -211,7 +211,6 @@ jobs:
 
     steps:
     - *checkout
-    - *haskell_setup
 
     - &download_artifact
       name: Download artifacts
@@ -292,7 +291,6 @@ jobs:
 
     steps:
     - *checkout
-    - *haskell_setup
     - *download_artifact
     - *unpack_artifact
     # - *icu
@@ -344,7 +342,6 @@ jobs:
 
     steps:
     - *checkout
-    - *haskell_setup
     - *download_artifact
     - *unpack_artifact
     - *icu
@@ -417,7 +414,6 @@ jobs:
 
     steps:
     - *checkout
-    - *haskell_setup
     - *download_artifact
     - *unpack_artifact
     # - *icu
