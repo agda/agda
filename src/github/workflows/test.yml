@@ -116,14 +116,18 @@ jobs:
       with:
         submodules: recursive
 
+    # haskell-actions/setup@v2 removed: it has a bug (opts.ts:159) where
+    # `enable-stack: false` still resolves stack-version → GHCup-00130.
+    # We use system GHC + system stack instead (ubuntu-24.04 runner).
+    # See: https://github.com/agda/agda/issues/8619
     - &haskell_setup
-      name: Setup Haskell
-      uses: haskell-actions/setup@v2
+      name: Detect Haskell toolchain
       id: setup-haskell
-      with:
-        ghc-version: ${{ env.GHC_VER }}
-        enable-stack: false
-        cabal-update: false
+      run: |
+        echo "ghc-version=$(ghc --numeric-version)" >> "${GITHUB_OUTPUT}"
+        echo "stack-version=$(stack --numeric-version)" >> "${GITHUB_OUTPUT}"
+        echo "stack-root=$(stack path --stack-root)" >> "${GITHUB_OUTPUT}"
+        echo "STACK_ROOT=$(stack path --stack-root)" >> "${GITHUB_ENV}"
 
     # The Makefile tests whether stack.yaml is present to decide on stack vs. cabal build.
     - name: "Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml"

@@ -40,12 +40,12 @@ jobs:
       with:
         submodules: recursive
     - id: setup-haskell
-      name: Setup Haskell
-      uses: haskell-actions/setup@v2
-      with:
-        cabal-update: false
-        enable-stack: false
-        ghc-version: ${{ env.GHC_VER }}
+      name: Detect Haskell toolchain
+      run: |
+        echo "ghc-version=$(ghc --numeric-version)" >> "${GITHUB_OUTPUT}"
+        echo "stack-version=$(stack --numeric-version)" >> "${GITHUB_OUTPUT}"
+        echo "stack-root=$(stack path --stack-root)" >> "${GITHUB_OUTPUT}"
+        echo "STACK_ROOT=$(stack path --stack-root)" >> "${GITHUB_ENV}"
     - name: Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml
       run: cp stack-${{ env.GHC_VER }}.yaml stack.yaml
     - name: Update package index
