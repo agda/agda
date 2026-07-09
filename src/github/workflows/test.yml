@@ -214,7 +214,7 @@ jobs:
 
     - &download_artifact
       name: Download artifacts
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@v7
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
 
