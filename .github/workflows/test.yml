@@ -6,7 +6,7 @@
 ##                                                  ##
 ######################################################
 name: Build, Test, and Benchmark
-'true':
+on:
   push:
     branches:
     - master
