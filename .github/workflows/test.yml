@@ -103,7 +103,7 @@ jobs:
       with:
         submodules: recursive
     - name: Download artifacts
-      # v7 (not v8): @v8 has a transient digest-mismatch bug that prevents cache refresh
+      # v7 (not v8): @v8 digest-mismatch cache refresh bug
       uses: actions/download-artifact@v7
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -126,7 +126,7 @@ jobs:
       with:
         submodules: recursive
     - name: Download artifacts
-      # v7 (not v8): @v8 has a transient digest-mismatch bug that prevents cache refresh
+      # v7 (not v8): @v8 digest-mismatch cache refresh bug
       uses: actions/download-artifact@v7
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -176,8 +176,6 @@ jobs:
       name: Suite of interaction tests
       run: yes y | make interaction
   stdlib-test:
-    env:
-      GHCRTS: -M6G
     needs: build
     runs-on: ubuntu-24.04
     steps:
@@ -186,7 +184,7 @@ jobs:
       with:
         submodules: recursive
     - name: Download artifacts
-      # v7 (not v8): @v8 has a transient digest-mismatch bug that prevents cache refresh
+      # v7 (not v8): @v8 digest-mismatch cache refresh bug
       uses: actions/download-artifact@v7
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -207,7 +205,9 @@ jobs:
       run: |
         make benchmark-without-logs
         make benchmark-summary
-    - name: Standard library compiler tests
+    - env:
+        GHCRTS: -M6G
+      name: Standard library compiler tests
       run: make std-lib-compiler-test
     - name: Successful tests using the standard library
       run: make std-lib-succeed
@@ -222,7 +222,7 @@ jobs:
       with:
         submodules: recursive
     - name: Download artifacts
-      # v7 (not v8): @v8 has a transient digest-mismatch bug that prevents cache refresh
+      # v7 (not v8): @v8 digest-mismatch cache refresh bug
       uses: actions/download-artifact@v7
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
