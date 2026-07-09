@@ -37,11 +37,14 @@ import Agda.Interaction.BasicOps (normalForm)
 type LemmingsResult = String
 
 -- entry point for running inside a hole 
-lemmingsHole :: MonadTCM tcm
+lemmings :: MonadTCM tcm
   => InteractionId -- the hole to run onn
+  -> Range
+  -> String
   -> tcm LemmingsResult
-lemmingsHole iid = liftTCM $ do
-  reportSDoc "lemmings.top" 10 (do
-    (text "Running Lemmings on interaction point"))
-    
+lemmings iid rng str = liftTCM $ do
+  reportSDoc "lemmings.top" 10 (text "Running Lemmings on interaction point" <+> pretty iid)
+
+  scope <- getInteractionScope iid
+  -- reportSDoc "lemmings.top" 10 (text "Variables: " <+> text (show scope))
   return "TODO: implement"
