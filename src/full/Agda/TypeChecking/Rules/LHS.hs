@@ -350,7 +350,7 @@ noShadowingOfConstructors problem@(ProblemEq p _ dom@(unDom -> El _ a)) = do
     reportSDoc "tc.lhs.shadow" 30 $ vcat
       [ text $ "checking whether pattern variable " ++! prettyShow x ++! " shadows a constructor"
       , nest 2 $ "type of variable =" <+> prettyTCM a
-      , nest 2 $ "position of variable =" <+> (text . show) (getRange x)
+      , nest 2 $ "position of variable =" <+> pretty (getRange x)
       ]
     reportSDoc "tc.lhs.shadow" 70 $ nest 2 $ "a =" <+> pretty a
 
@@ -1000,11 +1000,7 @@ checkLHS mf = updateModality checkLHS_ where
     -- we need to check the lhs in irr. cxt. (see Issue 939).
  updateModality cont = \st@(LHSState tel ip problem target psplit _ _prio) -> do
       let m = getModality target
-      applyModalityToContext m $ do
-        cont $ over (lhsTel . listTel)
-                 (map' $ inverseApplyModalityButNotQuantity m) st
-        -- Andreas, 2018-10-23, issue #3309
-        -- the modalities in the clause telescope also need updating.
+      applyModalityToContext m $ cont st
 
  checkLHS_ st@(LHSState tel ip problem target psplit ixsplit prio) = do
   reportSDoc "tc.lhs" 40 $ "tel is" <+> prettyTCM tel
@@ -1129,7 +1125,11 @@ checkLHS mf = updateModality checkLHS_ where
           ip'      = ip ++! [projP]
           -- drop the projection pattern (already splitted)
           problem' = over problemRestPats (drop 1) problem
-      liftTCM $ updateLHSState (LHSState tel ip' problem' target' psplit ixsplit prio)
+          -- Update the modalities of telescope variables,
+          -- resurrecting irrelevant variables in case of an irrelevant copattern
+          m        = getModality target'
+          tel'     = over listTel (map' $ inverseApplyModalityButNotQuantity m) tel
+      liftTCM $ updateLHSState (LHSState tel' ip' problem' target' psplit ixsplit prio)
 
 
     -- Split a Partial.
