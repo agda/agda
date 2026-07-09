@@ -122,8 +122,7 @@ jobs:
       id: setup-haskell
       with:
         ghc-version: ${{ env.GHC_VER }}
-        stack-version: latest
-        enable-stack: true
+        enable-stack: false
         cabal-update: false
 
     # The Makefile tests whether stack.yaml is present to decide on stack vs. cabal build.
