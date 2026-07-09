@@ -175,7 +175,7 @@ jobs:
       run: make test-suite-covers-errors
     - if: always()
       name: Suite of interaction tests
-      run: make interaction
+      run: export AGDA_TESTS_OPTIONS="-j1"; make interaction
   stdlib-test:
     needs: build
     runs-on: ubuntu-24.04
