@@ -102,7 +102,7 @@ jobs:
     - name: Checkout repo
       uses: actions/checkout@v7
       with:
-        stack-version: latest
+        submodules: recursive
     - name: Download artifacts
       uses: actions/download-artifact@v7
       with:
@@ -124,7 +124,7 @@ jobs:
     - name: Checkout repo
       uses: actions/checkout@v7
       with:
-        stack-version: latest
+        submodules: recursive
     - name: Download artifacts
       uses: actions/download-artifact@v7
       with:
@@ -181,7 +181,7 @@ jobs:
     - name: Checkout repo
       uses: actions/checkout@v7
       with:
-        stack-version: latest
+        submodules: recursive
     - name: Download artifacts
       uses: actions/download-artifact@v7
       with:
@@ -216,7 +216,7 @@ jobs:
     - name: Checkout repo
       uses: actions/checkout@v7
       with:
-        stack-version: latest
+        submodules: recursive
     - name: Download artifacts
       uses: actions/download-artifact@v7
       with:
