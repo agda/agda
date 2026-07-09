@@ -1,0 +1,569 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wunused-imports #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE NumDecimals #-}</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="annot"><span class="hs-comment">-- | Measure CPU time for individual phases of the Agda pipeline.</span></span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Benchmark</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Benchmarking.html"><span class="hs-identifier">Agda.Benchmarking</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#MonadBench"><span class="hs-identifier">B.MonadBench</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchPhase"><span class="hs-identifier">B.BenchPhase</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#getBenchmark"><span class="hs-identifier">B.getBenchmark</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#updateBenchmarkingStatus"><span class="hs-identifier">updateBenchmarkingStatus</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#billTo"><span class="hs-identifier">B.billTo</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#billPureTo"><span class="hs-identifier">B.billPureTo</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#billToCPS"><span class="hs-identifier">B.billToCPS</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html#reset"><span class="hs-identifier">B.reset</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#print"><span class="hs-identifier">print</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">print</span></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Foldable</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">foldMap'</span></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Function</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">on</span></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">fromMaybe</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">mapMaybe</span></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Sum</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">getSum</span></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text.Lazy</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">TL</span></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Benchmarking.html"><span class="hs-identifier">Agda.Benchmarking</span></a></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html"><span class="hs-identifier">Agda.Interaction.Options.Types</span></a></span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#optParallelChecking"><span class="hs-identifier">optParallelChecking</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#Parallelism"><span class="hs-identifier">Parallelism</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Debug</span></a></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Imports</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Imports.html#getVisitedModule"><span class="hs-identifier">getVisitedModule</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.Benchmark.html"><span class="hs-identifier">Agda.Utils.Benchmark</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">B</span></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.Trie.html"><span class="hs-identifier">Agda.Utils.Trie</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Trie</span></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier">__IMPOSSIBLE__</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Time.html"><span class="hs-identifier">Agda.Utils.Time</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Time.html#CPUTime"><span class="hs-identifier">CPUTime</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Time.html#fromMilliseconds"><span class="hs-identifier">fromMilliseconds</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html"><span class="hs-identifier">Agda.Syntax.Common.Pretty</span></a></span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier">Doc</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier">Pretty</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#comma"><span class="hs-identifier">comma</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#hsep"><span class="hs-identifier">hsep</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">nest</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#parens"><span class="hs-identifier">parens</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier">pretty</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier">prettyShow</span></a></span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">text</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#vcat"><span class="hs-identifier">vcat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(&lt;+&gt;)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">($+$)</span></span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.ProfileOptions.html"><span class="hs-identifier">Agda.Interaction.Options.ProfileOptions</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Profile</span></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="annot"><span class="hs-comment">-- | When profile options are set or changed, we need to turn benchmarking on or off.</span></span><span>
+</span><span id="line-44"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#updateBenchmarkingStatus"><span class="hs-identifier hs-type">updateBenchmarkingStatus</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- {-# SPECIALIZE updateBenchmarkingStatus :: TCM () #-}</span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- updateBenchmarkingStatus :: (HasOptions m, MonadBench a m) =&gt; m ()</span><span>
+</span><span id="line-47"></span><span id="updateBenchmarkingStatus"><span class="annot"><span class="annottext">updateBenchmarkingStatus :: TCM ()
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#updateBenchmarkingStatus"><span class="hs-identifier hs-var hs-var">updateBenchmarkingStatus</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-48"></span><span>  </span><span class="annot"><span class="annottext">BenchmarkOn (BenchPhase (TCMT IO)) -&gt; TCM ()
+BenchmarkOn Phase -&gt; TCM ()
+forall (m :: * -&gt; *).
+MonadBench m =&gt;
+BenchmarkOn (BenchPhase m) -&gt; m ()
+</span><a href="Agda.Utils.Benchmark.html#setBenchmarking"><span class="hs-identifier hs-var">B.setBenchmarking</span></a></span><span> </span><span class="annot"><span class="annottext">(BenchmarkOn Phase -&gt; TCM ())
+-&gt; TCMT IO (BenchmarkOn Phase) -&gt; TCM ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO (BenchmarkOn Phase)
+forall (tcm :: * -&gt; *). MonadTCM tcm =&gt; tcm (BenchmarkOn Phase)
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#benchmarking"><span class="hs-identifier hs-var">benchmarking</span></a></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="annot"><span class="hs-comment">-- | Check whether benchmarking is activated.</span></span><span>
+</span><span id="line-51"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#benchmarking"><span class="hs-pragma hs-type">benchmarking</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-pragma hs-type">TCM</span></a></span><span> </span><span class="hs-pragma">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchmarkOn"><span class="hs-pragma hs-type">B.BenchmarkOn</span></a></span><span> </span><span class="annot"><a href="Agda.Benchmarking.html#Phase"><span class="hs-pragma hs-type">Phase</span></a></span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-52"></span><span id="local-6989586621681916993"><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#benchmarking"><span class="hs-identifier hs-type">benchmarking</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCM"><span class="hs-identifier hs-type">MonadTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681916993"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681916993"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Benchmark.html#BenchmarkOn"><span class="hs-identifier hs-type">B.BenchmarkOn</span></a></span><span> </span><span class="annot"><a href="Agda.Benchmarking.html#Phase"><span class="hs-identifier hs-type">Phase</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-53"></span><span id="benchmarking"><span class="annot"><span class="annottext">benchmarking :: forall (tcm :: * -&gt; *). MonadTCM tcm =&gt; tcm (BenchmarkOn Phase)
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#benchmarking"><span class="hs-identifier hs-var hs-var">benchmarking</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TCMT IO (BenchmarkOn Phase) -&gt; tcm (BenchmarkOn Phase)
+forall a. TCM a -&gt; tcm a
+forall (tcm :: * -&gt; *) a. MonadTCM tcm =&gt; TCM a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Base.html#liftTCM"><span class="hs-identifier hs-var">liftTCM</span></a></span><span> </span><span class="annot"><span class="annottext">(TCMT IO (BenchmarkOn Phase) -&gt; tcm (BenchmarkOn Phase))
+-&gt; TCMT IO (BenchmarkOn Phase) -&gt; tcm (BenchmarkOn Phase)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-54"></span><span>  </span><span class="annot"><span class="annottext">TCMT IO Bool
+-&gt; TCMT IO (BenchmarkOn Phase)
+-&gt; TCMT IO (BenchmarkOn Phase)
+-&gt; TCMT IO (BenchmarkOn Phase)
+forall (m :: * -&gt; *) a. Monad m =&gt; m Bool -&gt; m a -&gt; m a -&gt; m a
+</span><a href="Agda.Utils.Monad.html#ifM"><span class="hs-identifier hs-var">ifM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ProfileOption -&gt; TCMT IO Bool
+forall (m :: * -&gt; *). MonadDebug m =&gt; ProfileOption -&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Debug.html#hasProfileOption"><span class="hs-identifier hs-var">hasProfileOption</span></a></span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#Internal"><span class="hs-identifier hs-var">Profile.Internal</span></a></span><span class="hs-special">)</span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BenchmarkOn Phase -&gt; TCMT IO (BenchmarkOn Phase)
+forall a. a -&gt; TCMT IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(BenchmarkOn Phase -&gt; TCMT IO (BenchmarkOn Phase))
+-&gt; BenchmarkOn Phase -&gt; TCMT IO (BenchmarkOn Phase)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Account Phase -&gt; Bool) -&gt; BenchmarkOn Phase
+forall a. (Account a -&gt; Bool) -&gt; BenchmarkOn a
+</span><a href="Agda.Utils.Benchmark.html#BenchmarkSome"><span class="hs-identifier hs-var">B.BenchmarkSome</span></a></span><span> </span><span class="annot"><span class="annottext">Account Phase -&gt; Bool
+</span><a href="Agda.Benchmarking.html#isInternalAccount"><span class="hs-identifier hs-var">isInternalAccount</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(TCMT IO (BenchmarkOn Phase) -&gt; TCMT IO (BenchmarkOn Phase))
+-&gt; TCMT IO (BenchmarkOn Phase) -&gt; TCMT IO (BenchmarkOn Phase)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-55"></span><span>  </span><span class="annot"><span class="annottext">TCMT IO Bool
+-&gt; TCMT IO (BenchmarkOn Phase)
+-&gt; TCMT IO (BenchmarkOn Phase)
+-&gt; TCMT IO (BenchmarkOn Phase)
+forall (m :: * -&gt; *) a. Monad m =&gt; m Bool -&gt; m a -&gt; m a -&gt; m a
+</span><a href="Agda.Utils.Monad.html#ifM"><span class="hs-identifier hs-var">ifM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ProfileOption -&gt; TCMT IO Bool
+forall (m :: * -&gt; *). MonadDebug m =&gt; ProfileOption -&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Debug.html#hasProfileOption"><span class="hs-identifier hs-var">hasProfileOption</span></a></span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#Definitions"><span class="hs-identifier hs-var">Profile.Definitions</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BenchmarkOn Phase -&gt; TCMT IO (BenchmarkOn Phase)
+forall a. a -&gt; TCMT IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(BenchmarkOn Phase -&gt; TCMT IO (BenchmarkOn Phase))
+-&gt; BenchmarkOn Phase -&gt; TCMT IO (BenchmarkOn Phase)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Account Phase -&gt; Bool) -&gt; BenchmarkOn Phase
+forall a. (Account a -&gt; Bool) -&gt; BenchmarkOn a
+</span><a href="Agda.Utils.Benchmark.html#BenchmarkSome"><span class="hs-identifier hs-var">B.BenchmarkSome</span></a></span><span> </span><span class="annot"><span class="annottext">Account Phase -&gt; Bool
+</span><a href="Agda.Benchmarking.html#isDefAccount"><span class="hs-identifier hs-var">isDefAccount</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(TCMT IO (BenchmarkOn Phase) -&gt; TCMT IO (BenchmarkOn Phase))
+-&gt; TCMT IO (BenchmarkOn Phase) -&gt; TCMT IO (BenchmarkOn Phase)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-56"></span><span>  </span><span class="annot"><span class="annottext">TCMT IO Bool
+-&gt; TCMT IO (BenchmarkOn Phase)
+-&gt; TCMT IO (BenchmarkOn Phase)
+-&gt; TCMT IO (BenchmarkOn Phase)
+forall (m :: * -&gt; *) a. Monad m =&gt; m Bool -&gt; m a -&gt; m a -&gt; m a
+</span><a href="Agda.Utils.Monad.html#ifM"><span class="hs-identifier hs-var">ifM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ProfileOption -&gt; TCMT IO Bool
+forall (m :: * -&gt; *). MonadDebug m =&gt; ProfileOption -&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Debug.html#hasProfileOption"><span class="hs-identifier hs-var">hasProfileOption</span></a></span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#Modules"><span class="hs-identifier hs-var">Profile.Modules</span></a></span><span class="hs-special">)</span><span>     </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BenchmarkOn Phase -&gt; TCMT IO (BenchmarkOn Phase)
+forall a. a -&gt; TCMT IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(BenchmarkOn Phase -&gt; TCMT IO (BenchmarkOn Phase))
+-&gt; BenchmarkOn Phase -&gt; TCMT IO (BenchmarkOn Phase)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Account Phase -&gt; Bool) -&gt; BenchmarkOn Phase
+forall a. (Account a -&gt; Bool) -&gt; BenchmarkOn a
+</span><a href="Agda.Utils.Benchmark.html#BenchmarkSome"><span class="hs-identifier hs-var">B.BenchmarkSome</span></a></span><span> </span><span class="annot"><span class="annottext">Account Phase -&gt; Bool
+</span><a href="Agda.Benchmarking.html#isModuleAccount"><span class="hs-identifier hs-var">isModuleAccount</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(TCMT IO (BenchmarkOn Phase) -&gt; TCMT IO (BenchmarkOn Phase))
+-&gt; TCMT IO (BenchmarkOn Phase) -&gt; TCMT IO (BenchmarkOn Phase)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-57"></span><span>  </span><span class="annot"><span class="annottext">BenchmarkOn Phase -&gt; TCMT IO (BenchmarkOn Phase)
+forall a. a -&gt; TCMT IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">BenchmarkOn Phase
+forall a. BenchmarkOn a
+</span><a href="Agda.Utils.Benchmark.html#BenchmarkOff"><span class="hs-identifier hs-var">B.BenchmarkOff</span></a></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- | Prints the accumulated benchmark results. Does nothing if</span><span>
+</span><span id="line-60"></span><span class="hs-comment">--   no benchmark profiling is enabled.</span><span>
+</span><span id="line-61"></span><span id="local-6989586621681917009"><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#print"><span class="hs-identifier hs-type">print</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCM"><span class="hs-identifier hs-type">MonadTCM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681917009"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681917009"><span class="hs-identifier hs-type">tcm</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-62"></span><span id="print"><span class="annot"><span class="annottext">print :: forall (tcm :: * -&gt; *). MonadTCM tcm =&gt; tcm ()
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#print"><span class="hs-identifier hs-var hs-var">print</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TCM () -&gt; tcm ()
+forall a. TCM a -&gt; tcm a
+forall (tcm :: * -&gt; *) a. MonadTCM tcm =&gt; TCM a -&gt; tcm a
+</span><a href="Agda.TypeChecking.Monad.Base.html#liftTCM"><span class="hs-identifier hs-var">liftTCM</span></a></span><span> </span><span class="annot"><span class="annottext">(TCM () -&gt; tcm ()) -&gt; TCM () -&gt; tcm ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO Bool -&gt; TCM () -&gt; TCM ()
+forall (m :: * -&gt; *). Monad m =&gt; m Bool -&gt; m () -&gt; m ()
+</span><a href="Agda.Utils.Monad.html#whenM"><span class="hs-identifier hs-var">whenM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Account Phase -&gt; BenchmarkOn Phase -&gt; Bool
+forall a. Account a -&gt; BenchmarkOn a -&gt; Bool
+</span><a href="Agda.Utils.Benchmark.html#isBenchmarkOn"><span class="hs-identifier hs-var">B.isBenchmarkOn</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">(BenchmarkOn Phase -&gt; Bool)
+-&gt; TCMT IO (BenchmarkOn Phase) -&gt; TCMT IO Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">TCMT IO (BenchmarkOn Phase)
+forall (tcm :: * -&gt; *). MonadTCM tcm =&gt; tcm (BenchmarkOn Phase)
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#benchmarking"><span class="hs-identifier hs-var">benchmarking</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(TCM () -&gt; TCM ()) -&gt; TCM () -&gt; TCM ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-63"></span><span>  </span><span id="local-6989586621681917257"><span class="annot"><a href="#local-6989586621681917257"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TCMT IO (Benchmark (BenchPhase (TCMT IO)))
+TCMT IO (Benchmark Phase)
+forall (m :: * -&gt; *). MonadBench m =&gt; m (Benchmark (BenchPhase m))
+</span><a href="Agda.Utils.Benchmark.html#getBenchmark"><span class="hs-identifier hs-var">B.getBenchmark</span></a></span><span>
+</span><span id="line-64"></span><span>  </span><span id="local-6989586621681917258"><span class="annot"><a href="#local-6989586621681917258"><span class="hs-identifier hs-var">extra</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html#ifM"><span class="hs-identifier hs-type">ifM</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#moduleThroughputEnabled"><span class="hs-identifier hs-type">moduleThroughputEnabled</span></a></span><span>
+</span><span id="line-65"></span><span>    </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#moduleThroughputDoc"><span class="hs-identifier hs-type">moduleThroughputDoc</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681917257"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">mempty</span></span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-comment">-- Andreas, 2017-07-29, issue #2602:</span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-comment">-- The following line messes up the AgdaInfo buffer,</span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-comment">-- thus, as Fredrik Forsberg suggest, I restore the original</span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-comment">-- line for release 2.5.3 until a fix is found.</span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-comment">-- reportSLn &quot;&quot; 0 $ prettyShow b</span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-comment">-- Ulf, 2020-03-04: Using benchmarkLevel here means that it only prints if internal benchmarking</span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-comment">-- is turned on, effectively making module/definition benchmarking impossible (since internal</span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-comment">-- takes precedence). It needs to be &gt; 1 to avoid triggering #2602 though. Also use</span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-comment">-- displayDebugMessage instead of reportSLn to avoid requiring -v profile:2.</span><span>
+</span><span id="line-76"></span><span>  </span><span class="annot"><a href="Agda.TypeChecking.Monad.Debug.html#displayDebugMessage"><span class="hs-identifier hs-type">displayDebugMessage</span></a></span><span> </span><span class="annot"><span class="hs-string">&quot;profile&quot;</span></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-type">pretty</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681917257"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">$+$</span></span><span> </span><span class="annot"><a href="#local-6989586621681917258"><span class="hs-identifier hs-type">extra</span></a></span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#moduleThroughputEnabled"><span class="hs-identifier hs-type">moduleThroughputEnabled</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-79"></span><span id="moduleThroughputEnabled"><span class="annot"><span class="annottext">moduleThroughputEnabled :: TCMT IO Bool
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#moduleThroughputEnabled"><span class="hs-identifier hs-var hs-var">moduleThroughputEnabled</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-80"></span><span>  </span><span id="local-6989586621681917262"><span class="annot"><a href="#local-6989586621681917262"><span class="hs-identifier hs-var">modulesProfiling</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ProfileOption -&gt; TCMT IO Bool
+forall (m :: * -&gt; *). MonadDebug m =&gt; ProfileOption -&gt; m Bool
+</span><a href="Agda.TypeChecking.Monad.Debug.html#hasProfileOption"><span class="hs-identifier hs-var">hasProfileOption</span></a></span><span> </span><span class="annot"><span class="annottext">ProfileOption
+</span><a href="Agda.Interaction.Options.ProfileOptions.html#Modules"><span class="hs-identifier hs-var">Profile.Modules</span></a></span><span>
+</span><span id="line-81"></span><span>  </span><span id="local-6989586621681917263"><span class="annot"><a href="#local-6989586621681917263"><span class="hs-identifier hs-var">sequential</span></a></span></span><span>       </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#sequentialTypeChecking"><span class="hs-identifier hs-type">sequentialTypeChecking</span></a></span><span>
+</span><span id="line-82"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="#local-6989586621681917262"><span class="hs-identifier hs-type">modulesProfiling</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">&amp;&amp;</span></span><span> </span><span class="annot"><a href="#local-6989586621681917263"><span class="hs-identifier hs-type">sequential</span></a></span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#sequentialTypeChecking"><span class="hs-identifier hs-type">sequentialTypeChecking</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-85"></span><span id="sequentialTypeChecking"><span class="annot"><span class="annottext">sequentialTypeChecking :: TCMT IO Bool
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#sequentialTypeChecking"><span class="hs-identifier hs-var hs-var">sequentialTypeChecking</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-86"></span><span>  </span><span id="local-6989586621681917266"><span class="annot"><a href="#local-6989586621681917266"><span class="hs-identifier hs-var">opts</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TCMT IO CommandLineOptions
+forall (m :: * -&gt; *). HasOptions m =&gt; m CommandLineOptions
+</span><a href="Agda.Interaction.Options.HasOptions.html#commandLineOptions"><span class="hs-identifier hs-var">commandLineOptions</span></a></span><span>
+</span><span id="line-87"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#optParallelChecking"><span class="hs-identifier hs-var">optParallelChecking</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681917266"><span class="hs-identifier hs-type">opts</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-88"></span><span>    </span><span class="annot"><span class="annottext">Parallelism
+</span><a href="Agda.Interaction.Options.Types.html#Sequential"><span class="hs-identifier hs-var">Sequential</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><a href="Agda.Interaction.Options.Types.html#Parallel"><span class="hs-identifier hs-type">Parallel</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span class="hs-keyword">data</span><span> </span><span id="ModuleThroughput"><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#ModuleThroughput"><span class="hs-identifier hs-var">ModuleThroughput</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ModuleThroughput"><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#ModuleThroughput"><span class="hs-identifier hs-var">ModuleThroughput</span></a></span></span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="mtModuleName"><span class="annot"><span class="annottext">ModuleThroughput -&gt; TopLevelModuleName
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#mtModuleName"><span class="hs-identifier hs-var hs-var">mtModuleName</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span>
+</span><span id="line-93"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="mtLineCount"><span class="annot"><span class="annottext">ModuleThroughput -&gt; Int
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#mtLineCount"><span class="hs-identifier hs-var hs-var">mtLineCount</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-94"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="mtTime"><span class="annot"><span class="annottext">ModuleThroughput -&gt; CPUTime
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#mtTime"><span class="hs-identifier hs-var hs-var">mtTime</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Time.html#CPUTime"><span class="hs-identifier hs-type">CPUTime</span></a></span><span>
+</span><span id="line-95"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681917276"><span id="local-6989586621681917279"><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#ModuleThroughput"><span class="hs-identifier hs-type">ModuleThroughput</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-98"></span><span>  </span><span id="local-6989586621681917294"><span class="annot"><span class="annottext">pretty :: ModuleThroughput -&gt; Doc Aspects
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var hs-var hs-var">pretty</span></a></span></span><span> </span><span id="local-6989586621681917295"><span class="annot"><span class="annottext">ModuleThroughput
+</span><a href="#local-6989586621681917295"><span class="hs-identifier hs-var">mt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-99"></span><span>    </span><span class="annot"><span class="annottext">VerboseKey -&gt; Doc Aspects
+forall a. VerboseKey -&gt; Doc a
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; VerboseKey
+forall a. Pretty a =&gt; a -&gt; VerboseKey
+</span><a href="Agda.Syntax.Common.Pretty.html#prettyShow"><span class="hs-identifier hs-var">prettyShow</span></a></span><span> </span><span class="annot"><span class="annottext">(TopLevelModuleName -&gt; VerboseKey)
+-&gt; TopLevelModuleName -&gt; VerboseKey
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ModuleThroughput -&gt; TopLevelModuleName
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#mtModuleName"><span class="hs-identifier hs-var">mtModuleName</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleThroughput
+</span><a href="#local-6989586621681917295"><span class="hs-identifier hs-var">mt</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Doc Aspects -&gt; Doc Aspects -&gt; Doc Aspects
+forall a. Doc a -&gt; Doc a -&gt; Doc a
+</span><span class="hs-operator hs-var">&lt;+&gt;</span></span><span>
+</span><span id="line-100"></span><span>    </span><span class="annot"><span class="annottext">Doc Aspects -&gt; Doc Aspects
+</span><a href="Agda.Syntax.Common.Pretty.html#parens"><span class="hs-identifier hs-var">parens</span></a></span><span>
+</span><span id="line-101"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Doc Aspects] -&gt; Doc Aspects
+forall (t :: * -&gt; *). Foldable t =&gt; t (Doc Aspects) -&gt; Doc Aspects
+</span><a href="Agda.Syntax.Common.Pretty.html#hsep"><span class="hs-identifier hs-var">hsep</span></a></span><span>
+</span><span id="line-102"></span><span>        </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">VerboseKey -&gt; Doc Aspects
+forall a. VerboseKey -&gt; Doc a
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; VerboseKey
+forall a. Show a =&gt; a -&gt; VerboseKey
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ModuleThroughput -&gt; Int
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#mtLineCount"><span class="hs-identifier hs-var">mtLineCount</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleThroughput
+</span><a href="#local-6989586621681917295"><span class="hs-identifier hs-var">mt</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Doc Aspects -&gt; Doc Aspects -&gt; Doc Aspects
+forall a. Doc a -&gt; Doc a -&gt; Doc a
+</span><span class="hs-operator hs-var">&lt;+&gt;</span></span><span> </span><span class="annot"><span class="annottext">Doc Aspects
+</span><span class="hs-string">&quot;lines&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Doc Aspects -&gt; Doc Aspects -&gt; Doc Aspects
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Doc Aspects
+</span><a href="Agda.Syntax.Common.Pretty.html#comma"><span class="hs-identifier hs-var">comma</span></a></span><span>
+</span><span id="line-103"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">VerboseKey -&gt; Doc Aspects
+forall a. VerboseKey -&gt; Doc a
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; VerboseKey
+forall a. Show a =&gt; a -&gt; VerboseKey
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ModuleThroughput -&gt; Integer
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#linesPerSecond"><span class="hs-identifier hs-var">linesPerSecond</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleThroughput
+</span><a href="#local-6989586621681917295"><span class="hs-identifier hs-var">mt</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Doc Aspects -&gt; Doc Aspects -&gt; Doc Aspects
+forall a. Doc a -&gt; Doc a -&gt; Doc a
+</span><span class="hs-operator hs-var">&lt;+&gt;</span></span><span> </span><span class="annot"><span class="annottext">Doc Aspects
+</span><span class="hs-string">&quot;lines/s&quot;</span></span><span>
+</span><span id="line-104"></span><span>        </span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#moduleThroughputDoc"><span class="hs-identifier hs-type">moduleThroughputDoc</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Benchmarking.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span>
+</span><span id="line-107"></span><span id="moduleThroughputDoc"><span class="annot"><span class="annottext">moduleThroughputDoc :: Benchmark Phase -&gt; TCMT IO (Doc Aspects)
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#moduleThroughputDoc"><span class="hs-identifier hs-var hs-var">moduleThroughputDoc</span></a></span></span><span> </span><span id="local-6989586621681917299"><span class="annot"><span class="annottext">Benchmark Phase
+</span><a href="#local-6989586621681917299"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-108"></span><span>  </span><span id="local-6989586621681917300"><span class="annot"><a href="#local-6989586621681917300"><span class="hs-identifier hs-var">stats</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">((TopLevelModuleName, CPUTime) -&gt; TCMT IO ModuleThroughput)
+-&gt; [(TopLevelModuleName, CPUTime)] -&gt; TCMT IO [ModuleThroughput]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; [a] -&gt; m [b]
+</span><span class="hs-identifier hs-var">mapM</span></span><span> </span><span class="annot"><span class="annottext">(TopLevelModuleName, CPUTime) -&gt; TCMT IO ModuleThroughput
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#loadModuleThroughput"><span class="hs-identifier hs-var">loadModuleThroughput</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Benchmark Phase -&gt; [(TopLevelModuleName, CPUTime)]
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#moduleRows"><span class="hs-identifier hs-var">moduleRows</span></a></span><span> </span><span class="annot"><span class="annottext">Benchmark Phase
+</span><a href="#local-6989586621681917299"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-109"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#renderModuleThroughput"><span class="hs-identifier hs-type">renderModuleThroughput</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681917300"><span class="hs-identifier hs-type">stats</span></a></span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#renderModuleThroughput"><span class="hs-identifier hs-type">renderModuleThroughput</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#ModuleThroughput"><span class="hs-identifier hs-type">ModuleThroughput</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Syntax.Common.Pretty.html#Doc"><span class="hs-identifier hs-type">Doc</span></a></span><span>
+</span><span id="line-112"></span><span id="renderModuleThroughput"><span class="annot"><span class="annottext">renderModuleThroughput :: [ModuleThroughput] -&gt; Doc Aspects
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#renderModuleThroughput"><span class="hs-identifier hs-var hs-var">renderModuleThroughput</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc Aspects
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-113"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#renderModuleThroughput"><span class="hs-identifier hs-var">renderModuleThroughput</span></a></span><span> </span><span id="local-6989586621681917305"><span class="annot"><span class="annottext">[ModuleThroughput]
+</span><a href="#local-6989586621681917305"><span class="hs-identifier hs-var">stats</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-114"></span><span>  </span><span class="annot"><span class="annottext">[Doc Aspects] -&gt; Doc Aspects
+forall (t :: * -&gt; *). Foldable t =&gt; t (Doc Aspects) -&gt; Doc Aspects
+</span><a href="Agda.Syntax.Common.Pretty.html#vcat"><span class="hs-identifier hs-var">vcat</span></a></span><span>
+</span><span id="line-115"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">Doc Aspects
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-116"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Doc Aspects
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-117"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">VerboseKey -&gt; Doc Aspects
+forall a. VerboseKey -&gt; Doc a
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">VerboseKey
+</span><span class="hs-string">&quot;Module throughput:&quot;</span></span><span>
+</span><span id="line-118"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Doc Aspects] -&gt; Doc Aspects
+forall (t :: * -&gt; *). Foldable t =&gt; t (Doc Aspects) -&gt; Doc Aspects
+</span><a href="Agda.Syntax.Common.Pretty.html#vcat"><span class="hs-identifier hs-var">vcat</span></a></span><span> </span><span class="annot"><span class="annottext">([Doc Aspects] -&gt; Doc Aspects) -&gt; [Doc Aspects] -&gt; Doc Aspects
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(ModuleThroughput -&gt; Doc Aspects)
+-&gt; [ModuleThroughput] -&gt; [Doc Aspects]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Doc Aspects -&gt; Doc Aspects
+forall a. Int -&gt; Doc a -&gt; Doc a
+</span><span class="hs-identifier hs-var">nest</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="annottext">(Doc Aspects -&gt; Doc Aspects)
+-&gt; (ModuleThroughput -&gt; Doc Aspects)
+-&gt; ModuleThroughput
+-&gt; Doc Aspects
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ModuleThroughput -&gt; Doc Aspects
+forall a. Pretty a =&gt; a -&gt; Doc Aspects
+</span><a href="Agda.Syntax.Common.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[ModuleThroughput]
+</span><a href="#local-6989586621681917305"><span class="hs-identifier hs-var">stats</span></a></span><span>
+</span><span id="line-119"></span><span>    </span><span class="hs-special">]</span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- | Keep only benchmark entries corresponding to top-level modules,</span><span>
+</span><span id="line-122"></span><span class="hs-comment">--   using the aggregate module time.</span><span>
+</span><span id="line-123"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#moduleRows"><span class="hs-identifier hs-type">moduleRows</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Benchmarking.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Time.html#CPUTime"><span class="hs-identifier hs-type">CPUTime</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-124"></span><span id="moduleRows"><span class="annot"><span class="annottext">moduleRows :: Benchmark Phase -&gt; [(TopLevelModuleName, CPUTime)]
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#moduleRows"><span class="hs-identifier hs-var hs-var">moduleRows</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-125"></span><span>  </span><span class="annot"><span class="annottext">((Account Phase, (CPUTime, CPUTime))
+ -&gt; Maybe (TopLevelModuleName, CPUTime))
+-&gt; [(Account Phase, (CPUTime, CPUTime))]
+-&gt; [(TopLevelModuleName, CPUTime)]
+forall a b. (a -&gt; Maybe b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">mapMaybe</span></span><span> </span><span class="annot"><span class="annottext">(Account Phase, (CPUTime, CPUTime))
+-&gt; Maybe (TopLevelModuleName, CPUTime)
+forall {a} {b}.
+(Account Phase, (a, b)) -&gt; Maybe (TopLevelModuleName, b)
+</span><a href="#local-6989586621681917307"><span class="hs-identifier hs-var">moduleRow</span></a></span><span> </span><span class="annot"><span class="annottext">([(Account Phase, (CPUTime, CPUTime))]
+ -&gt; [(TopLevelModuleName, CPUTime)])
+-&gt; (Benchmark Phase -&gt; [(Account Phase, (CPUTime, CPUTime))])
+-&gt; Benchmark Phase
+-&gt; [(TopLevelModuleName, CPUTime)]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Benchmark Phase -&gt; [(Account Phase, (CPUTime, CPUTime))]
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#orderedBenchmarkEntries"><span class="hs-identifier hs-var">orderedBenchmarkEntries</span></a></span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-127"></span><span>    </span><span id="local-6989586621681917307"><span class="annot"><span class="annottext">moduleRow :: (Account Phase, (a, b)) -&gt; Maybe (TopLevelModuleName, b)
+</span><a href="#local-6989586621681917307"><span class="hs-identifier hs-var hs-var">moduleRow</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681917309"><span class="annot"><span class="annottext">Account Phase
+</span><a href="#local-6989586621681917309"><span class="hs-identifier hs-var">acc</span></a></span></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681917310"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681917310"><span class="hs-identifier hs-var">_selfTime</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681917311"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681917311"><span class="hs-identifier hs-var">totalTime</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-128"></span><span>      </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Account Phase
+</span><a href="#local-6989586621681917309"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-129"></span><span>        </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Benchmarking.html#TopModule"><span class="hs-identifier hs-type">TopModule</span></a></span><span> </span><span id="local-6989586621681917313"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681917313"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(TopLevelModuleName, b) -&gt; Maybe (TopLevelModuleName, b)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681917313"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621681917311"><span class="hs-identifier hs-var">totalTime</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-130"></span><span>        </span><span class="annot"><span class="annottext">Account Phase
+</span><span class="hs-identifier">_</span></span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe (TopLevelModuleName, b)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-131"></span><span>
+</span><span id="line-132"></span><span class="hs-comment">-- | Flatten benchmark timings into entries ordered by aggregate time,</span><span>
+</span><span id="line-133"></span><span class="hs-comment">--   skipping entries with aggregate time below 10 ms.</span><span>
+</span><span id="line-134"></span><span class="hs-comment">--   Each entry stores:</span><span>
+</span><span id="line-135"></span><span class="hs-comment">--   * the account path</span><span>
+</span><span id="line-136"></span><span class="hs-comment">--   * time stored at this node</span><span>
+</span><span id="line-137"></span><span class="hs-comment">--   * the aggregate time of the whole subtree</span><span>
+</span><span id="line-138"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#orderedBenchmarkEntries"><span class="hs-identifier hs-type">orderedBenchmarkEntries</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Benchmarking.html#Benchmark"><span class="hs-identifier hs-type">Benchmark</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Benchmarking.html#Account"><span class="hs-identifier hs-type">Account</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Time.html#CPUTime"><span class="hs-identifier hs-type">CPUTime</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Time.html#CPUTime"><span class="hs-identifier hs-type">CPUTime</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-139"></span><span id="orderedBenchmarkEntries"><span class="annot"><span class="annottext">orderedBenchmarkEntries :: Benchmark Phase -&gt; [(Account Phase, (CPUTime, CPUTime))]
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#orderedBenchmarkEntries"><span class="hs-identifier hs-var hs-var">orderedBenchmarkEntries</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-140"></span><span>  </span><span class="annot"><span class="annottext">((CPUTime, CPUTime) -&gt; (CPUTime, CPUTime) -&gt; Ordering)
+-&gt; Trie Phase (CPUTime, CPUTime)
+-&gt; [(Account Phase, (CPUTime, CPUTime))]
+forall k v. Ord k =&gt; (v -&gt; v -&gt; Ordering) -&gt; Trie k v -&gt; [([k], v)]
+</span><a href="Agda.Utils.Trie.html#toListOrderedBy"><span class="hs-identifier hs-var">Trie.toListOrderedBy</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(CPUTime -&gt; CPUTime -&gt; Ordering) -&gt; CPUTime -&gt; CPUTime -&gt; Ordering
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">CPUTime -&gt; CPUTime -&gt; Ordering
+forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">(CPUTime -&gt; CPUTime -&gt; Ordering)
+-&gt; ((CPUTime, CPUTime) -&gt; CPUTime)
+-&gt; (CPUTime, CPUTime)
+-&gt; (CPUTime, CPUTime)
+-&gt; Ordering
+forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">`on`</span></span><span> </span><span class="annot"><span class="annottext">(CPUTime, CPUTime) -&gt; CPUTime
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span class="hs-special">)</span><span>
+</span><span id="line-141"></span><span>  </span><span class="annot"><span class="annottext">(Trie Phase (CPUTime, CPUTime)
+ -&gt; [(Account Phase, (CPUTime, CPUTime))])
+-&gt; (Benchmark Phase -&gt; Trie Phase (CPUTime, CPUTime))
+-&gt; Benchmark Phase
+-&gt; [(Account Phase, (CPUTime, CPUTime))]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">((CPUTime, CPUTime) -&gt; Bool)
+-&gt; Trie Phase (CPUTime, CPUTime) -&gt; Trie Phase (CPUTime, CPUTime)
+forall k v. Ord k =&gt; (v -&gt; Bool) -&gt; Trie k v -&gt; Trie k v
+</span><a href="Agda.Utils.Trie.html#filter"><span class="hs-identifier hs-var">Trie.filter</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">CPUTime -&gt; CPUTime -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; CPUTime
+</span><a href="Agda.Utils.Time.html#fromMilliseconds"><span class="hs-identifier hs-var">fromMilliseconds</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">10</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(CPUTime -&gt; Bool)
+-&gt; ((CPUTime, CPUTime) -&gt; CPUTime) -&gt; (CPUTime, CPUTime) -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(CPUTime, CPUTime) -&gt; CPUTime
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span class="hs-special">)</span><span>
+</span><span id="line-142"></span><span>  </span><span class="annot"><span class="annottext">(Trie Phase (CPUTime, CPUTime) -&gt; Trie Phase (CPUTime, CPUTime))
+-&gt; (Benchmark Phase -&gt; Trie Phase (CPUTime, CPUTime))
+-&gt; Benchmark Phase
+-&gt; Trie Phase (CPUTime, CPUTime)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Trie Phase CPUTime -&gt; Maybe (CPUTime, CPUTime))
+-&gt; Trie Phase CPUTime -&gt; Trie Phase (CPUTime, CPUTime)
+forall k u v.
+Ord k =&gt;
+(Trie k u -&gt; Maybe v) -&gt; Trie k u -&gt; Trie k v
+</span><a href="Agda.Utils.Trie.html#mapSubTries"><span class="hs-identifier hs-var">Trie.mapSubTries</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(CPUTime, CPUTime) -&gt; Maybe (CPUTime, CPUTime)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">((CPUTime, CPUTime) -&gt; Maybe (CPUTime, CPUTime))
+-&gt; (Trie Phase CPUTime -&gt; (CPUTime, CPUTime))
+-&gt; Trie Phase CPUTime
+-&gt; Maybe (CPUTime, CPUTime)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Trie Phase CPUTime -&gt; (CPUTime, CPUTime)
+forall a. Ord a =&gt; Trie a CPUTime -&gt; (CPUTime, CPUTime)
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#aggregateNode"><span class="hs-identifier hs-var">aggregateNode</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-143"></span><span>  </span><span class="annot"><span class="annottext">(Trie Phase CPUTime -&gt; Trie Phase (CPUTime, CPUTime))
+-&gt; (Benchmark Phase -&gt; Trie Phase CPUTime)
+-&gt; Benchmark Phase
+-&gt; Trie Phase (CPUTime, CPUTime)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Benchmark Phase -&gt; Trie Phase CPUTime
+forall a. Benchmark a -&gt; Timings a
+</span><a href="Agda.Utils.Benchmark.html#timings"><span class="hs-identifier hs-var">B.timings</span></a></span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- | For a benchmark trie node, return:</span><span>
+</span><span id="line-146"></span><span class="hs-comment">--   * time stored at this node</span><span>
+</span><span id="line-147"></span><span class="hs-comment">--   * the aggregate time of the whole subtree</span><span>
+</span><span id="line-148"></span><span id="local-6989586621681917070"><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#aggregateNode"><span class="hs-identifier hs-type">aggregateNode</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621681917070"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Trie.html#Trie"><span class="hs-identifier hs-type">Trie.Trie</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681917070"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="Agda.Utils.Time.html#CPUTime"><span class="hs-identifier hs-type">CPUTime</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Time.html#CPUTime"><span class="hs-identifier hs-type">CPUTime</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Time.html#CPUTime"><span class="hs-identifier hs-type">CPUTime</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-149"></span><span id="aggregateNode"><span class="annot"><span class="annottext">aggregateNode :: forall a. Ord a =&gt; Trie a CPUTime -&gt; (CPUTime, CPUTime)
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#aggregateNode"><span class="hs-identifier hs-var hs-var">aggregateNode</span></a></span></span><span> </span><span id="local-6989586621681917332"><span class="annot"><span class="annottext">Trie a CPUTime
+</span><a href="#local-6989586621681917332"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-150"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="annottext">CPUTime -&gt; Maybe CPUTime -&gt; CPUTime
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">CPUTime
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">(Maybe CPUTime -&gt; CPUTime) -&gt; Maybe CPUTime -&gt; CPUTime
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; Trie a CPUTime -&gt; Maybe CPUTime
+forall k v. Ord k =&gt; [k] -&gt; Trie k v -&gt; Maybe v
+</span><a href="Agda.Utils.Trie.html#lookup"><span class="hs-identifier hs-var">Trie.lookup</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">Trie a CPUTime
+</span><a href="#local-6989586621681917332"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-151"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Sum CPUTime -&gt; CPUTime
+forall a. Sum a -&gt; a
+</span><span class="hs-identifier hs-var">getSum</span></span><span> </span><span class="annot"><span class="annottext">(Sum CPUTime -&gt; CPUTime) -&gt; Sum CPUTime -&gt; CPUTime
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(CPUTime -&gt; Sum CPUTime) -&gt; Trie a CPUTime -&gt; Sum CPUTime
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; Trie a a -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap'</span></span><span> </span><span class="annot"><span class="annottext">CPUTime -&gt; Sum CPUTime
+forall a. a -&gt; Sum a
+</span><span class="hs-identifier hs-var">Sum</span></span><span> </span><span class="annot"><span class="annottext">Trie a CPUTime
+</span><a href="#local-6989586621681917332"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-152"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-153"></span><span>
+</span><span id="line-154"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#loadModuleThroughput"><span class="hs-identifier hs-type">loadModuleThroughput</span></a></span><span>
+</span><span id="line-155"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Syntax.TopLevelModuleName.html#TopLevelModuleName"><span class="hs-identifier hs-type">TopLevelModuleName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Time.html#CPUTime"><span class="hs-identifier hs-type">CPUTime</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-156"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#TCM"><span class="hs-identifier hs-type">TCM</span></a></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#ModuleThroughput"><span class="hs-identifier hs-type">ModuleThroughput</span></a></span><span>
+</span><span id="line-157"></span><span id="loadModuleThroughput"><span class="annot"><span class="annottext">loadModuleThroughput :: (TopLevelModuleName, CPUTime) -&gt; TCMT IO ModuleThroughput
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#loadModuleThroughput"><span class="hs-identifier hs-var hs-var">loadModuleThroughput</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621681917335"><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681917335"><span class="hs-identifier hs-var">mName</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681917336"><span class="annot"><span class="annottext">CPUTime
+</span><a href="#local-6989586621681917336"><span class="hs-identifier hs-var">totalTime</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-158"></span><span>  </span><span id="local-6989586621681917337"><span class="annot"><a href="#local-6989586621681917337"><span class="hs-identifier hs-var">mi</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName -&gt; TCMT IO (Maybe ModuleInfo)
+forall (m :: * -&gt; *).
+ReadTCState m =&gt;
+TopLevelModuleName -&gt; m (Maybe ModuleInfo)
+</span><a href="Agda.TypeChecking.Monad.Imports.html#getVisitedModule"><span class="hs-identifier hs-var">getVisitedModule</span></a></span><span> </span><span class="annot"><span class="annottext">TopLevelModuleName
+</span><a href="#local-6989586621681917335"><span class="hs-identifier hs-var">mName</span></a></span><span> </span><span class="annot"><span class="annottext">TCMT IO (Maybe ModuleInfo)
+-&gt; (Maybe ModuleInfo -&gt; TCMT IO ModuleInfo) -&gt; TCMT IO ModuleInfo
+forall a b. TCMT IO a -&gt; (a -&gt; TCMT IO b) -&gt; TCMT IO b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-159"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681917338"><span class="annot"><span class="annottext">ModuleInfo
+</span><a href="#local-6989586621681917338"><span class="hs-identifier hs-var">mi</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ModuleInfo -&gt; TCMT IO ModuleInfo
+forall a. a -&gt; TCMT IO a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">ModuleInfo
+</span><a href="#local-6989586621681917338"><span class="hs-identifier hs-var">mi</span></a></span><span>
+</span><span id="line-160"></span><span>    </span><span class="hs-comment">-- Module throughput is rendered only for modules already present in the benchmark output,</span><span>
+</span><span id="line-161"></span><span>    </span><span class="hs-comment">-- so the corresponding module info should already be in the visited-module cache.</span><span>
+</span><span id="line-162"></span><span>    </span><span class="annot"><span class="annottext">Maybe ModuleInfo
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">TCMT IO ModuleInfo
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-163"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621681917339"><span class="annot"><a href="#local-6989586621681917339"><span class="hs-identifier hs-var hs-var">lineCount</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[VerboseKey] -&gt; Int
+forall a. [a] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">VerboseKey -&gt; [VerboseKey]
+</span><span class="hs-identifier hs-var">lines</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; VerboseKey
+</span><span class="hs-identifier hs-var">TL.unpack</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Interface -&gt; Text
+</span><a href="Agda.TypeChecking.Monad.Base.html#iSource"><span class="hs-identifier hs-var">iSource</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ModuleInfo -&gt; Interface
+</span><a href="Agda.TypeChecking.Monad.Base.html#miInterface"><span class="hs-identifier hs-var">miInterface</span></a></span><span> </span><span class="annot"><span class="annottext">ModuleInfo
+</span><a href="#local-6989586621681917337"><span class="hs-identifier hs-var">mi</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-164"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">pure</span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#ModuleThroughput"><span class="hs-identifier hs-type">ModuleThroughput</span></a></span><span>
+</span><span id="line-165"></span><span>    </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#mtModuleName"><span class="hs-identifier hs-var">mtModuleName</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681917335"><span class="hs-identifier hs-type">mName</span></a></span><span>
+</span><span id="line-166"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#mtTime"><span class="hs-identifier hs-var">mtTime</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681917336"><span class="hs-identifier hs-type">totalTime</span></a></span><span>
+</span><span id="line-167"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#mtLineCount"><span class="hs-identifier hs-var">mtLineCount</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621681917339"><span class="hs-identifier hs-type">lineCount</span></a></span><span>
+</span><span id="line-168"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-169"></span><span>
+</span><span id="line-170"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#picosecondsPerSecond"><span class="hs-identifier hs-type">picosecondsPerSecond</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-171"></span><span id="picosecondsPerSecond"><span class="annot"><span class="annottext">picosecondsPerSecond :: Integer
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#picosecondsPerSecond"><span class="hs-identifier hs-var hs-var">picosecondsPerSecond</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1e12</span></span><span>
+</span><span id="line-172"></span><span>
+</span><span id="line-173"></span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#linesPerSecond"><span class="hs-identifier hs-type">linesPerSecond</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#ModuleThroughput"><span class="hs-identifier hs-type">ModuleThroughput</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-174"></span><span id="linesPerSecond"><span class="annot"><span class="annottext">linesPerSecond :: ModuleThroughput -&gt; Integer
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#linesPerSecond"><span class="hs-identifier hs-var hs-var">linesPerSecond</span></a></span></span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Benchmark.html#ModuleThroughput"><span class="hs-identifier hs-type">ModuleThroughput</span></a></span><span class="hs-special">{</span><span> </span><span id="local-6989586621681917346"><span class="annot"><span class="annottext">Int
+mtLineCount :: ModuleThroughput -&gt; Int
+mtLineCount :: Int
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#mtLineCount"><span class="hs-identifier hs-var hs-var">mtLineCount</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">mtTime :: ModuleThroughput -&gt; CPUTime
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#mtTime"><span class="hs-identifier hs-var">mtTime</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.Time.html#CPUTime"><span class="hs-identifier hs-type">CPUTime</span></a></span><span> </span><span id="local-6989586621681917348"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681917348"><span class="hs-identifier hs-var">ps</span></a></span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-175"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681917348"><span class="hs-identifier hs-var">ps</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-176"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double -&gt; Integer
+forall b. Integral b =&gt; Double -&gt; b
+forall a b. (RealFrac a, Integral b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">round</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621681917350"><span class="hs-identifier hs-var">throughput</span></a></span><span>
+</span><span id="line-177"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-178"></span><span>    </span><span id="local-6989586621681917351"><span class="annot"><span class="annottext">elapsedSeconds :: Double
+</span><a href="#local-6989586621681917351"><span class="hs-identifier hs-var hs-var">elapsedSeconds</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-179"></span><span>      </span><span class="annot"><span class="annottext">Integer -&gt; Double
+forall a. Num a =&gt; Integer -&gt; a
+</span><span class="hs-identifier hs-var">fromInteger</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621681917348"><span class="hs-identifier hs-var">ps</span></a></span><span> </span><span class="annot"><span class="annottext">Double -&gt; Double -&gt; Double
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Double
+forall a. Num a =&gt; Integer -&gt; a
+</span><span class="hs-identifier hs-var">fromInteger</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="Agda.TypeChecking.Monad.Benchmark.html#picosecondsPerSecond"><span class="hs-identifier hs-var">picosecondsPerSecond</span></a></span><span>
+</span><span id="line-180"></span><span>    </span><span id="local-6989586621681917350"><span class="annot"><span class="annottext">throughput :: Double
+</span><a href="#local-6989586621681917350"><span class="hs-identifier hs-var hs-var">throughput</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-181"></span><span>      </span><span class="annot"><span class="annottext">Int -&gt; Double
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681917346"><span class="hs-identifier hs-var">mtLineCount</span></a></span><span> </span><span class="annot"><span class="annottext">Double -&gt; Double -&gt; Double
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621681917351"><span class="hs-identifier hs-var">elapsedSeconds</span></a></span><span>
+</span><span id="line-182"></span><span>
+</span><span id="line-183"></span><span class="hs-comment">-- -- | Bill a computation to a specific account.</span><span>
+</span><span id="line-184"></span><span class="hs-comment">-- {-# SPECIALIZE billTo :: Account -&gt; TCM a -&gt; TCM a #-}</span><span>
+</span><span id="line-185"></span><span class="hs-comment">-- billTo :: MonadTCM tcm =&gt; Account -&gt; tcm a -&gt; tcm a</span><span>
+</span><span id="line-186"></span><span class="hs-comment">-- billTo account = lift1TCM $ B.billTo account</span><span>
+</span><span id="line-187"></span><span>   </span><span class="hs-comment">-- Andreas, 2015-05-23</span><span>
+</span><span id="line-188"></span><span>   </span><span class="hs-comment">-- FAILS as lift1TCM :: (TCM a -&gt; TCM b) -&gt; tcm a -&gt; tcm b</span><span>
+</span><span id="line-189"></span><span>   </span><span class="hs-comment">-- cannot be implemented lazily in general.</span><span>
+</span><span id="line-190"></span><span>   </span><span class="hs-comment">-- With `lazily` I mean that embedded IO computations in @tcm a@ are</span><span>
+</span><span id="line-191"></span><span>   </span><span class="hs-comment">-- not executed, but passed on to @TCM a -&gt; TCM b@ unevaluated.</span><span>
+</span><span id="line-192"></span><span>   </span><span class="hs-comment">-- If they are treated strictly, then the whole benchmarking is inaccurate</span><span>
+</span><span id="line-193"></span><span>   </span><span class="hs-comment">-- of course, as the computation is done before the clock is started.</span><span>
+</span><span id="line-194"></span><span>
+</span><span id="line-195"></span><span class="hs-comment">-- -- | Bill a pure computation to a specific account.</span><span>
+</span><span id="line-196"></span><span class="hs-comment">-- {-# SPECIALIZE billPureTo :: Account -&gt; a -&gt; TCM a #-}</span><span>
+</span><span id="line-197"></span><span class="hs-comment">-- billPureTo :: MonadTCM tcm =&gt; Account -&gt; a -&gt; tcm a</span><span>
+</span><span id="line-198"></span><span class="hs-comment">-- billPureTo k a = billTo k $ return a</span><span>
+</span><span id="line-199"></span></pre></body></html>
