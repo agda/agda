@@ -77,6 +77,8 @@ import Agda.Compiler.Backend
 
 import Agda.Mimer.Mimer as Mimer
 
+import Agda.Lemmings.Lemmings as Lemmings
+
 import Agda.Utils.Either
 import Agda.Utils.FileName
 import Agda.Utils.Function
@@ -433,6 +435,7 @@ updateInteractionPointsAfter Cmd_show_module_contents_toplevel{} = False
 updateInteractionPointsAfter Cmd_search_about_toplevel{}         = False
 updateInteractionPointsAfter Cmd_solveAll{}                      = True
 updateInteractionPointsAfter Cmd_solveOne{}                      = True
+updateInteractionPointsAfter Cmd_search{}                        = False
 updateInteractionPointsAfter Cmd_infer_toplevel{}                = False
 updateInteractionPointsAfter Cmd_compute_toplevel{}              = False
 updateInteractionPointsAfter Cmd_load_highlighting_info{}        = False
@@ -711,6 +714,13 @@ interpret (Cmd_autoAll norm) = do
         MimerList{} -> pure $ Right []    -- Don't list solutions in autoAll
     unlessNull (concat solveds) \ solved -> modifyTheInteractionPoints (List.\\ solved)
     unlessNull (concat msgs) (display_info . Info_Auto)
+
+-- Lemmings
+interpret (Cmd_search norm ii rng str) = do
+  rng <- syncInteractionRange ii rng
+  res <- Lemmings.lemmings ii rng str
+  display_info $ Info_Auto res -- TODO: Lemmings will need its own Info_ 
+  
 
 interpret (Cmd_context norm ii _ _) = do
   display_info . Info_Context ii =<< liftLocalState (B.getResponseContext norm ii)
