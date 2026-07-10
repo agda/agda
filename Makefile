@@ -619,7 +619,7 @@ js-compiler-test :
 .PHONY : std-lib-compiler-test ##
 std-lib-compiler-test :
 	@$(call decorate, "Standard library compiler tests", \
-	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include AllStdLib --regex-exclude AllStdLibJS)
+	  GHCRTS=-M6G AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include AllStdLib --regex-exclude AllStdLibJS)
 
 .PHONY : std-lib-compiler-test ##
 std-lib-js-compiler-test :
