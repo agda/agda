@@ -1,18 +1,8 @@
-Checking Issue1232.All (Issue1232/All.agda).
-Checking Issue1232.Fin (Issue1232/Fin.agda).
-Checking Issue1232.List (Issue1232/List.agda).
-Checking Issue1232.Nat (Issue1232/Nat.agda).
-(agda2-status-action "")
-(agda2-info-action "*Type-checking*" "" nil)
-(agda2-highlight-clear)
-(agda2-info-action "*Type-checking*" "Checking Issue1232 (Issue1232.agda)." t)
-(agda2-status-action "Checked")
-(agda2-info-action "*All Done*" "" nil)
-((last . 1) . (agda2-goals-action '()))
-(agda2-status-action "")
-(agda2-info-action "*Type-checking*" "" nil)
-(agda2-highlight-clear)
-(agda2-info-action "*Type-checking*" "Checking Issue1232 (Issue1232.agda)." t)
-(agda2-status-action "Checked")
-(agda2-info-action "*All Done*" "" nil)
-((last . 1) . (agda2-goals-action '()))
+
+Issue1232.hs:«line»:«col»: error:
+Could not find module ‘Agda.Version’
+Perhaps you meant Data.Version (from base-4.17.2.0)
+Use -v (or `:set -v` in ghci) to see a list of the files searched for.
+|
+6 | import Agda.Version
+| ^^^^^^^^^^^^^^^^^^^
