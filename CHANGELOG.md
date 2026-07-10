@@ -339,15 +339,17 @@ Changes to type checker and other components defining the Agda language.
   (visible and hidden) variables of record type in the context to find
   instance fields ([PR #8367](https://github.com/agda/agda/pull/8367)).
 
-  This change allows instance search to work in more contexts
-  (specifically, instance search can now happen even when the types of
-  non-instance arguments are yet-unsolved metavariables, e.g. when they
-  are bound by `∀ x → ...`), and prevents instance search from
-  head-normalising the types of non-instance variables in the context.
+  This change means that instance search can now happen even when the types of
+  non-instance arguments are yet-unsolved metavariables. Specifically, instance
+  search now works in functions with a type signature of the form `∀ x → ...`,
+  where previously it would require the type of `x` to be annotated.
 
-  This means code like the following will no longer work, since it
-  relied on eta-expanding the **visible** argument `r : R` to find the
-  instance field.
+  It also means that instance search no longer requires head-normalising the
+  types of non-instance function arguments, which may have a positive effect on
+  type checking performance.
+
+  Due to this change, code that relied on eta-expanding visible argument (like
+  `r : R` in the example below) to find the instance field will no longer work.
 
   ```agda
   postulate
