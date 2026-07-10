@@ -58,17 +58,12 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
-    # haskell-actions/setup@v2 removed: it has a bug (opts.ts:159) where
-    # it tries to resolve stack-version → GHCup-00130.
-    # We use system GHC + cabal instead (ubuntu-24.04 runner).
-    # See: https://github.com/agda/agda/issues/8619
-    - id: setup-haskell
-      name: Detect Haskell toolchain
-      run: |
-        echo "ghc-version=$(ghc --numeric-version)" >> "${GITHUB_OUTPUT}"
-        echo "cabal-version=$(cabal --numeric-version)" >> "${GITHUB_OUTPUT}"
-        echo "cabal-store=$(cabal path --store-dir 2>/dev/null || echo $HOME/.cabal/store)" >> "${GITHUB_OUTPUT}"
-        cabal update
+    - uses: haskell-actions/setup@v2
+      id: setup-haskell
+      with:
+        ghc-version:   '9.14.1'
+        cabal-version: latest
+        cabal-update:  true
 
     - name: Configure the build plan
       run: |

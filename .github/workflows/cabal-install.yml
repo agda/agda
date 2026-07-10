@@ -29,12 +29,11 @@ jobs:
     steps:
     - uses: actions/checkout@v7
     - id: setup-haskell
-      name: Detect Haskell toolchain
-      run: |
-        echo "ghc-version=$(ghc --numeric-version)" >> "${GITHUB_OUTPUT}"
-        echo "cabal-version=$(cabal --numeric-version)" >> "${GITHUB_OUTPUT}"
-        echo "cabal-store=$(cabal path --store-dir 2>/dev/null || echo $HOME/.cabal/store)" >> "${GITHUB_OUTPUT}"
-        cabal update
+      uses: haskell-actions/setup@v2
+      with:
+        cabal-update: true
+        cabal-version: latest
+        ghc-version: 9.14.1
     - name: Configure the build plan
       run: |
         # shellcheck disable=SC2086
