@@ -17,6 +17,7 @@ import Control.Monad.Except      ( catchError )
 import Control.Monad.Trans.Maybe
 
 import Data.List (find)
+import qualified Data.Map as Map
 
 import Agda.Interaction.Options.Base
 
