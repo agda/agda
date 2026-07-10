@@ -125,7 +125,7 @@ jobs:
         mkdir -p ~/.cabal
       # The presence of ~/.cabal should switch cabal 3.10 to not use the XDG layout.
 
-    - uses: haskell-actions/setup@v2
+    - uses: clearnature/setup@main
       id: setup-haskell
       with:
         ghc-version:   ${{ env.GHC_VER }}

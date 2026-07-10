@@ -29,12 +29,12 @@ jobs:
     steps:
     - uses: actions/checkout@v7
     - id: haskell-setup
-      uses: haskell-actions/setup@v2
+      uses: clearnature/setup@main
       with:
         cabal-update: false
         enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}
-        stack-version: 3.7.1
+        stack-version: latest
     - name: Environment settings based on the Haskell setup
       run: |
         echo "runner.os         = ${{ runner.os                               }}"
