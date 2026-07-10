@@ -160,17 +160,24 @@ data HighlightingMethod
 ---------------------------------------------------------------------------
 
 -- | Discern Agda's primitive modules from other file modules.
---   @IsPrimitiveModule `implies` IsBuiltinModuleWithSafePostulate `implies` isBuiltinModule.
-
+--   @isPrimitiveModule `implies` IsBuiltinModuleWithSafePostulate `implies` isBuiltinModule@.
 --   Keep constructors in this order!
 data IsBuiltinModule
-  = IsPrimitiveModule
-      -- ^ Very magical module, e.g. @Agda.Primitive@.
+  = IsAgdaPrimitive
+      -- ^ @Agda.Primitive@.
+  | IsAgdaPrimitiveCubical
+      -- ^ @Agda.Primitive.Cubical@.
   | IsBuiltinModuleWithSafePostulates
       -- ^ Safe module, e.g. @Agda.Builtin.Equality@.
   | IsBuiltinModule
       -- ^ Any builtin module.
   deriving (Eq, Ord, Show, Generic)
+
+isPrimitiveModule :: IsBuiltinModule -> Bool
+isPrimitiveModule = \case
+  IsAgdaPrimitive        -> True
+  IsAgdaPrimitiveCubical -> True
+  _                      -> False
 
 -- | Collection of 'FileId's of primitive modules.
 

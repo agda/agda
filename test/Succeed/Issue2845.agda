@@ -1,3 +1,5 @@
+{-# OPTIONS --cubical #-}
+
 module Issue2845 where
 
 open import Agda.Builtin.Nat

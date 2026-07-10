@@ -1,6 +1,8 @@
 -- Andreas, 2023-10-07, issue #6825, test case by Amy
 -- Andreas, 2026-04-14, updated to warning
 
+{-# OPTIONS --exact-split #-}
+
 module LetPatternEta where
 
 open import Agda.Builtin.Equality

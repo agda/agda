@@ -1,5 +1,7 @@
 -- Andreas, 2023-10-07, issue #6825, test case by Amy
 
+{-# OPTIONS --exact-split #-}
+
 module TelescopePatternEta where
 
 open import Agda.Builtin.Equality

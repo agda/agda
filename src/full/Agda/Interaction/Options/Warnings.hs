@@ -234,6 +234,7 @@ exactSplitWarnings :: Set WarningName
 exactSplitWarnings = Set.fromList
   [ CoverageNoExactSplit_
   , InlineNoExactSplit_
+  , ShouldBeEtaRecordPattern_
   ]
 
 -- | Both of these warnings are disabled by @-WnoUnusedImports@.

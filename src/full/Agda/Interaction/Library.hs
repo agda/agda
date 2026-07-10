@@ -160,11 +160,14 @@ agdaBuiltin = ("Agda" </>) . ("Builtin" </>)
 
 -- | The very magical, auto-imported modules.
 
+agdaPrimitive :: FilePath
+agdaPrimitive = "Agda" </> "Primitive.agda"
+
+agdaPrimitiveCubical :: FilePath
+agdaPrimitiveCubical = "Agda" </> "Primitive" </> "Cubical.agda"
+
 primitiveModules :: Set FilePath
-primitiveModules = Set.fromList
-  [ "Agda" </> "Primitive.agda"
-  , "Agda" </> "Primitive" </> "Cubical.agda"
-  ]
+primitiveModules = Set.fromList [agdaPrimitive, agdaPrimitiveCubical]
 
 -- | These builtins may use postulates, and are still considered @--safe@.
 
@@ -231,8 +234,9 @@ classifyBuiltinModule_ primLibDir fp = do
   f <- relativizeAbsolutePath fp primLibDir
   guard $ f `Set.member` builtinModules
   if f `Set.member` builtinModulesWithUnsafePostulates then return IsBuiltinModule
-  else if f `Set.member` primitiveModules then return IsPrimitiveModule
-  else return IsBuiltinModuleWithSafePostulates
+  else if f == agdaPrimitive then pure IsAgdaPrimitive
+  else if f == agdaPrimitiveCubical then pure IsAgdaPrimitiveCubical
+  else pure IsBuiltinModuleWithSafePostulates
 
 ------------------------------------------------------------------------
 -- * Get the libraries for the current project

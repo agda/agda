@@ -1486,7 +1486,7 @@ data ModuleInfo = ModuleInfo
     --   These might include warnings not stored in the interface itself,
     --   specifically unsolved interaction metas.
     --   See "Agda.Interaction.Imports"
-  , miPrimitive  :: Bool
+  , miIsBuiltin  :: !(Maybe IsBuiltinModule)
     -- ^ 'True' if the module is a primitive module, which should always
     -- be importable.
   , miMode       :: ModuleCheckMode
@@ -4489,6 +4489,11 @@ envWorkingOnTypes = mkFlag 16
 envPureConversion :: Lens' Flags64 Bool
 envPureConversion = mkFlag 17
 
+-- | Are we doing implicit importing of primitive modules?
+{-# INLINE envImplPrimitiveImporting #-}
+envImplPrimitiveImporting :: Lens' Flags64 Bool
+envImplPrimitiveImporting = mkFlag 18
+
 -- | Choose between behavior in pure conversion and impure conversion.
 --   The first branch is the impure case.
 ifImpureConv :: TCM a -> TCM a -> TCM a
@@ -4519,6 +4524,7 @@ initEnvFlags = Flags64 0
   & envFoldLetBindings       .~ True
   & envMakeCase              .~ False
   & envPureConversion        .~ False
+  & envImplPrimitiveImporting    .~ False
 
 initTCContext :: TCContext
 initTCContext = TCContext {
@@ -4875,6 +4881,10 @@ eWorkingOnTypes = mkEnvFlag 16
 {-# INLINE ePureConversion #-}
 ePureConversion :: Lens' TCEnv Bool
 ePureConversion = mkEnvFlag 17
+
+{-# INLINE eImplPrimitiveImporting #-}
+eImplPrimitiveImporting :: Lens' TCEnv Bool
+eImplPrimitiveImporting = mkEnvFlag 18
 
 
 ----------------------------------------------------------------------------------------------------

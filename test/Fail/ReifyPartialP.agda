@@ -1,3 +1,5 @@
+{-# OPTIONS --cubical #-}
+
 module ReifyPartialP where
 
 open import Agda.Primitive
