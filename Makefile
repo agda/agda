@@ -665,12 +665,12 @@ user-manual-covers-warnings :
 .PHONY : test-suite-covers-warnings ## Check whether the test suite covers all warnings.
 test-suite-covers-warnings :
 	@$(call decorate, "Test suite should cover all warnings", \
-          AGDA_BIN=$(AGDA_BIN) test/test-suite-covers-warnings.sh)
+          LC_ALL=C AGDA_BIN=$(AGDA_BIN) test/test-suite-covers-warnings.sh)
 
 .PHONY : test-suite-covers-errors ## Check whether the test suite covers all errors.
 test-suite-covers-errors :
 	@$(call decorate, "Test suite should cover all errors", \
-          AGDA_BIN=$(AGDA_BIN) test/test-suite-covers-errors.sh)
+          LC_ALL=C AGDA_BIN=$(AGDA_BIN) test/test-suite-covers-errors.sh)
 
 .PHONY : testing-emacs-mode ## Compile the emacs mode and run basic tests.
 testing-emacs-mode:
