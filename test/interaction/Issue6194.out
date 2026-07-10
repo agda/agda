@@ -1,1 +1,9 @@
-B
+Issue6194.hs: Uncaught exception ghc-internal:GHC.Internal.Exception.ErrorCall:
+
+../Issue6194-B/Main: callProcess: posix_spawnp: does not exist (No such file or directory)
+
+While handling callProcess: posix_spawnp: does not exist (No such file or directory)
+
+HasCallStack backtrace:
+ioError, called at libraries/process/System/Process/Common.hs:«line»:«col» in process-1.6.26.1-21fb:System.Process.Common
+
