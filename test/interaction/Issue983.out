@@ -1,3 +1,8 @@
-<no location info>: error:
-/root/agda/highlighting-tmp/ghc16135_tmp_115_0: createDirectory: does not exist (No such file or directory)
 
+Issue983.hs:«line»:«col»: error:
+Could not find module ‘Agda.Version’
+Perhaps you meant Data.Version (from base-4.17.2.0)
+Use -v (or `:set -v` in ghci) to see a list of the files searched for.
+|
+6 | import Agda.Version
+| ^^^^^^^^^^^^^^^^^^^

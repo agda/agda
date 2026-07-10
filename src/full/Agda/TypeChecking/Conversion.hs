@@ -611,12 +611,18 @@ compareAtom cmp t m n =
         -- fix/cubical-path-unify: under --cubical, map equality QName to Path QName
         canonicalEqName :: QName -> TCM QName
         canonicalEqName q = do
-          eqName <- primEqualityName
-          if Just q /= Just eqName then return q else do
-            p <- getBuiltinName' builtinPathP
-            case p of
-              Just pn -> return pn
-              Nothing -> return q
+          -- Use getBuiltinName' (non-throwing) to avoid NoBindingForBuiltin
+          -- when EQUALITY is not bound (e.g. test files importing cubical
+          -- primitives but not Agda.Builtin.Equality).
+          eq <- getBuiltinName' builtinEquality
+          case eq of
+            Nothing   -> return q   -- EQUALITY not bound, nothing to canonicalize
+            Just eqName ->
+              if q /= eqName then return q else do
+                p <- getBuiltinName' builtinPathP
+                case p of
+                  Just pn -> return pn
+                  Nothing -> return q
 
         dir = fromCmp cmp
         rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
@@ -684,7 +690,14 @@ compareAtom cmp t m n =
                   -- fix/cubical-path-unify: normalize equality QName to Path
                   fC  <- canonicalEqName f
                   fC' <- canonicalEqName f'
-                  if fC == fC' then return ()
+                  if fC == fC' then do
+                    -- Canonically equal heads (e.g. both PathP).
+                    -- Compare arguments as in the "heads are equal" branch.
+                    unless (null es && null es') $ do
+                    unlessM (compareEtaPrims fC es es') $ do
+                    a <- computeElimHeadType fC es es'
+                    pol <- getPolarity' cmp fC
+                    compareElims pol [] a (Def fC []) es es'
                   else trySizeUniv cmp t m n f es f' es'
               else do
 
