@@ -604,7 +604,17 @@ compareAtom cmp t m n =
     let m = ignoreBlocking mb
         n = ignoreBlocking nb
 
-        checkDefinitionalEquality = unlessM (pureCompareAs CmpEq t m n) notEqual
+        checkDefinitionalEquality = do
+          cubical <- isJust <$> cubicalOption
+          if not cubical then
+            unlessM (pureCompareAs CmpEq t m n) notEqual
+          else case (m, n) of
+            (Def f _, Def f' _) -> do
+              fC  <- canonicalEqName f
+              fC' <- canonicalEqName f'
+              if fC == fC' then return ()
+              else unlessM (pureCompareAs CmpEq t m n) notEqual
+            _ -> unlessM (pureCompareAs CmpEq t m n) notEqual
 
         notEqual = failConversion cmp m n t
 
