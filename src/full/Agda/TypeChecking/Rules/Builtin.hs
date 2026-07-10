@@ -739,6 +739,20 @@ bindBuiltinEquality x = do
     Datatype { dataCons = [c] } -> do
       bindBuiltinName builtinEquality v
 
+      -- fix/cubical-path-unify: under --cubical, EQUALITY ≡ PATH
+      cubical <- isJust <$> cubicalOption
+      when cubical $ do
+        -- Try to bind PathP to equality QName first
+        r <- tryMaybe $ bindBuiltinName builtinPathP v
+        case r of
+          Just _ -> return ()   -- Success: both point to v
+          Nothing -> do         -- PathP already bound, rebind equality to Path
+            pq <- getBuiltinName' builtinPathP
+            case pq of
+              Just pn -> stLocalBuiltins `modifyTCLens`
+                           Map.insert (BuiltinName builtinEquality) (Builtin (Def pn []))
+              Nothing -> return ()
+
       -- Check type of REFL.  It has to be of the form
       -- pars → (x : A) → Eq ... x x
 
