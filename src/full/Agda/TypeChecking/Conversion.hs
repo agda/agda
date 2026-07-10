@@ -271,7 +271,11 @@ compareAsDir !dir !a = dirToCmp (`compareAs'` a) dir
 
 compareAs' :: Comparison -> CompareAs -> Term -> Term -> TCM ()
 compareAs' !cmp !tt !m !n = case tt of
-  AsTermsOf a -> compareTerm' cmp a m n
+  AsTermsOf a -> do
+    -- fix/cubical-path-unify: normalise before compareTerm'
+    m' <- normalise m
+    n' <- normalise n
+    compareTerm' cmp a m' n'
   AsSizes     -> compareSizes cmp m n
   AsTypes     -> compareAtom cmp AsTypes m n
 
@@ -604,7 +608,17 @@ compareAtom cmp t m n =
     let m = ignoreBlocking mb
         n = ignoreBlocking nb
 
-        checkDefinitionalEquality = unlessM (pureCompareAs CmpEq t m n) notEqual
+        checkDefinitionalEquality = do
+          cubical <- isJust <$> cubicalOption
+          if not cubical then
+            unlessM (pureCompareAs CmpEq t m n) notEqual
+          else case (m, n) of
+            (Def f _, Def f' _) -> do
+              fC  <- canonicalEqName f
+              fC' <- canonicalEqName f'
+              if fC == fC' then return ()
+              else unlessM (pureCompareAs CmpEq t m n) notEqual
+            _ -> unlessM (pureCompareAs CmpEq t m n) notEqual
 
         notEqual = failConversion cmp m n t
 
