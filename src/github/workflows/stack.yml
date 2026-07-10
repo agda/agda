@@ -89,11 +89,12 @@ jobs:
     - id: haskell-setup
       name: Detect Haskell toolchain
       run: |
+        cabal update
         echo "ghc-version=$(ghc --numeric-version)" >> "${GITHUB_OUTPUT}"
         echo "ghc-path=$(dirname $(which ghc))" >> "${GITHUB_OUTPUT}"
         echo "ghc-exe=$(which ghc)" >> "${GITHUB_OUTPUT}"
         echo "cabal-version=$(cabal --numeric-version)" >> "${GITHUB_OUTPUT}"
-        echo "cabal-store=$(cabal path --store-dir 2>/dev/null || echo $HOME/.cabal/store)" >> "${GITHUB_OUTPUT}"
+        echo "cabal-store=$(cabal path --store-dir)" >> "${GITHUB_OUTPUT}"
         echo "cabal-path=$(dirname $(which cabal))" >> "${GITHUB_OUTPUT}"
         echo "cabal-exe=$(which cabal)" >> "${GITHUB_OUTPUT}"
         echo "stack-version=$(stack --numeric-version)" >> "${GITHUB_OUTPUT}"

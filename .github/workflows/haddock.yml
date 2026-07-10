@@ -20,10 +20,10 @@ jobs:
     - id: setup-haskell
       name: Detect Haskell toolchain
       run: |
+        cabal update
         echo "ghc-version=$(ghc --numeric-version)" >> "${GITHUB_OUTPUT}"
         echo "cabal-version=$(cabal --numeric-version)" >> "${GITHUB_OUTPUT}"
-        echo "cabal-store=$(cabal path --store-dir 2>/dev/null || echo $HOME/.cabal/store)" >> "${GITHUB_OUTPUT}"
-        cabal update
+        echo "cabal-store=$(cabal path --store-dir)" >> "${GITHUB_OUTPUT}"
     - name: Configure the build plan
       run: |
         # shellcheck disable=SC2086
