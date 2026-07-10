@@ -68,6 +68,16 @@ lemmings norm iid rng str = liftTCM $ do
   res <- forM namesInScope $ \(x, n) -> do
     t <- normalForm norm =<< typeOfConst (anameName n)
     return (x, t)
+
+  -- NOTE: try filtering by if the types are an instance of the goal type
+  --       and perhaps combine this with the ideas given by Reed
+  --
+  --       instance should be more general than equalType
+  --       need to look into one unification function needs to be called to check this
+  --
+  --       but of course, this may be incredibly slow
+  --
+  --       ideas for after this: figure out a good way of indexing by instace/unification
     
   reportSDoc "lemmings.top" 10 ((TCPretty.text "Found ") TCPretty.<+> (TCPretty.text (show $ length namesInScope)) TCPretty.<+> (TCPretty.text " names"))
   
