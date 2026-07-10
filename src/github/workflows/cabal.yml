@@ -132,10 +132,10 @@ jobs:
     - id: setup-haskell
       name: Detect Haskell toolchain
       run: |
-        cabal update
         echo "ghc-version=$(ghc --numeric-version)" >> "${GITHUB_OUTPUT}"
         echo "cabal-version=$(cabal --numeric-version)" >> "${GITHUB_OUTPUT}"
-        echo "cabal-store=$(cabal path --store-dir)" >> "${GITHUB_OUTPUT}"
+        echo "cabal-store=$(cabal path --store-dir 2>/dev/null || echo $HOME/.cabal/store)" >> "${GITHUB_OUTPUT}"
+        cabal update
 
     # See: https://github.com/haskell/text-icu/pull/86
     # pacman needs MSYS /usr/bin in PATH, but this breaks the latest cache action.
