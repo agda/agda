@@ -608,15 +608,19 @@ compareAtom cmp t m n =
 
         notEqual = failConversion cmp m n t
 
-        -- fix/cubical-path-unify: under --cubical, map equality QName to Path QName
+        -- Under --cubical, map BUILTIN EQUALITY to BUILTIN PATH QName
+        -- so that _≡_ and PathP are unified at the comparison level.
+        -- This avoids touching stLocalBuiltins (mutating the builtin state
+        -- during type-checking causes NoBindingForBuiltin).
+        -- Uses getBuiltinName' (non-throwing) to handle the case where
+        -- EQUALITY is not bound (e.g. test files importing cubical primitives
+        -- but not Agda.Builtin.Equality). Does NOT use defName to avoid
+        -- re-export resolution — only direct QName comparison.
         canonicalEqName :: QName -> TCM QName
         canonicalEqName q = do
-          -- Use getBuiltinName' (non-throwing) to avoid NoBindingForBuiltin
-          -- when EQUALITY is not bound (e.g. test files importing cubical
-          -- primitives but not Agda.Builtin.Equality).
           eq <- getBuiltinName' builtinEquality
           case eq of
-            Nothing   -> return q   -- EQUALITY not bound, nothing to canonicalize
+            Nothing   -> return q
             Just eqName ->
               if q /= eqName then return q else do
                 p <- getBuiltinName' builtinPathP
@@ -687,7 +691,9 @@ compareAtom cmp t m n =
               if f /= f' then do
                 cubical <- isJust <$> cubicalOption
                 if not cubical then trySizeUniv cmp t m n f es f' es' else do
-                  -- fix/cubical-path-unify: normalize equality QName to Path
+                  -- Under --cubical, normalize equality heads to Path.
+                  -- If both map to the same canonical QName (e.g. _≡_ → PathP),
+                  -- compare arguments as equal-headed terms.
                   fC  <- canonicalEqName f
                   fC' <- canonicalEqName f'
                   if fC == fC' then do
