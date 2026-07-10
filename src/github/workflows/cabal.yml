@@ -125,12 +125,17 @@ jobs:
         mkdir -p ~/.cabal
       # The presence of ~/.cabal should switch cabal 3.10 to not use the XDG layout.
 
-    - uses: haskell-actions/setup@v2
-      id: setup-haskell
-      with:
-        ghc-version:   ${{ env.GHC_VER }}
-        cabal-version: latest
-        cabal-update:  true
+    # haskell-actions/setup@v2 removed: it has a bug (opts.ts:159) where
+    # it tries to resolve stack-version → GHCup-00130.
+    # We use system GHC + cabal instead (ubuntu-24.04 runner).
+    # See: https://github.com/agda/agda/issues/8619
+    - id: setup-haskell
+      name: Detect Haskell toolchain
+      run: |
+        cabal update
+        echo "ghc-version=$(ghc --numeric-version)" >> "${GITHUB_OUTPUT}"
+        echo "cabal-version=$(cabal --numeric-version)" >> "${GITHUB_OUTPUT}"
+        echo "cabal-store=$(cabal path --store-dir)" >> "${GITHUB_OUTPUT}"
 
     # See: https://github.com/haskell/text-icu/pull/86
     # pacman needs MSYS /usr/bin in PATH, but this breaks the latest cache action.

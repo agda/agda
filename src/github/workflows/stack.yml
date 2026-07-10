@@ -82,13 +82,27 @@ jobs:
     # because it provides the stack-*.yaml file.
     - uses: actions/checkout@v7
 
-    - uses: haskell-actions/setup@v2
-      id: haskell-setup
-      with:
-        ghc-version: ${{ matrix.ghc-ver }}
-        stack-version: '3.7.1'
-        enable-stack: true
-        cabal-update: false
+    # haskell-actions/setup@v2 removed: it has a bug (opts.ts:159) where
+    # `enable-stack: true` resolves stack-version → GHCup-00130.
+    # We use system GHC + stack instead (ubuntu-24.04 runner).
+    # See: https://github.com/agda/agda/issues/8619
+    - id: haskell-setup
+      name: Detect Haskell toolchain
+      run: |
+        cabal update
+        echo "ghc-version=$(ghc --numeric-version)" >> "${GITHUB_OUTPUT}"
+        echo "ghc-path=$(dirname $(which ghc))" >> "${GITHUB_OUTPUT}"
+        echo "ghc-exe=$(which ghc)" >> "${GITHUB_OUTPUT}"
+        echo "cabal-version=$(cabal --numeric-version)" >> "${GITHUB_OUTPUT}"
+        echo "cabal-store=$(cabal path --store-dir)" >> "${GITHUB_OUTPUT}"
+        echo "cabal-path=$(dirname $(which cabal))" >> "${GITHUB_OUTPUT}"
+        echo "cabal-exe=$(which cabal)" >> "${GITHUB_OUTPUT}"
+        echo "stack-version=$(stack --numeric-version)" >> "${GITHUB_OUTPUT}"
+        echo "stack-root=$(stack path --stack-root)" >> "${GITHUB_OUTPUT}"
+        echo "STACK_ROOT=$(stack path --stack-root)" >> "${GITHUB_ENV}"
+        echo "stack-path=$(dirname $(which stack))" >> "${GITHUB_OUTPUT}"
+        echo "stack-exe=$(which stack)" >> "${GITHUB_OUTPUT}"
+        GHC_VER=$(ghc --numeric-version)
 
     - name: Environment settings based on the Haskell setup
       run: |
