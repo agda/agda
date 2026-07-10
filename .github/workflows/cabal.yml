@@ -35,12 +35,11 @@ jobs:
       run: |
         mkdir -p ~/.cabal
     - id: setup-haskell
-      name: Detect Haskell toolchain
-      run: |
-        cabal update
-        echo "ghc-version=$(ghc --numeric-version)" >> "${GITHUB_OUTPUT}"
-        echo "cabal-version=$(cabal --numeric-version)" >> "${GITHUB_OUTPUT}"
-        echo "cabal-store=$(cabal path --store-dir)" >> "${GITHUB_OUTPUT}"
+      uses: haskell-actions/setup@v2
+      with:
+        cabal-update: true
+        cabal-version: latest
+        ghc-version: ${{ env.GHC_VER }}
     - if: runner.os == 'Windows'
       name: Install the ICU library (Windows)
       run: |
