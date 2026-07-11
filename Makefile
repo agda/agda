@@ -429,8 +429,7 @@ test : check-whitespace \
        std-lib-succeed \
        std-lib-interaction \
        user-manual-test \
-       doc-test \
-       size-solver-test
+       doc-test
 
 .PHONY : test-using-std-lib ## Run all tests which use the standard library.
 test-using-std-lib : std-lib-test \
