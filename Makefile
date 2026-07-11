@@ -4,13 +4,6 @@
 # Profiling settings for std-lib-test
 PROFILEOPTS=--profile=internal
 
-# Default RTS heap limit — CI overrides via GHCRTS env.
-# Container/local use: if unset, cap at 6GB to avoid OOM.
-ifeq ($(origin GHCRTS),undefined)
-  GHCRTS = -M6G
-endif
-export GHCRTS
-
 # Various paths and commands
 
 TOP=.
