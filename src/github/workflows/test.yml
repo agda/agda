@@ -116,15 +116,18 @@ jobs:
       with:
         submodules: recursive
 
+    # haskell-actions/setup@v2 removed: it has a bug (opts.ts:159) where
+    # `enable-stack: false` still resolves stack-version → GHCup-00130.
+    # We use system GHC + system stack instead (ubuntu-24.04 runner).
+    # See: https://github.com/agda/agda/issues/8619
     - &haskell_setup
-      name: Setup Haskell
-      uses: haskell-actions/setup@v2
+      name: Detect Haskell toolchain
       id: setup-haskell
-      with:
-        ghc-version: ${{ env.GHC_VER }}
-        stack-version: latest
-        enable-stack: true
-        cabal-update: false
+      run: |
+        echo "ghc-version=$(ghc --numeric-version)" >> "${GITHUB_OUTPUT}"
+        echo "stack-version=$(stack --numeric-version)" >> "${GITHUB_OUTPUT}"
+        echo "stack-root=$(stack path --stack-root)" >> "${GITHUB_OUTPUT}"
+        echo "STACK_ROOT=$(stack path --stack-root)" >> "${GITHUB_ENV}"
 
     # The Makefile tests whether stack.yaml is present to decide on stack vs. cabal build.
     - name: "Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml"
@@ -211,11 +214,12 @@ jobs:
 
     steps:
     - *checkout
-    - *haskell_setup
 
     - &download_artifact
+      # v7 (not v8): @v8 has a transient digest-mismatch bug that
+      # prevents cache refresh after dependency updates.
       name: Download artifacts
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@v7
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
 
@@ -292,7 +296,6 @@ jobs:
 
     steps:
     - *checkout
-    - *haskell_setup
     - *download_artifact
     - *unpack_artifact
     # - *icu
@@ -316,6 +319,8 @@ jobs:
       # 6m  3s (2022-06-17)
 
     - name: "Standard library compiler tests"
+      env:
+        GHCRTS: -M6G
       run: make std-lib-compiler-test
 
     - name: "Successful tests using the standard library"
@@ -344,7 +349,6 @@ jobs:
 
     steps:
     - *checkout
-    - *haskell_setup
     - *download_artifact
     - *unpack_artifact
     - *icu
@@ -394,7 +398,7 @@ jobs:
       if: always() # run test even if a previous test failed
 
     - name: "Suite of interaction tests"
-      run: make interaction
+      run: yes y | make interaction
       if: always() # run test even if a previous test failed
       # 2m 39s (2022-06-17)
       # This test has erratic outages (#5619), so we place it late in the queue.
@@ -417,7 +421,6 @@ jobs:
 
     steps:
     - *checkout
-    - *haskell_setup
     - *download_artifact
     - *unpack_artifact
     # - *icu
