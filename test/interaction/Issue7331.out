@@ -1,1 +1,7 @@
-Checking Issue7331 (Issue7331/dir/Issue7331.agda).
+1.1-10: error: [ModuleDefinedInOtherFile]
+You tried to load
+Issue7331/dir/Issue7331.agda which
+seems to define the module Issue7331. However, according to the
+include path this module should be defined in
+Issue7331.agda (Hint: no module header
+was found in this file; adding one might fix this error.)
