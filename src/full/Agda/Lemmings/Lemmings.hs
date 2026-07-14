@@ -43,7 +43,7 @@ import Agda.Interaction.BasicOps (normalForm, getModuleContents)
 -- temporarily a tuple of name and type
 type LemmingsResult = [(Name.Name, Type)]
 
--- entry point for running inside a hole 
+-- entry point for running inside a hole
 lemmings :: MonadTCM tcm
   => Rewrite
   -> InteractionId -- the hole to run onn
@@ -57,14 +57,18 @@ lemmings norm iid rng str = liftTCM $ do
   scope <- getInteractionScope iid
   (modules, context, names) <- getModuleContents norm Nothing
 
+  -- get a list of scopes from ScopeInfo and then extract names
   let scopeMods = Map.toList $ scope ^. scopeModules
   let names = map (\(mod, scope) -> (nsNames . allThingsInScope) scope) scopeMods
 
   -- took filtering from SearchAbout
-  -- TODO: cleanup
-  let namesInScope = concat $ map (\snms -> filter ((PatternSynName /=) . anameKind . snd) $ List1.concat $ map (\(c, as) -> fmap (c,) as) $ Map.toList snms) names
-         
-  -- also yanked from SearchAbout but removed filtering
+  let namesInScope = concat
+                     $ map (\snms -> filter ((PatternSynName /=) . anameKind . snd)
+                     $ List1.concat
+                     $ map (\(c, as) -> fmap (c,) as)
+                     $ Map.toList snms) names
+
+  -- get normalised types of all names in scope
   res <- forM namesInScope $ \(x, n) -> do
     t <- normalForm norm =<< typeOfConst (anameName n)
     return (x, t)
@@ -78,22 +82,7 @@ lemmings norm iid rng str = liftTCM $ do
   --       but of course, this may be incredibly slow
   --
   --       ideas for after this: figure out a good way of indexing by instace/unification
-    
-  reportSDoc "lemmings.top" 10 ((TCPretty.text "Found ") TCPretty.<+> (TCPretty.text (show $ length namesInScope)) TCPretty.<+> (TCPretty.text " names"))
-  
-  return res
 
-getAllNames :: Rewrite -> InteractionId -> Range -> String -> [Name.Name] -> TCM [(Name.Name, Type)]
-getAllNames _ _ _ _ [] = return []
-getAllNames norm iid rng str (m:ms) = do
-  (modules, context, names) <- getModuleContents norm (Just (Name.QName m))
-  rest <- getAllNames norm iid rng str ms
-  return (names ++ rest)
-  
--- so incredibly inneficient, just for testing
-resultShow :: LemmingsResult -> CPretty.Doc
-resultShow [] = ""
-resultShow ((name, t):xs) = (CPretty.pretty name) CPretty.<+> (CPretty.text "\n")
-resultShowName :: Name.Name -> String
-resultShowName (Name.Name _ _ parts) = show parts
-resultShowName (NoName _ _ ) = "no name given"
+  reportSDoc "lemmings.top" 10 ((TCPretty.text "Found ") TCPretty.<+> (TCPretty.text (show $ length namesInScope)) TCPretty.<+> (TCPretty.text " names"))
+
+  return res
