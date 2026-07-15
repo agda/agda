@@ -29,7 +29,7 @@ import Agda.Syntax.Concrete.Name as Name
 import Agda.Syntax.Common.Pretty as CPretty
 
 import Agda.TypeChecking.CheckInternal ( checkInternal )
-import Agda.TypeChecking.Conversion (equalType, compareType)
+import Agda.TypeChecking.Conversion (equalType, compareType, leqType)
 import Agda.TypeChecking.Empty (isEmptyType)
 import Agda.TypeChecking.Level (levelType)
 import Agda.TypeChecking.MetaVars (newValueMeta, newTelMeta)
@@ -112,24 +112,31 @@ filterNames ((n, t) : xs) goal = do
 
   reportSDoc "lemmings.top" 20 $ (TCPretty.text "Checking ") TCPretty.<+> TCPretty.pretty t
 
-  subst <- localTCState $ do
-    args <- newTelMeta $ theTel tele
-    -- metas :: [Arg Term]
-    let metas = map unArg args
-        subs = termsS impossible metas
+  -- subst <- localTCState $ do
+  --   args <- newTelMeta $ theTel tele
+  --   -- metas :: [Arg Term]
+  --   let metas = map unArg args
+  --       subs = termsS impossible metas
 
-    reportSDoc "lemmings.top" 20 $ (TCPretty.text "Metas: ") TCPretty.<+> TCPretty.pretty metas
-    reportSDoc "lemmings.top" 20 $ (TCPretty.text "Subs: ") TCPretty.<+> TCPretty.pretty subs
+  --   reportSDoc "lemmings.top" 20 $ (TCPretty.text "Metas: ") TCPretty.<+> TCPretty.pretty metas
+  --   reportSDoc "lemmings.top" 20 $ (TCPretty.text "Subs: ") TCPretty.<+> TCPretty.pretty subs
 
-    return $ applySubst subs t
+  --   return $ applySubst subs t
 
-  reportSDoc "lemmings.top" 20 $ TCPretty.pretty subst
+  -- reportSDoc "lemmings.top" 20 $ TCPretty.pretty subst
+  -- reportSDoc "lemmings.top" 20 $ TCPretty.pretty (generateIsoTypes t)
+  -- reportSDoc "lemmings.top" 20 $ TCPretty.text " "
+
+  --  matchS <- checkType goal subst
+  let isoTypes = generateIsoTypes t
+  reportSDoc "lemmings.top" 20 $ TCPretty.pretty isoTypes
+
+  matchT <- checkTypes goal (generateIsoTypes t)
+
+  reportSDoc "lemmings.top" 20 $ (TCPretty.text "Match?: ") TCPretty.<+> (TCPretty.pretty matchT)
   reportSDoc "lemmings.top" 20 $ TCPretty.text " "
 
-  matchS <- checkType goal subst
-  matchT <- checkType goal t
-
-  if (matchS || matchT) then
+  if (matchT) then
     return $ (n,t) : rest
   else
     return rest
@@ -137,19 +144,42 @@ filterNames ((n, t) : xs) goal = do
 filterNames _ _ = return []
 
 -- TODO: implement
--- TODO: return list of Types instead
--- TODO: need to take in Type or Term?
+-- TODO: ugly!
 -- | Generates a list of types that are isomorphic to the given type under common isomorphisms. Does not generate *all*
 --   isomorphic types.
-generateIsoTypes :: Term -> [Term]
-generateIsoTypes (Pi dom at) = undefined
-generateIsoTypes t = [t]
+generateIsoTypes :: Type -> [Type]
+generateIsoTypes t = case unEl t of
+                       (Pi dom arg) -> t : (map (\term -> El {_getSort = _getSort t, unEl = term}) $ reorderArgs (unEl t))
+                       _ -> [t]
 
+-- TODO: ugly!
+-- TODO: doesn't produce all reorderings
+-- TODO: sort info being passed about is probably wrong
+-- NOTE: seems to currently reorder non-dependent functions without implicit or instance arguments correctly
+--       performance? god knows.
+-- NOTE: for argument reordering, maybe converting both types to a canonical ordering is best? Rather than generating a list
+--       for which may combinatorially explode on function types.... current way isn't a good idea tbh
+reorderArgs :: Term -> [Term]
+reorderArgs (Pi dom (NoAbs name argt)) = case (unEl argt) of
+                                          (Pi dom' (NoAbs name' argt')) -> g ++ map (\term -> Pi dom' (NoAbs name' El {_getSort = _getSort argt, unEl = term})) (f : reorderArgs f)  where
+                                            f = (Pi dom (NoAbs name argt'))
+                                            g = map (\term -> (Pi dom (NoAbs name El {_getSort = _getSort argt', unEl = term}))) (reorderArgs (Pi dom' (NoAbs name' argt')))
 
+                                            -- (Pi dom' (NoAbs name' El {_getSort = _getSort argt, unEl = (Pi dom (NoAbs name argt'))})) : []
+                                          _ -> []
+-- skip dependencies
+reorderArgs (Pi dom (Abs name argt)) = map (\term -> (Pi dom (Abs name El {_getSort = _getSort argt, unEl = term}))) (reorderArgs $ unEl argt)
+reorderArgs t = []
+
+checkTypes :: Type -> [Type] -> TCM Bool
+checkTypes _ [] = return False
+checkTypes g (t:ts) = do
+  check <- checkType g t
+  if check then return check else checkTypes g ts
 
 checkType :: Type -> Type -> TCM Bool
 checkType goal t = do
-  compareType CmpLeq t goal
+  leqType goal t
   return True
   `catchError` \err -> do
     return False
