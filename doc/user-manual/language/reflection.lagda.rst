@@ -918,7 +918,8 @@ In the following example without, :option:`--quote-metas` , the interactive hole
 will cause the constraint to be blocked, which looks something like
 ``quoteTerm ?0 : Term (blocked on _17)``.
 
-::
+.. code-block:: agda
+
     open import Agda.Builtin.Unit
     open import Agda.Builtin.Nat
     open import Agda.Builtin.List
@@ -933,7 +934,6 @@ will cause the constraint to be blocked, which looks something like
 
     _ : Nat
     _ = repeat 10 suc {! !}
-
 
 However, actually unquoting the macro would reveal that the interactive hole
 should have type ``ℕ``. Enabling :option:`--quote-metas` allows exactly this.
