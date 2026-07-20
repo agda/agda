@@ -51,7 +51,8 @@ neg zero    = pos zero
 neg (suc a) = negsuc a
 {-# INLINE neg #-}
 
--- Should compile to a - b
+-- This does not compile to 'a - b' without the case-of-case commuting
+-- conversion, which was removed to fix issue #7595.
 _-N_ : Nat → Nat → Integer
 a -N b with compareNat a b
 ... | less k    = negsuc k
@@ -59,7 +60,8 @@ a -N b with compareNat a b
 ... | greater k = pos (suc k)
 {-# INLINE _-N_ #-}
 
--- Should compile to a + b
+-- This does not compile to 'a - b' without the case-of-case commuting
+-- conversion, which was removed to fix issue #7595.
 _+Z_ : Integer → Integer → Integer
 pos    a +Z pos    b = pos (a + b)
 pos    a +Z negsuc b = a -N suc b

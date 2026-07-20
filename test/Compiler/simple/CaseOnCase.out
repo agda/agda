@@ -16,18 +16,32 @@ out >       _ | c >= 1 → CaseOnCase.Cmp.greater
 out >       _ → CaseOnCase.Cmp.less
 out > CaseOnCase._<_ =
 out >   λ a b →
-out >     let c = CaseOnCase._-_ a b in
+out >     let c =
+out >           let d = CaseOnCase._-_ a b in
+out >           case d of
+out >             0 → CaseOnCase.Cmp.equal
+out >             _ | d >= 1 → CaseOnCase.Cmp.greater
+out >             _ → CaseOnCase.Cmp.less in
 out >     case c of
-out >       0 → Agda.Builtin.Bool.Bool.false
-out >       _ | c >= 1 → Agda.Builtin.Bool.Bool.false
-out >       _ → Agda.Builtin.Bool.Bool.true
+out >       CaseOnCase.Cmp.less → Agda.Builtin.Bool.Bool.true
+out >       CaseOnCase.Cmp.equal → Agda.Builtin.Bool.Bool.false
+out >       CaseOnCase.Cmp.greater → Agda.Builtin.Bool.Bool.false
 out > CaseOnCase.cmp =
 out >   λ a b →
-out >     let c = CaseOnCase._-_ a b in
+out >     let c =
+out >           let d =
+out >                 let e = CaseOnCase._-_ a b in
+out >                 case e of
+out >                   0 → CaseOnCase.Cmp.equal
+out >                   _ | e >= 1 → CaseOnCase.Cmp.greater
+out >                   _ → CaseOnCase.Cmp.less in
+out >           case d of
+out >             CaseOnCase.Cmp.less → Agda.Builtin.Bool.Bool.true
+out >             CaseOnCase.Cmp.equal → Agda.Builtin.Bool.Bool.false
+out >             CaseOnCase.Cmp.greater → Agda.Builtin.Bool.Bool.false in
 out >     case c of
-out >       0 → "not less"
-out >       _ | c >= 1 → "not less"
-out >       _ → "less"
+out >       Agda.Builtin.Bool.Bool.false → "not less"
+out >       Agda.Builtin.Bool.Bool.true → "less"
 out > CaseOnCase.fancyCase =
 out >   λ a b →
 out >     let c = a - 1 in

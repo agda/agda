@@ -125,24 +125,10 @@ simplify FunctionKit{ divAux, modAux, natMinus, true, false } = simpl
         case u of                          -- TODO: also for literals
           _ | Just (c, as)     <- conView u   -> simpl $ matchCon lets c as d bs
             | Just (k, TVar y) <- plusKView u -> simpl . mkLets lets . TCase y t d =<< mapM (matchPlusK y x k) bs
-          TCase y t1 d1 bs1 -> simpl $ mkLets lets $ TCase y t1 (distrDef case1 d1) $
-                                       map (distrCase case1) bs1
-            where
-              -- Γ x Δ -> Γ _ Δ Θ y, where x maps to y and Θ are the lets
-              n     = length lets
-              rho   = liftS (x + n + 1) (raiseS 1)    `composeS`
-                      singletonS (x + n + 1) (TVar 0) `composeS`
-                      raiseS (n + 1)
-              case1 = applySubst rho (TCase x t d bs)
-
-              distrDef v d | isUnreachable d = tUnreachable
-                           | otherwise       = tLet d v
-
-              distrCase v (TACon c a b) = TACon c a $ TLet b $ raiseFrom 1 a v
-              distrCase v (TALit l b)   = TALit l   $ TLet b v
-              distrCase v (TAGuard g b) = TAGuard g $ TLet b v
-
-          _ -> do
+            -- We are not normalizing the case-of-case commuting converison
+            -- since it can lead to major code duplication without join points
+            -- or continuations. See issue #7595.
+            | otherwise -> do
             d <- simpl d
             tCase x t d bs
 
