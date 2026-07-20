@@ -17,15 +17,32 @@ import Data.Maybe
 import Data.Text ( Text )
 import qualified Data.Text as Text
 import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy as LBS
+
+import Data.YAML
+  ( FromYAML( parseYAML )
+  , decode1Strict
+  , prettyPosWithSource
+  , withMap
+  , (.:)
+  )
 
 import Data.Set (Set)
 import qualified Data.Set as Set
 
 import qualified Data.Vector as V
 
+import System.Console.GetOpt
+  ( ArgOrder( Permute )
+  , ArgDescr( NoArg, ReqArg )
+  , OptDescr( Option )
+  , getOpt
+  , usageInfo
+  )
 import System.Environment ( getArgs, getEnv, getProgName )
 import System.Exit        ( die )
 import System.IO          ( hPutStrLn, stderr )
+import System.IO.Error    ( tryIOError )
 
 import GitHub.Auth
   ( Auth( OAuth )
@@ -85,18 +102,39 @@ repo  = "agda"
 theRepo :: String
 theRepo = Text.unpack owner ++ "/" ++ Text.unpack repo
 
-main :: IO ()
-main = getArgs >>= \case
-  "-h"     : _ -> usage
-  "--help" : _ -> usage
-  [arg]        -> run (Text.pack arg)
-  _            -> usage
+defaultConfigFile :: FilePath
+defaultConfigFile = ".github/release.yml"
 
-usage :: IO ()
-usage = do
+data Flag
+  = Config FilePath
+  | Help
+  deriving (Eq)
+
+commandLineOptions :: [OptDescr Flag]
+commandLineOptions =
+  [ Option [] ["config"] (ReqArg Config "FILE") $
+      "Load release configuration from FILE (default: " ++ defaultConfigFile ++ ")"
+  , Option ['h'] ["help"] (NoArg Help) "Show this help text"
+  ]
+
+main :: IO ()
+main = do
   progName <- getProgName
-  putStrLn $ unlines
-    [ "Usage: " ++ progName ++ " <milestone>"
+  (flags, args, errors) <- getOpt Permute commandLineOptions <$> getArgs
+  if Help `elem` flags then
+    putStrLn $ usageText progName
+  else case (errors, [ file | Config file <- flags ], args) of
+    ([], [],     [milestone]) -> runWithConfig defaultConfigFile $ Text.pack milestone
+    ([], [file], [milestone]) -> runWithConfig file              $ Text.pack milestone
+    ([], _ : _ : _, _)       -> dieWithUsage progName "Option --config can only be specified once."
+    ([], _, _)                -> dieWithUsage progName "Expected exactly one milestone."
+    _                         -> dieWithUsage progName $ concat errors
+
+usageText :: String -> String
+usageText progName = usageInfo header commandLineOptions
+  where
+  header = unlines
+    [ "Usage: " ++ progName ++ " [--config FILE] <milestone>"
     , ""
     , "Retrieves closed issues for the given milestone from github repository"
     , theRepo ++ " and prints them as markdown to stdout."
@@ -104,48 +142,49 @@ usage = do
     , "Expects an access token in environment variable GITHUB_TOKEN."
     ]
 
+dieWithUsage :: String -> String -> IO a
+dieWithUsage progName message = die $ message ++ "\n\n" ++ usageText progName
+
 debugPrint :: String -> IO ()
 debugPrint = hPutStrLn stderr
 
 type Label = Text
 
+newtype ReleaseConfig = ReleaseConfig
+  { labelsNotInChangelog :: [Label]
+  }
+
+instance FromYAML ReleaseConfig where
+  parseYAML = withMap "release configuration" $ \ config -> do
+    changelog <- config .: "changelog"
+    withMap "changelog" (\ changelogConfig -> do
+      exclude <- changelogConfig .: "exclude"
+      withMap "exclude" (\ excludeConfig ->
+        ReleaseConfig <$> excludeConfig .: "labels"
+        ) exclude
+      ) changelog
+
+loadReleaseConfig :: FilePath -> IO ReleaseConfig
+loadReleaseConfig file = do
+  contents <- either (die . readError) pure =<< tryIOError (BS.readFile file)
+  case decode1Strict contents of
+    Left (position, message) -> die $
+      file ++ ":" ++ prettyPosWithSource position (LBS.fromStrict contents) " error" ++ message
+    Right config -> pure config
+  where
+  readError err = "Could not read release configuration " ++ file ++ ": " ++ show err
+
+runWithConfig :: FilePath -> Text -> IO ()
+runWithConfig configFile milestone = do
+  ReleaseConfig{ labelsNotInChangelog } <- loadReleaseConfig configFile
+  debugPrint $ "Excluded labels loaded from " ++ configFile ++ ":"
+  forM_ labelsNotInChangelog $ \ label ->
+    debugPrint $ "- " ++ Text.unpack label
+  debugPrint ""
+  run (Set.fromList labelsNotInChangelog) milestone
+
 issueLabelsNames :: Issue -> [Label]
 issueLabelsNames i = map (untagName . labelName) $ V.toList $ issueLabels i
-
--- Please keep the labels in the list in alphabetic order!
-labelsNotInChangelog :: Set Label
-labelsNotInChangelog = Set.fromList
-  [ "Makefile"
-  , "agda-bisect"
-  , "bug-tracker"
-  , "closed-issues-for-milestone"
-  , "debug"
-  , "dev: hlint"
-  , "devx"
-  , "documented-in-changelog"
-  , "faq"
-  , "fix-agda-whitespace"
-  , "haddock"
-  , "hTags"
-  , "infra: github workflows"
-  , "infra: test suite"
-  , "maculata"
-  , "not-in-changelog"
-  , "refactor"
-  , "regression on master"
-  , "release"
-  , "repository"
-  , "status: abandoned"
-  , "status: duplicate"
-  , "status: invalid"
-  , "status: wontfix"
-  , "status: working-as-intended"
-  , "style"
-  , "travis"
-  , "type: question"
-  , "type: task"
-  , "typo"
-  ]
 
 -- | Classification of issues.
 --
@@ -173,8 +212,8 @@ data ClassifiedIssue = ClassifiedIssue
 -- | This classifies issue numbers,
 --   but the field 'happened' is only set correctly for issues, not for milestones.
 --
-classifyIssue :: Id Milestone -> Issue -> Class
-classifyIssue mileStoneId i = Class{..}
+classifyIssue :: Set Label -> Id Milestone -> Issue -> Class
+classifyIssue labelsNotInChangelog mileStoneId i = Class{..}
   where
   correctMilestone        = maybe False ((mileStoneId ==) . milestoneNumber) $ issueMilestone i
   isIssue                 = isNothing $ issuePullRequest i
@@ -209,8 +248,8 @@ debugPrintIssues is title =
 
 
 -- | Retrieve closed issues for the given milestone and print as csv to stdout.
-run :: Text -> IO ()
-run mileStoneTitle = do
+run :: Set Label -> Text -> IO ()
+run labelsNotInChangelog mileStoneTitle = do
 
   -- Get authentication token from environment.
   auth <- OAuth . BS.pack <$> getEnv envGHToken
@@ -238,7 +277,7 @@ run mileStoneTitle = do
   -- Classify issues and remove trailing whitespace from the issue title.
   let issues0 :: [ClassifiedIssue]
       issues0 = reverse (toList issueVector) <&> \ i ->
-        ClassifiedIssue (sanitizeIssue i) (classifyIssue mileStoneId i)
+        ClassifiedIssue (sanitizeIssue i) (classifyIssue labelsNotInChangelog mileStoneId i)
 
   -- We progressively filter out issue numbers not included in changelog.
 

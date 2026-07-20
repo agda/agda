@@ -781,16 +781,19 @@ Closed issues reported in the CHANGELOG
 
 Before releasing for example Agda 1.2.3 we add to the `CHANGELOG`
 *all* the closed issues with milestone 1.2.3 except those issues
-tagged with the labels listed in `labelsNotInChangelog` in the
-`src/release-tools/closed-issues-for-milestone/Main.hs` file.
+tagged with the labels listed under `changelog.exclude.labels` in
+`.github/release.yml`. This is also the list used by GitHub when
+automatically generating release notes.
 
 Closed issues by milestone program
 ----------------------------------
 
-The `closed-issues-by-milestone` program requires a GitHub personal
-access token in the `GITHUBTOKEN` environment variable, i.e,
+The `closed-issues-for-milestone` program loads the release configuration
+from `.github/release.yml` by default. Use `--config FILE` to specify a
+different location. It requires a GitHub personal access token in the
+`GITHUB_TOKEN` environment variable, i.e.,
 
-    export GITHUBTOKEN=your-personal-access-token
+    export GITHUB_TOKEN=your-personal-access-token
 
 The personal access token can be generated from your GitHub user:
 
