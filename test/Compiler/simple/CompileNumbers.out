@@ -32,8 +32,66 @@ out >           Agda.Builtin.Bool.Bool.true →
 out >             CompileNumbers.Diff.greater (a - b - 1)
 out >       Agda.Builtin.Bool.Bool.true → CompileNumbers.Diff.less (b - a - 1)
 out > CompileNumbers.neg = λ a → 0 - a
-out > CompileNumbers._-N_ = λ a b → a - b
-out > CompileNumbers._+Z_ = λ a b → a + b
+out > CompileNumbers._-N_ =
+out >   λ a b →
+out >     let c =
+out >           let d = a < b in
+out >           case d of
+out >             Agda.Builtin.Bool.Bool.false →
+out >               let e = b < a in
+out >               case e of
+out >                 Agda.Builtin.Bool.Bool.false → CompileNumbers.Diff.equal
+out >                 Agda.Builtin.Bool.Bool.true →
+out >                   CompileNumbers.Diff.greater (a - b - 1)
+out >             Agda.Builtin.Bool.Bool.true →
+out >               CompileNumbers.Diff.less (b - a - 1) in
+out >     case c of
+out >       CompileNumbers.Diff.less d → -1 - d
+out >       CompileNumbers.Diff.equal → Agda.Builtin.Nat._-_ a b
+out >       CompileNumbers.Diff.greater d → 1 + d
+out > CompileNumbers._+Z_ =
+out >   λ a b →
+out >     case a of
+out >       _ | a >= 0 →
+out >         case b of
+out >           _ | b >= 0 → a + b
+out >           _ → let c = 0 - b
+out >                   d =
+out >                     let e = 0 - b
+out >                         f = a < 0 - b in
+out >                     case f of
+out >                       Agda.Builtin.Bool.Bool.false →
+out >                         let g = e < a in
+out >                         case g of
+out >                           Agda.Builtin.Bool.Bool.false → CompileNumbers.Diff.equal
+out >                           Agda.Builtin.Bool.Bool.true →
+out >                             CompileNumbers.Diff.greater (a + b - 1)
+out >                       Agda.Builtin.Bool.Bool.true →
+out >                         CompileNumbers.Diff.less (-1 - a - b) in
+out >               case d of
+out >                 CompileNumbers.Diff.less e → -1 - e
+out >                 CompileNumbers.Diff.equal → Agda.Builtin.Nat._-_ a c
+out >                 CompileNumbers.Diff.greater e → 1 + e
+out >       _ → case b of
+out >             _ | b >= 0 →
+out >               let c = 0 - a
+out >                   d =
+out >                     let e = 0 - a
+out >                         f = b < 0 - a in
+out >                     case f of
+out >                       Agda.Builtin.Bool.Bool.false →
+out >                         let g = e < b in
+out >                         case g of
+out >                           Agda.Builtin.Bool.Bool.false → CompileNumbers.Diff.equal
+out >                           Agda.Builtin.Bool.Bool.true →
+out >                             CompileNumbers.Diff.greater (a + b - 1)
+out >                       Agda.Builtin.Bool.Bool.true →
+out >                         CompileNumbers.Diff.less (-1 - a - b) in
+out >               case d of
+out >                 CompileNumbers.Diff.less e → -1 - e
+out >                 CompileNumbers.Diff.equal → Agda.Builtin.Nat._-_ b c
+out >                 CompileNumbers.Diff.greater e → 1 + e
+out >             _ → a + b
 out > CompileNumbers._*Z_ = λ a b → a * b
 out > CompileNumbers.printInt =
 out >   λ a → Common.IO.putStrLn (Common.String.intToString a)
