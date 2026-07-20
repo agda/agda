@@ -1,0 +1,1018 @@
+COMPILE_SUCCEEDED
+
+ret > ExitSuccess
+out > -- simplification (No effect)
+out > -- simplification (No effect)
+out > -- simplification
+out > Issue7595.step =
+out >   λ a →
+out >     let b =
+out >           case a of
+out >             Issue7595.Board.mk-Board c d e f g h i j k →
+out >               let l =
+out >                     let m =
+out >                           let n =
+out >                                 let o =
+out >                                       let p =
+out >                                             let q =
+out >                                                   let r =
+out >                                                         let s =
+out >                                                               let t =
+out >                                                                     Agda.Builtin.Maybe.Maybe.just
+out >                                                                       Issue7595.Cell.[-] in
+out >                                                               case k of
+out >                                                                 Issue7595.Cell.[-] →
+out >                                                                   Agda.Builtin.Maybe.Maybe.nothing
+out >                                                                 _ → t in
+out >                                                         case j of
+out >                                                           Issue7595.Cell.[-] →
+out >                                                             Agda.Builtin.Maybe.Maybe.nothing
+out >                                                           _ → s in
+out >                                                   case h of
+out >                                                     Issue7595.Cell.[-] →
+out >                                                       Agda.Builtin.Maybe.Maybe.nothing
+out >                                                     _ → r in
+out >                                             case g of
+out >                                               Issue7595.Cell.[-] → Agda.Builtin.Maybe.Maybe.nothing
+out >                                               _ → q in
+out >                                       case i of
+out >                                         Issue7595.Cell.[-] →
+out >                                           let q =
+out >                                                 let r = Agda.Builtin.Maybe.Maybe.nothing in
+out >                                                 case h of
+out >                                                   Issue7595.Cell.[-] →
+out >                                                     Agda.Builtin.Maybe.Maybe.nothing
+out >                                                   _ → r in
+out >                                           case g of
+out >                                             Issue7595.Cell.[-] → Agda.Builtin.Maybe.Maybe.nothing
+out >                                             _ → q
+out >                                         Issue7595.Cell.[o] →
+out >                                           case j of
+out >                                             Issue7595.Cell.[o] →
+out >                                               case k of
+out >                                                 Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                                 _ → p
+out >                                             _ → p
+out >                                         Issue7595.Cell.[x] →
+out >                                           case j of
+out >                                             Issue7595.Cell.[x] →
+out >                                               case k of
+out >                                                 Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                                 _ → p
+out >                                             _ → p in
+out >                                 case f of
+out >                                   Issue7595.Cell.[-] →
+out >                                     let p = Agda.Builtin.Maybe.Maybe.nothing in
+out >                                     case i of
+out >                                       Issue7595.Cell.[o] →
+out >                                         case j of
+out >                                           Issue7595.Cell.[o] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → p
+out >                                           _ → p
+out >                                       Issue7595.Cell.[x] →
+out >                                         case j of
+out >                                           Issue7595.Cell.[x] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → p
+out >                                           _ → p
+out >                                       _ → p
+out >                                   Issue7595.Cell.[o] →
+out >                                     let p =
+out >                                           case g of
+out >                                             Issue7595.Cell.[o] →
+out >                                               case h of
+out >                                                 Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just h
+out >                                                 _ → o
+out >                                             _ → o in
+out >                                     case i of
+out >                                       Issue7595.Cell.[x] →
+out >                                         case j of
+out >                                           Issue7595.Cell.[x] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → p
+out >                                           _ → p
+out >                                       _ → p
+out >                                   Issue7595.Cell.[x] →
+out >                                     case g of
+out >                                       Issue7595.Cell.[x] →
+out >                                         case h of
+out >                                           Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just h
+out >                                           _ → o
+out >                                       _ → o in
+out >                           case e of
+out >                             Issue7595.Cell.[-] →
+out >                               let o =
+out >                                     let p = Agda.Builtin.Maybe.Maybe.nothing in
+out >                                     case i of
+out >                                       Issue7595.Cell.[o] →
+out >                                         case j of
+out >                                           Issue7595.Cell.[o] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → p
+out >                                           _ → p
+out >                                       Issue7595.Cell.[x] →
+out >                                         case j of
+out >                                           Issue7595.Cell.[x] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → p
+out >                                           _ → p
+out >                                       _ → p in
+out >                               case f of
+out >                                 Issue7595.Cell.[o] →
+out >                                   let p =
+out >                                         case g of
+out >                                           Issue7595.Cell.[o] →
+out >                                             case h of
+out >                                               Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just h
+out >                                               _ → o
+out >                                           _ → o in
+out >                                   case i of
+out >                                     Issue7595.Cell.[x] →
+out >                                       case j of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → p
+out >                                         _ → p
+out >                                     _ → p
+out >                                 Issue7595.Cell.[x] →
+out >                                   case g of
+out >                                     Issue7595.Cell.[x] →
+out >                                       case h of
+out >                                         Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just h
+out >                                         _ → o
+out >                                     _ → o
+out >                                 _ → o
+out >                             Issue7595.Cell.[o] →
+out >                               let o =
+out >                                     let p =
+out >                                           case h of
+out >                                             Issue7595.Cell.[o] →
+out >                                               case k of
+out >                                                 Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                                 _ → n
+out >                                             _ → n in
+out >                                     case i of
+out >                                       Issue7595.Cell.[o] →
+out >                                         let q =
+out >                                               let r =
+out >                                                     case g of
+out >                                                       Issue7595.Cell.[o] →
+out >                                                         Agda.Builtin.Maybe.Maybe.just g
+out >                                                       _ → p in
+out >                                               case j of
+out >                                                 Issue7595.Cell.[o] →
+out >                                                   case k of
+out >                                                     Issue7595.Cell.[o] →
+out >                                                       Agda.Builtin.Maybe.Maybe.just k
+out >                                                     _ → r
+out >                                                 _ → r in
+out >                                         case h of
+out >                                           Issue7595.Cell.[o] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → q
+out >                                           _ → q
+out >                                       Issue7595.Cell.[x] →
+out >                                         case j of
+out >                                           Issue7595.Cell.[x] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → p
+out >                                           _ → p
+out >                                       _ → p in
+out >                               case f of
+out >                                 Issue7595.Cell.[o] →
+out >                                   let p =
+out >                                         case h of
+out >                                           Issue7595.Cell.[o] →
+out >                                             let q =
+out >                                                   case g of
+out >                                                     Issue7595.Cell.[o] →
+out >                                                       Agda.Builtin.Maybe.Maybe.just g
+out >                                                     _ → o in
+out >                                             case k of
+out >                                               Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → q
+out >                                           _ → o in
+out >                                   case i of
+out >                                     Issue7595.Cell.[x] →
+out >                                       case j of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → p
+out >                                         _ → p
+out >                                     _ → p
+out >                                 Issue7595.Cell.[x] →
+out >                                   case g of
+out >                                     Issue7595.Cell.[x] →
+out >                                       case h of
+out >                                         Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just h
+out >                                         _ → o
+out >                                     _ → o
+out >                                 _ → o
+out >                             Issue7595.Cell.[x] →
+out >                               let o =
+out >                                     case i of
+out >                                       Issue7595.Cell.[x] →
+out >                                         let p =
+out >                                               case g of
+out >                                                 Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just g
+out >                                                 _ → n in
+out >                                         case j of
+out >                                           Issue7595.Cell.[x] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → p
+out >                                           _ → p
+out >                                       _ → n in
+out >                               case h of
+out >                                 Issue7595.Cell.[x] →
+out >                                   let p =
+out >                                         case f of
+out >                                           Issue7595.Cell.[x] →
+out >                                             case g of
+out >                                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just g
+out >                                               _ → o
+out >                                           _ → o in
+out >                                   case k of
+out >                                     Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                     _ → p
+out >                                 _ → o in
+out >                     case d of
+out >                       Issue7595.Cell.[-] →
+out >                         let n =
+out >                               let o =
+out >                                     let p = Agda.Builtin.Maybe.Maybe.nothing in
+out >                                     case i of
+out >                                       Issue7595.Cell.[o] →
+out >                                         case j of
+out >                                           Issue7595.Cell.[o] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → p
+out >                                           _ → p
+out >                                       Issue7595.Cell.[x] →
+out >                                         case j of
+out >                                           Issue7595.Cell.[x] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → p
+out >                                           _ → p
+out >                                       _ → p in
+out >                               case f of
+out >                                 Issue7595.Cell.[o] →
+out >                                   let p =
+out >                                         case g of
+out >                                           Issue7595.Cell.[o] →
+out >                                             case h of
+out >                                               Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just h
+out >                                               _ → o
+out >                                           _ → o in
+out >                                   case i of
+out >                                     Issue7595.Cell.[x] →
+out >                                       case j of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → p
+out >                                         _ → p
+out >                                     _ → p
+out >                                 Issue7595.Cell.[x] →
+out >                                   case g of
+out >                                     Issue7595.Cell.[x] →
+out >                                       case h of
+out >                                         Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just h
+out >                                         _ → o
+out >                                     _ → o
+out >                                 _ → o in
+out >                         case e of
+out >                           Issue7595.Cell.[o] →
+out >                             let o =
+out >                                   let p =
+out >                                         case h of
+out >                                           Issue7595.Cell.[o] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → n
+out >                                           _ → n in
+out >                                   case i of
+out >                                     Issue7595.Cell.[o] →
+out >                                       let q =
+out >                                             let r =
+out >                                                   case g of
+out >                                                     Issue7595.Cell.[o] →
+out >                                                       Agda.Builtin.Maybe.Maybe.just g
+out >                                                     _ → p in
+out >                                             case j of
+out >                                               Issue7595.Cell.[o] →
+out >                                                 case k of
+out >                                                   Issue7595.Cell.[o] →
+out >                                                     Agda.Builtin.Maybe.Maybe.just k
+out >                                                   _ → r
+out >                                               _ → r in
+out >                                       case h of
+out >                                         Issue7595.Cell.[o] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → q
+out >                                         _ → q
+out >                                     Issue7595.Cell.[x] →
+out >                                       case j of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → p
+out >                                         _ → p
+out >                                     _ → p in
+out >                             case f of
+out >                               Issue7595.Cell.[o] →
+out >                                 let p =
+out >                                       case h of
+out >                                         Issue7595.Cell.[o] →
+out >                                           let q =
+out >                                                 case g of
+out >                                                   Issue7595.Cell.[o] →
+out >                                                     Agda.Builtin.Maybe.Maybe.just g
+out >                                                   _ → o in
+out >                                           case k of
+out >                                             Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → q
+out >                                         _ → o in
+out >                                 case i of
+out >                                   Issue7595.Cell.[x] →
+out >                                     case j of
+out >                                       Issue7595.Cell.[x] →
+out >                                         case k of
+out >                                           Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                           _ → p
+out >                                       _ → p
+out >                                   _ → p
+out >                               Issue7595.Cell.[x] →
+out >                                 case g of
+out >                                   Issue7595.Cell.[x] →
+out >                                     case h of
+out >                                       Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just h
+out >                                       _ → o
+out >                                   _ → o
+out >                               _ → o
+out >                           Issue7595.Cell.[x] →
+out >                             let o =
+out >                                   case i of
+out >                                     Issue7595.Cell.[x] →
+out >                                       let p =
+out >                                             case g of
+out >                                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just g
+out >                                               _ → n in
+out >                                       case j of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → p
+out >                                         _ → p
+out >                                     _ → n in
+out >                             case h of
+out >                               Issue7595.Cell.[x] →
+out >                                 let p =
+out >                                       case f of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case g of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just g
+out >                                             _ → o
+out >                                         _ → o in
+out >                                 case k of
+out >                                   Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                   _ → p
+out >                               _ → o
+out >                           _ → n
+out >                       Issue7595.Cell.[o] →
+out >                         let n =
+out >                               let o =
+out >                                     let p =
+out >                                           case g of
+out >                                             Issue7595.Cell.[o] →
+out >                                               case j of
+out >                                                 Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just j
+out >                                                 _ → m
+out >                                             _ → m in
+out >                                     case i of
+out >                                       Issue7595.Cell.[x] →
+out >                                         case j of
+out >                                           Issue7595.Cell.[x] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → p
+out >                                           _ → p
+out >                                       _ → p in
+out >                               case f of
+out >                                 Issue7595.Cell.[x] →
+out >                                   case g of
+out >                                     Issue7595.Cell.[x] →
+out >                                       case h of
+out >                                         Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just h
+out >                                         _ → o
+out >                                     _ → o
+out >                                 _ → o in
+out >                         case e of
+out >                           Issue7595.Cell.[x] →
+out >                             let o =
+out >                                   case i of
+out >                                     Issue7595.Cell.[x] →
+out >                                       let p =
+out >                                             case g of
+out >                                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just g
+out >                                               _ → n in
+out >                                       case j of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → p
+out >                                         _ → p
+out >                                     _ → n in
+out >                             case h of
+out >                               Issue7595.Cell.[x] →
+out >                                 let p =
+out >                                       case f of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case g of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just g
+out >                                             _ → o
+out >                                         _ → o in
+out >                                 case k of
+out >                                   Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                   _ → p
+out >                               _ → o
+out >                           _ → n
+out >                       Issue7595.Cell.[x] →
+out >                         case g of
+out >                           Issue7595.Cell.[x] →
+out >                             case j of
+out >                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just j
+out >                               _ → m
+out >                           _ → m in
+out >               case c of
+out >                 Issue7595.Cell.[-] →
+out >                   let m =
+out >                         let n =
+out >                               let o =
+out >                                     let p = Agda.Builtin.Maybe.Maybe.nothing in
+out >                                     case i of
+out >                                       Issue7595.Cell.[o] →
+out >                                         case j of
+out >                                           Issue7595.Cell.[o] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → p
+out >                                           _ → p
+out >                                       Issue7595.Cell.[x] →
+out >                                         case j of
+out >                                           Issue7595.Cell.[x] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → p
+out >                                           _ → p
+out >                                       _ → p in
+out >                               case f of
+out >                                 Issue7595.Cell.[o] →
+out >                                   let p =
+out >                                         case g of
+out >                                           Issue7595.Cell.[o] →
+out >                                             case h of
+out >                                               Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just h
+out >                                               _ → o
+out >                                           _ → o in
+out >                                   case i of
+out >                                     Issue7595.Cell.[x] →
+out >                                       case j of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → p
+out >                                         _ → p
+out >                                     _ → p
+out >                                 Issue7595.Cell.[x] →
+out >                                   case g of
+out >                                     Issue7595.Cell.[x] →
+out >                                       case h of
+out >                                         Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just h
+out >                                         _ → o
+out >                                     _ → o
+out >                                 _ → o in
+out >                         case e of
+out >                           Issue7595.Cell.[o] →
+out >                             let o =
+out >                                   let p =
+out >                                         case h of
+out >                                           Issue7595.Cell.[o] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → n
+out >                                           _ → n in
+out >                                   case i of
+out >                                     Issue7595.Cell.[o] →
+out >                                       let q =
+out >                                             let r =
+out >                                                   case g of
+out >                                                     Issue7595.Cell.[o] →
+out >                                                       Agda.Builtin.Maybe.Maybe.just g
+out >                                                     _ → p in
+out >                                             case j of
+out >                                               Issue7595.Cell.[o] →
+out >                                                 case k of
+out >                                                   Issue7595.Cell.[o] →
+out >                                                     Agda.Builtin.Maybe.Maybe.just k
+out >                                                   _ → r
+out >                                               _ → r in
+out >                                       case h of
+out >                                         Issue7595.Cell.[o] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → q
+out >                                         _ → q
+out >                                     Issue7595.Cell.[x] →
+out >                                       case j of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → p
+out >                                         _ → p
+out >                                     _ → p in
+out >                             case f of
+out >                               Issue7595.Cell.[o] →
+out >                                 let p =
+out >                                       case h of
+out >                                         Issue7595.Cell.[o] →
+out >                                           let q =
+out >                                                 case g of
+out >                                                   Issue7595.Cell.[o] →
+out >                                                     Agda.Builtin.Maybe.Maybe.just g
+out >                                                   _ → o in
+out >                                           case k of
+out >                                             Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → q
+out >                                         _ → o in
+out >                                 case i of
+out >                                   Issue7595.Cell.[x] →
+out >                                     case j of
+out >                                       Issue7595.Cell.[x] →
+out >                                         case k of
+out >                                           Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                           _ → p
+out >                                       _ → p
+out >                                   _ → p
+out >                               Issue7595.Cell.[x] →
+out >                                 case g of
+out >                                   Issue7595.Cell.[x] →
+out >                                     case h of
+out >                                       Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just h
+out >                                       _ → o
+out >                                   _ → o
+out >                               _ → o
+out >                           Issue7595.Cell.[x] →
+out >                             let o =
+out >                                   case i of
+out >                                     Issue7595.Cell.[x] →
+out >                                       let p =
+out >                                             case g of
+out >                                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just g
+out >                                               _ → n in
+out >                                       case j of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → p
+out >                                         _ → p
+out >                                     _ → n in
+out >                             case h of
+out >                               Issue7595.Cell.[x] →
+out >                                 let p =
+out >                                       case f of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case g of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just g
+out >                                             _ → o
+out >                                         _ → o in
+out >                                 case k of
+out >                                   Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                   _ → p
+out >                               _ → o
+out >                           _ → n in
+out >                   case d of
+out >                     Issue7595.Cell.[o] →
+out >                       let n =
+out >                             let o =
+out >                                   let p =
+out >                                         case g of
+out >                                           Issue7595.Cell.[o] →
+out >                                             case j of
+out >                                               Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just j
+out >                                               _ → m
+out >                                           _ → m in
+out >                                   case i of
+out >                                     Issue7595.Cell.[x] →
+out >                                       case j of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → p
+out >                                         _ → p
+out >                                     _ → p in
+out >                             case f of
+out >                               Issue7595.Cell.[x] →
+out >                                 case g of
+out >                                   Issue7595.Cell.[x] →
+out >                                     case h of
+out >                                       Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just h
+out >                                       _ → o
+out >                                   _ → o
+out >                               _ → o in
+out >                       case e of
+out >                         Issue7595.Cell.[x] →
+out >                           let o =
+out >                                 case i of
+out >                                   Issue7595.Cell.[x] →
+out >                                     let p =
+out >                                           case g of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just g
+out >                                             _ → n in
+out >                                     case j of
+out >                                       Issue7595.Cell.[x] →
+out >                                         case k of
+out >                                           Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                           _ → p
+out >                                       _ → p
+out >                                   _ → n in
+out >                           case h of
+out >                             Issue7595.Cell.[x] →
+out >                               let p =
+out >                                     case f of
+out >                                       Issue7595.Cell.[x] →
+out >                                         case g of
+out >                                           Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just g
+out >                                           _ → o
+out >                                       _ → o in
+out >                               case k of
+out >                                 Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                 _ → p
+out >                             _ → o
+out >                         _ → n
+out >                     Issue7595.Cell.[x] →
+out >                       case g of
+out >                         Issue7595.Cell.[x] →
+out >                           case j of
+out >                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just j
+out >                             _ → m
+out >                         _ → m
+out >                     _ → m
+out >                 Issue7595.Cell.[o] →
+out >                   let m =
+out >                         let n =
+out >                               let o =
+out >                                     let p =
+out >                                           case g of
+out >                                             Issue7595.Cell.[o] →
+out >                                               case k of
+out >                                                 Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                                 _ → l
+out >                                             _ → l in
+out >                                     case i of
+out >                                       Issue7595.Cell.[o] →
+out >                                         case j of
+out >                                           Issue7595.Cell.[o] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → p
+out >                                           _ → p
+out >                                       Issue7595.Cell.[x] →
+out >                                         case j of
+out >                                           Issue7595.Cell.[x] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → p
+out >                                           _ → p
+out >                                       _ → p in
+out >                               case f of
+out >                                 Issue7595.Cell.[o] →
+out >                                   let p =
+out >                                         case g of
+out >                                           Issue7595.Cell.[o] →
+out >                                             case h of
+out >                                               Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just h
+out >                                               _ → o
+out >                                           _ → o in
+out >                                   case i of
+out >                                     Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just i
+out >                                     Issue7595.Cell.[x] →
+out >                                       case j of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → p
+out >                                         _ → p
+out >                                     _ → p
+out >                                 Issue7595.Cell.[x] →
+out >                                   case g of
+out >                                     Issue7595.Cell.[x] →
+out >                                       case h of
+out >                                         Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just h
+out >                                         _ → o
+out >                                     _ → o
+out >                                 _ → o in
+out >                         case e of
+out >                           Issue7595.Cell.[o] →
+out >                             let o =
+out >                                   let p =
+out >                                         case h of
+out >                                           Issue7595.Cell.[o] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → n
+out >                                           _ → n in
+out >                                   case i of
+out >                                     Issue7595.Cell.[x] →
+out >                                       case j of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → p
+out >                                         _ → p
+out >                                     _ → p in
+out >                             case f of
+out >                               Issue7595.Cell.[o] →
+out >                                 case i of
+out >                                   Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just i
+out >                                   Issue7595.Cell.[x] →
+out >                                     case j of
+out >                                       Issue7595.Cell.[x] →
+out >                                         case k of
+out >                                           Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                           _ → o
+out >                                       _ → o
+out >                                   _ → o
+out >                               Issue7595.Cell.[x] →
+out >                                 case g of
+out >                                   Issue7595.Cell.[x] →
+out >                                     case h of
+out >                                       Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just h
+out >                                       _ → o
+out >                                   _ → o
+out >                               _ → o
+out >                           Issue7595.Cell.[x] →
+out >                             let o =
+out >                                   case i of
+out >                                     Issue7595.Cell.[x] →
+out >                                       let p =
+out >                                             case g of
+out >                                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just g
+out >                                               _ → n in
+out >                                       case j of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → p
+out >                                         _ → p
+out >                                     _ → n in
+out >                             case h of
+out >                               Issue7595.Cell.[x] →
+out >                                 let p =
+out >                                       case f of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case g of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just g
+out >                                             _ → o
+out >                                         _ → o in
+out >                                 case k of
+out >                                   Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                   _ → p
+out >                               _ → o
+out >                           _ → n in
+out >                   case d of
+out >                     Issue7595.Cell.[o] →
+out >                       let n =
+out >                             let o =
+out >                                   let p =
+out >                                         case g of
+out >                                           Issue7595.Cell.[o] →
+out >                                             case j of
+out >                                               Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just j
+out >                                               _ → m
+out >                                           _ → m in
+out >                                   case i of
+out >                                     Issue7595.Cell.[x] →
+out >                                       case j of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → p
+out >                                         _ → p
+out >                                     _ → p in
+out >                             case f of
+out >                               Issue7595.Cell.[o] →
+out >                                 case i of
+out >                                   Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just i
+out >                                   Issue7595.Cell.[x] →
+out >                                     case j of
+out >                                       Issue7595.Cell.[x] →
+out >                                         case k of
+out >                                           Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                           _ → o
+out >                                       _ → o
+out >                                   _ → o
+out >                               Issue7595.Cell.[x] →
+out >                                 case g of
+out >                                   Issue7595.Cell.[x] →
+out >                                     case h of
+out >                                       Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just h
+out >                                       _ → o
+out >                                   _ → o
+out >                               _ → o in
+out >                       case e of
+out >                         Issue7595.Cell.[o] →
+out >                           let o =
+out >                                 let p =
+out >                                       let q =
+out >                                             let r = Agda.Builtin.Maybe.Maybe.just e in
+out >                                             case h of
+out >                                               Issue7595.Cell.[o] →
+out >                                                 case k of
+out >                                                   Issue7595.Cell.[o] →
+out >                                                     Agda.Builtin.Maybe.Maybe.just k
+out >                                                   _ → r
+out >                                               _ → r in
+out >                                       case g of
+out >                                         Issue7595.Cell.[o] →
+out >                                           case j of
+out >                                             Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just j
+out >                                             _ → q
+out >                                         _ → q in
+out >                                 case i of
+out >                                   Issue7595.Cell.[x] →
+out >                                     case j of
+out >                                       Issue7595.Cell.[x] →
+out >                                         case k of
+out >                                           Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                           _ → p
+out >                                       _ → p
+out >                                   _ → p in
+out >                           case f of
+out >                             Issue7595.Cell.[o] →
+out >                               case i of
+out >                                 Issue7595.Cell.[o] → Agda.Builtin.Maybe.Maybe.just i
+out >                                 Issue7595.Cell.[x] →
+out >                                   case j of
+out >                                     Issue7595.Cell.[x] →
+out >                                       case k of
+out >                                         Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                         _ → o
+out >                                     _ → o
+out >                                 _ → o
+out >                             Issue7595.Cell.[x] →
+out >                               case g of
+out >                                 Issue7595.Cell.[x] →
+out >                                   case h of
+out >                                     Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just h
+out >                                     _ → o
+out >                                 _ → o
+out >                             _ → o
+out >                         Issue7595.Cell.[x] →
+out >                           let o =
+out >                                 case i of
+out >                                   Issue7595.Cell.[x] →
+out >                                     let p =
+out >                                           case g of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just g
+out >                                             _ → n in
+out >                                     case j of
+out >                                       Issue7595.Cell.[x] →
+out >                                         case k of
+out >                                           Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                           _ → p
+out >                                       _ → p
+out >                                   _ → n in
+out >                           case h of
+out >                             Issue7595.Cell.[x] →
+out >                               let p =
+out >                                     case f of
+out >                                       Issue7595.Cell.[x] →
+out >                                         case g of
+out >                                           Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just g
+out >                                           _ → o
+out >                                       _ → o in
+out >                               case k of
+out >                                 Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                 _ → p
+out >                             _ → o
+out >                         _ → n
+out >                     Issue7595.Cell.[x] →
+out >                       case g of
+out >                         Issue7595.Cell.[x] →
+out >                           case j of
+out >                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just j
+out >                             _ → m
+out >                         _ → m
+out >                     _ → m
+out >                 Issue7595.Cell.[x] →
+out >                   let m =
+out >                         let n =
+out >                               let o =
+out >                                     let p =
+out >                                           case g of
+out >                                             Issue7595.Cell.[x] →
+out >                                               case k of
+out >                                                 Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                                 _ → l
+out >                                             _ → l in
+out >                                     case i of
+out >                                       Issue7595.Cell.[x] →
+out >                                         case j of
+out >                                           Issue7595.Cell.[x] →
+out >                                             case k of
+out >                                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                               _ → p
+out >                                           _ → p
+out >                                       _ → p in
+out >                               case e of
+out >                                 Issue7595.Cell.[x] →
+out >                                   case h of
+out >                                     Issue7595.Cell.[x] →
+out >                                       case k of
+out >                                         Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                         _ → o
+out >                                     _ → o
+out >                                 _ → o in
+out >                         case d of
+out >                           Issue7595.Cell.[x] →
+out >                             let o =
+out >                                   case e of
+out >                                     Issue7595.Cell.[x] →
+out >                                       let p = Agda.Builtin.Maybe.Maybe.just e in
+out >                                       case h of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → p
+out >                                         _ → p
+out >                                     _ → n in
+out >                             case g of
+out >                               Issue7595.Cell.[x] →
+out >                                 case j of
+out >                                   Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just j
+out >                                   _ → o
+out >                               _ → o
+out >                           _ → n in
+out >                   case f of
+out >                     Issue7595.Cell.[x] →
+out >                       let n =
+out >                             let o =
+out >                                   let p =
+out >                                         case g of
+out >                                           Issue7595.Cell.[x] →
+out >                                             case h of
+out >                                               Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just h
+out >                                               _ → m
+out >                                           _ → m in
+out >                                   case e of
+out >                                     Issue7595.Cell.[x] →
+out >                                       case h of
+out >                                         Issue7595.Cell.[x] →
+out >                                           case k of
+out >                                             Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                             _ → p
+out >                                         _ → p
+out >                                     _ → p in
+out >                             case d of
+out >                               Issue7595.Cell.[x] →
+out >                                 let p =
+out >                                       case e of
+out >                                         Issue7595.Cell.[x] →
+out >                                           let q = Agda.Builtin.Maybe.Maybe.just e in
+out >                                           case h of
+out >                                             Issue7595.Cell.[x] →
+out >                                               case k of
+out >                                                 Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just k
+out >                                                 _ → q
+out >                                             _ → q
+out >                                         _ → o in
+out >                                 case g of
+out >                                   Issue7595.Cell.[x] →
+out >                                     case j of
+out >                                       Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just j
+out >                                       _ → p
+out >                                   _ → p
+out >                               _ → o in
+out >                       case i of
+out >                         Issue7595.Cell.[x] → Agda.Builtin.Maybe.Maybe.just i
+out >                         _ → n
+out >                     _ → m in
+out >     case b of
+out >       Agda.Builtin.Maybe.Maybe.just _ → a
+out >       Agda.Builtin.Maybe.Maybe.nothing → Issue7595.b0
+out > -- simplification (No effect)
+out >
