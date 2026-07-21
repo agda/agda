@@ -1,0 +1,8 @@
+TestOptions
+  { forCompilers =
+      [ (MAlonzo Lazy, CompilerOptions {extraAgdaArgs = []})
+      , (JS NonOptimized, CompilerOptions {extraAgdaArgs = []})
+      ]
+  , runtimeOptions = []
+  , executeProg = True
+  }
