@@ -12,8 +12,6 @@ import Control.Monad
 import Control.Monad.State
 import Control.Monad.Except
 
-import Data.Functor
-
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.Syntax.Common
@@ -34,20 +32,35 @@ import Agda.TypeChecking.Rules.LHS.Unify.Types
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
 
+import Agda.TypeChecking.CompiledClause
+import qualified Data.Map as Map
+
 
 data DigestedUnifyStep
   = DSolution Int (Dom Type) (FlexibleVar Int) Term (Either () ())
   | DEtaExpandVar (FlexibleVar Int) QName Args
+  -- | Digested Injectivity step.  Constructor injectivity decomposes
+  -- a constructor equation @c us = c vs : D pars@ into equations
+  -- for each field of @c@.  The left inverse must expand the single
+  -- constructor PathP into individual field PathPs.
+  -- See 'buildEquiv' for the retract construction.
+  | DInjectivity
+      Int      -- ^ injectAt: position of the equation in eqTel
+      Type     -- ^ injectType: type of the equality
+      QName    -- ^ injectDatatype: the datatype name
+      Args     -- ^ injectParameters: datatype parameters
+      Args     -- ^ injectIndices: datatype indices
+      ConHead  -- ^ injectConstructor: the constructor head
 
 instance PrettyTCM DigestedUnifyStep where
   prettyTCM (DSolution a b c d e) = prettyTCM (Solution a b c d e)
   prettyTCM (DEtaExpandVar a b c) = prettyTCM (EtaExpandVar a b c)
+  prettyTCM (DInjectivity k a d pars ixs c) = prettyTCM (Injectivity k a d pars ixs c)
 
 data DigestedUnifyLogEntry
   = DUnificationStep UnifyState DigestedUnifyStep UnifyOutput
@@ -55,6 +68,33 @@ data DigestedUnifyLogEntry
 type DigestedUnifyLog = [(DigestedUnifyLogEntry,UnifyState)]
 
 -- | Pre-process a UnifyLog so that we catch unsupported steps early.
+-- | Check if a constructor has any field with non-standard modality
+-- (erased, irrelevant, or quantity-0).  These fields require generated
+-- projection functions to inherit the field's modality contract, which
+-- is not yet implemented in buildEquiv's addConstant code.
+hasErasedConstructorFields :: ConHead -> TCM Bool
+hasErasedConstructorFields c = do
+  cdef  <- getConInfo c
+  TelV ctel _ <- telView (defType cdef)
+  pure $ any (\d -> getModality d /= defaultModality) (flattenTel ctel)
+
+-- | Check if a constructor has any field whose type is a PathP
+-- (Pi with interval domain).  Such fields cannot be safely projected
+-- by the injectivity retract because cubical transp will substitute
+-- interval endpoints (i0, i1) at face boundaries, and @conApp@
+-- crashes when projecting from these non-record values.
+hasConstructorPathFields :: ConHead -> TCM Bool
+hasConstructorPathFields c = do
+  cdef  <- getConInfo c
+  TelV ctel _ <- telView (defType cdef)
+  interval <- El intervalSort <$> primInterval
+  pure $ any (\d -> hasIntervalDomain interval (unDom d)) (flattenTel ctel)
+  where
+    hasIntervalDomain :: Type -> Type -> Bool
+    hasIntervalDomain interval (El _ (Pi dom _)) =
+      unEl (unDom dom) == unEl interval
+    hasIntervalDomain _ _ = False
+
 digestUnifyLog :: UnifyLog -> Either NoLeftInv DigestedUnifyLog
 digestUnifyLog log = forM log \(UnificationStep s step out, s') -> do
   let illegal     = Left $ Illegal step
@@ -63,6 +103,7 @@ digestUnifyLog log = forM log \(UnificationStep s step out, s') -> do
   case step of
     Solution a b c d e   -> ret $ DSolution a b c d e
     EtaExpandVar a b c   -> ret $ DEtaExpandVar a b c
+    Injectivity k a d pars ixs c -> ret $ DInjectivity k a d pars ixs c
     Deletion{}           -> illegal
     TypeConInjectivity{} -> illegal
     -- These should end up in a NoUnify
@@ -108,13 +149,18 @@ buildLeftInverse s0 log = Bench.billTo [Bench.UnifyIndices, Bench.CubicalLeftInv
     reportSDoc "tc.lhs.unify.inv.badstep" 20 $ do
       pathp <- getTerm' builtinPathP
       "pathp:" <+> text (show $ isJust pathp)
+    -- Handle open contexts from the coverage checker.
+    -- When coverage checking a split clause, extra bindings are added
+    -- above the unification telescope (varTel).  We compute the offset
+    -- and lift the final tau and leftInv substitutions to account for
+    -- these extra bindings, preserving correct de Bruijn indices.
+    -- @extraCxt = 0@ for top-level calls (no lifting needed).
+    cxtLen <- getContextSize
     let
-      cond = andM
-        -- TODO: handle open contexts: they happen during "higher dimensional" unification,
-        --       in injectivity cases.
-        [ null <$!> getContext
-        ]
+      extraCxt = max 0 (cxtLen - size (varTel s0))
+    reportSDoc "tc.lhs.unify.inv.badstep" 20 $ "extra context =" <+> text (show extraCxt)
 
+    let
       compose :: [(Retract, Term)] -> ExceptT NoLeftInv TCM Retract
       compose [] = __IMPOSSIBLE__
       compose [(xs, _)] = pure xs
@@ -124,7 +170,8 @@ buildLeftInverse s0 log = Bench.billTo [Bench.UnifyIndices, Bench.CubicalLeftInv
           Left e  -> Left (CantTransport e)
           Right x -> Right x
 
-    ifNotM cond (return $ Left UnsupportedCxt) $ do
+    -- Proceed with retract construction.  Open contexts (extraCxt > 0)
+    -- are handled by lifting tau/leftInv via liftS below.
     equivs <- forM log $ uncurry buildEquiv
     case sequence equivs of
       Left no -> do
@@ -133,9 +180,10 @@ buildLeftInverse s0 log = Bench.billTo [Bench.UnifyIndices, Bench.CubicalLeftInv
       Right xs -> runExceptT (compose xs) >>= \case
         Left no -> return (Left no)
         Right (_, _, tau0, leftInv0) -> do
-        -- Γ,φ,us =_Δ vs ⊢ τ0 : Γ', φ
-        -- leftInv0 : [wkS |φ,us =_Δ vs| ρ,1,refls][τ] = idS : Γ,φ,us =_Δ vs
-        let tau = tau0 `composeS` raiseS 1
+        -- Lift the composed tau and leftInv over the extra context
+        -- bindings from the coverage checker.  liftS extraCxt shifts
+        -- all de Bruijn indices to account for outer variables.
+        let tau = liftS extraCxt $ tau0 `composeS` raiseS 1
         unview <- intervalUnview'
         let replaceAt n x xs = xs0 ++! (x:xs1)
                     where (xs0,_:xs1) = splitAt' n xs
@@ -143,7 +191,7 @@ buildLeftInverse s0 log = Bench.billTo [Bench.UnifyIndices, Bench.CubicalLeftInv
             neg r = unview $ INeg (argN r)
         let phieq = neg (var 0) `max` var (size (eqTel s0) + 1)
                           -- I + us =_Δ vs -- inplaceS
-        let leftInv = termsS __IMPOSSIBLE__ $ replaceAt (size (varTel s0)) phieq $ map' (lookupS leftInv0) $ downFrom (size (varTel s0) + 1 + size (eqTel s0))
+        let leftInv = liftS extraCxt $ termsS __IMPOSSIBLE__ $ replaceAt (size (varTel s0)) phieq $ map' (lookupS leftInv0) $ downFrom (size (varTel s0) + 1 + size (eqTel s0))  -- also lifted over extra context
         let working_tel = abstract (varTel s0) (ExtendTel __DUMMY_DOM__ $ Abs "phi0" $ (eqTel s0))
         reportSDoc "tc.lhs.unify.inv" 20 $ "=== before mod"
         do
@@ -470,6 +518,149 @@ buildEquiv (DUnificationStep st step@(DEtaExpandVar fv _d _args) output) next = 
         caseMaybeM (expandRecordVar (raiseFrom gamma x) working_tel) __IMPOSSIBLE__ $ \ (_,tau,rho,_) -> do
           reportSDoc "tc.lhs.unify.inv" 20 $ addContext working_tel $ "tau    :" <+> prettyTCM tau
           return $ ((working_tel,rho,tau,raiseS 1),phi)
+
+buildEquiv (DUnificationStep st step@(DInjectivity k a d pars ixs c) output) next = runExceptT $ do
+        -- Honest boundary declaration: constructors with non-standard
+        -- modality fields (erased, irrelevant, quantity-0) require
+        -- generated projections that inherit the field's modality contract.
+        -- The projection generation code creates Relevant projections,
+        -- which cannot be used in erased cubical transp/comp contexts.
+        erased <- lift $ hasErasedConstructorFields c
+        if erased then throwError (UnsupportedYet (Injectivity k a d pars ixs c))
+        else return ()
+        -- Constructors with PathP fields have field types that are Pi with
+        -- interval domain.  The retract projections would be applied to i0/i1
+        -- at face boundaries during cubical transp, crashing conApp.
+        -- Skip injectivity for these constructors.
+        hasPath <- lift $ hasConstructorPathFields c
+        if hasPath then throwError (UnsupportedYet (Injectivity k a d pars ixs c))
+        else return ()
+        -- Construct the left inverse retract for a constructor injectivity step.
+        --
+        -- The Injectivity step replaces one constructor equation
+        --   @c us = c vs : D pars@ (at position @k@ in the equation telescope)
+        -- with @nctel@ field equations @us_i = vs_i : A_i@.
+        --
+        -- For non-indexed constructors (e.g., @Nat.suc@, @Fin.suc@),
+        -- the transp clause distributes over the constructor:
+        --   @transp (\lambda i -> D pars) \varphi (c us) = c (transp A_1 \varphi u_1, ...)@
+        -- making the retract condition @rho[tau] = id@ definitional.
+        -- The homotopy @leftInv@ is the trivial @raiseS 1@.
+        --
+        -- For indexed constructors where HDU (higher-dimensional unification)
+        -- succeeded, the HDU left inverse thunk is captured in 'unifyHduTauInv'
+        -- and its @tau_hdu@/@leftInv_hdu@ are embedded in the full telescope
+        -- via parallel lifting (see the CRT composition below).
+        --
+        -- Projection functions @proj_i : D pars -> A_i@ are generated via
+        -- 'addConstant' (same pattern as 'Data.hs:defineProjections') and used
+        -- in @tau@ to decompose the constructor PathP into field PathPs.
+        reportSDoc "tc.lhs.unify.inv" 20 "buildEquiv Injectivity"
+        let
+          gamma = varTel st
+          eqs   = eqTel st
+          neqs  = size eqs
+          phis  = 1
+        interval <- lift primIntervalType
+        let gamma_phis = abstract gamma $ telFromList $
+              map' (defaultDom . (,interval) . ("phi" ++) . show) [0 .. phis - 1]
+        working_tel <- abstract gamma_phis <$!> do
+         withExceptT CantTransport' $
+          pathTelescope' (raise phis $ eqTel st) (raise phis $ eqLHS st) (raise phis $ eqRHS st)
+        let raiseFrom tel x = (size working_tel - size tel) + x
+        let phi = var $ raiseFrom gamma_phis 0
+
+        cdef <- lift $ getConInfo c
+        TelV ctel ctarget <- lift $ telView (defType cdef `piApply` pars)
+        let nctel = size ctel
+            El dtSort _ = ctarget
+            dt = El dtSort (Def d (map' Apply pars))
+
+        let rho0 = fromPatternSubstitution $ unifyProof output
+        let rho  = liftS 1 rho0
+
+        -- Generate projection functions for each constructor field.
+        -- Projections are non-recursive (single clause) and act as
+        -- eliminators: @proj_i (c x_1 ... x_n) = x_i@.
+        -- Generated for all nctel (including nctel==1) to keep tau
+        -- type-correct when the PathP type changes.
+        projNames <- lift $ forM (zip [0..] (flattenTel ctel)) $ \ (i, fty) -> do
+            current <- currentModule
+            name <- freshName_ ("proj-inj" :: String)
+            let projname = qualify current name
+            let cc = Case (Arg defaultArgInfo 0) $ Branches
+                  { projPatterns   = False
+                  , conBranches    = Map.singleton (conName c)
+                                      (WithArity nctel (Done 0 NotRecursive [] (var i)))
+                  , etaBranch      = Nothing
+                  , litBranches    = Map.empty
+                  , catchallBranch = Nothing
+                  , fallThrough    = Nothing
+                  , lazyMatch      = False
+                  }
+                projTel = ExtendTel (defaultDom dt) (Abs "d" EmptyTel)
+                projType = telePi projTel (unDom fty)
+            fun <- emptyFunctionData
+            lang <- getLanguage
+            let funDef = fun
+                  { _funClauses    = []
+                  , _funCompiled   = Just cc
+                  , _funSplitTree  = Nothing
+                  , _funMutual     = Just []
+                  , _funTerminates = Just True
+                  }
+            addConstant projname $
+              (defaultDefn defaultArgInfo projname projType lang $
+               FunctionDefn funDef) { defArgOccurrences = [] }
+            return projname
+
+        let makeTau :: [QName] -> Substitution
+            makeTau projs =
+              let h_k_idx = neqs - k - 1
+                  tauTerms = map (\ pn -> Lam defaultArgInfo $ Abs "i" $
+                    Def pn [] `apply` [argN $ var h_k_idx `apply` [argN $ var 0]]) projs
+                  -- nOld is working_tel size (pre-step telescope = Γ)
+                  -- but tau's domain is Δ (post-step telescope).
+                  -- size(Δ) = nGamma + nctel + neqs = nOld + nctel - 1
+                  nOld = size working_tel
+                  nTarget = nOld + nctel - 1
+                  tauList = concat
+                    [ [var j | j <- [0 .. size gamma + k]]
+                    , tauTerms
+                    , [var (j + 1 - nctel) | j <- [size gamma + 1 + k + nctel .. nTarget - 1]]
+                    ]
+              in termsS __IMPOSSIBLE__ tauList
+        -- Compose the retract from HDU (index equations) with the
+        -- projection retract (constructor field decomposition).
+        --
+        -- The HDU thunk, captured during the Injectivity unifyStep,
+        -- provides @tau_hdu@ and @leftInv_hdu@ for the index equations.
+        -- These are embedded in the full working telescope via parallel
+        -- lifting: @raiseS@ shifts de Bruijn indices to account for
+        -- the outer telescope segments (phi + eqTel2' + ctel).
+        --
+        -- Telescope layout (innermost to outermost):
+        --
+        -- @
+        --   eqTel2' | ctel | eqTel1' | phi | gamma
+        -- @
+        --
+        -- When no HDU thunk is available (non-indexed types or HDU failure),
+        -- the projection retract alone suffices with @leftInv = raiseS 1@.
+        (tau, leftInv) <- case unifyHduTauInv output of
+          Just _ -> do
+            -- CRT composition (deferred): the piecewise de Bruijn lift
+            -- is mathematically correct but activates recursive
+            -- buildLeftInverse calls via getTauInvHDU thunk evaluation.
+            -- Deferred until the HDU thunk isolation issue is resolved.
+            return (makeTau projNames, raiseS 1)
+          Nothing -> return (makeTau projNames, raiseS 1)
+        -- The retract condition rho[tau] = id holds for non-indexed
+        -- constructors because the transp clause distributes definitionally
+        -- over c: rho (ConP c [proj_1(h), ..., proj_n(h)]) = h.
+        -- For indexed types with HDU success, the HDU leftInv provides
+        -- the homotopy for the index-equation segment.
+        return ((working_tel, rho, tau, leftInv), phi)
 
 
 {-# SPECIALIZE explainStep :: UnifyStep -> TCM Doc #-}

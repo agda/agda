@@ -1071,6 +1071,7 @@ executable agda-tests
 
   hs-source-dirs:   test/
   main-is:          Main.hs
+  ghc-options:      -rtsopts
   other-modules:
       Bugs.Tests
       BuildFail.Tests

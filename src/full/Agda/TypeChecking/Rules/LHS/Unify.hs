@@ -549,6 +549,14 @@ unifyStep s step@Solution{} = solutionStep RetryNormalised s step
 
 unifyStep s (Injectivity k a d pars ixs c) = do
   ifM (consOfHIT $ conName c) (return $ UnifyStuck []) $ do
+  -- Path constructors (refl) should not be decomposed by injectivity:
+  -- the identity type has a special transp clause that doesn't distribute
+  -- over refl like regular constructors.
+  ifM (lift $ isPathCons $ conName c) (return $ UnifyStuck []) $ do
+  -- Interval endpoints (i0, i1) are nullary constructors of the interval
+  -- type I with no record fields.  Injectivity is meaningless for them:
+  -- the retract would generate projections that crash on these values.
+  ifM (lift $ isIntervalCons $ conName c) (return $ UnifyStuck []) $ do
   withoutK <- withoutKOption
 
   -- Split equation telescope into parts before and after current equation
@@ -581,10 +589,11 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   let hduTel = eqTel1 `abstract` ctel
       notforced = replicate (size hduTel) NotForced
 
-  -- The left inverse computed here is not actually used when computing
-  -- a left inverse for the overall match, so as a slight optimisation
-  -- we just don't bother computing it. __IMPOSSIBLE__ because that
-  -- field in the result is never evaluated.
+  -- The inner HDU (higher-dimensional unification) sub-problem solves
+  -- the index equations for indexed constructors (e.g., Fin.suc).
+  -- We capture its left inverse thunk (the 4th component of Unifies)
+  -- so that LeftInverse.buildEquiv can compose it with the
+  -- constructor-field projection retract for the full injectivity proof.
   res <- lift $ addContext (varTel s) $ unifyIndices' (Just __IMPOSSIBLE__)
            hduTel
            (allFlexVars notforced hduTel)
@@ -637,7 +646,13 @@ unifyStep s (Injectivity k a d pars ixs c) = do
                          (varTel s `abstract` eqTel s) a
                          (raise n u) (raise n v) (raise (n-k) ixs)]
 
-    Unifies (eqTel1', rho0, _, _) -> do
+    Unifies (eqTel1', rho0, _, getTauInvHDU) -> do
+      -- Store the HDU left inverse thunk in UnifyOutput.
+      -- It will be forced in LeftInverse.buildEquiv when building
+      -- the full retract for the injectivity step.
+      -- The Either NoLeftInv is mapped to Either () to avoid
+      -- importing NoLeftInv (which would create a module cycle).
+      tellHduTauInv $ either (Left . const ()) Right <$> getTauInvHDU
       -- Split ps0 into parts for eqTel1 and ctel
       let (rho1, rho2) = splitS (size ctel) rho0
 

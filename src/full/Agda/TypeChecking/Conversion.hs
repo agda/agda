@@ -608,6 +608,26 @@ compareAtom cmp t m n =
 
         notEqual = failConversion cmp m n t
 
+        -- Under --cubical, map BUILTIN EQUALITY to BUILTIN PATH QName
+        -- so that _≡_ and PathP are unified at the comparison level.
+        -- This avoids touching stLocalBuiltins (mutating the builtin state
+        -- during type-checking causes NoBindingForBuiltin).
+        -- Uses getBuiltinName' (non-throwing) to handle the case where
+        -- EQUALITY is not bound (e.g. test files importing cubical primitives
+        -- but not Agda.Builtin.Equality). Does NOT use defName to avoid
+        -- re-export resolution — only direct QName comparison.
+        canonicalEqName :: QName -> TCM QName
+        canonicalEqName q = do
+          eq <- getBuiltinName' builtinEquality
+          case eq of
+            Nothing   -> return q
+            Just eqName ->
+              if q /= eqName then return q else do
+                p <- getBuiltinName' builtinPathP
+                case p of
+                  Just pn -> return pn
+                  Nothing -> return q
+
         dir = fromCmp cmp
         rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
 
@@ -668,7 +688,24 @@ compareAtom cmp t m n =
               unlessM (bothAbsurd f f') $ do
 
               -- 2. If the heads are unequal, the only chance is subtyping between SIZE and SIZELT.
-              if f /= f' then trySizeUniv cmp t m n f es f' es' else do
+              if f /= f' then do
+                cubical <- isJust <$> cubicalOption
+                if not cubical then trySizeUniv cmp t m n f es f' es' else do
+                  -- Under --cubical, normalize equality heads to Path.
+                  -- If both map to the same canonical QName (e.g. _≡_ → PathP),
+                  -- compare arguments as equal-headed terms.
+                  fC  <- canonicalEqName f
+                  fC' <- canonicalEqName f'
+                  if fC == fC' then do
+                    -- Canonically equal heads (e.g. both PathP).
+                    -- Compare arguments as in the "heads are equal" branch.
+                    unless (null es && null es') $ do
+                    unlessM (compareEtaPrims fC es es') $ do
+                    a <- computeElimHeadType fC es es'
+                    pol <- getPolarity' cmp fC
+                    compareElims pol [] a (Def fC []) es es'
+                  else trySizeUniv cmp t m n f es f' es'
+              else do
 
               -- 3. If the heads are equal:
               -- 3a. If there are no arguments, we are done.

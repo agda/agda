@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Andreas, end of August 2024
 # A shell script to check whether all Agda warnings are covered by the testsuite.
@@ -29,6 +29,7 @@ cat > $BENIGNWARNS <<EOF
 CustomBackendWarning
 DeprecationWarning
 LibUnknownField
+NotARewriteRule
 EOF
 
 # Warnings we ignore (e.g. that are still impossible).

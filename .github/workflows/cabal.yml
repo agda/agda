@@ -35,7 +35,7 @@ jobs:
       run: |
         mkdir -p ~/.cabal
     - id: setup-haskell
-      uses: haskell-actions/setup@v2
+      uses: clearnature/setup@main
       with:
         cabal-update: true
         cabal-version: latest

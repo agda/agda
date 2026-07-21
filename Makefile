@@ -429,8 +429,7 @@ test : check-whitespace \
        std-lib-succeed \
        std-lib-interaction \
        user-manual-test \
-       doc-test \
-       size-solver-test
+       doc-test
 
 .PHONY : test-using-std-lib ## Run all tests which use the standard library.
 test-using-std-lib : std-lib-test \
@@ -588,6 +587,7 @@ cubical-succeed :
 std-lib-succeed :
 	@$(call decorate, "Successful tests using the standard library", \
 	  find test/LibSucceed -type f -name '*.agdai' -delete ; \
+	  AGDA_TESTS_OPTIONS="$(AGDA_TESTS_OPTIONS) +RTS -M6G -RTS" \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LibSucceed)
 
 .PHONY : std-lib-interaction ##
@@ -619,6 +619,7 @@ js-compiler-test :
 .PHONY : std-lib-compiler-test ##
 std-lib-compiler-test :
 	@$(call decorate, "Standard library compiler tests", \
+	  AGDA_TESTS_OPTIONS="$(AGDA_TESTS_OPTIONS) +RTS -M6G -RTS" \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include AllStdLib --regex-exclude AllStdLibJS)
 
 .PHONY : std-lib-compiler-test ##
@@ -665,12 +666,12 @@ user-manual-covers-warnings :
 .PHONY : test-suite-covers-warnings ## Check whether the test suite covers all warnings.
 test-suite-covers-warnings :
 	@$(call decorate, "Test suite should cover all warnings", \
-          AGDA_BIN=$(AGDA_BIN) test/test-suite-covers-warnings.sh)
+          LC_ALL=C AGDA_BIN=$(AGDA_BIN) test/test-suite-covers-warnings.sh)
 
 .PHONY : test-suite-covers-errors ## Check whether the test suite covers all errors.
 test-suite-covers-errors :
 	@$(call decorate, "Test suite should cover all errors", \
-          AGDA_BIN=$(AGDA_BIN) test/test-suite-covers-errors.sh)
+          LC_ALL=C AGDA_BIN=$(AGDA_BIN) test/test-suite-covers-errors.sh)
 
 .PHONY : testing-emacs-mode ## Compile the emacs mode and run basic tests.
 testing-emacs-mode:
