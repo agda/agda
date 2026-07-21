@@ -23,7 +23,7 @@ compare a b with a <? b
 
 {-# INLINE compare #-}
 
--- This should compile to two calls of _<?_ and only the possible cases.
+-- This should ideally compile to two calls of _<?_ and only the possible cases.
 compare-lots : (a b : Nat) → String
 compare-lots a b with compare a b | compare (suc a) (suc b)
 compare-lots a b | less (diff k eq) | less (diff k₁ eq₁) = "less-less"
