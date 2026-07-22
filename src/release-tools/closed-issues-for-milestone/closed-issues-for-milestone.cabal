@@ -30,6 +30,7 @@ executable closed-issues-for-milestone
                 , bytestring >= 0.10.9.0  && < 0.13
                 , containers >= 0.6.0.1   && < 0.9
                 , github     >= 0.30      && < 0.31
+                , HsYAML     >= 0.2.1     && < 0.3
                 , text       >= 1.2.3     && < 2.2
                 , vector     >= 0.12.0.3  && < 0.14
 

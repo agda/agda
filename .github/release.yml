@@ -1,0 +1,35 @@
+changelog:
+  exclude:
+    labels:
+      - Makefile
+      - agda-bisect
+      - bug-tracker
+      - closed-issues-for-milestone
+      - debug
+      - "dev: hlint"
+      - devx
+      - documented-in-changelog
+      - faq
+      - fix-agda-whitespace
+      - haddock
+      - hTags
+      - "infra: github workflows"
+      - "infra: test suite"
+      - maculata
+      - not-in-changelog
+      - refactor
+      - regression on master
+      - release
+      - repository
+      - "status: abandoned"
+      - "status: duplicate"
+      - "status: invalid"
+      - "status: wontfix"
+      - "status: working-as-intended"
+      - style
+      - travis
+      - "type: question"
+      - "type: task"
+      - typo
+    authors:
+      - dependabot
