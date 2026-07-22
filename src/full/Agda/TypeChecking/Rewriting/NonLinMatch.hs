@@ -154,8 +154,11 @@ instance Match a b => Match (Arg a) (Arg b) where
 
 instance Match [Elim' NLPat] Elims where
   match r gamma k (t, hd) [] [] = return ()
+  -- This case should be impossible coming from 'rewrite' because of the
+  -- 'genericSplitAt', but apparently the confluence checker can still reach
+  -- here
   match r gamma k (t, hd) [] _  = matchingBlocked $ NotBlocked ReallyNotBlocked ()
-  match r gamma k (t, hd) _  [] = matchingBlocked $ NotBlocked ReallyNotBlocked ()
+  match r gamma k (t, hd) _  [] = matchingBlocked $ NotBlocked Underapplied ()
   match r gamma k (t, hd) (p:ps) (v:vs) =
    traceSDoc "rewriting.match" 50 (sep
      [ "matching elimination " <+> addContext gamma (addContext k $ prettyTCM p)
