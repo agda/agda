@@ -16,6 +16,7 @@ import qualified BuildSucceed.Tests
 import qualified Compiler.Tests
 import qualified CubicalSucceed.Tests
 import qualified Fail.Tests
+import qualified Interaction.Simple.Tests
 import qualified Interactive.Tests
 import qualified Internal.Tests
 import qualified LaTeXAndHTML.Tests
@@ -76,6 +77,7 @@ allTests = do
       {- 1 -} sg Succeed.Tests.tests        :
       {- 2 -} sg Fail.Tests.tests           :
       {- 3 -} sg Bugs.Tests.tests           :
+      {-   -} sg Interaction.Simple.Tests.tests :
       {- 4 -} pu Interactive.Tests.tests    :
       {- 9 -} sg UserManual.Tests.tests     :
       {- 5 -} sg LaTeXAndHTML.Tests.tests   :
