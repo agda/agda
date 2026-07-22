@@ -38,7 +38,7 @@ STACK_OPT_NO_DOCS = --no-haddock
 CABAL_OPT_TESTS   = --enable-tests
 STACK_OPT_TESTS   = --test --no-run-tests
 
-CABAL_OPT_FAST    = --ghc-options=-O0 -fdebug
+CABAL_OPT_FAST    = -O0 -fdebug
 STACK_OPT_FAST    = --fast --flag Agda:debug
 
 CABAL_FLAG_ICU    = -fenable-cluster-counting
@@ -130,6 +130,24 @@ else
 	$(CABAL) install --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
 endif
 	agda --setup --emacs-mode compile --emacs-mode setup
+
+.PHONY: build ## Build Agda and test suite in place (with debug printing, like the test suite expects), then regenerate primitives
+build:
+ifdef HAS_STACK
+	$(STACK_SLOW) build Agda $(STACK_OPT_NO_DOCS) $(STACK_OPT_TESTS) --flag Agda:debug
+else
+	$(CABAL) build -fdebug exe:agda exe:agda-tests
+endif
+	$(MAKE) setup-agda
+
+.PHONY: fast-build ## Build Agda and test suite with -O0 for faster iteration
+fast-build:
+ifdef HAS_STACK
+	$(STACK_FAST) build Agda $(STACK_OPT_NO_DOCS) $(STACK_OPT_TESTS) $(STACK_OPT_FAST)
+else
+	$(CABAL) build --builddir=$(FAST_BUILD_DIR) $(CABAL_OPT_FAST) exe:agda exe:agda-tests
+endif
+	$(AGDA_FAST_BIN) --setup
 
 .PHONY: setup-agda
 setup-agda:
@@ -432,6 +450,23 @@ test : check-whitespace \
        doc-test \
        size-solver-test
 
+.PHONY : ci-test ## Build, then run exactly what the CI test workflow (.github/workflows/test.yml) runs.
+ci-test : build
+	@$(call decorate, "CI / whitespace job", \
+	  $(MAKE) check-whitespace check-encoding check-mdo)
+	@$(call decorate, "CI / test job", \
+	  $(MAKE) bugs common succeed fail examples interactive api-test internal-tests compiler-test)
+	@$(call decorate, "CI / interaction-latex-html job", \
+	  $(MAKE) build-succeed-test build-fail-test && \
+	  $(MAKE) DONT_RUN_LATEX=Y latex-html-test && \
+	  $(MAKE) testing-emacs-mode user-manual-test user-manual-covers-options user-manual-covers-warnings \
+	          test-suite-covers-warnings test-suite-covers-errors interaction)
+	@$(call decorate, "CI / cubical job", \
+	  $(MAKE) cubical-test cubical-succeed)
+	@$(call decorate, "CI / stdlib-test job", \
+	  $(MAKE) AGDA_OPTS="-j" std-lib-test && \
+	  $(MAKE) benchmark-without-logs std-lib-compiler-test std-lib-succeed std-lib-interaction)
+
 .PHONY : test-using-std-lib ## Run all tests which use the standard library.
 test-using-std-lib : std-lib-test \
                      benchmark-without-logs \
@@ -442,6 +477,9 @@ test-using-std-lib : std-lib-test \
 
 .PHONY : test-quick ## Run successful and failing tests.
 test-quick : common succeed fail
+
+.PHONY : fast-test-quick ## Run successful and failing tests (using agda-fast).
+fast-test-quick : fast-common fast-succeed fast-fail
 
 .PHONY : check-encoding ## Make sure that Parser.y is ASCII. [Issue #5465]
 check-encoding :
@@ -478,6 +516,11 @@ common :
 	@$(call decorate, "Suite of successful tests: mini-library Common", \
 		$(MAKE) -C test/Common )
 
+.PHONY : fast-common ##
+fast-common :
+	@$(call decorate, "Suite of successful tests: mini-library Common (using agda-fast)", \
+		$(MAKE) -C test/Common AGDA_BIN=$(AGDA_FAST_BIN) )
+
 .PHONY : succeed ##
 succeed :
 	@$(call decorate, "Suite of successful tests", \
@@ -512,10 +555,21 @@ build-succeed-test :
 	@$(call decorate, "Suite of successful --build-library tests", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/BuildSucceed)
 
+.PHONY: build-test ##
+build-test : build-fail-test build-succeed-test
+
+.PHONY : fast-build-fail-test ##
+fast-build-fail-test :
+	@$(call decorate, "Suite of failing --build-library tests (using agda-fast)", \
+		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/BuildFail)
+
 .PHONY : fast-build-succeed-test ##
 fast-build-succeed-test :
 	@$(call decorate, "Suite of successful --build-library tests (using agda-fast)", \
 		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/BuildSucceed)
+
+.PHONY : fast-build-test ##
+fast-build-test : fast-build-fail-test fast-build-succeed-test
 
 .PHONY : interaction ##
 interaction :
