@@ -1,0 +1,6 @@
+WithoutK-CopatternNonterminating.agda:24.1-25.47: error: [TerminationIssue]
+Termination checking failed for the following function:
+  r
+Problematic call:
+  r .bad FOne iso f
+    (at WithoutK-CopatternNonterminating.agda:25.30-31)
