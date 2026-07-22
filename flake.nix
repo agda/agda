@@ -53,7 +53,7 @@
               agdaExe=''${bin:-$out}/bin/agda
 
               echo "Generating Agda core library interface files..."
-              (cd "$("$agdaExe" --print-agda-data-dir)/lib/prim" && "$agdaExe" --build-library)
+              (cd "$("$agdaExe" --print-agda-data-dir)/lib/prim" && find . -name '*.agda' | while read f; do "$agdaExe" $f; done)
             '';
           });
         };
