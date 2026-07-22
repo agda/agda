@@ -170,6 +170,9 @@ module Agda.Interaction.Options.Base
     , optFlatSplit
     , optPolarity
     , optOccurrence
+    , optFunext
+    , optPropext
+    , optQuotients
     , optImportSorts
     , optLoadPrimitives
     , optAllowExec
@@ -314,8 +317,9 @@ optHiddenArgumentPuns        :: PragmaOptions -> Bool
 optEta                       :: PragmaOptions -> Bool
 optForcing                   :: PragmaOptions -> Bool
 optProjectionLike            :: PragmaOptions -> Bool
--- | 'optErasure' is implied by 'optEraseRecordParameters'.
---   'optErasure' is also implied by an explicitly given `--erased-matches`.
+-- | 'optErasure' is implied by 'optEraseRecordParameters',
+--   'optFunext' and 'optPropext'. 'optErasure' is also implied by an
+--   explicitly given `--erased-matches`.
 optErasure                   :: PragmaOptions -> Bool
 optErasedMatches             :: PragmaOptions -> Bool
 optEraseRecordParameters     :: PragmaOptions -> Bool
@@ -343,6 +347,10 @@ optCohesion                  :: PragmaOptions -> Bool
 optFlatSplit                 :: PragmaOptions -> Bool
 optPolarity                  :: PragmaOptions -> Bool
 optOccurrence                :: PragmaOptions -> Bool
+-- | 'optFunext' is implied by 'optQuotients'.
+optFunext                    :: PragmaOptions -> Bool
+optPropext                   :: PragmaOptions -> Bool
+optQuotients                 :: PragmaOptions -> Bool
 -- | 'optImportSorts' requires 'optLoadPrimitives'.
 optImportSorts               :: PragmaOptions -> Bool
 optLoadPrimitives            :: PragmaOptions -> Bool
@@ -382,7 +390,11 @@ optEta                       = collapseDefault . _optEta
 optForcing                   = collapseDefault . _optForcing
 optProjectionLike            = collapseDefault . _optProjectionLike
 -- --erase-record-parameters implies --erasure
-optErasure                   = collapseDefault . _optErasure || optEraseRecordParameters || (Value True ==) . _optErasedMatches
+optErasure                   = collapseDefault . _optErasure ||
+                               optEraseRecordParameters ||
+                               optFunext ||
+                               optPropext ||
+                               (Value True ==) . _optErasedMatches
 optErasedMatches             = collapseDefault . _optErasedMatches && optErasure
 optEraseRecordParameters     = collapseDefault . _optEraseRecordParameters
 optRewriting                 = collapseDefault . _optRewriting
@@ -410,6 +422,10 @@ optCohesion                  = collapseDefault . _optCohesion      || optFlatSpl
 optFlatSplit                 = collapseDefault . _optFlatSplit
 optPolarity                  = collapseDefault . _optPolarity
 optOccurrence                = collapseDefault . _optOccurrence
+optFunext                    = collapseDefault . _optFunext ||
+                               optQuotients
+optPropext                   = collapseDefault . _optPropext
+optQuotients                 = collapseDefault . _optQuotients
 -- --no-load-primitives implies --no-import-sorts
 optImportSorts               = collapseDefault . _optImportSorts   && optLoadPrimitives
 optLoadPrimitives            = collapseDefault . _optLoadPrimitives
@@ -646,6 +662,16 @@ lensOptPolarity f o = f (_optPolarity o) <&> \ i -> o{ _optPolarity = i}
 lensOptOccurrence :: Lens' PragmaOptions _
 lensOptOccurrence f o =
   f (_optOccurrence o) <&> \ i -> o{ _optOccurrence = i}
+
+lensOptFunext :: Lens' PragmaOptions _
+lensOptFunext f o = f (_optFunext o) <&> \ i -> o{ _optFunext = i }
+
+lensOptPropext :: Lens' PragmaOptions _
+lensOptPropext f o = f (_optPropext o) <&> \ i -> o{ _optPropext = i }
+
+lensOptQuotients :: Lens' PragmaOptions _
+lensOptQuotients f o =
+  f (_optQuotients o) <&> \ i -> o{ _optQuotients = i }
 
 lensOptImportSorts :: Lens' PragmaOptions _
 lensOptImportSorts f o = f (_optImportSorts o) <&> \ i -> o{ _optImportSorts = i }
@@ -961,6 +987,9 @@ infectiveCoinfectiveOptions =
   , infectiveOption optCohesion               "--cohesion"
   , infectiveOption optErasure                "--erasure"
   , infectiveOption optErasedMatches          "--erased-matches"
+  , infectiveOption optFunext                 "--erased-funext"
+  , infectiveOption optPropext                "--erased-propext"
+  , infectiveOption optQuotients              "--erased-quotients"
   ]
   where
   cubicalCompatible =
@@ -1587,6 +1616,15 @@ modalityPragmaOptions = ("Modalities",) $ concat
   , pragmaFlag      "occurrence-analysis" lensOptOccurrence
                     "enable automated occurrence analysis for functions"
                     "(can be slow)"
+                    Nothing
+  , pragmaFlag      "erased-funext" lensOptFunext
+                    "allow the use of Agda.Builtin.Erased.Funext" ""
+                    Nothing
+  , pragmaFlag      "erased-propext" lensOptPropext
+                    "allow the use of Agda.Builtin.Erased.Propext" ""
+                    Nothing
+  , pragmaFlag      "erased-quotients" lensOptQuotients
+                    "allow the use of Agda.Builtin.Erased.Quotient" ""
                     Nothing
   , pragmaFlag      "irrelevant-projections" lensOptIrrelevantProjections
                     "enable projection of irrelevant record fields and similar irrelevant definitions" "(inconsistent)"
