@@ -479,7 +479,7 @@ library
   -- This is currently LTS 20.26 (last for GHC 9.2.8).
   build-depends:
     -- Please keep in alphabetical order!
-    , aeson                >= 2.0.3.0   && < 2.3
+    , aeson                >= 2.0.3.0   && < 2.4
     , ansi-terminal        >= 0.11.4    && < 1.2
     , array                >= 0.5.4.0   && < 0.6
     , async                >= 2.2.4     && < 2.3
