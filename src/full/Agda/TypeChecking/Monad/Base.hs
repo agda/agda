@@ -7478,7 +7478,10 @@ instance NFData Statistics
 instance NFData UnusedImportsState
 instance NFData OpenedModule
 instance NFData IsAxiom
-instance NFData SessionState
+
+instance NFData SessionState where
+  rnf (SessionState backends fileDict moduleToSourceId _interactionCallback) =
+    rnf backends `seq` rnf fileDict `seq` rnf moduleToSourceId
 
 instance NFData PrimFun where
   rnf (PrimFun a b c _fun) =
