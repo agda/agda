@@ -1,6 +1,7 @@
 {-# OPTIONS --without-K --safe #-}
+-- {-# OPTIONS -v tc.cover:10 #-}
 
-module _ where
+module Issue8626 where
 
 record Unit : Set where constructor tt
 
@@ -25,42 +26,42 @@ natrec-congTerm          q            (N h pz) = tt
 natrec-congTerm          (N k (ps m)) l        = tt
 natrec-congTerm          b            c        = tt
 
--- Checking Issue8626
+-- Error was:
 -- An internal error has occurred. Please report this as a bug.
--- Location of the error: __IMPOSSIBLE__, called at src/full/Agda/TypeChecking/CompiledClause/Compile.hs:180:20 in Agda-2.9.0-4LTCrYcgM18IOO7aOFG0rT:Agda.TypeChecking.CompiledClause.Compile%
+-- Location of the error: __IMPOSSIBLE__, called at src/full/Agda/TypeChecking/CompiledClause/Compile.hs:180:20
 --
 -- Split tree:
 --    split at {0}
 --    |
---    +- M.Relevance.! -> done, 2 bindings
+--    +- Relevance.! -> done, 2 bindings
 --    |
---    `- M.Relevance.% -> split at 0
+--    `- Relevance.% -> split at 0
 --       |
---       `- M.Jdg.N -> split at 1
+--       `- Jdg.N -> split at 1
 --          |
---          +- M.Prp.ps -> lazy split at 0
+--          +- Prp.ps -> lazy split at 0
 --          |  |
---          |  `- M.Term.suc -> split at 2
+--          |  `- Term.suc -> split at 2
 --          |     |
---          |     `- M.Jdg.N -> split at 3
+--          |     `- Jdg.N -> split at 3
 --          |        |
---          |        +- M.Prp.ps -> lazy split at 2
+--          |        +- Prp.ps -> lazy split at 2
 --          |        |  |
---          |        |  `- M.Term.suc -> done, 2 bindings
+--          |        |  `- Term.suc -> done, 2 bindings
 --          |        |
---          |        `- M.Prp.pz -> done, 1 bindings
+--          |        `- Prp.pz -> done, 1 bindings
 --          |
---          `- M.Prp.pz -> split at 1
+--          `- Prp.pz -> split at 1
 --             |
---             `- M.Jdg.N -> split at 2
+--             `- Jdg.N -> split at 2
 --                |
---                +- M.Prp.ps -> lazy split at 1
+--                +- Prp.ps -> lazy split at 1
 --                |  |
---                |  `- M.Term.suc -> done, 1 bindings
+--                |  `- Term.suc -> done, 1 bindings
 --                |
---                `- M.Prp.pz -> done, 0 bindings
+--                `- Prp.pz -> done, 0 bindings
 --
---    covering patterns for M.natrec-congTerm
+--    covering patterns for natrec-congTerm
 --      [{rF = !}, v, w]
 --      [{rF = %}, N (suc m) (ps m), N (suc l) (ps n)]
 --      [{rF = %}, N (suc m) (ps m), N j pz]
@@ -70,23 +71,23 @@ natrec-congTerm          b            c        = tt
 -- Compiled case trees:
 --    compiled clauses of  natrec-congTerm  (still containing record splits)
 --      case {0} of
---        M.Relevance.! -> done 0?Rec: [v, w] M.tt
+--        Relevance.! -> done 0?Rec: [v, w] tt
 --        _ -> case 1 of
---               M.Jdg.N ->
+--               Jdg.N ->
 --                 case 2 of
---                   M.Prp.ps ->
+--                   Prp.ps ->
 --                     case 3 of
---                       M.Jdg.N -> case 4 of M.Prp.pz -> done 1?Rec: [{_}, _, _, _] M.tt
+--                       Jdg.N -> case 4 of Prp.pz -> done 1?Rec: [{_}, _, _, _] tt
 --
---                                  Note: after this `case 4 of M.Prop.pz` split, the clauses are
---                                      M.Prp.pz ->
---                                        [1: [{_}, ~M.Term.suc m, .@2, .M.Term.zero] -> M.tt,
---                                         2: [{_}, _, _, .M.Term.zero] -> M.tt]
+--                                  Note: after this `case 4 of Prop.pz` split, the clauses are
+--                                      Prp.pz ->
+--                                        [1: [{_}, ~Term.suc m, .@2, .Term.zero] -> tt,
+--                                         2: [{_}, _, _, .Term.zero] -> tt]
 --
 --
---                       _ -> case 1 of ~ M.Term.suc -> done 3?Rec: [{_}, m, _, l] M.tt
+--                       _ -> case 1 of ~ Term.suc -> done 3?Rec: [{_}, m, _, l] tt
 --                   _ -> case 3 of
---                          M.Jdg.N -> case 4 of M.Prp.pz -> done 2?Rec: [{_}, _, _, _] M.tt
+--                          Jdg.N -> case 4 of Prp.pz -> done 2?Rec: [{_}, _, _, _] tt
 --               _ -> case 2 of
---                      M.Jdg.N -> case 3 of M.Prp.pz -> done 2?Rec: [{_}, q, _] M.tt
---                      _ -> done 4?Rec: [{_}, b, c] M.tt
+--                      Jdg.N -> case 3 of Prp.pz -> done 2?Rec: [{_}, q, _] tt
+--                      _ -> done 4?Rec: [{_}, b, c] tt
