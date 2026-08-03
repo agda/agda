@@ -177,6 +177,9 @@ compile (c:cs) = case nextSplit c cs of
     xs = map' (fmap name) ps
     name (VarP _ x) = x
     name (DotP _ _) = underscore
+    name (ConP _ cpi _) | conPLazy cpi = underscore
+    -- Issue #8626: forcing analysis can create lazy split, which appears
+    -- as lazy `ConP` patterns instead of `DotP` patterns.
     name ConP{}  = __IMPOSSIBLE__
     name DefP{}  = __IMPOSSIBLE__
     name LitP{}  = __IMPOSSIBLE__
