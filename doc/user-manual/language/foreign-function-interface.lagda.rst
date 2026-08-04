@@ -356,4 +356,4 @@ code for the ``List`` type, compiling lists to JavaScript arrays::
       }
     } #-}
   {-# COMPILE JS []  = Array() #-}
-  {-# COMPILE JS _∷_ = function (x) { return function(y) { return Array(x).concat(y); }; } #-}
+  {-# COMPILE JS _∷_ = function (x) { return function(y) { return [x].concat(y); }; } #-}
