@@ -772,14 +772,6 @@ etaExpandRecord'_ forceEta r pars
         ]
       return $ Just (tel', con, ConOSystem, xs')
 
-etaExpandAtRecordType :: Type -> Term -> TCM (Maybe (Telescope, Term))
-etaExpandAtRecordType t u = do
-  (r, pars, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordType t
-  mtelargs <- etaExpandRecord_ r pars def u
-  case mtelargs of
-    Nothing -> return Nothing
-    Just (tel, con, ci, args) -> return $ Just (tel, mkCon con ci args)
-
 -- | The fields should be eta contracted already.
 --
 --   We can eta contract if all fields @f = ...@ are irrelevant

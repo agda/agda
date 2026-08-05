@@ -1657,36 +1657,6 @@ etaExpandProjectedVar mvar x t n qs = inTopContext $ do
   patternViolation
 -}
 
-{-
-  -- first, strip the leading n domains (which remain unchanged)
-  TelV gamma core <- telViewUpTo n t
-  case unEl core of
-    -- There should be at least one domain left
-    Pi (Dom ai a) b -> do
-      -- Eta-expand @dom@ along @qs@ into a telescope @tel@, computing a substitution.
-      -- For now, we only eta-expand once.
-      -- This might trigger another call to @etaExpandProjectedVar@ later.
-      -- A more efficient version does all the eta-expansions at once here.
-      (r, pars, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordType a
-      unless (recEtaEquality def) __IMPOSSIBLE__
-      let tel = recTel def `apply` pars
-          m   = size tel
-          v   = Con (recConHead def) $ map' var $ downFrom m
-          b'  = raise m b `absApp` v
-          fs  = recFields def
-          vs  = zipWith' (\ f i -> Var i [Proj f]) fs $ downFrom m
-          -- v = c (n-1) ... 1 0
-      (tel, u) <- etaExpandAtRecordType a $ var 0
-      -- TODO: compose argInfo ai with tel.
-      -- Substitute into @b@.
-      -- Abstract over @tel@.
-      -- Abstract over @gamma@.
-      -- Create new meta.
-      -- Solve old meta, using substitution.
-      patternViolation
-    _ -> __IMPOSSIBLE__
--}
-
 type FVs = VarSet
 type SubstCand = [(Int,Term)] -- ^ a possibly non-deterministic substitution
 
