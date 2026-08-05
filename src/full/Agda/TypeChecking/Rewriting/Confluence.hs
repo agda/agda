@@ -282,69 +282,74 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
         -- If the second rewrite rule has more eliminations than the
         -- subpattern of the first rule, the only chance of overlap is
         -- by eta-expanding the subpattern of the first rule.
-        hole1 <- addContext bvTel0 $
+        mhole1 <- addContext bvTel0 $
           forceEtaExpansion b0 (hdg es0) $ drop (size es0) qs2
 
-        verboseS "rewriting.confluence.eta" 30 $
-          unless (size es0 == size qs2) $
-          addContext bvTel0 $
-          reportSDoc "rewriting.confluence.eta" 30 $ vcat
-            [ "forceEtaExpansion result:"
-            , nest 2 $ "bound vars: " <+> prettyTCM (ohBoundVars hole1)
-            , nest 2 $ "hole contents: " <+> addContext (ohBoundVars hole1) (prettyTCM $ ohContents hole1)
+        -- Issue #8636: If eta-expansion is not possible (e.g. the subpattern
+        -- is a constructor of a different record type), we cannot check this
+        -- potential overlap, so we skip it.
+        whenJust mhole1 $ \hole1 -> do
+
+          verboseS "rewriting.confluence.eta" 30 $
+            unless (size es0 == size qs2) $
+            addContext bvTel0 $
+            reportSDoc "rewriting.confluence.eta" 30 $ vcat
+              [ "forceEtaExpansion result:"
+              , nest 2 $ "bound vars: " <+> prettyTCM (ohBoundVars hole1)
+              , nest 2 $ "hole contents: " <+> addContext (ohBoundVars hole1) (prettyTCM $ ohContents hole1)
+              ]
+
+          let hole      = hole1 `composeHole` hole0
+              g         = ohHeadName hole -- == grHead rew2
+              es'       = ohElims hole
+              bvTel     = ohBoundVars hole
+              plug      = ohPlugHole hole
+
+          sub2 <- addContext bvTel $ makeMetaSubst $ grContext rew2
+
+          let es1 = applySubst (liftS (size bvTel) sub1) es'
+          es2 <- applySubst sub2 <$> nlPatToTerm (grPats rew2)
+
+          -- Make sure we are comparing eliminations with the same arity
+          -- (see #3810). Because we forced eta-expansion of es1, we
+          -- know that it is at least as long as es2.
+          when (size es1 < size es2) __IMPOSSIBLE__
+          let n = size es2
+              (es1' , es1r) = splitAt n es1
+
+          let lhs1 = applySubst sub1 $ hdf $ plug $ hdg es1
+              lhs2 = applySubst sub1 $ hdf $ plug $ hdg $ es2 ++! es1r
+              a    = applySubst sub1 $ grType rew1
+
+          reportSDoc "rewriting.confluence" 20 $ sep
+            [ "Considering potential critical pair at subpattern: "
+            , nest 2 $ prettyTCM $ lhs1 , " =?= "
+            , nest 2 $ prettyTCM $ lhs2 , " : " , nest 2 $ prettyTCM a
             ]
 
-        let hole      = hole1 `composeHole` hole0
-            g         = ohHeadName hole -- == grHead rew2
-            es'       = ohElims hole
-            bvTel     = ohBoundVars hole
-            plug      = ohPlugHole hole
+          maybeCriticalPair <- tryUnification lhs1 lhs2 $ do
+            -- Unify the subpattern of the first rewrite rule with the lhs
+            -- of the second one
+            ga   <- defType <$> getConstInfo g
+            gpol <- getPolarity' CmpEq g
+            onlyReduceTypes $ addContext bvTel $
+              compareElims gpol [] ga (hdg []) es1' es2
 
-        sub2 <- addContext bvTel $ makeMetaSubst $ grContext rew2
+            -- Right-hand side of first rewrite rule (after unification)
+            let rhs1 = applySubst sub1 $ grRHS rew1
 
-        let es1 = applySubst (liftS (size bvTel) sub1) es'
-        es2 <- applySubst sub2 <$> nlPatToTerm (grPats rew2)
+            -- Left-hand side of first rewrite rule, with subpattern
+            -- rewritten by the second rewrite rule
+            let w = applySubst sub2 (grRHS rew2) `applyE` es1r
+            reportSDoc "rewriting.confluence" 30 $ sep
+              [ "Plugging hole with w = "
+              , nest 2 $ addContext bvTel $ prettyTCM w
+              ]
+            let rhs2 = applySubst sub1 $ hdf $ plug w
 
-        -- Make sure we are comparing eliminations with the same arity
-        -- (see #3810). Because we forced eta-expansion of es1, we
-        -- know that it is at least as long as es2.
-        when (size es1 < size es2) __IMPOSSIBLE__
-        let n = size es2
-            (es1' , es1r) = splitAt n es1
+            return (rhs1 , rhs2)
 
-        let lhs1 = applySubst sub1 $ hdf $ plug $ hdg es1
-            lhs2 = applySubst sub1 $ hdf $ plug $ hdg $ es2 ++! es1r
-            a    = applySubst sub1 $ grType rew1
-
-        reportSDoc "rewriting.confluence" 20 $ sep
-          [ "Considering potential critical pair at subpattern: "
-          , nest 2 $ prettyTCM $ lhs1 , " =?= "
-          , nest 2 $ prettyTCM $ lhs2 , " : " , nest 2 $ prettyTCM a
-          ]
-
-        maybeCriticalPair <- tryUnification lhs1 lhs2 $ do
-          -- Unify the subpattern of the first rewrite rule with the lhs
-          -- of the second one
-          ga   <- defType <$> getConstInfo g
-          gpol <- getPolarity' CmpEq g
-          onlyReduceTypes $ addContext bvTel $
-            compareElims gpol [] ga (hdg []) es1' es2
-
-          -- Right-hand side of first rewrite rule (after unification)
-          let rhs1 = applySubst sub1 $ grRHS rew1
-
-          -- Left-hand side of first rewrite rule, with subpattern
-          -- rewritten by the second rewrite rule
-          let w = applySubst sub2 (grRHS rew2) `applyE` es1r
-          reportSDoc "rewriting.confluence" 30 $ sep
-            [ "Plugging hole with w = "
-            , nest 2 $ addContext bvTel $ prettyTCM w
-            ]
-          let rhs2 = applySubst sub1 $ hdf $ plug w
-
-          return (rhs1 , rhs2)
-
-        whenJust maybeCriticalPair $ uncurry (checkCriticalPair a hdf (applySubst sub1 $ plug $ hdg es1))
+          whenJust maybeCriticalPair $ uncurry (checkCriticalPair a hdf (applySubst sub1 $ plug $ hdg es1))
 
     checkCriticalPair
       :: Type     -- Type of the critical pair
@@ -726,8 +731,8 @@ allHolesList a = sequenceListT . allHoles a
 --   2. @v : _A@ and @es = [.fst]@: this will instantiate
 --      @_A := _A1 × _A2@ and return the @OneHole Term@
 --      @([v .fst]) , (v .snd)@.
-forceEtaExpansion :: Type -> Term -> [Elim' a] -> TCM (OneHole Term)
-forceEtaExpansion a v [] = return $ idHole a v
+forceEtaExpansion :: Type -> Term -> [Elim' a] -> TCM (Maybe (OneHole Term))
+forceEtaExpansion a v [] = return $ Just $ idHole a v
 forceEtaExpansion a v (e:es) = case e of
 
   Apply (Arg i w) -> do
@@ -743,7 +748,7 @@ forceEtaExpansion a v (e:es) = case e of
     let body = raise 1 v `apply` [Arg i $ var 0]
 
     -- Continue with remaining eliminations
-    addContext dom $ ohAddBV "x" dom . fmap (Lam i . mkAbs "x") <$>
+    addContext dom $ fmap (ohAddBV "x" dom . fmap (Lam i . mkAbs "x")) <$>
       forceEtaExpansion cod body es
 
   Proj o f -> do
@@ -758,18 +763,21 @@ forceEtaExpansion a v (e:es) = case e of
     equalType a $ El s (Def r $ map' Apply pars)
 
     -- Eta-expand v at record type r, and get field corresponding to f
-    (_ , c , ci , fields) <- etaExpandRecord_ r pars rdef v
-    let fs        = map' argFromDom $ _recFields rdef
-        i         = fromMaybe __IMPOSSIBLE__ $ elemIndex f $ map' unArg fs
-        fContent  = unArg $ fromMaybe __IMPOSSIBLE__ $ fields !!! i
-        fUpdate w = Con c ci $ map' Apply $ updateAt i (w <$) fields
+    mcfields <- etaExpandRecord_ r pars rdef v
+    case mcfields of
+      Nothing -> return Nothing -- Issue #8636: cannot eta-expand
+      Just (_, c, ci, fields) -> do
+        let fs        = map' argFromDom $ _recFields rdef
+            i         = fromMaybe __IMPOSSIBLE__ $ elemIndex f $ map' unArg fs
+            fContent  = unArg $ fromMaybe __IMPOSSIBLE__ $ fields !!! i
+            fUpdate w = Con c ci $ map' Apply $ updateAt i (w <$) fields
 
-    -- Get type of field corresponding to f
-    ~(Just (El _ (Pi b c))) <- getDefType f =<< reduce a
-    let fa = c `absApp` v
+        -- Get type of field corresponding to f
+        ~(Just (El _ (Pi b c))) <- getDefType f =<< reduce a
+        let fa = c `absApp` v
 
-    -- Continue with remaining eliminations
-    fmap fUpdate <$> forceEtaExpansion fa fContent es
+        -- Continue with remaining eliminations
+        fmap (fmap fUpdate) <$> forceEtaExpansion fa fContent es
 
   IApply{} -> __IMPOSSIBLE__ -- Not yet implemented
 

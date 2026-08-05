@@ -341,18 +341,21 @@ instance Match NLPat Term where
           -- type, e.g., we eta-expand both v to (c vs) and
           -- the pattern (p = PDef f ps) to @c (p .f1) ... (p .fn)@.
             RecordDefn def <- addContext k $ theDef <$> getConstInfo d
-            (tel, c, ci, vs) <- addContext k $ etaExpandRecord_ d pars def v
-            addContext k (getFullyAppliedConType c t) >>= \case
-              Just (_ , ct) -> do
-                let flds = map' argFromDom $ _recFields def
-                    mkField fld = PDef f (ps ++! [Proj ProjSystem fld])
-                    -- Issue #3335: when matching against the record constructor,
-                    -- don't add projections but take record field directly.
-                    ps'
-                      | conName c == f = ps
-                      | otherwise      = map' (Apply . fmap mkField) flds
-                match r gamma k (ct, Con c ci) ps' (map' Apply vs)
-              Nothing -> no ""
+            metelcivs <- addContext k $ etaExpandRecord_ d pars def v
+            case metelcivs of
+              Nothing -> no "" -- Issue #8636: cannot eta-expand
+              Just (tel, c, ci, vs) -> do
+                addContext k (getFullyAppliedConType c t) >>= \case
+                  Just (_ , ct) -> do
+                    let flds = map' argFromDom $ _recFields def
+                        mkField fld = PDef f (ps ++! [Proj ProjSystem fld])
+                        -- Issue #3335: when matching against the record constructor,
+                        -- don't add projections but take record field directly.
+                        ps'
+                          | conName c == f = ps
+                          | otherwise      = map' (Apply . fmap mkField) flds
+                    match r gamma k (ct, Con c ci) ps' (map' Apply vs)
+                  Nothing -> no ""
           v -> maybeBlock v
       PLam i p' -> case unEl t of
         Pi a b -> do
@@ -394,13 +397,16 @@ instance Match NLPat Term where
           match r gamma k' (absBody b) pbody body
         _ | Just (d, pars) <- etaRecord -> do
           RecordDefn def <- addContext k $ theDef <$> getConstInfo d
-          (tel, c, ci, vs) <- addContext k $ etaExpandRecord_ d pars def v
-          addContext k (getFullyAppliedConType c t) >>= \case
-            Just (_ , ct) -> do
-              let flds = map' argFromDom $ _recFields def
-                  ps'  = map' (fmap $ \fld -> PBoundVar i (ps ++! [Proj ProjSystem fld])) flds
-              match r gamma k (ct, Con c ci) (map' Apply ps') (map' Apply vs)
-            Nothing -> no ""
+          metelcivs <- addContext k $ etaExpandRecord_ d pars def v
+          case metelcivs of
+            Nothing -> no "" -- Issue #8636: cannot eta-expand
+            Just (tel, c, ci, vs) -> do
+              addContext k (getFullyAppliedConType c t) >>= \case
+                Just (_ , ct) -> do
+                  let flds = map' argFromDom $ _recFields def
+                      ps'  = map' (fmap $ \fld -> PBoundVar i (ps ++! [Proj ProjSystem fld])) flds
+                  match r gamma k (ct, Con c ci) (map' Apply ps') (map' Apply vs)
+                Nothing -> no ""
         v -> maybeBlock v
       PTerm u -> traceSDoc "rewriting.match" 60 ("matching a PTerm" <+> addContext gamma (addContext k $ prettyTCM u)) $
         -- #8231: We need to skip testing conversion if we are matching at

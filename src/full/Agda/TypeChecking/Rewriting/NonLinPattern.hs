@@ -178,9 +178,12 @@ instance PatternFrom Term NLPat where
        | otherwise -> done
       (_ , _ ) | Just (d, pars) <- etaRecord -> do
         RecordDefn def <- theDef <$> getConstInfo d
-        (tel, c, ci, vs) <- etaExpandRecord_ d pars def v
-        ct <- assertConOf c t
-        PDef (conName c) <$> patternFrom r1 r1 k0 k1 (ct , Con c ci) (map Apply vs)
+        metelcivs <- etaExpandRecord_ d pars def v
+        case metelcivs of
+          Nothing -> done -- Issue #8636: cannot eta-expand
+          Just (tel, c, ci, vs) -> do
+            ct <- assertConOf c t
+            PDef (conName c) <$> patternFrom r1 r1 k0 k1 (ct , Con c ci) (map Apply vs)
       (_ , Lam{})   -> errNotPi t
       (_ , Lit{})   -> done
       -- Terms wrapped in the primRewriteNoMatch primitive are converted to PTerms

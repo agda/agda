@@ -679,8 +679,9 @@ etaExpandRecord :: (HasConstInfo m)
   => QName       -- ^ Name of record type.
   -> Args        -- ^ Parameters applied to record type.
   -> Term        -- ^ Term to eta-expand.
-  -> m (Telescope, Args)
+  -> m (Maybe (Telescope, Args))
      -- ^ Field types instantiated to parameters, field values.
+     --   'Nothing' if the term is a constructor of a different record type.
 etaExpandRecord = etaExpandRecord' False
 
 -- | Eta expand a record regardless of whether it's an eta-record or not.
@@ -688,42 +689,45 @@ forceEtaExpandRecord :: (HasConstInfo m)
   => QName       -- ^ Name of record type.
   -> Args        -- ^ Parameters applied to record type.
   -> Term        -- ^ Term to eta-expand.
-  -> m (Telescope, Args)
+  -> m (Maybe (Telescope, Args))
      -- ^ Field types instantiated to parameters, field values.
+     --   'Nothing' if the term is a constructor of a different record type.
 forceEtaExpandRecord = etaExpandRecord' True
 
--- | Eta-expand a value at the given record type (must match).
+-- | Eta-expand a value at the given record type.
 etaExpandRecord' :: (HasConstInfo m)
   => Bool        -- ^ Force expansion, overriding '_recEtaEquality'?
   -> QName       -- ^ Name of record type.
   -> Args        -- ^ Parameters applied to record type.
   -> Term        -- ^ Term to eta-expand.
-  -> m (Telescope, Args)
+  -> m (Maybe (Telescope, Args))
      -- ^ Field types instantiated to parameters, field values.
+     --   'Nothing' if the term is a constructor of a different record type.
 etaExpandRecord' forceEta r pars u = do
   def <- fromMaybe __IMPOSSIBLE__ <$> isRecord r
-  (tel, _, _, args) <- etaExpandRecord'_ forceEta r pars def u
-  return (tel, args)
+  fmap (\(tel, _, _, args) -> (tel, args)) <$> etaExpandRecord'_ forceEta r pars def u
 
--- | Eta-expand a value at the given eta record type (must match).
+-- | Eta-expand a value at the given eta record type.
 etaExpandRecord_ :: HasConstInfo m
   => QName       -- ^ Name of record type.
   -> Args        -- ^ Parameters applied to record type.
   -> RecordData  -- ^ Definition of record type.
   -> Term        -- ^ Term to eta-expand.
-  -> m (Telescope, ConHead, ConInfo, Args)
+  -> m (Maybe (Telescope, ConHead, ConInfo, Args))
      -- ^ Field types instantiated to parameters, disassembled constructor term.
+     --   'Nothing' if the term is a constructor of a different record type.
 etaExpandRecord_ = etaExpandRecord'_ False
 
--- | Eta-expand a value at the given record type (must match).
+-- | Eta-expand a value at the given record type.
 etaExpandRecord'_ :: HasConstInfo m
   => Bool        -- ^ Force expansion, overriding '_recEtaEquality'?
   -> QName       -- ^ Name of record type.
   -> Args        -- ^ Parameters applied to record type.
   -> RecordData  -- ^ Definition of record type.
   -> Term        -- ^ Term to eta-expand.
-  -> m (Telescope, ConHead, ConInfo, Args)
+  -> m (Maybe (Telescope, ConHead, ConInfo, Args))
      -- ^ Field types instantiated to parameters, disassembled constructor term.
+     --   'Nothing' if the term is a constructor of a different record type.
 etaExpandRecord'_ forceEta r pars
     def@RecordData{ _recConHead = con, _recFields = xs, _recTel = tel }
     u = do
@@ -737,14 +741,22 @@ etaExpandRecord'_ forceEta r pars
       let args = mustAllApplyElims es
       -- Andreas, 2019-10-21, issue #4148
       -- @con == con_@ might fail, but their normal forms should be equal.
-      whenNothingM (conName con `sameDef` conName con_) $ do
-        reportSDoc "impossible" 10 $ vcat
-          [ "etaExpandRecord_: the following two constructors should be identical"
-          , nest 2 $ text $ "con  = " ++ prettyShow con
-          , nest 2 $ text $ "con_ = " ++ prettyShow con_
-          ]
-        __IMPOSSIBLE__
-      return (tel', con, ci, args)
+      mc <- conName con `sameDef` conName con_
+      case mc of
+        Nothing -> do
+          -- Jesper, 2026-08-05, issue #8636: The term is a constructor of a
+          -- different record type. This can legitimately happen e.g. when a meta
+          -- of one singleton record type is (tentatively) solved with the constructor
+          -- of another (definitionally equal under unsolvable constraints) one.
+          -- Rather than crashing, we report this and let the caller decide how to
+          -- proceed (e.g. by falling back to atomic comparison).
+          reportSDoc "tc.record.eta" 20 $ vcat
+            [ "etaExpandRecord_: the term's constructor does not match the record type"
+            , nest 2 $ text $ "con  = " ++ prettyShow con
+            , nest 2 $ text $ "con_ = " ++ prettyShow con_
+            ]
+          return Nothing
+        Just _ -> return $ Just (tel', con, ci, args)
 
     -- Not yet expanded.
     _ -> do
@@ -758,13 +770,15 @@ etaExpandRecord'_ forceEta r pars
           , "args =" <+> prettyTCM xs'
           ]
         ]
-      return (tel', con, ConOSystem, xs')
+      return $ Just (tel', con, ConOSystem, xs')
 
-etaExpandAtRecordType :: Type -> Term -> TCM (Telescope, Term)
+etaExpandAtRecordType :: Type -> Term -> TCM (Maybe (Telescope, Term))
 etaExpandAtRecordType t u = do
   (r, pars, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordType t
-  (tel, con, ci, args) <- etaExpandRecord_ r pars def u
-  return (tel, mkCon con ci args)
+  mtelargs <- etaExpandRecord_ r pars def u
+  case mtelargs of
+    Nothing -> return Nothing
+    Just (tel, con, ci, args) -> return $ Just (tel, mkCon con ci args)
 
 -- | The fields should be eta contracted already.
 --
