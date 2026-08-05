@@ -444,6 +444,7 @@ instance ExprLike Pragma where
       BuiltinNoDefPragma{}        -> pure p
       RewritePragma{}             -> pure p
       CompilePragma{}             -> pure p
+      ForeignPragma{}             -> pure p
       StaticPragma{}              -> pure p
       InjectivePragma{}           -> pure p
       InjectiveForInferencePragma{} -> pure p
@@ -571,6 +572,7 @@ instance DeclaredNames Pragma where
     BuiltinNoDefPragma _b kind x -> singleton $ WithKind kind x
     BuiltinPragma{}           -> mempty
     CompilePragma{}           -> mempty
+    ForeignPragma{}           -> mempty
     RewritePragma{}           -> mempty
     StaticPragma{}            -> mempty
     InjectivePragma{}         -> mempty
