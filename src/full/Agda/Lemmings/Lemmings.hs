@@ -94,6 +94,8 @@ lemmings norm iid rng str = liftTCM $ do
   reportSDoc "lemmings.top" 10 ((TCPretty.text "Found ") TCPretty.<+> (TCPretty.text (show $ length namesInScope)) TCPretty.<+> (TCPretty.text " names"))
 
   reportSDoc "lemmings.top" 10 $ TCPretty.text "Comparing against goal type"
+  goalTypeNorm <- normalForm Normalised goalType
+  reportSDoc "lemmings.top" 10 $ (TCPretty.text (show goalTypeNorm))
 
   ip <- lookupInteractionPoint iid
   res <- case ipMeta ip of
