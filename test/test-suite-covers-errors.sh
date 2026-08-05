@@ -73,13 +73,13 @@ EOF
 
 # Testsuite golden value files.
 #
-FILES=$(find \( -name "*.err" -o -name "*.out" \))
+FILES=$(find . \( -name "*.err" -o -name "*.out" \))
 
 # Names $NAME of errors are CamelCase and printed in that form:
 #
 #    ... error: [$NAME]
 #
-sed --silent --regexp-extended --expression='s/.*error: \[([A-Z][a-z\.]+[A-Z][A-Za-z\.]+)\].*/\1/p' $FILES | sort | uniq >> $ERRORS
+sed -n -E -e 's/.*error: \[([A-Z][a-z\.]+[A-Z][A-Za-z\.]+)\].*/\1/p' $FILES | sort | uniq >> $ERRORS
 
 sort $ERRORS | uniq > $COVERED
 
