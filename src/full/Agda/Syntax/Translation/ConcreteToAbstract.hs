@@ -3092,7 +3092,8 @@ instance ToAbstract C.Pragma where
         singleton . A.RewritePragma r . catMaybes <$> do
           forM xs \ x -> setCurrentRange x $ unambiguousConOrDef NotARewriteRule x
 
-  toAbstract (C.ForeignPragma _ rb s) = [] <$ addForeignCode (rangedThing rb) s
+  toAbstract (C.ForeignPragma _ rb s) = pure [ A.ForeignPragma rb s ]
+    -- Issue #8647: for the sake of caching, handle FOREIGN code in the type checker
 
   toAbstract (C.CompilePragma _ rb x s) =
     maybe [] (\ y -> [ A.CompilePragma rb y s ]) <$>

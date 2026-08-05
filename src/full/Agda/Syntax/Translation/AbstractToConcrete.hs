@@ -1406,6 +1406,7 @@ instance ToConcrete RangeAndPragma where
     A.CompilePragma b x s -> do
       x <- toConcrete x
       return $ C.CompilePragma r b x s
+    A.ForeignPragma b s -> return $ C.ForeignPragma r b s
     A.StaticPragma x -> C.StaticPragma r <$> toConcrete x
     A.InjectivePragma x -> C.InjectivePragma r <$> toConcrete x
     A.InjectiveForInferencePragma x -> C.InjectiveForInferencePragma r <$> toConcrete x

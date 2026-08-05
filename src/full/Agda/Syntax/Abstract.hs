@@ -252,6 +252,7 @@ data Pragma
   | RewritePragma Range [QName]
     -- ^ Range is range of REWRITE keyword.
   | CompilePragma (Ranged BackendName) QName String
+  | ForeignPragma (Ranged BackendName) String
   | StaticPragma QName
   | InjectivePragma QName
   | InjectiveForInferencePragma QName

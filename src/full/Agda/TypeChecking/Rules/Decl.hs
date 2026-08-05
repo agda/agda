@@ -812,7 +812,7 @@ checkPragma r p = do
             {- then -} (addPragma (rangedThing b) x s)
             {- else -} $ uselessPragma
               "COMPILE pragmas must appear in the same module as their corresponding definitions,"
-
+        A.ForeignPragma rb s -> addForeignCode (rangedThing rb) s
         A.StaticPragma x -> do
           def <- ignoreAbstractMode $ getConstInfo x
           case theDef def of
