@@ -7,8 +7,10 @@ rm -rf _build > /dev/null
 
 ${AGDA} --no-default-libraries Issue5250.agda
 
-sed -ri -e 's/flags:/flags: -Wall/' Issue5250.agda-lib
+sed -e 's/flags:/flags: -Wall/' Issue5250.agda-lib > Issue5250.agda-lib.tmp &&
+  mv Issue5250.agda-lib.tmp Issue5250.agda-lib
 
 ${AGDA} --no-default-libraries Issue5250.agda
 
-sed -ri -e 's/flags: -Wall/flags:/' Issue5250.agda-lib
+sed -e 's/flags: -Wall/flags:/' Issue5250.agda-lib > Issue5250.agda-lib.tmp &&
+  mv Issue5250.agda-lib.tmp Issue5250.agda-lib

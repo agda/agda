@@ -11,7 +11,7 @@ set -e
 $AGDA Issue8098.agda
 
 # Find interface file.
-iface=$(find -name "Issue8098.agdai")
+iface=$(find . -name "Issue8098.agdai")
 [ -f ${iface} ]
 
 # Make interface file readonly.
