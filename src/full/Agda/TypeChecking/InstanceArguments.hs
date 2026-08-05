@@ -190,16 +190,19 @@ initialInstanceCandidates blockOverlap instTy = do
       let n = size piTel
       addContext piTel $ caseMaybeM (etaExpand etaOnce t') (return []) $ \ (r, pars) -> do
         let v' = raise n v `apply` teleArgs piTel
-        (tel, args) <- lift $ forceEtaExpandRecord r pars v'
-        let types = map' unDom $ applySubst (parallelS $ reverse $ map' unArg args) (flattenTel tel)
-        fmap concat $ forM (zip' args types) $ \ (arg, t) -> do
-          let
-            absArg = abstract piTel (unArg arg)
-            absTy = telePi piTel t
-          ([ Candidate LocalCandidate absArg absTy (infoOverlapMode arg)
-            | isInstance arg
-            ] ++) <$>
-           instanceFields' False (LocalCandidate, absArg, absTy)
+        mtelargs <- lift $ forceEtaExpandRecord r pars v'
+        case mtelargs of
+          Nothing -> return [] -- Issue #8636: cannot eta-expand the value at this record type
+          Just (tel, args) -> do
+            let types = map' unDom $ applySubst (parallelS $ reverse $ map' unArg args) (flattenTel tel)
+            fmap concat $ forM (zip' args types) $ \ (arg, t) -> do
+              let
+                absArg = abstract piTel (unArg arg)
+                absTy = telePi piTel t
+              ([ Candidate LocalCandidate absArg absTy (infoOverlapMode arg)
+                | isInstance arg
+                ] ++) <$>
+               instanceFields' False (LocalCandidate, absArg, absTy)
 
     -- Compute whether we should block this instance constraint at the
     -- discrimination tree stage.

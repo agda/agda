@@ -421,15 +421,23 @@ compareTerm' !cmp !a !m !n =
 
                  | otherwise -> do
                     whenProfile Profile.Conversion $ tick "compare at eta-record: eta-expanding"
-                    (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
-                    (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
-                    -- No subtyping on record terms
-                    c <- getRecordConstructor r
-                    -- Record constructors are covariant (see test/succeed/CovariantConstructors).
-                    compareArgs (repeat $ polFromCmp cmp) []
-                      (telePi_ tel (raise (size tel) a'))
-                      (Con c ConOSystem [])
-                      m' n'
+                    mm' <- etaExpandRecord r ps $ ignoreBlocking m
+                    nn' <- etaExpandRecord r ps $ ignoreBlocking n
+                    case (mm', nn') of
+                      (Just (tel, m'), Just (_, n')) -> do
+                        -- No subtyping on record terms
+                        c <- getRecordConstructor r
+                        -- Record constructors are covariant (see test/succeed/CovariantConstructors).
+                        compareArgs (repeat $ polFromCmp cmp) []
+                          (telePi_ tel (raise (size tel) a'))
+                          (Con c ConOSystem [])
+                          m' n'
+                      -- Issue #8636: Eta-expansion may fail if a term is a
+                      -- constructor of a different (but possibly definitionally
+                      -- equal under unsolvable constraints) record type. In that
+                      -- case we fall back to atomic comparison, which will produce a
+                      -- proper conversion error rather than crashing.
+                      _ -> compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
 
             else ret do pathview <- pathView a'
                         equalPath pathview a' m n
