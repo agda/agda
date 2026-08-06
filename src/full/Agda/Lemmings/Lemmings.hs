@@ -27,6 +27,7 @@ import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.InternalToAbstract (reify, blankNotInScope)
 import Agda.Syntax.Concrete.Name as Name
 import Agda.Syntax.Common.Pretty as CPretty
+import Agda.Syntax.Builtin (BuiltinId)
 
 import Agda.TypeChecking.CheckInternal ( checkInternal )
 import Agda.TypeChecking.Conversion (equalType, compareType, leqType)
@@ -35,10 +36,11 @@ import Agda.TypeChecking.Level (levelType)
 import Agda.TypeChecking.MetaVars (newValueMeta, newTelMeta)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty as TCPretty
+import Agda.TypeChecking.Primitive.Base (isBuiltin)
 import Agda.TypeChecking.Reduce (reduce, instantiateFull, instantiate)
 import Agda.TypeChecking.Rules.Term  (makeAbsurdLambda)
 import Agda.TypeChecking.Rules.LHS.Unify.LeftInverse
-import Agda.TypeChecking.Substitute (apply, theTel, applySubst)
+import Agda.TypeChecking.Substitute (apply, theTel, theCore, applySubst)
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Impossible
@@ -49,6 +51,19 @@ import Agda.Interaction.BasicOps (normalForm, getModuleContents)
 
 -- temporarily a tuple of name and type
 type LemmingsResult = [(Name.Name, Type)]
+
+{-
+CURRENT DESIGN:
+Normalise modulo isomorphisms
+store in index tree (e.g. searchByPolyType paper):
+  * Keep un-normalised type, module, and line number
+  * Match all prefixes? I.e. to have A -> B -> C it is sufficient to have B -> C
+Need some efficient encoding of the tree to store in file - cache!
+Also need a standard location for said file, likely matching .agdai files
+Probably worth keeping separate from .agdai files, in that it can be shipped separately for e.g.
+web search?
+
+-}
 
 -- entry point for running inside a hole
 lemmings :: MonadTCM tcm
@@ -93,53 +108,74 @@ lemmings norm iid rng str = liftTCM $ do
 
   reportSDoc "lemmings.top" 10 ((TCPretty.text "Found ") TCPretty.<+> (TCPretty.text (show $ length namesInScope)) TCPretty.<+> (TCPretty.text " names"))
 
-  reportSDoc "lemmings.top" 10 $ TCPretty.text "Comparing against goal type"
-  goalTypeNorm <- normalForm Normalised goalType
-  reportSDoc "lemmings.top" 10 $ (TCPretty.text (show goalTypeNorm))
+  reportSDoc "lemmings.top" 10 $ TCPretty.text "Comparing against goal type..."
 
   ip <- lookupInteractionPoint iid
   res <- case ipMeta ip of
     Nothing -> return []
     Just meta -> do
       goalType <- metaType meta
+      goalTypeNorm <- normalForm Normalised goalType
+      reportSDoc "lemmings.top" 10 $ (TCPretty.pretty goalTypeNorm)
+      curryTerm (unEl goalTypeNorm)
       filterNames res goalType
 
   return res
 
+{-
+We start by grabbing absolutely everything in scope at the interaction point (Agda internal speak for a hole), which you can grab via`getInteractionScope`. We then grab all the types of the exported things from the scope (look at `getModuleContents` to see how to do this).
+
+We then iterate over our list of names and types, and call `telView` to get our hands on all of the argument types. Underneath a call to `localTCState`, we then create metavariables for each of the argument types via `newTelMeta`, and then build a `Substitution` out of them via `termS`. Finally, we `applySubst` this substitution to the return type, and then unify the substituted type with our goal via `equalType` . If this unification succeeds, we record the lemma name and any metavariable solutions we have.
+
+As a contrived example, consider the goal
+
+? : Nat
+
+and scope
+
+const : {A  B : Set} -> A -> B -> A
+not : Bool -> Bool
+
+We'd start by calling `telView` on `const`, which would give us the list of types [Set, Set, x : @1, y : @1] and the type @3, where @n denotes the DeBruijn index n. Creating metas for this would give us a list [?0 : Set, ?1 : Set, ?2 : ?0, ?3 : ?2]. Applying that substitution to @3 gives us a return type of ?0. We then call equalType of this against the goal, which will succeed and solve ?0 as Nat. Our resulting telescope of metas is then [?1 : Set, ?2 : Nat, ?3 : ?2], which we store in the list.
+
+On the other hand, going through the telView dance with not would give us a list of metavariables [?0 : Bool] and a return type of Bool, which would not unify with the goal.
+-}
+
 -- TODO: reporting names twice?
 filterNames :: LemmingsResult -> Type -> TCM LemmingsResult
-filterNames ((n, t) : xs) goal = do
+filterNames ((nm, t) : xs) goal = do
   rest <- filterNames xs goal
   tele <- telView t
 
   reportSDoc "lemmings.top" 20 $ (TCPretty.text "Checking ") TCPretty.<+> TCPretty.pretty t
+  reportSDoc "lemmings.top" 20 $ (TCPretty.pretty nm)
 
-  -- subst <- localTCState $ do
-  --   args <- newTelMeta $ theTel tele
-  --   -- metas :: [Arg Term]
-  --   let metas = map unArg args
-  --       subs = termsS impossible metas
+  matchS <- localTCState $ do
+    args <- newTelMeta $ theTel tele
+    -- metas :: [Arg Term]
+    let metas = map unArg args
+        -- subs = termsS impossible metas
 
-  --   reportSDoc "lemmings.top" 20 $ (TCPretty.text "Metas: ") TCPretty.<+> TCPretty.pretty metas
-  --   reportSDoc "lemmings.top" 20 $ (TCPretty.text "Subs: ") TCPretty.<+> TCPretty.pretty subs
+    reportSDoc "lemmings.top" 20 $ (TCPretty.text "Metas: ") TCPretty.<+> TCPretty.pretty metas
+    -- reportSDoc "lemmings.top" 20 $ (TCPretty.text "Subs: ") TCPretty.<+> TCPretty.pretty subs
 
-  --   return $ applySubst subs t
+    -- return $ applySubst subs (theCore tele)
+    tInst <- piApplyM t args
 
-  -- reportSDoc "lemmings.top" 20 $ TCPretty.pretty subst
-  -- reportSDoc "lemmings.top" 20 $ TCPretty.pretty (generateIsoTypes t)
-  -- reportSDoc "lemmings.top" 20 $ TCPretty.text " "
+    reportSDoc "lemmings.top" 20 $ TCPretty.pretty tInst
+    reportSDoc "lemmings.top" 20 $ TCPretty.text " "
 
-  --  matchS <- checkType goal subst
-  let isoTypes = generateIsoTypes t
-  reportSDoc "lemmings.top" 20 $ TCPretty.pretty isoTypes
+    checkType goal tInst
+  -- let isoTypes = generateIsoTypes t
+  -- reportSDoc "lemmings.top" 20 $ TCPretty.pretty isoTypes
 
-  matchT <- checkTypes goal (generateIsoTypes t)
+  -- matchT <- checkTypes goal (generateIsoTypes t)
 
-  reportSDoc "lemmings.top" 20 $ (TCPretty.text "Match?: ") TCPretty.<+> (TCPretty.pretty matchT)
+  reportSDoc "lemmings.top" 20 $ (TCPretty.text "Match?: ") TCPretty.<+> (TCPretty.pretty matchS)
   reportSDoc "lemmings.top" 20 $ TCPretty.text " "
 
-  if (matchT) then
-    return $ (n,t) : rest
+  if (matchS) then
+    return $ (nm,t) : rest
   else
     return rest
 
@@ -185,3 +221,29 @@ checkType goal t = do
   return True
   `catchError` \err -> do
     return False
+
+-- TODO: implement
+-- Normalises a type according to a set of isomorphisms
+--   * All non-dependent arguments are sorted
+--   * All dependencies via Pi are moved up until its bound variable isn't in free variables
+--     and then sorted amongst other dependencies
+--   * All products are curried
+--   * etc
+normIso :: Type -> TCM Type
+normIso t = undefined
+
+{-
+Note: when unnormalised, qname for product is _x_
+      when normalised, it goes to it's definition as a Sigma
+-}
+-- curry all products
+-- Products are finite Pi
+curryTerm :: Term -> TCM ()
+curryTerm (Def qname elims) = do
+  sigma <- isBuiltin qname BuiltinSigma
+  reportSDoc "lemmings.top" 10 $ (TCPretty.text (show sigma))
+  reportSDoc "lemmings.top" 10 $ (TCPretty.pretty qname)
+  return ()
+curryTerm (Pi dom (Abs name argt)) = curryTerm $ unEl argt
+curryTerm (Pi dom (NoAbs name argt)) = curryTerm $ unEl argt
+curryTerm t = return ()
