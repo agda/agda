@@ -255,7 +255,7 @@ instance EmbPrj Context where
     N2 0 a -> valuN Context a
     _      -> malformed
 
-instance EmbPrj RewriteSource where
+instance EmbPrj SerialisableRewriteSource where
   icod_ = \case
     LocalRewrite a b c -> icodeN 0 LocalRewrite a b c
     GlobalRewrite a    -> icodeN 1 GlobalRewrite a

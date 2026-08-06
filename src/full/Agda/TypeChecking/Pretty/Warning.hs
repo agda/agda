@@ -819,11 +819,13 @@ instance PrettyTCM DataOrRecord_ where
     IsRecord{} -> "record"
 
 instance PrettyTCM RewriteSource where
+  prettyTCM s = prettyTCM (defName <$> s)
+
+instance PrettyTCM SerialisableRewriteSource where
   prettyTCM = \case
     LocalRewrite g n t ->
       maybe "_" prettyTCM n <+> ":" <+> addContext g (prettyTCM t)
-    GlobalRewrite q    -> prettyTCM (defName q)
-
+    GlobalRewrite q    -> prettyTCM q
 
 {-# SPECIALIZE prettyRecordFieldWarning :: RecordFieldWarning -> TCM Doc #-}
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc

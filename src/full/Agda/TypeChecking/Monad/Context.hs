@@ -625,7 +625,7 @@ defaultAddLetBinding' isAxiom o x v t ret = do
     localTC (over eLetBindings (Map.insert x vt)) ret
 
 unsafeRule :: (MonadWarning m) => RewriteSource -> IllegalRewriteRuleReason -> MaybeT m ()
-unsafeRule s reason = lift $ warning $ IllegalRewriteRule s reason
+unsafeRule s reason = lift $ warning $ IllegalRewriteRule (defName <$> s) reason
 
 illegalRule :: (MonadWarning m) => RewriteSource -> IllegalRewriteRuleReason -> MaybeT m a
 illegalRule s reason = do

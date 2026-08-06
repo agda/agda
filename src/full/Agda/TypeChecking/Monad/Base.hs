@@ -5230,7 +5230,7 @@ data Warning
     -- ^ Confluence checking with @--cubical@ might be incomplete.
   | NotARewriteRule C.QName IsAmbiguous
     -- ^ 'IllegalRewriteRule' detected during scope checking.
-  | IllegalRewriteRule RewriteSource IllegalRewriteRuleReason
+  | IllegalRewriteRule SerialisableRewriteSource IllegalRewriteRuleReason
   | RewriteNonConfluent Term Term Term Doc
     -- ^ Confluence checker found critical pair and equality checking
     --   resulted in a type error
@@ -6131,11 +6131,17 @@ data InductionAndEta = InductionAndEta
   , recordEtaEquality :: EtaEquality
   } deriving (Show, Generic)
 
--- Source of the rewrite rule
-data RewriteSource
-  = GlobalRewrite Definition
+-- | Source of the rewrite rule
+--   Parameterised by the info for global rewrite rules (it is convenient
+--   to remember the definition during checking, but when serialising we just
+--   store the 'QName')
+data RewriteSource' a
+  = GlobalRewrite a
   | LocalRewrite Context (Maybe Name) Type
-  deriving (Show, Generic)
+  deriving (Show, Generic, Functor)
+
+type RewriteSource = RewriteSource' Definition
+type SerialisableRewriteSource = RewriteSource' QName
 
 isLocalRewrite :: RewriteSource -> Bool
 isLocalRewrite (LocalRewrite g r t) = True
@@ -7462,7 +7468,7 @@ instance NFData ClashingName
 instance NFData InvalidFileNameReason
 instance NFData LHSOrPatSyn
 instance NFData InductionAndEta
-instance NFData RewriteSource
+instance NFData SerialisableRewriteSource
 instance NFData IllegalRewriteRuleReason
 instance NFData IncorrectTypeForRewriteRelationReason
 instance NFData GHCBackendError
