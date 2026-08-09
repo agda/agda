@@ -202,6 +202,8 @@ parseSource sourceFile = Bench.billTo [Bench.Parsing] $ do
 
   -- Now parse again, with module name present to be filled into the ranges.
   let rf = mkRangeFile f $ Just parsedModName0
+  setCurrentRange (beginningOfFile rf) do
+
   ((parsedMod, attrs), fileType) <- runPM $ parseFile mdOnlyAgdaBlocks moduleParser rf txt
   parsedModName                  <- moduleName f parsedMod
 
