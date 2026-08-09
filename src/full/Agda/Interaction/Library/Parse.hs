@@ -167,13 +167,8 @@ fromGeneric' file fields fs = do
   foldM upd emptyLibFile fs
   where
     -- The range points to the start of the file.
-    r = Range
-          (Strict.Just $ mkRangeFile file Nothing)
-          (singleton i)
-      where
-      p  = Pn () 1 1 1
-      !i = PackIWF (posToInterval () p p)
-
+    r :: Range
+    r = beginningOfFile file
     upd :: AgdaLibFile -> GenericEntry -> P AgdaLibFile
     upd l (GenericEntry h cs) = do
       mf <- findField h fields
