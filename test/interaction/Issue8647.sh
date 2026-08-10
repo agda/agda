@@ -26,7 +26,7 @@ mkfifo "$PIPE"
 # Start Agda in the background reading from the pipe
 # The "tail -f" trick keeps the pipe open so the command doesn't exit early
 # Force tail's stdout to stay line-buffered
-stdbuf -oL tail -f "$PIPE" | agda --interaction &
+stdbuf -oL tail -f "$PIPE" | agda --interaction >/dev/null 2>/dev/null &
 COMMAND_PID=$!
 
 ## Compile file interactively
@@ -70,6 +70,6 @@ rm "$PIPE"
 
 ## Call GHC again to make sure compilation succeeds
 
-ghc MAlonzo/Code/Issue8647.hs
+ghc MAlonzo/Code/Issue8647.hs >/dev/null 2>/dev/null
 
 # The exit code of this script should be the one of this last command.
