@@ -11,13 +11,11 @@ Cubical Agda was originally contributed by Andrea Vezzosi.
 Agda 2 is currently actively developed mainly by (in alphabetical order):
 
 * Andreas Abel
-* Liang-Ting Chen
+* Nathaniel Burke
 * Lawrence Chonavel
 * Jesper Cockx
 * Nils Anders Danielsson
-* Amélia Liao
-* Ulf Norell
-* Szumi Xie
+* András Kovács
 
 Agda 2 has received major contributions by the following developers, amongst others.
 Some contributors have pioneered a feature which shall be mentioned here.
@@ -58,18 +56,20 @@ But many have worked on these features for improvements and maintenance.
 * Alan Jeffrey: *JavaScript compiler backend*
 * Phil de Joux: some *hlinting*
 * Wolfram Kahl
+* Philip Kaludercic: *emacs mode refactoring*
 * Andre Knispel: *reflection, ``INJECTIVE_FOR_INFERENCE``*
 * Wen Kokke
 * András Kovács: *performance, serialization*
 * John Leo
 * Fredrik Lindblad: *Agsy proof search "Auto"*
 * Víctor López Juan: *"tog" prototype, markdown frontend, documentation*
-* Amélia Liao: *maintenance of Cubical Agda*
+* Amélia Liao: *maintenance and enhancements of Cubical Agda, instance search, colored output*
 * Ting-Gan Lua
 * Francesco Mazzoli: *"tog" prototype*
 * James McKinna: *standard library 1.7 and above*
 * Stefan Monnier
 * Guilhem Moulin: *highlighting*
+* Reed Mullanix: *performance, emacs mode fixes*
 * Fredrik Nordvall Forsberg: *pattern lambdas, warnings*
 * Konstantin Nisht
 * Ulf Norell: *Agda 2*
@@ -81,13 +81,14 @@ But many have worked on these features for improvements and maintenance.
 * Michael Shulman: *some Agda input key bindings*
 * Andrés Sicard-Ramírez: *Agda releases, stackage, Travis CI*
 * Lukas Skystedt: *Mimer proof search "Auto"*
+* Nate Soares: *improvements of termination checking for copatterns*
 * Makoto Takeyama: *Agda 1, Emacs mode, "MAlonzo" compiler to Haskell, serialization*
 * Andrea Vezzosi: *Cubical Agda, Agda-flat, Agda-parametric, Guarded Cubical Agda*
 * Szumi Xie: *some bug fixes*
 * Noam Zeilberger: *pattern lambdas*
 * Tesla Ice Zhang
 
-The full list of code and documentation contributors (close to 200)
+The full list of code and documentation contributors (over 200)
 is available at https://github.com/agda/agda/graphs/contributors
 or from the git repository via ``git shortlog -sne``.
 Numerous further individuals have contributed to Agda by reporting
