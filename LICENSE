@@ -5,26 +5,27 @@ and from Agdalight by Ulf Norell and Andreas Abel.
 Cubical Agda was originally contributed by Andrea Vezzosi.
 
 Agda 2 is currently actively developed mainly by Andreas Abel,
-Liang-Ting Chen, Lawrence Chonavel, Jesper Cockx,
-Nils Anders Danielsson, Amélia Liao, Ulf Norell, and Szumi Xie.
+Nathaniel Burke, Lawrence Chonavel, Jesper Cockx,
+Nils Anders Danielsson, and András Kovács.
 
 Further, Agda 2 has received contributions by, amongst others,
-Arthur Adjedj,  Guillaume Allais, Malin Altenmüller, Stevan Andjelkovic,
+Arthur Adjedj, Guillaume Allais, Malin Altenmüller, Stevan Andjelkovic,
 Marcin Benke, Jean-Philippe Bernardy, Guillaume Brunerie,
-James Chapman, Joris Ceulemans, Jonathan Coates,
-Matthew Daggitt, Dominique Devriese, Péter Diviánszky,
+James Chapman, Liang-Ting Chen, Joris Ceulemans, Jonathan Coates,
+Matthew Daggitt, Dominique Devriese, Marko Dimjašević, Péter Diviánszky,
 Lucas Escot, Robert Estelle,
-Naïm Favier, Kuen-Bang Hou (Favonia), Olle Fredriksson,
-Adam Gundry, Daniel Gustafsson,
+Naïm Camille Favier, Kuen-Bang Hou (Favonia), Olle Fredriksson,
+Paolo G. Giarrusso, Adam Gundry, Daniel Gustafsson,
 Philipp Hausmann, Alex Haršáni,
-Alan Jeffrey, Phil de Joux,
-Wolfram Kahl, Andre Knispel, Wen Kokke, András Kovács,
-John Leo, Fredrik Lindblad, Víctor López Juan, Ting-Gan Lua,
-Francesco Mazzoli, Stefan Monnier, Guilhem Moulin,
-Konstantin Nisht, Fredrik Nordvall Forsberg, Andreas Nuyts,
-Josselin Poiret, Nicolas Pouillard, Jonathan Prieto,
-Christian Sattler, Michael Shulman, Andrés Sicard-Ramírez,
-Makoto Takeyama, Andrea Vezzosi, Noam Zeilberger, and Tesla Ice Zhang.
+Patrik Jansson, Alan Jeffrey, Phil de Joux,
+Wolfram Kahl, Philip Kaludercic, Andre Knispel, Wen Kokke,
+John Leo, Amélia Liao, Ziyang Liu, Fredrik Lindblad, Víctor López Juan, Ting-Gan Lua,
+Francesco Mazzoli, Stefan Monnier, Guilhem Moulin, Reed Mullanix,
+Konstantin Nisht, Fredrik Nordvall Forsberg, Ulf Norell, Andreas Nuyts,
+Herminie Pagel, Josselin Poiret, Nicolas Pouillard, Jonathan Prieto,
+Christian Sattler, Artem Shinkarov, Michael Shulman, Andrés Sicard-Ramírez, Nate Soares,
+Makoto Takeyama, Andrea Vezzosi, Szumi Xie, Nobuo Yamashita,
+Noam Zeilberger, and Tesla Ice Zhang.
 The full list of contributors is available at
 https://github.com/agda/agda/graphs/contributors or from the git
 repository via ``git shortlog -sne``.
