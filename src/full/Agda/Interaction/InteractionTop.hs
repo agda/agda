@@ -719,8 +719,8 @@ interpret (Cmd_autoAll norm) = do
 interpret (Cmd_search norm ii rng str) = do
   rng <- syncInteractionRange ii rng
   res <- Lemmings.lemmings norm ii rng str
-  display_info $ Info_SearchAbout res "TODO: implement" -- TODO: Lemmings will need its own Info_ 
-  
+  display_info $ Info_SearchAbout res "TODO: implement own Info_" -- TODO: Lemmings will need its own Info_
+
 
 interpret (Cmd_context norm ii _ _) = do
   display_info . Info_Context ii =<< liftLocalState (B.getResponseContext norm ii)
