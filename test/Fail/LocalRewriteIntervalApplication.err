@@ -1,0 +1,13 @@
+LocalRewriteIntervalApplication.agda:27.12-46: warning: -W[no]RewriteContainsIntervalVariables
+rw : bad i ≡ tt  is not a legal rewrite rule, since the following
+interval variable is present:
+  i
+when checking the parameters of module Bad
+
+LocalRewriteIntervalApplication.agda:29.9-13: error: [UnequalTerms]
+The terms
+  bad i
+and
+  tt
+are not equal at type Bool
+when checking that the expression refl has type bad i ≡ tt

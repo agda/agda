@@ -405,7 +405,10 @@ prettyWarning = \case
         ]
 
     IllegalRewriteRule q reason -> do
-      let illegalSince q = [ prettyTCM q, "" ] ++ pwords "is not a legal rewrite rule, since"
+      let illegalSince q = [ prettyTCM q, "" ] ++
+            pwords "is not a legal" ++
+            (if isSmartWithRewrite q then pwords "(--smart-with)" else []) ++
+            pwords "rewrite rule, since"
       case reason of
 
         LHSNotDefinitionOrConstructor -> do
@@ -417,7 +420,7 @@ prettyWarning = \case
         LHSNotNeutral r -> do
           (fsep . concat)
             [ illegalSince q
-            , pwords "the left-hand side of a rewrite rule introduced by with/rewrite is"
+            , pwords "the left-hand side is"
             , case r of
                 LHSConstructorHeaded -> pwords
                   "headed by a constructor"
@@ -427,7 +430,16 @@ prettyWarning = \case
         RHSContainsClosures -> do
           (fsep . concat)
             [ illegalSince q
-            , pwords "the right-hand side of a rewrite rule introduced by with/rewrite contains closures (e.g. lambdas or underapplied functions) which can cause non-termination"]
+            , pwords "the right-hand side contains closures (e.g. lambdas or underapplied functions) which can cause non-termination"]
+
+        IntervalVariablesPresent xs -> do
+          (fsep . concat)
+            [ illegalSince q
+            , pwords "the following interval"
+            , pwords $ singPlural ys "variable is" "variables are"
+            , pwords "present:" ]
+            <?> fsep (map (prettyTCM . var) ys)
+          where ys = VarSet.toAscList xs
 
         VariablesNotBoundByLHS xs -> do
           (fsep . concat)

@@ -1,0 +1,17 @@
+SmartWithIndexedMatchCubical.agda:1.1-50: warning: -W[no]SmartWithCubical
+Smart with (--smart-with) is not yet supported for Cubical Agda
+(--cubical or --cubical-compatible). Matching on indexed datatypes
+will probably hit errors.
+
+SmartWithIndexedMatchCubical.agda:19.1-32: warning: -W[no]RewriteContainsIntervalVariables
+_ : p ≡ Agda.Primitive.Cubical.primHComp u a  is not a legal
+(--smart-with) rewrite rule, since the following interval variable
+is present:
+  φ
+when checking the definition of
+SmartWithIndexedMatchCubical.-invert14
+
+SmartWithIndexedMatchCubical.agda:19.1-32: error: [InvalidatedLocalRewriteRule]
+Local rewrite rule invalidated after a pattern-match
+when checking the definition of
+SmartWithIndexedMatchCubical.-invert14

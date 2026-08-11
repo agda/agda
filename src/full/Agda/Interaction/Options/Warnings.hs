@@ -250,6 +250,7 @@ data WarningName
   | WarningProblem_
       -- ^ Some warning could not be set or unset.
   | LocalRewritingConfluenceCheck_
+  | SmartWithCubical_
   -- Parser Warnings
   | OverlappingTokensWarning_
   | MisplacedAttributes_
@@ -382,6 +383,7 @@ data WarningName
   | LocalRewriteOutsideTelescope_
   | SmartWithOccursFail_
   | RewriteRHSContainsClosures_
+  | RewriteContainsIntervalVariables_
   | InferredLocalRewrite_
   | SafeFlagInjective_
   | SafeFlagNoCoverageCheck_
@@ -512,6 +514,7 @@ warningNameDescription = \case
   OptionRenamed_                   -> "Renamed options."
   WarningProblem_                  -> "Problems with switching warnings."
   LocalRewritingConfluenceCheck_   -> "Confluence checking local rewrite rules in not yet implemented."
+  SmartWithCubical_                -> "The combination of '--smart-with' and '--cubical' is not yet fully implemented."
   -- Parser Warnings
   OverlappingTokensWarning_        -> "Multi-line comments spanning one or more literate text blocks."
   MisplacedAttributes_             -> "Attributes where they are not supported."
@@ -623,6 +626,7 @@ warningNameDescription = \case
   RewriteLHSNotDefinitionOrConstructor_             -> "Rewrite rule head symbol is not a defined symbol or constructor."
   RewriteLHSNotNeutral_                             -> "'--smart-with'-introduced rewrite rule LHS is not neutral."
   RewriteRHSContainsClosures_                       -> "'--smart-with'-introduced rewrite rule RHS contains closures (e.g. lambdas or underapplied functions)."
+  RewriteContainsIntervalVariables_                 -> "Local rewrite rules containing interval variables are unsupported."
   RewriteVariablesNotBoundByLHS_                    -> "Rewrite rule does not bind all of its variables."
   RewriteVariablesBoundMoreThanOnce_                -> "Constructor-headed rewrite rule has non-linear parameters."
   RewriteVariablesBoundInSingleton_                 -> "Rewrite rule binds some variables in possibly definitionally singular contexts."

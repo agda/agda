@@ -57,7 +57,11 @@ createMissingIndexedClauses ::
   -> [Clause]
   -> TCM ([(SplitTag,CoverResult)],[Clause])
 createMissingIndexedClauses f n x old_sc scs cs = do
-  let infos = [(c,i) | (SplitCon c, (_,TheInfo i)) <- scs ]
+  -- For now, we only handle infos where the unifier did not invalidate any
+  -- local rewrite rules...
+  -- TODO: Is it safe to just skip creating these missing
+  -- 'TrXCon' clauses? Should we throw a warning or error?
+  let infos = [(c,i) | (SplitCon c, (_,TheInfo RetainRews i)) <- scs ]
   case scs of
     xs | info:_ <- infos -> do
          reportSDoc "tc.cover.indexed" 20 $ text "size (xs,infos):" <+> pretty (size xs,size infos)

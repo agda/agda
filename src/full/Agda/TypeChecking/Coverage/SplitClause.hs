@@ -98,7 +98,7 @@ data UnifyEquiv = UE
   }
   deriving Show
 
-data IInfo = TheInfo UnifyEquiv | NoInfo deriving Show
+data IInfo = TheInfo RefreshRews UnifyEquiv | NoInfo deriving Show
 
 -- | A @Covering@ is the result of splitting a 'SplitClause'.
 data Covering = Covering

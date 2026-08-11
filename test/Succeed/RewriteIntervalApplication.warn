@@ -1,0 +1,11 @@
+RewriteIntervalApplication.agda:31.5-23: warning: -W[no]ConfluenceForCubicalNotSupported
+Confluence checking for --cubical is not yet supported, confluence
+checking might be incomplete
+when checking the pragma REWRITE rw
+
+———— All done; warnings encountered ————————————————————————
+
+RewriteIntervalApplication.agda:31.5-23: warning: -W[no]ConfluenceForCubicalNotSupported
+Confluence checking for --cubical is not yet supported, confluence
+checking might be incomplete
+when checking the pragma REWRITE rw

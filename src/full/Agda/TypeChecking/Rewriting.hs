@@ -361,14 +361,6 @@ containsClosures MetaV{}      = __IMPOSSIBLE__
 -- | Returns whether a term is only stuck due to being underapplied
 --   (in which case, it cannot be considered neutral, because further
 --   applications may un-stick it)
---
---   Warning: If multiple possible reductions could apply to a term (e.g.
---   because of rewrite rules), and only one of them is stuck because of
---   'Underapplied', then this function may still return 'False'.
---   I *think* the only way this could happen is if non-'--smart-with' rewrite
---   rules are involved, in which case, we do not aim try to ensure termination
---   (rewrite rules in general have no termination checking) and so this is
---   not such a big deal.
 isUnderapplied :: Term -> TCM Bool
 isUnderapplied t = do
   t' <- reduceB t
@@ -479,6 +471,8 @@ checkRewriteRule eq@(LocalEquation gamma1 lhs rhs b) s = do
       warnUnsafeVars xs = unsafeRule s $ VariablesBoundInSingleton xs
   let failureNonLinearPars :: VarSet -> MaybeT TCM a
       failureNonLinearPars xs = illegalRule s $ VariablesBoundMoreThanOnce xs
+  let failureIntervalVars :: VarSet -> MaybeT TCM a
+      failureIntervalVars xs = illegalRule s $ IntervalVariablesPresent xs
 
   gamma0 <- getContextTelescope
   let gamma = gamma0 `abstract` gamma1
@@ -516,14 +510,18 @@ checkRewriteRule eq@(LocalEquation gamma1 lhs rhs b) s = do
     -- 2. To preserve soundness, we need that all the variables that are used
     --    in the *proof* of the rewrite rule are bound in the lhs.
     --    For rewrite rules on constructors, we consider parameters to be bound
-    --    even though they don't appear in the lhs, since they can be reconstructed.
+    --    even though they don't appear in the lhs, since they can be
+    --    reconstructed.
     --    For postulated or abstract rewrite rules, we consider all arguments
     --    as 'used' (see #5238).
     let PatVars neverSingPatVars maybeSingPatVars = nlPatVars ps
         boundVars   = neverSingPatVars <> maybeSingPatVars
         telVars     = VarSet.full telStart
-        freeVarsLhs = telVars `VarSet.intersection` freeVarSet lhs
-        freeVarsRhs = telVars `VarSet.intersection` freeVarSet rhs
+        allVarsLhs  = freeVarSet lhs
+        allVarsRhs  = freeVarSet rhs
+        cxtVars     = (allVarsLhs <> allVarsRhs) `VarSet.difference` telVars
+        freeVarsLhs = telVars `VarSet.intersection` allVarsLhs
+        freeVarsRhs = telVars `VarSet.intersection` allVarsRhs
         freeVars    = freeVarsLhs <> freeVarsRhs
         usedVars    = case s of
           LocalRewrite _ -> VarSet.empty
@@ -561,6 +559,18 @@ checkRewriteRule eq@(LocalEquation gamma1 lhs rhs b) s = do
     reportSDoc "rewriting" 70 $
       "variables bound in (erased) parameter position: " <+> text (show pars)
     unlessNull (boundVars `VarSet.intersection` VarSet.fromList pars) failureNonLinearPars
+
+    -- We don't allow interval variables in local rewrite rules because
+    -- these may get substituted, invalidating the rewrite
+    -- (technically this is also a problem for global rewrite rules, but
+    -- there the issue is with confluence as opposed to an IMPOSSIBLE)
+    --
+    -- In principle, we potentially could support interval variables
+    -- properly by building a tree of rewrites up-front for all possible
+    -- interval variable substitutions, but this seems overkill
+    when (isLocalRewrite s) $ do
+      intervalVars <- filterM isIntervalVar $ VarSet.toDescList cxtVars
+      unlessNull (VarSet.fromDescList intervalVars) failureIntervalVars
 
     -- #5929: All variables occurring on the rhs should be bound in
     -- contexts that will never become definitionally singular (even after
@@ -625,6 +635,14 @@ checkRewriteRule eq@(LocalEquation gamma1 lhs rhs b) s = do
         usedIxs = filter (used . fst) allIxs
         used Pos.Unused = False
         used _          = True
+
+    isIntervalVar :: Nat -> MaybeT TCM Bool
+    isIntervalVar i = do
+      dom      <- domOfBV i
+      interval <- primInterval
+      -- TODO: This seems quite brittle. Is there a better way to detect
+      -- interval variables?
+      pure $ unEl (unDom dom) == interval
 
 checkRewConstraint :: LocalEquation -> TCM ()
 checkRewConstraint

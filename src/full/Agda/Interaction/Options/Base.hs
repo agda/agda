@@ -778,6 +778,8 @@ data OptionWarning
       -- ^ A problem with setting or unsetting a warning.
   | LocalRewritingConfluenceCheck
       -- ^ Confluence checking for local rewrite rules is unimplemented.
+  | SmartWithCubical
+      -- ^ '--smart-with' plus '--cubical' is unsupported
   deriving (Show, Generic)
 
 instance NFData OptionWarning
@@ -788,14 +790,16 @@ instance Pretty OptionWarning where
       [ "Option", option old, "is deprecated, please use", option new, "instead" ]
     WarningProblem err -> pretty (prettyWarningModeError err) <+> "See --help=warning."
     LocalRewritingConfluenceCheck -> fsep $ pwords "Confluence checking (--confluence-check or --local-confluence-check) is not yet implemented for local rewrite rules (--local-rewriting)"
+    SmartWithCubical -> fsep $ pwords "Smart with (--smart-with) is not yet supported for Cubical Agda (--cubical or --cubical-compatible). Matching on indexed datatypes will probably hit errors."
     where
     option = text . ("--" ++)
 
 optionWarningName :: OptionWarning -> WarningName
 optionWarningName = \case
-  OptionRenamed{} -> OptionRenamed_
-  WarningProblem{} -> WarningProblem_
-  LocalRewritingConfluenceCheck -> LocalRewritingConfluenceCheck_
+  OptionRenamed{}                 -> OptionRenamed_
+  WarningProblem{}                -> WarningProblem_
+  LocalRewritingConfluenceCheck{} -> LocalRewritingConfluenceCheck_
+  SmartWithCubical{}              -> SmartWithCubical_
 
 -- | Checks that the given options are consistent.
 --   Also makes adjustments (e.g. when one option implies another).
@@ -834,6 +838,9 @@ checkPragmaOptions opts = do
 
   when (isJust (optConfluenceCheck opts) && optLocalRewriting opts) $
     tell1 LocalRewritingConfluenceCheck
+
+  when (optSmartWith opts && optCubicalCompatible opts) $
+    tell1 SmartWithCubical
 
 #ifndef COUNT_CLUSTERS
   when (optCountClusters opts) $

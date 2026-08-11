@@ -2208,6 +2208,9 @@ forallFaceMaps t kb k = do
            ]
     (cxt',sigma) <- substContextN cxt xs
     resolved <- forM xs (\ (i,t) -> (,) <$> lookupBV i <*> return (applySubst sigma t))
+    -- 'sigma' should only substitute interval variables for their endpoints
+    -- and so should not invalidate any local rewrite rules (interval variables
+    -- are not allowed in local rewrite rules)
     updateContext sigma (const cxt') $
       addBindings resolved $ do
         cl <- buildClosure ()

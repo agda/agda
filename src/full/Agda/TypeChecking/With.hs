@@ -260,7 +260,9 @@ smartWithArguments vtys = do
             return $ v :| refl (Arg info v) : []
           (prf, eqt@(EqualityType _r _s _eq _pars _t v _v')) -> do
             return $ unArg v :| refl v : prf : refl (Arg info prf) : []
-          (v, IdiomType t) -> __IMPOSSIBLE__
+          -- TODO: For back-compat, it might be nice to just support this
+          -- in a very boring way...
+          (v, IdiomType t) -> typeError $ NotImplemented "Inspect idiom is redundant and unsupported with '--smart-with' enabled"
 
 -- | Compute the clauses for the with-function given the original patterns.
 buildWithFunction
