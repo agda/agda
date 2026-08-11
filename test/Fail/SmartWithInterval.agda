@@ -32,4 +32,4 @@ absurd ()
 +inj₁ : _≡_ {A = A + B} (inl x) (inl y) → x ≡ y
 +inj₁ {x = x} {y = y} p i with p i
 ... | inl z = z
-... | inr z = {!absurd (+disj λ j → p (primIMin i j))!}
+... | inr z = absurd (+disj λ j → p (primIMin i j))

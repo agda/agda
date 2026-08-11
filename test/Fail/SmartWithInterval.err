@@ -1,0 +1,23 @@
+SmartWithInterval.agda:1.1-39: warning: -W[no]SmartWithCubical
+Smart with (--smart-with) is not yet supported for Cubical Agda
+(--cubical or --cubical-compatible). Matching on indexed datatypes
+will probably hit errors.
+
+SmartWithInterval.agda:33.1-35.52: warning: -W[no]RewriteContainsIntervalVariables
+_ : p i Agda.Builtin.Equality.≡ w  is not a legal (--smart-with)
+rewrite rule, since the following interval variable is present:
+  i
+when checking that the clause
++inj₁ {x = x} {y = y} p i with p i
+... | inl z = z
+... | inr z = absurd (+disj λ j → p (primIMin i j))
+has type {A B : Set} {x y : A} → inl x ≡ inl y → x ≡ y
+
+SmartWithInterval.agda:35.35-51: error: [UnequalTerms]
+The terms
+  p (primIMin i i1)
+and
+  inr _y_54
+are not equal at type (A + B)
+when checking that the expression λ j → p (primIMin i j) has type
+inl x ≡ inr _y_54
