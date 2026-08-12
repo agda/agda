@@ -14,6 +14,7 @@ import Control.Monad.Except (catchError)
 
 import Data.Map qualified as Map
 import Data.List as List
+import Data.Sequence (insertAt)
 
 import Data.IntSet (null)
 
@@ -31,6 +32,7 @@ import Agda.Syntax.Builtin (BuiltinId)
 import Agda.TypeChecking.CheckInternal ( checkInternal )
 import Agda.TypeChecking.Conversion (equalType, compareType, leqType)
 import Agda.TypeChecking.Empty (isEmptyType)
+import Agda.TypeChecking.Free.Precompute (precomputedFreeVars)
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Level (levelType)
 import Agda.TypeChecking.MetaVars (newValueMeta, newTelMeta)
@@ -191,6 +193,7 @@ filterNames ((nm, t) : xs) goal = do
   goalImps <- countImplicits goal
   tImps <- countImplicits t
 
+
   -- if goal has no imps, then will slice all imps on type to check
   -- if goal has more imps, will just continue as normal
   let slice = tImps - goalImps
@@ -199,12 +202,16 @@ filterNames ((nm, t) : xs) goal = do
 
   reportSDoc "lemmings.top" 30 $ (text "Slicing off ") <+> (pretty slice) <+> (text " implicits")
 
+  let tPerm = padPerm (length $ telToList $ theTel tele) (argPerm t)
+  let teleReordered = permuteTel (Perm (length tPerm) tPerm) (theTel tele)
+
+  reportSDoc "lemmings.top" 20 $ (text "Tele reordered: ") <+> (pretty teleReordered)
+  reportSDoc "lemmings.top" 20 $ (text "Tele normal: ") <+> (pretty (theTel tele))
+
   matchNoImps <- localTCState $ do
     (args , core) <- implicitArgs (-1) hidingPred t
 
-    reportSDoc "lemmings.top" 20 $ (text "Args: ") <+> (pretty args)
-    reportSDoc "lemmings.top" 20 $ (text "NonDep Imps: ") <+> (pretty $ nonDepArgs args)
-    reportSDoc "lemmings.top" 20 $ (text "Core: ") <+> (pretty core)
+    reportSDoc "lemmings.top" 20 $ (text "NonDep Perm: ") <+> (pretty $ padPerm (length $ telToList $ theTel tele) (argPerm t))
 
     checkType goal core
 
@@ -220,15 +227,61 @@ filterNames ((nm, t) : xs) goal = do
 
 filterNames _ _ = return []
 
+between :: Int -> Int -> [Int]
+between x y
+  | x < y = x : (between (x + 1) y)
+  | otherwise = []
+
+padPerm :: Int -> [Int] -> [Int]
+padPerm n ns = ns ++ (between (length ns) n)
+
 -- | Move all non-dependent implicits to head of Pi type
 --
 -- ArgInfo contains list of free variables?
--- TODO: doesn't work
-nonDepArgs :: Args -> Args
-nonDepArgs (x:xs)
-  | hasNoFree (argInfoFreeVariables . argInfo $ x) = x : nonDepArgs xs
-  | otherwise = nonDepArgs xs
-nonDepArgs _ = []
+-- TODO: fix deBruijin indexes not being updated
+-- example:
+{-
+{A.a : Agda.Primitive.Level} ->
+                      {A : Set @0} ->
+                        {B.b : Agda.Primitive.Level} -> {B : Set @0} -> @2 -> @0 -> @2
+
+becomes
+
+{A.a : Agda.Primitive.Level} ->
+                {B.b : Agda.Primitive.Level} ->
+                  {A : Set @0} -> {B : Set @0} -> @2 -> @0 -> @2
+
+Meaning A : Set @0 SHOULD be A : Set @1
+And B : Set @0 should be B : Set @1
+
+Maybe build permutation list?
+-}
+nonDepArgs :: Type -> Type
+nonDepArgs (El sort (Pi dom (Abs name (El sort' (Pi dom' (Abs name' range))))))
+  | Agda.Utils.VarSet.null $ precomputedFreeVars (unEl . unDom $ dom') = El sort (Pi dom' (Abs name' (nonDepArgs (El sort' (Pi dom (Abs name range))))))
+  | otherwise = El sort ((Pi dom (Abs name (nonDepArgs (El sort' (Pi dom' (Abs name' range)))))))
+--  | Agda.Utils.VarSet.null $ precomputedFreeVars (unEl . unDom $ dom) = (unEl . unDom $ dom) : (nonDepArgs (unEl range))
+--  | otherwise = nonDepArgs (unEl range)
+-- nonDepArgs (Pi dom (NoAbs name range)) = []
+nonDepArgs t = t
+
+argPerm :: Type -> [Int]
+argPerm (El sort (Pi dom (Abs name (El sort' (Pi dom' (Abs name' (El s'' (Pi d'' a''))))))))
+    | Agda.Utils.VarSet.null $ precomputedFreeVars (unEl . unDom $ dom') = insert 0
+    | otherwise = 0 : subPermsNoSwap
+  where
+    subPerms :: [Int]
+    subPerms = map (\n -> n + 1) $ argPerm (El sort' (Pi dom (Abs name (El s'' (Pi d'' a'')))))
+
+    subPermsNoSwap :: [Int]
+    subPermsNoSwap = map (\n -> n + 1) $ argPerm (El sort' (Pi dom' (Abs name' (El s'' (Pi d'' a'')))))
+
+    insert :: Int -> [Int]
+    insert n = case subPerms of
+      (x : xs) -> x : n : xs
+      []       -> n : []
+
+argPerm _ = [0]
 
 -- TODO: doesn't work
 hasNoFree :: FreeVariables -> Bool
