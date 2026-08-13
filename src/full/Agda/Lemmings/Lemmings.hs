@@ -115,7 +115,7 @@ filterNames _ _ = return []
 --   Assumes that the maximum in the given list
 --   equals the length of the list
 padPerm :: Int -> [Int] -> [Int]
-padPerm n ns = ns ++ (enumFromTo (length ns) n)
+padPerm n ns = ns ++ (enumFromTo (length ns) (n - 1))
 
 -- | Move all non-dependent implicits to head of Pi type
 --   by applying the permutation given by `argPerm`
