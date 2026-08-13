@@ -95,16 +95,16 @@ filterNames ((nm, t) : xs) goal = do
     let (head,_) = splitTelescopeAt split (theTel tel)
     args <- newTelMeta head
     core <- piApplyM t' args
-    
+
     reportSDoc "lemmings.top" 20 $ (text "Comparison type: ") <+> (pretty core)
-    
+
     checkType goal core
-  
+
   reportSDoc "lemmings.top" 20 $ (text "Match?: ") <+> (pretty match)
   reportSDoc "lemmings.top" 20 $ (text " ")
 
   rest <- filterNames xs goal
-  
+
   if (match)
     then return $ (nm,t) : rest
     else return rest
@@ -123,14 +123,14 @@ nonDepArgs :: Type -> TCM Type
 nonDepArgs t@(El _ (Pi _ (Abs _ _))) = do
   tel <- telView t
   let tPerm = padPerm (length $ telToList $ theTel tel) (argPerm t)
-  
+
   reportSDoc "lemmings.top" 30 $ (text "Permutation: ") <+> (pretty tPerm)
-  
+
   let perm = (Perm (length tPerm) tPerm)
       telReordered = permuteTel perm (theTel tel)
       subst = renaming impossible (reverseP perm)
       core' = applySubst subst (theCore tel)
-  
+
   return $ telePi telReordered core'
 nonDepArgs t = return t
 
