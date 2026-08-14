@@ -515,20 +515,23 @@ definition' kit q d t ls =
 
 -- For example, given the data type
 --
---      data Foo : Set where
---        c1 : Foo
---        c2 : X -> Y -> Foo
---        c3 : Foo -> Foo
+--      data Foo (A : Set) : Set where
+--        c1 : Foo A
+--        c2 : X -> Y -> Foo A
+--        c3 : Foo A -> Foo A
 --
 -- here is how "Foo" is compiled:
 --
 --  * A constructor definition, e.g.
 --
---        c2 : X -> Y -> Foo
+--        c2 : X -> Y -> Foo A
 --
 --    compiles to
 --
 --        exports["Foo"]["c2"] = x => y => k => k["c2"](x,y)
+--
+--    notice how the data-type parameter A does not become a parameter of the constructor c2.
+--    Nor do any module parameters. 
 --
 --  * A constructor application, e.g.
 --
