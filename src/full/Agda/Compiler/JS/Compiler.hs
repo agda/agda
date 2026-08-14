@@ -75,9 +75,8 @@ import Agda.Compiler.Backend (Backend,Backend_boot(..), Backend',Backend'_boot(.
 
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Local,Global,Undefined,Null,String,Char,Integer,Double,Lambda,Object,Array,Apply,Lookup,If,BinOp,PlainJS),
-    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Export(Export), Module(Module, modName, callMain), Comment(Comment),
-    modName, expName, uses
-  , JSQName
+    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Export(Export), Module(Module, modName, callMain),
+    modName, expName, uses, JSQName
   )
 import Agda.Compiler.JS.Substitution
   ( curriedLambda, curriedApply, emp, apply, substShift )
