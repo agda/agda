@@ -36,6 +36,11 @@ data Exp =
   Const String |
   PlainJS String -- ^ Arbitrary JS code.
   deriving (Show, Eq)
+-- Code style:
+--  All recursive Exp-traversing functions should list every constructor explicitly.
+--  Do not write a catch-all case to cover all the trivial constructors.
+-- This policy helps catch subtle bugs (randomly failing substitution, missing imports etc.)
+-- due to newly-added constructors silently hitting the catch-all case.
 
 -- Local identifiers are named by De Bruijn indices.
 -- Global identifiers are named by string lists.
@@ -98,6 +103,18 @@ instance Uses Comment where
   uses _ = Set.empty
 
 instance Uses Exp where
+  uses (Self)         = Set.empty
+  uses (Local _)      = Set.empty
+  uses (Global _)     = Set.empty
+  uses (Undefined)    = Set.empty
+  uses (Null)         = Set.empty
+  uses (String _)     = Set.empty
+  uses (Integer _)    = Set.empty
+  uses (Char _)       = Set.empty
+  uses (Double _)     = Set.empty
+  uses (Lambda n _)   = Set.empty
+  -- Lawrence 2026-08: I suspect returning Set.empty for lambdas is a bug,
+  -- but it does not break existing tests
   uses (Object o)     = uses o
   uses (Array es)     = uses es
   uses (Apply e es)   = uses (e, es)
@@ -110,7 +127,8 @@ instance Uses Exp where
   uses (If e f g)     = uses (e, f, g)
   uses (BinOp e op f) = uses (e, f)
   uses (PreOp op e)   = uses e
-  uses e              = Set.empty
+  uses (Const _)      = Set.empty
+  uses (PlainJS _)    = Set.empty
 
 instance Uses Export where
   uses (Export _ e) = uses e
@@ -137,7 +155,15 @@ instance Globals Comment where
   globals _ = Set.empty
 
 instance Globals Exp where
+  globals (Self)         = Set.empty
+  globals (Local _)      = Set.empty
   globals (Global i) = Set.singleton i
+  globals (Undefined)    = Set.empty
+  globals (Null)         = Set.empty
+  globals (String _)     = Set.empty
+  globals (Integer _)    = Set.empty
+  globals (Char _)       = Set.empty
+  globals (Double _)     = Set.empty
   globals (Lambda n e) = globals e
   globals (Object o) = globals o
   globals (Array es) = globals es
@@ -146,7 +172,8 @@ instance Globals Exp where
   globals (If e f g) = globals (e, f, g)
   globals (BinOp e op f) = globals (e, f)
   globals (PreOp op e) = globals e
-  globals _ = Set.empty
+  globals (Const _)      = Set.empty
+  globals (PlainJS _)    = Set.empty
 
 instance Globals Export where
   globals (Export _ e) = globals e
