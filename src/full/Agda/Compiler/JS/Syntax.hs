@@ -28,6 +28,8 @@ data Exp =
   Lambda Nat Exp |
   Object (Map MemberId Exp) |
   Array [Exp] |
+  MemberIdInString MemberId |
+  Ternary Exp Exp Exp |
   Apply Exp [Exp] |
   Lookup Exp MemberId |
   If Exp Exp Exp |
@@ -107,6 +109,8 @@ instance Uses Exp where
   -- but it does not break existing tests
   uses (Object o)     = uses o
   uses (Array es)     = uses es
+  uses (MemberIdInString mid) = Set.empty -- special case of string literals
+  uses (Ternary e1 e2 e3) = Set.unions [uses e1, uses e2, uses e3]
   uses (Apply e es)   = uses (e, es)
   uses (Lookup e l)   = uses' e (List1.singleton l)
     where
@@ -153,6 +157,8 @@ instance Globals Exp where
   globals (Lambda n e) = globals e
   globals (Object o) = globals o
   globals (Array es) = globals es
+  globals (MemberIdInString _) = Set.empty  --special case of string literals
+  globals (Ternary e1 e2 e3) = Set.unions [globals e1, globals e2, globals e3]
   globals (Apply e es) = globals (e, es)
   globals (Lookup e l) = globals e
   globals (If e f g) = globals (e, f, g)
