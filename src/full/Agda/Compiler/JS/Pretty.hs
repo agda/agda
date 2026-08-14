@@ -265,6 +265,9 @@ instance Pretty Exp where
     <+> "=>" <+> block (n + x, min, ms) e
   prettyPrec p n (Object o)     = braces $ punctuate "," $ pretties n o
   prettyPrec p n (Array es)     = brackets $ punctuate "," [pretty n e | e <- es]
+  prettyPrec p n (MemberIdInString mid) = pretty n mid
+  prettyPrec p n (Ternary eCond eThen eElse) = (prettyPrec 17 n eCond <+> text "?" <+> prettyPrec 17 n eThen)
+                                            $+$ text ":" <+> prettyPrec 17 n eElse
   prettyPrec p n (Apply f es)   = prettyPrec 17 n f <> parens (punctuate "," $ pretties n es)
   prettyPrec p n (Lookup e l)   = prettyPrec 17 n e <> brackets (pretty n l)
   prettyPrec p n (If e f g)     = mparens (p > 2) $

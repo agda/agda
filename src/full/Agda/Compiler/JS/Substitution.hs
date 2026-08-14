@@ -28,6 +28,8 @@ map m f (Double d)      = Double d
 map m f (Lambda i e)    = Lambda i (map (m + i) f e)
 map m f (Object o)      = Object (Map.map (map m f) o)
 map m f (Array es)      = Array (List.map (map m f) es)
+map m f (MemberIdInString mid) = MemberIdInString mid
+map m f (Ternary e1 e2 e3) = Ternary (map m f e1) (map m f e2) (map m f e3)
 map m f (Apply e es)    = Apply (map m f e) (List.map (map m f) es)
 map m f (Lookup e l)    = Lookup (map m f e) l
 map m f (If e e' e'')   = If (map m f e) (map m f e') (map m f e'')
@@ -77,6 +79,8 @@ map' m f (Double d)      = Double d
 map' m f (Lambda i e)    = Lambda i (map' (m + i) f e)
 map' m f (Object o)      = Object (Map.map (map' m f) o)
 map' m f (Array es)      = Array (List.map (map' m f) es)
+map' m f (MemberIdInString mid) = MemberIdInString mid
+map' m f (Ternary e1 e2 e3) = Ternary (map' m f e1) (map' m f e2) (map' m f e3)
 map' m f (Apply e es)    = apply (map' m f e) (List.map (map' m f) es)
 map' m f (Lookup e l)    = lookup (map' m f e) l
 map' m f (If e e' e'')   = If (map' m f e) (map' m f e') (map' m f e'')
@@ -127,7 +131,10 @@ fix f = e where e = self e f
 -- Some helper functions
 
 curriedApply :: Exp -> [Exp] -> Exp
-curriedApply = foldl (\ f e -> apply f [e])
+curriedApply = foldl (\ f e -> Apply f [e])
+
+curriedApply' :: Exp -> [Exp] -> Exp
+curriedApply' = foldl (\ f e -> apply f [e])
 
 curriedLambda :: Nat -> Exp -> Exp
 curriedLambda n = iterate' n (Lambda 1)
