@@ -531,7 +531,7 @@ definition' kit q d t ls =
 --        exports["Foo"]["c2"] = x => y => k => k["c2"](x,y)
 --
 --    notice how the data-type parameter A does not become a parameter of the constructor c2.
---    Nor do any module parameters. 
+--    Nor do any module parameters.
 --
 --  * A constructor application, e.g.
 --

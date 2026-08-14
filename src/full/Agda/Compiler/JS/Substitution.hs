@@ -8,7 +8,7 @@ import qualified Data.List as List
 
 import Agda.Syntax.Common ( Nat )
 import Agda.Compiler.JS.Syntax
-  ( Exp(Self,Undefined,Local,Lambda,Object,Array,Apply,Lookup,If,BinOp,PreOp),
+  ( Exp(..),
     MemberId, LocalId(LocalId) )
 import Agda.Utils.Function ( iterate' )
 import Agda.Utils.List ( (!!!) )
@@ -16,7 +16,15 @@ import Agda.Utils.List ( (!!!) )
 -- Map for expressions
 
 map :: Nat -> (Nat -> LocalId -> Exp) -> Exp -> Exp
+map m f (Self)            = Self
 map m f (Local i)       = f m i
+map m f (Global g)      = Global g
+map m f (Undefined)     = Undefined
+map m f (Null)          = Null
+map m f (String s)      = String s
+map m f (Char c)        = Char c
+map m f (Integer i)     = Integer i
+map m f (Double d)      = Double d
 map m f (Lambda i e)    = Lambda i (map (m + i) f e)
 map m f (Object o)      = Object (Map.map (map m f) o)
 map m f (Array es)      = Array (List.map (\(c, e) -> (c, map m f e)) es)
@@ -25,7 +33,8 @@ map m f (Lookup e l)    = Lookup (map m f e) l
 map m f (If e e' e'')   = If (map m f e) (map m f e') (map m f e'')
 map m f (PreOp op e)    = PreOp op (map m f e)
 map m f (BinOp e op e') = BinOp (map m f e) op (map m f e')
-map m f e               = e
+map m f (Const str)     = Const str
+map m f (PlainJS str)   = PlainJS str
 
 -- Shifting
 
@@ -57,7 +66,15 @@ substShift m n es = subst m es . shiftFrom m n
 -- A variant on substitution which performs beta-reduction
 
 map' :: Nat -> (Nat -> LocalId -> Exp) -> Exp -> Exp
+map' m f (Self)          = Self
 map' m f (Local i)       = f m i
+map' m f (Global g)      = Global g
+map' m f (Undefined)     = Undefined
+map' m f (Null)          = Null
+map' m f (String s)      = String s
+map' m f (Char c)        = Char c
+map' m f (Integer i)     = Integer i
+map' m f (Double d)      = Double d
 map' m f (Lambda i e)    = Lambda i (map' (m + i) f e)
 map' m f (Object o)      = Object (Map.map (map' m f) o)
 map' m f (Array es)      = Array (List.map (\(c, e) -> (c, map' m f e)) es)
@@ -66,7 +83,9 @@ map' m f (Lookup e l)    = lookup (map' m f e) l
 map' m f (If e e' e'')   = If (map' m f e) (map' m f e') (map' m f e'')
 map' m f (PreOp op e)    = PreOp op (map' m f e)
 map' m f (BinOp e op e') = BinOp (map' m f e) op (map' m f e')
-map' m f e               = e
+map' m f (Const str)     = Const str
+map' m f (PlainJS str)   = PlainJS str
+
 
 subst' :: Nat -> [Exp] -> Exp -> Exp
 subst' 0 es e = e
@@ -117,13 +136,3 @@ curriedLambda n = iterate' n (Lambda 1)
 
 emp :: Exp
 emp = Object (empty)
-
-union :: Exp -> Exp -> Exp
-union (Object o) (Object p) = Object (unionWith union o p)
-union e          f          = e
-
-vine :: [MemberId] -> Exp -> Exp
-vine ls e = foldr (\ l e -> Object (singleton l e)) e ls
-
-object :: [([MemberId],Exp)] -> Exp
-object = foldr (\ (ls,e) -> (union (vine ls e))) emp
