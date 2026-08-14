@@ -46,9 +46,7 @@ import qualified Agda.Syntax.Treeless as T
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce ( instantiateFull )
-import Agda.TypeChecking.Substitute as TC ( TelV(..), raise, subst )
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Telescope ( telViewPath )
 import Agda.TypeChecking.Warnings  ( warning )
 
 import Agda.Utils.FileName ( isNewerThan )
@@ -493,14 +491,12 @@ definition' kit q d t ls =
     Constructor{} | Just e <- defJSDef d -> plainJS e
     -- Implements Scott-Encoding of constructor definitions
     -- (see the note "Implementing data types")
-    Constructor{conData = p, conPars = nc} -> do
-      TelV tel _ <- telViewPath t
-      let nargs = length (telToList tel) - nc
-          args = [ Local $ LocalId $ nargs - i | i <- [0 .. nargs-1] ]
+    Constructor{conData = p, conArity = conArity} -> do
+      let args = [ Local $ LocalId $ conArity - i | i <- [0 .. conArity-1] ]
       d <- getConstInfo p
       let l = List1.last ls
       ret
-        $ curriedLambda nargs
+        $ curriedLambda conArity
         $ (case theDef d of
               Record {} -> Object . Map.singleton l
               dt -> id)
