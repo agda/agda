@@ -155,9 +155,12 @@ instance SynEq Bool where
 -- | Syntactic term equality ignores 'DontCare' stuff.
 instance SynEq Term where
   synEq v v' = expand \ret -> if unsafeComparePointers v v' then ret $ pure (v, v') else ret do
-    (v, v') <- lift $ instantiate' (v, v')
+    v <- lift $ instantiate' v
+    v' <- lift $ instantiate' v'
     expand \ret -> case (v, v') of
-      (Var   i vs, Var   i' vs')  | i == i' -> ret $ Var i   <$$> synEq vs vs'
+      -- note Var' on next line: if the Var-s are cacheable, the pointer equality above
+      -- suceeds. So here there's no point trying to cache them.
+      (Var   i vs, Var   i' vs')  | i == i' -> ret $ Var' i   <$$> synEq vs vs'
       (Con c i vs, Con c' i' vs') | c == c' -> ret $ Con c (bestConInfo i i') <$$> synEq vs vs'
       (Def   f vs, Def   f' vs')  | f == f' -> ret $ Def f   <$$> synEq vs vs'
       (MetaV x vs, MetaV x' vs')  | x == x' -> ret $ MetaV x <$$> synEq vs vs'
@@ -189,7 +192,8 @@ instance SynEq PlusLevel where
 
 instance SynEq Sort where
   synEq s s' = expand \ret -> if unsafeComparePointers s s' then ret $ pure (s, s') else ret do
-    (s, s') <- lift $ instantiate' (s, s')
+    s <- lift $ instantiate' s
+    s' <- lift $ instantiate' s'
     expand \ret -> case (s, s') of
       (Univ u l, Univ u' l') | u == u' -> ret $ Univ u <$$> synEq l l'
       (PiSort a b c, PiSort a' b' c') -> ret $ PiSort <$$> synEq a a' <**> synEq' b b' <**> synEq' c c'
