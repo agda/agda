@@ -65,13 +65,14 @@ import Agda.Utils.Singleton ( singleton )
 import Agda.Utils.Size (size)
 
 import Agda.Compiler.Common as CC
-import Agda.Compiler.ToTreeless
-import Agda.Compiler.Treeless.EliminateDefaults
-import Agda.Compiler.Treeless.EliminateLiteralPatterns
-import Agda.Compiler.Treeless.GuardsToPrims
-import Agda.Compiler.Treeless.Erase ( computeErasedConstructorArgs, isErasable )
-import Agda.Compiler.Treeless.Subst ()
 import Agda.Compiler.Backend (Backend,Backend_boot(..), Backend',Backend'_boot(..), Recompile(..))
+
+import qualified Agda.Compiler.ToTreeless as T
+import qualified Agda.Compiler.Treeless.EliminateDefaults as T
+import qualified Agda.Compiler.Treeless.EliminateLiteralPatterns as T
+import qualified Agda.Compiler.Treeless.GuardsToPrims as T
+import qualified Agda.Compiler.Treeless.Erase as T
+import qualified Agda.Compiler.Treeless.Subst as T
 
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Local,Global,Undefined,Null,String,Char,Integer,Double,Lambda,Object,Array,Apply,Lookup,If,BinOp,PlainJS),
@@ -405,7 +406,7 @@ checkCompilerPragmas q =
   setCurrentRange r do
     -- Issue #3545: Warn user about ignored COMPILE pragma for defined functions.
     getConstInfo q <&> theDef >>= \case
-      FunctionDefn{} -> whenM (isErasable q) $ warning $ PragmaCompileErased jsBackendName q
+      FunctionDefn{} -> whenM (T.isErasable q) $ warning $ PragmaCompileErased jsBackendName q
       _ -> return()
     -- If the pragma is not of the form "q = bla", complain.
     when (listToMaybe (words s) /= Just "=") do
@@ -446,12 +447,12 @@ definition' kit q d t ls =
     Function{} | otherwise -> do
 
       reportSDoc "compile.js" 5 $ "compiling fun:" <+> prettyTCM q
-      let mTreeless = toTreeless T.EagerEvaluation q
+      let mTreeless = T.toTreeless T.EagerEvaluation q
       caseMaybeM mTreeless (pure Nothing) $ \ treeless -> do
         used <- fromMaybe [] <$> getCompiledArgUse q
-        funBody <- eliminateCaseDefaults =<<
-          eliminateLiteralPatterns
-          (convertGuards treeless)
+        funBody <- T.eliminateCaseDefaults =<<
+          T.eliminateLiteralPatterns
+          (T.convertGuards treeless)
         reportSDoc "compile.js" 30 $ " compiled treeless fun:" <+> pretty funBody
         reportSDoc "compile.js" 40 $ " argument usage:" <+> (text . show) used
 
@@ -481,10 +482,10 @@ definition' kit q d t ls =
     PrimitiveSort{} -> return Nothing
 
     Datatype{} -> do
-        computeErasedConstructorArgs q
+        T.computeErasedConstructorArgs q
         ret emp
     Record{} -> do
-        computeErasedConstructorArgs q
+        T.computeErasedConstructorArgs q
         return Nothing
 
     Constructor{} | Just e <- defJSDef d -> plainJS e
