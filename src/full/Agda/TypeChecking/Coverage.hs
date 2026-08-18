@@ -675,7 +675,10 @@ cover infermissing f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     addEtaSplits k (p:ps) t = case namedArg p of
       VarP  _ _     -> addEtaSplits (k + 1) ps t
       DotP  _ _     -> addEtaSplits (k + 1) ps t
-      ConP c cpi qs -> SplitAt (p $> k) LazySplit [(SplitCon (conName c) , addEtaSplits k (qs ++! ps) t)]
+      ConP c cpi qs ->
+        -- Jesper, 2026-08-18, issue #8638: propagate erasure to subpatterns
+        let qs' = map (mapQuantity $ composeQuantity $ getQuantity p) qs
+        in SplitAt (p $> k) LazySplit [(SplitCon (conName c) , addEtaSplits k (qs' ++! ps) t)]
       LitP{}        -> __IMPOSSIBLE__
       ProjP{}       -> __IMPOSSIBLE__
       DefP{}        -> __IMPOSSIBLE__ -- Andrea: maybe?
