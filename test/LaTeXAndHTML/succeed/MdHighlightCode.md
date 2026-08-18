@@ -26,7 +26,7 @@ This is an Agda code block ↑
 
 This is an empty Agda code block, which should not get rendered ↑
 
-<pre class="Agda"><a id="number"></a><a id="431" href="MdHighlightCode.html#431" class="Function">number</a> <a id="438" class="Symbol">:</a> <a id="440" href="Agda.Builtin.Nat.html#203" class="Datatype">Nat</a>
-<a id="444" href="MdHighlightCode.html#431" class="Function">number</a> <a id="451" class="Symbol">=</a> <a id="453" href="Agda.Builtin.Nat.html#234" class="InductiveConstructor">suc</a> <a id="457" class="Symbol">(</a><a id="458" href="Agda.Builtin.Nat.html#234" class="InductiveConstructor">suc</a> <a id="462" href="Agda.Builtin.Nat.html#221" class="InductiveConstructor">zero</a><a id="466" class="Symbol">)</a>
+<pre class="Agda"><a id="number"></a><a id="431" href="MdHighlightCode.html#431" class="Function">number</a> <a id="438" class="Symbol">:</a> <a id="440" href="Agda.Builtin.Nat.html#220" class="Datatype">Nat</a>
+<a id="444" href="MdHighlightCode.html#431" class="Function">number</a> <a id="451" class="Symbol">=</a> <a id="453" href="Agda.Builtin.Nat.html#251" class="InductiveConstructor">suc</a> <a id="457" class="Symbol">(</a><a id="458" href="Agda.Builtin.Nat.html#251" class="InductiveConstructor">suc</a> <a id="462" href="Agda.Builtin.Nat.html#238" class="InductiveConstructor">zero</a><a id="466" class="Symbol">)</a>
 </pre>
 This is an Agda code block as well ↑
