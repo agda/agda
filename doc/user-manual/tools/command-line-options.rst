@@ -650,6 +650,8 @@ Experimental features
      Enable potentially unsound irrelevance features (irrelevant
      levels, irrelevant data matching) (see :ref:`irrelevance`).
 
+     Implies :option:`--irrelevance`.
+
 .. option:: --no-experimental-irrelevance
 
      .. versionadded:: 2.6.4
@@ -696,6 +698,8 @@ Experimental features
      Enable [disable] projection of irrelevant record fields (see
      :ref:`irrelevance`). The option ``--irrelevant-projections``
      makes Agda inconsistent.
+
+     Implies :option:`--irrelevance`.
 
      Default (since version 2.6.1): ``--no-irrelevant-projections``.
 
