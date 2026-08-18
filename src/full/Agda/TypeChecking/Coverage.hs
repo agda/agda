@@ -557,8 +557,8 @@ cover infermissing f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
               , "ps  = " <+> inTopContext (addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps)
               ]
             ]
-          let trees' = zipWith (second . etaRecordSplits (unArg n) ps) trees scs
-              tree   = SplitAt n StrictSplit (trees' ++! trees_extra) -- TODO: Lazy?
+          trees' <- zipWithM (etaRecordSplits (unArg n) ps) trees scs
+          let tree   = SplitAt n StrictSplit (trees' ++! trees_extra) -- TODO: Lazy?
           -- Andreas, 2025-10-12: Debug printing to clarify the trees_extra situation.
           reportSDoc "tc.cover.cubical" 30 $ vcat $
             "trees:"           : map' pretty trees ++
@@ -682,8 +682,11 @@ cover infermissing f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       IApplyP{}     -> addEtaSplits (k + 1) ps t
 
     etaRecordSplits :: Int -> [NamedArg SplitPattern]
-                    -> SplitTree -> SplitClause -> SplitTree
-    etaRecordSplits n ps t sc = addEtaSplits 0 (gatherEtaSplits n sc ps) t
+                    -> SplitTree -> (SplitTag, SplitClause) -> TCM (SplitTag, SplitTree)
+    etaRecordSplits n ps t (tag, sc) = do
+      let splitsTodo = gatherEtaSplits n sc ps
+      reportSDoc "tc.cover.split.eta" 60 $ "gatherEtaSplits result: " <+> pretty splitsTodo
+      return (tag, addEtaSplits 0 splitsTodo t)
 
 
 -- | Append a instance clause to the clauses of a function.
