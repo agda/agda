@@ -10,6 +10,7 @@ module Agda.Compiler.Treeless.Erase
 
 import Control.Monad.State ( StateT, evalStateT )
 
+import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -26,6 +27,7 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 
+import Agda.Compiler.Treeless.Pretty ()
 import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Unused
 
@@ -66,7 +68,12 @@ computeErasedConstructorArgs d = do
   runE $ mapM_ getFunInfo cs
 
 eraseTerms :: QName -> EvaluationStrategy -> TTerm -> TCM TTerm
-eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
+eraseTerms q eval t = do
+  t' <- usedArguments q t *> runE (eraseTop q t)
+  reportSDoc "treeless.opt.erase" 40 $
+    "Term before erasure:" $$ nest 2 (pretty t) $$
+    "Term after erasure:" $$ nest 2 (pretty t')
+  return t'
   where
     eraseTop q t = do
       (_, h) <- getFunInfo q
@@ -205,12 +212,18 @@ pruneUnreachable' _ erased (CTData q) d bs' = do
         if isErased erased
         then getConstructors q
         else getNotErasedConstructors q
-  let bs | isErased erased = bs'
-         | otherwise       =
-           flip filter bs' $ \case
-             a@TACon{} -> (aCon a) `elem` cs
-             TAGuard{} -> True
-             TALit{}   -> True
+  let (bs, pruned)
+        | isErased erased = (bs', [])
+        | otherwise       =
+          flip partition bs' $ \case
+            a@TACon{} -> (aCon a) `elem` cs
+            TAGuard{} -> True
+            TALit{}   -> True
+  lift $ reportSDoc "treeless.opt.erase.prune" 50 $
+    ("The match is" <+>
+     (if isErased erased then id else ("not" <+>)) "erased.") $$
+    "Kept branches:" $$ nest 2 (vcat (map pretty bs)) $$
+    "Pruned branches:" $$ nest 2 (vcat (map pretty pruned))
   let -- In the case of a match on an erased argument the value d is
       -- equal to tUnreachable, except perhaps if bs is empty. In the
       -- latter case complete is True exactly when the type has zero

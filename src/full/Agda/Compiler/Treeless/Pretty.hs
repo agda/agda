@@ -10,6 +10,7 @@ import Control.Monad.Reader
 import Data.Maybe
 import qualified Data.IntMap as IntMap
 
+import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Treeless
 
@@ -17,6 +18,7 @@ import Agda.Compiler.Treeless.Subst
 
 import Agda.Utils.Function
 import Agda.Utils.List
+import Agda.Utils.Null (empty)
 import Agda.Utils.Tuple (first)
 
 import Agda.Utils.Impossible
@@ -83,6 +85,9 @@ runP p = runReader p PEnv{ pPrec = 0, pFresh = names, pBound = [] }
 
 instance Pretty TTerm where
   prettyPrec p t = runP $ prec p (pTerm t)
+
+instance Pretty TAlt where
+  prettyPrec p b = runP $ prec p (pAlt b)
 
 opName :: TPrim -> String
 opName PAdd = "+"
@@ -173,26 +178,31 @@ pTerm = \case
         e <- pTerm' 0 e
         first ((x, e) :) <$> bindName x (pLets bs b)
 
-  TCase x _ def alts -> paren 0 $
+  TCase x i def alts -> paren 0 $
     (\ sc alts defd ->
-      sep [ "case" <+> sc <+> "of"
+      sep [ "case" <+>
+            (if isErased (caseErased i) then "(erased)" else empty) <+>
+            sc <+> "of"
           , nest 2 $ vcat (alts ++ [ "_ →" <+> defd | null alts || def /= TError TUnreachable ]) ]
     ) <$> pTerm' 0 (TVar x)
       <*> mapM pAlt alts
       <*> pTerm' 0 def
-    where
-      pAlt (TALit l b) = pAlt' <$> pTerm' 0 (TLit l) <*> pTerm' 0 b
-      pAlt (TAGuard g b) =
-        pAlt' <$> (("_" <+> "|" <+>) <$> pTerm' 0 g)
-              <*> (pTerm' 0 b)
-      pAlt (TACon c a b) =
-        withNames' a b $ \ xs -> bindNames xs $
-        pAlt' <$> pTerm' 0 (TApp (TCon c) [TVar i | i <- reverse [0..a - 1]])
-              <*> pTerm' 0 b
-      pAlt' p b = sep [p <+> "→", nest 2 b]
 
   TUnit -> pure "()"
   TSort -> pure "Set"
   TErased -> pure "_"
   TError err -> paren 9 $ pure $ "error" <+> text (show (show err))
   TCoerce t -> paren 9 $ ("coe" <+>) <$> pTerm' 10 t
+
+pAlt' :: Doc -> Doc -> Doc
+pAlt' p b = sep [p <+> "→", nest 2 b]
+
+pAlt :: TAlt -> P Doc
+pAlt (TALit l b) = pAlt' <$> pTerm' 0 (TLit l) <*> pTerm' 0 b
+pAlt (TAGuard g b) =
+  pAlt' <$> (("_" <+> "|" <+>) <$> pTerm' 0 g)
+        <*> (pTerm' 0 b)
+pAlt (TACon c a b) =
+  withNames' a b $ \ xs -> bindNames xs $
+  pAlt' <$> pTerm' 0 (TApp (TCon c) [TVar i | i <- reverse [0..a - 1]])
+        <*> pTerm' 0 b
