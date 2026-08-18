@@ -273,7 +273,9 @@ impliedPragmaOptions :: [ImpliedPragmaOption]
 impliedPragmaOptions =
   [ ("erase-record-parameters", _optEraseRecordParameters) ==> ("erasure",                          _optErasure)
   , ("erased-matches",          _optErasedMatches)         ==> ("erasure",                          _optErasure)
+  , ("experimental-irrelevance", _optExperimentalIrrelevance) ==> ("irrelevance",                   _optIrrelevance)
   , ("flat-split",              _optFlatSplit)             ==> ("cohesion",                         _optCohesion)
+  , ("irrelevant-projections",  _optIrrelevantProjections) ==> ("irrelevance",                      _optIrrelevance)
   , ("no-load-primitives",      _optLoadPrimitives)        ==> ("no-import-sorts",                  _optImportSorts)
   , ("lossy-unification",       _optFirstOrder)            ==> ("no-require-unique-meta-solutions", _optRequireUniqueMetaSolutions)
   ]
