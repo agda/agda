@@ -2513,6 +2513,7 @@ are infective:
 * :option:`--erasure`
 * :option:`--flat-split`
 * :option:`--guarded`
+* :option:`--irrelevance`
 * :option:`--polarity`
 * :option:`--prop`
 * :option:`--rewriting`
@@ -2586,6 +2587,7 @@ again, the source file is re-typechecked instead:
 * :option:`--injective-type-constructors`
 * :option:`--instance-search-depth`
 * :option:`--inversion-max-depth`
+* :option:`--irrelevance`
 * :option:`--irrelevant-projections`
 * :option:`--keep-covering-clauses`
 * :option:`--local-confluence-check`
