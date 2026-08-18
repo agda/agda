@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical=no-glue --safe --no-sized-types --no-guardedness #-}
+{-# OPTIONS --cubical=no-glue --safe --no-sized-types --no-guardedness --no-irrelevance #-}
 
 module Agda.Builtin.Cubical.HCompU where
 
