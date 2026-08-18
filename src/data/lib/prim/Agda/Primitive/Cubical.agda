@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical=no-glue #-}
+{-# OPTIONS --cubical=no-glue --safe --no-sized-types --no-guardedness --no-irrelevance #-}
 
 module Agda.Primitive.Cubical where
 
