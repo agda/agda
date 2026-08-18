@@ -552,7 +552,7 @@ cover infermissing f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           addContext tel $ reportSDoc "tc.cover.split.eta" 60 $ vcat
             [ "etaRecordSplits"
             , nest 2 $ vcat
-              [ "n   = " <+> text (show n)
+              [ "n   = " <+> pretty n
               , "scs = " <+> prettyTCM scs
               , "ps  = " <+> inTopContext (addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps)
               ]
@@ -1453,10 +1453,10 @@ split' checkEmpty ind allowPartialCover inserttrailing
       reportSDoc "tc.cover.top" 60 $ vcat
         [ "TypeChecking.Coverage.split': split"
         , nest 2 $ vcat
-          [ "tel     =" <+> (text . show) tel
-          , "x       =" <+> (text . show) x
-          , "ps      =" <+> (text . show) ps
-          , "cps     =" <+> (text . show) cps
+          [ "tel     =" <+> pretty tel
+          , "x       =" <+> pretty x
+          , "ps      =" <+> pretty ps
+          , "cps     =" <+> pretty cps
           ]
         ]
 
