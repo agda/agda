@@ -708,6 +708,10 @@ instance PrettyTCM TypeError where
         things i = [verbalize $ getHiding i,
                     "at modality " ++ verbalize (getModality i)]
 
+    TrustedPrimitive x -> fsep $
+      pwords "The trusted primitive" ++ [prettyTCM x] ++
+      pwords "is only allowed in certain \"builtin\" modules"
+
     BuiltinInParameterisedModule x -> fwords $
       "The BUILTIN pragma cannot appear inside a bound context " ++
       "(for instance, in a parameterised module or as a local declaration)"

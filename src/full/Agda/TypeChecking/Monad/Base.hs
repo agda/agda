@@ -241,7 +241,9 @@ type ImportedModules    = Set TopLevelModuleName
 type UserWarnings       = Map QName Text
 
 data PreScopeState = PreScopeState
-  { stPreTokens             :: !HighlightingInfo
+  { stPreFileId :: !(Strict.Maybe FileId)
+    -- ^ The file being type-checked, if any.
+  , stPreTokens             :: !HighlightingInfo
     -- ^ Highlighting info for tokens and Happy parser warnings (but
     -- not for those tokens/warnings for which highlighting exists in
     -- 'stPostSyntaxInfo').
@@ -540,7 +542,8 @@ initialMetaId = MetaId
 
 initPreScopeState :: PreScopeState
 initPreScopeState = PreScopeState
-  { stPreTokens               = mempty
+  { stPreFileId               = empty
+  , stPreTokens               = mempty
   , stPreImports              = emptySignature
   , stPreImportedModules      = empty
   , stPreImportedModulesTransitive = empty
@@ -692,6 +695,9 @@ lensTopLevelModuleNames f s =
   f (stPersistentTopLevelModuleNames s) <&> \ x -> s { stPersistentTopLevelModuleNames = x }
 
 -- ** Components of 'PreScopeState'
+
+lensPreFileId :: Lens' PreScopeState (Strict.Maybe FileId)
+lensPreFileId f s = f (stPreFileId s) <&> \x -> s { stPreFileId = x }
 
 lensPreTokens :: Lens' PreScopeState HighlightingInfo
 lensPreTokens f s = f (stPreTokens s) <&> \ x -> s { stPreTokens = x }
@@ -968,6 +974,9 @@ stTopLevelModuleNames :: Lens' TCState (BiMap RawTopLevelModuleName ModuleNameHa
 stTopLevelModuleNames = lensPersistentState . lensTopLevelModuleNames
 
 -- ** Pre scope state
+
+stFileId :: Lens' TCState (Strict.Maybe FileId)
+stFileId = lensPreScopeState . lensPreFileId
 
 stTokens :: Lens' TCState HighlightingInfo
 stTokens = lensPreScopeState . lensPreTokens
@@ -5786,6 +5795,7 @@ data TypeError
         | NoSuchPrimitiveFunction String
         | DuplicatePrimitiveBinding PrimitiveId QName QName
         | WrongArgInfoForPrimitive PrimitiveId ArgInfo ArgInfo
+        | TrustedPrimitive QName
         | ShadowedModule C.Name (List1 A.ModuleName)
         | BuiltinInParameterisedModule BuiltinId
         | IllegalLetInTelescope C.TypedBinding

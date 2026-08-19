@@ -425,6 +425,17 @@ isBuiltinModuleWithSafePostulates fi = do
     Just IsAgdaPrimitive                   -> True
     Just IsAgdaPrimitiveCubical            -> True
 
+-- | Is the current module, if any, a builtin module that only uses
+-- safe postulates?
+
+currentModuleIsBuiltinModuleWithSafePostulates ::
+  ReadTCState m => m Bool
+currentModuleIsBuiltinModuleWithSafePostulates = do
+  f <- useTC stFileId
+  case f of
+    Strict.Nothing -> return False
+    Strict.Just f  -> isBuiltinModuleWithSafePostulates f
+
 ---------------------------------------------------------------------------
 -- * Top level module
 ---------------------------------------------------------------------------

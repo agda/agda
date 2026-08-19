@@ -835,7 +835,11 @@ type Fun  a = a -> a
 type Rel  a = a -> a -> Bool
 type Pred a = a -> Bool
 
-primitiveFunctions :: Map PrimitiveId (TCM PrimitiveImpl)
+-- | If the type is 'Nothing', then the type of the given primitive is
+-- \"trusted\", i.e. taken from the primitive declaration in the Agda
+-- file.
+
+primitiveFunctions :: Map PrimitiveId (TCM (Maybe Type, PrimFun))
 primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBLE__
   -- Issue #4375          ^^^^^^^^^^^^^^^^^^^^^^^^^^
   --   Without this the next fresh checkpoint id gets changed building the primitive functions. This
@@ -1001,4 +1005,4 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
   , PrimLockUniv          |-> primLockUniv'
   ]
   where
-    (|->) = (,)
+  (|->) = \p f -> (p, do PrimImpl t f <- f; return (Just t, f))
