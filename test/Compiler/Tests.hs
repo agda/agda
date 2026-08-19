@@ -175,7 +175,10 @@ simpleTests comp = do
 
   where compArgs :: Compiler -> AgdaArgs
         compArgs MAlonzo{} =
-          ghcArgsAsAgdaArgs ["-itest/", "-fno-excess-precision"]
+          -- Compile the generated code without optimising it: the test
+          -- suite only checks the behaviour of the compiled program, and
+          -- GHC's -O pass dominates the runtime of each test.
+          ghcArgsAsAgdaArgs ["-itest/", "-fno-excess-precision", "-O0"]
         compArgs JS{} = []
 
 -- The Compiler tests using the standard library are horribly
