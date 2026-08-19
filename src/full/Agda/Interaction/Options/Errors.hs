@@ -280,6 +280,7 @@ data ErrorName
   | TooManyFields_
   | TooManyPatternsInWithClause_
   | TriedToCopyConstrainedPrim_
+  | TrustedPrimitive_
   | InvalidInstanceHeadType_
   | UnboundVariablesInPatternSynonym_
   | UnequalTerms_

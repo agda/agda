@@ -35,11 +35,12 @@ RelevanceMismatch
 ShouldBePath
 EOF
 
-# Errors which became impossible.
+# Errors which became (or always were) impossible.
 #
 cat >> $ERRORS <<EOF
 NeedOptionRewriting
 MismatchedProjectionsError
+TrustedPrimitive
 EOF
 
 # Errors which became impossible for ordinary data definitions

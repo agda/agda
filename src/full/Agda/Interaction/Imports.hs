@@ -377,7 +377,7 @@ mergeInterface i = do
         checkConfluenceOfRules confChk rews
     where
         rebind (x, q) = do
-            PrimImpl _ pf <- lookupPrimitiveFunction x
+            (_, pf) <- lookupPossiblyTrustedPrimitiveFunction x
             stImportedBuiltins `modifyTCLens` Map.insert (someBuiltin x) (Prim pf{ primFunName = q })
 
 addImportedThings
@@ -837,6 +837,8 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
           let file = srcOrigin src
           modifySession lensModuleToSourceId $ Map.insert x file
           pure file
+
+      stFileId `setTCLens'` Strict.Just (srcFileId file)
 
       reportSDoc "import.iface" 15 do
         path <- srcFilePath file
@@ -1361,6 +1363,7 @@ createInterface ::
   -> Maybe Source          -- ^ Optional information about the source code.
   -> TCM ModuleInfo
 createInterface mname sf@(SourceFile sfi) isMain msrc = do
+  stFileId `setTCLens'` Strict.Just sfi
   file <- srcFilePath sf
   let
     fp = filePath file

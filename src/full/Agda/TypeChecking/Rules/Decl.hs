@@ -745,7 +745,7 @@ checkAxiom gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ default
 checkPrimitive :: A.DefInfo -> QName -> Arg A.Expr -> TCM ()
 checkPrimitive i x (Arg info e) =
     traceCall (CheckPrimitive (getRange i) x e) $ do
-    (name, PrimImpl t' pf) <- lookupPrimitiveFunctionQ x
+    (name, t', pf) <- lookupPrimitiveFunctionQ x
     -- Certain "primitive" functions are BUILTIN rather than
     -- primitive.
     let builtinPrimitives =
@@ -763,8 +763,19 @@ checkPrimitive i x (Arg info e) =
     when (name `elem` builtinPrimitives) $ do
       reportSDoc "tc.prim" 20 $ pretty name <+> "is a BUILTIN, not a primitive!"
       typeError $ NoSuchPrimitiveFunction (getBuiltinId name)
-    t <- isType_ e
-    noConstraints $ equalType t t'
+    t <- case t' of
+      Nothing -> do
+        -- The primitive's type is "trusted", i.e. taken from the
+        -- primitive declaration in the Agda file.
+        unlessM currentModuleIsBuiltinModuleWithSafePostulates $
+          -- At the time of writing this code is dead, because there
+          -- are no trusted primitives.
+          typeError $ TrustedPrimitive x
+        noConstraints $ isType_ e
+      Just t' -> do
+        t <- isType_ e
+        noConstraints $ equalType t t'
+        return t
     let s  = prettyShow $ qnameName x
     -- Checking the ArgInfo. Currently all primitive definitions require default
     -- ArgInfos, and likely very few will have different ArgInfos in the
