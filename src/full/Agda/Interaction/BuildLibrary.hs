@@ -10,7 +10,6 @@ import           Data.List                        (sort)
 import qualified Data.Set as Set
 
 import           System.Directory                 (getCurrentDirectory)
-import           System.FilePath                  ( (</>) )
 import qualified System.FilePath.Find             as Find
 
 import           Agda.Interaction.FindFile        (hasAgdaExtension, checkModuleName)
@@ -68,20 +67,30 @@ buildLibrary = do
   par <- Imp.wantsParallelChecking
 
   checks <- forM files \ inputFile -> do
-    path :: AbsolutePath
-      <- liftIO (absolute inputFile)
-    sf :: SourceFile
-      <- srcFromPath path
-    src :: Source
-      <- Imp.parseSource sf
-    let
-      m :: TopLevelModuleName
-      m = Imp.srcModuleName src
-    setCurrentRange (beginningOfFile path) do
-      checkModuleName m (Imp.srcOrigin src) Nothing
-      withCurrentModule noModuleName
-           $ withTopLevelModule m
-           $ checkModule par m src
+
+      path :: AbsolutePath
+        <- liftIO (absolute inputFile)
+      sf :: SourceFile
+        <- srcFromPath path
+
+      -- András, 2026-08-19: issue 8627: for some reason, checking
+      -- primitive modules in the following throws coinfectivity error,
+      -- but since they're already checked by importPrimitiveModules,
+      -- there's no point checking them anyway.
+      isBuiltinModule (srcFileId sf) >>= \case
+        Just b | isPrimitiveModule b ->
+          pure $ pure ()
+        _ -> do
+          src :: Source
+            <- Imp.parseSource sf
+          let
+            m :: TopLevelModuleName
+            m = Imp.srcModuleName src
+          setCurrentRange (beginningOfFile path) do
+            checkModuleName m (Imp.srcOrigin src) Nothing
+            withCurrentModule noModuleName
+                 $ withTopLevelModule m
+                 $ checkModule par m src
 
   sequence_ checks
   printAccumulatedWarnings
