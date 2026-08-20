@@ -10,7 +10,7 @@ module Agda.Compiler.Treeless.Erase
 
 import Control.Monad.State ( StateT, evalStateT )
 
-import Data.List
+import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -215,7 +215,7 @@ pruneUnreachable' _ erased (CTData q) d bs' = do
   let (bs, pruned)
         | isErased erased = (bs', [])
         | otherwise       =
-          flip partition bs' $ \case
+          flip List.partition bs' $ \case
             a@TACon{} -> (aCon a) `elem` cs
             TAGuard{} -> True
             TALit{}   -> True
