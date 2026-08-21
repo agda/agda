@@ -509,7 +509,26 @@ cover infermissing f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       -> (SplitError -> TCM CoverResult)
       -> TCM CoverResult
     continue xs allowPartialCover handle = do
-      r <- altM1 (\ x -> fmap (,x) <$> split Inductive allowPartialCover sc x) xs
+      -- The clause list ('cs') is not pruned as the checker recurses. Rather,
+      -- the pattern list ('ps') is updated. Thus, to know whether all the
+      -- clauses that remain blocked on a variable are absurd, we need to
+      -- partition 'cs' and then match according to 'ps'. We consider a match
+      -- on a variable to be absurd if at least one absurd clause consistent
+      -- with the current patterns is both blocking on it AND zero non-absurd
+      -- clauses consistent with the current patterns are blocking on it.
+      absurdBlockingVarNos <- do
+        let (absurdCs, nonAbsurdCs) = List.partition (isNothing . clauseBody) cs
+        absurdVars <- match absurdCs ps >>= \case
+          Block _ nvs -> return $ map blockingVarNo nvs
+          _           -> return []
+        nonAbsurdVars <- match nonAbsurdCs ps >>= \case
+          Block _ nvs -> return $ map blockingVarNo nvs
+          _           -> return []
+        return $ absurdVars List.\\ nonAbsurdVars
+      r <- altM1 (\ x ->
+        let inAbsurdClause = blockingVarNo x `elem` absurdBlockingVarNos
+        in  fmap (,x) <$> split Inductive allowPartialCover inAbsurdClause sc x
+        ) xs
       case r of
         Left err -> handle err
         -- If we get the empty covering, we have reached an impossible case
@@ -1208,7 +1227,7 @@ data AllowPartialCover
 -- | Entry point from @Interaction.MakeCase@.
 splitClauseWithAbsurd :: SplitClause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
 splitClauseWithAbsurd c x =
-  split' CheckEmpty Inductive NoAllowPartialCover DontInsertTrailing c (BlockingVar x [] [] True False)
+  split' CheckEmpty Inductive NoAllowPartialCover DontInsertTrailing False c (BlockingVar x [] [] True False)
   -- Andreas, 2016-05-03, issue 1950:
   -- Do not introduce trailing pattern vars after split,
   -- because this does not work for with-clauses.
@@ -1217,7 +1236,7 @@ splitClauseWithAbsurd c x =
 --   @splitLast CoInductive@ is used in the @refine@ tactics.
 
 splitLast :: Induction -> Telescope -> [NamedArg DeBruijnPattern] -> TCM (Either SplitError Covering)
-splitLast ind tel ps = split ind NoAllowPartialCover sc (BlockingVar 0 [] [] True False)
+splitLast ind tel ps = split ind NoAllowPartialCover False sc (BlockingVar 0 [] [] True False)
   where sc = SClause tel (toSplitPatterns ps) empty empty target
         -- TODO 2ltt: allows (Empty_fib -> Empty_strict) which is not conservative
         target = (Just $ defaultDom $ El (mkProp 0) $ __DUMMY_TERM_WITH__ "splitLastTarget")
@@ -1239,11 +1258,13 @@ split :: Induction
          -- 'CoInductive'.
       -> AllowPartialCover
          -- ^ Don't fail if computed 'Covering' does not cover all constructors.
+      -> Bool
+         -- ^ The parent clause is absurd.
       -> SplitClause
       -> BlockingVar
       -> TCM (Either SplitError Covering)
-split ind allowPartialCover sc x =
-  fmap blendInAbsurdClause <$> split' NoCheckEmpty ind allowPartialCover DoInsertTrailing sc x
+split ind allowPartialCover inAbsurdClause sc x =
+  fmap blendInAbsurdClause <$> split' NoCheckEmpty ind allowPartialCover DoInsertTrailing inAbsurdClause sc x
   where
     n = lookupPatternVar sc $ blockingVarNo x
     blendInAbsurdClause :: Either SplitClause Covering -> Covering
@@ -1290,10 +1311,12 @@ split' :: CheckEmpty
           -- ^ Don't fail if computed 'Covering' does not cover all constructors.
        -> InsertTrailing
           -- ^ If 'DoInsertTrailing', introduce new trailing variable patterns.
+       -> Bool
+          -- ^ The parent clause is absurd.
        -> SplitClause
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
-split' checkEmpty ind allowPartialCover inserttrailing
+split' checkEmpty ind allowPartialCover inserttrailing inAbsurdClause
        sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap lazy) =
  liftTCM $ runExceptT $ do
   debugInit tel x ps cps
@@ -1437,7 +1460,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
               throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
 
       let t' = set lensSort s $ unDom t
-      liftTCM $ inContextOfT $ checkSortOfSplitVar dr t' delta2 target
+      liftTCM $ inContextOfT $ checkSortOfSplitVar inAbsurdClause dr t' delta2 target
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where
