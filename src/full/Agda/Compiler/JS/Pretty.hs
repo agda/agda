@@ -271,7 +271,6 @@ instance Pretty Exp where
     prettyPrec 3 n e <> "?" <+> prettyPrec 3 n f <> ":" <+> prettyPrec 2 n g
   prettyPrec p n (PreOp op e)   = parens $ text op <> " " <> prettyPrec 17 n e
   prettyPrec p n (BinOp e op f) = parens $ prettyPrec 17 n e <> " " <> text op <> " " <> prettyPrec 17 n f
-  prettyPrec p n (Const c)      = text c
   prettyPrec p n (PlainJS js)   = text js
 
 block :: (Nat, Bool, JSModuleStyle) -> Exp -> Doc

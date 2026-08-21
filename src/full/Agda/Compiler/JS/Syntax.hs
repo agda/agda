@@ -33,7 +33,6 @@ data Exp =
   If Exp Exp Exp |
   BinOp Exp String Exp |
   PreOp String Exp |
-  Const String |
   PlainJS String -- ^ Arbitrary JS code.
   deriving (Show, Eq)
 -- Code style:
@@ -118,7 +117,6 @@ instance Uses Exp where
   uses (If e f g)     = uses (e, f, g)
   uses (BinOp e op f) = uses (e, f)
   uses (PreOp op e)   = uses e
-  uses (Const _)      = Set.empty
   uses (PlainJS _)    = Set.empty
 
 instance Uses Export where
@@ -160,7 +158,6 @@ instance Globals Exp where
   globals (If e f g) = globals (e, f, g)
   globals (BinOp e op f) = globals (e, f)
   globals (PreOp op e) = globals e
-  globals (Const _)      = Set.empty
   globals (PlainJS _)    = Set.empty
 
 instance Globals Export where
