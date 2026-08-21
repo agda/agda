@@ -258,7 +258,7 @@ instance Pretty Exp where
   prettyPrec p n (Null)         = "null"
   prettyPrec p n (String s)     = "\"" <> unescapes (T.unpack s) <> "\""
   prettyPrec p n (Char c)       = "\"" <> unescapes [c] <> "\""
-  prettyPrec p n (Integer x)    = "agdaRTS.primIntegerFromString(\"" <> text (show x) <> "\")"
+  prettyPrec p n (Integer x)    = text (show x) <> "n"
   prettyPrec p n (Double x)     = text $ show x
   prettyPrec p (n, min, ms) (Lambda x e) = mparens (p > 2) $
     mparens (x /= 1) (punctuate "," (pretties (n + x, min, ms) (map LocalId [x-1, x-2 .. 0])))
