@@ -33,7 +33,6 @@ map m f (Lookup e l)    = Lookup (map m f e) l
 map m f (If e e' e'')   = If (map m f e) (map m f e') (map m f e'')
 map m f (PreOp op e)    = PreOp op (map m f e)
 map m f (BinOp e op e') = BinOp (map m f e) op (map m f e')
-map m f (Const str)     = Const str
 map m f (PlainJS str)   = PlainJS str
 
 -- Shifting
@@ -83,7 +82,6 @@ map' m f (Lookup e l)    = lookup (map' m f e) l
 map' m f (If e e' e'')   = If (map' m f e) (map' m f e') (map' m f e'')
 map' m f (PreOp op e)    = PreOp op (map' m f e)
 map' m f (BinOp e op e') = BinOp (map' m f e) op (map' m f e')
-map' m f (Const str)     = Const str
 map' m f (PlainJS str)   = PlainJS str
 
 
