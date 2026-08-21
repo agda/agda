@@ -1042,7 +1042,12 @@ buildNodeAndProjectionMaps allNames = do
     then do
       let typeOf = Map.fromList [ (g, t) | (g, t, _) <- pairs ]
       Map.fromList <$> forM allProjectionLists (\ (g, path) ->
-        ((g, path),) <$> argumentMasksForPath (typeOf Map.! g) path)
+        -- Andreas, 2026-08-21, issue #8674:
+        -- Compute the masks in the abstract/opaque mode of @g@,
+        -- otherwise abstract data types are invisible here (they look like axioms)
+        -- and their arguments get masked, destroying structural descent.
+        ((g, path),) <$> inConcreteOrAbstractMode g \ _def ->
+          argumentMasksForPath (typeOf Map.! g) path)
     else return Map.empty
   return (projectedNameToNode, nodeToName, nameToProjections, projectedNameToMaskArgs)
 
