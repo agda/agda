@@ -741,7 +741,12 @@ classifyPattern conf p =
       return $ ParseLHS x $ lhsCoreAddSpine (LHSHead x []) ps
 
     -- case @d ps@
-    Arg _ (Named _ (IdentP _ x)) :| ps | fldName conf x -> do
+    -- Andreas, 2026-08-21, issue #8599:
+    -- A field can only head a projection (copattern) if we are parsing a lhs,
+    -- i.e., if we are looking for the defined name @topName@.
+    -- When parsing a mere pattern, a field name has to be treated
+    -- like an ordinary identifier, falling through to the last case.
+    Arg _ (Named _ (IdentP _ x)) :| ps | isJust (topName conf), fldName conf x -> do
 
       -- Step 1: check for valid copattern lhs.
       ps0 :: [NamedArg ParseLHS] <- mapM classPat ps
