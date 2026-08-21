@@ -4111,7 +4111,7 @@ instance (Pretty nm, Pretty p, Pretty e) => Pretty (RewriteEqn' qn nm p e) where
   pretty = \case
     Rewrite es   -> prefixedThings (text "rewrite") $ List1.toList (pretty . snd <$> es)
     LeftLet pes  -> prefixedThings (text "using") [pretty p <+> "<-" <+> pretty e | (p, e) <- List1.toList pes]
-    Invert _ pes -> prefixedThings (text "invert") $ List1.toList (namedWith <$> pes) where
+    Invert _ pes -> prefixedThings (text "with") $ List1.toList (namedWith <$> pes) where
 
       namedWith (Named nm (p, e)) =
         let patexp = pretty p <+> "<-" <+> pretty e in
