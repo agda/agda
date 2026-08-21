@@ -10,6 +10,8 @@ import qualified Data.Map.Strict as MapS
 import qualified Data.HashMap.Strict as HMap
 import Data.IORef
 
+import Agda.Interaction.Options (optSaveMetas)
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Names
@@ -47,6 +49,7 @@ eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
   !sig <- getSignature
   let !defs = sig ^. sigDefinitions
   !metas <- useR stSolvedMetaStore
+  !saveMetas <- optSaveMetas <$> pragmaOptions
 
   -- #2921: Eliminating definitions with attached COMPILE pragmas results in
   -- the pragmas not being checked. Simple solution: don't eliminate these.
@@ -128,7 +131,16 @@ eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
             Just mv -> do
               writeIORef insideDef Nothing
               go (instBody (theInstantiation mv))
-              go (jMetaType (mvJudgement mv))
+              -- The meta's judgement reaches the interface (as
+              -- rmvJudgement) only under --save-metas; otherwise the
+              -- meta store is dropped after instantiateFull, so
+              -- nothing reachable solely through the judgement's type
+              -- can occur in the serialised interface, and traversing
+              -- it would only grow the kept sets and the traversal
+              -- cost (quadratically in the module's section
+              -- telescopes, since each solved meta's type is closed
+              -- over its context).
+              when saveMetas $ go (jMetaType (mvJudgement mv))
               writeIORef insideDef prevRef -- restore ref
           )
 
