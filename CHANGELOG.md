@@ -507,6 +507,21 @@ Library management
 Interaction and emacs mode
 --------------------------
 
+* The JSON interaction protocol (`--interaction-json`) no longer loses
+  information that the Emacs frontend displays:
+
+  - `GoalAndHave` responses now include a `boundary` field with the
+    boundary faces of the checked expression
+    ("Boundary (actual)" in the Emacs mode).
+
+  - `NormalForm` and `InferredType` responses now pretty-print the
+    expression in the command state captured when the command ran, as
+    the Emacs frontend does, instead of in the current state
+    (fixes [Issue #5665](https://github.com/agda/agda/issues/5665)).
+
+  - `Mimer` responses now include the `interactionPoint` the solution
+    refers to.
+
 * Syntax highlighting and go-to-definition now also works in the Agda
   information and debug buffers in Emacs where goals etc. are displayed.
   This fixes long-standing [Issue #706](https://github.com/agda/agda/issues/706).
