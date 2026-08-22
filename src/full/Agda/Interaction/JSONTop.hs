@@ -358,12 +358,12 @@ instance EncodeTCM DisplayInfo where
     [ "commandState"      @= commandState
     , "computeMode"       @= computeMode
     , "time"              @= time
-    , "expr"              #= encodePrettyTCM expr
+    , "expr"              #= (encodeShow <$> prettyNormalForm commandState computeMode expr)
     ]
   encodeTCM (Info_InferredType commandState time expr) = kind "InferredType"
     [ "commandState"      @= commandState
     , "time"              @= time
-    , "expr"              #= encodePrettyTCM expr
+    , "expr"              #= (encodeShow <$> prettyInferredType commandState expr)
     ]
   encodeTCM (Info_Context ii ctx) = kind "Context"
     [ "interactionPoint"  @= ii
@@ -379,8 +379,10 @@ instance EncodeTCM DisplayInfo where
 
 instance EncodeTCM GoalTypeAux where
   encodeTCM GoalOnly = kind "GoalOnly" []
-  encodeTCM (GoalAndHave expr _) = kind "GoalAndHave"
-    [ "expr" #= encodePrettyTCM expr ]
+  encodeTCM (GoalAndHave expr boundary) = kind "GoalAndHave"
+    [ "expr"     #= encodePrettyTCM expr
+    , "boundary" @= map encodePretty boundary
+    ]
   encodeTCM (GoalAndElaboration expr) = kind "GoalAndElaboration"
     [ "term" #= encodePrettyTCM expr ]
 
@@ -479,7 +481,8 @@ instance EncodeTCM Response where
         , "expression"        .= P.prettyShow expr
         ]
   encodeTCM (Resp_Mimer ii str) = kind "Mimer"
-    [ "solution" @= str
+    [ "interactionPoint" @= ii
+    , "solution"         @= str
     ]
 
 -- | Convert Response to an JSON value for interactive editor frontends.
