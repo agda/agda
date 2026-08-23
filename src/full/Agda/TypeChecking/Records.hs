@@ -804,7 +804,13 @@ etaContractRecord r c ci args = if all (not . usableModality) args then fallBack
     ]
   case compare (length args) (length xs) of
     LT -> fallBack       -- Not fully applied
-    GT -> __IMPOSSIBLE__ -- Too many arguments. Impossible.
+    -- Andreas, 2026-08-22, issue #7564:
+    -- Too many arguments.  This can only happen for ill-typed terms, which we
+    -- may encounter while there are still unsolved (and unsolvable) constraints
+    -- around, e.g. when a solution to a meta makes a definition non-confluent.
+    -- Rather than crashing, we leave the term alone; the
+    -- offending constraint will report a proper type error later.
+    GT -> fallBack
     EQ -> do
       case zipWithM check args xs of -- András 2026-03-17: TODO optimize
         Just as -> case catMaybe' as of
