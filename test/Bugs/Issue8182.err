@@ -27,7 +27,7 @@ out > {G : Set} → G → P (F (?1 {G = G})) (g (?1 {G = G}))
 out > contype =  Set → Set
 out > gamma = 
 out > adding record type to signature
-out > record constructor is  Issue8182.R.constructor
+out > record constructor is  R.constructor
 out > record section: R (r : R) [], [Issue8182.R.B]
 out >   field tel = (B : Set)
 out > Found interaction point ConcreteDef ?0 : Set

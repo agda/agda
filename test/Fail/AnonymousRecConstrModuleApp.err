@@ -1,0 +1,6 @@
+AnonymousRecConstrModuleApp.agda:15.5-18: error: [NotInScope]
+Not in scope:
+  M.constructor
+  at AnonymousRecConstrModuleApp.agda:15.5-18
+    (did you mean 'R.constructor'?)
+when scope checking M.constructor

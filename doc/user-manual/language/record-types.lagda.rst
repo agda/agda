@@ -290,16 +290,25 @@ though the constructor had been named.
 
   {-# INLINE Anon.constructor #-}
 
-However, keep in mind that the ``Record.constructor`` syntax is
-*syntax*, and there is no binding for ``constructor`` in the module
-``Anon``, nor is it possible to declare a function called
-``constructor`` in another module. Moreover, the ``constructor``
-pseudo-name is not affected by ``using``, ``hiding`` *or* ``renaming``
-declarations, and attempting to list it in these is a syntax error.
+Technically, ``constructor`` is a name bound in the
+:ref:`record module <record-modules>` ``Anon``.  However, since
+``constructor`` is a keyword, it can never be written as an unqualified
+name: it is not possible to declare a function called ``constructor``,
+opening the record module does not make the constructor accessible as
+``constructor``, and the pseudo-name cannot be listed in ``using``,
+``hiding`` *or* ``renaming`` directives (attempting to do so is a syntax
+error).
+
+Note also that ``constructor`` is merely an alias.  Unlike the projections,
+the record constructor is not itself a definition of the record module: it
+does not take an element of the record type as an argument.  Since a
+:ref:`module application <module-application>` copies the definitions of
+the module it instantiates, no ``M.constructor`` is available after
+``module M = Anon``.
 
 The constructor of a record can be referred to whenever the record
-itself is in scope, though note that if the record is abstract (see
-:ref:`abstract-definitions`), it's still an error to refer to the
+module itself is in scope, though note that if the record is abstract
+(see :ref:`abstract-definitions`), it's still an error to refer to the
 constructor:
 
 .. code-block:: agda
