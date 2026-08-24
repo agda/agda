@@ -2510,27 +2510,31 @@ scopeCheckRecDef r o a pc uc forceEta x directives pars fields =
 
       bindModule p x m
 
+      -- Name kind of the record constructor (inductive/coinductive).
+      let conKind = maybe ConName (conKindOfName . rangedThing) ind
+
       -- Bind the record constructor.
       cm' <- case cm of
 
         -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
-        Just (c, inst) -> NamedRecCon <$> bindRecordConstructorName c kind inst a p
-          where
-            -- Name kind of the record constructor (inductive/coinductive).
-            kind = maybe ConName (conKindOfName . rangedThing) ind
+        Just (c, inst) -> NamedRecCon <$> bindRecordConstructorName c conKind inst a p
 
         -- Amy, 2024-09-25: if the record does not have a named
-        -- constructor, then generate the QName here, and record it in
-        -- the TC state so that 'Record.constructor' can be resolved.
+        -- constructor, then generate the QName here.
         Nothing -> do
-          -- Technically it doesn't matter with what this name is
-          -- qualified since record constructor names have a special
-          -- printing rule in lookupQName.
+          -- The name is qualified by the record module @m@ so that it is
+          -- copied along with the record module by 'copyScope'.
+          -- (Record constructor names have a special printing rule in
+          -- lookupQName, so the qualification does not show up in output.)
           constr <- withCurrentModule m $
             freshAbstractQName noFixity' $ simpleName "constructor"
           pure $ FreshRecCon constr
 
-      setRecordConstructor x' (recordConName cm', fmap rangedThing ind)
+      -- Andreas, 2026-08-23: Make the constructor accessible as @R.constructor@
+      -- by binding the pseudo-name @constructor@ in the record module.
+      -- Note that this is just an alias; the constructor itself does not live
+      -- in the record module (issue #4189).
+      bindRecordConstructorPseudoName m conKind (recordConName cm')
 
       -- Return the translated record definition.
       let inst = caseMaybe cm NotInstanceDef snd

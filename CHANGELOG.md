@@ -346,6 +346,38 @@ Language
 
 Changes to type checker and other components defining the Agda language.
 
+* (**BREAKING**) The pseudo-name `R.constructor`, which refers to the
+  constructor of record `R`, is now resolved by the ordinary scope lookup:
+  `constructor` is a name bound in the record module `R`.
+  (It can never be written unqualified, since `constructor` is a keyword;
+  in particular, `open R` does not bring it into scope, and a module
+  application `module M = R` does not provide `M.constructor`.)
+
+  Consequently, the qualification `R` in `R.constructor` is now interpreted
+  as the name of the record *module* rather than the name of the record
+  *type*.  Thus, this now succeeds:
+  ```agda
+  module M where
+    record R : Set where
+
+  open M using (module R)
+
+  t = R.constructor   -- used to fail
+  ```
+  while this now fails:
+  ```agda
+  module M where
+    record R : Set where
+
+  open M using (R) hiding (module R)
+
+  t = R.constructor   -- used to succeed
+  ```
+
+  This also fixes [Issue #8625](https://github.com/agda/agda/issues/8625):
+  an internal error when referring to `R.constructor` from the interaction
+  top level.
+
 * (**BREAKING**): In the presence of `--erasure`, types of lambdas expressions
   are not inferred unless every lambda-bound variable has been given its erasure
   status (`@0` or `@ω`) explicitely.

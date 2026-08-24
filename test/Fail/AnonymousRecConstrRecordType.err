@@ -1,0 +1,6 @@
+AnonymousRecConstrRecordType.agda:13.5-18: error: [NotInScope]
+Not in scope:
+  R.constructor
+  at AnonymousRecConstrRecordType.agda:13.5-18
+    (did you mean 'M.R.constructor'?)
+when scope checking R.constructor

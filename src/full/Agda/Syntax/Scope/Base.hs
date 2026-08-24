@@ -126,8 +126,6 @@ data ScopeInfo = ScopeInfo
       , _scopeInScope       :: InScopeSet
       , _scopeFixities      :: C.Fixities    -- ^ Maps concrete names C.Name to fixities
       , _scopePolarities    :: C.Polarities  -- ^ Maps concrete names C.Name to polarities
-      , _scopeRecords       :: Map A.QName (A.QName, Maybe Induction)
-        -- ^ Maps the name of a record to the name of its (co)constructor.
       }
   deriving (Show, Generic)
 
@@ -148,7 +146,7 @@ type NameMap   = HashMap NameId      NameMapEntry
 type ModuleMap = HashMap A.ModuleName [C.QName]
 
 instance Eq ScopeInfo where
-  ScopeInfo c1 m1 v1 l1 p1 _ _ _ _ _ _ == ScopeInfo c2 m2 v2 l2 p2 _ _ _ _ _ _ =
+  ScopeInfo c1 m1 v1 l1 p1 _ _ _ _ _ == ScopeInfo c2 m2 v2 l2 p2 _ _ _ _ _ =
     c1 == c2 && m1 == m2 && v1 == v2 && l1 == l2 && p1 == p2
 
 -- | Local variables.
@@ -274,11 +272,6 @@ scopePolarities :: Lens' ScopeInfo C.Polarities
 scopePolarities f s =
   f (_scopePolarities s) <&>
   \x -> s { _scopePolarities = x }
-
-scopeRecords :: Lens' ScopeInfo (Map A.QName (A.QName, Maybe Induction))
-scopeRecords f s =
-  f (_scopeRecords s) <&>
-  \x -> s { _scopeRecords = x }
 
 scopeFixitiesAndPolarities :: Lens' ScopeInfo (C.Fixities, C.Polarities)
 scopeFixitiesAndPolarities f s =
@@ -778,7 +771,6 @@ emptyScopeInfo = ScopeInfo
   , _scopeInScope       = Set.empty
   , _scopeFixities      = Map.empty
   , _scopePolarities    = Map.empty
-  , _scopeRecords       = Map.empty
   }
 
 -- | Map functions over the names and modules in a scope.
@@ -1521,6 +1513,15 @@ recomputeInverseNamesAndModules scope = St2.execState goCurrent (mempty, mempty)
     intern (C.Name _ _ (C.Id ('.' : '#' : _) :| [])) = True
     intern _ = False
 
+  -- The pseudo-name @constructor@ bound in a record module (see
+  -- 'Agda.Syntax.Scope.Monad.bindRecordConstructorPseudoName') is a keyword,
+  -- so it cannot be parsed unqualified.  Thus, it must not be offered as an
+  -- unqualified rendering of the record constructor (which could happen after
+  -- @open R@).  Qualified renderings like @R.constructor@ are fine.
+  unqualifiedKeyword :: C.QName -> Bool
+  unqualifiedKeyword (C.QName (C.Name _ _ (C.Id "constructor" :| []))) = True
+  unqualifiedKeyword _ = False
+
   updModules qualx m =
     St2.modify2 $ HMap.insertWith (\_ acc -> qualx:acc) m [qualx]
 
@@ -1542,7 +1543,7 @@ recomputeInverseNamesAndModules scope = St2.execState goCurrent (mempty, mempty)
         -- names
         Map.forWithKey_ names \x ys -> do
           let !qualx = applyQuals (C.QName x) quals
-          when (not (internalName qualx)) do
+          when (not (internalName qualx || unqualifiedKeyword qualx)) do
             forM_ ys \y -> do
               let nid   = A.nameId y
               let entry = NameMapEntry (anameKind y) (qualx :| [])
@@ -1672,7 +1673,7 @@ blockOfLines _  [] = []
 blockOfLines hd ss = hd : map (nest 2) ss
 
 instance Pretty ScopeInfo where
-  pretty (ScopeInfo this mods toBind locals ctx _ _ _ fixs _ _) = vcat $ concat
+  pretty (ScopeInfo this mods toBind locals ctx _ _ _ fixs _) = vcat $ concat
     [ [ "ScopeInfo"
       , nest 2 $ "current =" <+> pretty this
       ]
