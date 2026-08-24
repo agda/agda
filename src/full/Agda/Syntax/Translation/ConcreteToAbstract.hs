@@ -2249,11 +2249,17 @@ instance ToAbstract NiceDeclaration where
               | otherwise -> return $ WithHiding h a
             ConstructorName _ ys -> err $ PatternSynonymArgumentShadows IsConstructor x ys
             PatternSynResName ys -> err $ PatternSynonymArgumentShadows IsPatternSynonym x ys
-            UnknownName -> err $ UnusedVariableInPatternSynonym x
-            -- Other cases are impossible because parsing the pattern syn rhs would have failed.
-            _ -> __IMPOSSIBLE__
+            -- In the remaining cases, the name has not been bound by the pattern syn rhs.
+            DefinedName{}         -> failure
+            FieldName{}           -> failure
+            VarName _ LambdaBound -> failure
+            VarName _ LetBound    -> failure
+            VarName _ WithBound   -> failure
+            VarName _ MacroBound  -> failure
+            UnknownName           -> failure
           where
             err = setCurrentRange x . typeError
+            failure = err $ UnusedVariableInPatternSynonym x
 
     d@NiceLoneConstructor{} -> [] <$ do
       declarationWarning $ InvalidConstructorBlock $ getRange d
