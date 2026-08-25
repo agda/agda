@@ -262,13 +262,18 @@ inferApplication exh hd args e = postponeInstanceConstraints $ do
     A.Proj o p | isAmbiguous p -> inferProjApp e o p hd args
     A.Def' x s | Just (sz, u) <- isNameOfUniv x -> inferUniv sz u e x s args
     _ -> do
+      -- Issue #8683: the side conditions on the arguments of the cubical
+      -- primitives have to be checked in inference mode as well.
+      mk <- cubicalPrimitiveArgsCheck hd
       (f, t0) <- inferHead hd
       res <- runExceptT $ checkArgumentsE CmpEq exh hd args t0 Nothing
       case res of
-        Right st@(ACState{acType = t1}) -> fmap (,t1) $ unfoldInlined =<< checkHeadConstraints f st
+        Right st@(ACState{acType = t1}) -> fmap (,t1) $
+          unfoldInlined =<< checkHeadConstraints f =<< checkCubicalPrimitiveArgs mk st
         Left problem -> do
           t <- workOnTypes $ newTypeMeta_
-          v <- postponeArgs problem CmpEq exh hd args t0 t $ \ st -> unfoldInlined =<< checkHeadConstraints f st
+          v <- postponeArgs problem CmpEq exh hd args t0 t $ \ st ->
+                 unfoldInlined =<< checkHeadConstraints f =<< checkCubicalPrimitiveArgs mk st
           return (v, t)
 
 -----------------------------------------------------------------------------
@@ -416,12 +421,6 @@ checkHeadApplication :: Comparison -> A.Expr -> Type -> A.Expr -> [NamedArg A.Ex
 checkHeadApplication cmp e t hd args = do
   SortKit{ isNameOfUniv } <- sortKit
   sharp <- fmap nameOfSharp <$> coinductionKit
-  pOr    <- getNameOfConstrained builtinPOr
-  pComp  <- getNameOfConstrained builtinComp
-  pHComp <- getNameOfConstrained builtinHComp
-  pTrans <- getNameOfConstrained builtinTrans
-  mglue  <- getNameOfConstrained builtin_glue
-  mglueU  <- getNameOfConstrained builtin_glueU
   case hd of
     A.Def' c s | Just (sz, u) <- isNameOfUniv c -> checkUniv sz u cmp e t c s args
 
@@ -429,33 +428,62 @@ checkHeadApplication cmp e t hd args = do
     -- sharp we generate in the body of the wrapper is a Con.
     A.Def c | Just c == sharp -> checkSharpApplication e t c args
 
-    -- Cubical primitives
-    A.Def c | Just c == pComp -> defaultResult' $ Just $ checkPrimComp c
-    A.Def c | Just c == pHComp -> defaultResult' $ Just $ checkPrimHComp c
-    A.Def c | Just c == pTrans -> defaultResult' $ Just $ checkPrimTrans c
-    A.Def c | Just c == pOr   -> defaultResult' $ Just $ checkPOr c
-    A.Def c | Just c == mglue -> defaultResult' $ Just $ check_glue c
-    A.Def c | Just c == mglueU -> defaultResult' $ Just $ check_glueU c
-
-    _ -> defaultResult
+    -- The cubical primitives get their side conditions checked here as well.
+    _ -> defaultResult' =<< cubicalPrimitiveArgsCheck hd
   where
-  defaultResult :: TCM Term
-  defaultResult = defaultResult' Nothing
   defaultResult' :: Maybe (ArgRanges -> Args -> Type -> TCM Args) -> TCM Term
   defaultResult' mk = do
     (f, t0) <- inferHead hd
     expandLast <- viewTC eExpandLast
-    checkArguments cmp expandLast hd args t0 t $ \ st@(ACState cas _fun t1 checkedTarget) -> do
-      let check :: Maybe (TCM Args)
-          check = do
-            k <- mk
-            vs <- allApplyElims $ map' caElim cas
-            pure $ k (map' caRange cas) vs t1
-      st' <- case check of
-               Just ck -> (`setACElims` st) . map' Apply <$> ck
-               Nothing -> pure st
+    checkArguments cmp expandLast hd args t0 t $ \ st@(ACState _cas _fun t1 checkedTarget) -> do
+      st' <- checkCubicalPrimitiveArgs mk st
       v <- unfoldInlined =<< checkHeadConstraints f st'
       coerce' cmp checkedTarget v t1 t
+
+-- | Which cubical primitive is this head, if any, and how are the side
+--   conditions on its arguments checked?
+--
+--   These side conditions have to be verified wherever such a primitive is
+--   elaborated.  In particular also in inference mode (see 'inferApplication'),
+--   which is used e.g. for the scrutinee of a @with@, the right-hand side of a
+--   pattern-matching @let@, the principal argument of an ambiguous projection,
+--   and the first argument of the reflection primitive @unify@.  (Issue #8683.)
+cubicalPrimitiveArgsCheck ::
+     A.Expr
+       -- ^ The head of the application.
+  -> TCM (Maybe (ArgRanges -> Args -> Type -> TCM Args))
+cubicalPrimitiveArgsCheck hd = case unScope hd of
+    A.Def c -> loop c
+      [ (builtinComp  , checkPrimComp )
+      , (builtinHComp , checkPrimHComp)
+      , (builtinTrans , checkPrimTrans)
+      , (builtinPOr   , checkPOr      )
+      , (builtin_glue , check_glue    )
+      , (builtin_glueU, check_glueU   )
+      ]
+    _ -> return Nothing
+  where
+    loop _ [] = return Nothing
+    loop c ((b, k) : bks) = getNameOfConstrained b >>= \case
+      Just c' | c' == c -> return $ Just $ k c
+      _ -> loop c bks
+
+-- | Check the side conditions on the arguments of a cubical primitive
+--   (if the head is one), and return the possibly updated (blocked) arguments.
+checkCubicalPrimitiveArgs ::
+     Maybe (ArgRanges -> Args -> Type -> TCM Args)
+       -- ^ Result of 'cubicalPrimitiveArgsCheck' for the head of the application.
+  -> ArgsCheckState a
+  -> TCM (ArgsCheckState a)
+checkCubicalPrimitiveArgs mk st@(ACState cas _fun t1 _) = do
+  let check :: Maybe (TCM Args)
+      check = do
+        k <- mk
+        vs <- allApplyElims $ map' caElim cas
+        pure $ k (map' caRange cas) vs t1
+  case check of
+    Just ck -> (`setACElims` st) . map' Apply <$> ck
+    Nothing -> pure st
 
 -- Issue #3019 and #4170: Don't insert trailing implicits when checking arguments to existing
 -- metavariables.

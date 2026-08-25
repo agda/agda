@@ -1,0 +1,8 @@
+Issue8683Proj.agda:24.52-56: error: [UnequalTerms]
+The terms
+  1
+and
+  0
+are not equal at type Nat
+when inferring the type of
+hcomp {A = R} {φ = j} (λ i _ → mk 0) (mk 1)
