@@ -212,6 +212,8 @@ eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
 --      a name (@Def@) which is 'eligibleForProjectionLike':
 --      @data@ / @record@ / @postulate@.
 --
+--      None of the parameters may be irrelevant (issue #8686).
+--
 --   2. The application of f should only get stuck if the principal argument
 --      is inferable (neutral).  Thus:
 --
@@ -406,8 +408,10 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
       where badVar x = m - n <= x && x < m
 
     -- @candidateArgs [var 0,...,var(n-1)] t@ adds @(n,d)@ to the output,
-    -- if @t@ is a function-type with domain @t 0 .. (n-1)@
+    -- if @t@ is a function-type with domain @d 0 .. (n-1)@
     -- (the domain of @t@ is the type of the arg @n@).
+    -- Andreas, 2026-08-06, issue #8686:
+    -- The applications @d 0 .. (n-1)@ must be relevant.
     --
     -- This means that from the type of arg @n@ all previous arguments
     -- can be computed by a simple matching.
@@ -422,6 +426,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
         Pi a b
           | Def d es <- unEl $ unDom a,
             Just us  <- allApplyElims es,
+            all (not . isIrrelevant) us,
             vs == map unArg us -> (d <$ argFromDom a, length vs) : candidateRec b
           | otherwise          -> candidateRec b
         _                      -> []
