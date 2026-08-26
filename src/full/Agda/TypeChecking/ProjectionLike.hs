@@ -182,8 +182,9 @@ elimView loneProjectionLikeToLambda v = do
     NoProjection{} -> return v
 
 {-# SPECIALIZE eligibleForProjectionLike :: QName -> TCM Bool #-}
--- | Which @Def@types are eligible for the principle argument
+-- | Which @Def@ heads are eligible for the principle argument
 --   of a projection-like function?
+--   They need to be injective, which is the case for data, record, and axiom.
 eligibleForProjectionLike :: (HasConstInfo m) => QName -> m Bool
 eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
   where
@@ -274,7 +275,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
                  funSplitTree = st0, funCompiled = cc0, funInv = NotInjective,
                  funMutual = Just [], -- Andreas, 2012-09-28: only consider non-mutual funs
                  funOpaque = TransparentDef} | not (def ^. funAbstract) -> do
-      ps0 <- filterM validProj =<< candidateArgs [] t
+      ps0 <- candidateArgs [] t
       reportSLn "tc.proj.like" 30 $ if null ps0 then "  no candidates found"
                                                 else "  candidates: " ++ prettyShow ps0
       unless (null ps0) $ do
@@ -360,11 +361,6 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
       Con _ ConORec _ -> True
       Con _ ConORecWhere _ -> True
       _ -> False
-    -- @validProj (d,n)@ checks whether the head @d@ of the type of the
-    -- @n@th argument is injective in all args (i.d. being name of data/record/axiom).
-    validProj :: (Arg QName, Int) -> TCM Bool
-    validProj (_, 0) = return False
-    validProj (d, _) = eligibleForProjectionLike (unArg d)
 
     recursive = getMutual x >>= \case
       Just []     -> pure False
@@ -414,8 +410,8 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     -- The applications @d 0 .. (n-1)@ must be relevant.
     --
     -- This means that from the type of arg @n@ all previous arguments
-    -- can be computed by a simple matching.
-    -- (Provided the @d@ is data/record/postulate, checked in @validProj@).
+    -- can be computed by a simple matching,
+    -- provided the @d@ is a data/record/postulate.
     --
     -- E.g. f : {x : _}(y : _){z : _} -> D x y z -> ...
     -- will return (D,3) as a candidate (amongst maybe others).
@@ -435,13 +431,15 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
         -- Luckily, reducing copy indirections from module applications should be sufficient,
         -- because this is the only way heads that are @eligibleForProjectionLike@ can reduce.
         -- Reducing copy indirections should be cheap.
-        Pi a b -> reduceDefCopies (unEl (unDom a)) >>= \case
-          Def d es
-            | Just us  <- allApplyElims es,
-              all (not . isIrrelevant) us,
-              vs == map unArg us -> ((d <$ argFromDom a, length vs) :) <$> candidateRec b
-            | otherwise          -> candidateRec b
-          _ -> candidateRec b
+        Pi a b -> if null vs then continue else reduceDefCopies (unEl (unDom a)) >>= \case
+          Def d es -> ifNotM (eligibleForProjectionLike d) continue {-else-}
+            if | Just us  <- allApplyElims es
+               , all (not . isIrrelevant) us
+               , vs == map unArg us
+                 -> ((d <$ argFromDom a, length vs) :) <$> continue
+               | otherwise -> continue
+          _ -> continue
+          where continue = candidateRec b
         _ -> return []
       where
         candidateRec NoAbs{}   = return []
