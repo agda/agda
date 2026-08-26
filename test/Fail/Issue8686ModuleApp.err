@@ -1,0 +1,8 @@
+Issue8686ModuleApp.agda:36.15-19: error: [UnequalTerms]
+The terms
+  a
+and
+  b
+are not equal at type Bool
+when checking that the expression refl has type
+select x a ≡ select x b

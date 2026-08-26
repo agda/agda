@@ -75,7 +75,7 @@ import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Positivity.OccurrenceAnalysis qualified as Occ
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.Reduce (reduce, abortIfBlocked)
+import Agda.TypeChecking.Reduce (reduce, abortIfBlocked, reduceDefCopies)
 import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.DropArgs
@@ -274,7 +274,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
                  funSplitTree = st0, funCompiled = cc0, funInv = NotInjective,
                  funMutual = Just [], -- Andreas, 2012-09-28: only consider non-mutual funs
                  funOpaque = TransparentDef} | not (def ^. funAbstract) -> do
-      ps0 <- filterM validProj $ candidateArgs [] t
+      ps0 <- filterM validProj =<< candidateArgs [] t
       reportSLn "tc.proj.like" 30 $ if null ps0 then "  no candidates found"
                                                 else "  candidates: " ++ prettyShow ps0
       unless (null ps0) $ do
@@ -420,18 +420,31 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     -- E.g. f : {x : _}(y : _){z : _} -> D x y z -> ...
     -- will return (D,3) as a candidate (amongst maybe others).
     --
-    candidateArgs :: [Term] -> Type -> [(Arg QName, Int)]
+    -- Precondition: t is in telescope normal form, i.e., all leading @Pi@s are exposed.
+    candidateArgs :: [Term] -> Type -> TCM [(Arg QName, Int)]
     candidateArgs vs t =
       case unEl t of
-        Pi a b
-          | Def d es <- unEl $ unDom a,
-            Just us  <- allApplyElims es,
-            all (not . isIrrelevant) us,
-            vs == map unArg us -> (d <$ argFromDom a, length vs) : candidateRec b
-          | otherwise          -> candidateRec b
-        _                      -> []
+        -- Andreas, 2026-08-26, issue #8686 (2)
+        -- We need to reduce the domain @a@ here otherwise its form (e.g. @D x y z@)
+        -- might not be preserved, violating the promise of projection-likeness that
+        -- the "parameters" can be reconstructed from the type of the principal argument.
+        -- However, full reduction is too expensive, busting test/Succeed/InstanceExpensiveContext.
+        -- Since projection-likeness is just an optimization, and thus need not be complete,
+        -- we have our choice of reduction, as long as we reduce enough to guarantee soundness
+        -- of projection likeness.
+        -- Luckily, reducing copy indirections from module applications should be sufficient,
+        -- because this is the only way heads that are @eligibleForProjectionLike@ can reduce.
+        -- Reducing copy indirections should be cheap.
+        Pi a b -> reduceDefCopies (unEl (unDom a)) >>= \case
+          Def d es
+            | Just us  <- allApplyElims es,
+              all (not . isIrrelevant) us,
+              vs == map unArg us -> ((d <$ argFromDom a, length vs) :) <$> candidateRec b
+            | otherwise          -> candidateRec b
+          _ -> candidateRec b
+        _ -> return []
       where
-        candidateRec NoAbs{}   = []
+        candidateRec NoAbs{}   = return []
         candidateRec (Abs x t) = candidateArgs (var (size vs) : vs) t
 
 {-# SPECIALIZE inferNeutral :: Term -> TCM Type #-}

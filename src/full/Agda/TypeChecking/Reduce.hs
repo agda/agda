@@ -10,7 +10,7 @@ module Agda.TypeChecking.Reduce
  , IsMeta, isMeta
  -- Reduction and blocking
  , Reduce, reduce', reduceB', reduce, reduceB, reduceWithBlocker, reduceIApply'
- , reduceDefCopy, reduceDefCopyTCM
+ , reduceDefCopy, reduceDefCopyTCM, reduceDefCopies
  , reduceHead
  , slowReduceTerm
  , unfoldCorecursion, unfoldCorecursionE
@@ -874,6 +874,18 @@ reduceDefCopy f es = do
               NoReduction{}        -> return $ NoReduction ()
       []    -> return $ NoReduction ()  -- copies of generalizable variables have no clauses (and don't need unfolding)
       _:_:_ -> __IMPOSSIBLE__
+
+-- | Recursively apply 'reduceDefCopy' so remove all copy-indirections
+-- but otherwise do not reduce the term.
+reduceDefCopies :: Term -> TCM Term
+reduceDefCopies v = do
+  r <- case v of
+    Def f es -> reduceDefCopy f es
+    Con c _info es -> reduceDefCopy (conName c) es
+    _ -> pure $ NoReduction __IMPOSSIBLE__
+  case r of
+    NoReduction{} -> return v
+    YesReduction _ v' -> reduceDefCopies v'
 
 -- | Reduce simple (single clause) definitions.
 reduceHead :: PureTCM m => Term -> m (Blocked Term)
