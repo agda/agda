@@ -1,0 +1,7 @@
+Issue8688.agda:30.16-17: error: [UnequalTerms]
+The terms
+  x
+and
+  y
+are not equal at type Level
+when checking that the expression v has type F b y
