@@ -60,6 +60,7 @@ data Where
   | InClause Nat           -- ^ in the nth clause of a defined function
   | Matched                -- ^ matched against in a clause of a defined function
   | InIndex                -- ^ is an index of an inductive family
+  | InSort                 -- ^ in a sort, e.g. in the level of a universe
   | InDefOf QName          -- ^ in the definition of a constant
   deriving (Show, Eq, Ord, Generic)
 
@@ -79,6 +80,7 @@ instance Pretty Where where
     InClause i   -> "InClause"   <+> pretty i
     Matched      -> "Matched"
     InIndex      -> "IsIndex"
+    InSort       -> "InSort"
     InDefOf q    -> "InDefOf"    <+> pretty q
 
 instance Pretty OccursWhere where

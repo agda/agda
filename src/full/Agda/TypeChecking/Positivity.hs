@@ -1,6 +1,7 @@
 {-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Check that a datatype is strictly positive.
+
 module Agda.TypeChecking.Positivity where
 
 import Prelude hiding ( null, (!!) )
@@ -45,8 +46,6 @@ import Agda.Utils.Null
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
-
-----------------------------------------------------------------------------------------------------
 
 -- | Check that the datatypes in the mutual block containing the given
 --   declarations are strictly positive.
@@ -344,6 +343,7 @@ instance PrettyTCM (Seq W.OccursWhere) where
         W.InClause i   -> pwords "in the" ++ nth i ++ pwords "clause"
         W.Matched      -> pwords "as matched against"
         W.InIndex      -> pwords "as an index"
+        W.InSort       -> pwords "in a sort"
         W.InDefOf d    -> pwords "in the definition of" ++ [prettyTCM d]
 
       adjustLeftOfArrow :: W.OccursWhere -> W.OccursWhere

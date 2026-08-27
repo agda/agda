@@ -238,6 +238,7 @@ toGenericGraph graph = unsafeDupablePerformIO do
           InClause p i    -> go' p :|> W.InClause i
           Matched p       -> go' p :|> W.Matched
           InIndex p       -> go' p :|> W.InIndex
+          InSort p        -> go' p :|> W.InSort
           InDefOf p x     -> go' p :|> W.InDefOf x
 
         go :: OccursPath -> (Seq W.Where, Seq W.Where)
@@ -257,6 +258,7 @@ toGenericGraph graph = unsafeDupablePerformIO do
           InClause p i    -> (:|> W.InClause i)    <$!> go p
           Matched p       -> (:|> W.Matched)       <$!> go p
           InIndex p       -> (:|> W.InIndex)       <$!> go p
+          InSort p        -> (:|> W.InSort)        <$!> go p
           InDefOf p x     -> (:|> W.InDefOf x)     <$!> go p
 
         in case go path of (s1, s2) -> W.OccursWhere rng s1 s2
@@ -522,7 +524,12 @@ instance ComputeOccurrences Term where
     Lam _ t    -> ret $ occurrences t
     Level l    -> ret $ occurrences l
     Lit{}      -> ret $ pure ()
-    Sort{}     -> ret $ pure ()
+    -- Andreas, 2026-08-27, issue #8688: we have to descend into sorts.
+    -- Occurrences in a sort are recorded as 'Mixed': universes are neither
+    -- co- nor contravariant in their level (without @--cumulativity@ they are
+    -- not even related to each other), so anything the sort depends on has to
+    -- be compared invariantly by the conversion checker.
+    Sort s     -> ret $ underPathOcc InSort Mixed $ occurrences s
     -- Jesper, 2020-01-12: this information is also used for the
     -- occurs check, so we need to look under DontCare (see #4371)
     DontCare t -> ret $ occurrences t
@@ -566,6 +573,33 @@ instance ComputeOccurrences Clause where
       -- process body
       local (\env -> env {topDefArgs = items}) do
         occurrences $ clauseBody cl
+
+-- | Occurrences in a sort.
+--
+--   The traversal stays on the level of sorts: we only descend into
+--   subexpressions that are sorts themselves, or that are part of the identity
+--   of the sort (the 'Level' of a universe, the eliminations of a stuck sort).
+--   In particular we do /not/ descend into the 'Dom' of a 'PiSort': that is the
+--   type of the domain, living one level below, and it is only stored in the
+--   'PiSort' for context extension (see the documentation of 'PiSort').
+instance ComputeOccurrences Sort where
+  occurrences s = expand \ret -> case s of
+    Univ _ l       -> ret $ occurrences l
+    Inf _ _        -> ret $ pure ()
+    SizeUniv       -> ret $ pure ()
+    LockUniv       -> ret $ pure ()
+    LevelUniv      -> ret $ pure ()
+    IntervalUniv   -> ret $ pure ()
+    -- NB: we skip the domain type stored in the 'PiSort', see the note above.
+    PiSort _ s1 s2 -> ret $ underPath LeftOfArrow (occurrences s1) >> occurrences s2
+    FunSort s1 s2  -> ret $ underPath LeftOfArrow (occurrences s1) >> occurrences s2
+    UnivSort s     -> ret $ occurrences s
+    -- @MetaS x es@ and @DefS q es@ are just the applications @x es@ and @q es@
+    -- that happen to be sorts, so we reuse the corresponding 'Term' cases
+    -- rather than duplicating the (subtle) treatment of eliminations.
+    MetaS x es     -> ret $ occurrences $ MetaV x es
+    DefS q es      -> ret $ occurrences $ Def q es
+    DummyS _       -> ret $ pure ()
 
 instance ComputeOccurrences Level where
   occurrences (Max _ as) = occurrences as

@@ -126,6 +126,7 @@ data OccursPath
   | InClause !OccursPath !Nat           -- ^ in the nth clause of a defined function
   | Matched !OccursPath                 -- ^ matched against in a clause of a defined function
   | InIndex !OccursPath                 -- ^ is an index of an inductive family
+  | InSort !OccursPath                  -- ^ in a sort, e.g. in the level of a universe
   | InDefOf !OccursPath !QName          -- ^ in the definition of a constant
   deriving Eq
 
@@ -148,6 +149,7 @@ instance Show OccursPath where
       InClause p i    -> go p $ " InClause "    ++ P.prettyShow i ++ acc
       Matched p       -> go p $ " Matched" ++ acc
       InIndex p       -> go p $ " InIndex" ++ acc
+      InSort p        -> go p $ " InSort" ++ acc
       InDefOf p q     -> go p $ " InDefOf " ++ P.prettyShow q ++ acc
 
 instance P.Pretty OccursPath where

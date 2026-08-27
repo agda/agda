@@ -38,6 +38,7 @@ instance Arbitrary Where where
     , ConEndpoint <$> arbitrary
     , InClause <$> arbitrary
     , return Matched
+    , return InSort
     , InDefOf <$> arbitrary
     ]
 
@@ -57,6 +58,7 @@ instance CoArbitrary Where where
   coarbitrary (InClause a)   = variant 7 . coarbitrary a
   coarbitrary Matched        = variant 8
   coarbitrary InIndex        = variant 9
+  coarbitrary InSort         = variant 12
   coarbitrary (InDefOf a)    = variant 10 . coarbitrary a
 
 instance Arbitrary Occurrence where
