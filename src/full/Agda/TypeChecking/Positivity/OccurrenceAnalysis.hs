@@ -100,7 +100,7 @@ import Data.Bits
 import Control.Exception
 import System.IO.Unsafe
 
-import Agda.Interaction.Options.Base (optOccurrence, optPolarity)
+import Agda.Interaction.Options.Base (optCumulativity, optOccurrence, optPolarity)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position (HasRange(..), noRange, Range)
@@ -308,6 +308,8 @@ data OccEnv = OccEnv {
     topDef     :: QName         -- ^ The definition we're working under (as n-th definition in the mutual block)
   , topDefArgs :: [DefArgInEnv] -- ^ Occurrence info for definition args.
   , inf        :: Maybe QName   -- ^ Name for ∞ builtin.
+  , sortOcc    :: Occurrence    -- ^ Occurrence to compose with when descending into a 'Sort'.
+                                --   See 'sortOccurrence'.
   , locals     :: Int           -- ^ Number of local binders (on the top of the definition args).
   , mutuals    :: Mutuals       -- ^ Set of mutual QName-s in the block.
   , target     :: Node          -- ^ We add occurrences pointing to this node.
@@ -401,6 +403,33 @@ occurrencesInMutDefArg d p i e = expand \ret -> case p of
   Unused -> ret $ pure ()
   p      -> ret $ local (\e -> e {path = MutDefArg (path e) d i, target = ArgNode d i, occ = p}) $
                     occurrences e
+
+-- | The 'Occurrence' to compose with when the analysis descends from a 'Term'
+--   into a 'Sort' (issue #8688).
+--
+--   Without @--cumulativity@, distinct universes are unrelated: @Set x@ and
+--   @Set y@ are neither equal nor in a subtyping relation unless @x@ and @y@ are
+--   equal.  So whatever a sort depends on has to be compared invariantly by the
+--   conversion checker, and we return 'Mixed'.
+--
+--   With @--cumulativity@, universes are monotone in their level
+--   (@Set x =< Set y@ iff @x =< y@, see @leqSort@ in
+--   "Agda.TypeChecking.Conversion"), so a /positive/ occurrence is justified.
+--
+--   We deliberately return 'JustPos' and not 'StrictPos' here.  Both give
+--   'Agda.TypeChecking.Polarity.Covariant' polarity, but only 'StrictPos' would
+--   be accepted by the positivity checker, and an occurrence inside a sort must
+--   not count as strictly positive: a definition like
+--   @data D : Setω where c : Set (f D) → D@ defines @D@ by quantifying over a
+--   universe whose size depends on @D@ itself.
+--
+--   Since @--no-cumulativity@ is a /coinfective/ option, a module that does not
+--   use cumulativity can never import occurrence information that was computed
+--   with cumulativity turned on.
+sortOccurrence :: HasOptions m => m Occurrence
+sortOccurrence = do
+  cumulativity <- optCumulativity <$> pragmaOptions
+  pure $! if cumulativity then JustPos else Mixed
 
 -- | The initial 'Occurrence' when processing a definition.
 mutualDefOcc :: Definition -> Occurrence
@@ -525,11 +554,11 @@ instance ComputeOccurrences Term where
     Level l    -> ret $ occurrences l
     Lit{}      -> ret $ pure ()
     -- Andreas, 2026-08-27, issue #8688: we have to descend into sorts.
-    -- Occurrences in a sort are recorded as 'Mixed': universes are neither
-    -- co- nor contravariant in their level (without @--cumulativity@ they are
-    -- not even related to each other), so anything the sort depends on has to
-    -- be compared invariantly by the conversion checker.
-    Sort s     -> ret $ underPathOcc InSort Mixed $ occurrences s
+    -- How an occurrence inside a sort is counted depends on @--cumulativity@,
+    -- see 'sortOccurrence'.
+    Sort s     -> ret do
+      o <- asks sortOcc
+      underPathOcc InSort o $ occurrences s
     -- Jesper, 2020-01-12: this information is also used for the
     -- occurs check, so we need to look under DontCare (see #4371)
     DontCare t -> ret $ occurrences t
@@ -828,13 +857,14 @@ preprocessMutuals qs mutuals = forM qs \q -> inConcreteOrAbstractMode q \def -> 
 buildOccurrenceGraph :: [QName] -> TCM (OccGraph, Mutuals)
 buildOccurrenceGraph qs = do
   inf <- maybe Nothing (\x -> Just $! nameOfInf x) <$> coinductionKit
+  so  <- sortOccurrence
 
   mutuals <- lift HT.empty
   qs      <- preprocessMutuals qs mutuals
 
   graph <- lift HT.empty
   TCM \st tce -> forM_ qs \(q, clauses) -> do
-    let env = OccEnv q [] inf 0 mutuals (DefNode q) Root StrictPos graph
+    let env = OccEnv q [] inf so 0 mutuals (DefNode q) Root StrictPos graph
     unTCM (runReaderT (computeDefOccurrences q clauses) env) st tce
 
   pure (graph, mutuals)
