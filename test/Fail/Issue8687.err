@@ -1,0 +1,6 @@
+Issue8687.agda:41.1-7: error: [ShouldBeEmpty]
+C.k (P.i (M.f 0 refl true)) ≡ 0 should be empty, but the following
+constructor patterns are valid:
+  refl
+when checking the clause left hand side
+bad ()

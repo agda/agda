@@ -405,14 +405,9 @@ checkFunDefS t ai extlam with i name cs = do
         reportSDoc "tc.cc.type" 60 $ "  type   : " <+> (text . prettyShow) t
         reportSDoc "tc.cc.type" 60 $ "  context: " <+> (text . prettyShow =<< getContextTelescope)
 
-        fullType <- flip telePi t <$> getContextTelescope
-
-        reportSLn  "tc.cc.type" 80 $ show fullType
-
         -- Coverage check and compile the clauses
         (mst, _recordExpressionBecameCopatternLHS, cc) <- Bench.billTo [Bench.Coverage] $
-          unsafeInTopContext $ compileClauses (if isSystem then Nothing else (Just (name, fullType)))
-                                        cs
+          compileClauses (if isSystem then Nothing else (Just (name, t))) cs
         -- Andreas, 2019-10-21 (see also issue #4142):
         -- We ignore whether the clause compilation turned some
         -- record expressions into copatterns
@@ -431,6 +426,10 @@ checkFunDefS t ai extlam with i name cs = do
               ]
 
         covering <- funCovering . theDef <$> getConstInfo name
+
+        cxt <- getContextTelescope
+        let fullType = telePi cxt t
+        reportSLn  "tc.cc.type" 80 $ show fullType
 
         -- Add the definition
         inTopContext $ addConstant name =<< do
