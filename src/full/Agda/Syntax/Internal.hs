@@ -488,20 +488,37 @@ data Sort' t
       -- ^ @Prop ℓ@, @Set ℓ@, @SSet ℓ@.
   | Inf Univ !Integer
       -- ^ @Propωᵢ@, @(S)Setωᵢ@.
-  | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
-  | LockUniv    -- ^ @LockUniv@, a sort for locks.
-  | LevelUniv   -- ^ @LevelUniv@, a sort inhabited by type @Level@. When --level-universe isn't on, this universe reduces to @Set 0@
-  | IntervalUniv -- ^ @IntervalUniv@, a sort inhabited by the cubical interval.
-  | PiSort (Dom' t t) (Sort' t) (Abs (Sort' t)) -- ^ Sort of the pi type.
-  | FunSort (Sort' t) (Sort' t) -- ^ Sort of a (non-dependent) function type.
-  | UnivSort (Sort' t) -- ^ Sort of another sort.
+  | SizeUniv
+      -- ^ @SizeUniv@, a sort inhabited by type @Size@.
+  | LockUniv
+      -- ^ @LockUniv@, a sort for locks.
+  | LevelUniv
+      -- ^ @LevelUniv@, a sort inhabited by type @Level@.
+      --   When --level-universe isn't on, this universe reduces to @Set 0@
+  | IntervalUniv
+      -- ^ @IntervalUniv@, a sort inhabited by the cubical interval.
+  | PiSort (Dom' t t) (Sort' t) (Abs (Sort' t))
+      -- ^ Sort of the pi type @(x : A) → B@.
+      --   The components are the domain @A@ (as a bare term), the sort @s1@ of @A@,
+      --   and the sort @s2@ of @B@ in the context extended by @x : A@.
+      --
+      --   The sort denoted by @'PiSort' A s1 s2@ only depends on @s1@ and @s2@.
+      --   The domain @A@ is kept around so that we can rebuild the type @'El' s1 A@
+      --   needed to extend the context when we have to work under the binder of @s2@;
+      --   see e.g. 'reduceB'' for sorts or 'piSortEquals'.
+  | FunSort (Sort' t) (Sort' t)
+      -- ^ Sort of a (non-dependent) function type.
+  | UnivSort (Sort' t)
+      -- ^ Sort of another sort ("successor sort").
   | MetaS {-# UNPACK #-} !MetaId [Elim' t]
-  | DefS QName [Elim' t] -- ^ A postulated sort.
+      -- ^ Sort metavariable.
+  | DefS QName [Elim' t]
+      -- ^ A postulated sort.
   | DummyS String
-    -- ^ A (part of a) term or type which is only used for internal purposes.
-    --   Replaces the abuse of @Prop@ for a dummy sort.
-    --   The @String@ typically describes the location where we create this dummy,
-    --   but can contain other information as well.
+      -- ^ A (part of a) term or type which is only used for internal purposes.
+      --   Replaces the abuse of @Prop@ for a dummy sort.
+      --   The @String@ typically describes the location where we create this dummy,
+      --   but can contain other information as well.
   deriving Show
 
 pattern Prop, Type, SSet :: Level' t -> Sort' t
