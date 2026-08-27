@@ -367,8 +367,8 @@ dataStrategy k s = do
         -- Call forceNotFree to reduce u as far as possible
         -- around any occurrences of i
         (_ , u) <- liftReduce $ forceNotFree (singleton i) u
-        case flexRigOccurrenceIn i u of
-          Just StronglyRigid -> ret
+        case varOccurrenceIn i u of
+          Just (VarOcc StronglyRigid mod) | isRelevant mod -> ret
           _ -> mzero
 
 checkEqualityStrategy :: Int -> UnifyStrategy
