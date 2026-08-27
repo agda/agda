@@ -405,13 +405,20 @@ checkFunDefS t ai extlam with i name cs = do
         reportSDoc "tc.cc.type" 60 $ "  type   : " <+> (text . prettyShow) t
         reportSDoc "tc.cc.type" 60 $ "  context: " <+> (text . prettyShow =<< getContextTelescope)
 
-        fullType <- flip telePi t <$> getContextTelescope
+        -- Andreas, 2026-08-27, issue #8687:
+        -- @cxt@ is the context the definition of @name@ was created in;
+        -- it is not necessarily the telescope of the module @name@ lives in.
+        -- E.g. the auxiliary function of a copattern pattern-lambda is created
+        -- over the whole context at the lambda.
+        -- The coverage checker needs its size to weaken the checkpoints correctly.
+        cxt <- getContextTelescope
+        let fullType = telePi cxt t
 
         reportSLn  "tc.cc.type" 80 $ show fullType
 
         -- Coverage check and compile the clauses
         (mst, _recordExpressionBecameCopatternLHS, cc) <- Bench.billTo [Bench.Coverage] $
-          unsafeInTopContext $ compileClauses (if isSystem then Nothing else (Just (name, fullType)))
+          unsafeInTopContext $ compileClauses (if isSystem then Nothing else (Just (name, fullType, size cxt)))
                                         cs
         -- Andreas, 2019-10-21 (see also issue #4142):
         -- We ignore whether the clause compilation turned some

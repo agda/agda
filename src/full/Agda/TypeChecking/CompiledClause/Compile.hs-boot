@@ -2,9 +2,10 @@
 
 module Agda.TypeChecking.CompiledClause.Compile where
 
+import Agda.Syntax.Common (Nat)
 import Agda.Syntax.Internal
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Monad.Base
 
-compileClauses :: Maybe (QName, Type) -> [Clause] -> TCM (Maybe SplitTree, Bool, CompiledClauses)
+compileClauses :: Maybe (QName, Type, Nat) -> [Clause] -> TCM (Maybe SplitTree, Bool, CompiledClauses)

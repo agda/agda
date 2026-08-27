@@ -102,9 +102,11 @@ type CoverM = ExceptT SplitError TCM
 coverageCheck
   :: QName     -- ^ Name @f@ of definition.
   -> Type      -- ^ Absolute type (including the full parameter telescope).
+  -> Nat       -- ^ Size of the context @Γ@ the definition of @f@ was created in;
+               --   the first arguments of @f@ are the variables of @Γ@.
   -> [Clause]  -- ^ Clauses of @f@.  These are the very clauses of @f@ in the signature.
   -> TCM SplitTree
-coverageCheck f t cs = do
+coverageCheck f t npars cs = do
   reportSLn "tc.cover.top" 30 $ "entering coverageCheck for " ++! prettyShow f
   reportSDoc "tc.cover.top" 75 $ "  of type (raw): " <+> (text . prettyShow) t
   reportSDoc "tc.cover.top" 45 $ "  of type: " <+> prettyTCM t
@@ -116,16 +118,23 @@ coverageCheck f t cs = do
       n            = size gamma
       xs           =  map (setOrigin Inserted) $ teleNamedArgs gamma
 
-  reportSLn "tc.cover.top" 30 $ "coverageCheck: getDefFreeVars"
-
-      -- The initial module parameter substitutions need to be weakened by the
-      -- number of arguments that aren't module parameters.
-  fv           <- getDefFreeVars f
-
   reportSLn "tc.cover.top" 30 $ "coverageCheck: getting checkpoints"
 
-  -- TODO: does this make sense? Why are we weakening by n - fv?
-  checkpoints <- applySubst (raiseS (n - fv)) <$> viewTC eCheckpoints
+  -- Andreas, 2026-08-27, issue #8687:
+  -- The checkpoints are substitutions into the context Γ₀ the definition of @f@ was
+  -- created in, and @gamma@ extends Γ₀ by the arguments of @f@ that are not variables
+  -- of Γ₀.  Thus, to move the checkpoints into @gamma@, we weaken them by exactly the
+  -- number of these extra arguments.
+  -- (Weakening by the arity of @f@ minus the number of parameters of the module of
+  -- @f@ instead is wrong whenever @f@ was created in a context that is larger than
+  -- the telescope of its module, e.g. the auxiliary function of a pattern lambda.)
+  --
+  -- Note: for a @with@-function the checkpoints refer to the context of the parent
+  -- clause rather than to its (empty) creation context, so they would have to be
+  -- composed with the with-substitution instead.  This does not matter as long as
+  -- with-clauses cannot have copatterns, since then no missing instance clause
+  -- is inferred for a with-function.
+  checkpoints <- applySubst (raiseS (n - npars)) <$> viewTC eCheckpoints
 
       -- construct the initial split clause
   let sc = SClause gamma xs idS checkpoints $ Just $ defaultDom a

@@ -58,7 +58,10 @@ compileClauses' q recpat cs mSplitTree = do
 --   3. Generating a case tree from the split tree.
 --   Phases 1. and 2. are skipped if @Nothing@.
 compileClauses ::
-  Maybe (QName, Type) -- ^ Translate record patterns and coverage check with given type?
+  Maybe (QName, Type, Nat)
+     -- ^ Translate record patterns and coverage check with given type?
+     --   The 'Nat' is the size of the context the definition was created in,
+     --   see 'coverageCheck'.
   -> [Clause]
   -> TCM (Maybe SplitTree, Bool, CompiledClauses)
      -- ^ The 'Bool' indicates whether we turned a record expression into a copattern match.
@@ -67,8 +70,8 @@ compileClauses mt cs = do
   -- Discard de Bruijn indices in patterns.
   case mt of
     Nothing -> (Nothing,False,) . compile . map' unBruijn . zip' [0..] <$> normaliseProjP cs
-    Just (q, t)  -> do
-      splitTree <- coverageCheck q t cs
+    Just (q, t, npars) -> do
+      splitTree <- coverageCheck q t npars cs
 
       reportSDoc "tc.cc.tree" 20 $ vcat
         [ "split tree of " <+> prettyTCM q <+> " from coverage check "
