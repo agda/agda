@@ -108,24 +108,19 @@ coverageCheck f t cs = do
   reportSLn "tc.cover.top" 30 $ "entering coverageCheck for " ++! prettyShow f
   reportSDoc "tc.cover.top" 75 $ "  of type (raw): " <+> (text . prettyShow) t
   reportSDoc "tc.cover.top" 45 $ "  of type: " <+> prettyTCM t
-  TelV gamma a <- telViewUpTo (-1) t
+  TelV gamma1 a <- telViewUpTo (-1) t
   reportSLn "tc.cover.top" 30 $ "coverageCheck: computed telView"
 
-  let -- n             = arity
-      -- xs            = variable patterns fitting lgamma
-      n            = size gamma
-      xs           =  map (setOrigin Inserted) $ teleNamedArgs gamma
+  reportSLn "tc.cover.top" 30 $ "coverageCheck: getting context and checkpoints"
+  (gamma, checkpoints) <- addContext gamma1 $ do
+    (,) <$> getContextTelescope <*> viewTC eCheckpoints
 
-  reportSLn "tc.cover.top" 30 $ "coverageCheck: getDefFreeVars"
+  let -- n  = arity
+      -- xs = variable patterns fitting gamma
+      n     = size gamma
+      xs    = map (setOrigin Inserted) $ teleNamedArgs gamma
 
-      -- The initial module parameter substitutions need to be weakened by the
-      -- number of arguments that aren't module parameters.
-  fv           <- getDefFreeVars f
-
-  reportSLn "tc.cover.top" 30 $ "coverageCheck: getting checkpoints"
-
-  -- TODO: does this make sense? Why are we weakening by n - fv?
-  checkpoints <- applySubst (raiseS (n - fv)) <$> viewTC eCheckpoints
+  unsafeInTopContext $ do
 
       -- construct the initial split clause
   let sc = SClause gamma xs idS checkpoints $ Just $ defaultDom a
