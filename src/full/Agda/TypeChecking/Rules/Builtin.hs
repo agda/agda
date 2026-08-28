@@ -999,6 +999,7 @@ bindBuiltinNoDef b q = inTopContext $ do
               , conSrcCon = ch
               , conData   = d
               , conAbstr  = ConcreteDef
+              , conPathCons = PointCons
               , conComp   = emptyCompKit
               , conProj   = Nothing
               , conForced = []
@@ -1025,7 +1026,7 @@ bindBuiltinNoDef b q = inTopContext $ do
               , dataAbstr      = ConcreteDef
               , dataMutual     = Nothing
               , dataPositivityCheck = NoPositivityCheck
-              , dataPathCons   = []
+              , dataHIT        = NotHIT
               , dataTranspIx   = Nothing -- Id has custom transp def.
               , dataTransp     = Nothing
               }

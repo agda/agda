@@ -16,6 +16,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.Boolean ( toBool )
 import Agda.Utils.CallStack
 import Agda.Utils.Either
 import Agda.Utils.Functor
@@ -69,20 +70,24 @@ getConstructorData c = do
 --   Precondition: The argument must refer to a constructor of a datatype or record.
 consOfHIT :: (HasCallStack, HasConstInfo m) => QName -> m Bool
 consOfHIT c = do
-  d <- getConstructorData c
-  def <- theDef <$> getConstInfo d
-  case def of
-    Datatype {dataPathCons = xs} -> return $ not $ null xs
-    Record{} -> return False
+  theDef <$> getConstInfo c >>= \case
+    -- A path constructor is always a constructor of a HIT,
+    -- so we only need to consult the data type for point constructors.
+    Constructor{ conPathCons = PathCons } -> return True
+    Constructor{ conPathCons = PointCons, conData = d } ->
+      theDef <$> getConstInfo d >>= \case
+        Datatype{ dataHIT = hit } -> return $ toBool hit
+        Record{} -> return False
+        _  -> __IMPOSSIBLE__
     _  -> __IMPOSSIBLE__
 
+-- | Is this a path constructor (of a higher inductive type)?
+--   Precondition: The argument must refer to a constructor of a datatype or record.
 isPathCons :: (HasCallStack, HasConstInfo m) => QName -> m Bool
 isPathCons c = do
-  d <- getConstructorData c
-  def <- theDef <$> getConstInfo d
+  def <- theDef <$> getConstInfo c
   case def of
-    Datatype {dataPathCons = xs} -> return $ c `elem` xs
-    Record{} -> return False
+    Constructor{ conPathCons = p } -> return $ p == PathCons
     _  -> __IMPOSSIBLE__
 
 -- | @getFullyAppliedConType c t@ computes the constructor parameters

@@ -153,7 +153,7 @@ checkDataDef i name pc uc (A.DataDefParams gpars ps) cs =
                   , _dataAbstr      = Info.defAbstract i
                   , _dataMutual     = Nothing
                   , _dataPositivityCheck = pc
-                  , _dataPathCons   = []     -- Path constructors are added later
+                  , _dataHIT        = NotHIT -- Computed later from the constructors
                   , _dataTranspIx   = Nothing -- Generated later if nofIxs > 0.
                   , _dataTransp     = Nothing -- Added later
                   }
@@ -162,11 +162,10 @@ checkDataDef i name pc uc (A.DataDefParams gpars ps) cs =
               addConstant' name defaultArgInfo t $ DatatypeDefn dataDef
                 -- polarity and argOcc.s determined by the positivity checker
 
-            -- Check the types of the constructors
-            pathCons <- forM cs $ \ c -> do
-              isPathCons <- checkConstructor name uc tel' nofIxs s c
-              return $ if isPathCons == PathCons then Just (A.axiomName c) else Nothing
-
+            -- Check the types of the constructors.
+            -- The data type is a HIT if at least one of them is a path constructor.
+            hit <- or <$> forM cs \ c ->
+              (PathCons ==) <$> checkConstructor name uc tel' nofIxs s c
 
             -- cubical: the interval universe does not contain datatypes
             -- similar: SizeUniv, ...
@@ -184,7 +183,7 @@ checkDataDef i name pc uc (A.DataDefParams gpars ps) cs =
                 checkIndexSorts s' ixTel
 
             -- Return the data definition
-            return dataDef{ _dataPathCons = catMaybes pathCons
+            return dataDef{ _dataHIT = fromBool hit
                           }
 
         let cons   = map' A.axiomName cs  -- get constructor names
@@ -195,7 +194,7 @@ checkDataDef i name pc uc (A.DataDefParams gpars ps) cs =
               checkNoLocalRewrites name
               mtranspix <- defineTranspIx name
               transpFun <- defineTranspFun name mtranspix cons $
-                           _dataPathCons dataDef
+                           _dataHIT dataDef
               return (mtranspix, transpFun))
             (return (Nothing, Nothing))
 
@@ -337,6 +336,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , conSrcCon = con
               , conData   = d
               , conAbstr  = Info.defAbstract i
+              , conPathCons = isPathCons
               , conComp   = comp
               , conProj   = projNames
               , conForced = forcedArgs
@@ -841,9 +841,9 @@ defineTranspIx d = do
 defineTranspFun :: QName -- ^ datatype
                 -> Maybe QName -- ^ transpX "constructor"
                 -> [QName]     -- ^ constructor names
-                -> [QName]     -- ^ path cons
+                -> IsHIT       -- ^ is this a HIT, i.e., are there path constructors?
                 -> TCM (Maybe QName) -- transp function for the datatype.
-defineTranspFun d mtrX cons pathCons = do
+defineTranspFun d mtrX cons isHIT = do
   def <- getConstInfo d
   case theDef def of
     Datatype { dataPars = npars
@@ -909,7 +909,7 @@ defineTranspFun d mtrX cons pathCons = do
               reportSDoc "tc.data.transp" 20 $ addContext ("i" :: String, __DUMMY_DOM__) $
                 "could not transp" <+> prettyTCM (absBody t)
         -- TODO: if no params nor indexes trD phi u0 = u0.
-        ecs <- tryTranspError $ (clause:) <$> defineConClause trD (not $ null pathCons) mtrX npars nixs ixs telI sigma dTs cons
+        ecs <- tryTranspError $ (clause:) <$> defineConClause trD (toBool isHIT) mtrX npars nixs ixs telI sigma dTs cons
         caseEitherM (pure ecs) (\ cl -> debugNoTransp cl >> return Nothing) $ \ cs -> do
         (mst, _, cc) <- compileClauses Nothing cs
         fun <- emptyFunctionData <&> \fun -> fun
@@ -1837,9 +1837,6 @@ checkIndexSorts s = \case
 -- | Return the parameters that share variables with the indices
 -- nonLinearParameters :: Int -> Type -> TCM [Int]
 -- nonLinearParameters nPars t =
-
-data IsPathCons = PathCons | PointCons
-  deriving (Eq,Show)
 
 -- | Check that a type constructs something of the given datatype. The first
 --   argument is the number of parameters to the datatype and the second the

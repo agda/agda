@@ -390,6 +390,22 @@ instance EmbPrj IsForced where
   value 1 = return NotForced
   value _ = malformed
 
+instance EmbPrj IsPathCons where
+  icod_ PathCons  = return 0
+  icod_ PointCons = return 1
+
+  value 0 = return PathCons
+  value 1 = return PointCons
+  value _ = malformed
+
+instance EmbPrj IsHIT where
+  icod_ YesHIT = return 0
+  icod_ NotHIT = return 1
+
+  value 0 = return YesHIT
+  value 1 = return NotHIT
+  value _ = malformed
+
 instance EmbPrj NumGeneralizableArgs where
   icod_ NoGeneralizableArgs       = icodeN' NoGeneralizableArgs
   icod_ (SomeGeneralizableArgs a) = icodeN' SomeGeneralizableArgs a
@@ -463,7 +479,7 @@ instance EmbPrj Defn where
   icod_ (Function    a b s t u c d e f g h i j k)       = icodeN 1 (\ a b s -> Function a b s t) a b s u c d e f g h i j k
   icod_ (Datatype    a b c d e f g h i j k)             = icodeN 2 Datatype a b c d e f g h i j k
   icod_ (Record      a b c d e f g h i j k l m n)       = icodeN 3 Record a b c d e f g h i j k l m n
-  icod_ (Constructor a b c d e f g h i j k)             = icodeN 4 Constructor a b c d e f g h i j k
+  icod_ (Constructor a b c d e f g h i j k l)           = icodeN 4 Constructor a b c d e f g h i j k l
   icod_ (Primitive   a b c d e f)                       = icodeN 5 Primitive a b c d e f
   icod_ (PrimitiveSort a b)                             = icodeN 6 PrimitiveSort a b
   icod_ AbstractDefn{}                                  = __IMPOSSIBLE__
@@ -478,7 +494,7 @@ instance EmbPrj Defn where
                                                       a b s u c d e f g h i j k
     N6 2 a b c d e (N6 f g h i j k N0)       -> valuN Datatype a b c d e f g h i j k
     N6 3 a b c d e (N6 f g h i j k (N3 l m n)) -> valuN Record a b c d e f g h i j k l m n
-    N6 4 a b c d e (N6 f g h i j k N0)       -> valuN Constructor a b c d e f g h i j k
+    N6 4 a b c d e (N6 f g h i j k (N1 l))   -> valuN Constructor a b c d e f g h i j k l
     N6 5 a b c d e (N1 f)                    -> valuN Primitive a b c d e f
     N3 6 a b                                 -> valuN PrimitiveSort a b
     N2 7 a                                   -> valuN GeneralizableVar a

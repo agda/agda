@@ -267,6 +267,7 @@ checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDef
               , conSrcCon = con
               , conData   = name
               , conAbstr  = Info.defAbstract i
+              , conPathCons = PointCons
               , conComp   = emptyCompKit  -- filled in later
               , conProj   = Nothing       -- filled in later
               , conForced = []

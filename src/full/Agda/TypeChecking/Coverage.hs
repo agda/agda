@@ -73,6 +73,7 @@ import Agda.TypeChecking.Warnings
 
 import Agda.Interaction.Options
 
+import Agda.Utils.Boolean ( toBool )
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -750,7 +751,7 @@ splitStrategy bs tel = return $ updateLast setBlockingVarOverlap xs
 -- the data type must be inductive.
 isDatatype :: (MonadTCM tcm, MonadError SplitError tcm) =>
               Induction -> Dom Type ->
-              tcm (DataOrRecord, QName, Sort, Args, Args, [QName], Bool)
+              tcm (DataOrRecord, QName, Sort, Args, Args, [QName], IsHIT)
 isDatatype ind at = do
   let t       = unDom at
       throw f = throwError . f =<< do liftTCM $ buildClosure t
@@ -762,22 +763,22 @@ isDatatype ind at = do
     Def d [Apply phi] | Just d == mIsOne -> do
                 xs <- liftTCM $ decomposeInterval =<< reduce (unArg phi)
                 if null xs
-                   then return $ (IsData, d, mkSSet 0, [phi], [], [], False)
+                   then return $ (IsData, d, mkSSet 0, [phi], [], [], NotHIT)
                    else throw NotADatatype
     Def d es -> do
       let ~(Just args) = allApplyElims es
       def <- liftTCM $ getConstInfo d
       case theDef def of
-        Datatype{dataSort = s, dataPars = np, dataCons = cs}
+        Datatype{dataSort = s, dataPars = np, dataCons = cs, dataHIT = hit}
           | otherwise -> do
               let (ps, is) = splitAt np args
-              return (IsData, d, s, ps, is, cs, not $ null (dataPathCons $ theDef def))
+              return (IsData, d, s, ps, is, cs, hit)
         Record{recPars = np, recConHead = con, recInduction = i, recEtaEquality'}
           | i == Just CoInductive && ind /= CoInductive ->
               throw CoinductiveDatatype
           | otherwise -> do
               s <- liftTCM $ shouldBeSort =<< defType def `piApplyM` args
-              return (IsRecord InductionAndEta { recordInduction=i, recordEtaEquality=recEtaEquality' }, d, s, args, [], [conName con], False)
+              return (IsRecord InductionAndEta { recordInduction=i, recordEtaEquality=recEtaEquality' }, d, s, args, [], [conName con], NotHIT)
         _ -> throw NotADatatype
     _ -> throw NotADatatype
 
@@ -1300,7 +1301,8 @@ split' checkEmpty ind allowPartialCover inserttrailing
     return (fst $ unDom dom, snd <$> dom, telFromList tel1, telFromList tel2)
 
   -- Compute the neighbourhoods for the constructors
-  let computeNeighborhoods = do
+  let computeNeighborhoods :: ExceptT SplitError TCM (DataOrRecord, Sort, Bool, Int, [(SplitTag, (SplitClause, IInfo))])
+      computeNeighborhoods = do
         -- Check that t is a datatype or a record
         -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
         -- cons = constructors of this datatype
@@ -1311,7 +1313,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
           NoCheckEmpty -> pure cons'
         mns  <- forM cons $ \ con -> fmap (SplitCon con,) <$>
           computeNeighbourhood delta1 n delta2 d pars ixs x tel ps cps con
-        hcompsc <- if isFib && (isHIT || not (null ixs)) && not (null mns) && inserttrailing == DoInsertTrailing
+        hcompsc <- if isFib && (isHIT == YesHIT || not (null ixs)) && not (null mns) && inserttrailing == DoInsertTrailing
                    then computeHCompSplit delta1 n delta2 d pars ixs x tel ps cps
                    else return Nothing
         let ns = catMaybes mns
@@ -1322,6 +1324,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
                , ns ++! catMaybes ([fmap (fmap (,NoInfo)) hcompsc | not $ null $ ns])
                )
 
+      computeLitNeighborhoods :: ExceptT SplitError TCM (DataOrRecord, Sort, Bool, Int, [(SplitTag, (SplitClause, IInfo))])
       computeLitNeighborhoods = do
         typeOk <- liftTCM $ do
           t' <- litType $ headWithDefault {-'-} __IMPOSSIBLE__ plits

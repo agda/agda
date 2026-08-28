@@ -740,7 +740,6 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       Function{} -> function pragma $ functionViaTreeless def q
 
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl
-              , dataPathCons = pcs
               } | Just hsdata@(HsData r ty hsCons) <- pragma ->
         setCurrentRange r $ do
         reportSDoc "compile.ghc.definition" 40 $ hsep $
@@ -757,7 +756,6 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
               ]
         retDecls result
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl
-              , dataPathCons = pcs
               } -> do
         liftTCM $ computeErasedConstructorArgs q
         cs <- liftTCM $ getNotErasedConstructors q
