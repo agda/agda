@@ -679,7 +679,6 @@ instance TermToPattern Term DeBruijnPattern where
         suc <- terGetSizeSuc
         if Just s == suc then ConP (ConHead s IsData Inductive []) noConPatternInfo . map' (fmap unnamed) <$> termToPattern [arg]
          else fallback
-      DontCare t  -> termToPattern t
       -- Leaves.
       -- Any (not coinductively) projected variable becomes a variable pattern.
       Var i es -> case mapM isProjElim es of
@@ -687,9 +686,17 @@ instance TermToPattern Term DeBruijnPattern where
           All True -> varP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
           _        -> fallback
         _ -> fallback
-      Lit l       -> return $ litP l
-      Dummy s _   -> __IMPOSSIBLE_VERBOSE__ (show s)
-      _           -> fallback
+      Lit l      -> return $ litP l
+      Dummy s _  -> __IMPOSSIBLE_VERBOSE__ (show s)
+      Def{}      -> fallback
+      Lam{}      -> fallback
+      Pi{}       -> fallback
+      Sort{}     -> fallback
+      Level{}    -> fallback
+      MetaV{}    -> fallback
+      -- Andreas, 2026-08-27, going under DontCare causes issue #8699.
+      -- See test/Fail/Issue8699Prop.
+      DontCare{} -> fallback
 
 
 -- | Masks all non-data/record type patterns if --without-K.
