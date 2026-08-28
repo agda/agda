@@ -314,18 +314,14 @@ matchPattern p u = debugMatchPattern $ case (p, u) of
         f _                         = Nothing
     fallback' f prio lazy ps v
 
-  -- Regardless of blocking, constructors and a properly applied @hcomp@
-  -- can be matched on.
-  isMatchable' :: HasBuiltins m => m (Blocked Term -> Maybe Term)
-  isMatchable' = do
-    mhcomp <- getName' builtinHComp
-    return $ \ r ->
+  -- Regardless of blocking, constructors can be matched on.
+  -- Since hcomp clauses are only computed during coverage checking
+  -- and clause-based reduction is only used *before* coverage checking,
+  -- we do not consider hcomp patterns here (see issue #8700).
+  isMatchable :: Blocked Term -> Maybe Term
+  isMatchable r =
       case ignoreBlocking r of
         t@Con{} -> Just t
-        t@(Def q [l,a,phi,u,u0]) | Just q == mhcomp
-                -> Just t
-        -- TODO this covers the transpIx functions, but it's a hack.
-        t@(Def q _) | NotBlocked{blockingStatus = MissingClauses _} <- r -> Just t
         _       -> Nothing
 
   -- DefP hcomp and ConP matching.
@@ -337,7 +333,6 @@ matchPattern p u = debugMatchPattern $ case (p, u) of
             -> Arg Term
             -> m (Match Term, Arg Term)
   fallback' mtc prio lazy ps (Arg info v) = do
-        isMatchable <- isMatchable'
 
         w <- reduceB v
         -- Unfold delayed (corecursive) definitions one step. This is
