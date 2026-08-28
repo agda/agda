@@ -403,13 +403,14 @@ checkDotPattern (Dot e v dom@(unDom -> a)) =
         ]
   applyDomToContext dom $ do
     u <- checkExpr e a
-    reportSDoc "tc.lhs.dot" 50 $
-      sep [ "equalTerm"
-          , nest 2 $ pretty a
-          , nest 2 $ pretty u
-          , nest 2 $ pretty v
-          ]
-    equalTerm a u v
+    unless (isIrrelevant dom) do
+      reportSDoc "tc.lhs.dot" 50 $
+        sep [ "equalTerm"
+            , nest 2 $ pretty a
+            , nest 2 $ pretty u
+            , nest 2 $ pretty v
+            ]
+      equalTerm a u v
 
 checkAbsurdPattern :: AbsurdPattern -> TCM ()
 checkAbsurdPattern (Absurd r a) = ensureEmptyType r a
