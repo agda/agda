@@ -264,7 +264,7 @@ data SingleVarOcc = SingleVarOcc !Int !VarOcc
 
 instance LensFlexRig SingleVarOcc MetaSet where
   {-# INLINE lensFlexRig #-}
-  lensFlexRig f (SingleVarOcc x fr) = SingleVarOcc x <$> lensFlexRig f fr
+  lensFlexRig f (SingleVarOcc x occ) = SingleVarOcc x <$> lensFlexRig f occ
 
 data CollectSingleVarOcc = CSVarOccNothing | CSVarOccJust !VarOcc
 
@@ -277,16 +277,16 @@ instance LensModality SingleVarOcc where
   mapModality f (SingleVarOcc x occ) = SingleVarOcc x (mapModality f occ)
 
 instance Semigroup CollectSingleVarOcc where
-  CSVarOccJust fr <> CSVarOccJust fr' = CSVarOccJust (fr <> fr')
-  CSVarOccNothing <> s            = s
-  s               <> CSVarOccNothing  = s
+  CSVarOccJust occ <> CSVarOccJust occ' = CSVarOccJust (occ <> occ')
+  CSVarOccNothing  <> s                 = s
+  s                <> CSVarOccNothing   = s
 
 instance ComputeFree SingleVarOcc where
   type Collect SingleVarOcc = Endo CollectSingleVarOcc
   {-# INLINE underBinders' #-}
-  underBinders' n (SingleVarOcc x fr) = SingleVarOcc (n + x) fr
+  underBinders' n (SingleVarOcc x occ) = SingleVarOcc (n + x) occ
   {-# INLINE variable' #-}
-  variable' x' (SingleVarOcc x fr) = Endo \acc -> if x == x' then acc <> CSVarOccJust fr else acc
+  variable' x' (SingleVarOcc x occ) = Endo \acc -> if x == x' then acc <> CSVarOccJust occ else acc
   underConstructor' = defaultUnderConstructor; {-# INLINE underConstructor' #-}
   underFlexRig'     = defaultUnderFlexRig;     {-# INLINE underFlexRig' #-}
   underModality'    = defaultUnderModality;    {-# INLINE underModality' #-}
