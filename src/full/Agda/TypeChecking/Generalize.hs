@@ -969,6 +969,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = noMutualBlock $ d
                 , conSrcCon = genRecCon
                 , conData   = genRecName
                 , conAbstr  = ConcreteDef
+                , conPathCons = PointCons
                 , conComp   = emptyCompKit
                 , conProj   = Nothing
                 , conForced = []

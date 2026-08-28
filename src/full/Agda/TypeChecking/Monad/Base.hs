@@ -131,7 +131,7 @@ import Agda.Interaction.Library.Base ( ExeName, ExeMap, LibCache, LibErrors )
 import Agda.Utils.Benchmark (MonadBench(..))
 import Agda.Utils.BiMap (BiMap, HasTag(..))
 import Agda.Utils.BiMap qualified as BiMap
-import Agda.Utils.Boolean   ( fromBool, toBool )
+import Agda.Utils.Boolean   ( Boolean, IsBool, fromBool, toBool )
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.ExpandCase
 import Agda.Utils.FileId    ( FileDictBuilder, GetFileId(getFileId), GetIdFile(getIdFile) )
@@ -2854,6 +2854,24 @@ data CompKit = CompKit
 emptyCompKit :: CompKit
 emptyCompKit = CompKit Nothing Nothing
 
+-- | Is a constructor of a data type a path constructor (HIT constructor)
+--   or an ordinary "point" constructor?
+data IsPathCons = PathCons | PointCons
+  deriving (Eq, Show, Generic)
+
+-- | Does a data type have path constructors,
+--   i.e., is it a higher inductive type (HIT)?
+data IsHIT = YesHIT | NotHIT
+  deriving (Eq, Show, Generic)
+
+instance Boolean IsHIT where
+  fromBool True  = YesHIT
+  fromBool False = NotHIT
+
+instance IsBool IsHIT where
+  toBool YesHIT = True
+  toBool NotHIT = False
+
 defaultAxiom :: Defn
 defaultAxiom = Axiom False
 
@@ -3029,8 +3047,9 @@ data DatatypeData = DatatypeData
   , _dataPositivityCheck:: PositivityCheck
       -- ^ Should positivity errors be reported for this data type?
   , _dataAbstr          :: IsAbstract
-  , _dataPathCons       :: [QName]
-      -- ^ Path constructor names (subset of @dataCons@).
+  , _dataHIT            :: !IsHIT
+      -- ^ Does this data type have any path constructors,
+      --   i.e., is it a higher inductive type (HIT)?
   , _dataTranspIx       :: Maybe QName
       -- ^ If indexed datatype, name of the "index transport" function.
   , _dataTransp         :: Maybe QName
@@ -3046,7 +3065,7 @@ pattern Datatype
   -> Maybe [QName]
   -> PositivityCheck
   -> IsAbstract
-  -> [QName]
+  -> IsHIT
   -> Maybe QName
   -> Maybe QName
   -> Defn
@@ -3060,7 +3079,7 @@ pattern Datatype
   , dataMutual
   , dataPositivityCheck
   , dataAbstr
-  , dataPathCons
+  , dataHIT
   , dataTranspIx
   , dataTransp
   } = DatatypeDefn (DatatypeData
@@ -3072,7 +3091,7 @@ pattern Datatype
     dataMutual
     dataPositivityCheck
     dataAbstr
-    dataPathCons
+    dataHIT
     dataTranspIx
     dataTransp
   )
@@ -3180,6 +3199,9 @@ data ConstructorData = ConstructorData
   , _conData   :: QName
       -- ^ Name of datatype or record type.
   , _conAbstr  :: IsAbstract
+  , _conPathCons :: !IsPathCons
+      -- ^ Is this a path constructor (HIT constructor)
+      --   or an ordinary "point" constructor?
   , _conComp   :: CompKit
       -- ^ Cubical composition.
   , _conProj   :: Maybe [QName]
@@ -3206,6 +3228,7 @@ pattern Constructor
   -> ConHead
   -> QName
   -> IsAbstract
+  -> IsPathCons
   -> CompKit
   -> Maybe [QName]
   -> [IsForced]
@@ -3219,6 +3242,7 @@ pattern Constructor
   , conSrcCon
   , conData
   , conAbstr
+  , conPathCons
   , conComp
   , conProj
   , conForced
@@ -3231,6 +3255,7 @@ pattern Constructor
     conSrcCon
     conData
     conAbstr
+    conPathCons
     conComp
     conProj
     conForced
@@ -3419,7 +3444,7 @@ instance Pretty DatatypeData where
       dataMutual
       _dataPositivityCheck
       _dataAbstr
-      _dataPathCons
+      dataHIT
       _dataTranspIx
       _dataTransp
     ) =
@@ -3431,6 +3456,7 @@ instance Pretty DatatypeData where
       , "dataSort       =" <?> pretty dataSort
       , "dataMutual     =" <?> pshow dataMutual
       , "dataAbstr      =" <?> pshow dataAbstr
+      , "dataHIT        =" <?> pshow dataHIT
       ] <?> "}"
 
 instance Pretty RecordData where
@@ -3470,6 +3496,7 @@ instance Pretty ConstructorData where
       conSrcCon
       conData
       conAbstr
+      conPathCons
       _conComp
       _conProj
       _conForced
@@ -3478,14 +3505,15 @@ instance Pretty ConstructorData where
       conInline
     ) =
     "Constructor {" <?> vcat
-      [ "conPars    =" <?> pshow conPars
-      , "conArity   =" <?> pshow conArity
-      , "conSrcCon  =" <?> pretty conSrcCon
-      , "conData    =" <?> pretty conData
-      , "conAbstr   =" <?> pshow conAbstr
-      , "conErased  =" <?> pshow conErased
-      , "conErasure =" <?> pshow conErasure
-      , "conInline  =" <?> pshow conInline
+      [ "conPars     =" <?> pshow conPars
+      , "conArity    =" <?> pshow conArity
+      , "conSrcCon   =" <?> pretty conSrcCon
+      , "conData     =" <?> pretty conData
+      , "conAbstr    =" <?> pshow conAbstr
+      , "conPathCons =" <?> pshow conPathCons
+      , "conErased   =" <?> pshow conErased
+      , "conErasure  =" <?> pshow conErasure
+      , "conInline   =" <?> pshow conInline
       ] <?> "}"
 
 instance Pretty PrimitiveData where
@@ -7278,6 +7306,12 @@ instance KillRange FunctionFlag where
 instance KillRange CompKit where
   killRange = id
 
+instance KillRange IsPathCons where
+  killRange = id
+
+instance KillRange IsHIT where
+  killRange = id
+
 instance KillRange ProjectionLikenessMissing where
   killRange = id
 
@@ -7299,7 +7333,7 @@ instance KillRange Defn where
         killRangeN Function a b c d e f g h i j k l m n
       Datatype a b c d e f g h i j k -> killRangeN Datatype a b c d e f g h i j k
       Record a b c d e f g h i j k l m n -> killRangeN Record a b c d e f g h i j k l m n
-      Constructor a b c d e f g h i j k -> killRangeN Constructor a b c d e f g h i j k
+      Constructor a b c d e f g h i j k l -> killRangeN Constructor a b c d e f g h i j k l
       Primitive a b c d e f          -> killRangeN Primitive a b c d e f
       PrimitiveSort a b              -> killRangeN PrimitiveSort a b
 
@@ -7438,6 +7472,8 @@ instance NFData AxiomData
 instance NFData DataOrRecSigData
 instance NFData ProjectionLikenessMissing
 instance NFData FunctionData
+instance NFData IsPathCons
+instance NFData IsHIT
 instance NFData DatatypeData
 instance NFData RecordData
 instance NFData ConstructorData

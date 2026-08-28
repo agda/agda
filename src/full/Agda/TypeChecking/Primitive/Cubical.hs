@@ -38,6 +38,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.Boolean ( toBool )
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -570,9 +571,10 @@ primTransHComp cmd ts nelims = do
               -- For data types, if this data type is indexed and/or a
               -- higher inductive type, then hcomp is normal; But
               -- compData knows what to do for the general cases.
-              Datatype{dataPars = pars, dataIxs = ixs, dataPathCons = pcons, dataTransp = mtrD}
-                | and [null pcons && ixs == 0 | DoHComp  <- [cmd]], Just as <- allApplyElims es ->
-                  compData mtrD (not (null pcons) || ixs > 0) (pars + ixs) cmd l (as <$ t) sbA sphi u u0
+              Datatype{dataPars = pars, dataIxs = ixs, dataHIT = hit, dataTransp = mtrD}
+                | and [ hit == NotHIT && ixs == 0 | DoHComp <- [cmd] ]
+                , Just as <- allApplyElims es ->
+                  compData mtrD (hit == YesHIT || ixs > 0) (pars + ixs) cmd l (as <$ t) sbA sphi u u0
 
               -- Is this an axiom with constant transport? Then. Well. Transport is constant.
               Axiom constTransp | constTransp, [] <- es, DoTransp <- cmd -> redReturn $ unArg u0
