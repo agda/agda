@@ -41,12 +41,13 @@ import Control.Monad.Reader
 
 import Data.Proxy
 import Data.Hashable
-import Data.Word (Word32)
+import Data.Word (Word32, Word64)
 import Data.Maybe
 import qualified Data.Text      as T
 import qualified Data.Text.Lazy as TL
 import Data.Typeable (Typeable, TypeRep, typeRep, typeRepFingerprint)
 import GHC.Exts
+import GHC.Float (castDoubleToWord64)
 import GHC.Fingerprint.Type
 import GHC.Generics (Generic)
 import Unsafe.Coerce
@@ -180,7 +181,13 @@ data Dict = Dict
   , sTextD       :: !(HashTableLU T.Text  Word32)    -- ^ Written to interface file.
   , integerD     :: !(HashTableLU Integer Word32)    -- ^ Written to interface file.
   , varSetD      :: !(HashTableLU VarSet Word32)    -- ^ Written to interface file.
-  , doubleD      :: !(HashTableLU Double  Word32)    -- ^ Written to interface file.
+    -- Andreas, 2026-08-29, issue #8697:
+    -- The 'Double' dictionary is keyed by the /bit pattern/ of the 'Double',
+    -- because the 'Eq Double' instance identifies @0.0@ and @-0.0@, which
+    -- would make hash-consing conflate these two distinct literals.
+    -- (This is the inconsistency of issue #2169, which is why 'Eq Literal'
+    -- compares 'Double's bitwise.)
+  , doubleD      :: !(HashTableLU Word64  Word32)    -- ^ Written to interface file (as 'Double's).
   -- Dicitionaries which are not serialized, but provide
   -- short cuts to speed up serialization:
   -- Andreas, Makoto, AIM XXI
@@ -376,7 +383,8 @@ icodeDouble key = do
   d <- asks doubleD
   c <- asks doubleC
   liftIO $
-    H.insertingIfAbsent d key
+    -- Key on the bit pattern, not on the 'Double' itself, see 'doubleD'.
+    H.insertingIfAbsent d (castDoubleToWord64 key)
       (\i -> do
 #ifdef DEBUG_SERIALISATION
         bumpReuse c
