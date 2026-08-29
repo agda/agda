@@ -1,0 +1,7 @@
+Issue8696-where.agda:29.16-17: error: [UnequalTerms]
+The terms
+  X
+and
+  Y
+are not equal at type Set
+when checking that the expression v has type f b Y

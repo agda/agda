@@ -1,0 +1,10 @@
+Issue8696-interleaved.agda:33.1-37.20: error: [NotStrictlyPositive]
+Bad is not strictly positive, because it occurs
+in the first argument of G
+(in the type of the constructor bad
+ in the definition of Bad), which occurs
+                          in the first argument of N.F
+                          in the first clause
+                          in the definition of G, which occurs
+                                                in the type of the constructor bad
+                                                in the definition of Bad.
