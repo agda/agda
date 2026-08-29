@@ -1,0 +1,7 @@
+Issue8696-lossy.agda:25.8-12: error: [UnequalTerms]
+The terms
+  0
+and
+  1
+are not equal at type Nat
+when checking that the expression refl has type N.IsZ 0 ≡ N.IsZ 1

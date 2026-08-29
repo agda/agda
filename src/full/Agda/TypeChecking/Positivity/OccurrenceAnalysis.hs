@@ -723,7 +723,13 @@ computeDefOccurrences q clauses = inConcreteOrAbstractMode q \def -> do
                                go (i + 1) ps
           go 0 (namedClausePats cl)
 
-    Datatype{dataClause = Just c} -> ret $ occurrences =<< lift (instantiateFull c)
+    -- Andreas, 2026-08-29, issue #8696:
+    -- A data or record type created by a module application (a /copy/) is
+    -- defined by the pattern-less clause  @N.D = M.D args@.  As for function
+    -- clauses (see 'preprocessMutuals') we have to eta-expand it, otherwise
+    -- the analysis sees no occurrence of the parameters and indices of @N.D@
+    -- and wrongly concludes that they are all 'Unused'.
+    Datatype{dataClause = Just c} -> ret $ occurrences =<< lift (etaExpandCopyClause c)
 
     Datatype{dataPars = np0, dataCons = cs, dataTranspIx = trx} -> ret do
       -- Andreas, 2013-02-27 (later edited by someone else): First,
@@ -801,8 +807,9 @@ computeDefOccurrences q clauses = inConcreteOrAbstractMode q \def -> do
               DontCare{} -> __IMPOSSIBLE__  -- not a type
               Dummy{}    -> __IMPOSSIBLE__
 
+    -- See the 'Datatype' case above for why we eta-expand.
     Record{recClause = Just c} -> ret do
-      occurrences =<< lift (instantiateFull c)
+      occurrences =<< lift (etaExpandCopyClause c)
 
     Record{recPars = np, recTel = tel} -> ret do
       let (tel0, tel1) = splitTelescopeAt np tel
@@ -819,6 +826,12 @@ computeDefOccurrences q clauses = inConcreteOrAbstractMode q \def -> do
     PrimitiveSort{}    -> ret mempty
     GeneralizableVar{} -> ret mempty
     AbstractDefn{}     -> ret __IMPOSSIBLE__
+
+-- | Prepare the defining clause of a data or record type copy (issue #8696)
+--   for occurrence analysis by eta-expanding it, so that the parameters and
+--   indices of the copy appear as pattern variables in the clause.
+etaExpandCopyClause :: Clause -> TCM Clause
+etaExpandCopyClause c = snd <$> (etaExpandClause =<< instantiateFull c)
 
 -- | Pre-pass that eta-expands function clauses and records the "formal arity" of the function in
 --   the signature. Any argument beyond this arity is considered to have 'Mixed' polarity.
