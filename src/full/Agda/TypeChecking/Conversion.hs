@@ -134,8 +134,7 @@ equalType = compareType CmpEq
 -- | Ignore errors in irrelevant context.
 convError :: TypeError -> TCM ()
 convError err =
-  ifM (isIrrelevant <$> viewTC eRelevance)
-    (return ())
+  unlessM (isIrrelevant <$> viewTC eRelevance)
     (typeError err)
 
 
