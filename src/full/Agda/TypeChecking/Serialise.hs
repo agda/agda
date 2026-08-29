@@ -54,6 +54,8 @@ import qualified Data.List as List
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 
+import GHC.Float (castWord64ToDouble)
+
 import qualified Codec.Compression.Zstd as Z
 
 import Agda.Interaction.Options.ProfileOptions qualified as Profile
@@ -78,7 +80,7 @@ import Agda.Utils.Impossible
 #include "MachDeps.h"
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20260828 * 10 + 0
+currentInterfaceVersion = 20260829 * 10 + 0
 
 ifaceVersionSize :: Int
 ifaceVersionSize = SIZEOF_WORD64
@@ -120,7 +122,7 @@ encode a = do
                <*!> toArray (sTextD newD)
                <*!> toArray (integerD newD)
                <*!> toArray (varSetD newD)
-               <*!> toArray (doubleD newD)
+               <*!> toArrayWith castWord64ToDouble (doubleD newD)
 
   -- Record reuse statistics.
   whenProfile Profile.Sharing $ do
@@ -144,10 +146,15 @@ encode a = do
   pure (root, nodeA, stringA, lTextA, sTextA, integerA, varSetA, doubleA)
   where
     toArray :: H.HashTableLU k Word32 -> IO (AL.Array k)
-    toArray tbl = do
+    toArray = toArrayWith id
+
+    -- The 'Double' dictionary is keyed by bit patterns (see 'icodeDouble'),
+    -- so its keys have to be converted back to 'Double's here.
+    toArrayWith :: (k -> a) -> H.HashTableLU k Word32 -> IO (AL.Array a)
+    toArrayWith f tbl = do
       size <- H.size tbl
       arr <- ML.new size undefined
-      H.forAssocs tbl \k v -> ML.write arr (fromIntegral v) k
+      H.forAssocs tbl \k v -> ML.write arr (fromIntegral v) $! f k
       ML.unsafeFreeze arr
 
     statistics :: String -> FreshAndReuse -> TCM ()
