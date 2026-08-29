@@ -638,12 +638,13 @@ targetElem ds = terGetTarget <&> \case
 class TermToPattern a b where
   termToPattern :: a -> TerM b
 
-  default termToPattern :: (TermToPattern a' b', Traversable f, a ~ f a', b ~ f b') => a -> TerM b
-  termToPattern = traverse termToPattern
+-- UNUSED default instances (Andreas, 2026-08-29):
+  -- default termToPattern :: (TermToPattern a' b', Traversable f, a ~ f a', b ~ f b') => a -> TerM b
+  -- termToPattern = traverse termToPattern
 
-instance TermToPattern a b => TermToPattern [a] [b] where
-instance TermToPattern a b => TermToPattern (Arg a) (Arg b) where
-instance TermToPattern a b => TermToPattern (Named c a) (Named c b) where
+-- instance TermToPattern a b => TermToPattern [a] [b] where
+-- instance TermToPattern a b => TermToPattern (Arg a) (Arg b) where
+-- instance TermToPattern a b => TermToPattern (Named c a) (Named c b) where
 
 instance TermToPattern Term DeBruijnPattern where
   termToPattern t = do
@@ -674,10 +675,10 @@ instance TermToPattern Term DeBruijnPattern where
     case t of
       -- Constructors.
       Con c _ args -> ifNotConsOfHIT c $
-        ConP c noConPatternInfo . map' (fmap unnamed) <$> termToPattern (mustAllApplyElims args)
+        ConP c noConPatternInfo . map' (fmap unnamed) <$> mapM argToPattern (mustAllApplyElims args)
       Def s [Apply arg] -> do
         suc <- terGetSizeSuc
-        if Just s == suc then ConP (ConHead s IsData Inductive []) noConPatternInfo . map' (fmap unnamed) <$> termToPattern [arg]
+        if Just s == suc then ConP (ConHead s IsData Inductive []) noConPatternInfo . singleton . fmap unnamed <$> argToPattern arg
          else fallback
       -- Leaves.
       -- Any (not coinductively) projected variable becomes a variable pattern.
@@ -697,6 +698,15 @@ instance TermToPattern Term DeBruijnPattern where
       -- Andreas, 2026-08-27, going under DontCare causes issue #8699.
       -- See test/Fail/Issue8699Prop.
       DontCare{} -> fallback
+
+-- | Convert an argument into a pattern, but don't descent into irrelevant (sub)terms.
+-- (See issue #8699).
+argToPattern :: Arg Term -> TerM (Arg DeBruijnPattern)
+argToPattern arg
+  -- Andreas, 2026-08-29: irrelevant parts of dot patterns do not provide evidence for termination
+  -- since their specific form is not forced (by matches on other patterns) but arbitrary.
+  | isIrrelevant arg = return $ fmap dotP arg
+  | otherwise = traverse termToPattern arg
 
 
 -- | Masks all non-data/record type patterns if --without-K.
