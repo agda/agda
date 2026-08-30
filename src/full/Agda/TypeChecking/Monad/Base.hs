@@ -1200,11 +1200,11 @@ stInstanceTree = stSignature . sigInstances . itableTree
 stBuiltinThings :: TCState -> BuiltinThings
 stBuiltinThings s = Map.unionWith unionBuiltin (s ^. stLocalBuiltins) (s ^. stImportedBuiltins)
 
--- | Union two 'Builtin's.  Only defined for 'BuiltinRewriteRelations'.
+-- | Union two 'Builtin's.
 unionBuiltin :: Builtin a -> Builtin a -> Builtin a
 unionBuiltin = curry $ \case
   (BuiltinRewriteRelations xs, BuiltinRewriteRelations ys) -> BuiltinRewriteRelations $ xs <> ys
-  _ -> __IMPOSSIBLE__
+  (x, _) -> x
 
 
 -- * Fresh things
