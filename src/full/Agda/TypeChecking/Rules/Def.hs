@@ -1081,7 +1081,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
 
         -- Andreas, 2012-09-17: for printing delta,
         -- we should remove it from the context first
-        reportSDoc "tc.with.top" 25 $ escapeContext impossible (size delta) $ vcat
+        reportSDoc "tc.with.top" 25 $ unsafeEscapeContext (size delta) $ vcat
           [ "delta  =" <+> prettyTCM delta
           ]
         reportSDoc "tc.with.top" 25 $ vcat $
@@ -1101,7 +1101,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
 
         -- Andreas, 2012-09-17: for printing delta,
         -- we should remove it from the context first
-        reportSDoc "tc.with.top" 25 $ escapeContext impossible (size delta) $ vcat
+        reportSDoc "tc.with.top" 25 $ unsafeEscapeContext (size delta) $ vcat
           [ "delta1 =" <+> prettyTCM delta1
           , "delta2 =" <+> addContext delta1 (prettyTCM delta2)
           ]
@@ -1134,12 +1134,13 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
           let (vs, as) = List1.unzipWith unArg vtys in
           -- Andreas, 2025-04-07, escapeContext impossible Δ leads to crash if e.g. vs has metas defined in Δ.
           -- Thus, we use unsafeEscapeContext instead.
+          -- 2026-08-30 See also issue #8582 whose OP triggers such crashes.
           [ "    with arguments" <+> do unsafeEscapeContext (size delta) $ addContext delta1 $ prettyList (fmap prettyTCM vs)
           , "             types" <+> do unsafeEscapeContext (size delta) $ addContext delta1 $ prettyList (fmap prettyTCM as)
           , "           context" <+> (prettyTCM =<< getContextTelescope)
-          , "             delta" <+> do escapeContext impossible (size delta) $ prettyTCM delta
-          , "            delta1" <+> do escapeContext impossible (size delta) $ prettyTCM delta1
-          , "            delta2" <+> do escapeContext impossible (size delta) $ addContext delta1 $ prettyTCM delta2
+          , "             delta" <+> do unsafeEscapeContext (size delta) $ prettyTCM delta
+          , "            delta1" <+> do unsafeEscapeContext (size delta) $ prettyTCM delta1
+          , "            delta2" <+> do unsafeEscapeContext (size delta) $ addContext delta1 $ prettyTCM delta2
           ]
 
         -- Only inherit user-written let bindings from parent clauses. Others, like @-patterns,
