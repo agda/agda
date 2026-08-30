@@ -396,7 +396,7 @@ addImportedThings isig metas ibuiltin patsyns display userwarn
                   partialdefs warnings oblock oid = do
   stImports              `modifyTCLens` \ imp -> importSignature imp isig
   stImportedMetaStore    `modifyTCLens` HMap.union metas
-  stImportedBuiltins     `modifyTCLens` \ imp -> Map.union imp ibuiltin
+  stImportedBuiltins     `modifyTCLens` \ imp -> Map.unionWith unionBuiltin imp ibuiltin
   stImportedUserWarnings `modifyTCLens` \ imp -> Map.union imp userwarn
   stImportedPartialDefs  `modifyTCLens` \ imp -> Set.union imp partialdefs
   stPatternSynImports    `modifyTCLens` \ imp -> Map.union imp patsyns
