@@ -1,5 +1,11 @@
 {-# LANGUAGE CPP #-}
 -- {-# LANGUAGE UndecidableInstances #-}  -- ghc >= 8.2, GeneralizedNewtypeDeriving MonadTransControl BlockT
+-- Turning off DeepSubsumption for
+-- SPECIALIZE mapTCMT :: (forall a. IO a -> IO a) -> TCM a -> TCM a
+-- with GHC 9.14
+#if __GLASGOW_HASKELL__ >= 914
+{-# LANGUAGE NoDeepSubsumption #-}
+#endif
 
 module Agda.TypeChecking.Monad.Base
   ( module Agda.TypeChecking.Monad.Base

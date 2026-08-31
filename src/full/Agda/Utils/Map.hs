@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module Agda.Utils.Map where
 
 import Data.Functor.Compose
@@ -53,9 +55,11 @@ adjustM' f k = getCompose . adjustM (Compose . f) k
 -- allWithKey :: (k -> a -> Bool) -> Map k a -> Bool
 -- allWithKey f = Map.foldrWithKey (\ k a b -> f k a && b) True
 
+#if !MIN_VERSION_containers(0,8,0)
 -- | Filter a map based on the keys.
 filterKeys :: (k -> Bool) -> Map k a -> Map k a
 filterKeys p = Map.filterWithKey (const . p)
+#endif
 
 -- UNUSED Andreas (2021-08-19)
 -- -- | O(n log n).  Rebuilds the map from scratch.
