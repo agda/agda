@@ -153,8 +153,6 @@ name: Build (stack)
   push:
     branches:
     - master
-    - ci-*
-    - release*
     paths:
     - .github/workflows/stack.yml
     - Agda.cabal

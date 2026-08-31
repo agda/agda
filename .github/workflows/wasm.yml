@@ -96,8 +96,6 @@ name: Build and test WASM
   push:
     branches:
     - master
-    - ci-*
-    - release*
     paths:
     - .github/workflows/wasm.yml
     - src/github/workflows/wasm.yml

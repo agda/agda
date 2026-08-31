@@ -320,8 +320,6 @@ name: Build, Test, and Benchmark
   push:
     branches:
     - master
-    - ci-*
-    - release*
     paths:
     - '**'
     - '!.github/**'

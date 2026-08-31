@@ -82,8 +82,6 @@ name: Install (v2-cabal)
   push:
     branches:
     - master
-    - ci-*
-    - release*
     paths:
     - .github/workflows/cabal-install.yml
     - Agda.cabal

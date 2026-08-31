@@ -4,8 +4,6 @@ on:
   push:
     branches:
     - master
-    - ci-*
-    - release*
 
     paths: &path_list
     # This workflow:

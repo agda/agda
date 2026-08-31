@@ -54,8 +54,6 @@ name: User Manual
   push:
     branches:
     - master
-    - ci-*
-    - release*
     paths:
     - doc/user-manual/**
     - .github/workflows/user_manual.yml
