@@ -33,7 +33,7 @@ jobs:
         os:
           - windows-latest
           - macos-latest
-          - macos-15-intel
+          - macos-26-intel
           - ubuntu-latest
         ghc-ver: ['9.14.1']
         cabal-ver: [latest]
@@ -80,7 +80,7 @@ jobs:
 
           compress_cmd="cd ${bindist} && 7z a ${filename} -bb -mx=9 && mv ${filename} .."
 
-        elif [[ "${{ matrix.os }}" == macos-15-intel ]]; then
+        elif [[ "${{ matrix.os }}" == macos-26-intel ]]; then
 
           args="${{ env.ARGS }} ${MACOS_ARGS}"
           filename=macOS-x64.tar.xz
@@ -277,7 +277,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, macos-15-intel, ubuntu-latest]
+        os: [windows-latest, macos-latest, macos-26-intel, ubuntu-latest]
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -290,7 +290,7 @@ jobs:
           ext="zip"
           decompress_cmd_base="7z x"
 
-        elif [[ "${{ matrix.os }}" == "macos-15-intel" ]]; then
+        elif [[ "${{ matrix.os }}" == "macos-26-intel" ]]; then
 
           osname="macOS-x64"
           ext="tar.xz"

@@ -35,7 +35,7 @@ jobs:
 
           compress_cmd="cd ${bindist} && 7z a ${filename} -bb -mx=9 && mv ${filename} .."
 
-        elif [[ "${{ matrix.os }}" == macos-15-intel ]]; then
+        elif [[ "${{ matrix.os }}" == macos-26-intel ]]; then
 
           args="${{ env.ARGS }} ${MACOS_ARGS}"
           filename=macOS-x64.tar.xz
@@ -167,7 +167,7 @@ jobs:
         os:
         - windows-latest
         - macos-latest
-        - macos-15-intel
+        - macos-26-intel
         - ubuntu-latest
   deploy:
     needs: sanity-check
@@ -221,7 +221,7 @@ jobs:
           ext="zip"
           decompress_cmd_base="7z x"
 
-        elif [[ "${{ matrix.os }}" == "macos-15-intel" ]]; then
+        elif [[ "${{ matrix.os }}" == "macos-26-intel" ]]; then
 
           osname="macOS-x64"
           ext="tar.xz"
@@ -267,7 +267,7 @@ jobs:
         os:
         - windows-latest
         - macos-latest
-        - macos-15-intel
+        - macos-26-intel
         - ubuntu-latest
 name: Deploy
 'on':
