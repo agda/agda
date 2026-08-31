@@ -13,7 +13,3 @@ extra-deps:
 - strict-0.4.0.1
 - text-icu-0.8.0.2
 - vector-hashtables-0.1.1.1
-# for test suite
-- QuickCheck-2.14.2
-- random-1.2.0
-- splitmix-0.1.0.3
