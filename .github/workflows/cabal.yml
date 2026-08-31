@@ -176,8 +176,6 @@ name: Build (cabal)
   push:
     branches:
     - master
-    - ci-*
-    - release*
     paths:
     - .github/workflows/cabal.yml
     - Agda.cabal

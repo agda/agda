@@ -6,8 +6,6 @@ on:
   push:
     branches:
     - master
-    - ci-*
-    - release*
     paths: &trigger_path_list
     - 'src/full/**.hs'
     - 'Agda.cabal'

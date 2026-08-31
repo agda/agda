@@ -4,8 +4,6 @@ on:
   push:
     branches:
     - master
-    - ci-*
-    - release*
     paths: &trigger_path_list
     - 'doc/user-manual/**'
     - '.github/workflows/user_manual.yml'

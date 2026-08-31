@@ -6,8 +6,6 @@ on:
   push:
     branches:
     - master
-    - ci-*
-    - release*
     paths: &trigger_path_list
     - '.github/workflows/cabal-install.yml'
     - 'Agda.cabal'
