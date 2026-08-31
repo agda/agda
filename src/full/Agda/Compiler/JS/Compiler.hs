@@ -558,7 +558,7 @@ definition' kit q d t ls =
 
 
 compileTerm :: EnvWithOpts -> T.TTerm -> TCM Exp
-compileTerm kit t = go t
+compileTerm kit = go
   where
     go :: T.TTerm -> TCM Exp
     go = \case
