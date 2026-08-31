@@ -14,7 +14,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.12.1
+    - uses: styfle/cancel-workflow-action@0.13.1
       with:
         access_token: ${{ github.token }}
   stack:
@@ -27,7 +27,7 @@ jobs:
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - id: haskell-setup
       uses: haskell-actions/setup@v2
       with:
@@ -84,7 +84,7 @@ jobs:
           }}-icu-${{ env.ICU_VER }}
       id: cache
       name: Restore cache from approximate key
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v6
       with:
         key: ${{ env.key }}-plan-${{ hashFiles('Agda.cabal', format('stack-{0}.yaml',
           env.GHC_VER)) }}
@@ -118,7 +118,7 @@ jobs:
         stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
     - if: always() && steps.cache.outputs.cache-matched-key != steps.cache.outputs.cache-primary-key
       name: Save cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v6
       with:
         key: ${{ steps.cache.outputs.cache-primary-key }}
         path: |
@@ -127,8 +127,9 @@ jobs:
       fail-fast: false
       matrix:
         ghc-ver:
-        - 9.12.2
-        - 9.10.2
+        - 9.14.1
+        - 9.12.4
+        - 9.10.3
         - 9.8.4
         - 9.6.7
         - 9.4.8
@@ -137,10 +138,10 @@ jobs:
         - 8.10.7
         - 8.8.4
         include:
-        - ghc-ver: 9.12.2
-          os: macos-14
-        - ghc-ver: 9.12.2
-          os: windows-2022
+        - ghc-ver: 9.14.1
+          os: macos-26
+        - ghc-ver: 9.14.1
+          os: windows-2025
         os:
         - ubuntu-24.04
     timeout-minutes: 60

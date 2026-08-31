@@ -16,31 +16,32 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Install imagemagick (convert)
       run: |
         sudo apt-get update
         sudo apt-get install imagemagick
     - name: Set up Python ${{ env.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ env.python-version }}
-    - name: Install dependencies
+    - name: Install dependencies (Sphinx)
       run: |
         make -C doc/user-manual requirements
-    - name: Install dependencies
-      run: |
-        sudo apt-get update -y
-        sudo apt install texlive-full -y
+    - name: Install dependencies (LaTeX)
+      uses: TeX-Live/setup-texlive-action@v4
+      with:
+        packages: scheme-basic anyfontsize bbm bbm-macros booktabs capt-of cmap colortbl
+          dvisvgm ellipse etoolbox fancyvrb float fncychap fontawesome5 framed keystroke
+          latexmk mathtools mlmodern needspace parskip pict2e psnfss stmaryrd tabulary
+          tex-gyre titlesec upquote varwidth wrapfig xcolor zapfchan
     - name: Build User Manual in PDF
       run: |
-        export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-pdf
     - name: Build User Manual in HTML
       run: |
-        export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-html
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: user-manual-pdf
         path: doc/user-manual.pdf

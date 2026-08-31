@@ -7,7 +7,7 @@
 ######################################################
 env:
   AGDA_TESTS_OPTIONS: -j${PARALLEL_TESTS} --hide-successes
-  GHC_VER: 9.12.2
+  GHC_VER: 9.14.1
   PARALLEL_TESTS: 2
   STACK: stack --system-ghc
   TASTY_ANSI_TRICKS: 'false'
@@ -15,9 +15,11 @@ jobs:
   build:
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
-      && !contains(github.event.head_commit.message, '[ci skip]')
-      && !contains(github.event.head_commit.message, '[github skip]')
-      && !contains(github.event.head_commit.message, '[skip github]')
+         && !contains(github.event.head_commit.message, '[ci skip]')
+         && !contains(github.event.head_commit.message, '[github skip]')
+         && !contains(github.event.head_commit.message, '[skip github]')
+      || github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     steps:
     - name: Info about the context
@@ -29,20 +31,27 @@ jobs:
         echo "github.ref_name   = ${{ github.ref_name   }}"
         echo "github.ref_type   = ${{ github.ref_type   }}"
     - if: github.ref != 'refs/heads/master'
-      uses: styfle/cancel-workflow-action@0.12.1
+      name: Possibly cancel workflow early
+      uses: styfle/cancel-workflow-action@0.13.1
       with:
         access_token: ${{ github.token }}
-    - uses: actions/checkout@v4
+    - name: Checkout repo
+      uses: actions/checkout@v7
       with:
         submodules: recursive
     - id: setup-haskell
+      name: Setup Haskell
       uses: haskell-actions/setup@v2
       with:
+        cabal-update: false
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
     - name: Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml
       run: cp stack-${{ env.GHC_VER }}.yaml stack.yaml
+    - name: Update package index
+      run: |
+        ${STACK} update
     - name: List dependencies and versions
       run: |
         ${STACK} ls dependencies | tee deps.txt
@@ -53,7 +62,7 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
       name: Restore cache from approximate key
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v6
       with:
         key: test.yml-1-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
@@ -70,7 +79,7 @@ jobs:
         tar --use-compress-program zstd --absolute-names -cvf stack.tzst ${{ steps.setup-haskell.outputs.stack-root }}
         tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock deps.txt
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         if-no-files-found: error
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -80,7 +89,7 @@ jobs:
         retention-days: 1
     - if: steps.cache.outputs.cache-hit != 'true'
       name: Save cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v6
       with:
         key: test.yml-1-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{
           steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{
@@ -90,16 +99,20 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repo
+      uses: actions/checkout@v7
       with:
         submodules: recursive
     - id: setup-haskell
+      name: Setup Haskell
       uses: haskell-actions/setup@v2
       with:
+        cabal-update: false
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
-    - uses: actions/download-artifact@v4
+    - name: Download artifacts
+      uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -116,16 +129,20 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repo
+      uses: actions/checkout@v7
       with:
         submodules: recursive
     - id: setup-haskell
+      name: Setup Haskell
       uses: haskell-actions/setup@v2
       with:
+        cabal-update: false
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
-    - uses: actions/download-artifact@v4
+    - name: Download artifacts
+      uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -177,16 +194,20 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repo
+      uses: actions/checkout@v7
       with:
         submodules: recursive
     - id: setup-haskell
+      name: Setup Haskell
       uses: haskell-actions/setup@v2
       with:
+        cabal-update: false
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
-    - uses: actions/download-artifact@v4
+    - name: Download artifacts
+      uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -195,7 +216,7 @@ jobs:
         tar --use-compress-program zstd -xvf stack-work.tzst
     - name: Setup Agda
       run: make setup-agda
-    - name: Standard library test
+    - name: Standard library build
       run: |
         # ASR (2021-01-17). `cabal update` is required due to #5138.
         # We should also use `stack` in this test.
@@ -216,16 +237,20 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repo
+      uses: actions/checkout@v7
       with:
         submodules: recursive
     - id: setup-haskell
+      name: Setup Haskell
       uses: haskell-actions/setup@v2
       with:
+        cabal-update: false
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: latest
-    - uses: actions/download-artifact@v4
+    - name: Download artifacts
+      uses: actions/download-artifact@v8
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -326,4 +351,6 @@ name: Build, Test, and Benchmark
     - '!stack-*.yaml'
     - '!touchup.sh'
     - '!CITATION.cff'
+  schedule:
+  - cron: 0 0 * * 0
   workflow_dispatch: null

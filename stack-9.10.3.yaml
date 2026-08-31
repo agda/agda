@@ -1,5 +1,5 @@
-resolver: lts-23.28
-compiler: ghc-9.8.4
+resolver: lts-24.55
+compiler: ghc-9.10.3
 compiler-check: match-exact
 
 # Local packages specified by relative directory name.
