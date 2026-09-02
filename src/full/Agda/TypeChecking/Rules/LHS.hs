@@ -2080,14 +2080,15 @@ checkParameters dc d pars = liftTCM $ do
       case a of
         Def d0 es -> do -- compare parameters
           let pars' = raise n pars
+              vs0   = mustAllApplyElims es
               -- The parameters we supplied ourselves are arbitrary;
               -- only those fixed by the module instantiation are to be checked.
               -- We neutralize the former by replacing them with the expected parameter.
               -- Note that after unfolding the chain of copies the fixed parameters
               -- are no longer identifiable by their position, so we recognize
               -- the ones we supplied by their free variables.
-              ours v = n > 0 && anyFreeVar (< n) v
-              vs = zipWith (\ v p -> if ours v then p else v) (mustAllApplyElims es) pars'
+              vs | n == 0    = vs0  -- Nothing supplied by us, nothing to neutralize.
+                 | otherwise = zipWith (\ v p -> if anyFreeVar (< n) v then p else v) vs0 pars'
           reportSDoc "tc.lhs.split" 40 $ vcat $
             [ "checkParameters"
             , nest 2 $ "d                   =" <+> (text . prettyShow) d
