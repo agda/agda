@@ -1,6 +1,6 @@
 -- Andreas, 2026-09-02, issue #8545.
 --
--- The parameters fixed by a partial module instantiation still have to
+-- The parameters fixed by a partial module instantiation have to
 -- agree with the parameters of the data type we are splitting on,
 -- even when the constructor is reached via nested module copies.
 

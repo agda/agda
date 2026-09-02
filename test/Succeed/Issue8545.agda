@@ -1,12 +1,10 @@
--- Andreas, 2026-09-02, issue #8545, reported by carlostome.
+-- Andreas, 2026-09-02, issue #8545, reported by Carlos Tome.
 --
 -- The data type `D` is reached via two nested module copies:
 -- `open M ... public` only supplies the first of M's parameters,
 -- and `open R r` then instantiates the record module.
 -- Unfolding the copy chain got stuck on the underapplied intermediate copy,
 -- so `checkParameters` compared the parameters of unrelated data type copies.
-
-{-# OPTIONS --no-fast-reduce #-} -- crashes also with --fast-reduce
 
 record TC : Set2 where
   field Foo : Set1
@@ -35,3 +33,6 @@ open R r
 
 f : D → Set₁
 f (c k) = Set
+
+-- This pattern match used to give an internal error,
+-- location depending on --fast-reduce or not.
