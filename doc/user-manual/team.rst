@@ -57,13 +57,13 @@ But many have worked on these features for improvements and maintenance.
 * Phil de Joux: some *hlinting*
 * Wolfram Kahl
 * Philip Kaludercic: *emacs mode refactoring*
-* Andre Knispel: *reflection, ``INJECTIVE_FOR_INFERENCE``*
+* Andre Knispel: *reflection*, ``INJECTIVE_FOR_INFERENCE``
 * Wen Kokke
 * András Kovács: *performance, serialization*
 * John Leo
 * Fredrik Lindblad: *Agsy proof search "Auto"*
 * Víctor López Juan: *"tog" prototype, markdown frontend, documentation*
-* Amélia Liao: *maintenance and enhancements of Cubical Agda, instance search, colored output*
+* Amélia Liao: *maintenance and enhancements of Cubical Agda and instance search*, ``opaque`` *definitions, parallel type-checking* ``-j``, *colored output*
 * Ting-Gan Lua
 * Francesco Mazzoli: *"tog" prototype*
 * James McKinna: *standard library 1.7 and above*
