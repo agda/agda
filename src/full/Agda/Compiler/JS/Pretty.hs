@@ -246,12 +246,7 @@ instance Pretty GlobalId where
 
 instance Pretty MemberId where
   pretty _ (MemberId s) = "\"" <> unescapes s <> "\""
-  pretty n (MemberIndex i comment) = text (show i) <> pretty n comment
-
-instance Pretty Comment where
-  pretty _ (Comment "") = mempty
-  pretty (_, True, _) _ = mempty
-  pretty _ (Comment s) = text $ "/* " ++ s ++ " */"
+  pretty n (MemberIndex i) = text (show i)
 
 -- Pretty print expressions
 
@@ -263,20 +258,22 @@ instance Pretty Exp where
   prettyPrec p n (Null)         = "null"
   prettyPrec p n (String s)     = "\"" <> unescapes (T.unpack s) <> "\""
   prettyPrec p n (Char c)       = "\"" <> unescapes [c] <> "\""
-  prettyPrec p n (Integer x)    = "agdaRTS.primIntegerFromString(\"" <> text (show x) <> "\")"
+  prettyPrec p n (Integer x)    = text (show x) <> "n"
   prettyPrec p n (Double x)     = text $ show x
   prettyPrec p (n, min, ms) (Lambda x e) = mparens (p > 2) $
     mparens (x /= 1) (punctuate "," (pretties (n + x, min, ms) (map LocalId [x-1, x-2 .. 0])))
     <+> "=>" <+> block (n + x, min, ms) e
   prettyPrec p n (Object o)     = braces $ punctuate "," $ pretties n o
-  prettyPrec p n (Array es)     = brackets $ punctuate "," [pretty n c <> pretty n e | (c, e) <- es]
+  prettyPrec p n (Array es)     = brackets $ punctuate "," [pretty n e | e <- es]
+  prettyPrec p n (MemberIdInString mid) = pretty n mid
+  prettyPrec p n (Ternary eCond eThen eElse) = (prettyPrec 17 n eCond <+> text "?" <+> prettyPrec 17 n eThen)
+                                            $+$ text ":" <+> prettyPrec 17 n eElse
   prettyPrec p n (Apply f es)   = prettyPrec 17 n f <> parens (punctuate "," $ pretties n es)
   prettyPrec p n (Lookup e l)   = prettyPrec 17 n e <> brackets (pretty n l)
   prettyPrec p n (If e f g)     = mparens (p > 2) $
     prettyPrec 3 n e <> "?" <+> prettyPrec 3 n f <> ":" <+> prettyPrec 2 n g
   prettyPrec p n (PreOp op e)   = parens $ text op <> " " <> prettyPrec 17 n e
   prettyPrec p n (BinOp e op f) = parens $ prettyPrec 17 n e <> " " <> text op <> " " <> prettyPrec 17 n f
-  prettyPrec p n (Const c)      = text c
   prettyPrec p n (PlainJS js)   = text js
 
 block :: (Nat, Bool, JSModuleStyle) -> Exp -> Doc
