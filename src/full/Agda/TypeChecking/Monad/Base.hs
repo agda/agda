@@ -5861,6 +5861,11 @@ data TypeError
         | NamedWhereModuleInRefinedContext [Term] [String]
             -- ^ The lists should have the same length.
             --   TODO: enforce this by construction.
+        | NamedWhereModuleInRetypedContext (List1 (ArgName, Type, Type))
+            -- ^ Module parameters whose type has been changed by
+            --   with-abstraction: name, type in the current context,
+            --   and type according to the module telescope.
+            --   See issue #8698.
         | ComatchingDisabledForRecord QName
     -- Rewriting errors
         | IlltypedRewriteRule Doc
