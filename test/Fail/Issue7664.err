@@ -1,0 +1,7 @@
+Issue7664.agda:15.6-10: error: [UnequalTerms]
+The terms
+  Set → Set
+and
+  Set
+are not equal at type Set₁
+when checking that the pattern c' x has type D
