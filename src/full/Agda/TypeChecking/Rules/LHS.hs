@@ -95,7 +95,7 @@ import Agda.Utils.StrictReader
 import Agda.Utils.StrictWriter
 
 import Agda.Utils.Impossible
-import Agda.TypeChecking.Free (freeIn)
+import Agda.TypeChecking.Free (anyFreeVar, freeIn)
 
 -- | Are we checking the LHS of a let-pattern binding or a function clause?
 data LetOrClause
@@ -2083,8 +2083,11 @@ checkParameters dc d pars = liftTCM $ do
               -- The parameters we supplied ourselves are arbitrary;
               -- only those fixed by the module instantiation are to be checked.
               -- We neutralize the former by replacing them with the expected parameter.
-              free v = any (`freeIn` v) [0 .. n-1]
-              vs = zipWith (\ v p -> if free v then p else v) (mustAllApplyElims es) pars'
+              -- Note that after unfolding the chain of copies the fixed parameters
+              -- are no longer identifiable by their position, so we recognize
+              -- the ones we supplied by their free variables.
+              ours v = n > 0 && anyFreeVar (< n) v
+              vs = zipWith (\ v p -> if ours v then p else v) (mustAllApplyElims es) pars'
           reportSDoc "tc.lhs.split" 40 $ vcat $
             [ "checkParameters"
             , nest 2 $ "d                   =" <+> (text . prettyShow) d
