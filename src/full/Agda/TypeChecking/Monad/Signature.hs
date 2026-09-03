@@ -488,13 +488,42 @@ applySection new ptel old ts info@ScopeCopyInfo{ renModules = rm, renNames = rd 
             --   mkD` which we did before).
             Map.singleton x . pure . qualify m <$> freshName_ (prettyShow $ qnameName x)
 
+        -- @parentModule x y p@:
+        -- Where to put the copy of the data/record type @p@ of the
+        -- constructor or projection @x@, given that @x@ is copied to @y@?
+        --
+        -- The type @p@ lives in an ancestor module of the module of its
+        -- child @x@, but how many levels up depends on the kind of child:
+        --
+        -- 1. A data type and its constructors live in the same module
+        --    (0 levels up).
+        --
+        -- 2. A record lives one level above its projections, which live in
+        --    the record module (1 level up).
+        --
+        -- 3. A record with a user-written constructor lives in the same module
+        --    as that constructor (0 levels up, issue #4189), but the /generated/
+        --    constructor of a record without a constructor declaration lives in
+        --    the record module (1 level up, see 'ConcreteToAbstract.recordConName').
+        --
+        -- So rather than hardwiring the number of levels, we read it off the
+        -- original names @x@ and @p@ and reproduce it for the copies (#8725).
+        -- Getting this wrong lands the copy of @p@ in a record module, whose
+        -- telescope has one parameter too many (the record value), which then
+        -- crashes the next module application that copies @p@ again.
+        parentModule :: QName -> QName -> QName -> ModuleName
+        parentModule x y p = mnameFromList $ dropEnd (sanitize levels) ys
+          where
+            qual     = mnameToList . qnameModule
+            ys       = qual y
+            levels   = length (qual x) - length (qual p)
+            -- optional: force argument of @(`dropEnd` ys`)@ into range @0..length ys@
+            sanitize = max 0 . min (length ys)
+
         childToParent :: (QName, List1 QName) -> TCM (Maybe (ModuleName, QName))
         childToParent (x, y :| _) = do
           theDef <$> getConstInfo x <&> \case
-            -- the constructors and the data type live in the same
-            -- module, so it suffices to use the same module name that
-            -- the constructor ended up in for the data type
-            Constructor{ conData = d } -> Just (qnameModule y, d)
+            Constructor{ conData = d } -> Just (parentModule x y d, d)
 
             -- If a proper projection is being copied, its record needs to be
             -- copied too (#8037).
@@ -502,16 +531,7 @@ applySection new ptel old ts info@ScopeCopyInfo{ renModules = rm, renNames = rd 
             -- #8242: copying a proper projection M.R.proj → N.R.proj does not
             -- mean we should copy the record type M.R to N.R.R!
             def | Just Projection{ projProper = Just r } <- isProjection_ def ->
-              let
-                -- putting the record in the parent of where the
-                -- projection ended up seems robust. i don't think it's
-                -- possible for a copied proper projection to end up
-                -- nested relative to the correct place to put the
-                -- record.
-                parent = case initLast (mnameToList (qnameModule y)) of
-                  Just (mod, _) -> mnameFromList mod
-                  Nothing       -> __IMPOSSIBLE__
-              in Just (mnameFromList (init (mnameToList (qnameModule y))), r)
+              Just (parentModule x y r, r)
 
             _ -> Nothing
 
@@ -520,9 +540,13 @@ applySection new ptel old ts info@ScopeCopyInfo{ renModules = rm, renNames = rd 
           (theDef <$> getConstInfo x) <&> \case
             Datatype{ dataCons = cs } -> map (qnameModule y,) cs
 
-            -- note about the module here: the record constructor lives
-            -- outside the record module, in the same module as the
-            -- record.
+            -- note about the module here: a user-written record constructor
+            -- lives outside the record module, in the same module as the
+            -- record (#4189), so we put its copy next to the copy of the
+            -- record.  A generated constructor lives in the record module, but
+            -- putting its copy next to the record copy is fine as well: what
+            -- matters is that 'parentModule' above recovers the relative
+            -- position from the copies rather than assuming a fixed one.
             --
             -- in debugging output, if the record being copied has a
             -- generated constructor name, it's going to look like we
