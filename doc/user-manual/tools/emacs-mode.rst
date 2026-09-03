@@ -241,6 +241,9 @@ they limit their action to the hole and take context and content of the hole int
 :kbd:`C-c C-x M-;`
      Comment/uncomment rest of buffer.
 
+:kbd:`C-c C-x C-x`
+     When in a literate Agda file, switch to the associated mode, e.g. LaTeX.
+
 .. _emacs-context-sensitive-commands:
 
 Commands in context of a goal
