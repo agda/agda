@@ -877,7 +877,7 @@ reduceDefCopy f es = do
 
 -- | Recursively apply 'reduceDefCopy' so remove all copy-indirections
 -- but otherwise do not reduce the term.
-reduceDefCopies :: Term -> TCM Term
+reduceDefCopies :: PureTCM m => Term -> m Term
 reduceDefCopies v = do
   r <- case v of
     Def f es -> reduceDefCopy f es

@@ -300,6 +300,8 @@ origProjection f = do
 --   @t@ is not a data/record/axiom type.
 --
 --   Precondition: @t@ is reduced.
+--   Copies stemming from module applications are unfolded here in addition,
+--   since reduction may leave them in place (see issue #8532).
 --
 --   See also: 'Agda.TypeChecking.Datatypes.getConType'
 getDefType :: PureTCM m => QName -> Type -> m (Maybe Type)
@@ -326,7 +328,16 @@ getDefType f t = do
                 | otherwise = n - 1
       reportSLn "tc.deftype" 20 $ "projIndex    = " ++ show n
       -- we get the parameters from type @t@
-      instantiate (unEl t) >>= \case
+      -- Andreas, 2026-09-03, issue #8532:
+      -- Even a reduced @t@ can be headed by a copy stemming from a module
+      -- application, e.g. @N.D us@ for @module N = M vs@ with @D@ declared in @M@.
+      -- Such a copy is @eligibleForProjectionLike@, but its arguments @us@ are
+      -- /not/ the parameters of the original @D@ (they include the parameters of
+      -- the module @N@ lives in), so taking them would produce garbage parameters.
+      -- Thus, unfold copy indirections first; this is cheap.
+      -- (Same treatment as in 'Agda.TypeChecking.ProjectionLike.candidateArgs',
+      -- see issue #8686.)
+      instantiate (unEl t) >>= reduceDefCopies >>= \case
         Def d es -> do
           -- Andreas, 2013-10-22
           -- we need to check this @Def@ is fully reduced.
