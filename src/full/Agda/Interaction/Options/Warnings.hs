@@ -649,7 +649,7 @@ warningNameDescription = \case
   RewriteMissingRule_              -> "Failed global confluence checks because of missing rule."
   DuplicateRewriteRule_            -> "Duplicate rewrite rules."
   LocalRewriteOutsideTelescope_    -> "'@rewrite' arguments are (currently) only allowed in module telescopes."
-  SmartWithOccursFail_             -> "Smart rewrite failed because LHS occurred in RHS or earlier smart-with rewrite!"
+  SmartWithOccursFail_             -> "Smart with/rewrite failed because LHS occurred in RHS or earlier rewrite!"
   InferredLocalRewrite_            -> "Tried to solve a meta with an '@rewrite' function."
   SafeFlagInjective_               -> "`INJECTIVE' pragmas with the safe flag."
   SafeFlagNoCoverageCheck_         -> "`NON_COVERING` pragmas with the safe flag."

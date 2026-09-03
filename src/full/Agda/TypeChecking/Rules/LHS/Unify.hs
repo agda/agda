@@ -183,6 +183,7 @@ import Agda.Utils.StrictWriter
 import Agda.Utils.StrictState
 
 import Agda.Utils.Impossible
+import Agda.TypeChecking.Conversion (tryConversion, equalTerm)
 import Agda.TypeChecking.Rewriting (checkLocalRewriteRule)
 
 
@@ -337,8 +338,18 @@ recheckLocalRewrites (ExtendTel x xs) = do
         cxt <- getContext
         -- TODO: Names/sane error messages
         let i = LocalRewriteInfo (rewDomOrigin rd) cxt Nothing (unDom d)
-        recheckRewDom i rd
-      pure $ dRew .~ rd' $ d
+        let eq = rewDomEq rd
+
+        -- It might be that the rewrite is now reflexive and we can discard it
+        -- TODO: Is this safe '--without-K'? (I assume not, but am not certain)
+        withK <- not <$> withoutKOption
+        skipRew <- if withK then
+          tryConversion $ dontAssignMetas $
+            equalTerm (lEqType eq) (lEqLHS eq) (lEqRHS eq)
+        else pure False
+
+        if skipRew then pure Nothing else Just <$> recheckRewDom i rd
+      pure $ dRew .~ join rd' $ d
 
 -- | Recheck a local rewrite rule
 recheckRewDom :: LocalRewriteInfo -> RewDom -> TCM RewDom

@@ -451,7 +451,7 @@ checkPostponedEquations sub eqs = forM' eqs $
 nonLinMatch :: (PureTCM m, Match a b)
             => Telescope -> TypeOf b -> a -> b -> m (Either Blocked_ Substitution)
 nonLinMatch gamma t p v = do
-  let no msg b = traceSDoc "rewriting.match" 10 (sep
+  let no msg b = traceSDoc "rewriting.match" 20 (sep
                    [ "matching failed during" <+> text msg
                    , "blocking: " <+> text (show b) ]) $ return (Left b)
   caseEitherM (runNLM $ match relevant gamma empty t p v) (no "matching") $ \ s -> do
