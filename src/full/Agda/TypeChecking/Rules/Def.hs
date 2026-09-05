@@ -1303,11 +1303,24 @@ checkWhere wh@(A.WhereDecls whmod whNamed mds) ret = do
     -- #2897: We can't handle named where-modules in refined contexts.
     ensureNoNamedWhereInRefinedContext Nothing = return ()
     ensureNoNamedWhereInRefinedContext (Just m) = traceCall (CheckNamedWhere m) $ do
-      args <- map' unArg <$> (moduleParamsToApply =<< currentModule)
-      unless (isWeakening args) $ do -- weakened contexts are fine
-        names <- map' (argNameToString . fst . unDom) . telToList <$>
-                (lookupSection =<< currentModule)
-        typeError $ NamedWhereModuleInRefinedContext args names
+      m0   <- currentModule
+      args <- moduleParamsToApply m0
+      tel  <- lookupSection m0
+      unless (isWeakening $ map' unArg args) $ do -- weakened contexts are fine
+        let names = map' (argNameToString . fst . unDom) $ telToList tel
+        typeError $ NamedWhereModuleInRefinedContext (map' unArg args) names
+      -- Andreas, 2026-09-01, issue #8698:
+      -- Even when the module parameters are still just the context variables,
+      -- with-abstraction may have changed their *types*:
+      -- a parameter that is not needed to type the with-expressions ends up in
+      -- the part @Δ₂@ of the clause telescope where the with-expressions are
+      -- abstracted from the types (see 'splitTelForWith').
+      -- The named where-module would then get a telescope that lies about the
+      -- module parameters, while its definitions are still applied to the
+      -- module parameters by position without type checking
+      -- (see 'freeVarsToApply').  This is unsound, so we reject it.
+      List1.unlessNullM (retypedModuleParameters args tel) $ \ ps ->
+        typeError $ NamedWhereModuleInRetypedContext ps
       where
         isWeakening [] = True
         isWeakening (Var i [] : args) = isWk (i - 1) args
@@ -1316,6 +1329,25 @@ checkWhere wh@(A.WhereDecls whmod whNamed mds) ret = do
             isWk i (Var j [] : args) = i == j && isWk (i - 1) args
             isWk _ _ = False
         isWeakening _ = False
+
+        -- Andreas, 2026-09-01, issue #8698.
+        -- Compute the module parameters (given as @args@ living in the current
+        -- context) whose type there differs from the type given to them by the
+        -- module telescope @tel@, returning name, actual and expected type.
+        retypedModuleParameters :: Args -> Telescope -> TCM [(ArgName, Type, Type)]
+        retypedModuleParameters []           _        = return []
+        retypedModuleParameters _            EmptyTel = return []
+        retypedModuleParameters (arg : args) (ExtendTel dom tel) = do
+          let v        = unArg arg
+              expected = unDom dom
+          rest <- retypedModuleParameters args $ absApp tel v
+          case v of
+            -- Since @args@ is a weakening (see above), it consists of variables.
+            Var i [] -> do
+              actual <- typeOfBV i
+              ifM (tryConversion $ equalType actual expected) {-then-} (return rest) {-else-}
+                $ return $ (absName tel, actual, expected) : rest
+            _ -> return rest
 
 
 -- | Enter a new section during type-checking.

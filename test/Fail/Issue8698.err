@@ -1,0 +1,8 @@
+Issue8698.agda:41.12-13: error: [NamedWhereModuleInRetypedContext]
+Named where-modules are not allowed when with-abstraction has
+changed the type of a module parameter.
+(See https://github.com/agda/agda/issues/8698.)
+In this case the module parameter has been given the type
+  p : F false
+    instead of F (neg b)
+when checking the named where block W

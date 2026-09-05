@@ -167,6 +167,7 @@ typeErrorName = \case
   MultiplePolarityPragmas                                    {} -> MultiplePolarityPragmas_
   ExplicitPolarityVsPragma                                   {} -> ExplicitPolarityVsPragma_
   NamedWhereModuleInRefinedContext                           {} -> NamedWhereModuleInRefinedContext_
+  NamedWhereModuleInRetypedContext                           {} -> NamedWhereModuleInRetypedContext_
   NeedOptionAllowExec                                        {} -> NeedOptionAllowExec_
   NeedOptionCopatterns                                       {} -> NeedOptionCopatterns_
   NeedOptionCubical                                          {} -> NeedOptionCubical_

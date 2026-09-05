@@ -520,6 +520,32 @@ Changes to type checker and other components defining the Agda language.
   fields for any cohesion modality which has a left adjoint (currently
   just sharp and continuous).
 
+* (**BREAKING**) Named `where`-modules are now rejected in `with`-clauses
+  in which `with`-abstraction has changed the type of a module parameter,
+  with the new error `NamedWhereModuleInRetypedContext`.
+  This is a soundness fix; accepting these allowed a proof of absurdity
+  (see [#8698](https://github.com/agda/agda/issues/8698)).
+  Example:
+  ```agda
+  F : Bool → Set
+  F true  = ⊥
+  F false = ⊤
+
+  module M (b : Bool) (p : F (not b)) where
+
+    foo : Bool
+    foo with not b
+    ... | true  = true
+    ... | false = false
+      module W where       -- rejected: here p : F false rather than F (not b)
+      val : F (not b)
+      val = p
+  ```
+  Anonymous `where`-blocks are not affected.
+  (This complements the existing restriction on named `where`-modules in
+  contexts refined by pattern matching, see
+  [#2897](https://github.com/agda/agda/issues/2897).)
+
 Reflection
 ----------
 

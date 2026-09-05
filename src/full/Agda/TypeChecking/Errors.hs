@@ -1588,6 +1588,20 @@ instance PrettyTCM TypeError where
         , nest 2 $ vcat $ zipWith pr names args
         ]
 
+    NamedWhereModuleInRetypedContext ps -> do
+      let pr (x, actual, expected) = vcat
+            [ text x <+> ":" <+> prettyTCM actual
+            , nest 2 $ "instead of" <+> prettyTCM expected
+            ]
+      vcat
+        [ fsep $ pwords "Named where-modules are not allowed when with-abstraction has changed the type of a module parameter."
+        , "(See" <+> (githubIssue 8698 <> ".)")
+        , text $ "In this case the module parameter" ++
+                  (if length ps > 1 then "s have" else " has") ++
+                  " been given the type"
+        , nest 2 $ vcat $ fmap pr ps
+        ]
+
     CannotGenerateHCompClause ty -> fsep $ concat
         [ pwords "Cannot generate hcomp clause at type"
         , [ prettyTCM ty ]
