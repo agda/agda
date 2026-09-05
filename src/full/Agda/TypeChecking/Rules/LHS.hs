@@ -95,7 +95,7 @@ import Agda.Utils.StrictReader
 import Agda.Utils.StrictWriter
 
 import Agda.Utils.Impossible
-import Agda.TypeChecking.Free (freeIn)
+import Agda.TypeChecking.Free (anyFreeVar, freeIn)
 
 -- | Are we checking the LHS of a let-pattern binding or a function clause?
 data LetOrClause
@@ -2065,22 +2065,46 @@ checkParameters
   -> Args   -- ^ The parameters.
   -> tcm ()
 checkParameters dc d pars = liftTCM $ do
-  a  <- reduce (Def dc [])
-  case a of
-    Def d0 es -> do -- compare parameters
-      let vs = mustAllApplyElims es
-      reportSDoc "tc.lhs.split" 40 $ vcat $
-        [ "checkParameters"
-        , nest 2 $ "d                   =" <+> (text . prettyShow) d
-        , nest 2 $ "d0 (should be == d) =" <+> (text . prettyShow) d0
-        , nest 2 $ "dc                  =" <+> (text . prettyShow) dc
-        , nest 2 $ "vs                  =" <+> prettyTCM vs
-        , nest 2 $ "pars                =" <+> prettyTCM pars
-        ]
-      -- when (d0 /= d) __IMPOSSIBLE__ -- d could have extra qualification
-      t <- typeOfConst d
-      compareArgs [] [] t (Def d []) vs (take' (length vs) pars)
-    _ -> __IMPOSSIBLE__
+  def <- getConstInfo dc
+  -- Only a copy stemming from a module instantiation can have parameters
+  -- that are already fixed; for anything else there is nothing to check.
+  when (defCopy def) $ do
+    -- Andreas, 2026-09-02, issue #8545:
+    -- If the module instantiation did not supply all of the module parameters,
+    -- @Def dc []@ gets stuck on an underapplied copy rather than reducing to an
+    -- application of the original data/record type @d@.  Thus, we saturate @dc@ first.
+    TelV tel _ <- telView $ defType def
+    let n = size tel
+    addContext tel $ do
+      a <- reduce $ Def dc $ map Apply $ teleArgs tel
+      case a of
+        Def d0 es -> do -- compare parameters
+          let pars' = raise n pars
+              vs0   = mustAllApplyElims es
+              -- The parameters we supplied ourselves are arbitrary;
+              -- only those fixed by the module instantiation are to be checked.
+              -- We neutralize the former by replacing them with the expected parameter.
+              -- Note that after unfolding the chain of copies the fixed parameters
+              -- are no longer identifiable by their position, so we recognize
+              -- the ones we supplied by their free variables.
+              vs | n == 0    = vs0  -- Nothing supplied by us, nothing to neutralize.
+                 | otherwise = zipWith (\ v p -> if anyFreeVar (< n) v then p else v) vs0 pars'
+          reportSDoc "tc.lhs.split" 40 $ vcat $
+            [ "checkParameters"
+            , nest 2 $ "d                   =" <+> (text . prettyShow) d
+            , nest 2 $ "d0 (should be == d) =" <+> (text . prettyShow) d0
+            , nest 2 $ "dc                  =" <+> (text . prettyShow) dc
+            , nest 2 $ "vs                  =" <+> prettyTCM vs
+            , nest 2 $ "pars                =" <+> prettyTCM pars
+            ]
+          -- If @dc@ does not unfold to @d@, there is nothing we could compare.
+          -- (Note that @d@ may just be a different qualification of the same name as @d0@.)
+          when (d0 == d) $ do
+            -- @pars@ include the module parameters of @d@,
+            -- so we need the uninstantiated type of @d@ here (not @typeOfConst d@).
+            t <- defType <$> getConstInfo d
+            compareArgs [] [] t (Def d []) vs (take' (length vs) pars')
+        _ -> __IMPOSSIBLE__
 
 checkSortOfSplitVar :: (MonadTCM m, PureTCM m, MonadError TCErr m,
                         LensSort a, PrettyTCM a, LensSort ty, PrettyTCM ty)
