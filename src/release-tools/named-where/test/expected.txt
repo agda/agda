@@ -1,0 +1,21 @@
+Scanned 5 Agda files.
+
+  named `where` modules    : 13
+    thereof `module _`     :  1
+  under `with`             :  7
+  not `with` but `rewrite` :  1
+  neither                  :  5
+
+  ./Cases.agda:30:3: plain
+  ./Cases.agda:38:3: plain
+  ./Cases.agda:47:3: with
+  ./Cases.agda:56:3: with
+  ./Cases.agda:63:3: rewrite
+  ./Cases.agda:75:5: with
+  ./Cases.agda:82:3: plain
+  ./Cases.agda:106:3: plain
+  ./Cases.agda:118:3: plain
+  ./Md.lagda.md:19:3: with
+  ./Org.lagda.org:15:3: with
+  ./Rst.lagda.rst:17:7: with
+  ./Tex.lagda:16:3: with

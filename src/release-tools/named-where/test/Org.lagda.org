@@ -1,0 +1,18 @@
+#+TITLE: Org mode literate test
+
+A decoy in prose: module Decoy where
+
+#+begin_src agda2
+module Org where
+
+open import Agda.Builtin.Bool
+open import Agda.Builtin.Nat
+
+i : Bool → Nat
+i b with b
+... | true  = 0
+... | false = 1
+  module W where
+  q : Nat
+  q = 1
+#+end_src
