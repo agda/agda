@@ -958,6 +958,10 @@ antiUnifyType pid (El s a) (El _ b) = workOnTypes $ El s <$> antiUnify pid (sort
 antiUnifyElims :: ProblemId -> Type -> Term -> Elims -> Elims -> TCM Term
 antiUnifyElims pid a self [] [] = return self
 antiUnifyElims pid a self (Proj o f : es1) (Proj _ g : es2) | f == g = do
+  -- Andreas, 2026-09-05, issue #8532, projectTyped expects reduced type @a@.
+  -- The reduce was already absent in the original feature commit a45f5ce (Agda 2.5.3).
+  -- The bug was dormant for almost a decade.
+  a <- reduce a
   res <- projectTyped self a o f
   case res of
     Just (_, self, a) -> antiUnifyElims pid a self es1 es2
@@ -1184,6 +1188,8 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
     -- case: f == f' are projections
     (Proj o f : els1, Proj _ f' : els2)
       | f /= f'   -> do
+          -- Andreas, 2026-09-05, while working on #8532: projectTyped expects reduced type.
+          a <- reduce a
           -- Andreas, 2025-10-06, issue #8126
           -- If we are dealing with generalizable variables rather than projections,
           -- do not throw a MismatchedProjectionsError, but rather a generic f != f' error.

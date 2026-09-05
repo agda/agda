@@ -929,9 +929,11 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
         (arg:) <$> nameElims
           (if visible info then False else not forced)
           (acc `applyE` [elim]) (cod `lazyAbsApp` tm) as
-    nameElims _ tm ty (I.Proj o n:as) = projectTyped tm ty o n >>= \case
-      Nothing          -> mzero
-      Just (_, tm, ty) -> (I.Proj o n:) <$> nameElims False tm ty as
+    nameElims _ tm ty (I.Proj o n:as) = do
+      ty <- reduce ty
+      projectTyped tm ty o n >>= \case
+        Nothing          -> mzero
+        Just (_, tm, ty) -> (I.Proj o n:) <$> nameElims False tm ty as
 
     -- Andreas, 2016-07-06 Issue #2047
 
