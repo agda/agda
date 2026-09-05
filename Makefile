@@ -47,6 +47,9 @@ STACK_FLAG_ICU    = --flag Agda:enable-cluster-counting
 CABAL_FLAG_OPTIM_HEAVY ?= -foptimise-heavily
 STACK_FLAG_OPTIM_HEAVY ?= --flag Agda:optimise-heavily
 
+CABAL_FLAG_VERSION_WITH_HASH ?= -fversion-with-hash
+STACK_FLAG_VERSION_WITH_HASH ?= --flag Agda:version-with-hash
+
 CABAL_INSTALL_HELPER = $(CABAL) $(CABAL_INSTALL_CMD) $(CABAL_OPT_NO_DOCS)
 STACK_INSTALL_HELPER = $(STACK) build Agda $(STACK_OPT_NO_DOCS)
 
@@ -98,8 +101,8 @@ ifeq ($(filter msys% mingw%,$(shell echo "$${OSTYPE:-unknown}")),)
   STACK_INSTALL_OPTS += $(STACK_FLAG_ICU)
 endif
 
-CABAL_INSTALL_OPTS += --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
-STACK_INSTALL_OPTS += --ghc-options $(GHC_OPTS) $(STACK_OPTS)
+CABAL_INSTALL_OPTS += $(CABAL_FLAG_VERSION_WITH_HASH) --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
+STACK_INSTALL_OPTS += $(STACK_FLAG_VERSION_WITH_HASH) --ghc-options $(GHC_OPTS) $(STACK_OPTS)
 
 # Options for building Agda's dependencies.
 CABAL_INSTALL_DEP_OPTS = --only-dependencies $(CABAL_INSTALL_OPTS)
@@ -123,11 +126,11 @@ CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
 default: install-bin
 
 .PHONY: install ## Install Agda with standard flags, compile and setup Emacs mode
-install:
+install: ensure-hash-is-correct
 ifdef HAS_STACK
-	$(STACK) install --ghc-options $(GHC_OPTS) $(STACK_OPTS)
+	$(STACK) install $(STACK_FLAG_VERSION_WITH_HASH) --ghc-options $(GHC_OPTS) $(STACK_OPTS)
 else
-	$(CABAL) install --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
+	$(CABAL) install $(CABAL_FLAG_VERSION_WITH_HASH) --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
 endif
 	agda --setup --emacs-mode compile --emacs-mode setup
 
@@ -142,6 +145,10 @@ setup-agda:
 ensure-hash-is-correct:
 	rm -f $(BUILD_DIR)/build/Agda/VersionCommit.o
 	rm -f $(BUILD_DIR)/build/agda-mode/agda-mode-tmp/Agda/VersionCommit.o
+	rm -f $(FAST_BUILD_DIR)/build/Agda/VersionCommit.o
+	rm -f $(FAST_BUILD_DIR)/build/agda-mode/agda-mode-tmp/Agda/VersionCommit.o
+	rm -f $(QUICK_BUILD_DIR)/build/Agda/VersionCommit.o
+	rm -f $(QUICK_BUILD_DIR)/build/agda-mode/agda-mode-tmp/Agda/VersionCommit.o
 
 .PHONY: copy-bins-with-suffix-% ## Copy binaries to local bin directory with suffix
 copy-bins-with-suffix-%:
@@ -205,7 +212,7 @@ endif
 fast-install-bin: install-deps fast-install-bin-no-deps
 
 .PHONY: fast-install-bin-no-deps ##
- fast-install-bin-no-deps:
+ fast-install-bin-no-deps: ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "============= Installing using Stack with -O0 and test suites ============"
 	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
@@ -223,7 +230,7 @@ endif
 quicker-install-bin: install-deps quicker-install-bin-no-deps
 
 .PHONY: quicker-install-bin-no-deps ##
-quicker-install-bin-no-deps:
+quicker-install-bin-no-deps: ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with -O0 ===================="
 	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
@@ -820,6 +827,7 @@ debug : ## Print debug information.
 	@echo "CABAL_CONFIGURE_OPTS           = $(CABAL_CONFIGURE_OPTS)"
 	@echo "CABAL_FLAG_ICU                 = $(CABAL_FLAG_ICU)"
 	@echo "CABAL_FLAG_OPTIM_HEAVY         = $(CABAL_FLAG_OPTIM_HEAVY)"
+	@echo "CABAL_FLAG_VERSION_WITH_HASH   = $(CABAL_FLAG_VERSION_WITH_HASH)"
 	@echo "CABAL_HADDOCK_CMD              = $(CABAL_HADDOCK_CMD)"
 	@echo "CABAL_INSTALL                  = $(CABAL_INSTALL)"
 	@echo "CABAL_INSTALL_BIN_OPTS         = $(CABAL_INSTALL_BIN_OPTS)"
@@ -848,6 +856,7 @@ debug : ## Print debug information.
 	@echo "STACK_WORK_DIR                 = $(STACK_WORK_DIR)"
 	@echo "STACK_FLAG_ICU                 = $(STACK_FLAG_ICU)"
 	@echo "STACK_FLAG_OPTIM_HEAVY         = $(STACK_FLAG_OPTIM_HEAVY)"
+	@echo "STACK_FLAG_VERSION_WITH_HASH   = $(STACK_FLAG_VERSION_WITH_HASH)"
 	@echo "STACK_INSTALL                  = $(STACK_INSTALL)"
 	@echo "STACK_INSTALL_BIN_OPTS         = $(STACK_INSTALL_BIN_OPTS)"
 	@echo "STACK_INSTALL_BIN_OPTS_NODEBUG = $(STACK_INSTALL_BIN_OPTS_NODEBUG)"
