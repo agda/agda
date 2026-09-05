@@ -35,6 +35,7 @@ import Agda.Utils.Function (applyWhen, applyWhenM)
 import Agda.Utils.Functor (($>))
 import Agda.Utils.Maybe
 import Agda.Utils.Size
+import Agda.Utils.Tuple (snd3, thd3)
 
 import Agda.Utils.Impossible
 
@@ -269,14 +270,14 @@ infer u = do
   case u of
     Var i es -> do
       a <- typeOfBV i
-      fst <$> inferSpine defaultAction a (Var i) es
+      snd3 <$> inferSpine defaultAction a (Var i) es
     Def f es -> do
       whenJustM (isRelevantProjection f) $ \_ -> nonInferable
       a <- defType <$> getConstInfo f
-      fst <$> inferSpine defaultAction a (Def f) es
+      snd3 <$> inferSpine defaultAction a (Def f) es
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
-      fst <$> inferSpine defaultAction a (MetaV x) es
+      snd3 <$> inferSpine defaultAction a (MetaV x) es
     _ -> nonInferable
   where
     nonInferable :: MonadDebug m => m a
@@ -286,18 +287,27 @@ infer u = do
       ]
 
 instance CheckInternal Elims where
-  checkInternal' action es cmp (t , hd) = snd <$> inferSpine action t hd es
+  checkInternal' action es cmp (t , hd) = thd3 <$> inferSpine action t hd es
 
 -- | @inferSpine action t hd es@ checks that spine @es@ eliminates
---   value @hd []@ of type @t@ and returns the remaining type
---   (target of elimination) and the transformed eliminations.
-inferSpine :: Action -> Type -> (Elims -> Term) -> Elims -> TCM (Type, Elims)
-inferSpine action t hd es = loop t hd id es
+--   value @hd []@ of type @t@ and returns the eliminated value
+--   @hd []@ applied to @es@, the remaining type (target of elimination)
+--   and the transformed eliminations.
+--
+--   Andreas, 2026-09-01, issue #8336:
+--   Note the difference between the returned value and @hd es@:
+--   @hd@ blindly builds postfix applications @self .f@ also for
+--   projection-/like/ functions @f@, which is only valid syntax as long as
+--   @self@ is neutral.
+--   Just using @hd es@ as the returned value leads to crashes in the reducer.
+--   Thus we construct the returned value instead with 'shouldBeProjectible',
+--   which puts projection-like functions into prefix form @f self@.
+inferSpine :: Action -> Type -> (Elims -> Term) -> Elims -> TCM (Term, Type, Elims)
+inferSpine action t hd es = loop (hd []) t hd id es
   where
-  loop t hd acc = \case
-    [] -> return (t , acc [])
+  loop self t hd acc = \case
+    [] -> return (self , t , acc [])
     (e : es) -> do
-      let self = hd []
       reportSDoc "tc.check.internal" 30 $ sep
         [ "inferring spine: "
         , "type t = " <+> prettyTCM t
@@ -313,17 +323,17 @@ inferSpine action t hd es = loop t hd id es
           x' <- checkInternal' action x CmpLeq (b `absApp` izero)
           y' <- checkInternal' action y CmpLeq (b `absApp` ione)
           let e' = IApply x' y' r'
-          loop (b `absApp` r) (hd . (e:)) (acc . (e':)) es
+          loop (self `applyE` [e]) (b `absApp` r) (hd . (e:)) (acc . (e':)) es
         Apply (Arg ai v) -> do
           (a, b) <- shouldBePi t
           ai <- checkArgInfo action ai $ domInfo a
           v' <- applyDomToContext a $ checkInternal' action v CmpLeq $ unDom a
           let e' = Apply (Arg ai v')
-          loop (b `absApp` v) (hd . (e:)) (acc . (e':)) es
+          loop (self `applyE` [e]) (b `absApp` v) (hd . (e:)) (acc . (e':)) es
         -- case: projection or projection-like
         Proj o f -> do
-          t' <- shouldBeProjectible self t o f
-          loop t' (hd . (e:)) (acc . (e:)) es
+          (self', t') <- shouldBeProjectible self t o f
+          loop self' t' (hd . (e:)) (acc . (e:)) es
 
 checkSpine ::
      Action
@@ -340,14 +350,14 @@ checkSpine action a hd es cmp t = do
                                  , nest 2 $ prettyTCM a ])
                    , nest 4 $ prettyTCM es <+> ":"
                    , nest 2 $ prettyTCM t ] ]
-  (t' , es') <- inferSpine action a hd es
+  (self , t' , es') <- inferSpine action a hd es
   reportSDoc "tc.check.internal" 30 $ sep
     [ "checking if "
     , prettyTCM t'
     , "is a subtype of"
     , prettyTCM t
     ]
-  coerceSize cmp (hd es) t' t
+  coerceSize cmp self t' t
   return $ hd es'
 
 instance CheckInternal Sort where

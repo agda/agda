@@ -360,18 +360,23 @@ getDefType f t = do
         _       -> Nothing
 
 -- | Apply a projection to an expression with a known type, returning
---   the type of the projected value.
+--   the projected value and its type.
 --   The given type should either be a record type or a type eligible for
 --   the principal argument of a projection-like function.
+--
+--   The projected value is constructed by 'applyDef', so a projection-/like/
+--   function is applied in prefix form (@f v@); only a proper projection
+--   gives rise to a postfix 'Proj' elimination (@v .f@).
+--   (See e.g. issue #8336 why this invariant is important.)
 shouldBeProjectible :: (PureTCM m, MonadTCError m, MonadBlock m)
-                    => Term -> Type -> ProjOrigin -> QName -> m Type
+                    => Term -> Type -> ProjOrigin -> QName -> m (Term, Type)
 -- shouldBeProjectible t f = maybe failure return =<< projectionType t f
 shouldBeProjectible v t o f = do
   t <- abortIfBlocked t
   projectTyped v t o f >>= \case
-    Just (_ , _ , ft) -> return ft
+    Just (_ , u , ft) -> return (u, ft)
     Nothing -> case t of
-      El _ Dummy{} -> return __DUMMY_TYPE__
+      El _ Dummy{} -> return (__DUMMY_TERM__, __DUMMY_TYPE__)
       _ -> typeError $ ShouldBeRecordType t
     -- TODO: more accurate error that makes sense also for proj.-like funs.
 
