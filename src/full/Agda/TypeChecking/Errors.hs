@@ -1588,10 +1588,9 @@ instance PrettyTCM TypeError where
         , nest 2 $ vcat $ zipWith pr names args
         ]
 
-    NamedWhereModuleUnderWith -> vcat
-      [ fsep $ pwords "Named `where` modules are disallowed under `with` or `rewrite` since Agda 2.9.0"
-      , "(See" <+> (githubIssue 8698 <> ".)")
-      ]
+    NamedWhereModuleUnderWith -> fsep $
+      pwords "Named `where` modules are disallowed under `with` or `rewrite` since Agda 2.9.0"
+      ++ [ parens $ "see" <+> githubIssue 8698 ]
 
     CannotGenerateHCompClause ty -> fsep $ concat
         [ pwords "Cannot generate hcomp clause at type"

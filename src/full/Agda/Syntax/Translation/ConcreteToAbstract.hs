@@ -3339,16 +3339,6 @@ withAbstractingEqn = \case
   Invert{}  -> True   -- @with p <- e in eq@
   LeftLet{} -> False  -- @using p <- e@
 
--- | Andreas, 2026-09-06, issue #8698.
---   Reject a named @where@ module (@module M where@) in a @with@ or @rewrite@
---   clause.  With-abstraction can change the types of the module parameters
---   inherited by @M@, so instantiating @M@ from outside is unsound.
-rejectNamedWhereUnderWith :: C.WhereClause -> ScopeM ()
-rejectNamedWhereUnderWith = \case
-  SomeWhere r _ _ _ _ -> setCurrentRange r $ typeError NamedWhereModuleUnderWith
-  AnyWhere{}          -> return ()
-  NoWhere             -> return ()
-
 instance ToAbstract C.Clause where
   type AbsOfCon C.Clause = A.Clause
 
@@ -3359,7 +3349,7 @@ instance ToAbstract C.Clause where
     -- The @where@ clause of a @rewrite@ clause is passed on to 'RightHandSide',
     -- whereas for @with@ it is the with-subclauses that carry the @where@ clause.
     when (not (null with) || any withAbstractingEqn eqs) do
-      mapM_ rejectNamedWhereUnderWith $ wh : [ wh' | C.Clause _ _ _ _ _ wh' _ <- wcs ]
+      mapM_ rejectNamedWhereUnderWith $ wh : map (\ (C.Clause _ _ _ _ _ wh' _) -> wh') wcs
 
     -- Jesper, 2018-12-10, #3095: pattern variables bound outside the
     -- module are locally treated as module parameters
@@ -3386,6 +3376,18 @@ instance ToAbstract C.Clause where
                        toAbstractCtx TopCtx $ RightHandSide [] with wcs' rhs NoWhere
         rhs <- toAbstract rhs
         return $ A.Clause lhs' [] rhs ds catchall
+    where
+      -- Andreas, 2026-09-06, issue #8698.
+      -- Reject a named @where@ module (@module M where@) in a @with@ or @rewrite@
+      -- clause.  With-abstraction can change the types of the module parameters
+      -- inherited by @M@, so instantiating @M@ from outside is unsound.
+      rejectNamedWhereUnderWith :: C.WhereClause -> ScopeM ()
+      rejectNamedWhereUnderWith = \case
+        SomeWhere r _ x _ _
+          | isUnderscore x -> return ()
+          | otherwise      -> setCurrentRange r $ typeError NamedWhereModuleUnderWith
+        AnyWhere{}         -> return ()
+        NoWhere            -> return ()
 
 
 whereToAbstract

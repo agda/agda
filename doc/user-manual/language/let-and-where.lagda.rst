@@ -252,10 +252,10 @@ error ``NamedWhereModuleUnderWith``:
   ... | false = true
 
 The reason is that with-abstraction can change the types of the module
-parameters that ``M`` inherits from its parent module.  Module ``M`` is
-visible outside of the clause, but its telescope then lies about these
-parameters, which is unsound: it allowed a proof of ``⊥``
-(`Issue #8698 <https://github.com/agda/agda/issues/8698>`_).
+parameters that ``M`` inherits from its parent module.
+However, these changed parameters are not visible in the source code which might be confusing.
+Ignoring the changes, i.e., making ``M`` available outside of the clause with the original module parameters inherited from the parent module, even leads to
+`inconsistencies <https://github.com/agda/agda/issues/8698>`_.
 
 Ordinary anonymous ``where``-blocks are unaffected by this restriction,
 and so is :ref:`using p ← e <with-using>`, which does not with-abstract

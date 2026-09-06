@@ -16,10 +16,11 @@ postulate
 
 cast : P a → P b
 cast p rewrite a≡b = q
-  module M where
+  module M where  -- rejected here now
     q = p
 
--- test : P b → P b
--- test = M.q
+-- We no longer reach this (#8698):
+test : P b → P b
+test = M.q       -- WAS before #3824: not in scope
 
--- module Test = M
+module Test = M  -- ditto

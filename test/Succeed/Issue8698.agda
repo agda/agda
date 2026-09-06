@@ -1,35 +1,14 @@
 -- Andreas, 2026-09-06, issue #8698.
 --
--- Named `where` modules are disallowed under `with` and `rewrite`
--- (error NamedWhereModuleUnderWith), but nowhere else.
+-- Named `where` modules are now disallowed under `with` and `rewrite`
+-- but still allowed under `using`.
 
-{-# OPTIONS --safe --without-K #-}
+{-# OPTIONS --safe #-}
 
 module Issue8698 where
 
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Equality
-
--- A named `where` module in an ordinary clause is fine.
-
-plain : Bool
-plain = local
-  module P where
-  local : Bool
-  local = true
-
-test-plain : Bool
-test-plain = P.local
-
--- Anonymous `where` blocks under `with` are unaffected.
-
-anon : Bool → Bool
-anon x with x
-... | true  = aux
-  where
-  aux : Bool
-  aux = false
-... | false = true
 
 -- `using p ← e` does not with-abstract, so it does not restrict
 -- named `where` modules.
@@ -42,3 +21,12 @@ usingCase x using y ← x = q
 
 test-using : Bool → Bool
 test-using x = U.q x
+
+-- Anonoymously named where modules should still be allowed.
+
+foo : Bool
+foo with Set
+foo | _ = b
+  module _ where
+    b : Bool
+    b = true
