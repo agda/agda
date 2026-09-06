@@ -231,6 +231,52 @@ A ``private`` declaration for the parent of an ordinary
 ``where``-block has no effect on the local definitions, of course.
 They are not even in scope.
 
+.. _named-where-under-with:
+
+No named ``where``-modules under ``with`` or ``rewrite``
+--------------------------------------------------------
+
+Since Agda 2.9.0, a clause that uses
+:ref:`with-abstraction <with-abstraction>` --- be it via ``with``,
+:ref:`rewrite <with-rewrite>`, or :ref:`with p ← e <with-invert>` ---
+must not carry a named ``where``-module.  The following is rejected with
+error ``NamedWhereModuleUnderWith``:
+
+.. code-block:: agda
+
+  f : Bool → Bool
+  f x with x
+  ... | true  = local
+    module M where   -- rejected since Agda 2.9.0
+    local = false
+  ... | false = true
+
+The reason is that with-abstraction can change the types of the module
+parameters that ``M`` inherits from its parent module.  Module ``M`` is
+visible outside of the clause, but its telescope then lies about these
+parameters, which is unsound: it allowed a proof of ``⊥``
+(`Issue #8698 <https://github.com/agda/agda/issues/8698>`_).
+
+Ordinary anonymous ``where``-blocks are unaffected by this restriction,
+and so is :ref:`using p ← e <with-using>`, which does not with-abstract
+but introduces a let-binding::
+
+  ok : Bool → Bool
+  ok x with x
+  ... | true  = local
+    where
+    local = false
+  ... | false = true
+
+  ok' : Bool → Bool
+  ok' x using y ← x = local
+    module M' where
+    local = y
+
+If you need to refer to the local definitions from outside the clause,
+define them in a proper module instead, or move the with-abstraction into
+a helper function.
+
 Proving properties
 ==================
 

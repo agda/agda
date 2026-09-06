@@ -200,6 +200,10 @@ Errors
 * Errors `GenericError` and `GenericDocError` have been replaced by more specific errors.
   (Issue [#7225](https://github.com/agda/agda/issues/7225).)
 
+* New error `NamedWhereModuleUnderWith` for named `where`-modules in clauses
+  using with-abstraction; see the entry under _Language_.
+  (Issue [#8698](https://github.com/agda/agda/issues/8698).)
+
 * Generalisation failures due to unresolvable dependencies between a
   generalized variable and unsolved metavariables have new, specific
   errors.
@@ -345,6 +349,27 @@ Language
 --------
 
 Changes to type checker and other components defining the Agda language.
+
+* (**BREAKING**) Named `where`-modules (`module M where`) are no longer
+  allowed in clauses that use with-abstraction, i.e. clauses with `with`,
+  `rewrite`, or `with p ← e`.  Such a clause is now rejected with the new
+  error `NamedWhereModuleUnderWith`:
+  ```agda
+  f : Bool → Bool
+  f x with x
+  ... | true  = local
+    module M where   -- rejected
+    local = false
+  ... | false = true
+  ```
+  With-abstraction can change the types of the module parameters that `M`
+  inherits from its parent module, so the telescope of `M` lies about them.
+  Since `M` is visible outside of the clause, it could then be instantiated
+  with ill-typed arguments, which allowed a proof of `⊥`.
+
+  Ordinary anonymous `where`-blocks are unaffected, and so is
+  `using p ← e`, which does not with-abstract but introduces a let-binding.
+  (Issue [#8698](https://github.com/agda/agda/issues/8698).)
 
 * (**BREAKING**) The pseudo-name `R.constructor`, which refers to the
   constructor of record `R`, is now resolved by the ordinary scope lookup:

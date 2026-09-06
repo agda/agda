@@ -1,0 +1,11 @@
+Issue8698.agda:44.5-19: error: [NamedWhereModuleUnderWith]
+Named 'where' modules are disallowed under 'with' or 'rewrite'
+since Agda 2.9.0
+(See https://github.com/agda/agda/issues/8698.)
+when scope checking the declarations
+  foo with neg b
+  ... | true = true
+  ... | false = false
+    module W where
+      val : F (neg b)
+      val = get

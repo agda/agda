@@ -1,0 +1,8 @@
+Issue3824.agda:19.3-17: error: [NamedWhereModuleUnderWith]
+Named 'where' modules are disallowed under 'with' or 'rewrite'
+since Agda 2.9.0
+(See https://github.com/agda/agda/issues/8698.)
+when scope checking the declaration
+  cast p rewrite a≡b = q
+    module M where
+      q = p

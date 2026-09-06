@@ -210,6 +210,7 @@ data ErrorName
   | ExplicitPolarityVsPragma_
   | ConstructorNameOfNonRecord_
   | NamedWhereModuleInRefinedContext_
+  | NamedWhereModuleUnderWith_
   | NeedOptionAllowExec_
   | NeedOptionCopatterns_
   | NeedOptionCubical_
