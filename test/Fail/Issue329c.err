@@ -1,5 +1,8 @@
+
+Issue329c.agda:5.12-13: warning: -W[no]FixityDeclarationForNonOperator
+Deprecated: fixity declaration for non-operator D
 Issue329c.agda:5.14-24: error: [UnknownNamesInFixityDecl]
 The following names are not declared in the same scope as their
 syntax or fixity declaration (i.e., either not in scope at all,
 imported from another module, or declared in a super module):
-Undeclared
+  Undeclared

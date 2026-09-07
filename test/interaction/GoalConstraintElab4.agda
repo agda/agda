@@ -6,9 +6,9 @@ open import Agda.Builtin.Cubical.Glue
 open import Agda.Builtin.Sigma
 open import Agda.Primitive.Cubical
   renaming
-    ( primIMax to _∨_
-    ; primIMin to _∧_
-    ; primINeg to ~_
+    ( primIMax to infixr 20 _∨_
+    ; primIMin to infixr 20 _∧_
+    ; primINeg to infix  30 ~_
     ; primComp to comp
     ; primHComp to primHComp
     ; primTransp to transp

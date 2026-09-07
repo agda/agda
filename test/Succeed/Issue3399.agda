@@ -1,6 +1,12 @@
 {-# OPTIONS --cubical #-}
+
 module _ where
-open import Agda.Primitive.Cubical renaming (primINeg to ~_; primIMax to _∨_; primIMin to _∧_)
+
+open import Agda.Primitive.Cubical
+  renaming ( primIMin       to infixr 20 _∧_  -- I → I → I
+           ; primIMax       to infixr 20 _∨_  -- I → I → I
+           ; primINeg       to infix  30 ~_   -- I → I
+           )
 open import Agda.Builtin.Cubical.Path
 open import Agda.Builtin.Cubical.Sub
 open import Agda.Builtin.Cubical.Sub using () renaming (Sub to _[_↦_]; primSubOut to outS)

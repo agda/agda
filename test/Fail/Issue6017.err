@@ -1,4 +1,4 @@
-Issue6017.agda:24.1-13: error: [UnequalTerms]
+Issue6017.agda:29.1-13: error: [UnequalTerms]
 The terms
   hcomp {φ = (~ j ∨ j) ∨ ~ i ∨ i} _ _
 and

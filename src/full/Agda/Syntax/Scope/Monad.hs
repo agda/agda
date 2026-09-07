@@ -441,6 +441,7 @@ instance MonadFixityError ScopeM where
   warnUnknownFixityInMixfixDecl       = scopeWarning . UnknownFixityInMixfixDecl
   warnPolarityPragmasButNotPostulates = scopeWarning . PolarityPragmasButNotPostulates
   warnEmptyPolarityPragma             = scopeWarning . EmptyPolarityPragma
+  warnFixityDeclarationForNonOperator r x = scopeWarning $ FixityDeclarationForNonOperator r x
 
 -- | Collect the fixity/syntax declarations and polarity pragmas from the list
 --   of declarations and store them in the scope.
@@ -851,6 +852,17 @@ checkNoFixityInRenamingModule ren = do
     Renaming ImportedModule{} _ mfx _ -> getRange <$> mfx
     _ -> Nothing
 
+-- | Warn about fixity declarations for targets that are non-operators
+--   or closed operators:
+checkNoFixityForClosedOperator :: [C.Renaming] -> ScopeM ()
+checkNoFixityForClosedOperator ren = do
+  forM_ ren \case
+    Renaming (ImportedName _) (ImportedName x) mfx r
+      | Just _ <- mfx, not (isPrePostOrInfixOperator x) -> warnFixityDeclarationForNonOperator r x
+      | otherwise -> pure ()
+    Renaming ImportedModule{} ImportedModule{} _ _ -> pure ()
+    _ -> __IMPOSSIBLE__
+
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
 --
@@ -865,6 +877,12 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
     -- Module names do not come with fixities, thus, we should complain if the
     -- user has supplied fixity annotations to @renaming module@ clauses.
     checkNoFixityInRenamingModule ren'
+
+    -- Andreas, 2026-09-11, issue #1438
+    -- Warn about fixities declared for non- or closed-operators.
+    checkNoFixityForClosedOperator ren'
+    -- TODO (post 2.9.0): purge fixity declarations for closed and non-operators.
+    -- See also 'fixitiesAndPolarities.
 
     -- Andreas, 2020-06-06, issue #4707
     -- Duplicates in @using@ directive are dropped with a warning.

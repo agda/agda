@@ -1,4 +1,5 @@
 {-# OPTIONS --cubical=no-glue --safe --no-sized-types --no-guardedness --no-irrelevance #-}
+{-# OPTIONS -WnoFixityDeclarationForNonOperator #-} -- Andreas, 2026-09-07, issue #1438
 
 module Agda.Primitive.Cubical where
 
@@ -12,6 +13,8 @@ module Agda.Primitive.Cubical where
 {-# COMPILE JS i0 = false #-}
 {-# COMPILE JS i1 = true  #-}
 
+-- Andreas, 2026-09-07, issue #1438
+-- These fixity declarations should go, but it seems that e.g. the cubical library relies on them.
 infix  30 primINeg
 infixr 20 primIMin primIMax
 

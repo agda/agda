@@ -5,7 +5,11 @@
 
 open import Agda.Primitive renaming (Set to Type)
 open import Agda.Primitive.Cubical
-  renaming (primIMax to _∨_ ; primIMin to _∧_ ; primINeg to ~_ ; primTransp to transp)
+  renaming ( primINeg       to infix  30 ~_   -- I → I
+           ; primIMin       to infixr 20 _∧_  -- I → I → I
+           ; primIMax       to infixr 20 _∨_  -- I → I → I
+           ; primTransp     to transp
+           )
 open import Agda.Builtin.Cubical.Sub
   renaming (primSubOut to outS)
 open import Agda.Builtin.Cubical.Path

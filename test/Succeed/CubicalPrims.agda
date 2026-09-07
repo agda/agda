@@ -2,7 +2,12 @@
 module CubicalPrims where
 
 open import Agda.Primitive renaming (_⊔_ to ℓ-max)
-open import Agda.Primitive.Cubical renaming (primIMin to _∧_; primIMax to _∨_; primINeg to ~_; isOneEmpty to empty)
+open import Agda.Primitive.Cubical
+  renaming ( primIMin       to infixr 20 _∧_  -- I → I → I
+           ; primIMax       to infixr 20 _∨_  -- I → I → I
+           ; primINeg       to infix  30 ~_   -- I → I
+           ; isOneEmpty     to empty
+           )
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Cubical.Sub renaming (Sub to _[_↦_]; primSubOut to outS)
 open import Agda.Builtin.Cubical.Path

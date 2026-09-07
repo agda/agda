@@ -42,21 +42,21 @@ private  -- useless
 ---------------------------------------------------------------------------
 -- Similar warnings for other blocks.
 
-postulate A : Set
+postulate A_ : Set
 abstract  -- useless
-  infix 0 A
+  infix 0 A_
 
-postulate I : Set
+postulate I_ : Set
 instance  -- useless
-  infix 0 I
+  infix 0 I_
 
-postulate M : Set
+postulate M_ : Set
 macro  -- useless
-  infix 0 M
+  infix 0 M_
 
-postulate O : Set
+postulate O_ : Set
 opaque  -- useless
-  infix 0 O
+  infix 0 O_
 
 ---------------------------------------------------------------------------
 -- Merging in other test cases for UselessPrivate
