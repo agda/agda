@@ -2,7 +2,7 @@ module _ where
 
 module A where
 
-  infix 0 c
+  infix 0 c  -- warning: -W[no]FixityDeclarationForNonOperator
 
   syntax c x = ⟦ x ⟧
 
@@ -11,7 +11,7 @@ module A where
 
 module B where
 
-  infix 0 c
+  infix 0 c  -- warning: -W[no]FixityDeclarationForNonOperator
 
   syntax c x = ⟦ x ⟧
 

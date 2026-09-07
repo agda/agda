@@ -1,0 +1,36 @@
+
+Issue1438.agda:7.9-10: warning: -W[no]FixityDeclarationForNonOperator
+Deprecated: fixity declaration for non-operator A
+
+Issue1438.agda:11.9-12: warning: -W[no]FixityDeclarationForNonOperator
+Deprecated: fixity declaration for closed operator ⟦_⟧
+
+Issue1438.agda:17.9-10: warning: -W[no]FixityDeclarationForNonOperator
+Deprecated: fixity declaration for non-operator B
+
+Issue1438.agda:24.9-10: warning: -W[no]FixityDeclarationForNonOperator
+Deprecated: fixity declaration for non-operator c
+
+Issue1438.agda:26.45-47: warning: -W[no]FixityDeclarationForNonOperator
+Deprecated: fixity declaration for non-operator zero
+when scope checking the declaration
+  open import Agda.Builtin.Nat renaming (zero to infix 0 zero)
+
+———— All done; warnings encountered ————————————————————————
+
+Issue1438.agda:7.9-10: warning: -W[no]FixityDeclarationForNonOperator
+Deprecated: fixity declaration for non-operator A
+
+Issue1438.agda:11.9-12: warning: -W[no]FixityDeclarationForNonOperator
+Deprecated: fixity declaration for closed operator ⟦_⟧
+
+Issue1438.agda:17.9-10: warning: -W[no]FixityDeclarationForNonOperator
+Deprecated: fixity declaration for non-operator B
+
+Issue1438.agda:24.9-10: warning: -W[no]FixityDeclarationForNonOperator
+Deprecated: fixity declaration for non-operator c
+
+Issue1438.agda:26.45-47: warning: -W[no]FixityDeclarationForNonOperator
+Deprecated: fixity declaration for non-operator zero
+when scope checking the declaration
+  open import Agda.Builtin.Nat renaming (zero to infix 0 zero)

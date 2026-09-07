@@ -580,6 +580,7 @@ warningHighlighting' b w = case tcWarning w of
     EmptyGeneralize{}                -> deadcodeHighlighting w
     EmptyField{}                     -> deadcodeHighlighting w
     EmptyPolarityPragma{}            -> deadcodeHighlighting w
+    FixityDeclarationForNonOperator{}-> deadcodeHighlighting w
     HiddenGeneralize{}               -> mempty
       -- Andreas, 2022-03-25, issue #5850
       -- We would like @deadcodeHighlighting w@ for the braces in

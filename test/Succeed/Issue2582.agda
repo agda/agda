@@ -1,9 +1,9 @@
 {-# OPTIONS --cubical #-}
 
 open import Agda.Primitive.Cubical
-  renaming ( primIMin       to _∧_  -- I → I → I
-           ; primIMax       to _∨_  -- I → I → I
-           ; primINeg       to ~_   -- I → I
+  renaming ( primIMin       to infixr 20 _∧_  -- I → I → I
+           ; primIMax       to infixr 20 _∨_  -- I → I → I
+           ; primINeg       to infix  30 ~_   -- I → I
            )
 
 infix 10 _≡_

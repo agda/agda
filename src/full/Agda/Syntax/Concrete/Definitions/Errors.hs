@@ -113,6 +113,8 @@ data DeclarationWarning'
   | EmptyPrimitive   KwRange  -- ^ Empty @primitive@    block.
   | EmptyPolarityPragma Range
       -- ^ POLARITY pragma without any polarities.
+  | FixityDeclarationForNonOperator Range Name
+      -- ^ A fixity declaration for a closed operator or syntax.
   | HiddenGeneralize Range
       -- ^ A 'Hidden' identifier in a @variable@ declaration.
       --   Hiding has no effect there as generalized variables are always hidden
@@ -213,6 +215,7 @@ declarationWarningName' = \case
   EmptyPostulate                  {} -> EmptyPostulate_
   EmptyPrimitive                  {} -> EmptyPrimitive_
   EmptyPolarityPragma             {} -> EmptyPolarityPragma_
+  FixityDeclarationForNonOperator {} -> FixityDeclarationForNonOperator_
   HiddenGeneralize                {} -> HiddenGeneralize_
   InvalidCatchallPragma           {} -> InvalidCatchallPragma_
   InvalidConstructorBlock         {} -> InvalidConstructorBlock_
@@ -268,6 +271,7 @@ unsafeDeclarationWarning' = \case
   EmptyPostulate{}                  -> False
   EmptyPrimitive{}                  -> False
   EmptyPolarityPragma{}             -> False
+  FixityDeclarationForNonOperator{} -> False
   HiddenGeneralize{}                -> False
   InvalidCatchallPragma{}           -> False
   InvalidConstructorBlock{}         -> False
@@ -384,6 +388,7 @@ instance HasRange DeclarationWarning' where
     EmptyPrimitive kwr                 -> getRange kwr
     EmptyPrivate kwr                   -> getRange kwr
     EmptyPolarityPragma r              -> r
+    FixityDeclarationForNonOperator r _ -> r
     HiddenGeneralize r                 -> r
     InvalidCatchallPragma r            -> r
     InvalidConstructorBlock r          -> r
@@ -556,6 +561,13 @@ instance Pretty DeclarationWarning' where
     EmptyField _ -> fsep $ pwords "Empty field block."
 
     EmptyPolarityPragma _ -> fsep $ pwords "POLARITY pragma without polarities (ignored)."
+
+    FixityDeclarationForNonOperator _r x -> fsep $
+      pwords "Deprecated: fixity declaration for" ++ [d, pretty x]
+      where
+        -- Precondition: x is not an in-, pre- or post-fix operator.
+        d | any isHole (nameParts x) = "closed operator"
+          | otherwise                = "non-operator"
 
     HiddenGeneralize _ -> fsep $ pwords "Declaring a variable as hidden has no effect in a variable block. Generalization never introduces visible arguments."
 

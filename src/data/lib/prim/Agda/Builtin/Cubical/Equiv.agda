@@ -4,9 +4,15 @@ module Agda.Builtin.Cubical.Equiv where
 
 open import Agda.Primitive
 open import Agda.Builtin.Sigma
-open import Agda.Primitive.Cubical renaming (primINeg to ~_; primIMax to _∨_; primIMin to _∧_;
-                                             primHComp to hcomp; primTransp to transp; primComp to comp;
-                                             itIsOne to 1=1)
+open import Agda.Primitive.Cubical
+  renaming ( primINeg       to infix  30 ~_   -- I → I
+           ; primIMin       to infixr 20 _∧_  -- I → I → I
+           ; primIMax       to infixr 20 _∨_  -- I → I → I
+           ; primHComp      to hcomp
+           ; primTransp     to transp
+           ; primComp       to comp
+           ; itIsOne        to 1=1
+           )
 open import Agda.Builtin.Cubical.Path
 open import Agda.Builtin.Cubical.Sub renaming (Sub to _[_↦_])
 import Agda.Builtin.Cubical.HCompU as HCompU

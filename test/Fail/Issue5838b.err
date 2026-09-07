@@ -1,4 +1,4 @@
-Issue5838b.agda:219.1-7: error: [UnequalTerms]
+Issue5838b.agda:216.1-7: error: [UnequalTerms]
 The terms
   false
 and

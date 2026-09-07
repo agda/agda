@@ -1,4 +1,5 @@
 {-# OPTIONS --safe --save-metas #-}
+
 module Issue7354.A where
 
 open import Agda.Primitive        public
@@ -10,7 +11,6 @@ record Underlying {ℓ : Level} (T : Set ℓ) : Setω where
     ℓ-underlying : Level
     ⌞_⌟⁰         : T → Set ℓ-underlying
 
-infixr 6 Σ-syntax-und
 Σ-syntax-und
   : ∀{ℓ ℓ' : Level}{A : Set ℓ}{{d : Underlying {ℓ} A }}
     (X : A) (F : Underlying.⌞_⌟⁰ {ℓ} d X → Set ℓ')
