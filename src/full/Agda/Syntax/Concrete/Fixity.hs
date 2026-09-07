@@ -196,7 +196,13 @@ fixitiesAndPolarities' = foldMap $ \case
   Pragma          {}  -> mempty
   Unfolding       {}  -> mempty
 
-data DeclaredNames = DeclaredNames { _allNames, _postulates, _privateNames :: Set Name }
+data DeclaredNames = DeclaredNames
+  { _allNames     :: Set Name
+  , _postulates   :: Set Name
+      -- ^ Subset of postulates within '_allNames'.
+  , _privateNames :: Set Name
+      -- ^ Subset of private names within '_allNames'.
+  }
 
 instance Semigroup DeclaredNames where
   DeclaredNames xs ps as <> DeclaredNames ys qs bs =
@@ -206,11 +212,15 @@ instance Monoid DeclaredNames where
   mempty  = DeclaredNames Set.empty Set.empty Set.empty
   mappend = (<>)
 
+-- | Mark all declared names as postulates.
 allPostulates :: DeclaredNames -> DeclaredNames
-allPostulates (DeclaredNames xs ps as) = DeclaredNames xs (xs <> ps) as
+allPostulates (DeclaredNames xs _ps as) = DeclaredNames xs xs as
+  -- Note that @_ps@ is a subset of @xs@ so we can discard it.
 
+-- | Mark all declared names as private.
 allPrivateNames :: DeclaredNames -> DeclaredNames
-allPrivateNames (DeclaredNames xs ps as) = DeclaredNames xs ps (xs <> as)
+allPrivateNames (DeclaredNames xs ps _as) = DeclaredNames xs ps xs
+  -- Note that @_as@ is a subset of @xs@ so we can discard it.
 
 declaresNames :: [Name] -> DeclaredNames
 declaresNames xs = DeclaredNames (Set.fromList xs) Set.empty Set.empty
