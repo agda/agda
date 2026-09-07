@@ -1,5 +1,12 @@
 -- Smaller reproduction of the issue in #6198.
 --
+-- The windingConst and windingConstU below demonstrate canonicity
+-- failures before the fix in PR #8719 (see 55fc183df4e9), with terms
+-- that should reduce to booleans instead being stuck hcomps.
+--
+-- Placed here in examples/ because at least the second part
+-- (windingConstU) is quite slow to typecheck...
+--
 -- The preamble (a self-contained fragment of the cubical library) is
 -- taken from test/Fail/Issue5838.agda.
 
