@@ -39,6 +39,7 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 
 import Agda.Interaction.Options
+import Agda.TypeChecking.Reduce (instantiate)
 
 -- * Bidirectional rechecker
 
@@ -346,6 +347,12 @@ checkSpine action a hd es cmp t = do
     , prettyTCM t'
     , "is a subtype of"
     , prettyTCM t
+    ]
+  reportSDoc "tc.check.internal" 70 $ sep
+    [ "checking if (raw)"
+    , pretty =<< instantiate t'
+    , "is a subtype of (raw)"
+    , pretty =<< instantiate t
     ]
   coerceSize cmp (hd es) t' t
   return $ hd es'
