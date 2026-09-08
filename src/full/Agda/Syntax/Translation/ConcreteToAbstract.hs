@@ -3331,10 +3331,26 @@ scopeCheckDef warn x = do
     failure = Nothing <$ do warning $ warn x
     ret = return . Just
 
+-- | Does this left-hand side equation trigger a with-abstraction?
+--   @using p <- e@ does not, it merely introduces a let-binding.
+withAbstractingEqn :: RewriteEqn' qn nm p e -> Bool
+withAbstractingEqn = \case
+  Rewrite{} -> True   -- @rewrite e@
+  Invert{}  -> True   -- @with p <- e in eq@
+  LeftLet{} -> False  -- @using p <- e@
+
 instance ToAbstract C.Clause where
   type AbsOfCon C.Clause = A.Clause
 
   toAbstract (C.Clause top catchall ai lhs@(C.LHS p eqs with) rhs wh wcs) = withLocalVars $ do
+    -- Andreas, 2026-09-06, issue #8698:
+    -- Establish the invariant of 'RightHandSide':
+    -- no named @where@ module under @with@ or @rewrite@.
+    -- The @where@ clause of a @rewrite@ clause is passed on to 'RightHandSide',
+    -- whereas for @with@ it is the with-subclauses that carry the @where@ clause.
+    when (not (null with) || any withAbstractingEqn eqs) do
+      mapM_ rejectNamedWhereUnderWith $ wh : map (\ (C.Clause _ _ _ _ _ wh' _) -> wh') wcs
+
     -- Jesper, 2018-12-10, #3095: pattern variables bound outside the
     -- module are locally treated as module parameters
     modifyScope $ updateScopeLocals $ map $ second patternToModuleBound
@@ -3360,6 +3376,18 @@ instance ToAbstract C.Clause where
                        toAbstractCtx TopCtx $ RightHandSide [] with wcs' rhs NoWhere
         rhs <- toAbstract rhs
         return $ A.Clause lhs' [] rhs ds catchall
+    where
+      -- Andreas, 2026-09-06, issue #8698.
+      -- Reject a named @where@ module (@module M where@) in a @with@ or @rewrite@
+      -- clause.  With-abstraction can change the types of the module parameters
+      -- inherited by @M@, so instantiating @M@ from outside is unsound.
+      rejectNamedWhereUnderWith :: C.WhereClause -> ScopeM ()
+      rejectNamedWhereUnderWith = \case
+        SomeWhere r _ x _ _
+          | isUnderscore x -> return ()
+          | otherwise      -> setCurrentRange r $ typeError NamedWhereModuleUnderWith
+        AnyWhere{}         -> return ()
+        NoWhere            -> return ()
 
 
 whereToAbstract
@@ -3468,13 +3496,22 @@ checkNoTerminationPragma b ds =
       C.NotProjectionLikePragma _ _ -> []
       C.OverlapPragma _ _ _         -> []
 
+-- | The right-hand side of a clause, before scope checking.
+--
+--   Invariant (issue #8698): if this is a @with@ or @rewrite@ clause,
+--   i.e. if @_rhsWithExpr@ is not 'null' or @_rhsRewriteEqn@ contains a
+--   'withAbstractingEqn', then neither @_rhsWhere@ nor the @where@ clause of
+--   any of the @_rhsSubclauses@ is a named @where@ module ('SomeWhere').
+--   This is established by 'toAbstract' for 'C.Clause', the only producer of
+--   'RightHandSide', which otherwise throws 'NamedWhereModuleUnderWith'.
+--
 data RightHandSide = RightHandSide
   { _rhsRewriteEqn :: [RewriteEqn' () A.BindName A.Pattern A.Expr]
-    -- ^ @rewrite e | with p <- e in eq@ (many)
+      -- ^ @rewrite e | with p <- e in eq@ (many).
   , _rhsWithExpr   :: [C.WithExpr]
-    -- ^ @with e@ (many)
+      -- ^ @with e@ (many).
   , _rhsSubclauses :: (LocalVars, [C.Clause])
-    -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
+      -- ^ the subclauses spawned by a @with@.
   , _rhs           :: C.RHS
   , _rhsWhere      :: WhereClause
       -- ^ @where@ module.

@@ -5861,6 +5861,9 @@ data TypeError
         | NamedWhereModuleInRefinedContext [Term] [String]
             -- ^ The lists should have the same length.
             --   TODO: enforce this by construction.
+        | NamedWhereModuleUnderWith
+            -- ^ A named @where@ module in a @with@ or @rewrite@ clause.
+            --   Disallowed since Agda 2.9.0, see issue #8698.
         | ComatchingDisabledForRecord QName
     -- Rewriting errors
         | IlltypedRewriteRule Doc
