@@ -838,8 +838,6 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
           modifySession lensModuleToSourceId $ Map.insert x file
           pure file
 
-      stFileId `setTCLens'` Strict.Just (srcFileId file)
-
       reportSDoc "import.iface" 15 do
         path <- srcFilePath file
         P.text $ List.intercalate "\n" $ map ("  " ++)
