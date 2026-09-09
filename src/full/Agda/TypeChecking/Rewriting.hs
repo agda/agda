@@ -549,14 +549,11 @@ rewrite block hd rules es = do
         , "blocking tag" <+> text (show block)
         ]) $ do
       return $ NoReduction $ block $> hd es
-    loop block t (rew:rews) es
-     | let n = rewArity rew, length es >= n = do
-          let (es1, es2) = List.genericSplitAt n es
-          result <- rewriteWith t hd rew es1
-          case result of
-            Left (Blocked m u)    -> loop (block `mappend` Blocked m ()) t rews es
-            Left (NotBlocked _ _) -> loop block t rews es
-            Right w               -> return $ YesReduction YesSimplification $ w `applyE` es2
-     | otherwise = loop (block `mappend` NotBlocked Underapplied ()) t rews es
+    loop block t (rew:rews) es = do
+      let (es1, es2) = List.genericSplitAt (rewArity rew) es
+      result <- rewriteWith t hd rew es1
+      case result of
+        Left  b -> loop (block `mappend` (b $> ())) t rews es
+        Right w -> return $ YesReduction YesSimplification $ w `applyE` es2
 
     rewArity = length . rewPats
