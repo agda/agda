@@ -639,6 +639,7 @@ library
       Agda.Interaction.Response
       Agda.Interaction.Response.Base
       Agda.Interaction.SearchAbout
+      Agda.Lemmings.Lemmings
       Agda.Main
       Agda.Mimer.Mimer
       Agda.Mimer.Monad
