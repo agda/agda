@@ -661,6 +661,11 @@ Backends
 * The JS backend's CJS & AMD module styles are now deprecated.
   Please use ES6 module style instead (`--js-es6`).
 
+* The JS backend now compiles constructors to string-tagged arrays.
+  This change is **breaking** for hand-written JS code relying on the previous Scott-Encoding.
+  Constructors for types with `COMPILE JS` pragmas are not affected.
+  (see [#8720](https://github.com/agda/agda/pull/8720))
+
 Issues closed
 -------------
 

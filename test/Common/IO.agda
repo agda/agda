@@ -37,7 +37,7 @@ postulate
 {-# COMPILE GHC putStr = Data.Text.IO.putStr #-}
 {-# COMPILE UHC putStr = UHC.Agda.Builtins.primPutStr #-}
 {-# COMPILE JS putStr = function (x) { return function(cb) { process.stdout.write(x); cb(0); }; } #-}
-
+-- Lawrence 2026-08: the cb(0) in this COMPILE JS pragma is unsafe, since 0 is a Float, not a Unit
 
 printChar : Char -> IO Unit
 printChar c = putStr (charToStr c)
