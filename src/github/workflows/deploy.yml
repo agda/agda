@@ -47,9 +47,9 @@ jobs:
       # ASR (2022-06-01): The flag `--enable-split-sections` generates the warning
       # "-split-sections is not useful on this platform since it always uses subsections via symbols"
       # on MacOS (Issue #5940).
-      LINUX_ARGS: "--flags=optimise-heavily --flags=version-with-git-hash --enable-executable-static  --enable-split-sections"
-      MACOS_ARGS: "--flags=optimise-heavily --flags=version-with-git-hash"
-      WIN64_ARGS: "--flags=optimise-heavily --flags=version-with-git-hash --enable-split-sections"
+      LINUX_ARGS: "--flags=optimise-heavily --enable-executable-static  --enable-split-sections"
+      MACOS_ARGS: "--flags=optimise-heavily"
+      WIN64_ARGS: "--flags=optimise-heavily --enable-split-sections"
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -57,7 +57,7 @@ jobs:
     - name: Check out the master branch
       uses: actions/checkout@v7
 
-    - name: Set up platform-dependent variables
+    - name: Set up build variables
       id: vars
       # We would like to disable SC2129 "Consider using { cmd1; cmd2; } >> file"
       # for the entire script but just placing it in the beginning does not work.
@@ -103,6 +103,10 @@ jobs:
 
         else
           exit 1
+        fi
+
+        if [[ "${GITHUB_REF}" != refs/tags/v[2-9].* ]]; then
+          args="${args} --flags=version-with-git-hash"
         fi
 
         echo args="${args}"                  >> "${GITHUB_OUTPUT}"
