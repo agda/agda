@@ -875,14 +875,14 @@ checkAbsurdLambda cmp i h e t =
   t <- instantiateFull t
   ifBlocked t (\ blocker t' -> postponeTypeCheckingProblem (CheckExpr cmp e t') blocker) $ \ _ t' -> do
     case unEl t' of
-      Pi dom@(unDom -> a) b -> do
-        let info' = dom ^. dInfo
+      Pi a b -> do
+        let info' = a ^. dInfo
         if not (sameHiding h info') then
           typeError $ WrongHidingInLambda t'
         else blockTerm t' $ do
           ensureEmptyType (getRange i) a
           -- Add helper function
-          aux <- makeAbsurdLambda (getRange i) dom b
+          aux <- makeAbsurdLambda (getRange i) a b
           -- Andreas 2012-01-30: since aux is lifted to toplevel
           -- it needs to be applied to the current telescope (issue 557)
           Def aux . map' Apply . teleArgs <$> getContextTelescope

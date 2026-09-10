@@ -1703,7 +1703,7 @@ data Constraint
     -- ^ Meta created for a term blocked by a postponed type checking problem or unsolved
     --   constraints. The 'MetaInstantiation' for the meta (when unsolved) is either 'BlockedConst'
     --   or 'PostponedTypeCheckingProblem'.
-  | IsEmpty Range Type
+  | IsEmpty Range (Dom Type)
     -- ^ The range is the one of the absurd pattern.
   | CheckSizeLtSat Term
     -- ^ Check that the 'Term' is either not a SIZELT or a non-empty SIZELT.

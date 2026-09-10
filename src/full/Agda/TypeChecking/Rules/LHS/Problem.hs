@@ -214,7 +214,7 @@ problemInPats = map problemInPat . (^. problemEqs)
 
 data AsBinding = AsB Name Term (Dom Type)
 data DotPattern = Dot A.Expr Term (Dom Type)
-data AbsurdPattern = Absurd Range Type
+data AbsurdPattern = Absurd Range (Dom Type)
 data AnnotationPattern = Ann A.Expr Type
 
 -- | State worked on during the main loop of checking a lhs.
@@ -342,7 +342,7 @@ getLeftoverPatterns eqs = do
       (A.AsP info A.BindName{unBind = x} p)  -> (asPattern x v a `mappend`) <$> do
         getLeftoverPattern isParamName $ ProblemEq p v a
       (A.DotP info e)   -> return $ dotPattern e v a
-      (A.AbsurdP info)  -> return $ absurdPattern (getRange info) (unDom a)
+      (A.AbsurdP info)  -> return $ absurdPattern (getRange info) a
       _                 -> return $ otherPattern p
 
       where
