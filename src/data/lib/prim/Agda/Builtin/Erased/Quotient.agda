@@ -8,7 +8,8 @@
 -- HIT in the cubical library, due to Zesen Qian and Anders Mörtberg.
 
 {-# OPTIONS --cubical-compatible --safe --no-sized-types
-            --no-guardedness --level-universe --erased-quotients #-}
+            --no-guardedness --level-universe --erased-quotients
+            --erased-matches=none #-}
 
 module Agda.Builtin.Erased.Quotient where
 

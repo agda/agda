@@ -3,7 +3,8 @@
 ------------------------------------------------------------------------
 
 {-# OPTIONS --cubical-compatible --safe --no-sized-types
-            --no-guardedness --level-universe --erased-funext #-}
+            --no-guardedness --level-universe --erased-funext
+            --erased-matches=none #-}
 
 module Agda.Builtin.Erased.Funext where
 

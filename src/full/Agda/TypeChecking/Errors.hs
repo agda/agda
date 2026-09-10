@@ -73,6 +73,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce (instantiate)
 
 import Agda.Interaction.Library.Base (formatLibErrors, libFile)
+import qualified Agda.Interaction.Options.Base as Opts
 
 import Agda.Utils.AssocList qualified as AssocList
 import Agda.Utils.FileName
@@ -2057,12 +2058,19 @@ instance PrettyTCM SplitError where
       pwords "Cannot branch on erased argument of datatype" ++
       [prettyTCM t] ++
       case reason of
-        NoErasedMatches ->
-          pwords "because the option --erased-matches is not active"
-        NoK ->
-          pwords "because the K rule is turned off"
+        ErasedMatchesDisabledEmpty ->
+          explanation "empty"
+        ErasedMatchesDisabledNonDependent ->
+          explanation "non-dependent"
+        ErasedMatchesDisabledDependent ->
+          explanation "unrestricted"
         SeveralConstructors ->
           []
+      where
+      explanation arg =
+        pwords "because the option" ++
+        pwords ("--erased-matches=" ++ arg) ++
+        pwords "is not active"
 
     CoinductiveDatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot pattern match on the coinductive type" ++ [prettyTCM t]

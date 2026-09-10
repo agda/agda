@@ -39,6 +39,8 @@ dataFiles =
   , "lib/prim/Agda/Builtin/Equality.agda"
   , "lib/prim/Agda/Builtin/Equality/Erase.agda"
   , "lib/prim/Agda/Builtin/Equality/Rewrite.agda"
+  , "lib/prim/Agda/Builtin/Erased/Box-cong.agda"
+  , "lib/prim/Agda/Builtin/Erased/Erased.agda"
   , "lib/prim/Agda/Builtin/Erased/Funext.agda"
   , "lib/prim/Agda/Builtin/Erased/Propext.agda"
   , "lib/prim/Agda/Builtin/Erased/Quotient.agda"

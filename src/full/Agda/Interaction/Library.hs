@@ -187,6 +187,8 @@ builtinModulesWithSafePostulates =
     , "Cubical" </> "Sub.agda"
     , "Equality" </> "Erase.agda"
     , "Equality.agda"
+    , "Erased" </> "Box-cong.agda"
+    , "Erased" </> "Erased.agda"
     , "Erased" </> "Funext.agda"
     , "Erased" </> "Propext.agda"
     , "Erased" </> "Quotient.agda"

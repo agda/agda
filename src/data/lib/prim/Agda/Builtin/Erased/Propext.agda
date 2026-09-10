@@ -3,7 +3,8 @@
 ------------------------------------------------------------------------
 
 {-# OPTIONS --cubical-compatible --safe --no-sized-types
-            --no-guardedness --level-universe --erased-propext #-}
+            --no-guardedness --level-universe --erased-propext
+            --erased-matches=none #-}
 
 module Agda.Builtin.Erased.Propext where
 

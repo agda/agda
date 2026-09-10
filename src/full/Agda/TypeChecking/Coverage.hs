@@ -1374,8 +1374,8 @@ split' checkEmpty ind allowPartialCover inserttrailing
 
   mHCompName <- getPrimitiveName' builtinHComp
   opts       <- pragmaOptions
-  let withoutK        = optWithoutK opts
-      erasedMatches   = optErasedMatches opts
+  builtin    <- currentModuleIsBuiltinModuleWithSafePostulates
+  let erasedMatches   = optErasedMatches opts
       isRecordWithEta = case dr of
         IsData       -> False
         IsRecord r ->
@@ -1385,11 +1385,23 @@ split' checkEmpty ind allowPartialCover inserttrailing
 
   erased <- hasQuantity0 <$> viewTC eQuantity
   reportSLn "tc.cover.split" 60 $ "We are in erased context = " ++! show erased
+  reportSDoc "tc.cover.split" 60 $ vcat
+    [ "Allowed erased matches:"
+    , "* Empty:        " <+> text (show (emEmpty erasedMatches))
+    , "* Non-dependent:" <+> text (show (emNonDependent erasedMatches))
+    , "* Restricted:   " <+> text (show (emRestricted erasedMatches))
+    , "* Unrestricted: " <+> text (show (emUnrestricted erasedMatches))
+    ]
   let erasedError reason =
         throwError . ErasedDatatype reason =<<
           do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
   case numMatching of
+    -- A disallowed erased match for an empty type.
+    0 | not erased && not (usableQuantity t) &&
+        not (emEmpty erasedMatches) ->
+      erasedError ErasedMatchesDisabledEmpty
+
     0  -> do
       let absurdp = VarP (PatternInfo PatOAbsurd []) $ SplitPatVar underscore 0 []
           rho = liftS x $ consS absurdp $ raiseS 1
@@ -1406,13 +1418,35 @@ split' checkEmpty ind allowPartialCover inserttrailing
     n | n > 1 && not erased && not (usableQuantity t) ->
       erasedError SeveralConstructors
 
-    -- If exactly one constructor matches and the K rule is turned
-    -- off, then we only allow erasure for non-indexed data/record
-    -- types (#4172). If the type is not a record type with
-    -- η-equality, then the flag --erased-matches must be active.
-    1 | not erased && not (usableQuantity t) && withoutK &&
-        (isIndexed || not isRecordWithEta && not erasedMatches) ->
-      erasedError (if isIndexed then NoK else NoErasedMatches)
+    -- Exactly one constructor matches, the argument is erased, and
+    -- run-time mode is active. This is disallowed (#4172) unless
+    --
+    -- ∗ the type is a (non-indexed) record type with η-equality, or
+    --
+    -- ∗ the type is non-indexed and erased matches are allowed for
+    --   single-constructor, non-indexed data types, or
+    --
+    -- ∗ the type is indexed and erased matches are allowed for
+    --   single-constructor, indexed data types, or
+    --
+    -- ∗ the type is indexed, []-cong is allowed, and the module
+    --   currently being type-checked is a builtin module that allows
+    --   safe postulates. (One could restrict this further to just the
+    --   module @Agda.Builtin.Erased.Box-cong@.)
+    --
+    -- In the case where the type is indexed the error message only
+    -- refers to @--erased-matches=unrestricted@ because
+    -- @--erased-matches=restricted@ is only useful in builtin
+    -- modules.
+    1 | not erased && not (usableQuantity t) &&
+        not (not isIndexed && (isRecordWithEta ||
+                               emNonDependent erasedMatches) ||
+             isIndexed && emUnrestricted erasedMatches ||
+             isIndexed && emRestricted erasedMatches && builtin) ->
+      erasedError $
+      if isIndexed
+      then ErasedMatchesDisabledDependent
+      else ErasedMatchesDisabledNonDependent
 
     _ -> do
 
