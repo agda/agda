@@ -39,7 +39,7 @@ jobs:
         cabal-ver: [latest]
 
     env:
-      ARGS: "--disable-executable-profiling --disable-library-profiling --flags=use-xdg-data-home"
+      ARGS: "--disable-executable-profiling --disable-library-profiling --flags=use-xdg-data-home --constraint='zlib +bundled-c-zlib'"
       # Liang-Ting Chen (2021-01-01):
       # Cabal cannot compile statically with text-icu (required by the flag `enable-cluster-counting`),
       # see https://github.com/4e6/text-icu-static-example
@@ -258,7 +258,7 @@ jobs:
         exe=$(basename "${exepath}")
         cp "${exepath}" "${bindist}/"
         strip "${bindist}/${exe}"
-        file "${bindist}/agda"
+        file "${bindist}/${exe}"
 
     - name: Pack artefacts
       run: |
@@ -326,6 +326,28 @@ jobs:
     - name: Unpack artifacts
       run: |
         ${{ steps.vars.outputs.decompress_cmd }}
+
+    - name: Install dependency inspection tools (Windows)
+      if: ${{ runner.os == 'Windows' }}
+      shell: pwsh
+      run: |
+        $env:PATH = "C:\msys64\usr\bin;$env:PATH"
+        pacman -v --noconfirm -S --needed mingw-w64-x86_64-binutils
+
+    - name: Display dynamic library dependencies
+      run: |
+        case "${{ runner.os }}" in
+          macOS)
+            otool -L ./agda
+            ;;
+          Windows)
+            /c/msys64/mingw64/bin/objdump.exe -p ./agda.exe | awk '/DLL Name:/ { print }'
+            ;;
+          Linux)
+            # Unlike ldd, readelf also succeeds for a fully static executable.
+            readelf -d ./agda
+            ;;
+        esac
 
     - name: Run `agda --setup`
 # Liang-Ting Chen (2025-06-21): Agda is currently not notarized on macOS, so
