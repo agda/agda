@@ -1344,8 +1344,8 @@ Erasure
 
      Enables use of `Agda.Builtin.Erased.Funext`. This module contains
      an erased postulate of function extensionality. The idea is that
-     it should be safe to use this postulate (in the absence of any
-     Agda bugs):
+     it should be safe to use this postulate (under :option:`--safe`
+     and in the absence of any Agda bugs):
 
      * If `--erased-matches` is not used, then canonicity should hold
        for non-erased terms (if all opaque definitions are made
