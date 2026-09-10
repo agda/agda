@@ -167,7 +167,8 @@ Pragmas and options
   `--erased-funext`.
 
   These modules contain erased postulates. The idea is that it should
-  be safe to use these postulates (in the absence of any Agda bugs):
+  be safe to use these postulates (under `--safe` and in the absence
+  of any Agda bugs):
 
   * If `--erased-matches` is not used, then canonicity should hold for
     non-erased terms (if all opaque definitions are made transparent,
