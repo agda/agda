@@ -46,17 +46,20 @@ instance Monoid ErrorNonEmpty where
 -- | Ensure that a type is empty.
 --   This check may be postponed as emptiness constraint.
 ensureEmptyType
-  :: Range -- ^ Range of the absurd pattern.
-  -> Type  -- ^ Type that should be empty (empty data type or iterated product of such).
+  :: Range
+     -- ^ Range of the absurd pattern.
+  -> Dom Type
+     -- ^ Type that should be empty (empty data type or iterated
+     --   product of such).
   -> TCM ()
 ensureEmptyType r t = caseEitherM (checkEmptyType r t) failure return
   where
   failure (DontKnow u)      = addConstraint u $ IsEmpty r t
   failure (FailBecause err) = throwError err
-  failure Fail              = typeError $ ShouldBeEmpty t []
+  failure Fail              = typeError $ ShouldBeEmpty (unDom t) []
 
 -- | Check whether a type is empty.
-isEmptyType :: MonadTCM tcm => Type -> tcm Bool
+isEmptyType :: MonadTCM tcm => Dom Type -> tcm Bool
 isEmptyType ty = liftTCM $ isRight <$> checkEmptyType noRange ty
 
 -- | Check whether some type in a telescope is empty.
@@ -65,9 +68,9 @@ isEmptyTel tel = liftTCM $ isRight <$> checkEmptyTel noRange tel
 
 -- Either the type is possibly non-empty (Left err) or it is really empty
 -- (Right ()).
-checkEmptyType :: Range -> Type -> TCM (Either ErrorNonEmpty ())
-checkEmptyType range t = do
-  mr <- tryRecordType t
+checkEmptyType :: Range -> Dom Type -> TCM (Either ErrorNonEmpty ())
+checkEmptyType range t0 = do
+  mr <- tryRecordType (unDom t0)
   case mr of
 
     -- If t is blocked or a meta, we cannot decide emptiness now.  Postpone.
@@ -78,7 +81,9 @@ checkEmptyType range t = do
       -- from the current context xs:ts, create a pattern list
       -- xs _ : ts t and try to split on _ (the last variable)
       tel0 <- getContextTelescope
-      let gamma = telToList tel0 ++ [domFromArg $ defaultArg (underscore, t)]
+      let gamma = telToList tel0 ++
+                  -- Do not forget the original 'DomInfo' (see #8744).
+                  [(underscore, t) <$ t0]
           tel   = telFromList gamma
           ps    = teleNamedArgs tel
 
@@ -106,6 +111,6 @@ checkEmptyTel r = loop 0
   where
   loop i EmptyTel            = return $ Left Fail
   loop i (ExtendTel dom tel) = orEitherM
-    [ (i <$) <$> checkEmptyType r (unDom dom)
+    [ (i <$) <$> checkEmptyType r dom
     , underAbstraction dom tel $ loop (succ i)
     ]

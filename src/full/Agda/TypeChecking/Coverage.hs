@@ -1309,7 +1309,8 @@ split' checkEmpty ind allowPartialCover inserttrailing
         (dr, d, s, pars, ixs, cons', isHIT) <- inContextOfT $ isDatatype ind t
         isFib <- fromRight (const False) <$> lift (isFibrant' t)
         cons <- case checkEmpty of
-          CheckEmpty   -> ifM (liftTCM $ inContextOfT $ isEmptyType $ unDom t) (pure []) (pure cons')
+          CheckEmpty   -> ifM (liftTCM $ inContextOfT $ isEmptyType t)
+                            (pure []) (pure cons')
           NoCheckEmpty -> pure cons'
         mns  <- forM cons $ \ con -> fmap (SplitCon con,) <$>
           computeNeighbourhood delta1 n delta2 d pars ixs x tel ps cps con
