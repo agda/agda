@@ -486,7 +486,7 @@ instance Reify Constraint where
     <*> forM (fromMaybe [] mcands) (\ (Candidate q tm ty _) -> do
           (,,) <$> reify tm <*> reify tm <*> reify ty)
   reify (ResolveInstanceHead kwr q) = return $ ResolveInstanceOF q
-  reify (IsEmpty r a) = IsEmptyType <$> reify a
+  reify (IsEmpty r a) = IsEmptyType <$> reify (unDom a)
   reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
   reify (CheckFunDef i q cs err) = do
     a <- reify =<< defType <$> getConstInfo q
@@ -678,7 +678,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         UnBlock{}                  -> Nothing
         FindInstance{}             -> Nothing
         ResolveInstanceHead{}      -> Nothing
-        IsEmpty r t                -> isMeta (unEl t)
+        IsEmpty r t                -> isMeta (unEl (unDom t))
         CheckSizeLtSat t           -> isMeta t
         CheckFunDef{}              -> Nothing
         HasBiggerSort a            -> Nothing

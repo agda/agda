@@ -490,7 +490,7 @@ tryComponents goal goalType branch comps = withBranchAndGoal branch goal $ do
 tryLamAbs :: Goal -> Type -> SearchBranch -> SM (Either SearchBranch (Goal, Type, SearchBranch))
 tryLamAbs goal goalType branch =
   case unEl goalType of
-    Pi dom abs -> isEmptyType (unDom dom) >>= \case
+    Pi dom abs -> isEmptyType dom >>= \case
       True -> do
         reportSDoc "mimer.lam" 40 $ "Trying absurd lambda for pi type" <+> prettyTCM goalType
         f <- liftTCM $ makeAbsurdLambda noRange dom abs
