@@ -325,8 +325,9 @@ getDefType f t = do
       let npars | n == 0    = __IMPOSSIBLE__
                 | otherwise = n - 1
       reportSLn "tc.deftype" 20 $ "projIndex    = " ++ show n
-      -- we get the parameters from type @t@
-      instantiate (unEl t) >>= \case
+      -- Andreas, 2026-09-05: note that @t@ is reduced by precondition,
+      -- but its violation caused issue #8532.
+      case unEl t of
         Def d es -> do
           -- Andreas, 2013-10-22
           -- we need to check this @Def@ is fully reduced.
@@ -387,7 +388,7 @@ shouldBeProjectible v t o f = do
 projectTyped
   :: PureTCM m
   => Term        -- ^ Head (record value).
-  -> Type        -- ^ Its type.
+  -> Type        -- ^ Its type (reduced!).
   -> ProjOrigin
   -> QName       -- ^ Projection.
   -> m (Maybe (Dom Type, Term, Type))

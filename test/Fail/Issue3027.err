@@ -1,0 +1,7 @@
+Issue3027.agda:43.13-17: error: [UnequalTerms]
+The terms
+  f false 1
+and
+  zero
+are not equal at type Nat
+when checking that the expression refl has type ?X 1 ≡ D 0

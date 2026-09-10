@@ -5,7 +5,7 @@ Installation
 ************
 
 .. hint:: If you want a sneak peek of Agda without installing it, try the
-  `Agda Pad <https://agdapad.quasicoherent.io/>`_.
+  `Agda Pad <https://agdapad.quasicoherent.io/>`_ or the `Agda Web <https://agda-web.github.io>`_.
 
 .. hint:: This documentation is for first-time Agda users.
     More advanced "do it yourself" instructions can be found in the Agda repo's
