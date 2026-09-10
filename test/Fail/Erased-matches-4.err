@@ -1,0 +1,3 @@
+Erased-matches-4.agda:5.7-9: error: [AttributeKindNotEnabled]
+Erasure attributes have not been enabled (use --erasure to enable
+them): 0

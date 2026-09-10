@@ -145,7 +145,6 @@ module Agda.Interaction.Options.Base
     , optForcing
     , optProjectionLike
     , optErasure
-    , optErasedMatches
     , optEraseRecordParameters
     , optRewriting
     , optLocalRewriting
@@ -185,6 +184,7 @@ module Agda.Interaction.Options.Base
     -- * Non-boolean accessors to 'PragmaOptions'
     , optConfluenceCheck
     , optCubical
+    , optErasedMatches
     , optInstanceSearchDepth
     , optInversionMaxDepth
     , optProfiling
@@ -198,7 +198,7 @@ module Agda.Interaction.Options.Base
 import Prelude hiding ( null, not, (&&), (||) )
 
 import Control.DeepSeq
-import Control.Monad        ( (>=>), when, void )
+import Control.Monad        ( when, void )
 import Control.Monad.Except ( ExceptT, MonadError(throwError), runExceptT )
 import Control.Monad.Writer ( Writer, runWriter, MonadWriter(..) )
 
@@ -233,7 +233,8 @@ import Agda.Interaction.Options.Types
 import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) )
-import Agda.Syntax.Common (Cubical(..))
+import qualified Agda.Syntax.Common as C
+import Agda.Syntax.Common (AllowedErasedMatches, Cubical(..))
 import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Position (PrintRange(PrintRange))
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
@@ -243,8 +244,8 @@ import qualified Agda.Setup.EmacsMode as EmacsMode
 import Agda.Utils.Boolean
 import Agda.Utils.Function      ( applyWhen, applyUnless )
 import Agda.Utils.Functor       ( (<&>) )
-import Agda.Utils.Lens          ( Lens', (^.), over, set )
-import Agda.Utils.List          ( headWithDefault, initLast1 )
+import Agda.Utils.Lens          ( Lens', (^.), over, over', set )
+import Agda.Utils.List          ( chopWhen, headWithDefault, initLast1 )
 import Agda.Utils.List1         ( List1, pattern (:|), toList )
 import qualified Agda.Utils.List1        as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
@@ -275,12 +276,18 @@ data ImpliedPragmaOption where
 impliedPragmaOptions :: [ImpliedPragmaOption]
 impliedPragmaOptions =
   [ ("erase-record-parameters", _optEraseRecordParameters) ==> ("erasure",                          _optErasure)
-  , ("erased-matches",          _optErasedMatches)         ==> ("erasure",                          _optErasure)
   , ("experimental-irrelevance", _optExperimentalIrrelevance) ==> ("irrelevance",                   _optIrrelevance)
   , ("flat-split",              _optFlatSplit)             ==> ("cohesion",                         _optCohesion)
   , ("irrelevant-projections",  _optIrrelevantProjections) ==> ("irrelevance",                      _optIrrelevance)
   , ("no-load-primitives",      _optLoadPrimitives)        ==> ("no-import-sorts",                  _optImportSorts)
   , ("lossy-unification",       _optFirstOrder)            ==> ("no-require-unique-meta-solutions", _optRequireUniqueMetaSolutions)
+  , ImpliesPragmaOption
+      "erased-matches (with a different argument than \"=none\")" True
+      (\opts -> case _optErasedMatches opts of
+          C.ErasedMatchesDefault   -> Default
+          C.ErasedMatchesDefaultOn -> Value True
+          C.ErasedMatches allowed  -> Value (allowed /= mempty))
+      "erasure" True _optErasure
   ]
   where
     yesOrNo ('n':'o':'-':s) = (False, s)
@@ -321,9 +328,9 @@ optForcing                   :: PragmaOptions -> Bool
 optProjectionLike            :: PragmaOptions -> Bool
 -- | 'optErasure' is implied by 'optEraseRecordParameters',
 --   'optFunext' and 'optPropext'. 'optErasure' is also implied by an
---   explicitly given `--erased-matches`.
+--   explicitly given @--erased-matches@ with an argument distinct
+--   from @=none@.
 optErasure                   :: PragmaOptions -> Bool
-optErasedMatches             :: PragmaOptions -> Bool
 optEraseRecordParameters     :: PragmaOptions -> Bool
 optRewriting                 :: PragmaOptions -> Bool
 optLocalRewriting            :: PragmaOptions -> Bool
@@ -396,8 +403,9 @@ optErasure                   = collapseDefault . _optErasure ||
                                optEraseRecordParameters ||
                                optFunext ||
                                optPropext ||
-                               (Value True ==) . _optErasedMatches
-optErasedMatches             = collapseDefault . _optErasedMatches && optErasure
+                               ((/= C.ErasedMatchesDefault) &&
+                                (/= C.ErasedMatches mempty)) .
+                               _optErasedMatches
 optEraseRecordParameters     = collapseDefault . _optEraseRecordParameters
 optRewriting                 = collapseDefault . _optRewriting
 optLocalRewriting            = collapseDefault . _optLocalRewriting
@@ -443,6 +451,23 @@ optQuoteMetas                = collapseDefault . _optQuoteMetas
 
 optUseUnicode                :: PragmaOptions -> UnicodeOrAscii
 optUseUnicode                = collapseDefault . _optUseUnicode
+
+optErasedMatches :: PragmaOptions -> AllowedErasedMatches
+optErasedMatches opts = case _optErasedMatches opts of
+  C.ErasedMatches m ->
+    m
+  C.ErasedMatchesDefault
+    | not (optErasure opts) ->
+      allowedErasedMatches None
+    | optWithoutK opts ->
+      allowedErasedMatches Empty
+    | otherwise ->
+      allowedErasedMatches Empty <> allowedErasedMatches Unrestricted
+  C.ErasedMatchesDefaultOn
+    | optWithoutK opts ->
+      allowedErasedMatches Empty <> allowedErasedMatches NonDependent
+    | otherwise ->
+      allowedErasedMatches Empty <> allowedErasedMatches Unrestricted
 
 -- Extra trivial accessors (keep in alphabetical order)
 
@@ -862,6 +887,9 @@ unsafePragmaOptions opts =
   ++
   [ "--cubical=compatible and --with-K" | optCubicalCompatible opts, not (optWithoutK opts) ] ++
   [ "--without-K and --flat-split"      | optWithoutK opts, optFlatSplit opts               ] ++
+  [ "--without-K and --erased-matches=unrestricted"
+  | optWithoutK opts, C.emUnrestricted (optErasedMatches opts)
+  ] ++
   [ "--cumulativity"                    | optCumulativity opts                              ] ++
   [ "--allow-exec"                      | optAllowExec opts                                 ] ++
   [ "--no-load-primitives"              | not $ optLoadPrimitives opts                      ] ++
@@ -912,10 +940,12 @@ data InfectiveCoinfectiveOption = ICOption
     -- perspective of the option in question, the options in the
     -- current module (the first argument) are compatible with the
     -- options in a given imported module (the second argument).
-  , icOptionWarning :: TopLevelModuleName -> Doc
+  , icOptionWarning ::
+      PragmaOptions -> PragmaOptions -> TopLevelModuleName -> Doc
     -- ^ A warning message that should be used if this option is not
     -- used correctly. The given module name is the name of an
-    -- imported module for which 'icOptionOK' failed.
+    -- imported module for which 'icOptionOK' failed for the first two
+    -- arguments.
   }
 
 -- | A standard infective option: If the option is active in an
@@ -933,7 +963,7 @@ infectiveOption opt s = ICOption
   , icOptionKind        = Infective
   , icOptionOK          = \current imported ->
                            opt imported <= opt current
-  , icOptionWarning     = \m -> fsep $
+  , icOptionWarning     = \_ _ m -> fsep $
       pwords "Importing module" ++ [pretty $ PrintRange m] ++ pwords "using the" ++
       [text s] ++ pwords "flag from a module which does not."
   }
@@ -953,7 +983,7 @@ coinfectiveOption opt s = ICOption
   , icOptionKind        = Coinfective
   , icOptionOK          = \current imported ->
                            opt current <= opt imported
-  , icOptionWarning     = \m -> fsep $
+  , icOptionWarning     = \_ _ m -> fsep $
       pwords "Importing module" ++ [pretty $ PrintRange m] ++
       pwords "not using the" ++ [text s] ++
       pwords "flag from a module which does."
@@ -988,10 +1018,27 @@ infectiveCoinfectiveOptions =
   , infectiveOption optPolarity               "--polarity"
   , infectiveOption optCohesion               "--cohesion"
   , infectiveOption optErasure                "--erasure"
-  , infectiveOption optErasedMatches          "--erased-matches"
   , infectiveOption optFunext                 "--erased-funext"
   , infectiveOption optPropext                "--erased-propext"
   , infectiveOption optQuotients              "--erased-quotients"
+  , ICOption
+      { icOptionActive =
+          (C.ErasedMatches mempty /=) . _optErasedMatches
+      , icOptionDescription =
+          "--erased-matches"
+      , icOptionKind =
+          Infective
+      , icOptionOK = \current imported ->
+          optErasedMatches imported <= optErasedMatches current
+      , icOptionWarning = \current imported m -> fsep $
+          pwords "Importing module" ++ [pretty $ PrintRange m] ++
+          pwords "using (effectively) the flags" ++
+          [text $ showEffectiveErasedMatchFlags $
+           optErasedMatches imported] ++
+          pwords "from a module which uses the flags" ++
+          [text $ showEffectiveErasedMatchFlags $
+           optErasedMatches current]
+      }
   ]
   where
   cubicalCompatible =
@@ -1022,7 +1069,7 @@ infectiveCoinfectiveOptions =
             (Just CWithoutGlue, Just CFull)   -> False
             (Just CWithoutGlue, Just CErased) -> False
             _ -> True
-      , icOptionWarning = \m -> fsep $
+      , icOptionWarning = \_ _ m -> fsep $
           pwords "Importing module" ++ [pretty $ PrintRange m] ++
           pwords "which might contain glue to a module with the option" ++
           pwords (flagName ++ ".")
@@ -1176,16 +1223,12 @@ withKFlag :: Flag PragmaOptions
 withKFlag =
   -- with-K is the opposite of --without-K, so collapse default when disabling --without-K
   lensOptWithoutK (lensCollapseDefault $ const $ pure False)
-  >=>
-  -- with-K only restores any unsetting of --erased-matches, so keep its default
-  lensOptErasedMatches (lensKeepDefault $ const $ pure True)
 
 
 withoutKFlag :: Flag PragmaOptions
 withoutKFlag o = return $ o
-  { _optWithoutK                = Value True
-  , _optFlatSplit               = setDefault False $ _optFlatSplit o
-  , _optErasedMatches           = setDefault False $ _optErasedMatches o
+  { _optWithoutK  = Value True
+  , _optFlatSplit = setDefault False $ _optFlatSplit o
   }
 
 -- A unified flag for all cubical variants:
@@ -1207,7 +1250,6 @@ cubicalCompatibleFlag o =
   { _optCubicalCompatible       = Value True
   , _optWithoutK                = setDefault True  $ _optWithoutK o
   , _optFlatSplit               = setDefault False $ _optFlatSplit o
-  , _optErasedMatches           = setDefault False $ _optErasedMatches o
   }
 
 cubicalFlag
@@ -1222,7 +1264,6 @@ cubicalFlag variant o =
   -- Do not set optTwoLevel here, but have been implied by optCubical
   -- , _optTwoLevel                = setDefault True  $ _optTwoLevel o
   , _optFlatSplit               = setDefault False $ _optFlatSplit o
-  , _optErasedMatches           = setDefault False $ _optErasedMatches o
   }
 
 instanceDepthFlag :: String -> Flag PragmaOptions
@@ -1597,9 +1638,15 @@ modalityPragmaOptions = ("Modalities",) $ concat
   [ pragmaFlag      "erasure" lensOptErasure
                     "enable erasure" ""
                     Nothing
-  , pragmaFlag      "erased-matches" lensOptErasedMatches
-                    "allow matching in erased positions for single-constructor types" "(implies --erasure if supplied explicitly)"
-                    Nothing
+  , [ Option [] ["erased-matches"]
+        (OptArg parseErasedMatchesArg erasedMatchesArg)
+        ("allow erased matches of the given (comma-separated) " ++
+         erasedMatchesArg ++ " (" ++
+         intercalate ", " erasedMatchesValues ++ ")")
+    , Option [] ["no-erased-matches"]
+        (NoArg (parseErasedMatchesArg (Just "none")))
+        "a synonym for --erased-matches=none"
+    ]
   , pragmaFlag      "erase-record-parameters" lensOptEraseRecordParameters
                     "mark all parameters of record modules as erased" "(implies --erasure)"
                     Nothing
@@ -2077,3 +2124,102 @@ stripRTS (arg : argv)
   | otherwise     = arg : stripRTS argv
   where
     is x arg = [x] == take 1 (words arg)
+
+------------------------------------------------------------------------
+-- Erased matches
+
+-- | Different options for @--erased-matches@.
+
+data ErasedMatchOption
+  = None
+    -- ^ No erased matches are allowed.
+  | Empty
+    -- ^ Erased matches are allowed for the empty type.
+  | NonDependent
+    -- ^ Erased matches are allowed for single-constructor,
+    -- non-indexed data types.
+  | Restricted
+    -- ^ @[]-cong@ is allowed.
+  | Unrestricted
+    -- ^ All kinds of erased matches are allowed for
+    -- single-constructor data types (indexed or not).
+  deriving (Show, Generic, Enum, Bounded)
+
+-- | Parses the argument of @--erased-matches@.
+
+parseErasedMatchesArg :: Maybe String -> Flag PragmaOptions
+parseErasedMatchesArg ms opts =
+  (\allowed -> over' lensOptErasedMatches (<> allowed) opts) <$>
+  case ms of
+    Nothing -> return C.ErasedMatchesDefaultOn
+    Just s  ->
+      mconcat . map (C.ErasedMatches . allowedErasedMatches) <$>
+      mapM parse (chopWhen (== ',') s)
+      where
+      parse "none"          = return None
+      parse "empty"         = return Empty
+      parse "non-dependent" = return NonDependent
+      parse "restricted"    = return Restricted
+      parse "unrestricted"  = return Unrestricted
+      parse s               = throwError $
+        "Unknown argument to --erased-matches: " ++ s
+
+-- | Translates from 'ErasedMatchOption' to 'AllowedErasedMatches'.
+
+allowedErasedMatches :: ErasedMatchOption -> AllowedErasedMatches
+allowedErasedMatches None =
+  mempty
+allowedErasedMatches Empty = C.AllowedErasedMatches
+  { emEmpty        = True
+  , emNonDependent = False
+  , emDependent    = Strict.Nothing
+  }
+allowedErasedMatches NonDependent = C.AllowedErasedMatches
+  { emEmpty        = False
+  , emNonDependent = True
+  , emDependent    = Strict.Nothing
+  }
+allowedErasedMatches Restricted = C.AllowedErasedMatches
+  { emEmpty        = False
+  , emNonDependent = False
+  , emDependent    = Strict.Just C.Restricted
+  }
+allowedErasedMatches Unrestricted = C.AllowedErasedMatches
+  { emEmpty        = False
+  , emNonDependent = True
+  , emDependent    = Strict.Just C.Unrestricted
+  }
+
+-- | Translates from 'AllowedErasedMatches' to lists of
+-- 'ErasedMatchOption's.
+
+erasedMatchOptions :: AllowedErasedMatches -> List1 ErasedMatchOption
+erasedMatchOptions allowed = List1.fromListSafe (None :| []) flags
+  where
+  flags =
+    (if C.emEmpty allowed then [Empty] else []) ++
+    (if C.emUnrestricted allowed then [Unrestricted] else
+     (if C.emRestricted allowed then [Restricted] else []) ++
+     (if C.emNonDependent allowed then [NonDependent] else []))
+
+-- | Turns a non-empty list of 'ErasedMatchOption's into a
+-- corresponding instance of @--erased-matches@.
+
+showErasedMatchFlags :: List1 ErasedMatchOption -> String
+showErasedMatchFlags opts =
+  "--erased-matches=" ++
+  intercalate "," (fmap showOpt (List1.toList opts))
+  where
+  showOpt = \case
+    None         -> "none"
+    Empty        -> "empty"
+    NonDependent -> "non-dependent"
+    Unrestricted -> "unrestricted"
+    Restricted   -> "restricted"
+
+-- | An instance of @--erased-matches@ that would lead to the given
+-- 'AllowedErasedMatches' record.
+
+showEffectiveErasedMatchFlags :: AllowedErasedMatches -> String
+showEffectiveErasedMatchFlags =
+  showErasedMatchFlags . erasedMatchOptions

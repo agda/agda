@@ -15,7 +15,8 @@ import           Data.Map                          ( Map )
 import           Data.Set                          ( Set )
 import           GHC.Generics                      ( Generic )
 
-import           Agda.Syntax.Common                ( Cubical )
+import           Agda.Syntax.Common
+                   (Cubical, AllowedErasedMatchesWithDefaults)
 import           Agda.Syntax.Concrete.Glyph        ( UnicodeOrAscii )
 import           Agda.Interaction.Library          ( ExeName, LibName )
 import           Agda.Interaction.Options.Help     ( Help )
@@ -147,10 +148,8 @@ data PragmaOptions = PragmaOptions
   , _optProjectionLike            :: WithDefault 'True
       -- ^ Perform the projection-likeness analysis on functions?
   , _optErasure                   :: WithDefault 'False
-  , _optErasedMatches             :: WithDefault 'True
-      -- ^ Allow matching in erased positions for single-constructor,
-      -- non-indexed data/record types. (This kind of matching is always
-      -- allowed for record types with η-equality.)
+  , _optErasedMatches             :: AllowedErasedMatchesWithDefaults
+      -- ^ What kinds of erased matches are allowed?
   , _optEraseRecordParameters     :: WithDefault 'False
       -- ^ Mark parameters of record modules as erased?
   , _optRewriting                 :: WithDefault 'False

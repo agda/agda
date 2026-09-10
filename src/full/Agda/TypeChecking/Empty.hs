@@ -93,7 +93,12 @@ checkEmptyType range t0 = do
           Left UnificationStuck{} -> do
             blocker <- unblockOnAnyMetaIn <$> instantiateFull tel -- TODO Jesper: get proper blocking information from unification
             return $ Left $ DontKnow blocker
-          Left _                  -> return $ Left Fail
+          Left err@ErasedDatatype{} ->
+            -- This case is for disallowed erased matches on empty
+            -- types.
+            Left . FailBecause <$> typeError_ (SplitError err)
+          Left _ ->
+            return $ Left Fail
           Right cov -> do
             let ps = map (namedArg . lastWithDefault __IMPOSSIBLE__ . fromSplitPatterns . scPats) $ splitClauses cov
             if (null ps) then return (Right ()) else

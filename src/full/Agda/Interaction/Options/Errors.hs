@@ -35,10 +35,14 @@ data DataRecOrFun_
 data ErasedDatatypeReason
   = SeveralConstructors
     -- ^ There are several constructors.
-  | NoErasedMatches
-    -- ^ The flag @--erased-matches@ is not used.
-  | NoK
-    -- ^ The K rule is not activated.
+  | ErasedMatchesDisabledEmpty
+    -- ^ Erased matches are disabled for empty types.
+  | ErasedMatchesDisabledNonDependent
+    -- ^ Erased matches are disabled for non-indexed,
+    -- single-constructor types.
+  | ErasedMatchesDisabledDependent
+    -- ^ Erased matches are disabled for indexed, single-constructor
+    -- types.
   deriving (Show, Generic, Enum, Bounded)
 
 -- | Things not allowed in dot patterns.

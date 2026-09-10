@@ -260,12 +260,16 @@ following restrictions apply:
 
 - Cannot use erased variables or definitions.
 - Cannot pattern match on erased arguments, unless there is at most
-  one valid case. If :option:`--without-K` is enabled and there is one
-  valid case, then there are further restrictions:
+  one valid case: an *erased match*. Erased matches may or may not be
+  allowed, depending on the setting of :option:`--erased-matches`.
 
-  - The constructor's data or record type must not be indexed.
-  - If the type is anything but a record type with η-equality, then
-    the option :option:`--erased-matches` must be enabled.
+  If an erased match is allowed, then any bound variables are treated
+  as erased.
+
+  Note that a match on a record type with η-equality is not really a
+  match, because this corresponds to using projection functions on the
+  right-hand side. Such matches are always allowed, but the bound
+  variables are treated as erased.
 
 Consider the function ``foo`` taking an erased vector argument:
 
@@ -275,11 +279,12 @@ Consider the function ``foo`` taking an erased vector argument:
   foo zero    []       = 0
   foo (suc n) (x ∷ xs) = foo n xs
 
-This is okay (when the K rule is on), since after matching on the
-length, the matching on the vector does not provide any computational
-information, and any variables in the pattern (``x`` and ``xs`` in
-this case) are marked erased in turn. On the other hand, if we don't
-match on the length first, the type checker complains:
+This is okay (with :option:`--erased-matches=unrestricted`), because
+after matching on the length, the matching on the vector does not
+provide any computational information, and any variables in the
+pattern (``x`` and ``xs`` in this case) are marked erased in turn. On
+the other hand, if we don't match on the length first, the type
+checker complains:
 
 .. code-block:: agda
 

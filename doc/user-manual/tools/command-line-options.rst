@@ -1310,19 +1310,67 @@ Erasure
 
      Default: :option:`--no-erasure`.
 
-.. option:: --erased-matches, --no-erased-matches
+.. option:: --erased-matches[={KINDS}], --no-erased-matches
 
      .. versionadded:: 2.6.4
+     .. versionchanged:: 2.9.0
 
-     Allow matching in erased positions for single-constructor,
-     non-indexed data/record types. (This kind of matching is always
-     allowed for record types with η-equality.)
+     ``KINDS`` is a comma-separated list of zero or more of the
+     following options: ``none``, ``empty``, ``non-dependent``,
+     ``restricted`` and ``unrestricted``. These options have the
+     following meanings:
 
-     Default: :option:`--erased-matches` when :option:`--with-K` is active,
-     either by explicit activation or the absence of options like :option:`--without-K`;
-     otherwise :option:`--no-erased-matches`.
+     * ``none``: Do not enable any erased matches (this can be
+       overridden).
 
-     If :option:`--erased-matches` is given explicitly, it implies :option:`--erasure`.
+     * ``empty``: Enable erased matches for empty types.
+
+     * ``non-dependent``: Enable erased matches for non-indexed,
+       single-constructor types.
+
+     * ``restricted``: Make it possible to import the module
+       ``Agda.Builtin.Erased.Box-cong``, which contains an
+       implementation of ``[]-cong``.
+
+     * ``unrestricted``: Enable unrestricted erased matches for
+       single-constructor types. If :option:`--safe` is active, then
+       this option is not allowed together with :option:`--without-K`.
+
+     These options are cumulative: multiple invocations of
+     ``--erased-matches`` with arguments are combined into one, and it
+     does not matter in what order the options are given. As an
+     example, ``--erased-matches=none,empty`` and
+     ``--erased-matches=empty --erased-matches=none`` mean the same
+     thing as ``--erased-matches=empty``.
+
+     If none of these options are given, then Agda behaves
+
+     * as if ``--erased-matches=none`` had been used if
+       :option:`--erasure` is not turned on (directly or indirectly),
+       otherwise
+
+     * as if ``--erased-matches=empty`` had been used if
+       :option:`--without-K` is active, and otherwise
+
+     * as if ``--erased-matches=empty,unrestricted`` had been used.
+
+     Note that these defaults can be overridden by, for instance,
+     ``--erased-matches=none``.
+
+     The option ``--erased-matches`` means almost the same thing as
+     ``--erased-matches=empty,non-dependent`` if :option:`--without-K`
+     is active, and otherwise it means almost the same thing as
+     ``--erased-matches=empty,unrestricted``. However, any use of
+     ``--erased-matches`` with explicit arguments takes precedence
+     over ``--erased-matches`` without arguments. For instance,
+     ``--erased-matches=none --erased-matches`` means the same thing
+     as ``--erased-matches=none``.
+
+     The option ``--no-erased-matches`` is a synonym for
+     ``--erased-matches=none``.
+
+     All variants of ``--erased-matches`` except for
+     ``--erased-matches=none`` enable :option:`--erasure`.
 
 .. option:: --erase-record-parameters
 
@@ -1347,13 +1395,20 @@ Erasure
      it should be safe to use this postulate (under :option:`--safe`
      and in the absence of any Agda bugs):
 
-     * If `--erased-matches` is not used, then canonicity should hold
-       for non-erased terms (if all opaque definitions are made
-       transparent, the context only contains erased assumptions, and
-       the context plus the postulates are jointly consistent).
+     * If :option:`--erased-matches` is not used with one of the
+       options ``empty``, ``non-dependent``, ``restricted`` or
+       ``unrestricted``, then canonicity should hold for non-erased
+       terms (if all opaque definitions are made transparent and the
+       context only contains erased assumptions).
 
-     * If `--erased-matches` is used, then reduction might get stuck,
-       but compiled programs should still run correctly.
+     * If :option:`--erased-matches` is used with the option
+       ``empty``, then canonicity should still hold if the context
+       plus the postulates are jointly consistent.
+
+     * If :option:`--erased-matches` is used with one of the options
+       ``non-dependent``, ``restricted`` or ``unrestricted``, then
+       reduction might get stuck, but compiled programs should still
+       run correctly.
 
      Implies :option:`--erasure`. Default: ``--no-erased-funext``.
 
