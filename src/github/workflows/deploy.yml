@@ -2,6 +2,11 @@ name: Deploy
 
 on:
   push:
+    branches:
+      - '**'
+    paths:
+      - '.github/workflows/deploy.yml'
+      - 'src/github/workflows/deploy.yml'
     tags:
       - v[2-9]+.*
 
