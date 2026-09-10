@@ -157,6 +157,86 @@ Pragmas and options
 * New options `--irrelevance` (default on) and `--no-irrelevance` to allow or
   disallow the irrelevance modality.
 
+* (**BREAKING**): Now `--erased-matches` takes an optional argument:
+
+  * `--erased-matches=none`: Do not enable any erased matches (this
+       can be overridden).
+
+  * `--erased-matches=empty`: Enable erased matches for empty types.
+
+  * `--erased-matches=non-dependent`: Enable erased matches for
+    non-indexed, single-constructor types.
+
+  * `--erased-matches=restricted`: Make it possible to import the
+    module `Agda.Builtin.Erased.Box-cong`, which contains an
+    implementation of `[]-cong` (the type `Erased` can be found in
+    `Agda.Builtin.Erased.Erased`):
+
+    ```agda
+    record Erased (@0 A : Set a) : Set a where
+      no-eta-equality
+      constructor [_]
+      field
+        @0 erased : A
+
+    []-cong : @0 x ≡ y → [ x ] ≡ [ y ]
+    []-cong refl = refl
+    ```
+
+    In the future `--erased-matches=restricted` might make it possible
+    to implement `[]-cong` in user code, but that is currently not
+    allowed.
+
+  * `--erased-matches=unrestricted`: Enable unrestricted erased
+    matches for single-constructor types. If `--safe` is active, then
+    this option is not allowed together with `--without-K`.
+
+  One can also use comma-separated lists of options, for instance
+  `--erased-matches=empty,restricted`. This has the same effect as
+  giving the options separately (`--erased-matches=empty
+  --erased-matches=restricted`). There is no way to turn off something
+  that has been enabled, so it does not matter in what order the
+  options are given. As an example, `--erased-matches=empty,none`
+  means the same thing as `--erased-matches=empty`.
+
+  If none of these options are given, then Agda behaves
+
+  * as if `--erased-matches=none` had been used if `--erasure` is not
+    turned on (directly or indirectly), otherwise
+
+  * as if `--erased-matches=empty` had been used if `--without-K` is
+    active, and otherwise
+
+  * as if `--erased-matches=empty,unrestricted` had been used.
+
+  Note that these defaults can be overridden by, for instance,
+  `--erased-matches=none`.
+
+  The option `--erased-matches` means almost the same thing as
+  `--erased-matches=empty,non-dependent` if `--without-K` is active,
+  and otherwise it means almost the same thing as
+  `--erased-matches=empty,unrestricted`. However, any use of
+  `--erased-matches` with explicit arguments takes precedence over
+  `--erased-matches` without arguments. For instance,
+  `--erased-matches=none --erased-matches` means the same thing as
+  `--erased-matches=none`.
+
+  The option `--no-erased-matches` is now a synonym for
+  `--erased-matches=none`.
+
+  All variants of `--erased-matches` except for
+  `--erased-matches=none` enable `--erasure`.
+
+  This change can lead to some breakage:
+
+  * Previously `--no-erased-matches --erased-matches` meant the same
+    thing as `--erased-matches`, now it means the same thing as
+    `--erased-matches=none`.
+
+  * Before `--with-K` overrode a previously given
+    `--no-erased-matches` and turned on erased matches. That is no
+    longer the case.
+
 * The new (experimental and possibly unstable) options
   `--erased-funext`, `--erased-propext` and `--erased-quotients`
   enable use of `Agda.Builtin.Erased.Funext`,
@@ -167,15 +247,21 @@ Pragmas and options
   `--erased-funext`.
 
   These modules contain erased postulates. The idea is that it should
-  be safe to use these postulates (in the absence of any Agda bugs):
+  be safe to use these postulates (under `--safe` and in the absence
+  of any Agda bugs):
 
-  * If `--erased-matches` is not used, then canonicity should hold for
-    non-erased terms (if all opaque definitions are made transparent,
-    the context only contains erased assumptions, and the context plus
-    the postulates are jointly consistent).
+  * If `--erased-matches=X` is not used, where `X` is one of `empty`,
+    `non-dependent`, `restricted` and `unrestricted`, then canonicity
+    should hold for non-erased terms (if all opaque definitions are
+    made transparent and the context only contains erased
+    assumptions).
 
-  * If `--erased-matches` is used, then reduction might get stuck, but
-    compiled programs should still run correctly.
+  * If `--erased-matches=empty` is used, then canonicity should still
+    hold if the context plus the postulates are jointly consistent.
+
+  * If `--erased-matches=X` is used, where `X` is one of
+    `non-dependent`, `restricted` and `unrestricted`, then reduction
+    might get stuck, but compiled programs should still run correctly.
 
   `Agda.Builtin.Erased.Funext` postulates function extensionality,
   `Agda.Builtin.Erased.Propext` postulates propositional

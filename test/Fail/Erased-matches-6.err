@@ -1,0 +1,4 @@
+Erased-matches-6.agda:10.1-7: error: [SplitError.ErasedDatatype.ErasedMatchesDisabledNonDependent]
+Cannot branch on erased argument of datatype Unit because the
+option --erased-matches=non-dependent is not active
+when checking the definition of f

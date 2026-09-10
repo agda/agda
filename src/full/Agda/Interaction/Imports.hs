@@ -927,7 +927,7 @@ checkOptionsCompatible current imported importedModule = flip execStateT True $ 
         (case icOptionKind opt of
            Infective   -> InfectiveImport
            Coinfective -> CoInfectiveImport)
-        (icOptionWarning opt importedModule)
+        (icOptionWarning opt current imported importedModule)
   where
   showOptions opts =
     P.prettyList $

@@ -1,11 +1,13 @@
+
 ConflictingPragmaOptions.agda:2.1-29: warning: -W[no]ConflictingPragmaOptions
 Conflicting options --erase-record-parameters and --no-erasure
 (--erase-record-parameters implies --erasure). Ignoring
 --no-erasure.
 
 ConflictingPragmaOptions.agda:3.1-33: warning: -W[no]ConflictingPragmaOptions
-Conflicting options --erased-matches and --no-erasure
-(--erased-matches implies --erasure). Ignoring --no-erasure.
+Conflicting options --erased-matches (with a different argument
+than "=none") and --no-erasure (--erased-matches (with a different
+argument than "=none") implies --erasure). Ignoring --no-erasure.
 
 ConflictingPragmaOptions.agda:5.1-29: warning: -W[no]ConflictingPragmaOptions
 Conflicting options --flat-split and --no-cohesion (--flat-split
@@ -30,8 +32,9 @@ Conflicting options --erase-record-parameters and --no-erasure
 --no-erasure.
 
 ConflictingPragmaOptions.agda:3.1-33: warning: -W[no]ConflictingPragmaOptions
-Conflicting options --erased-matches and --no-erasure
-(--erased-matches implies --erasure). Ignoring --no-erasure.
+Conflicting options --erased-matches (with a different argument
+than "=none") and --no-erasure (--erased-matches (with a different
+argument than "=none") implies --erasure). Ignoring --no-erasure.
 
 ConflictingPragmaOptions.agda:5.1-29: warning: -W[no]ConflictingPragmaOptions
 Conflicting options --flat-split and --no-cohesion (--flat-split

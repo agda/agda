@@ -133,6 +133,98 @@ instance KillRange Language where
 
 instance NFData Language
 
+------------------------------------------------------------------------
+-- Erased matches
+
+-- | What kinds of erased matches are allowed for indexed,
+-- single-constructor data types?
+
+data AllowedErasedMatchesIndexed
+  = Restricted
+    -- ^ @[]-cong@ is allowed.
+  | Unrestricted
+    -- ^ All erased matches are allowed.
+  deriving (Eq, Ord, Show, Generic)
+
+instance NFData AllowedErasedMatchesIndexed
+
+instance Semigroup AllowedErasedMatchesIndexed where
+  Restricted <> a2 = a2
+  a1         <> _  = a1
+
+instance Monoid AllowedErasedMatchesIndexed where
+  mempty = Restricted
+
+-- | What kinds of erased matches are allowed?
+
+data AllowedErasedMatches = AllowedErasedMatches
+  { emEmpty :: !Bool
+    -- ^ Erased matches are allowed for the empty type.
+  , emNonDependent :: !Bool
+    -- ^ Erased matches are allowed for single-constructor,
+    -- non-indexed data types.
+  , emDependent :: !(Strict.Maybe AllowedErasedMatchesIndexed)
+    -- ^ What kinds of erased matches, if any, are allowed for
+    -- single-constructor, indexed data types?
+  }
+  deriving (Eq, Ord, Show, Generic)
+
+instance NFData AllowedErasedMatches
+
+instance Semigroup AllowedErasedMatches where
+  AllowedErasedMatches e1 n1 d1 <> AllowedErasedMatches e2 n2 d2 =
+    AllowedErasedMatches (e1 || e2) (n1 || n2) (d1 <> d2)
+
+instance Monoid AllowedErasedMatches where
+  mempty = AllowedErasedMatches
+    { emEmpty        = False
+    , emNonDependent = False
+    , emDependent    = Strict.Nothing
+    }
+
+-- | Is @[]-cong@ allowed?
+
+emRestricted :: AllowedErasedMatches -> Bool
+emRestricted = Strict.isJust . emDependent
+
+-- | Are unrestricted erased matches allowed for indexed types?
+
+emUnrestricted :: AllowedErasedMatches -> Bool
+emUnrestricted = (Strict.Just Unrestricted ==) . emDependent
+
+-- | A variant of 'AllowedErasedMatches' that supports default values
+-- that depend on other flags.
+
+data AllowedErasedMatchesWithDefaults
+  = ErasedMatchesDefault
+    -- ^ No flag has been given, the default is used. (The default
+    -- depends on whether the K rule is allowed or not.)
+  | ErasedMatchesDefaultOn
+    -- ^ The flag @--erased-matches@ has been given without any
+    -- options, the \"default on\" value is used. (The default depends
+    -- on whether the K rule is allowed or not.)
+  | ErasedMatches AllowedErasedMatches
+    -- ^ The flag @--erased-matches@ has been given with (valid)
+    -- options.
+  deriving (Eq, Show, Generic)
+
+instance NFData AllowedErasedMatchesWithDefaults
+
+instance Semigroup AllowedErasedMatchesWithDefaults where
+  ErasedMatches m1 <> ErasedMatches m2 =
+    ErasedMatches (m1 <> m2)
+  m@ErasedMatches{} <> _ =
+    m
+  _ <> m@ErasedMatches{} =
+    m
+  m@ErasedMatchesDefaultOn <> _ =
+    m
+  ErasedMatchesDefault <> m =
+    m
+
+instance Monoid AllowedErasedMatchesWithDefaults where
+  mempty = ErasedMatchesDefault
+
 ---------------------------------------------------------------------------
 -- * Backends
 ---------------------------------------------------------------------------
