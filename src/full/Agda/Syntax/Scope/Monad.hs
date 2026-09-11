@@ -851,13 +851,6 @@ checkNoFixityInRenamingModule ren = do
     Renaming ImportedModule{} _ mfx _ -> getRange <$> mfx
     _ -> Nothing
 
--- | Check that an import directive doesn't contain repeated names.
-verifyImportDirective :: [C.ImportedName] -> C.HidingDirective -> C.RenamingDirective -> ScopeM ()
-verifyImportDirective usn hdn ren =
-  List1.unlessNull
-    (mapMaybe List2.fromList1Maybe . List1.group . List.sort $ usn ++ hdn ++ map renFrom ren)
-    \ yss -> setCurrentRange yss $ typeError $ RepeatedNamesInImportDirective yss
-
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
 --
@@ -877,15 +870,20 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
     -- Duplicates in @using@ directive are dropped with a warning.
     usingList <- discardDuplicatesInUsing usn'
 
+    -- Check that an import directive doesn't contain repeated names.
+    -- Historic note:
     -- The following check was originally performed by the parser.
     -- The Great Ulf Himself added the check back in the dawn of time
     -- (5ba14b647b9bd175733f9563e744176425c39126)
     -- when Agda 2 wasn't even believed to exist yet.
-    verifyImportDirective usingList hdn' ren'
+    let names' = usingList ++ hdn' ++ map renFrom ren'  -- all mentioned names from the imported module
+    -- Report any duplicates in @names'@.
+    List1.unlessNull (mapMaybe List2.fromList1Maybe $ List1.group $ List.sort names') \ yss ->
+      setCurrentRange yss $ typeError $ RepeatedNamesInImportDirective yss
 
     -- We start by checking that all of the names talked about in the import
     -- directive do exist.  If some do not then we remove them and raise a warning.
-    let (missingExports, namesA) = checkExist $ usingList ++ hdn' ++ map renFrom ren'
+    let (missingExports, namesA) = checkExist names'
     () <- List1.unlessNull missingExports \ missingExports1 -> setCurrentRange rng do
       reportSLn "scope.import.apply" 30 $ "non existing names: " ++ prettyShow missingExports
       warning $ ModuleDoesntExport m (Map.keys namesInScope) (Map.keys modulesInScope) missingExports1
