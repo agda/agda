@@ -12,6 +12,7 @@ jobs:
   build:
     env:
       ARGS: --disable-executable-profiling --disable-library-profiling --flags=use-xdg-data-home
+        --constraint='zlib +bundled-c-zlib'
       LINUX_ARGS: --flags=optimise-heavily --enable-executable-static  --enable-split-sections
       MACOS_ARGS: --flags=optimise-heavily
       WIN64_ARGS: --flags=optimise-heavily --enable-split-sections
@@ -20,7 +21,7 @@ jobs:
     - name: Check out the master branch
       uses: actions/checkout@v7
     - id: vars
-      name: Set up platform-dependent variables
+      name: Set up build variables
       run: |
         bindist=Agda
         exe=agda
@@ -58,6 +59,10 @@ jobs:
 
         else
           exit 1
+        fi
+
+        if [[ "${GITHUB_REF}" != refs/tags/v[2-9].* ]]; then
+          args="${args} --flags=version-with-git-hash"
         fi
 
         echo args="${args}"                  >> "${GITHUB_OUTPUT}"
@@ -147,7 +152,7 @@ jobs:
         exe=$(basename "${exepath}")
         cp "${exepath}" "${bindist}/"
         strip "${bindist}/${exe}"
-        file "${bindist}/agda"
+        file "${bindist}/${exe}"
     - name: Pack artefacts
       run: |
         ${{ steps.vars.outputs.compress_cmd }}
@@ -254,6 +259,26 @@ jobs:
     - name: Unpack artifacts
       run: |
         ${{ steps.vars.outputs.decompress_cmd }}
+    - if: ${{ runner.os == 'Windows' }}
+      name: Install dependency inspection tools (Windows)
+      run: |
+        $env:PATH = "C:\msys64\usr\bin;$env:PATH"
+        pacman -v --noconfirm -S --needed mingw-w64-x86_64-binutils
+      shell: pwsh
+    - name: Display dynamic library dependencies
+      run: |
+        case "${{ runner.os }}" in
+          macOS)
+            otool -L ./agda
+            ;;
+          Windows)
+            /c/msys64/mingw64/bin/objdump.exe -p ./agda.exe | awk '/DLL Name:/ { print }'
+            ;;
+          Linux)
+            # Unlike ldd, readelf also succeeds for a fully static executable.
+            readelf -d ./agda
+            ;;
+        esac
     - name: Run `agda --setup`
       run: |
         if [[ "${{ runner.os }}" == macOS ]]; then
@@ -272,6 +297,10 @@ jobs:
 name: Deploy
 'on':
   push:
+    branches:
+    - '**'
+    paths:
+    - .github/workflows/deploy.yml
     tags:
     - v[2-9]+.*
   workflow_dispatch: null
