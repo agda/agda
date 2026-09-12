@@ -159,6 +159,40 @@ If we declare an operator ``_⇒’_`` as ``infixl``, it will associate to the l
   e-left : false ⇒’ true ⇒’ false  ≡  false
   e-left = refl
 
+Closed, pre-, and postfix operators
+===================================
+
+An operator with only holes ``_`` in the interior is called closed,
+e.g. ``[_]`` or ``begin_end`` or ``⟨_∣_⟩``.
+Those need no fixity declaration.
+Supplying one nevertheless will result in warning :option:`FixityDeclarationForNonOperator`.
+This warning will also fire if you declare the fixity for a name that is not an operator at all, like ``infix 42 true``.
+
+Generally, *precedences never apply to inner holes*.
+
+Consequently, classification of operators into closed, pre-, post-, and infix operators only considers the holes at the extremities (start or end of the name).
+
+1. Infix operators have holes on both sides, e.g. ``_⇒_`` and ``_and_`` but also ``_≡⟨_⟩_``.
+   They may be left-, right-, or non-associative.
+
+2. Prefix operators have a hole on the left, e.g. ``-_`` or ``if_then_else_``.
+   They naturally always associate to the right.
+   E.g. ``- - 5`` means ``- (- 5)``; the alternative ``(- -) 5`` would be nonsensical.
+
+3. Postfix operators have a hole on the right, e.g. ``_!`` or ``_∎`` or ``_[_/_]``.
+   They naturally always associate to the left.
+
+4. Closed operators have neither.
+
+Agda currently lacks specific precedence declarations for pre- and postfix operators and accepts any of ``infix``, ``infixl``, or ``infixr``, e.g. ``infix 6 -_`` works.
+
+.. note::
+
+  Even when precedence should not matter in the use of pre- and postfix operators,
+  Agda rejects a term with incorrect precedences.
+  E.g. ``4 + - 3`` is rejected unless ``_+_`` has a higher precedence than ``-_``.
+  (See `Issue #1448 <https://github.com/agda/agda/issues/1448>`_.)
+
 
 Ambiguity and Scope
 ===================
