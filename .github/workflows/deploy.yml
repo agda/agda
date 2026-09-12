@@ -301,7 +301,6 @@ name: Deploy
     - '**'
     paths:
     - .github/workflows/deploy.yml
-    - src/github/workflows/deploy.yml
     tags:
     - v[2-9]+.*
   workflow_dispatch: null

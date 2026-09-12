@@ -6,7 +6,9 @@ on:
       - '**'
     paths:
       - '.github/workflows/deploy.yml'
-      - 'src/github/workflows/deploy.yml'
+      # Andreas, 2026-09-12, don't include the template of this workflow
+      # since it has no effect on the workflow run.
+      # - 'src/github/workflows/deploy.yml'
     tags:
       - v[2-9]+.*
 
