@@ -39,6 +39,7 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 
 import Agda.Interaction.Options
+import Agda.TypeChecking.Reduce (instantiate)
 
 -- * Bidirectional rechecker
 
@@ -323,7 +324,12 @@ inferSpine action t hd es = loop t hd id es
         -- case: projection or projection-like
         Proj o f -> do
           t' <- shouldBeProjectible self t o f
-          loop t' (hd . (e:)) (acc . (e:)) es
+          -- Jesper, issue #8336: turn projection-like functions back into Defs
+          proj <- fromMaybe __IMPOSSIBLE__ <$> isProjection f
+          let hd' = if isProperProjection_ proj
+                    then hd . (e:)
+                    else Def f . (Apply (projFromType proj $> hd []) :)
+          loop t' hd' (acc . (e:)) es
 
 checkSpine ::
      Action
@@ -346,6 +352,12 @@ checkSpine action a hd es cmp t = do
     , prettyTCM t'
     , "is a subtype of"
     , prettyTCM t
+    ]
+  reportSDoc "tc.check.internal" 70 $ sep
+    [ "checking if (raw)"
+    , pretty =<< instantiate t'
+    , "is a subtype of (raw)"
+    , pretty =<< instantiate t
     ]
   coerceSize cmp (hd es) t' t
   return $ hd es'
