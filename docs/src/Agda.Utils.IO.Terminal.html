@@ -1,0 +1,31 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="annot"><span class="hs-comment">-- | Utilities for interacting with the terminal.</span></span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.IO.Terminal.html"><span class="hs-identifier">Agda.Utils.IO.Terminal</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Console.ANSI</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">hSupportsANSI</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Environment</span></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">lookupEnv</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.IO</span></span><span>           </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">stdout</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html#and2M"><span class="hs-identifier">and2M</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="annot"><span class="hs-comment">-- | Is the @NO_COLOR@ environment variable unset?</span></span><span>
+</span><span id="line-12"></span><span class="annot"><a href="Agda.Utils.IO.Terminal.html#environmentColor"><span class="hs-identifier hs-type">environmentColor</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-13"></span><span id="environmentColor"><span class="annot"><span class="annottext">environmentColor :: IO Bool
+</span><a href="Agda.Utils.IO.Terminal.html#environmentColor"><span class="hs-identifier hs-var hs-var">environmentColor</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe String -&gt; Bool
+forall a. Maybe a -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">(Maybe String -&gt; Bool) -&gt; IO (Maybe String) -&gt; IO Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; IO (Maybe String)
+</span><span class="hs-identifier hs-var">lookupEnv</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;NO_COLOR&quot;</span></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="annot"><a href="Agda.Utils.IO.Terminal.html#stdoutSupportsANSI"><span class="hs-identifier hs-type">stdoutSupportsANSI</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-16"></span><span id="stdoutSupportsANSI"><span class="annot"><span class="annottext">stdoutSupportsANSI :: IO Bool
+</span><a href="Agda.Utils.IO.Terminal.html#stdoutSupportsANSI"><span class="hs-identifier hs-var hs-var">stdoutSupportsANSI</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO Bool
+</span><a href="Agda.Utils.IO.Terminal.html#environmentColor"><span class="hs-identifier hs-var">environmentColor</span></a></span><span> </span><span class="annot"><span class="annottext">IO Bool -&gt; IO Bool -&gt; IO Bool
+forall (m :: * -&gt; *). Monad m =&gt; m Bool -&gt; m Bool -&gt; m Bool
+</span><a href="Agda.Utils.Monad.html#and2M"><span class="hs-operator hs-var">`and2M`</span></a></span><span> </span><span class="annot"><span class="annottext">Handle -&gt; IO Bool
+</span><span class="hs-identifier hs-var">hSupportsANSI</span></span><span> </span><span class="annot"><span class="annottext">Handle
+</span><span class="hs-identifier hs-var">stdout</span></span><span>
+</span><span id="line-17"></span></pre></body></html>
