@@ -12,8 +12,8 @@ open import Relation.Binary
 
 open import Level renaming (zero to lzero; suc to lsuc)
 
-open CommutativeSemiring NatProps.*-+-commutativeSemiring using (semiring)
-open IsCommutativeSemiring *-+-isCommutativeSemiring using (isSemiring)
+open CommutativeSemiring NatProps.+-*-commutativeSemiring using (semiring)
+open IsCommutativeSemiring +-*-isCommutativeSemiring using (isSemiring)
 open IsCommutativeSemiring ∧-∨-isCommutativeSemiring using () renaming (isSemiring to Bool-isSemiring)
 
 record S (A : Set) : Set₁ where

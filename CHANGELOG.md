@@ -300,6 +300,28 @@ Warnings
 
   Pattern matching on left hand sides of function definitions does not trigger the warning.
 
+* New warning `FixityDeclarationForNonOperator` when a fixity declaration is attached to a name
+  that is neither a pre-, post-, nor infix operator and neither has a pre-, post- or infix `syntax`
+  attached to it.
+  ```agda
+  infixl 10 plus                     -- warning
+  plus : ℕ → ℕ → ℕ
+  plus = ...
+
+  infix 42 [_]                       -- warning
+  [_] : A → List A
+  [_] = ...
+
+  infix 255 abs
+  syntax abs x = | x |               -- warning
+
+  infix 314 neg                      -- no warning
+  syntax neg x = ¬ x
+
+  open import Agda.Builtin.Nat
+    renaming (_+_ to infixl 10 add)  -- warning
+  ```
+
 Syntax
 ------
 

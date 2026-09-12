@@ -1642,6 +1642,12 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Invalid relevance annotations, automatically corrected.
 
+.. option:: FixityDeclarationForNonOperator
+
+     .. versionadded:: 2.9.0
+
+     Fixity annotations on identifiers that are not proper operators.
+
 .. option:: FixityInRenamingModule
 
      .. versionadded:: 2.6.1

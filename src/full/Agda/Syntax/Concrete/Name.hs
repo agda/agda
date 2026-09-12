@@ -55,8 +55,8 @@ type NameParts = List1 NamePart
 -- | An open mixfix identifier is either prefix, infix, or suffix.
 --   That is to say: at least one of its extremities is a @Hole@
 
-isOpenMixfix :: Name -> Bool
-isOpenMixfix = \case
+isPrePostOrInfixOperator :: Name -> Bool
+isPrePostOrInfixOperator = \case
   Name _ _ (x :| x' : xs) -> x == Hole || last1 x' xs == Hole
   _ -> False
 

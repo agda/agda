@@ -486,6 +486,13 @@ succeed :
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed ; \
 		rm test/helpers/exec-tc/executables )
 
+.PHONY : accept-succeed ## Run the suite of successful tests and accept new golden values. Ignores AGDA_TESTS_OPTIONS variable.
+accept-succeed :
+	@$(call decorate, "Suite of successful tests", \
+		echo $(shell command -v $(AGDA_BIN)) > test/helpers/exec-tc/executables && \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) -j$(PARALLEL_TESTS) --accept --regex-include all/Succeed ; \
+		rm test/helpers/exec-tc/executables )
+
 .PHONY : fast-succeed ##
 fast-succeed :
 	@$(call decorate, "Suite of successful tests (using agda-fast)", \
@@ -497,6 +504,11 @@ fast-succeed :
 fail :
 	@$(call decorate, "Suite of failing tests", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail)
+
+.PHONY : accept-fail ## Run the suite of failing tests and accept new golden values. Ignores AGDA_TESTS_OPTIONS variable.
+accept-fail :
+	@$(call decorate, "Suite of failing tests", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) -j$(PARALLEL_TESTS) --accept --regex-include all/Fail)
 
 .PHONY : fast-fail ##
 fast-fail :
@@ -526,6 +538,11 @@ interaction : interaction-simple interaction-custom
 interaction-simple :
 	@$(call decorate, "Suite of interaction tests (simple)", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Interaction/simple)
+
+.PHONY : accept-interaction-simple ##  Run the suite of simple interaction tests and accept new golden values. Ignores AGDA_TESTS_OPTIONS variable.
+accept-interaction-simple :
+	@$(call decorate, "Suite of interaction tests (simple)", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) -j$(PARALLEL_TESTS) --accept --regex-include all/Interaction/simple)
 
 .PHONY : interaction-custom ##
 interaction-custom :

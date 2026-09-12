@@ -10,9 +10,9 @@
   open import Agda.Primitive
   open import Agda.Primitive.Cubical
     using    ( I; i0; i1; Partial )
-    renaming ( primIMin to _∧_
-             ; primIMax to _∨_
-             ; primINeg to ~_
+    renaming ( primIMin to infixr 20 _∧_
+             ; primIMax to infixr 20 _∨_
+             ; primINeg to infix  30 ~_
              ; primHComp to hcomp
              ; primTransp to transp
              ; itIsOne to 1=1 )
