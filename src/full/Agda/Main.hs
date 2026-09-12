@@ -396,12 +396,7 @@ printVersion backends PrintAgdaVersion = do
   bullet = (" - " ++)
   -- Print cabal flags that were involved in compilation.
   flags =
-#ifdef COUNT_CLUSTERS
-    "enable-cluster-counting: unicode cluster counting in LaTeX backend using the ICU library" :
-#endif
-#ifdef OPTIMISE_HEAVILY
-    "optimise-heavily: extra optimisations" :
-#endif
+    -- Keep in alphabetical order!
 #ifdef DEBUG
     "debug: enable debug printing ('-v' verbosity flags)" :
 #endif
@@ -410,6 +405,12 @@ printVersion backends PrintAgdaVersion = do
 #endif
 #ifdef DEBUG_SERIALISATION
     "debug-serialisation: extra debug info during serialisation into '.agdai' files" :
+#endif
+#ifdef COUNT_CLUSTERS
+    "enable-cluster-counting: unicode cluster counting in LaTeX backend using the ICU library" :
+#endif
+#ifdef OPTIMISE_HEAVILY
+    "optimise-heavily: extra optimisations" :
 #endif
 #ifdef USE_XDG_DATA_HOME
     concat
@@ -420,6 +421,9 @@ printVersion backends PrintAgdaVersion = do
       , " by default instead of the location defined by Cabal"
       ]
     :
+#endif
+#ifdef VERSION_WITH_GIT_HASH
+    "version-with-git-hash: suffix version information with the Git commit hash" :
 #endif
     []
 

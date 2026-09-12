@@ -76,7 +76,6 @@ name: Build and test WASM
     - master
     paths:
     - .github/workflows/wasm.yml
-    - src/github/workflows/wasm.yml
     - Agda.cabal
     - cabal.project
     - Makefile
@@ -98,7 +97,6 @@ name: Build and test WASM
     - master
     paths:
     - .github/workflows/wasm.yml
-    - src/github/workflows/wasm.yml
     - Agda.cabal
     - cabal.project
     - Makefile

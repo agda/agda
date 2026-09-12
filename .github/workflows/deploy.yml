@@ -21,7 +21,7 @@ jobs:
     - name: Check out the master branch
       uses: actions/checkout@v7
     - id: vars
-      name: Set up platform-dependent variables
+      name: Set up build variables
       run: |
         bindist=Agda
         exe=agda
@@ -59,6 +59,10 @@ jobs:
 
         else
           exit 1
+        fi
+
+        if [[ "${GITHUB_REF}" != refs/tags/v[2-9].* ]]; then
+          args="${args} --flags=version-with-git-hash"
         fi
 
         echo args="${args}"                  >> "${GITHUB_OUTPUT}"
@@ -293,6 +297,10 @@ jobs:
 name: Deploy
 'on':
   push:
+    branches:
+    - '**'
+    paths:
+    - .github/workflows/deploy.yml
     tags:
     - v[2-9]+.*
   workflow_dispatch: null
