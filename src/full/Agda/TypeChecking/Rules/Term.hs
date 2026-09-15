@@ -22,6 +22,7 @@ import Agda.Syntax.Abstract (Binder, TypedBindingInfo (tbTacticAttr), unBind, bi
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
+import Agda.Syntax.Info ( MetaKind(InstanceMeta) )
 import Agda.Syntax.Concrete.Pretty () -- only Pretty instances
 import Agda.Syntax.Concrete (FieldAssignment'(..), nameFieldA, TacticAttribute'(..))
 import qualified Agda.Syntax.Concrete.Name as C
@@ -1505,7 +1506,8 @@ checkExpr' cmp e t =
           ]
     reportSDoc "tc.term.expr.top.detailed" 80 $
       "Checking" <+> fsep [ prettyTCM e, ":", text (show t) ]
-    tReduced <- reduce t
+    tReducedB <- reduceB t
+    let tReduced = ignoreBlocking tReducedB
     reportSDoc "tc.term.expr.top" 15 $
         "    --> " <+> prettyTCM tReduced
 
@@ -1517,7 +1519,7 @@ checkExpr' cmp e t =
         return $! fmap dontCare . applyModalityToContext mod
       _ -> return id
 
-    irrelevantIfProp $ tryInsertHiddenLambda e tReduced $ case e of
+    irrelevantIfProp $ tryInsertHiddenLambda e tReducedB $ case e of
 
         A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
 
@@ -1615,10 +1617,27 @@ checkExpr' cmp e t =
   -- else fallback.
   tryInsertHiddenLambda
     :: A.Expr
-    -> Type      -- Reduced.
+    -> Blocked Type  -- Reduced.
     -> TCM Term
     -> TCM Term
-  tryInsertHiddenLambda e tReduced fallback
+  tryInsertHiddenLambda e tReducedB fallback
+    -- Andreas & Claude, 2026-09-15, issue #8749 (a facet of #1079):
+    -- The expected type is blocked, so we cannot see whether a hidden lambda
+    -- needs to be inserted -- and the decision made here is irreversible.
+    -- If the only blockers are instance metas whose resolution has merely been
+    -- deferred by 'postponeInstanceConstraints', we can find out by running
+    -- instance search speculatively.  If the type does become a hidden
+    -- function type, postpone the whole problem instead of guessing wrong.
+    | Blocked blocker _ <- tReducedB
+    , not $ lambdaOrHole e
+    = do
+      expandHidden <- viewTC eExpandLast
+      ifNotM (pure (expandHidden /= ReallyDontExpandLast) `and2M` becomesHiddenPi blocker)
+        fallback do
+          reportSDoc "tc.term.expr.impl" 15 $
+            "Postponing check against instance-blocked hidden function type" <+> prettyTCM tReduced
+          postponeTypeCheckingProblem (CheckExpr cmp e t) blocker
+
     -- Insert hidden lambda if all of the following conditions are met:
     -- type is a hidden function type, {x : A} -> B or {{x : A}} -> B
     -- expression is not a lambda with the appropriate hiding yet
@@ -1648,6 +1667,37 @@ checkExpr' cmp e t =
     | otherwise = fallback
 
     where
+    tReduced = ignoreBlocking tReducedB
+
+    lambdaOrHole = \case
+      A.AbsurdLam{}    -> True
+      A.ExtendedLam{}  -> True
+      A.Lam{}          -> True
+      A.QuestionMark{} -> True
+      A.Underscore{}   -> True
+      _                -> False
+
+    -- Is the blocker exclusively made up of unsolved instance metas, and does
+    -- resolving them turn the expected type into a hidden function type?
+    -- The instance search is run speculatively, its effects are discarded.
+    becomesHiddenPi blocker
+      | null ms = return False
+      | otherwise = andM (map' isInstanceMeta $ Set.toList ms) `and2M` peek
+      where
+      ms = allBlockingMetas blocker
+
+      isInstanceMeta m = lookupMetaInstantiation m <&> \case
+        OpenMeta InstanceMeta -> True
+        _ -> False
+
+      -- Note: 'catchError' inside 'localTCState', since the latter does not
+      -- restore the state when an exception passes through it.
+      peek = localTCState $ (`catchError` \ _ -> return False) do
+        solvePostponedInstanceConstraints ms
+        reduce t <&> \case
+          El _ (Pi dom _) -> notVisible dom
+          _ -> False
+
     re = getRange e
     rx = caseMaybe (rStart re) noRange $ \ pos -> posToRange pos pos
 
