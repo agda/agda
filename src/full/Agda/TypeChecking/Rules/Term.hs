@@ -1625,17 +1625,18 @@ checkExpr' cmp e t =
     -- The expected type is blocked, so we cannot see whether a hidden lambda
     -- needs to be inserted -- and the decision made here is irreversible.
     -- If the only blockers are instance metas whose resolution has merely been
-    -- deferred by 'postponeInstanceConstraints', we can find out by running
-    -- instance search speculatively.  If the type does become a hidden
-    -- function type, postpone the whole problem instead of guessing wrong.
+    -- deferred by 'postponeInstanceConstraints', postpone the whole type
+    -- checking problem rather than guessing wrong.  It will be retried once
+    -- the instance is resolved, and then the type is in weak head normal form.
     | Blocked blocker _ <- tReducedB
     , not $ lambdaOrHole e
     = do
+      let ms = allBlockingMetas blocker
       expandHidden <- viewTC eExpandLast
-      ifNotM (pure (expandHidden /= ReallyDontExpandLast) `and2M` becomesHiddenPi blocker)
+      ifNotM (pure (expandHidden /= ReallyDontExpandLast) `and2M` allInstanceMetas ms)
         fallback do
           reportSDoc "tc.term.expr.impl" 15 $
-            "Postponing check against instance-blocked hidden function type" <+> prettyTCM tReduced
+            "Postponing check against instance-blocked type" <+> prettyTCM tReduced
           postponeTypeCheckingProblem (CheckExpr cmp e t) blocker
 
     -- Insert hidden lambda if all of the following conditions are met:
@@ -1677,26 +1678,14 @@ checkExpr' cmp e t =
       A.Underscore{}   -> True
       _                -> False
 
-    -- Is the blocker exclusively made up of unsolved instance metas, and does
-    -- resolving them turn the expected type into a hidden function type?
-    -- The instance search is run speculatively, its effects are discarded.
-    becomesHiddenPi blocker
+    -- Is the blocker exclusively made up of unsolved instance metas?
+    allInstanceMetas ms
       | null ms = return False
-      | otherwise = andM (map' isInstanceMeta $ Set.toList ms) `and2M` peek
+      | otherwise = andM $ map' isInstanceMeta $ Set.toList ms
       where
-      ms = allBlockingMetas blocker
-
       isInstanceMeta m = lookupMetaInstantiation m <&> \case
         OpenMeta InstanceMeta -> True
         _ -> False
-
-      -- Note: 'catchError' inside 'localTCState', since the latter does not
-      -- restore the state when an exception passes through it.
-      peek = localTCState $ (`catchError` \ _ -> return False) do
-        solvePostponedInstanceConstraints ms
-        reduce t <&> \case
-          El _ (Pi dom _) -> notVisible dom
-          _ -> False
 
     re = getRange e
     rx = caseMaybe (rStart re) noRange $ \ pos -> posToRange pos pos

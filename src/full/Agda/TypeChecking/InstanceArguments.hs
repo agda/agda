@@ -8,7 +8,6 @@ module Agda.TypeChecking.InstanceArguments
   , solveAwakeInstanceConstraints
   , shouldPostponeInstanceSearch
   , postponeInstanceConstraints
-  , solvePostponedInstanceConstraints
   , flushInstanceConstraints
   , getInstanceCandidates
   , getInstanceDefs
@@ -1052,21 +1051,6 @@ solveAwakeInstanceConstraints =
 postponeInstanceConstraints :: TCM a -> TCM a
 postponeInstanceConstraints m =
   locallyTCState stPostponeInstanceSearch (const True) m <* wakeupInstanceConstraints
-
--- | Undo the effect of 'postponeInstanceConstraints' for a moment and try to
---   solve the instance constraints for the given metas.
---   (Instance search that is postponed because we are /inside/ instance search
---   is not resumed, see 'canDropRecursiveInstance'.)
-solvePostponedInstanceConstraints :: Set.Set MetaId -> TCM ()
-solvePostponedInstanceConstraints ms =
-  locallyTCState stPostponeInstanceSearch (const False) $
-    unlessM shouldPostponeInstanceSearch $ do
-      wakeConstraints (wakeUpWhen_ isWanted)
-      solveSomeAwakeConstraints isWanted False
-  where
-    isWanted c = case clValue (theConstraint c) of
-      FindInstance _ m _ -> m `Set.member` ms
-      _ -> False
 
 flushInstanceConstraints :: TCM ()
 flushInstanceConstraints = locallyTCState stInstanceHack (const True) $ wakeupInstanceConstraints

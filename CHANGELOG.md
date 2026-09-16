@@ -549,6 +549,41 @@ Changes to type checker and other components defining the Agda language.
   fields for any cohesion modality which has a left adjoint (currently
   just sharp and continuous).
 
+* Agda inserts a hidden lambda into an expression `e` that is checked against a
+  type of the form `{x : A} → B` (e.g. `refl` against `{x : A} → x ≡ x`).  This
+  decision is made from the weak head normal form of the expected type and is
+  irreversible, so it used to be made wrongly when that type was still blocked
+  -- in particular when it was blocked by an instance argument whose resolution
+  had been deferred while the arguments of an application were being checked.
+  Agda now postpones the type checking problem in this situation.
+  For example, this now succeeds:
+  ```agda
+  open import Agda.Builtin.Equality
+  open import Agda.Builtin.FromNat
+  open import Agda.Builtin.Nat
+  open import Agda.Builtin.Unit
+
+  instance
+    NumberNat : Number Nat
+    NumberNat = record { Constraint = λ _ → ⊤; fromNat = λ n → n }
+
+  Hidden : Nat → Set
+  Hidden zero    = 0 ≡ 0
+  Hidden (suc n) = {x : Nat} → Hidden n
+
+  solve : (n : Nat) → Hidden n → Set
+  solve n hyp = Nat
+
+  bad : Set
+  bad = solve 1 refl   -- used to require `λ {_} → refl`
+  ```
+  Here the numeral `1` elaborates to `fromNat 1 ⦃ i ⦄ ⦃ c ⦄`, so the expected
+  type `Hidden (fromNat 1 ⦃ i ⦄ ⦃ c ⦄)` of `refl` is blocked on the instance
+  meta `i`.
+  (Issue [#8749](https://github.com/agda/agda/issues/8749);
+  this is a facet of the more general issue
+  [#1079](https://github.com/agda/agda/issues/1079), which is not fixed.)
+
 Reflection
 ----------
 

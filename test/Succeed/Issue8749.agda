@@ -11,9 +11,8 @@
 -- solved, the type reduced to `{x : Nat} → …` and the comparison failed --
 -- too late to insert the hidden lambda (a facet of issue #1079).
 --
--- Now Agda runs the deferred instance search speculatively; since it reveals
--- that the type becomes a hidden function type, the whole type checking
--- problem is postponed instead.
+-- Now the whole type checking problem is postponed instead; it is retried
+-- once `i` is resolved, and then the type is in weak head normal form.
 
 open import Agda.Builtin.Equality
 open import Agda.Builtin.FromNat
