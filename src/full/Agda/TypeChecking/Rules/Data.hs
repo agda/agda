@@ -1511,14 +1511,6 @@ defineHCompForFields
   -> LType        -- ^ record type (δ : Δ) ⊢ R[δ]
   -> TCM ((QName, Telescope, Type, [Dom Type], [Term]),Substitution)
 defineHCompForFields applyProj name params fsT fns rect = do
-  recordFields <- case unEl (fromLType rect) of
-    Def q _ -> do
-      def <- getConstInfo q
-      pure $ case theDef def of
-        RecordDefn{} -> True
-        _            -> False
-    _ -> pure False
-
   interval <- primIntervalType
   let delta = params
   iz <- primIZero
@@ -1638,8 +1630,7 @@ defineHCompForFields applyProj name params fsT fns rect = do
         l <- reduce $ lTypeLevel $ unDom filled_ty'
         let lvl = Lam defaultArgInfo (Abs "i" $ Level l)
             -- Use hcomp for fields independent of the composition direction.
-            independent = recordFields
-              && not (0 `freeIn` (unEl $ fromLType $ unDom filled_ty'))
+            independent = not (0 `freeIn` (unEl $ fromLType $ unDom filled_ty'))
               && not (0 `freeIn` Level l)
             composeField
               | independent = \ la bA phi u u0 ->
