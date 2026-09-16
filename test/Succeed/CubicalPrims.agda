@@ -157,15 +157,15 @@ module RecordComp where
     (let ℓ = _ ; Z : Set ℓ ; Z = R(A)(B)(C))
     (φ : I) → (u : ∀ i → Partial φ Z) → Z [ φ ↦ u i0 ] → Z
   fst (hcompR {A = A} {B} φ w w0)
-    = primComp (\ _ → A) (λ i →  (λ{ (φ = i1) → fst (w i itIsOne) }) ) (fst (outS w0))
+    = primHComp (λ i →  (λ{ (φ = i1) → fst (w i itIsOne) }) ) (fst (outS w0))
   snd (hcompR {A = A} {B} φ w w0)
     = primComp (λ i → B (a i)) (λ i → (λ { (φ = i1) → snd (w i itIsOne) })) (snd (outS w0))
     where
-      a = fill (λ z → A) (λ i → (λ { (φ = i1) → fst (w i itIsOne) }) ) (inS (fst (outS w0)))
+      a = hfill (λ i → (λ { (φ = i1) → fst (w i itIsOne) }) ) (inS (fst (outS w0)))
   trd (hcompR {A = A} {B} {C} φ w w0)
     = primComp (λ i → C (a i) (b i)) ((λ i → (λ { (φ = i1) → trd (w i itIsOne)}))) (trd (outS w0))
     where
-      a = fill (λ z → A) (λ i → (λ { (φ = i1) → fst (w i itIsOne) }) ) (inS (fst (outS w0)))
+      a = hfill (λ i → (λ { (φ = i1) → fst (w i itIsOne) }) ) (inS (fst (outS w0)))
       b = fill (λ i → B (a i)) (λ i → (λ { (φ = i1) → snd (w i itIsOne) }) ) (inS (snd (outS w0)))
 
   module _ {ℓ ℓ'} {A : Set ℓ} {B : A → Set ℓ'}
