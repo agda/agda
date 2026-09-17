@@ -717,8 +717,8 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
                  emptyBinds]
           ]
 
-      -- TC builtins are compiled to erased, which is an ∞-ary
-      -- function.
+      -- TC builtins are compiled to erased, which is a non-strict
+      -- ∞-ary function.
       Axiom{} | ghcEnvIsTCBuiltin env q -> do
         retDecls $
           [ HS.FunBind
