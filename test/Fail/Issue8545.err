@@ -1,0 +1,7 @@
+Issue8545.agda:32.4-7: error: [UnequalTerms]
+The terms
+  A
+and
+  B
+are not equal at type Set
+when checking that the pattern c k has type M.D B
