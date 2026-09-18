@@ -68,8 +68,9 @@ the general schema for higher inductive types work, following the
 Cubical Agda at https://www.doi.org/10.1017/S0956796821000034.
 
 To use the cubical mode Agda needs to be run with the
-:option:`--cubical` command-line-option or with ``{-#
-OPTIONS --cubical #-}`` at the top of the file.
+:option:`--cubical` command-line-option,
+as a flag in your ``.agda-lib`` file
+or with ``{-# OPTIONS --cubical #-}`` at the top of the file.
 
 There are also two other :ref:`variants<variants>` of the cubical mode:
 
@@ -871,7 +872,6 @@ constructors (specifically of the constructor ``suc``), and so will not
 compute on transported values.
 
 ::
-
 
   sucInjEq : ∀ {n k} → Eq (suc n) (suc k) → Eq n k
   sucInjEq reflEq = reflEq
