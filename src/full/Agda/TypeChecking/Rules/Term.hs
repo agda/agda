@@ -1624,16 +1624,24 @@ checkExpr' cmp e t =
     -- Andreas & Claude, 2026-09-15, issue #8749 (a facet of #1079):
     -- The expected type is blocked, so we cannot see whether a hidden lambda
     -- needs to be inserted -- and the decision made here is irreversible.
-    -- If the only blockers are instance metas whose resolution has merely been
+    -- If the head of the type could unfold to a hidden function type and the
+    -- only blockers are instance metas whose resolution has merely been
     -- deferred by 'postponeInstanceConstraints', postpone the whole type
     -- checking problem rather than guessing wrong.  It will be retried once
     -- the instance is resolved, and then the type is in weak head normal form.
+    --
+    -- The 'couldBeHiddenPi' filter is essential for performance: types blocked
+    -- by an instance meta are pervasive in libraries that overload type
+    -- families through a class (e.g. TypeTopology's @Underlying.⟨_⟩@ and
+    -- @underlying-order@), and acting on all of them derails elaboration.
     | Blocked blocker _ <- tReducedB
     , not $ lambdaOrHole e
     = do
       let ms = allBlockingMetas blocker
       expandHidden <- viewTC eExpandLast
-      ifNotM (pure (expandHidden /= ReallyDontExpandLast) `and2M` allInstanceMetas ms)
+      ifNotM (pure (expandHidden /= ReallyDontExpandLast)
+                `and2M` couldBeHiddenPi tReduced
+                `and2M` allInstanceMetas ms)
         fallback do
           reportSDoc "tc.term.expr.impl" 15 $
             "Postponing check against instance-blocked type" <+> prettyTCM tReduced
@@ -1677,6 +1685,23 @@ checkExpr' cmp e t =
       A.QuestionMark{} -> True
       A.Underscore{}   -> True
       _                -> False
+
+    -- Cheap, purely syntactic over-approximation: can the (blocked) type
+    -- unfold to a hidden function type once its blockers are solved?
+    -- Data and record types, and record projections (whose value is whatever
+    -- the instance provides), are not worth speculating about.
+    couldBeHiddenPi = loop (4 :: Int) . unEl
+      where
+      loop n v
+        | n <= 0 = return False   -- out of budget: do not act
+        | otherwise = case v of
+            Pi dom _ -> return $ notVisible dom
+            Def f _  -> theDef <$> getConstInfo f >>= \case
+              Function{ funProjection = Right{} } -> return False
+              Function{ funClauses = cls } ->
+                orM [ loop (n - 1) b | Clause{ clauseBody = Just b } <- cls ]
+              _ -> return False
+            _ -> return False
 
     -- Is the blocker exclusively made up of unsolved instance metas?
     allInstanceMetas ms
