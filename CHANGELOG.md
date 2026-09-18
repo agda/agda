@@ -660,6 +660,22 @@ Changes to type checker and other components defining the Agda language.
   fields for any cohesion modality which has a left adjoint (currently
   just sharp and continuous).
 
+Builtins
+--------
+
+* (**BREAKING**): The fixity declarations for `Agda.Builtin.Int.pos` and for
+  `primINeg`, `primIMin`, and `primIMax`, in `Agda.Primitive.Cubical` have been removed.
+  Reason: they trigger the new warning `FixityDeclarationForNonOperator`.
+  If you want to use these builtins as operators, supply a fixity in the `renaming` directive, e.g.:
+  ```agda
+  open import Agda.Builtin.Int renaming (pos to infix 8 +_)
+  open import Agda.Primitive.Cubical renaming
+    ( primINeg to infix  30 ~_
+    ; primIMin to infixr 20 _∧_
+    ; primIMax to infixr 20 _∨_
+    )
+  ```
+
 Reflection
 ----------
 

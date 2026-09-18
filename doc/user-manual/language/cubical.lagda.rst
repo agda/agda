@@ -1126,13 +1126,10 @@ the following ``BUILTIN``, primitives and postulates:
   {-# BUILTIN IZERO    i0   #-}
   {-# BUILTIN IONE     i1   #-}
 
-  infix 30 primINeg
-  infixr 20 primIMin primIMax
-
   primitive
-    primIMin : I → I → I   -- _∧_
-    primIMax : I → I → I   -- _∨_
-    primINeg : I → I       -- ~_
+    primIMin : I → I → I   -- infixr 30 _∧_
+    primIMax : I → I → I   -- infixr 30 _∨_
+    primINeg : I → I       -- infix  20 ~_
 
   {-# BUILTIN ISONE IsOne #-} -- IsOne : I → SSet
 
