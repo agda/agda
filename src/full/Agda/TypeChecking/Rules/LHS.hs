@@ -1888,7 +1888,19 @@ disambiguateConstructor
   -> Args              -- ^ Parameters of the datatype
   -> TCM (ConHead, Type)
 disambiguateConstructor ambC d pars = do
-  d <- canonicalName d
+  reduce (Def d $ map Apply pars) >>= \case
+    Def d0 es | Just vs <- allApplyElims es -> disambiguateConstructor' ambC d0 vs
+    _ -> __IMPOSSIBLE__
+
+-- | Disambiguate a constructor based on the data type it is supposed to be
+--   constructing. Returns the unambiguous constructor name and its type.
+--   Precondition: type should be a data/record type.
+disambiguateConstructor'
+  :: AmbiguousQName    -- ^ The name of the constructor to be disambiguated.
+  -> QName             -- ^ Name of the datatype.
+  -> Args              -- ^ Parameters of the datatype
+  -> TCM (ConHead, Type)
+disambiguateConstructor' ambC d pars = do
   cons <- theDef <$> getConstInfo d >>= \case
     def@Datatype{} -> return $ dataCons def
     def@Record{}   -> return $ [conName $ recConHead def]
