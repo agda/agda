@@ -90,24 +90,15 @@ The cubical mode adds the following features to Agda:
 6. Higher inductive types
 7. Cubical identity types
 
-There are two major libraries for Cubical Agda:
+In this documentation we will rely on the ``agda/cubical`` library
+available at https://github.com/agda/cubical.
+We use the naming conventions of this library; for a
+detailed list of all of the built-in Cubical Agda files and
+primitives see :ref:`primitives-ref`.
 
-- ``agda/cubical``: originally intended as a standard library for
-  Cubical Agda available at https://github.com/agda/cubical. This
-  documentation uses the naming conventions of this library, for a
-  detailed list of all of the built-in Cubical Agda files and
-  primitives see :ref:`primitives-ref`.
-
-- ``1lab``: A formalised and cross linked reference resource for
-  cubical methods in Homotopy Type Theory which can be found at
-  https://1lab.dev/. Much better documented than the ``agda/cubical``
-  library and hence more accessible to newcomers. The sources can be
-  found at https://github.com/plt-amy/1lab.
-
-In this documentation we will rely on the ``agda/cubical`` library and
-the recommended way to get access to the cubical primitives is to add
-the following to the top of a file (this assumes that the
-``agda/cubical`` library is installed and visible to Agda).
+The recommended way to get access to the cubical primitives is to add
+the following to the top of a file; this assumes that the
+``agda/cubical`` library is installed and visible to Agda.
 
 .. code-block:: agda
 
@@ -643,7 +634,7 @@ We have the following equalities:
 
 
 For more results about Glue types and univalence see the files of Glue
-types and univalence in the ``agda/cubical`` library or the ``1lab``.
+types and univalence in the ``agda/cubical`` library.
 
 
 Higher inductive types
@@ -782,7 +773,7 @@ treated as erased.)
 
 
 For many more examples of higher inductive types see the
-``agda/cubical`` library or the ``1lab``.
+``agda/cubical`` library.
 
 .. _indexed-inductive-types:
 
