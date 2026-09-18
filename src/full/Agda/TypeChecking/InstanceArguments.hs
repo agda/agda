@@ -25,6 +25,7 @@ import Control.Monad.Except   (ExceptT(..), runExceptT, MonadError(..))
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
+import Data.Either
 import Data.Function (on)
 import Data.Monoid hiding ((<>))
 import Data.Foldable (toList, foldrM)
@@ -805,11 +806,20 @@ resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
 -- This is sufficient to reduce the list to a singleton should all be equal.
 dropSameCandidates :: MetaId -> Bool -> [(Candidate, Term, TCState)] -> TCM [(Candidate, Term, TCState)]
 dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSameCandidates" $ do
+  initialState <- getTCState
   !nextMeta    <- nextLocalMeta
   isRemoteMeta <- isRemoteMeta
 
   -- Does "it" contain any fresh meta-variables?
   let freshMetas = getAny . allMetas (\m -> Any (not (isRemoteMeta m || m < nextMeta)))
+
+  -- We only discard equal candidates if the candidate we are keeping
+  -- does not result in any metas or constraints being solved (see #8633).
+  let constraintIds = List.sort . map constraintProblems
+      hasEffects st =
+           Map.keys (st ^. stOpenMetaStore) /= Map.keys (initialState ^. stOpenMetaStore)
+        || constraintIds (st ^. stAwakeConstraints) /= constraintIds (initialState ^. stAwakeConstraints)
+        || constraintIds (st ^. stSleepingConstraints) /= constraintIds (initialState ^. stSleepingConstraints)
 
   rel <- getRelevance <$> lookupMetaModality m
 
@@ -827,42 +837,43 @@ dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSam
 
   case cands of
     [] -> return cands
-    cvd : _ | isIrrelevant rel -> do
-      reportSLn "tc.instance" 30 "dropSameCandidates: Meta is irrelevant so any candidate will do."
-      return [cvd]
-
     -- If there's nothing, try not to reduce the candidate.
     [cvd] -> pure [cvd]
 
-    cvd@(_, v, st) : vas -> do
-      let
-        equal :: (Candidate, Term, a) -> TCM Bool
-        equal (c, v', _)
-            | isIncoherent c = return True   -- See 'sinkIncoherent'
-            | freshMetas v'  = return False  -- If there are fresh metas we can't compare
-            | otherwise      =
-          verboseBracket "tc.instance" 30 "dropSameCandidates: " $ do
-          reportSDoc "tc.instance" 30 $ sep [ prettyTCM v <+> "==", nest 2 $ prettyTCM v' ]
-          a <- uncurry piApplyM =<< ((,) <$> getMetaType m <*> getContextArgs)
-          pureBlockOrEqualTerm a v v' <&> \case
-            Left{}  -> False
-            Right b -> b
+    _ -> do
+      -- If we do actually have to remove overlap then we have to find
+      -- a candidate that is "safe" to compare against other candidates:
+      -- it should not have any fresh metas, and there should not be any
+      -- newly solved metas or constraints in its state.
+      let getSafeCandidate [] = return Nothing
+          getSafeCandidate (cand@(c, v, st):cands) = do
+            -- ... issue #8215: while fastReduce is perfectly happy to block
+            -- on a meta that doesn't exist, the short-circuit blocking in
+            -- maybeFastReduce explodes, we have to reduce in the new TC
+            -- state.
+            v' <- localTCState $ putTC st >> reduce v
+            if freshMetas v' || hasEffects st then
+              fmap (second ((c, v', st):)) <$> getSafeCandidate cands
+            else
+              return $ Just ((c, v', st) , cands)
 
-      -- If we do actually have to remove overlap then we have to reduce
-      -- the candidate to eliminate any "phantom" dependencies on fresh
-      -- metas.
-      -- ... issue #8215: while fastReduce is perfectly happy to block
-      -- on a meta that doesn't exist, the short-circuit blocking in
-      -- maybeFastReduce explodes, we have to reduce in the new TC
-      -- state.
-      v <- localTCState do
-        putTC st
-        reduce v
-      if
-        | freshMetas v -> do
-          reportSLn "tc.instance" 30 "dropSameCandidates: Solution of instance meta has fresh metas so we don't filter equal candidates yet"
-          return (cvd : vas)
-        | otherwise -> (cvd :) <$> dropWhileM equal vas
+      getSafeCandidate cands >>= \case
+        Just (safeCand@(c0, v0, st0), cands') -> do
+          reportSDoc "tc.instance" 30 $ "dropSameCandidates: Found effect-free candidate" <+> prettyTCM c0
+          let canDrop (c, v, st)
+                | isIncoherent c = return True   -- See 'sinkIncoherent'
+                | isIrrelevant rel = return True
+                | otherwise = verboseBracket "tc.instance" 30 "dropSameCandidates: " $ do
+                    reportSDoc "tc.instance" 30 $ sep [ prettyTCM v0 <+> "==", nest 2 $ prettyTCM v ]
+                    a <- uncurry piApplyM =<< ((,) <$> getMetaType m <*> getContextArgs)
+                    localTCState $ do
+                      putTC st
+                      fromRight False <$> pureBlockOrEqualTerm a v0 v
+          (safeCand :) <$> dropWhileM canDrop cands'
+
+        Nothing -> do
+          reportSLn "tc.instance" 30 "dropSameCandidates: No effect-free solution found; we don't filter equal candidates yet"
+          return cands
 
 data YesNo = Yes Term Bool | No | NoBecause TCErr | HellNo TCErr
   deriving (Show)
