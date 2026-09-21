@@ -21,6 +21,7 @@ import Data.Word
 import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
+import Agda.Syntax.Internal (TermSize(..))
 import Agda.Syntax.Literal
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
@@ -282,6 +283,32 @@ filterUsed = curry $ \case
   (_ , [])   -> []
   (ArgUsed   : used, a : args) -> a : filterUsed used args
   (ArgUnused : used, _ : args) ->     filterUsed used args
+
+-- TermSize instances
+------------------------------------------------------------------------
+
+instance TermSize TTerm where
+  tsize = \case
+    TVar _         -> 1
+    TPrim _        -> 1
+    TDef _         -> 1
+    TLit _         -> 1
+    TCon _         -> 1
+    TUnit          -> 1
+    TSort          -> 1
+    TErased        -> 1
+    TError _       -> 1
+    TApp t ts      -> tsize t + tsize ts
+    TLam t         -> 1 + tsize t
+    TLet _ t1 t2   -> 1 + tsize t1 + tsize t2
+    TCase _ _ t bs -> 1 + tsize t + tsize bs
+    TCoerce t      -> 1 + tsize t
+
+instance TermSize TAlt where
+  tsize = \case
+    TACon _ _ t   -> tsize t
+    TAGuard t1 t2 -> tsize t1 + tsize t2
+    TALit _ t     -> tsize t
 
 -- NFData instances
 ---------------------------------------------------------------------------
