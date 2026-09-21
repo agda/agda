@@ -5,6 +5,25 @@ module Issue8457 where
 open import Agda.Builtin.Sigma renaming (fst to proj₁; snd to proj₂)
 open import Agda.Builtin.Equality as ≡ hiding (refl)
 
+-- This is a regression test related to issue #8457 (2026/03/05).
+-- The code is found when testing Joris Ceulemans's BiSikkel on Agda 2.9.0 (1255fda4).
+--
+-- BiSikkel: https://dl.acm.org/doi/10.1145/3704844
+--
+-- Original file: BiSikkel.MSTT.Extraction
+-- https://github.com/JorisCeulemans/bisikkel/blob/5bb5a191a2da4fb0d3cc14281fb3ee75057e0bae/BiSikkel/MSTT/Extraction.agda
+--
+-- The file type checks for Agda 2.8.0 but likely hits the same problem
+-- reported in #8457. Specifically, the type checking results are:
+--
+-- c8eed8d0df (2026/02/08):   pass
+-- 535c0cf3b0 (2026/02/04):   the type checker loops
+-- (some commits in between): the type checker loops
+-- 40b6257942 (2026/02/11):   the type checker loops
+-- f4a65a3b6c (2026/03/05):   pass
+--
+-- Git HEAD (1255fda4):       pass
+
 ---------------- Preamble: extracted and simplified from Standard Library ----------------
 
 record ⊤ : Set where constructor tt
@@ -20,10 +39,6 @@ module StdLib where
   Setoid = Σ Set (λ Carrier → Carrier → Carrier → Set)
 
   module FunctionBundles where
-    ------------------------------------------------------------------------
-    -- Setoid bundles
-    ------------------------------------------------------------------------
-
     module _ (From : Setoid) (To : Setoid) where
       open Σ From renaming (fst to A; snd to _≈₁_)
       open Σ To renaming (fst to B; snd to _≈₂_)
@@ -49,7 +64,7 @@ module StdLib where
       ; strictlyInverseʳ = invʳ
       }
 
-------------------------------------- Main: extracted from BiSikkel.MSTT.Extraction -------------------------------------
+---------------- Main: extracted from BiSikkel.MSTT.Extraction ----------------
 
 open StdLib.FunctionBundles
 
@@ -57,14 +72,7 @@ record Tyᴹ (Γ : Set) : Set₁ where
   field
     ty-cell : Γ → Set
     ty-hom : ∀ {γy γx} → ty-cell γy → ty-cell γx
-
 open Tyᴹ public
-
-postulate
-  to-Σ-ty-eq : {Γ : Set} (T : Tyᴹ Γ)
-    {a b : Γ} → a ≡ b → {ta : T .ty-cell a} {tb : T  .ty-cell b} →
-    T .ty-hom ta ≡ tb →
-    (a , ta) ≡ (b , tb)
 
 data Ty : Set where
   atom : Ty
@@ -82,20 +90,26 @@ open ExtractableCtx {{...}} public
 record ExtractableTy (T : Ty) : Set₁ where
   field
     AgdaTy : Set
-    extract-ty-iso : {sΓ : Set} {γ : sΓ} → (⟦ T ⟧ty  .ty-cell γ) ↔ AgdaTy
+    extract-ty-iso : {sΓ : Set} {γ : sΓ} → ⟦ T ⟧ty .ty-cell γ ↔ AgdaTy
 open ExtractableTy {{...}} public
 
 postulate
+  to-Σ-ty-eq : {Γ : Set} (T : Tyᴹ Γ)
+    {a b : Γ} → a ≡ b → {ta : T .ty-cell a} {tb : T  .ty-cell b} →
+    T .ty-hom ta ≡ tb →
+    (a , ta) ≡ (b , tb)
+
   extract-ty-iso-transport : {T : Ty} {{exT : ExtractableTy T}}
     {sΓ : Set} {γ γ' : sΓ} →
     {t : ⟦ T ⟧ty .ty-cell γ} →
     ty-hom ⟦ T ⟧ty {γ'} {γ}
       (Inverse.from (extract-ty-iso {{exT}}) (Inverse.to (extract-ty-iso {{exT}}) t)) ≡ t
+
 instance
   ,,-extractable :
     {Γ : Set} → {{ExtractableCtx Γ}} →
     {T : Ty} → {{ExtractableTy T}} →
-    ExtractableCtx (Σ Γ (λ γ → ⟦ T ⟧ty  .ty-cell γ))
+    ExtractableCtx (Σ Γ (λ γ → ⟦ T ⟧ty .ty-cell γ))
 
   ExtractableCtx.AgdaCtx (,,-extractable {Γ} {T}) = Σ (AgdaCtx {Γ}) λ _ → AgdaTy {T}
   ExtractableCtx.extract-ctx-iso (,,-extractable {Γ} {T}) = mk↔ₛ′
