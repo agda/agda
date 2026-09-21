@@ -3,18 +3,11 @@
 module Issue8457 where
 
 open import Agda.Builtin.Sigma renaming (fst to proj₁; snd to proj₂)
-open import Agda.Primitive using (lzero)
 open import Agda.Builtin.Equality as ≡ hiding (refl)
 
 ---------------- Preamble: extracted and simplified from Standard Library ----------------
 
 record ⊤ : Set where constructor tt
-
-trans1 : {X : Set} {a b c : X} → a ≡ b → b ≡ c → a ≡ c
-trans1 ≡.refl ≡.refl = ≡.refl
-
-cong1 :  {X Y : Set} {a b : X} → (f : X → Y) → a ≡ b → f a ≡ f b
-cong1 f ≡.refl = ≡.refl
 
 cong2 :  {X Y Z : Set} {a c : X} {b d : Y} → (f : X → Y → Z) → a ≡ c → b ≡ d → f a b ≡ f c d
 cong2 f ≡.refl ≡.refl = ≡.refl
@@ -23,55 +16,17 @@ map2 : {A B : Set} {C : A → Set} {D : B → Set} → (f : A → B) → (∀ {x
 map2 f g (x , y) = f x , g y
 
 module StdLib where
-  module RelationBinaryStructures {A : Set} (_≈_ : A → A → Set) where
-    record IsEquivalence : Set where
-      field
-        refl  : ∀ {x} →  x ≈ x
-        sym   : ∀ {x y} → x ≈ y → y ≈ x
-        trans : ∀ {i j k} → i ≈ j → j ≈ k → i ≈ k
-
-  module RelationBinaryBundles where
-    open RelationBinaryStructures
-
-    record Setoid : Set₁ where
-      infix 4 _≈_
-      field
-        Carrier       : Set
-        _≈_           : Carrier → Carrier → Set
-        isEquivalence : IsEquivalence _≈_
-
-      open IsEquivalence isEquivalence public
-        using (refl)
-
-  module RelationBinaryPropositionalEqualityProperties where
-    open RelationBinaryBundles
-    open RelationBinaryStructures
-
-    isEquivalence : {A : Set} → IsEquivalence {A = A} _≡_
-    isEquivalence = record
-      { refl  = ≡.refl
-      ; sym   = λ where ≡.refl → ≡.refl
-      ; trans = trans1
-      }
-
-    setoid : Set → Setoid
-    setoid A = record
-      { Carrier       = A
-      ; _≈_           = _≡_
-      ; isEquivalence = isEquivalence
-      }
+  Setoid : Set₁
+  Setoid = Σ Set (λ Carrier → Carrier → Carrier → Set)
 
   module FunctionBundles where
-    open RelationBinaryBundles
-
     ------------------------------------------------------------------------
     -- Setoid bundles
     ------------------------------------------------------------------------
 
     module _ (From : Setoid) (To : Setoid) where
-      open Setoid From using () renaming (Carrier to A; _≈_ to _≈₁_)
-      open Setoid To   using () renaming (Carrier to B; _≈_ to _≈₂_)
-      open RelationBinaryStructures
+      open Σ From renaming (fst to A; snd to _≈₁_)
+      open Σ To renaming (fst to B; snd to _≈₂_)
 
       record Inverse : Set where
         field
@@ -81,7 +36,7 @@ module StdLib where
           strictlyInverseʳ : ∀ x → from (to x) ≈₁ x
 
     _↔_ : Set → Set → Set _
-    A ↔ B = Inverse (RelationBinaryPropositionalEqualityProperties.setoid A) (RelationBinaryPropositionalEqualityProperties.setoid B)
+    A ↔ B = Inverse (A , _≡_) (B , _≡_)
 
     mk↔ₛ′ : {A B : Set} (to : A → B) (from : B → A) →
             (∀ y → to (from y) ≡ y) →
