@@ -135,6 +135,11 @@ jobs:
         - 9.4.8
         - 9.2.8
         include:
+        - cabal-flags: --project-file=cabal.project.ghc-10.0.0
+          description: Linux GHC 10.0.0 alpha1
+          doctest: false
+          ghc-ver: 10.0.0.20260917
+          os: ubuntu-24.04
         - cabal-flags: --disable-tests
           description: Linux doctest
           doctest: true
