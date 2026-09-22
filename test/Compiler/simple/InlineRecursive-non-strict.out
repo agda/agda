@@ -1,0 +1,15 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > InlineRecursive-non-strict.f =
+out >   λ a →
+out >     case a of
+out >       0 → 0
+out >       _ → let !b = a - 1 in InlineRecursive-non-strict.f b
+out > InlineRecursive-non-strict.main =
+out >   Common.IO.printNat
+out >     (let ~a = 4 in
+out >      case a of
+out >        0 → 0
+out >        _ → let !b = 3 in InlineRecursive-non-strict.f b)
+out > 0

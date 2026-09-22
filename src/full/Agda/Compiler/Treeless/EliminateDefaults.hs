@@ -29,7 +29,8 @@ eliminateCaseDefaultAtTopLevelIfPresent (TCase sc ci@CaseInfo{caseType = CTData 
 
     alts' <- (++ newAlts) <$> mapM (trAlt . raise 1) alts
 
-    return $ TLet def $ TCase (sc + 1) ci tUnreachable alts'
+    -- This binding is non-strict, see issue #8759.
+    return $ TLet NonStrict def $ TCase (sc + 1) ci tUnreachable alts'
 eliminateCaseDefaultAtTopLevelIfPresent t = pure t
 
 trAlt :: TAlt -> TCM TAlt
@@ -58,5 +59,4 @@ eliminateCaseDefaults = tr
       TCoerce a               -> TCoerce <$> tr a
       TLam b                  -> TLam <$> tr b
       TApp a bs               -> TApp <$> tr a <*> mapM tr bs
-      TLet e b                -> TLet <$> tr e <*> tr b
-
+      TLet s e b              -> TLet s <$> tr e <*> tr b

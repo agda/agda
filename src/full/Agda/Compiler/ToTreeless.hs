@@ -260,29 +260,44 @@ casetree cc = do
         updateCatchall catchall fromCatchall
       else do
         -- Get the type of the scrutinee.
-        caseTy <-
+        (caseTy, ind) <-
           case (Map.keys conBrs', Map.keys litBrs) of
             (cs, []) -> lift $ go cs
               where
               go (c:cs) = canonicalName c >>= getConstInfo <&> theDef >>= \case
-                Constructor{conData} ->
-                  return $ C.CTData conData
+                Constructor{conData} -> do
+                  def <- theDef <$> getConstInfo conData
+                  return
+                    ( C.CTData conData
+                    , case def of
+                        Datatype{}             -> Inductive
+                        Record{ recInduction } -> case recInduction of
+                          Just i  -> i
+                          Nothing -> Inductive
+                        _ -> __IMPOSSIBLE__
+                    )
                 _ -> go cs
               go [] = __IMPOSSIBLE__
-            ([], LitChar   _ : _) -> return C.CTChar
-            ([], LitString _ : _) -> return C.CTString
-            ([], LitFloat  _ : _) -> return C.CTFloat
-            ([], LitQName  _ : _) -> return C.CTQName
+            ([], LitChar   _ : _) -> return (C.CTChar,   Inductive)
+            ([], LitString _ : _) -> return (C.CTString, Inductive)
+            ([], LitFloat  _ : _) -> return (C.CTFloat,  Inductive)
+            ([], LitQName  _ : _) -> return (C.CTQName,  Inductive)
             _ -> __IMPOSSIBLE__
 
         updateCatchall catchall $ do
-          x <- asks (lookupLevel n . ccCxt)
-          def <- fromCatchall
-          let caseInfo = C.CaseInfo
-                { caseType   = caseTy
-                , caseLazy   = lazy
-                , caseErased = fromMaybe __IMPOSSIBLE__ $
-                               erasedFromQuantity (getQuantity i)
+          x    <- asks (lookupLevel n . ccCxt)
+          eval <- asks ccEvaluation
+          def  <- fromCatchall
+          let -- Lazy matches are made strict in strict backends.
+              lazy' = lazy && case eval of
+                C.LazyEvaluation _ -> True
+                C.EagerEvaluation  -> False
+              caseInfo = C.CaseInfo
+                { caseType      = caseTy
+                , caseLazy      = lazy'
+                , caseInduction = ind
+                , caseErased    = fromMaybe __IMPOSSIBLE__ $
+                                  erasedFromQuantity (getQuantity i)
                 }
           C.TCase x caseInfo def <$> do
             br1 <- conAlts n conBrs'
@@ -324,7 +339,8 @@ updateCatchall (Just cc) cont = do
     , "--   def =" <+> prettyPure def
     ]
   local (\ e -> e { ccCatchall = Just 0, ccCxt = shift 1 cxt }) $ do
-    C.mkLet def <$> cont
+    -- This binding is non-strict, see issue #8759.
+    C.mkLet C.NonStrict def <$> cont
 
 -- | Shrinks or grows the context to the given size.
 -- Does not update the catchall expression, the catchall expression
@@ -433,7 +449,9 @@ lambdasUpTo n cont = do
           local (\e -> e { ccCatchall = Just 0
                          , ccCxt = shift 1 cxt }) $ do
             let catchallArgs = map C.TVar $ downFrom diff
-            C.mkLet (C.mkTApp (C.TVar $ catchall + diff) catchallArgs)
+            -- This binding is non-strict, see issue #8759.
+            C.mkLet C.NonStrict
+              (C.mkTApp (C.TVar $ catchall + diff) catchallArgs)
               <$> cont
         Nothing -> cont
 
@@ -634,7 +652,7 @@ compilerPipeline v q =
     -- [ compilerPass "simpl"   (35 + v) "simplification"      $ const simplifyTTerm
     [ compilerPass "builtin" (30 + v) "builtin translation" $ const translateBuiltins
     , FixedPoint 5 $ Sequential
-      [ compilerPass "simpl"  (30 + v) "simplification"     $ const simplifyTTerm
+      [ compilerPass "simpl"  (30 + v) "simplification"     $ simplifyTTerm
       , compilerPass "erase"  (30 + v) "erasure"            $ eraseTerms q
       , compilerPass "uncase" (30 + v) "uncase"             $ const caseToSeq
       , compilerPass "aspat"  (30 + v) "@-pattern recovery" $ const recoverAsPatterns
