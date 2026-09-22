@@ -34,7 +34,7 @@ jobs:
         cabal-update: false
         enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}
-        stack-version: latest
+        stack-version: 3.9.3
     - name: Environment settings based on the Haskell setup
       run: |
         echo "runner.os         = ${{ runner.os                               }}"

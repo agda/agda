@@ -84,7 +84,10 @@ jobs:
       id: haskell-setup
       with:
         ghc-version: ${{ matrix.ghc-ver }}
-        stack-version: latest
+        stack-version: '3.9.3'
+          # Andreas, 2026-09-22
+          # 'latest' now resolves to '3.11.1' which breaks pkg-config here.
+          # See https://github.com/commercialhaskell/stack/issues/6967
         enable-stack: true
         cabal-update: false
 
