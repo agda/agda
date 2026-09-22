@@ -1,6 +1,6 @@
 {-# OPTIONS -v treeless.opt.simpl:30 -v 0 #-}
 
-module Issue7595 where
+module Issue7595-non-strict where
 
 open import Agda.Builtin.Maybe using (Maybe; just; nothing)
 
@@ -129,4 +129,3 @@ step : Board → Board
 step b with winner b
 ... | just _ = b
 ... | nothing = b0
-

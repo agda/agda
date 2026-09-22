@@ -1,0 +1,7 @@
+TestOptions
+  { forCompilers =
+      [ (MAlonzo Lazy, CompilerOptions {extraAgdaArgs = ["--no-main"]})
+      ]
+  , runtimeOptions = []
+  , executeProg = False
+  }

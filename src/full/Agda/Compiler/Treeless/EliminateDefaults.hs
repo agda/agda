@@ -30,7 +30,8 @@ eliminateCaseDefaults = tr
 
         alts' <- (++ newAlts) <$> mapM (trAlt . raise 1) alts
 
-        return $ TLet def $ TCase (sc + 1) ct tUnreachable alts'
+        -- This binding is non-strict, see issue #8759.
+        return $ TLet NonStrict def $ TCase (sc + 1) ct tUnreachable alts'
       TCase sc ct def alts -> TCase sc ct <$> tr def <*> mapM trAlt alts
 
       t@TVar{}    -> return t
@@ -46,7 +47,7 @@ eliminateCaseDefaults = tr
       TCoerce a               -> TCoerce <$> tr a
       TLam b                  -> TLam <$> tr b
       TApp a bs               -> TApp <$> tr a <*> mapM tr bs
-      TLet e b                -> TLet <$> tr e <*> tr b
+      TLet s e b              -> TLet s <$> tr e <*> tr b
 
     trAlt :: TAlt -> TCM TAlt
     trAlt = \case

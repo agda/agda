@@ -61,7 +61,7 @@ transform kit = tr
       TCoerce a               -> TCoerce (tr a)
       TLam b                  -> TLam (tr b)
       TApp a bs               -> TApp (tr a) (map tr bs)
-      TLet e b                -> TLet (tr e) (tr b)
+      TLet s e b              -> TLet s (tr e) (tr b)
 
     -- TODO:: Defined but not used
     isCaseOn (CTData dt) xs = dt `elem` mapMaybe ($ kit) xs

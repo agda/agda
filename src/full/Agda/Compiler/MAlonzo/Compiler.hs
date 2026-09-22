@@ -799,8 +799,11 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
   functionViaTreeless :: Definition -> QName -> HsCompileM (UsesFloat, [HS.Decl])
   functionViaTreeless def q = do
-    strict <- optGhcStrict <$> askGhcOpts
-    let eval = if strict then EagerEvaluation else LazyEvaluation
+    strict     <- optGhcStrict     <$> askGhcOpts
+    strictData <- optGhcStrictData <$> askGhcOpts
+    let eval =
+          if strict then EagerEvaluation
+          else LazyEvaluation (if strictData then Strict else NonStrict)
     caseMaybeM (liftTCM $ toTreeless eval q) (pure mempty) $ \ treeless -> do
 
       used <- fromMaybe [] <$> getCompiledArgUse q
@@ -1027,10 +1030,13 @@ noApplication = \case
   T.TVar i    -> hsVarUQ . lookupIndex i <$> view ccContext
   T.TLam t    -> intros 1 $ \ [x] -> hsLambda [HS.PVar x] <$> term t
 
-  T.TLet t1 t2 -> do
+  T.TLet s t1 t2 -> do
     t1' <- term t1
+    s'  <- case s of
+      T.Strict    -> return HS.Strict
+      T.NonStrict -> return HS.Lazy
     intros 1 $ \[x] -> do
-      hsLet x t1' . hsCoerce <$> term t2
+      hsLet s' x t1' . hsCoerce <$> term t2
 
   T.TCase sc ct def alts -> do
     sc'   <- term $ T.TVar sc
