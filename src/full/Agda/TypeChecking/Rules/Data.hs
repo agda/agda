@@ -50,7 +50,7 @@ import Agda.Utils.Boolean
 import Agda.Utils.Either
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
-import Agda.Utils.List
+import Agda.Utils.List as List
 import Agda.Utils.List1 (pattern (:|) )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -782,13 +782,13 @@ defineTranspIx d = do
       reportSDoc "tc.data.ixs" 20 $ "transpIx:" <+> prettyTCM theType
       let
         ctel = abstract params $ abstract deltaI $ ExtendTel (defaultDom $ subst 0 iz rect') (Abs "t" EmptyTel)
-        ps = telePatterns ctel empty
+        (ps, p) = fromMaybe __IMPOSSIBLE__ $ List.initLast' $ telePatterns ctel empty
         cpi = noConPatternInfo { conPType = Just (defaultArg interval) }
         pat :: NamedArg (Pattern' DBPatVar)
         pat = defaultNamedArg $ ConP c cpi []
         clause = empty
           { clauseTel         = ctel
-          , namedClausePats   = init ps ++! [pat, last ps]
+          , namedClausePats   = ps ++! [pat, p]
 
           , clauseBody        = Just $ var 0
           , clauseType        = Just $ defaultArg $ raise 1 $ subst 0 io rect'
@@ -890,7 +890,7 @@ defineTranspFun d mtrX cons isHIT = do
           (defaultDefn defaultArgInfo trD theType (Cubical CErased) fun)
         let
           ctel = abstract telI $ ExtendTel (defaultDom $ subst 0 iz dTs) (Abs "t" EmptyTel)
-          ps = telePatterns ctel empty
+          (ps, p) = fromMaybe __IMPOSSIBLE__ $ List.initLast' $ telePatterns ctel empty
           cpi = noConPatternInfo { conPType = Just (defaultArg interval)
                                  , conPFallThrough = True
                                  }
@@ -898,7 +898,7 @@ defineTranspFun d mtrX cons isHIT = do
           pat = defaultNamedArg $ ConP io_c cpi []
           clause = empty
             { clauseTel         = ctel
-            , namedClausePats   = init ps ++! [pat, last ps]
+            , namedClausePats   = ps ++! [pat, p]
 
             , clauseBody        = Just $ var 0
             , clauseType        = Just $ defaultArg $ raise 1 $ subst 0 io dTs

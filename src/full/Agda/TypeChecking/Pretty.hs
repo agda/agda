@@ -57,6 +57,7 @@ import Agda.TypeChecking.Free.Generic
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
+import Agda.Utils.List ( last1 )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
@@ -320,7 +321,7 @@ instance PrettyTCM ModuleName where
     let
       def = case mnameToList x of
         [] -> id
-        xs -> flip P.definedAt (nameBindingSite (last xs))
+        x:xs -> flip P.definedAt (nameBindingSite (last1 x xs))
     in fmap (P.hlModule . def . P.pretty) $ abstractToConcrete_ x
 
   {-# SPECIALIZE prettyTCM :: ModuleName -> TCM Doc #-}

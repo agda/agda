@@ -28,11 +28,7 @@ prop_last2 a b as = last2 (a:b:as) == toPair (drop (length as) $ a:b:as)
 
 prop_dropEnd n as = dropEnd n as == reverse (drop n (reverse as))
 
--- Trivial:
--- prop_initLast_nil       = initLast [] == Nothing
-
-prop_initLast_cons a as = initLast xs == Just (init xs, last xs)
-  where xs = a:as
+prop_initLast1 a as = initLast1 a as == (init1 a as, last1 a as)
 
 spec_updateHead f as = let (bs, cs) = splitAt 1 as in map f bs ++ cs
 prop_updateHead f as = updateHead f as == spec_updateHead f as
@@ -68,7 +64,7 @@ prop_stripReversedSuffix_complete pre rsuf = stripReversedSuffix rsuf (pre ++ re
 
 prop_suffixesSatisfying :: (Int -> Bool) -> [Int] -> Bool
 prop_suffixesSatisfying p xs =
-  suffixesSatisfying p xs == map (all p) (List.init (List.tails xs))
+  suffixesSatisfying p xs == map (all p) (List1.init (List1.tails xs))
 
 prop_chop_intercalate :: Property
 prop_chop_intercalate =

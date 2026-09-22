@@ -649,11 +649,11 @@ instance Monoid CallPath where
 
 -- | Only show intermediate nodes.  (Drop last 'CallInfo').
 instance Pretty CallPath where
-  pretty cis0 = if null cis then empty else
-    P.hsep (map' (\ ci -> arrow P.<+> P.pretty ci) cis) P.<+> arrow
-    where
-      cis   = init (callInfos cis0)
-      arrow = "-->"
+  pretty cis0 = case callInfos cis0 of
+    [] -> empty
+    ci1:cis1 -> case init1 ci1 cis1 of
+      [] -> empty
+      cis2 -> P.hsep (map' (("-->" P.<+>) . P.pretty) cis2) P.<+> "-->"
 
 -- * Size depth estimation
 ---------------------------------------------------------------------------

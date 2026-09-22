@@ -9,6 +9,7 @@ import Agda.Termination.Semiring (HasZero(..), Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 import Agda.Termination.SparseMatrix
 import Agda.Utils.Functor
+import Agda.Utils.List (initMaybe)
 import Agda.Utils.Tuple
 
 import Data.Array
@@ -173,7 +174,7 @@ prop_addColumn :: TM -> Bool
 prop_addColumn m =
   matrixInvariant m'
   &&
-  map init (toLists m') == toLists m
+  map initMaybe (toLists m') == map Just (toLists m)
   where
   m' = addColumn zeroElement m
 
@@ -182,7 +183,7 @@ prop_addRow :: TM -> Bool
 prop_addRow m =
   matrixInvariant m'
   &&
-  init (toLists m') == toLists m
+  initMaybe (toLists m') == Just (toLists m)
   where
   m' = addRow zeroElement m
 

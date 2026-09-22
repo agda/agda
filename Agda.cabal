@@ -391,6 +391,11 @@ common language
       -Werror=forall-identifier
         -- The forall-identifier warning is deprecated in GHC 9.10
 
+  if impl(ghc >= 9.8)
+    ghc-options:
+      -Werror=x-partial
+         -- The x-partial warning was introduced in GHC 9.8 and is default in GHC 10
+
   default-language: Haskell2010
 
   -- NOTE: If adding or removing default extensions, also change:

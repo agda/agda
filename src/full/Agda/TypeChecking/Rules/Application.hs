@@ -180,8 +180,7 @@ checkApplication cmp hd args e t =
       tTerm <- primAgdaTerm
       tName <- primQName
 
-      -- Andreas, 2021-05-13, can we use @initWithDefault __IMPOSSIBLE__@ here?
-      let argTel   = init $ telToList tel -- last argument is the hole term
+      let argTel = initWithDefault __IMPOSSIBLE__ $ telToList tel -- last argument is the hole term
 
           -- inspect macro type to figure out if arguments need to be wrapped in quote/quoteTerm
           mkArg :: Type -> NamedArg A.Expr -> NamedArg A.Expr
