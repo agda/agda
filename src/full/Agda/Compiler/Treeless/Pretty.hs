@@ -166,17 +166,25 @@ pTerm = \case
     where
       (n, b) = tLamView t
   t@TLet{} -> paren 0 $ withNames (length es) $ \ xs ->
-    (\ (binds, b) -> sep [ "let" <+> vcat [ sep [ text x <+> "="
-                                                , nest 2 e ] | (x, e) <- binds ]
-                              <+> "in", b ])
+    (\(binds, b) ->
+      sep [ "let" <+>
+            vcat [ sep [(strictness s <> text x) <+> "=", nest 2 e]
+                 | (s, x, e) <- binds
+                 ] <+>
+            "in"
+          , b
+          ])
       <$> pLets (zip xs es) b
     where
       (es, b) = tLetView t
 
       pLets [] b = ([],) <$> pTerm' 0 b
-      pLets ((x, e) : bs) b = do
+      pLets ((x, (s, e)) : bs) b = do
         e <- pTerm' 0 e
-        first ((x, e) :) <$> bindName x (pLets bs b)
+        first ((s, x, e) :) <$> bindName x (pLets bs b)
+
+      strictness Strict    = "!"
+      strictness NonStrict = "~"
 
   TCase x i def alts -> paren 0 $
     (\ sc alts defd ->
