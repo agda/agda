@@ -717,7 +717,7 @@ doc-test: install-doctest run-doctest
 .PHONY : install-doctest ## Install doctest for the current ghc.
 install-doctest:
 	@$(call decorate, "Installing doctest", \
-	  $(CABAL) install doctest --ignore-project)
+	  $(CABAL) install doctest-0.24.3 --ignore-project)
 
 .PHONY : run-doctest ## Run the doctests for the Agda library.
 run-doctest:
