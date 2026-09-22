@@ -939,6 +939,7 @@ library
       Agda.Utils.IORef.Strict
       Agda.Utils.Impossible
       Agda.Utils.IndexedList
+      Agda.Utils.IndexMap
       Agda.Utils.IntMap
       Agda.Utils.IntSet.Infinite
       Agda.Utils.Lens
@@ -1146,6 +1147,7 @@ executable agda-tests
       Internal.Utils.Favorites
       Internal.Utils.FileName
       Internal.Utils.Graph.AdjacencyMap.Unidirectional
+      Internal.Utils.IndexMap
       Internal.Utils.IntSet
       Internal.Utils.Lens
       Internal.Utils.List
