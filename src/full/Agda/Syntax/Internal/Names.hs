@@ -373,7 +373,7 @@ instance NamesIn TTerm where
     TLam t         -> namesAndMetasIn' sg t
     TLit l         -> namesAndMetasIn' sg l
     TCon x         -> namesAndMetasIn' sg x
-    TLet t1 t2     -> namesAndMetasIn' sg (t1, t2)
+    TLet _ t1 t2   -> namesAndMetasIn' sg (t1, t2)
     TCase _ c t ts -> namesAndMetasIn' sg (c, t, ts)
     TUnit          -> mempty
     TSort          -> mempty
@@ -398,7 +398,7 @@ instance NamesIn CaseType where
     CTQName    -> mempty
 
 instance NamesIn CaseInfo where
-  namesAndMetasIn' sg (CaseInfo _ _ t) = namesAndMetasIn' sg t
+  namesAndMetasIn' sg (CaseInfo _ _ _ t) = namesAndMetasIn' sg t
 
 instance NamesIn Compiled where
   namesAndMetasIn' sg (Compiled t _) = namesAndMetasIn' sg t

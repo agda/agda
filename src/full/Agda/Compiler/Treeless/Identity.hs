@@ -84,7 +84,7 @@ trivialIdentity q t =
       case t of
         TVar x | x >= k    -> IdIn [x - k]
                | otherwise -> notId
-        TLet _ b           -> go (k + 1) b
+        TLet _ _ b         -> go (k + 1) b
         TCase _ _ d bs     -> sconcat (go k d :| map (goAlt k) bs)
         TApp (TDef f) args
           | f == q         -> IdIn [ y | (TVar x, y) <- zip (reverse args) [0..], y + k == x ]

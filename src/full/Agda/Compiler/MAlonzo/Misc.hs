@@ -292,9 +292,9 @@ hsTypedInt n = HS.ExpTypeSig (HS.Lit (HS.Int $ fromIntegral n)) (HS.TyCon (hsNam
 hsTypedDouble :: Real a => a -> HS.Exp
 hsTypedDouble n = HS.ExpTypeSig (HS.Lit (HS.Frac $ toRational n)) (HS.TyCon (hsName "Double"))
 
-hsLet :: HS.Name -> HS.Exp -> HS.Exp -> HS.Exp
-hsLet x e b =
-  HS.Let (HS.BDecls [HS.LocalBind HS.Lazy x (HS.UnGuardedRhs e)]) b
+hsLet :: HS.Strictness -> HS.Name -> HS.Exp -> HS.Exp -> HS.Exp
+hsLet s x e b =
+  HS.Let (HS.BDecls [HS.LocalBind s x (HS.UnGuardedRhs e)]) b
 
 hsVarUQ :: HS.Name -> HS.Exp
 hsVarUQ = HS.Var . HS.UnQual
