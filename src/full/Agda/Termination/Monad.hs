@@ -13,8 +13,6 @@ import Prelude hiding (null, zip, zipWith)
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Except   ( MonadError(..) )
 
-import Data.DList ( DList )
-import Data.DList qualified as DL
 import Data.IntMap.Strict ( IntMap )
 import Data.IntMap.Strict qualified as IntMap
 import Data.Map.Strict ( Map )
@@ -47,6 +45,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Benchmark as B
+import Agda.Utils.BinTree ( BinTree )
+import Agda.Utils.BinTree qualified as BinTree
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -614,32 +614,22 @@ instance PrettyTCM a => PrettyTCM (Masked a) where
 ---------------------------------------------------------------------------
 
 -- | Call paths.
-
--- An old comment:
 --
---   The call information is stored as free monoid
---   over 'CallInfo'.  As long as we never look at it,
---   only accumulate it, it does not matter whether we use
---   'Set', (nub) list, or 'Tree'.
---   Internally, due to lazyness, it is anyway a binary tree of
---   'mappend' nodes and singleton leafs.
---   Since we define no order on 'CallInfo' (expensive),
---   we cannot use a 'Set' or nub list.
---   Performance-wise, I could not see a difference between Set and list.
---
--- If the binary tree is balanced "incorrectly", then forcing it could
--- be expensive, so a switch was made to difference lists.
+-- The call information is stored as free monoid over 'CallInfo',
+-- giving us constant-time concatenation.
+-- Once the information is complete, it can be converted to a non-empty list.
+-- (This should only be done once, as this operation is linear-time.)
 
 data CallPath = CallPath
   { callPathStart :: QName
-  , callPathSteps :: DList CallInfo
+  , callPathSteps :: BinTree CallInfo
   }
   deriving (Show)
 
 -- | The calls making up the call path.
 
 callInfos :: CallPath -> [CallInfo]
-callInfos (CallPath _ cs) = DL.toList cs
+callInfos (CallPath _ cs) = BinTree.toList cs
 
 instance Semigroup CallPath where
   CallPath start steps <> CallPath _ steps' = CallPath start (steps <> steps')

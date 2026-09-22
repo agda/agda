@@ -907,6 +907,8 @@ library
       Agda.Utils.Bag
       Agda.Utils.Benchmark
       Agda.Utils.BiMap
+      Agda.Utils.BinTree
+      Agda.Utils.BinTree1
       Agda.Utils.BoolSet
       Agda.Utils.Boolean
       Agda.Utils.ByteArray
