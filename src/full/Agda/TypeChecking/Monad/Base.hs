@@ -3034,8 +3034,12 @@ data DatatypeData = DatatypeData
       -- ^ Number of parameters.
   , _dataIxs            :: Nat
       -- ^ Number of indices.
-  , _dataClause         :: Maybe Clause
-      -- ^ This might be in an instantiated module.
+  , _dataBody           :: Maybe Term
+      -- ^ Was this data type created by a module application (is it a /copy/)?
+      --   If yes, this is its definition, linking back to the original data type:
+      --   a term @t@ such that @D args@ equals @t \`applyE\` args@.
+      --   It is kept eta-contracted, so that it also unfolds
+      --   underapplied occurrences of @D@ (issue #8545).
   , _dataCons           :: [QName]
       -- ^ Constructor names, ordered according to the order of their definition.
   , _dataSort           :: Sort
@@ -3059,7 +3063,7 @@ data DatatypeData = DatatypeData
 pattern Datatype
   :: Nat
   -> Nat
-  -> (Maybe Clause)
+  -> (Maybe Term)
   -> [QName]
   -> Sort
   -> Maybe [QName]
@@ -3073,7 +3077,7 @@ pattern Datatype
 pattern Datatype
   { dataPars
   , dataIxs
-  , dataClause
+  , dataBody
   , dataCons
   , dataSort
   , dataMutual
@@ -3085,7 +3089,7 @@ pattern Datatype
   } = DatatypeDefn (DatatypeData
     dataPars
     dataIxs
-    dataClause
+    dataBody
     dataCons
     dataSort
     dataMutual
@@ -3099,9 +3103,10 @@ pattern Datatype
 data RecordData = RecordData
   { _recPars           :: Nat
       -- ^ Number of parameters.
-  , _recClause         :: Maybe Clause
-      -- ^ Was this record type created by a module application?
-      --   If yes, the clause is its definition (linking back to the original record type).
+  , _recBody           :: Maybe Term
+      -- ^ Was this record type created by a module application (is it a /copy/)?
+      --   If yes, this is its definition, linking back to the original record type.
+      --   See '_dataBody'.
   , _recConHead        :: ConHead
       -- ^ Constructor name and fields.
   , _recNamedCon       :: Bool
@@ -3142,7 +3147,7 @@ data RecordData = RecordData
 
 pattern Record
   :: Nat
-  -> Maybe Clause
+  -> Maybe Term
   -> ConHead
   -> Bool
   -> [Dom QName]
@@ -3159,7 +3164,7 @@ pattern Record
 
 pattern Record
   { recPars
-  , recClause
+  , recBody
   , recConHead
   , recNamedCon
   , recFields
@@ -3174,7 +3179,7 @@ pattern Record
   , recComp
   } = RecordDefn (RecordData
     recPars
-    recClause
+    recBody
     recConHead
     recNamedCon
     recFields
@@ -3438,7 +3443,7 @@ instance Pretty DatatypeData where
   pretty (DatatypeData
       dataPars
       dataIxs
-      dataClause
+      dataBody
       dataCons
       dataSort
       dataMutual
@@ -3451,7 +3456,7 @@ instance Pretty DatatypeData where
     "Datatype {" <?> vcat
       [ "dataPars       =" <?> pshow dataPars
       , "dataIxs        =" <?> pshow dataIxs
-      , "dataClause     =" <?> pretty dataClause
+      , "dataBody       =" <?> pretty dataBody
       , "dataCons       =" <?> pshow dataCons
       , "dataSort       =" <?> pretty dataSort
       , "dataMutual     =" <?> pshow dataMutual
@@ -3462,7 +3467,7 @@ instance Pretty DatatypeData where
 instance Pretty RecordData where
   pretty (RecordData
       recPars
-      recClause
+      recBody
       recConHead
       recNamedCon
       recFields
@@ -3478,7 +3483,7 @@ instance Pretty RecordData where
     ) =
     "Record {" <?> vcat
       [ "recPars         =" <?> pshow recPars
-      , "recClause       =" <?> pretty recClause
+      , "recBody         =" <?> pretty recBody
       , "recConHead      =" <?> pretty recConHead
       , "recNamedCon     =" <?> pretty recNamedCon
       , "recFields       =" <?> pretty recFields
@@ -3842,9 +3847,18 @@ primFun q ar imp = PrimFun q ar [] (\args _ -> imp args)
 defClauses :: Definition -> [Clause]
 defClauses Defn{theDef = Function{funClauses = cs}}        = cs
 defClauses Defn{theDef = Primitive{primClauses = cs}}      = cs
-defClauses Defn{theDef = Datatype{dataClause = Just c}}    = [c]
-defClauses Defn{theDef = Record{recClause = Just c}}       = [c]
 defClauses _                                               = []
+
+-- | The definition of a data or record type copy (created by a module
+--   application), if the given definition is such a copy.
+--
+--   Unlike a 'Clause', this 'Term' can be applied to any number of arguments,
+--   so it also unfolds underapplied occurrences (issue #8545).
+--   See '_dataBody'.
+defBody :: Definition -> Maybe Term
+defBody Defn{theDef = Datatype{dataBody = v}} = v
+defBody Defn{theDef = Record  {recBody  = v}} = v
+defBody _                                     = Nothing
 
 defCompiled :: Definition -> Maybe CompiledClauses
 defCompiled Defn{theDef = Function {funCompiled  = mcc}} = mcc

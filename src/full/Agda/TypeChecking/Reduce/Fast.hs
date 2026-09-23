@@ -171,8 +171,8 @@ compactDef bEnv def copatterns rewr = do
                  , cfunProjection = projOrig <$> either (const Nothing) Just proj }
       Function{funClauses = []}      -> pure CAxiom
       Function{}                     -> pure COther -- Incomplete definition
-      Datatype{dataClause = Nothing} -> pure CTyCon
-      Record{recClause = Nothing}    -> pure CTyCon
+      Datatype{dataBody = Nothing} -> pure CTyCon
+      Record{recBody = Nothing}    -> pure CTyCon
       Datatype{}                     -> pure COther -- TODO
       Record{}                       -> pure COther -- TODO
       Axiom{}                        -> pure CAxiom

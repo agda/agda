@@ -18,3 +18,9 @@ instance Reduce a => Reduce (Arg a)
 instance (Subst a, Reduce a) => Reduce (Abs a)
 
 reduce :: (Reduce a, MonadReduce m) => a -> m a
+
+class InstantiateFull t
+
+instance InstantiateFull Term
+
+instantiateFull :: (InstantiateFull a, MonadReduce m) => a -> m a

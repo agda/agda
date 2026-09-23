@@ -16,7 +16,7 @@ module Agda.TypeChecking.Reduce
  , unfoldCorecursion, unfoldCorecursionE
  , unfoldDefinitionE, unfoldDefinitionStep
  , unfoldInlined
- , appDefE_, appDef', appDefE'
+ , appDefE_, appDefE0, appDef', appDefE'
  , abortIfBlocked, ifBlocked, isBlocked, fromBlocked, blockOnError
  -- Simplification
  , Simplify, simplify, simplifyBlocked'
@@ -769,7 +769,7 @@ unfoldDefinitionStep v0 f es =
                , FunctionReductions `SmallSet.member` allowed
                ])
         then
-          reduceNormalE v0 f (map' notReduced es) dontUnfold
+          reduceNormalE v0 f (map' notReduced es) dontUnfold (defBody info)
                        (defClauses info) (defCompiled info) rewr
         else noReduction $ notBlocked v  -- Andrea(s), 2014-12-05 OK?
 
@@ -790,7 +790,8 @@ unfoldDefinitionStep v0 f es =
                 noReduction $ applyE (Def f []) <$> do
                   blockAll $ map' mredToBlocked es1' ++! map' notBlocked es2
                else
-                reduceNormalE v0 f (es1' ++! map' notReduced es2) dontUnfold cls mcc rewr
+                -- Note: a primitive is never a data/record type copy.
+                reduceNormalE v0 f (es1' ++! map' notReduced es2) dontUnfold Nothing cls mcc rewr
             YesReduction simpl v -> yesReduction simpl $ v `applyE` es2
       where
           ar  = primFunArity pf
@@ -800,14 +801,20 @@ unfoldDefinitionStep v0 f es =
           mredToBlocked (MaybeRed (Reduced b) e) = e <$ b
 
     reduceNormalE ::
-         Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause]
+         Term -> QName -> [MaybeReduced Elim] -> Bool -> Maybe Term -> [Clause]
       -> Maybe CompiledClauses -> RewriteRules
       -> ReduceM (Reduced (Blocked Term) Term)
-    reduceNormalE v0 f es dontUnfold def mcc rewr = {-# SCC "reduceNormal" #-} do
+    reduceNormalE v0 f es dontUnfold mbody def mcc rewr = {-# SCC "reduceNormal" #-} do
       traceSDoc "tc.reduce" 90 ("reduceNormalE v0 =" <+> pretty v0) $ do
       case (def,rewr) of
         _ | dontUnfold -> traceSLn "tc.reduce" 90 "reduceNormalE: don't unfold (non-terminating or delayed)" $
                           defaultResult -- non-terminating or delayed
+        -- Andreas, 2026-09-23, issue #8545:
+        -- A data or record type copy is defined by a term rather than by clauses.
+        -- Applying a term never gets stuck, so unlike clause matching this also
+        -- unfolds underapplied occurrences of the copy.
+        _ | Just w <- mbody -> traceSLn "tc.reduce" 90 "reduceNormalE: unfolding copy" $
+          return $ YesReduction NoSimplification $ w `applyE` map' ignoreReduced es
         ([],[])        -> traceSLn "tc.reduce" 90 "reduceNormalE: no clauses or rewrite rules" $ do
           -- no definition for head
           (defBlocked <$> getConstInfo f) >>= \case
@@ -847,6 +854,12 @@ reduceDefCopy f es = do
     _                          -> reduceDef_ info f es
   where
     reduceDef_ :: Definition -> QName -> Elims -> m (Reduced () Term)
+    -- A data or record type copy is defined by a term, which applies to any
+    -- number of arguments, so there is nothing to eta-expand here (issue #8545).
+    reduceDef_ info f es | Just w <- defBody info =
+      if defNonterminating info
+      then return $ NoReduction ()
+      else return $ YesReduction NoSimplification $ w `applyE` es
     reduceDef_ info f es = case defClauses info of
       [cl] -> do  -- proper copies always have a single clause
         let v0 = Def f [] -- TODO: could be Con
@@ -916,9 +929,9 @@ reduceHead v = do -- ignoreAbstractMode $ do
         Function{ funClauses = [ _ ], funTerminates = Just True } -> do
           traceSLn "tc.inj.reduce" 50 ("reduceHead: head " ++! prettyShow f ++! " is Function") $ do
           red
-        Datatype{ dataClause = Just _ } -> red
-        Record{ recClause = Just _ }    -> red
-        _                               -> return $ notBlocked v
+        Datatype{ dataBody = Just _ } -> red
+        Record{ recBody = Just _ }    -> red
+        _                             -> return $ notBlocked v
     _ -> return $ notBlocked v
 
 -- | Unfold as many copies as possible, and then potentially a single
@@ -971,6 +984,19 @@ appDefE_ f v0 cls mcc rewr args =
   localTC (set eAppDef (Just f)) $
   maybe (appDefE'' v0 cls rewr args)
         (\cc -> appDefE v0 cc rewr args) mcc
+
+-- | Like 'appDefE_', but takes the whole 'Definition' and thus also handles
+--   data and record type copies, which are defined by a term rather than by
+--   clauses (see 'defBody').  Applying that term never gets stuck, so this
+--   also unfolds underapplied occurrences of the copy (issue #8545).
+appDefE0 ::
+     QName -> Definition -> Term -> RewriteRules
+  -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE0 f def v0 rewr args
+  | Just w <- defBody def =
+      return $ YesReduction NoSimplification $ w `applyE` map' ignoreReduced args
+  | otherwise =
+      appDefE_ f v0 (defClauses def) (defCompiled def) rewr args
 
 -- | Apply a defined function to it's arguments, using the compiled clauses.
 --   The original term is the first argument applied to the third.
@@ -1845,14 +1871,14 @@ instance InstantiateFull Defn where
         (cs, cc, cov, inv) <- instantiateFull' (cs, cc, cov, inv)
         extLam <- instantiateFull' extLam
         return $! d { funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv, funExtLam = extLam }
-      Datatype{ dataSort = s, dataClause = cl } -> do
-        s  <- instantiateFull' s
-        cl <- instantiateFull' cl
-        return $! d { dataSort = s, dataClause = cl }
-      Record{ recClause = cl, recTel = tel } -> do
-        cl  <- instantiateFull' cl
+      Datatype{ dataSort = s, dataBody = v } -> do
+        s <- instantiateFull' s
+        v <- instantiateFull' v
+        return $! d { dataSort = s, dataBody = v }
+      Record{ recBody = v, recTel = tel } -> do
+        v   <- instantiateFull' v
         tel <- instantiateFull' tel
-        return $! d { recClause = cl, recTel = tel }
+        return $! d { recBody = v, recTel = tel }
       Constructor{} -> return d
       Primitive{ primClauses = cs } -> do
         cs <- instantiateFull' cs

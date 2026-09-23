@@ -739,7 +739,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
       Function{} -> function pragma $ functionViaTreeless def q
 
-      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl
+      Datatype{ dataPars = np, dataIxs = ni, dataBody = cl
               } | Just hsdata@(HsData r ty hsCons) <- pragma ->
         setCurrentRange r $ do
         reportSDoc "compile.ghc.definition" 40 $ hsep $
@@ -755,7 +755,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
               , ccscov
               ]
         retDecls result
-      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl
+      Datatype{ dataPars = np, dataIxs = ni, dataBody = cl
               } -> do
         liftTCM $ computeErasedConstructorArgs q
         cs <- liftTCM $ getNotErasedConstructors q
@@ -763,7 +763,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
         retDecls $ tvaldecl q Inductive (np + ni) cds cl
       Constructor{} -> retDecls []
       GeneralizableVar{} -> retDecls []
-      Record{ recPars = np, recClause = cl, recConHead = con,
+      Record{ recPars = np, recBody = cl, recConHead = con,
               recInduction = ind } ->
         let -- Non-recursive record types are treated as being
             -- inductive.
@@ -1222,11 +1222,16 @@ compiledTypeSynonym q hsT arity =
 tvaldecl :: QName
          -> Induction
             -- ^ Is the type inductive or coinductive?
-         -> Nat -> [HS.ConDecl] -> Maybe Clause -> [HS.Decl]
-tvaldecl q ind npar cds cl =
+         -> Nat -> [HS.ConDecl]
+         -> Maybe Term
+            -- ^ The definition of this type if it is a copy created by a
+            --   module application (see 'defBody'); such a type is a mere
+            --   alias, so no data declaration is emitted for it.
+         -> [HS.Decl]
+tvaldecl q ind npar cds body =
   HS.FunBind [HS.Match vn pvs (HS.UnGuardedRhs HS.unit_con) emptyBinds] :
   maybe [HS.DataDecl kind tn [] cds' []]
-        (const []) cl
+        (const []) body
   where
   (tn, vn) = (unqhname TypeK q, dname q)
   pvs = [ HS.PVar $ ihname A i | i <- [0 .. npar - 1]]

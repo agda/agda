@@ -2066,8 +2066,17 @@ checkParameters
   -> tcm ()
 checkParameters dc d pars = liftTCM $ do
   a  <- reduce (Def dc [])
-  case a of
-    Def d0 es -> do -- compare parameters
+  -- Andreas, 2026-09-23, issue #8545:
+  -- A data or record type copy is defined by a term (see 'defBody'), so it
+  -- unfolds even when the module instantiation left some of its parameters
+  -- open.  In that case the reduct is a lambda whose bound variables stand for
+  -- those remaining parameters.  They are not fixed by the instantiation, and
+  -- the ones that are fixed are no longer identifiable by their position here,
+  -- so there is nothing we can compare.
+  case lamView a of
+    (_:_, _) -> return ()
+    ([], a) -> case a of
+     Def d0 es -> do -- compare parameters
       let vs = mustAllApplyElims es
       reportSDoc "tc.lhs.split" 40 $ vcat $
         [ "checkParameters"
@@ -2080,7 +2089,7 @@ checkParameters dc d pars = liftTCM $ do
       -- when (d0 /= d) __IMPOSSIBLE__ -- d could have extra qualification
       t <- typeOfConst d
       compareArgs [] [] t (Def d []) vs (take' (length vs) pars)
-    _ -> __IMPOSSIBLE__
+     _ -> __IMPOSSIBLE__
 
 checkSortOfSplitVar :: (MonadTCM m, PureTCM m, MonadError TCErr m,
                         LensSort a, PrettyTCM a, LensSort ty, PrettyTCM ty)

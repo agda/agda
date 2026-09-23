@@ -725,11 +725,12 @@ computeDefOccurrences q clauses = inConcreteOrAbstractMode q \def -> do
 
     -- Andreas, 2026-08-29, issue #8696:
     -- A data or record type created by a module application (a /copy/) is
-    -- defined by the pattern-less clause  @N.D = M.D args@.  As for function
-    -- clauses (see 'preprocessMutuals') we have to eta-expand it, otherwise
-    -- the analysis sees no occurrence of the parameters and indices of @N.D@
+    -- defined by the body term  @N.D = M.D args@.  As for function clauses
+    -- (see 'preprocessMutuals') we have to eta-expand it, otherwise the
+    -- analysis sees no occurrence of the parameters and indices of @N.D@
     -- and wrongly concludes that they are all 'Unused'.
-    Datatype{dataClause = Just c} -> ret $ occurrences =<< lift (etaExpandCopyClause c)
+    Datatype{dataBody = Just v} -> ret $
+      occurrences =<< lift (etaExpandCopyBody (defType def) v)
 
     Datatype{dataPars = np0, dataCons = cs, dataTranspIx = trx} -> ret do
       -- Andreas, 2013-02-27 (later edited by someone else): First,
@@ -808,8 +809,8 @@ computeDefOccurrences q clauses = inConcreteOrAbstractMode q \def -> do
               Dummy{}    -> __IMPOSSIBLE__
 
     -- See the 'Datatype' case above for why we eta-expand.
-    Record{recClause = Just c} -> ret do
-      occurrences =<< lift (etaExpandCopyClause c)
+    Record{recBody = Just v} -> ret do
+      occurrences =<< lift (etaExpandCopyBody (defType def) v)
 
     Record{recPars = np, recTel = tel} -> ret do
       let (tel0, tel1) = splitTelescopeAt np tel
@@ -827,11 +828,32 @@ computeDefOccurrences q clauses = inConcreteOrAbstractMode q \def -> do
     GeneralizableVar{} -> ret mempty
     AbstractDefn{}     -> ret __IMPOSSIBLE__
 
--- | Prepare the defining clause of a data or record type copy (issue #8696)
---   for occurrence analysis by eta-expanding it, so that the parameters and
---   indices of the copy appear as pattern variables in the clause.
-etaExpandCopyClause :: Clause -> TCM Clause
-etaExpandCopyClause c = snd <$> (etaExpandClause =<< instantiateFull c)
+-- | Prepare the definition of a data or record type copy (issue #8696)
+--   for occurrence analysis by turning it into its eta-long defining clause,
+--   so that the parameters and indices of the copy appear as pattern variables.
+--
+--   The body is stored eta-contracted (see '_dataBody'), so we have to expand
+--   it here; otherwise the analysis sees no occurrence of the parameters and
+--   indices and wrongly concludes that they are all 'Unused'.
+etaExpandCopyBody
+  :: Type   -- ^ Type of the copy (including its parameters and indices).
+  -> Term   -- ^ Body of the copy.
+  -> TCM Clause
+etaExpandCopyBody t v = do
+  v <- instantiateFull v
+  snd <$> etaExpandClause Clause
+    { clauseLHSRange    = noRange
+    , clauseFullRange   = noRange
+    , clauseTel         = EmptyTel
+    , namedClausePats   = []
+    , clauseBody        = Just v
+    , clauseType        = Just $ defaultArg t
+    , clauseCatchall    = NoCatchall
+    , clauseRecursive   = NotRecursive
+    , clauseUnreachable = Just False
+    , clauseEllipsis    = NoEllipsis
+    , clauseWhereModule = Nothing
+    }
 
 -- | Pre-pass that eta-expands function clauses and records the "formal arity" of the function in
 --   the signature. Any argument beyond this arity is considered to have 'Mixed' polarity.

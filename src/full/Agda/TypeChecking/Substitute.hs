@@ -375,14 +375,14 @@ instance Apply Defn where
                 -- if n == 0 then n0 <= length args (which is at least 1) so we can drop all but one
                 isVar0 = case map'' unArg $ drop (n0 - 1) args of [Var 0 []] -> True; _ -> False
 
-    Datatype{ dataPars = np, dataClause = cl } ->
+    Datatype{ dataPars = np, dataBody = v } ->
       d { dataPars = np - size args
-        , dataClause     = apply cl args
+        , dataBody = apply v args
         }
-    Record{ recPars = np, recClause = cl, recTel = tel
+    Record{ recPars = np, recBody = v, recTel = tel
           {-, recArgOccurrences = occ-} } ->
       d { recPars = np - size args
-        , recClause = apply cl args, recTel = apply tel args
+        , recBody = apply v args, recTel = apply tel args
 --        , recArgOccurrences = List.drop (length args) occ
         }
     Constructor{ conPars = np } ->
@@ -736,13 +736,13 @@ instance Abstract Defn where
           --        projection shenanigans.
           abstractClause tel1 c = (abstract tel1 c) { clauseTel = abstract tel $ clauseTel c }
 
-    Datatype{ dataPars = np, dataClause = cl } ->
+    Datatype{ dataPars = np, dataBody = v } ->
       d { dataPars       = np + size tel
-        , dataClause     = abstract tel cl
+        , dataBody       = abstract tel v
         }
-    Record{ recPars = np, recClause = cl, recTel = tel' } ->
+    Record{ recPars = np, recBody = v, recTel = tel' } ->
       d { recPars    = np + size tel
-        , recClause  = abstract tel cl
+        , recBody    = abstract tel v
         , recTel     = abstract tel tel'
         }
     Constructor{ conPars = np } ->
@@ -1541,6 +1541,48 @@ telePiVisible (ExtendTel u tel) t
 teleLam :: Telescope -> Term -> Term
 teleLam  EmptyTel         t = t
 teleLam (ExtendTel u tel) t = Lam (domInfo u) $ flip teleLam t <$> tel
+
+-- | Eta-contract the definition of a data or record type copy (see '_dataBody').
+--
+--   Only the leading lambdas have to be considered here: the body of a copy is
+--   an application of the original type, and it is exactly these lambdas that
+--   lambda-lifting ('Abstract' for 'Defn') introduced.  Removing them again is
+--   what makes an underapplied copy unfold (issue #8545).
+--
+--   This is the pure, spine-only counterpart of
+--   'Agda.TypeChecking.EtaContract.etaContract', which cannot be used here
+--   because of the module cycle via 'Agda.TypeChecking.Monad'.
+etaContractCopyBody :: Term -> Term
+etaContractCopyBody = \case
+  Lam i (Abs x b) -> etaLamCopyBody i x $ etaContractCopyBody b
+  v -> v
+
+-- | @etaLamCopyBody i x b@ is @Lam i (Abs x b)@, eta-contracted if possible.
+--   Compare 'Agda.TypeChecking.EtaContract.etaLam'.
+etaLamCopyBody :: ArgInfo -> ArgName -> Term -> Term
+etaLamCopyBody i x b
+  | Just (u, Arg j v) <- lastApply b
+  , isVar0 v
+  , sameHiding i j
+      -- Andreas, 2017-02-20, issue #2464: contracting with an irrelevant
+      -- argument breaks subject reduction, so we insist on the same modality.
+  , sameModality i j
+  , not $ 0 `freeIn` u
+  = strengthen impossible u
+  | otherwise
+  = Lam i $ Abs x b
+  where
+    -- Split off the last 'Apply' elimination of an application.
+    lastApply = \case
+      Def f es | Just (es', Apply v) <- initLast' es -> Just (Def f es', v)
+      Var k es | Just (es', Apply v) <- initLast' es -> Just (Var k es', v)
+      _ -> Nothing
+    -- Jesper, 2019-10-15, issue #3073: a 'Level' wrapper is transparent here,
+    -- but a genuine level expression is not a variable.
+    isVar0 = \case
+      Var 0 []                 -> True
+      Level (Max 0 [Plus 0 l]) -> isVar0 l
+      _                        -> False
 
 -- | Performs void ('noAbs') abstraction over telescope.
 class TeleNoAbs a where
