@@ -769,7 +769,7 @@ unfoldDefinitionStep v0 f es =
                , FunctionReductions `SmallSet.member` allowed
                ])
         then
-          reduceNormalE v0 f (map' notReduced es) dontUnfold (defBody info)
+          reduceNormalE v0 f (map' notReduced es) dontUnfold (defCopyClause info)
                        (defClauses info) (defCompiled info) rewr
         else noReduction $ notBlocked v  -- Andrea(s), 2014-12-05 OK?
 
@@ -856,7 +856,7 @@ reduceDefCopy f es = do
     reduceDef_ :: Definition -> QName -> Elims -> m (Reduced () Term)
     -- A data or record type copy is defined by a term, which applies to any
     -- number of arguments, so there is nothing to eta-expand here (issue #8545).
-    reduceDef_ info f es | Just w <- defBody info =
+    reduceDef_ info f es | Just w <- defCopyClause info =
       if defNonterminating info
       then return $ NoReduction ()
       else return $ YesReduction NoSimplification $ w `applyE` es
@@ -929,8 +929,8 @@ reduceHead v = do -- ignoreAbstractMode $ do
         Function{ funClauses = [ _ ], funTerminates = Just True } -> do
           traceSLn "tc.inj.reduce" 50 ("reduceHead: head " ++! prettyShow f ++! " is Function") $ do
           red
-        Datatype{ dataBody = Just _ } -> red
-        Record{ recBody = Just _ }    -> red
+        Datatype{ dataClause = Just _ } -> red
+        Record{ recClause = Just _ }    -> red
         _                             -> return $ notBlocked v
     _ -> return $ notBlocked v
 
@@ -987,13 +987,13 @@ appDefE_ f v0 cls mcc rewr args =
 
 -- | Like 'appDefE_', but takes the whole 'Definition' and thus also handles
 --   data and record type copies, which are defined by a term rather than by
---   clauses (see 'defBody').  Applying that term never gets stuck, so this
+--   clauses (see 'defCopyClause').  Applying that term never gets stuck, so this
 --   also unfolds underapplied occurrences of the copy (issue #8545).
 appDefE0 ::
      QName -> Definition -> Term -> RewriteRules
   -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE0 f def v0 rewr args
-  | Just w <- defBody def =
+  | Just w <- defCopyClause def =
       return $ YesReduction NoSimplification $ w `applyE` map' ignoreReduced args
   | otherwise =
       appDefE_ f v0 (defClauses def) (defCompiled def) rewr args
@@ -1871,14 +1871,14 @@ instance InstantiateFull Defn where
         (cs, cc, cov, inv) <- instantiateFull' (cs, cc, cov, inv)
         extLam <- instantiateFull' extLam
         return $! d { funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv, funExtLam = extLam }
-      Datatype{ dataSort = s, dataBody = v } -> do
+      Datatype{ dataSort = s, dataClause = v } -> do
         s <- instantiateFull' s
         v <- instantiateFull' v
-        return $! d { dataSort = s, dataBody = v }
-      Record{ recBody = v, recTel = tel } -> do
+        return $! d { dataSort = s, dataClause = v }
+      Record{ recClause = v, recTel = tel } -> do
         v   <- instantiateFull' v
         tel <- instantiateFull' tel
-        return $! d { recBody = v, recTel = tel }
+        return $! d { recClause = v, recTel = tel }
       Constructor{} -> return d
       Primitive{ primClauses = cs } -> do
         cs <- instantiateFull' cs

@@ -235,7 +235,7 @@ checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDef
         addConstant' name defaultArgInfo t $
             Record
               { recPars           = npars
-              , recBody         = Nothing
+              , recClause         = Nothing
               , recConHead        = con
               , recNamedCon       = hasNamedCon
               , recFields         = fs

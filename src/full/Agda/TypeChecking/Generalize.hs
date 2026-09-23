@@ -981,7 +981,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = noMutualBlock $ d
       dummyTel n = ExtendTel (defaultDom __DUMMY_TYPE__) $ Abs "_" $ dummyTel (n - 1)
   addConstant' genRecName defaultArgInfo (sort genRecSort) $
     Record { recPars         = 0
-           , recBody       = Nothing
+           , recClause       = Nothing
            , recConHead      = genRecCon
            , recNamedCon     = False
            , recFields       = genRecFields

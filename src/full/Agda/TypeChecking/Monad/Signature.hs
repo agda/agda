@@ -200,7 +200,7 @@ addConstant q d = do
                       }
 
 -- | Bring the definition of a data or record type copy into normal form:
---   fully instantiated and eta-contracted (see '_dataBody').
+--   fully instantiated and eta-contracted (see '_dataClause').
 --
 --   Lambda-lifting (the 'Abstract' instance for 'Defn') wraps the body of a
 --   copy into one lambda per module parameter.  Eta-contracting these away
@@ -210,8 +210,8 @@ addConstant q d = do
 --   Metas are instantiated first, since a solved meta can hide an eta-redex.
 normalizeCopyBody :: Definition -> TCM Definition
 normalizeCopyBody def = case theDef def of
-    d@Datatype{ dataBody = Just v } -> contract v \ v -> d{ dataBody = Just v }
-    d@Record  { recBody  = Just v } -> contract v \ v -> d{ recBody  = Just v }
+    d@Datatype{ dataClause = Just v } -> contract v \ v -> d{ dataClause = Just v }
+    d@Record  { recClause  = Just v } -> contract v \ v -> d{ recClause  = Just v }
     _ -> return def
   where
     contract v update = do
@@ -762,12 +762,12 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
                          }
                 Datatype{ dataPars = np, dataCons = cs } -> return $
                   oldDef { dataPars   = np - size ts'
-                         , dataBody   = Just body
+                         , dataClause   = Just body
                          , dataCons   = map copyName cs
                          }
                 Record{ recPars = np, recTel = tel, recConHead = c, recFields = fs } -> return $
                   oldDef { recPars    = np - size ts'
-                         , recBody    = Just body
+                         , recClause    = Just body
                          , recTel     = apply tel ts'
                          , recConHead = copyConHead c
                          , recFields  = (map . fmap) copyName fs
@@ -800,8 +800,8 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
             rel  = getRelevance $ defArgInfo d
 
             -- The definition of the copy, linking back to the original @x@.
-            -- For data and record types this is stored as is (in 'dataBody' /
-            -- 'recBody'); function copies wrap it into the clause @cl@ below.
+            -- For data and record types this is stored as is (in 'dataClause' /
+            -- 'recClause'); function copies wrap it into the clause @cl@ below.
             body = dropArgs pars $ case oldDef of
                      Function{funProjection = Right p} -> projDropParsApply p ProjSystem rel ts'
                      _ -> Def x $ map Apply ts'
@@ -938,8 +938,8 @@ canonicalName x = do
   def <- theDef <$> getConstInfo x
   case def of
     Constructor{conSrcCon = c}                                -> return $ conName c
-    Record  {recBody  = Just v} -> can v
-    Datatype{dataBody = Just v} -> can v
+    Record  {recClause  = Just v} -> can v
+    Datatype{dataClause = Just v} -> can v
     _                           -> return x
   where
     can = canonicalName . extract

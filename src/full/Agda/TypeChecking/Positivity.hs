@@ -246,9 +246,9 @@ hasDefinition = \case
 isDatatype :: Definition -> Maybe (PositivityCheck, DataOrRecord)
 isDatatype def = do
   case theDef def of
-    Datatype{dataBody = Nothing, dataPositivityCheck} ->
+    Datatype{dataClause = Nothing, dataPositivityCheck} ->
       Just (dataPositivityCheck, IsData)
-    Record  {recBody  = Nothing, recPositivityCheck, recPatternMatching } ->
+    Record  {recClause  = Nothing, recPositivityCheck, recPatternMatching } ->
       Just (recPositivityCheck, IsRecord recPatternMatching)
     _ -> Nothing
 

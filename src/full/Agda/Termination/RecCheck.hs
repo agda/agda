@@ -142,12 +142,12 @@ recDef include name = do
           (i,) <$> anyDefs include cl
       return (IntMap.fromList perClause, mconcat $ map snd perClause)
 
-    Datatype{ dataBody = Just v } -> do
+    Datatype{ dataClause = Just v } -> do
       ns <- anyDefs include v
       return (IntMap.singleton 0 ns, ns)
 
-    Record{ recBody, recTel } -> do
-      ns1 <- anyDefs include recBody
+    Record{ recClause, recTel } -> do
+      ns1 <- anyDefs include recClause
       ns2 <- anyDefs include recTel
       let ns = ns1 `mappend` ns2
       return (IntMap.singleton 0 ns, ns)

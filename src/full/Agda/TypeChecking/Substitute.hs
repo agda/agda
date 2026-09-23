@@ -375,14 +375,14 @@ instance Apply Defn where
                 -- if n == 0 then n0 <= length args (which is at least 1) so we can drop all but one
                 isVar0 = case map'' unArg $ drop (n0 - 1) args of [Var 0 []] -> True; _ -> False
 
-    Datatype{ dataPars = np, dataBody = v } ->
+    Datatype{ dataPars = np, dataClause = v } ->
       d { dataPars = np - size args
-        , dataBody = apply v args
+        , dataClause = apply v args
         }
-    Record{ recPars = np, recBody = v, recTel = tel
+    Record{ recPars = np, recClause = v, recTel = tel
           {-, recArgOccurrences = occ-} } ->
       d { recPars = np - size args
-        , recBody = apply v args, recTel = apply tel args
+        , recClause = apply v args, recTel = apply tel args
 --        , recArgOccurrences = List.drop (length args) occ
         }
     Constructor{ conPars = np } ->
@@ -736,13 +736,13 @@ instance Abstract Defn where
           --        projection shenanigans.
           abstractClause tel1 c = (abstract tel1 c) { clauseTel = abstract tel $ clauseTel c }
 
-    Datatype{ dataPars = np, dataBody = v } ->
+    Datatype{ dataPars = np, dataClause = v } ->
       d { dataPars       = np + size tel
-        , dataBody       = abstract tel v
+        , dataClause       = abstract tel v
         }
-    Record{ recPars = np, recBody = v, recTel = tel' } ->
+    Record{ recPars = np, recClause = v, recTel = tel' } ->
       d { recPars    = np + size tel
-        , recBody    = abstract tel v
+        , recClause    = abstract tel v
         , recTel     = abstract tel tel'
         }
     Constructor{ conPars = np } ->
@@ -1542,7 +1542,7 @@ teleLam :: Telescope -> Term -> Term
 teleLam  EmptyTel         t = t
 teleLam (ExtendTel u tel) t = Lam (domInfo u) $ flip teleLam t <$> tel
 
--- | Eta-contract the definition of a data or record type copy (see '_dataBody').
+-- | Eta-contract the definition of a data or record type copy (see '_dataClause').
 --
 --   Only the leading lambdas have to be considered here: the body of a copy is
 --   an application of the original type, and it is exactly these lambdas that

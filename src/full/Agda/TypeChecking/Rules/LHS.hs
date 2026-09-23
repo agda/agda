@@ -2067,7 +2067,7 @@ checkParameters
 checkParameters dc d pars = liftTCM $ do
   a  <- reduce (Def dc [])
   -- Andreas, 2026-09-23, issue #8545:
-  -- A data or record type copy is defined by a term (see 'defBody'), so it
+  -- A data or record type copy is defined by a term (see 'defCopyClause'), so it
   -- unfolds even when the module instantiation left some of its parameters
   -- open.  In that case the reduct is a lambda whose bound variables stand for
   -- those remaining parameters.  They are not fixed by the instantiation, and

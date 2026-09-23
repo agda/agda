@@ -729,7 +729,7 @@ computeDefOccurrences q clauses = inConcreteOrAbstractMode q \def -> do
     -- (see 'preprocessMutuals') we have to eta-expand it, otherwise the
     -- analysis sees no occurrence of the parameters and indices of @N.D@
     -- and wrongly concludes that they are all 'Unused'.
-    Datatype{dataBody = Just v} -> ret $
+    Datatype{dataClause = Just v} -> ret $
       occurrences =<< lift (etaExpandCopyBody (defType def) v)
 
     Datatype{dataPars = np0, dataCons = cs, dataTranspIx = trx} -> ret do
@@ -809,7 +809,7 @@ computeDefOccurrences q clauses = inConcreteOrAbstractMode q \def -> do
               Dummy{}    -> __IMPOSSIBLE__
 
     -- See the 'Datatype' case above for why we eta-expand.
-    Record{recBody = Just v} -> ret do
+    Record{recClause = Just v} -> ret do
       occurrences =<< lift (etaExpandCopyBody (defType def) v)
 
     Record{recPars = np, recTel = tel} -> ret do
@@ -832,7 +832,7 @@ computeDefOccurrences q clauses = inConcreteOrAbstractMode q \def -> do
 --   for occurrence analysis by turning it into its eta-long defining clause,
 --   so that the parameters and indices of the copy appear as pattern variables.
 --
---   The body is stored eta-contracted (see '_dataBody'), so we have to expand
+--   The body is stored eta-contracted (see '_dataClause'), so we have to expand
 --   it here; otherwise the analysis sees no occurrence of the parameters and
 --   indices and wrongly concludes that they are all 'Unused'.
 etaExpandCopyBody

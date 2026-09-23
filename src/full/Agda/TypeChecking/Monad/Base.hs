@@ -2614,8 +2614,7 @@ data Definition = Defn
   , defInstance       :: Maybe InstanceInfo
     -- ^ @Just q@ when this definition is an instance.
   , defCopy           :: Bool
-    -- ^ Has this function been created by a module
-                         -- instantiation?
+    -- ^ Has this function been created by a module instantiation?
   , defMatchable      :: Set QName
     -- ^ The set of symbols with rewrite rules that match against this symbol
     -- Does not account for local rewrite rules
@@ -3034,7 +3033,7 @@ data DatatypeData = DatatypeData
       -- ^ Number of parameters.
   , _dataIxs            :: Nat
       -- ^ Number of indices.
-  , _dataBody           :: Maybe Term
+  , _dataClause           :: Maybe Term
       -- ^ Was this data type created by a module application (is it a /copy/)?
       --   If yes, this is its definition, linking back to the original data type:
       --   a term @t@ such that @D args@ equals @t \`applyE\` args@.
@@ -3077,7 +3076,7 @@ pattern Datatype
 pattern Datatype
   { dataPars
   , dataIxs
-  , dataBody
+  , dataClause
   , dataCons
   , dataSort
   , dataMutual
@@ -3089,7 +3088,7 @@ pattern Datatype
   } = DatatypeDefn (DatatypeData
     dataPars
     dataIxs
-    dataBody
+    dataClause
     dataCons
     dataSort
     dataMutual
@@ -3103,10 +3102,10 @@ pattern Datatype
 data RecordData = RecordData
   { _recPars           :: Nat
       -- ^ Number of parameters.
-  , _recBody           :: Maybe Term
+  , _recClause           :: Maybe Term
       -- ^ Was this record type created by a module application (is it a /copy/)?
       --   If yes, this is its definition, linking back to the original record type.
-      --   See '_dataBody'.
+      --   See '_dataClause'.
   , _recConHead        :: ConHead
       -- ^ Constructor name and fields.
   , _recNamedCon       :: Bool
@@ -3164,7 +3163,7 @@ pattern Record
 
 pattern Record
   { recPars
-  , recBody
+  , recClause
   , recConHead
   , recNamedCon
   , recFields
@@ -3179,7 +3178,7 @@ pattern Record
   , recComp
   } = RecordDefn (RecordData
     recPars
-    recBody
+    recClause
     recConHead
     recNamedCon
     recFields
@@ -3443,7 +3442,7 @@ instance Pretty DatatypeData where
   pretty (DatatypeData
       dataPars
       dataIxs
-      dataBody
+      dataClause
       dataCons
       dataSort
       dataMutual
@@ -3456,7 +3455,7 @@ instance Pretty DatatypeData where
     "Datatype {" <?> vcat
       [ "dataPars       =" <?> pshow dataPars
       , "dataIxs        =" <?> pshow dataIxs
-      , "dataBody       =" <?> pretty dataBody
+      , "dataClause       =" <?> pretty dataClause
       , "dataCons       =" <?> pshow dataCons
       , "dataSort       =" <?> pretty dataSort
       , "dataMutual     =" <?> pshow dataMutual
@@ -3467,7 +3466,7 @@ instance Pretty DatatypeData where
 instance Pretty RecordData where
   pretty (RecordData
       recPars
-      recBody
+      recClause
       recConHead
       recNamedCon
       recFields
@@ -3483,7 +3482,7 @@ instance Pretty RecordData where
     ) =
     "Record {" <?> vcat
       [ "recPars         =" <?> pshow recPars
-      , "recBody         =" <?> pretty recBody
+      , "recClause         =" <?> pretty recClause
       , "recConHead      =" <?> pretty recConHead
       , "recNamedCon     =" <?> pretty recNamedCon
       , "recFields       =" <?> pretty recFields
@@ -3851,14 +3850,10 @@ defClauses _                                               = []
 
 -- | The definition of a data or record type copy (created by a module
 --   application), if the given definition is such a copy.
---
---   Unlike a 'Clause', this 'Term' can be applied to any number of arguments,
---   so it also unfolds underapplied occurrences (issue #8545).
---   See '_dataBody'.
-defBody :: Definition -> Maybe Term
-defBody Defn{theDef = Datatype{dataBody = v}} = v
-defBody Defn{theDef = Record  {recBody  = v}} = v
-defBody _                                     = Nothing
+defCopyClause :: Definition -> Maybe Term
+defCopyClause Defn{theDef = Datatype{dataClause = v}} = v
+defCopyClause Defn{theDef = Record  {recClause  = v}} = v
+defCopyClause _                                     = Nothing
 
 defCompiled :: Definition -> Maybe CompiledClauses
 defCompiled Defn{theDef = Function {funCompiled  = mcc}} = mcc
