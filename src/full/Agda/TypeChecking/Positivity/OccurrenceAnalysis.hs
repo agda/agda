@@ -374,6 +374,19 @@ getOccurrencesFromType a = (optPolarity <$> pragmaOptions) >>= \case
           _ -> pure []
     liftReduce (go a)
 
+-- | The 'DefArgInEnv's for the variables bound by the given telescope,
+--   when that telescope is the parameter telescope of the definition under
+--   analysis.
+--
+--   The result is indexed by de Bruijn index (innermost first), as expected
+--   by 'topDefArgs'.  Variable @i@ stands for argument @n - 1 - i@.
+paramsToDefArgs :: Telescope -> TCM [DefArgInEnv]
+paramsToDefArgs tel = go 0 (telToList tel) [] where
+  go i as acc = expand \ret -> case as of
+    []   -> ret $ pure acc
+    a:as -> ret do occs <- getOccurrencesFromType (snd (unDom a))
+                   go (i + 1) as (DefArgInEnv i occs : acc)
+
 addRawEdge :: Range -> Occurrence -> Node -> Node -> OccM ()
 addRawEdge rng occ src tgt = do
   path   <- asks path
@@ -667,13 +680,9 @@ data TypedTerm = TypedTerm
 instance ComputeOccurrences TypedTerm where
   occurrences (TypedTerm t v) = do
     TelV tel _ <- lift $ telView t
-    v <- lift $ instantiateFull v
+    v    <- lift $ instantiateFull v
+    args <- lift $ paramsToDefArgs tel
     -- Note: @v@ is closed, so it needs no raising into @tel@.
-    let n = size tel
-        -- Indexed by de Bruijn index: variable @i@ stands for argument
-        -- @n - 1 - i@.  Like for clauses, we record no occurrences for the
-        -- arguments of these variables themselves (see 'collectArgs').
-        args = [ DefArgInEnv i [] | i <- downFrom n ]
     local (\ env -> env{ topDefArgs = args }) $
       occurrences $ v `apply` teleArgs tel
 
@@ -725,13 +734,6 @@ computeDefOccurrences q clauses = inConcreteOrAbstractMode q \def -> do
     o   <- viewTC eCurrentOpaqueId
     "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show o) <+> text (show m)
       <+> prettyTCM cur
-
-  let paramsToDefArgs :: Telescope -> TCM [DefArgInEnv]
-      paramsToDefArgs tel = go 0 (telToList tel) [] where
-        go i as acc = expand \ret -> case as of
-          []   -> ret $ pure acc
-          a:as -> ret do occs <- getOccurrencesFromType (snd (unDom a))
-                         go (i + 1) as (DefArgInEnv i occs : acc)
 
   let defOcc = mutualDefOcc def
   underPathOcc (`InDefOf` q) defOcc $ expand \ret -> case theDef def of
