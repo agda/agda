@@ -737,12 +737,12 @@ instance Abstract Defn where
           abstractClause tel1 c = (abstract tel1 c) { clauseTel = abstract tel $ clauseTel c }
 
     Datatype{ dataPars = np, dataClause = v } ->
-      d { dataPars       = np + size tel
-        , dataClause       = abstract tel v
+      d { dataPars   = np + size tel
+        , dataClause = abstract tel v
         }
     Record{ recPars = np, recClause = v, recTel = tel' } ->
       d { recPars    = np + size tel
-        , recClause    = abstract tel v
+        , recClause  = abstract tel v
         , recTel     = abstract tel tel'
         }
     Constructor{ conPars = np } ->

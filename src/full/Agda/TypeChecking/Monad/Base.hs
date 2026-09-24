@@ -3033,7 +3033,7 @@ data DatatypeData = DatatypeData
       -- ^ Number of parameters.
   , _dataIxs            :: Nat
       -- ^ Number of indices.
-  , _dataClause           :: Maybe Term
+  , _dataClause         :: Maybe Term
       -- ^ Was this data type created by a module application (is it a /copy/)?
       --   If yes, this is its definition, linking back to the original data type:
       --   a term @t@ such that @D args@ equals @t \`applyE\` args@.
@@ -3102,7 +3102,7 @@ pattern Datatype
 data RecordData = RecordData
   { _recPars           :: Nat
       -- ^ Number of parameters.
-  , _recClause           :: Maybe Term
+  , _recClause         :: Maybe Term
       -- ^ Was this record type created by a module application (is it a /copy/)?
       --   If yes, this is its definition, linking back to the original record type.
       --   See '_dataClause'.
@@ -3455,7 +3455,7 @@ instance Pretty DatatypeData where
     "Datatype {" <?> vcat
       [ "dataPars       =" <?> pshow dataPars
       , "dataIxs        =" <?> pshow dataIxs
-      , "dataClause       =" <?> pretty dataClause
+      , "dataClause     =" <?> pretty dataClause
       , "dataCons       =" <?> pshow dataCons
       , "dataSort       =" <?> pretty dataSort
       , "dataMutual     =" <?> pshow dataMutual
@@ -3482,7 +3482,7 @@ instance Pretty RecordData where
     ) =
     "Record {" <?> vcat
       [ "recPars         =" <?> pshow recPars
-      , "recClause         =" <?> pretty recClause
+      , "recClause       =" <?> pretty recClause
       , "recConHead      =" <?> pretty recConHead
       , "recNamedCon     =" <?> pretty recNamedCon
       , "recFields       =" <?> pretty recFields
@@ -3844,16 +3844,16 @@ primFun :: QName -> Arity -> ([Arg Term] -> ReduceM (Reduced MaybeReducedArgs Te
 primFun q ar imp = PrimFun q ar [] (\args _ -> imp args)
 
 defClauses :: Definition -> [Clause]
-defClauses Defn{theDef = Function{funClauses = cs}}        = cs
-defClauses Defn{theDef = Primitive{primClauses = cs}}      = cs
-defClauses _                                               = []
+defClauses Defn{theDef = Function{funClauses = cs}}   = cs
+defClauses Defn{theDef = Primitive{primClauses = cs}} = cs
+defClauses _                                          = []
 
 -- | The definition of a data or record type copy (created by a module
 --   application), if the given definition is such a copy.
 defCopyClause :: Definition -> Maybe Term
 defCopyClause Defn{theDef = Datatype{dataClause = v}} = v
 defCopyClause Defn{theDef = Record  {recClause  = v}} = v
-defCopyClause _                                     = Nothing
+defCopyClause _ = Nothing
 
 defCompiled :: Definition -> Maybe CompiledClauses
 defCompiled Defn{theDef = Function {funCompiled  = mcc}} = mcc

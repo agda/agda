@@ -763,12 +763,12 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
                          }
                 Datatype{ dataPars = np, dataCons = cs } -> return $
                   oldDef { dataPars   = np - size ts'
-                         , dataClause   = Just body
+                         , dataClause = Just body
                          , dataCons   = map copyName cs
                          }
                 Record{ recPars = np, recTel = tel, recConHead = c, recFields = fs } -> return $
                   oldDef { recPars    = np - size ts'
-                         , recClause    = Just body
+                         , recClause  = Just body
                          , recTel     = apply tel ts'
                          , recConHead = copyConHead c
                          , recFields  = (map . fmap) copyName fs
@@ -936,12 +936,11 @@ instance ChaseDisplayForms a => ChaseDisplayForms [a] where
 
 canonicalName :: HasConstInfo m => QName -> m QName
 canonicalName x = do
-  def <- theDef <$> getConstInfo x
-  case def of
-    Constructor{conSrcCon = c}                                -> return $ conName c
+  getConstInfo x <&> theDef >>= \case
+    Constructor{conSrcCon = c}    -> return $ conName c
     Record  {recClause  = Just v} -> can v
     Datatype{dataClause = Just v} -> can v
-    _                           -> return x
+    _ -> return x
   where
     can = canonicalName . extract
     -- The body of a copy is an application of the original type,

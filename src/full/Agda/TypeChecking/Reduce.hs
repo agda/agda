@@ -932,7 +932,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
           red
         Datatype{ dataClause = Just _ } -> red
         Record{ recClause = Just _ }    -> red
-        _                             -> return $ notBlocked v
+        _ -> return $ notBlocked v
     _ -> return $ notBlocked v
 
 -- | Unfold as many copies as possible, and then potentially a single
