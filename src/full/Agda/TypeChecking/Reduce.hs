@@ -769,8 +769,7 @@ unfoldDefinitionStep v0 f es =
                , FunctionReductions `SmallSet.member` allowed
                ])
         then
-          reduceNormalE v0 f (map' notReduced es) dontUnfold (defCopyClause info)
-                       (defClauses info) (defCompiled info) rewr
+          reduceNormalE v0 f (map' notReduced es) dontUnfold (defCopyOrClauses info) rewr
         else noReduction $ notBlocked v  -- Andrea(s), 2014-12-05 OK?
 
   where
@@ -791,7 +790,7 @@ unfoldDefinitionStep v0 f es =
                   blockAll $ map' mredToBlocked es1' ++! map' notBlocked es2
                else
                 -- Note: a primitive is never a data/record type copy.
-                reduceNormalE v0 f (es1' ++! map' notReduced es2) dontUnfold Nothing cls mcc rewr
+                reduceNormalE v0 f (es1' ++! map' notReduced es2) dontUnfold (Right (cls, mcc)) rewr
             YesReduction simpl v -> yesReduction simpl $ v `applyE` es2
       where
           ar  = primFunArity pf
@@ -801,29 +800,31 @@ unfoldDefinitionStep v0 f es =
           mredToBlocked (MaybeRed (Reduced b) e) = e <$ b
 
     reduceNormalE ::
-         Term -> QName -> [MaybeReduced Elim] -> Bool -> Maybe Term -> [Clause]
-      -> Maybe CompiledClauses -> RewriteRules
+         Term -> QName -> [MaybeReduced Elim] -> Bool
+      -> Either Term ([Clause], Maybe CompiledClauses) -> RewriteRules
       -> ReduceM (Reduced (Blocked Term) Term)
-    reduceNormalE v0 f es dontUnfold mbody def mcc rewr = {-# SCC "reduceNormal" #-} do
+    reduceNormalE v0 f es dontUnfold def rewr = {-# SCC "reduceNormal" #-} do
       traceSDoc "tc.reduce" 90 ("reduceNormalE v0 =" <+> pretty v0) $ do
-      case (def,rewr) of
-        _ | dontUnfold -> traceSLn "tc.reduce" 90 "reduceNormalE: don't unfold (non-terminating or delayed)" $
-                          defaultResult -- non-terminating or delayed
+      if dontUnfold then
+        traceSLn "tc.reduce" 90 "reduceNormalE: don't unfold (non-terminating or delayed)" $
+          defaultResult -- non-terminating or delayed
+      else case def of
         -- Andreas, 2026-09-23, issue #8545:
         -- A data or record type copy is defined by a term rather than by clauses.
         -- Applying a term never gets stuck, so unlike clause matching this also
         -- unfolds underapplied occurrences of the copy.
-        _ | Just w <- mbody -> traceSLn "tc.reduce" 90 "reduceNormalE: unfolding copy" $
+        Left w -> traceSLn "tc.reduce" 90 "reduceNormalE: unfolding copy" $
           return $ YesReduction NoSimplification $ w `applyE` map' ignoreReduced es
-        ([],[])        -> traceSLn "tc.reduce" 90 "reduceNormalE: no clauses or rewrite rules" $ do
-          -- no definition for head
-          (defBlocked <$> getConstInfo f) >>= \case
-            Blocked{}    -> noReduction $ Blocked (UnblockOnDef f) vfull
-            NotBlocked{} -> defaultResult
-        (cls,rewr)     -> do
-          ev <- appDefE_ f v0 cls mcc rewr es
-          debugReduce ev
-          return ev
+        Right (cls, mcc) -> case (cls, rewr) of
+          ([], []) -> traceSLn "tc.reduce" 90 "reduceNormalE: no clauses or rewrite rules" $ do
+            -- no definition for head
+            (defBlocked <$> getConstInfo f) >>= \case
+              Blocked{}    -> noReduction $ Blocked (UnblockOnDef f) vfull
+              NotBlocked{} -> defaultResult
+          _ -> do
+            ev <- appDefE_ f v0 cls mcc rewr es
+            debugReduce ev
+            return ev
       where
       defaultResult = noReduction $ NotBlocked ReallyNotBlocked vfull
       vfull         = v0 `applyE` map' ignoreReduced es
@@ -992,11 +993,9 @@ appDefE_ f v0 cls mcc rewr args =
 appDefE0 ::
      QName -> Definition -> Term -> RewriteRules
   -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
-appDefE0 f def v0 rewr args
-  | Just w <- defCopyClause def =
-      return $ YesReduction NoSimplification $ w `applyE` map' ignoreReduced args
-  | otherwise =
-      appDefE_ f v0 (defClauses def) (defCompiled def) rewr args
+appDefE0 f def v0 rewr args = case defCopyOrClauses def of
+  Left w           -> return $ YesReduction NoSimplification $ w `applyE` map' ignoreReduced args
+  Right (cls, mcc) -> appDefE_ f v0 cls mcc rewr args
 
 -- | Apply a defined function to it's arguments, using the compiled clauses.
 --   The original term is the first argument applied to the third.

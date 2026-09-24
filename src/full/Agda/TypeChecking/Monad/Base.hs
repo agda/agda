@@ -3860,6 +3860,15 @@ defCompiled Defn{theDef = Function {funCompiled  = mcc}} = mcc
 defCompiled Defn{theDef = Primitive{primCompiled = mcc}} = mcc
 defCompiled _ = Nothing
 
+-- | How a constant is defined: either it is a data or record type copy,
+--   defined by a term ('defCopyClause'), or it is defined by clauses
+--   ('defClauses'), possibly with a compiled form ('defCompiled').
+--   Never both.
+defCopyOrClauses :: Definition -> Either Term ([Clause], Maybe CompiledClauses)
+defCopyOrClauses def = case defCopyClause def of
+  Just v  -> Left v
+  Nothing -> Right (defClauses def, defCompiled def)
+
 defParameters :: Definition -> Maybe Nat
 defParameters Defn{theDef = Datatype{dataPars = n}} = Just n
 defParameters Defn{theDef = Record  {recPars  = n}} = Just n
