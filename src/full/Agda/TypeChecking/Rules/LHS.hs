@@ -2087,7 +2087,7 @@ checkParameters dc d pars = liftTCM $ do
         , nest 2 $ "vs                  =" <+> prettyTCM vs
         , nest 2 $ "pars                =" <+> prettyTCM pars
         ]
-      -- when (d0 /= d) __IMPOSSIBLE__ -- d could have extra qualification
+      when (d0 /= d) __IMPOSSIBLE__
       t <- typeOfConst d
       compareArgs [] [] t (Def d []) vs (take' (length vs) pars)
      _ -> __IMPOSSIBLE__
