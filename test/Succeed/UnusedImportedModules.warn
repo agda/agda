@@ -1,0 +1,14 @@
+
+UnusedImportedModules.lagda.md:37.3-14: warning: -W[no]UnusedImports
+Redundant opening of Parent
+
+UnusedImportedModules.lagda.md:45.3-14: warning: -W[no]UnusedImports
+Redundant opening of Parent
+
+———— All done; warnings encountered ————————————————————————
+
+UnusedImportedModules.lagda.md:37.3-14: warning: -W[no]UnusedImports
+Redundant opening of Parent
+
+UnusedImportedModules.lagda.md:45.3-14: warning: -W[no]UnusedImports
+Redundant opening of Parent
