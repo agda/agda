@@ -2057,15 +2057,15 @@ checkConstructorParameters c d pars = do
   checkParameters dc d pars
 
 -- | Check that given parameters match the parameters of the inferred
---   constructor/projection.
+--   constructor or projection.
 checkParameters
   :: MonadTCM tcm
-  => QName  -- ^ The record/data type name of the chosen constructor/projection.
-  -> QName  -- ^ The record/data type name as supplied by the type signature.
+  => QName  -- ^ The record or data type name of the chosen constructor or projection.
+  -> QName  -- ^ The record or data type name as supplied by the type signature.
   -> Args   -- ^ The parameters.
   -> tcm ()
 checkParameters dc d pars = liftTCM $ do
-  a  <- reduce (Def dc [])
+  a <- reduce (Def dc [])
   -- Andreas, 2026-09-23, issue #8545:
   -- A data or record type copy is defined by a term (see 'defCopyClause'), so it
   -- unfolds even when the module instantiation left some of its parameters
@@ -2076,8 +2076,7 @@ checkParameters dc d pars = liftTCM $ do
   -- TODO: just skipping the check for underapplied copies causes #7664
   case lamView a of
     (_:_, _) -> return ()  -- TODO issue #7664
-    ([], a) -> case a of
-     Def d0 es -> do -- compare parameters
+    ([], Def d0 es) -> do -- compare parameters
       let vs = mustAllApplyElims es
       reportSDoc "tc.lhs.split" 40 $ vcat $
         [ "checkParameters"
@@ -2090,7 +2089,7 @@ checkParameters dc d pars = liftTCM $ do
       when (d0 /= d) __IMPOSSIBLE__
       t <- typeOfConst d
       compareArgs [] [] t (Def d []) vs (take' (length vs) pars)
-     _ -> __IMPOSSIBLE__
+    _ -> __IMPOSSIBLE__
 
 checkSortOfSplitVar :: (MonadTCM m, PureTCM m, MonadError TCErr m,
                         LensSort a, PrettyTCM a, LensSort ty, PrettyTCM ty)
