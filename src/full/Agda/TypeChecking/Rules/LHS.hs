@@ -2073,8 +2073,9 @@ checkParameters dc d pars = liftTCM $ do
   -- those remaining parameters.  They are not fixed by the instantiation, and
   -- the ones that are fixed are no longer identifiable by their position here,
   -- so there is nothing we can compare.
+  -- TODO: just skipping the check for underapplied copies causes #7664
   case lamView a of
-    (_:_, _) -> return ()
+    (_:_, _) -> return ()  -- TODO issue #7664
     ([], a) -> case a of
      Def d0 es -> do -- compare parameters
       let vs = mustAllApplyElims es

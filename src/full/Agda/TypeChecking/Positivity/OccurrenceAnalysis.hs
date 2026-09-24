@@ -660,10 +660,10 @@ instance ComputeOccurrences PlusLevel where
 instance ComputeOccurrences Type where
   occurrences (El _ v) = occurrences v
 
--- | A term paired with its type.
+-- | A closed term paired with its type.
 data TypedTerm = TypedTerm
-  { ttType :: Type
-  , ttTerm :: Term
+  { ttType :: Type  -- ^ Closed.
+  , ttTerm :: Term  -- ^ Closed.
   }
 
 -- | Occurrences in a /closed/ term, treating the arguments it takes according
