@@ -417,10 +417,18 @@ metaOccurs3 :: (Occurs a, Occurs b, Occurs c) => MetaId -> a -> b -> c -> TCM ()
 metaOccurs3 m x y z = metaOccurs m x >> metaOccurs m y >> metaOccurs m z
 
 -- | Going under a binder.
+--
+--   Andreas, 2026-09-24, issue #8775.
+--   The ascribed modality of the new local variable has to be composed with the
+--   modality of the current position: a variable bound underneath.
+--   E.g. a crisp or erased position is itself crisp resp. erased.
+--   Cf. the LAM rule in Conor McBride's, I got plenty of nuttin' (Wadlerfest 2016).
 {-# INLINE underBinder #-}
 underBinder :: Modality -> OccursM z -> OccursM z
 underBinder mod = local \e ->
-  e {occLocals = occLocals e + 1, occLocalModalities = mod : occLocalModalities e}
+  e { occLocals = occLocals e + 1
+    , occLocalModalities = composeModality (occModality e) mod : occLocalModalities e
+    }
 
 -- | Changing the 'Relevance'.
 {-# INLINE underRelevance #-}
