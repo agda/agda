@@ -53,6 +53,7 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import {-# SOURCE #-} Agda.TypeChecking.InstanceArguments
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
+import {-# SOURCE #-} Agda.TypeChecking.EtaContract (etaContract)
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
@@ -215,7 +216,7 @@ normalizeCopyBody def = case theDef def of
     _ -> return def
   where
     contract v update = do
-      v <- etaContractCopyBody <$> instantiateFull v
+      v <- etaContract =<< instantiateFull v
       return def{ theDef = update v }
 
 -- | A combination of 'addConstant' and 'defaultDefn'. The 'Language'
