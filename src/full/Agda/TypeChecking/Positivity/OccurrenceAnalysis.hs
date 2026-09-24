@@ -295,8 +295,30 @@ Occurrence analysis is a single traversal over definitions which builds a mutabl
 keep track of the "path" during traversal that leads from the current position to a top definition.
 -}
 
--- | Top-level arg index that a local variable was bound in, arg polarity of the var itself.
-data DefArgInEnv = DefArgInEnv Int [Occurrence]
+-- | Occurrence information for a variable that is bound as an argument of the
+--   definition we are currently analysing.
+data DefArgInEnv = DefArgInEnv
+      Int
+        -- ^ Which argument of the top-level definition this variable was bound as.
+      [Occurrence]
+        -- ^ How this variable uses its /own/ arguments: one 'Occurrence' per
+        --   argument of the variable's type, in order, as computed by
+        --   'getOccurrencesFromType' from the polarity annotations on the
+        --   domains of that type.
+        --
+        --   So this list has one entry per argument the variable takes, and
+        --   thus more than one whenever the variable is a function of several
+        --   arguments: a parameter whose type declares its first argument
+        --   strictly positive and its second negative yields
+        --   @['StrictPos', 'JustNeg']@.
+        --
+        --   It is empty whenever we have no such information: without
+        --   @--polarity@ ('getOccurrencesFromType' then returns the empty
+        --   list), for variables bound by a pattern (see the
+        --   'ComputeOccurrences' instance for 'Clause'), and for variables
+        --   that take no arguments at all.  Arguments beyond the end of the
+        --   list default to 'Mixed'; see the @Var@ case of 'occurrences' for
+        --   'Term'.
   deriving Show
 
 -- | Mutual definition names in the block.
