@@ -302,23 +302,9 @@ data DefArgInEnv = DefArgInEnv
         -- ^ Which argument of the top-level definition this variable was bound as.
       [Occurrence]
         -- ^ How this variable uses its /own/ arguments: one 'Occurrence' per
-        --   argument of the variable's type, in order, as computed by
-        --   'getOccurrencesFromType' from the polarity annotations on the
-        --   domains of that type.
-        --
-        --   So this list has one entry per argument the variable takes, and
-        --   thus more than one whenever the variable is a function of several
-        --   arguments: a parameter whose type declares its first argument
-        --   strictly positive and its second negative yields
-        --   @['StrictPos', 'JustNeg']@.
-        --
-        --   It is empty whenever we have no such information: without
-        --   @--polarity@ ('getOccurrencesFromType' then returns the empty
-        --   list), for variables bound by a pattern (see the
-        --   'ComputeOccurrences' instance for 'Clause'), and for variables
-        --   that take no arguments at all.  Arguments beyond the end of the
-        --   list default to 'Mixed'; see the @Var@ case of 'occurrences' for
-        --   'Term'.
+        --   argument of the variable's type, in order.
+        --   This is for instance computed by 'getOccurrencesFromType'
+        --   from the polarity annotations on the domains of that type.
   deriving Show
 
 -- | Mutual definition names in the block.
