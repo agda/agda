@@ -2614,8 +2614,7 @@ data Definition = Defn
   , defInstance       :: Maybe InstanceInfo
     -- ^ @Just q@ when this definition is an instance.
   , defCopy           :: Bool
-    -- ^ Has this function been created by a module
-                         -- instantiation?
+    -- ^ Has this function been created by a module instantiation?
   , defMatchable      :: Set QName
     -- ^ The set of symbols with rewrite rules that match against this symbol
     -- Does not account for local rewrite rules
@@ -3034,8 +3033,12 @@ data DatatypeData = DatatypeData
       -- ^ Number of parameters.
   , _dataIxs            :: Nat
       -- ^ Number of indices.
-  , _dataClause         :: Maybe Clause
-      -- ^ This might be in an instantiated module.
+  , _dataClause         :: Maybe Term
+      -- ^ Was this data type created by a module application (is it a /copy/)?
+      --   If yes, this is its definition, linking back to the original data type:
+      --   a term @t@ such that @D args@ equals @t \`applyE\` args@.
+      --   It is kept eta-contracted, so that it also unfolds
+      --   underapplied occurrences of @D@ (issue #8545).
   , _dataCons           :: [QName]
       -- ^ Constructor names, ordered according to the order of their definition.
   , _dataSort           :: Sort
@@ -3059,7 +3062,7 @@ data DatatypeData = DatatypeData
 pattern Datatype
   :: Nat
   -> Nat
-  -> (Maybe Clause)
+  -> (Maybe Term)
   -> [QName]
   -> Sort
   -> Maybe [QName]
@@ -3099,9 +3102,10 @@ pattern Datatype
 data RecordData = RecordData
   { _recPars           :: Nat
       -- ^ Number of parameters.
-  , _recClause         :: Maybe Clause
-      -- ^ Was this record type created by a module application?
-      --   If yes, the clause is its definition (linking back to the original record type).
+  , _recClause         :: Maybe Term
+      -- ^ Was this record type created by a module application (is it a /copy/)?
+      --   If yes, this is its definition, linking back to the original record type.
+      --   See '_dataClause'.
   , _recConHead        :: ConHead
       -- ^ Constructor name and fields.
   , _recNamedCon       :: Bool
@@ -3142,7 +3146,7 @@ data RecordData = RecordData
 
 pattern Record
   :: Nat
-  -> Maybe Clause
+  -> Maybe Term
   -> ConHead
   -> Bool
   -> [Dom QName]
@@ -3840,16 +3844,30 @@ primFun :: QName -> Arity -> ([Arg Term] -> ReduceM (Reduced MaybeReducedArgs Te
 primFun q ar imp = PrimFun q ar [] (\args _ -> imp args)
 
 defClauses :: Definition -> [Clause]
-defClauses Defn{theDef = Function{funClauses = cs}}        = cs
-defClauses Defn{theDef = Primitive{primClauses = cs}}      = cs
-defClauses Defn{theDef = Datatype{dataClause = Just c}}    = [c]
-defClauses Defn{theDef = Record{recClause = Just c}}       = [c]
-defClauses _                                               = []
+defClauses Defn{theDef = Function{funClauses = cs}}   = cs
+defClauses Defn{theDef = Primitive{primClauses = cs}} = cs
+defClauses _                                          = []
+
+-- | The definition of a data or record type copy (created by a module
+--   application), if the given definition is such a copy.
+defCopyClause :: Definition -> Maybe Term
+defCopyClause Defn{theDef = Datatype{dataClause = v}} = v
+defCopyClause Defn{theDef = Record  {recClause  = v}} = v
+defCopyClause _ = Nothing
 
 defCompiled :: Definition -> Maybe CompiledClauses
 defCompiled Defn{theDef = Function {funCompiled  = mcc}} = mcc
 defCompiled Defn{theDef = Primitive{primCompiled = mcc}} = mcc
 defCompiled _ = Nothing
+
+-- | How a constant is defined: either it is a data or record type copy,
+--   defined by a term ('defCopyClause'), or it is defined by clauses
+--   ('defClauses'), possibly with a compiled form ('defCompiled').
+--   Never both.
+defCopyOrClauses :: Definition -> Either Term ([Clause], Maybe CompiledClauses)
+defCopyOrClauses def = case defCopyClause def of
+  Just v  -> Left v
+  Nothing -> Right (defClauses def, defCompiled def)
 
 defParameters :: Definition -> Maybe Nat
 defParameters Defn{theDef = Datatype{dataPars = n}} = Just n

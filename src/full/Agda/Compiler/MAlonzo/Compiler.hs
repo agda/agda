@@ -1219,14 +1219,25 @@ compiledTypeSynonym q hsT arity =
   where
     vs = [ ihname A i | i <- [0 .. arity - 1]]
 
-tvaldecl :: QName
-         -> Induction
-            -- ^ Is the type inductive or coinductive?
-         -> Nat -> [HS.ConDecl] -> Maybe Clause -> [HS.Decl]
-tvaldecl q ind npar cds cl =
+-- | Produce Haskell code for a data type declaration.
+tvaldecl ::
+     QName
+       -- ^ Name of the data/record type.
+  -> Induction
+       -- ^ Is the type inductive or coinductive?
+  -> Nat
+       -- ^ Number of parameters.
+  -> [HS.ConDecl]
+       -- ^ Constructors.
+  -> Maybe a
+       -- ^ The definition of this type if it is a copy created by a
+       --   module application (see 'defCopyClause'); such a type is a mere
+       --   alias, so no data declaration is emitted for it.
+  -> [HS.Decl]
+tvaldecl q ind npar cds body =
   HS.FunBind [HS.Match vn pvs (HS.UnGuardedRhs HS.unit_con) emptyBinds] :
   maybe [HS.DataDecl kind tn [] cds' []]
-        (const []) cl
+        (const []) body
   where
   (tn, vn) = (unqhname TypeK q, dname q)
   pvs = [ HS.PVar $ ihname A i | i <- [0 .. npar - 1]]

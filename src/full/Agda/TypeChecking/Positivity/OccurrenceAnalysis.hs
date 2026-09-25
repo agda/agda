@@ -295,8 +295,16 @@ Occurrence analysis is a single traversal over definitions which builds a mutabl
 keep track of the "path" during traversal that leads from the current position to a top definition.
 -}
 
--- | Top-level arg index that a local variable was bound in, arg polarity of the var itself.
-data DefArgInEnv = DefArgInEnv Int [Occurrence]
+-- | Occurrence information for a variable that is bound as an argument of the
+--   definition we are currently analysing.
+data DefArgInEnv = DefArgInEnv
+      Int
+        -- ^ Which argument of the top-level definition this variable was bound as.
+      [Occurrence]
+        -- ^ How this variable uses its /own/ arguments: one 'Occurrence' per
+        --   argument of the variable's type, in order.
+        --   This is for instance computed by 'getOccurrencesFromType'
+        --   from the polarity annotations on the domains of that type.
   deriving Show
 
 -- | Mutual definition names in the block.
@@ -365,6 +373,19 @@ getOccurrencesFromType a = (optPolarity <$> pragmaOptions) >>= \case
             pure (p:ps)
           _ -> pure []
     liftReduce (go a)
+
+-- | The 'DefArgInEnv's for the variables bound by the given telescope,
+--   when that telescope is the parameter telescope of the definition under
+--   analysis.
+--
+--   The result is indexed by de Bruijn index (innermost first), as expected
+--   by 'topDefArgs'.  Variable @i@ stands for argument @n - 1 - i@.
+paramsToDefArgs :: Telescope -> TCM [DefArgInEnv]
+paramsToDefArgs tel = go 0 (telToList tel) [] where
+  go i as acc = expand \ret -> case as of
+    []   -> ret $ pure acc
+    a:as -> ret do occs <- getOccurrencesFromType (snd (unDom a))
+                   go (i + 1) as (DefArgInEnv i occs : acc)
 
 addRawEdge :: Range -> Occurrence -> Node -> Node -> OccM ()
 addRawEdge rng occ src tgt = do
@@ -639,6 +660,32 @@ instance ComputeOccurrences PlusLevel where
 instance ComputeOccurrences Type where
   occurrences (El _ v) = occurrences v
 
+-- | A closed term paired with its type.
+data TypedTerm = TypedTerm
+  { ttType :: Type  -- ^ Closed.
+  , ttTerm :: Term  -- ^ Closed.
+  }
+
+-- | Occurrences in a /closed/ term, treating the arguments it takes according
+--   to its type like the arguments of the definition we are analysing.
+--
+--   This is how the definition of a data or record type copy is analysed
+--   (issue #8696).  Such a copy @N.D = M.D args@ is stored as a term that is
+--   kept eta-contracted (see '_dataClause'), so the parameters and indices of
+--   @N.D@ need not occur in it syntactically at all.  Applying it to the
+--   variables of its own telescope brings them back, and registering those
+--   variables in 'topDefArgs' makes the analysis attribute their occurrences
+--   to the corresponding arguments of @N.D@.  Without this, the analysis would
+--   wrongly conclude that they are all 'Unused'.
+instance ComputeOccurrences TypedTerm where
+  occurrences (TypedTerm t v) = do
+    TelV tel _ <- lift $ telView t
+    v    <- lift $ instantiateFull v
+    args <- lift $ paramsToDefArgs tel
+    -- Note: @v@ is closed, so it needs no raising into @tel@.
+    local (\ env -> env{ topDefArgs = args }) $
+      occurrences $ v `apply` teleArgs tel
+
 instance ComputeOccurrences a => ComputeOccurrences (Tele a) where
   occurrences EmptyTel        = mempty
   occurrences (ExtendTel a b) = occurrences a >> occurrences b
@@ -688,13 +735,6 @@ computeDefOccurrences q clauses = inConcreteOrAbstractMode q \def -> do
     "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show o) <+> text (show m)
       <+> prettyTCM cur
 
-  let paramsToDefArgs :: Telescope -> TCM [DefArgInEnv]
-      paramsToDefArgs tel = go 0 (telToList tel) [] where
-        go i as acc = expand \ret -> case as of
-          []   -> ret $ pure acc
-          a:as -> ret do occs <- getOccurrencesFromType (snd (unDom a))
-                         go (i + 1) as (DefArgInEnv i occs : acc)
-
   let defOcc = mutualDefOcc def
   underPathOcc (`InDefOf` q) defOcc $ expand \ret -> case theDef def of
 
@@ -725,11 +765,9 @@ computeDefOccurrences q clauses = inConcreteOrAbstractMode q \def -> do
 
     -- Andreas, 2026-08-29, issue #8696:
     -- A data or record type created by a module application (a /copy/) is
-    -- defined by the pattern-less clause  @N.D = M.D args@.  As for function
-    -- clauses (see 'preprocessMutuals') we have to eta-expand it, otherwise
-    -- the analysis sees no occurrence of the parameters and indices of @N.D@
-    -- and wrongly concludes that they are all 'Unused'.
-    Datatype{dataClause = Just c} -> ret $ occurrences =<< lift (etaExpandCopyClause c)
+    -- defined by a term rather than by clauses.  See the 'ComputeOccurrences'
+    -- instance for 'TypedTerm' for how its arguments are accounted for.
+    Datatype{dataClause = Just v} -> ret $ occurrences $ TypedTerm (defType def) v
 
     Datatype{dataPars = np0, dataCons = cs, dataTranspIx = trx} -> ret do
       -- Andreas, 2013-02-27 (later edited by someone else): First,
@@ -807,9 +845,8 @@ computeDefOccurrences q clauses = inConcreteOrAbstractMode q \def -> do
               DontCare{} -> __IMPOSSIBLE__  -- not a type
               Dummy{}    -> __IMPOSSIBLE__
 
-    -- See the 'Datatype' case above for why we eta-expand.
-    Record{recClause = Just c} -> ret do
-      occurrences =<< lift (etaExpandCopyClause c)
+    -- See the 'Datatype' case above.
+    Record{recClause = Just v} -> ret $ occurrences $ TypedTerm (defType def) v
 
     Record{recPars = np, recTel = tel} -> ret do
       let (tel0, tel1) = splitTelescopeAt np tel
@@ -826,12 +863,6 @@ computeDefOccurrences q clauses = inConcreteOrAbstractMode q \def -> do
     PrimitiveSort{}    -> ret mempty
     GeneralizableVar{} -> ret mempty
     AbstractDefn{}     -> ret __IMPOSSIBLE__
-
--- | Prepare the defining clause of a data or record type copy (issue #8696)
---   for occurrence analysis by eta-expanding it, so that the parameters and
---   indices of the copy appear as pattern variables in the clause.
-etaExpandCopyClause :: Clause -> TCM Clause
-etaExpandCopyClause c = snd <$> (etaExpandClause =<< instantiateFull c)
 
 -- | Pre-pass that eta-expands function clauses and records the "formal arity" of the function in
 --   the signature. Any argument beyond this arity is considered to have 'Mixed' polarity.

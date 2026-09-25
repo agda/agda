@@ -52,7 +52,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
-import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull, appDefE_)
+import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull, appDefE0)
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -1132,7 +1132,7 @@ tryReduceNonRecursiveClause g es continue fallback = do
   -- Finally, try to reduce with the non-recursive clauses (and no rewrite rules).
   r <- liftTCM $
     modifyAllowedReductions (SmallSet.delete UnconfirmedReductions) $
-    runReduceM $ appDefE_ g v0 (defClauses def) (defCompiled def) [] (map' notReduced es)
+    runReduceM $ appDefE0 g def v0 [] (map' notReduced es)
   case r of
     NoReduction{}    -> fallback
     YesReduction _ v -> do

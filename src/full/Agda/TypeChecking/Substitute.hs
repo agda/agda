@@ -375,14 +375,14 @@ instance Apply Defn where
                 -- if n == 0 then n0 <= length args (which is at least 1) so we can drop all but one
                 isVar0 = case map'' unArg $ drop (n0 - 1) args of [Var 0 []] -> True; _ -> False
 
-    Datatype{ dataPars = np, dataClause = cl } ->
+    Datatype{ dataPars = np, dataClause = v } ->
       d { dataPars = np - size args
-        , dataClause     = apply cl args
+        , dataClause = apply v args
         }
-    Record{ recPars = np, recClause = cl, recTel = tel
+    Record{ recPars = np, recClause = v, recTel = tel
           {-, recArgOccurrences = occ-} } ->
       d { recPars = np - size args
-        , recClause = apply cl args, recTel = apply tel args
+        , recClause = apply v args, recTel = apply tel args
 --        , recArgOccurrences = List.drop (length args) occ
         }
     Constructor{ conPars = np } ->
@@ -736,13 +736,13 @@ instance Abstract Defn where
           --        projection shenanigans.
           abstractClause tel1 c = (abstract tel1 c) { clauseTel = abstract tel $ clauseTel c }
 
-    Datatype{ dataPars = np, dataClause = cl } ->
-      d { dataPars       = np + size tel
-        , dataClause     = abstract tel cl
+    Datatype{ dataPars = np, dataClause = v } ->
+      d { dataPars   = np + size tel
+        , dataClause = abstract tel v
         }
-    Record{ recPars = np, recClause = cl, recTel = tel' } ->
+    Record{ recPars = np, recClause = v, recTel = tel' } ->
       d { recPars    = np + size tel
-        , recClause  = abstract tel cl
+        , recClause  = abstract tel v
         , recTel     = abstract tel tel'
         }
     Constructor{ conPars = np } ->

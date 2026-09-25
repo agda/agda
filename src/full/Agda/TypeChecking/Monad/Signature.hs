@@ -53,6 +53,7 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import {-# SOURCE #-} Agda.TypeChecking.InstanceArguments
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
+import {-# SOURCE #-} Agda.TypeChecking.EtaContract (etaContract)
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
@@ -180,7 +181,7 @@ addConstant q d = do
                     Nothing -> fallback
                     Just (doms, dom) -> telFromList $ fmap hideOrKeepInstance doms ++ [dom]
               _ -> tel
-  let d' = abstract tel' $ d { defName = q }
+  d' <- normalizeCopyBody $ abstract tel' $ d { defName = q }
   reportSDoc "tc.signature" 60 $ "lambda-lifted definition =" <?> pretty d'
   modifySignature $ updateDefinitions $ HMap.insertWith (+++) q d'
   i <- currentOrFreshMutualBlock
@@ -198,6 +199,25 @@ addConstant q d = do
                                               (defCompiledRep new)
                                               (defCompiledRep old)
                       }
+
+-- | Bring the definition of a data or record type copy into normal form:
+--   fully instantiated and eta-contracted (see '_dataClause').
+--
+--   Lambda-lifting (the 'Abstract' instance for 'Defn') wraps the body of a
+--   copy into one lambda per module parameter.  Eta-contracting these away
+--   again is what makes the copy unfold when it is applied to fewer arguments
+--   than it has parameters, which in turn lets chains of copies arising from
+--   partial module instantiations unfold all the way down (issue #8545).
+--   Metas are instantiated first, since a solved meta can hide an eta-redex.
+normalizeCopyBody :: Definition -> TCM Definition
+normalizeCopyBody def = case theDef def of
+    d@Datatype{ dataClause = Just v } -> contract v \ v -> d{ dataClause = Just v }
+    d@Record  { recClause  = Just v } -> contract v \ v -> d{ recClause  = Just v }
+    _ -> return def
+  where
+    contract v update = do
+      v <- etaContract =<< instantiateFull v
+      return def{ theDef = update v }
 
 -- | A combination of 'addConstant' and 'defaultDefn'. The 'Language'
 -- does not need to be supplied.
@@ -743,12 +763,12 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
                          }
                 Datatype{ dataPars = np, dataCons = cs } -> return $
                   oldDef { dataPars   = np - size ts'
-                         , dataClause = Just cl
+                         , dataClause = Just body
                          , dataCons   = map copyName cs
                          }
                 Record{ recPars = np, recTel = tel, recConHead = c, recFields = fs } -> return $
                   oldDef { recPars    = np - size ts'
-                         , recClause  = Just cl
+                         , recClause  = Just body
                          , recTel     = apply tel ts'
                          , recConHead = copyConHead c
                          , recFields  = (map . fmap) copyName fs
@@ -775,13 +795,23 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
                   reportSDoc "tc.mod.apply" 80 $ ("new def for" <+> pretty x) <?> pretty newDef
                   return newDef
 
+            -- The number of remaining parameters. We need to drop the
+            -- lambdas corresponding to these from the body below.
+            pars = max 0 $ either (const 0) (pred . projIndex) proj
+            rel  = getRelevance $ defArgInfo d
+
+            -- The definition of the copy, linking back to the original @x@.
+            -- For data and record types this is stored as is (in 'dataClause' /
+            -- 'recClause'); function copies wrap it into the clause @cl@ below.
+            body = dropArgs pars $ case oldDef of
+                     Function{funProjection = Right p} -> projDropParsApply p ProjSystem rel ts'
+                     _ -> Def x $ map Apply ts'
+
             cl = Clause { clauseLHSRange    = getRange $ defClauses d
                         , clauseFullRange   = getRange $ defClauses d
                         , clauseTel         = EmptyTel
                         , namedClausePats   = []
-                        , clauseBody        = Just $ dropArgs pars $ case oldDef of
-                            Function{funProjection = Right p} -> projDropParsApply p ProjSystem rel ts'
-                            _ -> Def x $ map Apply ts'
+                        , clauseBody        = Just body
                         , clauseType        = Just $ defaultArg t
                         , clauseCatchall    = empty
                         , clauseRecursive   = NotRecursive -- definitely not recursive
@@ -789,11 +819,6 @@ applySection' new ptel old ts ren@ScopeCopyInfo{ renNames = rd, renModules = rm 
                         , clauseEllipsis    = NoEllipsis
                         , clauseWhereModule = Nothing
                         }
-              where
-                -- The number of remaining parameters. We need to drop the
-                -- lambdas corresponding to these from the clause body above.
-                pars = max 0 $ either (const 0) (pred . projIndex) proj
-                rel  = getRelevance $ defArgInfo d
 
     {- Example
 
@@ -911,16 +936,18 @@ instance ChaseDisplayForms a => ChaseDisplayForms [a] where
 
 canonicalName :: HasConstInfo m => QName -> m QName
 canonicalName x = do
-  def <- theDef <$> getConstInfo x
-  case def of
-    Constructor{conSrcCon = c}                                -> return $ conName c
-    Record{recClause = Just (Clause{ clauseBody = body })}    -> can body
-    Datatype{dataClause = Just (Clause{ clauseBody = body })} -> can body
-    _                                                         -> return x
+  getConstInfo x <&> theDef >>= \case
+    Constructor{conSrcCon = c}    -> return $ conName c
+    Record  {recClause  = Just v} -> can v
+    Datatype{dataClause = Just v} -> can v
+    _ -> return x
   where
-    can body = canonicalName $ extract $ fromMaybe __IMPOSSIBLE__ body
-    extract (Def x _)  = x
-    extract _          = __IMPOSSIBLE__
+    can = canonicalName . extract
+    -- The body of a copy is an application of the original type,
+    -- possibly still under some lambdas if it could not be eta-contracted.
+    extract v = case snd $ lamView v of
+      Def x _ -> x
+      _       -> __IMPOSSIBLE__
 
 sameDef :: HasConstInfo m => QName -> QName -> m (Maybe QName)
 sameDef d1 d2 = do
