@@ -95,7 +95,7 @@ import Agda.Utils.StrictReader
 import Agda.Utils.StrictWriter
 
 import Agda.Utils.Impossible
-import Agda.TypeChecking.Free (freeIn)
+import Agda.TypeChecking.Free (anyFreeVar, freeIn)
 
 -- | Are we checking the LHS of a let-pattern binding or a function clause?
 data LetOrClause
@@ -2075,31 +2075,50 @@ checkParameters
   -> Args   -- ^ The parameters.
   -> tcm ()
 checkParameters dc d pars = liftTCM $ do
-  a <- reduce (Def dc [])
-  -- Andreas, 2026-09-23, issue #8545:
-  -- A data or record type copy is defined by a term (see 'defCopyClause'), so it
-  -- unfolds even when the module instantiation left some of its parameters
-  -- open.  In that case the reduct is a lambda whose bound variables stand for
-  -- those remaining parameters.  They are not fixed by the instantiation, and
-  -- the ones that are fixed are no longer identifiable by their position here,
-  -- so there is nothing we can compare.
-  -- TODO: just skipping the check for underapplied copies causes #7664
-  case lamView a of
-    (_:_, _) -> return ()  -- TODO issue #7664
-    ([], Def d0 es) -> do -- compare parameters
-      let vs = mustAllApplyElims es
-      reportSDoc "tc.lhs.split" 40 $ vcat $
-        [ "checkParameters"
-        , nest 2 $ "d                   =" <+> (text . prettyShow) d
-        , nest 2 $ "d0 (should be == d) =" <+> (text . prettyShow) d0
-        , nest 2 $ "dc                  =" <+> (text . prettyShow) dc
-        , nest 2 $ "vs                  =" <+> prettyTCM vs
-        , nest 2 $ "pars                =" <+> prettyTCM pars
-        ]
-      when (d0 /= d) __IMPOSSIBLE__
-      t <- typeOfConst d
-      compareArgs [] [] t (Def d []) vs (take' (length vs) pars)
-    _ -> __IMPOSSIBLE__
+  def <- getConstInfo dc
+  -- Only a copy stemming from a module instantiation can have parameters
+  -- that are already fixed; for anything else there is nothing to check.
+  -- (This also avoids the context churn below in the common case.)
+  when (defCopy def) $ do
+    -- Andreas, 2026-09-25, issue #7664:
+    -- Saturate @dc@ with fresh parameters before reducing.
+    -- Reducing @Def dc []@ is not enough: a copy does unfold when underapplied
+    -- (issue #8545), but reduction stops at the leading lambdas it produces,
+    -- so a /chain/ of copies would not be unfolded all the way down to @d@.
+    TelV tel _ <- telView $ defType def
+    let n = size tel
+    addContext tel $ do
+      a <- reduce $ Def dc $ map Apply $ teleArgs tel
+      case a of
+        Def d0 es | d0 == d -> do
+          let pars' = raise n pars
+              vs0   = mustAllApplyElims es
+              -- A parameter of @d@ that still mentions one of the fresh
+              -- variables is not fixed by the module instantiation: the caller
+              -- may choose it freely, so there is nothing to check there.
+              -- We neutralize those positions by substituting the parameter we
+              -- expect.  Note that the fixed parameters cannot be identified by
+              -- their position: after unfolding a chain of copies they are in
+              -- no particular relation to the parameters of @dc@.
+              vs | n == 0    = vs0  -- Nothing supplied by us, nothing to neutralize.
+                 | otherwise = zipWith (\ v p -> if anyFreeVar (< n) v then p else v)
+                                 vs0 pars'
+          reportSDoc "tc.lhs.split" 40 $ vcat $
+            [ "checkParameters"
+            , nest 2 $ "d                   =" <+> (text . prettyShow) d
+            , nest 2 $ "d0 (should be == d) =" <+> (text . prettyShow) d0
+            , nest 2 $ "dc                  =" <+> (text . prettyShow) dc
+            , nest 2 $ "vs0                 =" <+> prettyTCM vs0
+            , nest 2 $ "vs                  =" <+> prettyTCM vs
+            , nest 2 $ "pars                =" <+> prettyTCM pars
+            ]
+          -- @pars@ include the module parameters of @d@,
+          -- so we need the uninstantiated type of @d@ here (not @typeOfConst d@).
+          t <- defType <$> getConstInfo d
+          compareArgs [] [] t (Def d []) vs (take' (length vs) pars')
+        -- If @dc@ does not unfold to @d@, there is nothing we could compare.
+        -- (Note that @d@ may just be a different qualification of the same name.)
+        _ -> return ()
 
 checkSortOfSplitVar :: (MonadTCM m, PureTCM m, MonadError TCErr m,
                         LensSort a, PrettyTCM a, LensSort ty, PrettyTCM ty)
