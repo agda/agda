@@ -2090,16 +2090,23 @@ checkParameters dc d pars = liftTCM $ do
     addContext tel $ do
       a <- reduce $ Def dc $ map Apply $ teleArgs tel
       case a of
-        Def d0 es | d0 == d -> do
+        Def d0 es -> do
           let pars' = raise n pars
               vs0   = mustAllApplyElims es
               -- A parameter of @d@ that still mentions one of the fresh
               -- variables is not fixed by the module instantiation: the caller
-              -- may choose it freely, so there is nothing to check there.
-              -- We neutralize those positions by substituting the parameter we
-              -- expect.  Note that the fixed parameters cannot be identified by
-              -- their position: after unfolding a chain of copies they are in
-              -- no particular relation to the parameters of @dc@.
+              -- may choose it freely, but consistently.
+              -- To ensure consistency of the choices, we would need full-blown
+              -- unification.  We abstain from implementing this here.
+              -- Rather, we simply overwrite the constructor parameters
+              -- that still contain fresh variables with the respective
+              -- data parameter so that the subsequent 'compareArgs'
+              -- never fails at these positions.
+              -- This means that checkParameters still let's through
+              -- some constructors with the wrong parameter instantiation.
+              -- That we actually need to jump through hoops here lies in
+              -- our handling of module applications that do not make
+              -- proper contents of the module, but just fake them using 'defCopy'.
               vs | n == 0    = vs0  -- Nothing supplied by us, nothing to neutralize.
                  | otherwise = zipWith (\ v p -> if anyFreeVar (< n) v then p else v)
                                  vs0 pars'
@@ -2112,12 +2119,11 @@ checkParameters dc d pars = liftTCM $ do
             , nest 2 $ "vs                  =" <+> prettyTCM vs
             , nest 2 $ "pars                =" <+> prettyTCM pars
             ]
+          unless (d0 == d) __IMPOSSIBLE__
           -- @pars@ include the module parameters of @d@,
           -- so we need the uninstantiated type of @d@ here (not @typeOfConst d@).
           t <- defType <$> getConstInfo d
           compareArgs [] [] t (Def d []) vs (take' (length vs) pars')
-        -- If @dc@ does not unfold to @d@, there is nothing we could compare.
-        -- (Note that @d@ may just be a different qualification of the same name.)
         _ -> return ()
 
 checkSortOfSplitVar :: (MonadTCM m, PureTCM m, MonadError TCErr m,
