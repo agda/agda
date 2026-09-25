@@ -37,7 +37,7 @@ import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView, deepUnscope)
 import Agda.Syntax.Concrete (FieldAssignment'(..),LensInScope(..))
-import Agda.Syntax.Common as Common hiding (DataOrRecord)
+import Agda.Syntax.Common hiding (DataOrRecord)
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
@@ -162,7 +162,7 @@ instance IsFlexiblePattern a => IsFlexiblePattern [a] where
 instance IsFlexiblePattern a => IsFlexiblePattern (Arg a) where
   maybeFlexiblePattern = maybeFlexiblePattern . unArg
 
-instance IsFlexiblePattern a => IsFlexiblePattern (Common.Named name a) where
+instance IsFlexiblePattern a => IsFlexiblePattern (Named name a) where
   maybeFlexiblePattern = maybeFlexiblePattern . namedThing
 
 -- | Update the given LHS state:
@@ -1887,29 +1887,31 @@ disambiguateConstructor
   -> QName             -- ^ Name of the datatype.
   -> Args              -- ^ Parameters of the datatype
   -> TCM (ConHead, Type)
-disambiguateConstructor ambC d pars = do
-  reduce (Def d $ map Apply pars) >>= \case
-    Def d0 es | Just vs <- allApplyElims es -> disambiguateConstructor' ambC d0 vs
+disambiguateConstructor ambC d0 pars = do
+  reduce (Def d0 $ map Apply pars) >>= \case
+    Def d es | Just vs <- allApplyElims es -> do
+      def <- theDef <$> getConstInfo d
+      uncurry (disambiguateConstructor' ambC d vs) case def of
+        Datatype{} -> (IsData, dataCons def)
+        Record  {} -> (IsRecord_, [conName $ recConHead def])
+        _ -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
 
 -- | Disambiguate a constructor based on the data type it is supposed to be
 --   constructing. Returns the unambiguous constructor name and its type.
 --   Precondition: type should be a data/record type.
 disambiguateConstructor'
-  :: AmbiguousQName    -- ^ The name of the constructor to be disambiguated.
-  -> QName             -- ^ Name of the datatype.
-  -> Args              -- ^ Parameters of the datatype
+  :: AmbiguousQName      -- ^ The name of the constructor to be disambiguated.
+  -> QName               -- ^ Name of the datatype.
+  -> Args                -- ^ Parameters of the datatype
+  -> DataOrRecord_       -- ^ Whether it is really a datatype or rather a record type.
+  -> [QName]             -- ^ The constructor(s) of the data/record type.
   -> TCM (ConHead, Type)
-disambiguateConstructor' ambC d pars = do
-  cons <- theDef <$> getConstInfo d >>= \case
-    def@Datatype{} -> return $ dataCons def
-    def@Record{}   -> return $ [conName $ recConHead def]
-    _              -> __IMPOSSIBLE__
-
+disambiguateConstructor' ambC d pars dataOrRec cons = do
   -- First, try do disambiguate with nonConstraining,
   -- if that fails, try again allowing constraint/solution generation.
-  tryDisambiguate False d cons $ \ _ ->
-    tryDisambiguate True d cons $ \case
+  tryDisambiguate False \ _ ->
+    tryDisambiguate True \case
         ([]   , [] ) -> __IMPOSSIBLE__
         (err:_, [] ) -> throwError err
         -- If all disambiguations point to the same original constructor
@@ -1922,18 +1924,17 @@ disambiguateConstructor' ambC d pars = do
   where
     cs = getAmbiguous ambC
     tryDisambiguate
-      :: Bool     -- May we constrain/solve metas to arrive at unique disambiguation?
-      -> QName    -- Data/record type.
-      -> [QName]  -- Its constructor(s).
+      :: Bool
+           -- May we constrain/solve metas to arrive at unique disambiguation?
       -> ( ( [TCErr]
            , [List1 (QName, ConHead, (Type, Maybe TCState))]
            )
-           -> TCM (ConHead, Type) )  -- Failure continuation, taking
-                                     -- possible disambiguations
-                                     -- grouped by the original
-                                     -- constructor name in 'ConHead'.
-      -> TCM (ConHead, Type)  -- Unique disambiguation and its type.
-    tryDisambiguate constraintsOk d cons failure = do
+           -> TCM (ConHead, Type) )
+           -- Failure continuation, taking possible disambiguations
+           -- grouped by the original constructor name in 'ConHead'.
+      -> TCM (ConHead, Type)
+           -- Unique disambiguation and its type.
+    tryDisambiguate constraintsOk failure = do
       reportSDoc "tc.lhs.disamb" 30 $ sep $ List.concat $
         [ [ "tryDisambiguate" ]
         , if constraintsOk then [ "(allowing new constraints)" ] else empty
@@ -1941,7 +1942,7 @@ disambiguateConstructor' ambC d pars = do
         , [ "against" ]
         , map' (nest 2 . pretty) cons
         ]
-      disambiguations <- mapM (runExceptT . tryCon constraintsOk cons d pars) cs
+      disambiguations <- mapM (runExceptT . tryCon constraintsOk) cs
       -- Q: can we be more lazy, like using the ListT monad?
       -- Andreas, 2020-06-17: Not really, since we need to make sure
       -- that only a single candidate remains, and if not,
@@ -1977,26 +1978,23 @@ disambiguateConstructor' ambC d pars = do
     abstractConstructor c = softTypeError $
       AbstractConstructorNotInScope c
 
-    wrongDatatype c d = softTypeError $
-      ConstructorPatternInWrongDatatype c d
+    wrongDatatype c = softTypeError $
+      ConstructorPatternInWrongDatatype c d dataOrRec
 
     tryCon
       :: Bool        -- Are we allowed to constrain metas?
-      -> [QName]     -- Constructors of data type under consideration.
-      -> QName       -- Name of data/record type we are eliminating.
-      -> Args        -- Parameters of data/record type we are eliminating.
       -> QName       -- Candidate constructor.
       -> ExceptT TCErr TCM (QName, ConHead, (Type, Maybe TCState))
            -- If this candidate succeeds, return its disambiguation
            -- its type, and maybe the state obtained after checking it
            -- (which may contain new constraints/solutions).
-    tryCon constraintsOk cons d pars c = getConstInfo' c >>= \case
+    tryCon constraintsOk c = getConstInfo' c >>= \case
       Left (SigUnknown err)     -> __IMPOSSIBLE_VERBOSE__ err
       Left SigCubicalNotErasure -> __IMPOSSIBLE__
       Left SigAbstract          -> abstractConstructor c
       Right def                 -> do
         let con = conSrcCon (theDef def) `withRangeOf` c
-        unless (conName con `elem` cons) $ wrongDatatype c d
+        unless (conName con `elem` cons) $ wrongDatatype c
 
         -- Andreas, 2013-03-22 fixing issue 279
         -- To resolve ambiguous constructors, Agda always looks up
