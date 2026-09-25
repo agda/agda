@@ -1,0 +1,7 @@
+Issue7664b.agda:24.4-11: error: [UnequalTerms]
+The terms
+  pub
+and
+  priv
+are not equal at type Access
+when checking that the pattern O.c x y has type M.D Nat priv Bool
