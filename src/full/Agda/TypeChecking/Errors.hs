@@ -413,8 +413,9 @@ instance PrettyTCM TypeError where
       pwords "The constructor" ++ [prettyTCM c] ++
       pwords "does not construct an element of" ++ [prettyTCM t]
 
-    ConstructorPatternInWrongDatatype c d -> fsep $
-      [prettyTCM c] ++ pwords "is not a constructor of the datatype"
+    ConstructorPatternInWrongDatatype c d dataOrRec -> fsep $
+      [prettyTCM c] ++ pwords "is not a constructor of the"
+      ++ [case dataOrRec of IsData -> "datatype"; IsRecord_ -> "record type"]
       ++ [prettyTCM d]
 
     ShadowedModule x ms -> join $ fst <$> prettyShadowedModule x ms
