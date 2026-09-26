@@ -1,0 +1,7 @@
+Issue7664a.agda:47.7-18: error: [UnequalTerms]
+The terms
+  pub
+and
+  priv
+are not equal at type Access
+when checking that the pattern peek secret has type Secret ⊤
