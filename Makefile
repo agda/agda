@@ -397,6 +397,100 @@ fast-forward-cubical :
 	git submodule update --init --remote cubical
 
 ##############################################################################
+## Ecosystem libraries
+##
+## Large third-party Agda developments vendored under ecosystem/ as submodules.
+## We type-check them to get alerted of regressions we introduce on `master`.
+##
+## The ecosystem submodules are marked `update = none` in .gitmodules so that
+## they are not populated by `git clone --recurse-submodules` or by a CI
+## checkout that initializes submodules recursively (they are big and only a
+## few jobs need them).  Consequently, populating them needs `--checkout`,
+## which overrides `update = none`.
+
+ECOSYSTEM_DIR = $(TOP)/ecosystem
+
+# Populate / fast-forward an ecosystem submodule.  $(1) is its directory name.
+ecosystem_update       = git submodule update --init --checkout          $(ECOSYSTEM_DIR)/$(1)
+ecosystem_fast_forward = git submodule update --init --checkout --remote $(ECOSYSTEM_DIR)/$(1)
+
+.PHONY : ecosystem ## Update all the ecosystem libraries.
+ecosystem : agda-categories agda-unimath plfa TypeTopology
+
+#### agda-categories ####
+
+# agda-categories pins a released standard library (standard-library-2.4 atm)
+# which does not typecheck with Agda master.  Patch its .agda-lib so that it
+# uses the agda-stdlib vendored as our `std-lib` submodule instead.
+AGDA_CATEGORIES_PATCH = $(ECOSYSTEM_DIR)/patches/agda-categories-use-vendored-std-lib.patch
+
+.PHONY : agda-categories ## Update the agda-categories library.
+agda-categories :
+	$(MAKE) unpatch-agda-categories
+	$(call ecosystem_update,agda-categories)
+	$(MAKE) patch-agda-categories
+
+.PHONY : patch-agda-categories ## Make agda-categories use our vendored std-lib.
+patch-agda-categories :
+	@(cd $(ECOSYSTEM_DIR)/agda-categories && \
+	  git checkout -- agda-categories.agda-lib && \
+	  git apply $(abspath $(AGDA_CATEGORIES_PATCH)))
+
+# Revert the patch so that `git submodule update` can move the submodule.
+# (Ignore failure: the submodule may not be checked out yet.)
+.PHONY : unpatch-agda-categories ## Revert the agda-categories patch.
+unpatch-agda-categories :
+	-@(cd $(ECOSYSTEM_DIR)/agda-categories && git checkout -- agda-categories.agda-lib)
+
+.PHONY : up-to-date-agda-categories ##
+up-to-date-agda-categories : agda-categories
+
+.PHONY : fast-forward-agda-categories ##
+fast-forward-agda-categories :
+	$(MAKE) unpatch-agda-categories
+	$(call ecosystem_fast_forward,agda-categories)
+	$(MAKE) patch-agda-categories
+
+#### agda-unimath ####
+
+.PHONY : agda-unimath ## Update the agda-unimath library.
+agda-unimath :
+	$(call ecosystem_update,agda-unimath)
+
+.PHONY : up-to-date-agda-unimath ##
+up-to-date-agda-unimath : agda-unimath
+
+.PHONY : fast-forward-agda-unimath ##
+fast-forward-agda-unimath :
+	$(call ecosystem_fast_forward,agda-unimath)
+
+#### plfa ####
+
+.PHONY : plfa ## Update the PLFA (Programming Language Foundations in Agda) book.
+plfa :
+	$(call ecosystem_update,plfa)
+
+.PHONY : up-to-date-plfa ##
+up-to-date-plfa : plfa
+
+.PHONY : fast-forward-plfa ##
+fast-forward-plfa :
+	$(call ecosystem_fast_forward,plfa)
+
+#### TypeTopology ####
+
+.PHONY : TypeTopology ## Update the TypeTopology library.
+TypeTopology :
+	$(call ecosystem_update,TypeTopology)
+
+.PHONY : up-to-date-TypeTopology ##
+up-to-date-TypeTopology : TypeTopology
+
+.PHONY : fast-forward-TypeTopology ##
+fast-forward-TypeTopology :
+	$(call ecosystem_fast_forward,TypeTopology)
+
+##############################################################################
 ## Continuous Integration
 
 .PHONY : workflows ## Build the workflow configuration in .github/workflows.
@@ -425,7 +519,7 @@ test : check-whitespace \
        examples \
        std-lib-test \
        cubical-test \
-	   cubical-succeed \
+       cubical-succeed \
        interactive \
        latex-html-test \
        api-test \
@@ -617,6 +711,79 @@ cubical-succeed :
 	@$(call decorate, "Successful tests using the cubical library", \
 	  find test/CubicalSucceed -type f -name '*.agdai' -delete ; \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/CubicalSucceed)
+
+##############################################################################
+## Ecosystem library tests
+##
+## Type-check the large third-party libraries vendored under ecosystem/
+## in order to get alerted of regressions we introduce on `master`.
+##
+## Each of these takes a long time (up to a couple of hours), so they are not
+## part of the `test` goal; they are run by the `ecosystem` job of
+## .github/workflows/test.yml.
+##
+## Note that the interface files under ecosystem/*/_build are only indexed by
+## the Agda *version*, so when re-testing with a rebuilt `agda` of the same
+## version you may want to run `clean-ecosystem` first (or pass
+## AGDA_OPTS=--ignore-interfaces).
+
+# A library file (list of .agda-lib files) making only our vendored std-lib
+# visible, so that the ecosystem libraries are checked against the `std-lib`
+# submodule rather than against whatever standard library the developer happens
+# to have registered in ~/.agda/libraries.
+ECOSYSTEM_LIBRARIES_FILE = $(ECOSYSTEM_DIR)/libraries
+
+# UserWarnings are deprecation notices issued by the libraries themselves,
+# not Agda regressions, so we silence them.
+ECOSYSTEM_AGDA_OPTS ?= -WnoUserWarning
+ECOSYSTEM_RTS_OPTS  ?= -A128M -M12G
+
+ECOSYSTEM_AGDA = $(AGDA_BIN) $(AGDA_OPTS) $(ECOSYSTEM_AGDA_OPTS) \
+  --no-default-libraries --library-file=$(abspath $(ECOSYSTEM_LIBRARIES_FILE)) \
+  +RTS $(ECOSYSTEM_RTS_OPTS) -RTS
+
+.PHONY : ecosystem-libraries-file ## Generate ecosystem/libraries.
+ecosystem-libraries-file :
+	@echo "$(abspath $(TOP)/std-lib/standard-library.agda-lib)" > $(ECOSYSTEM_LIBRARIES_FILE)
+
+.PHONY : ecosystem-test ## Type-check all the ecosystem libraries (takes hours).
+ecosystem-test : agda-categories-test \
+                 agda-unimath-test \
+                 plfa-test \
+                 TypeTopology-test
+
+.PHONY : agda-categories-test ##
+agda-categories-test : ecosystem-libraries-file patch-agda-categories
+	@$(call decorate, "agda-categories library test", \
+	  $(MAKE) -C $(ECOSYSTEM_DIR)/agda-categories Everything.agda && \
+	  (cd $(ECOSYSTEM_DIR)/agda-categories && \
+	   time $(ECOSYSTEM_AGDA) -i. Everything.agda))
+
+.PHONY : agda-unimath-test ##
+agda-unimath-test : ecosystem-libraries-file
+	@$(call decorate, "agda-unimath library test", \
+	  $(MAKE) -C $(ECOSYSTEM_DIR)/agda-unimath src/everything.lagda.md && \
+	  (cd $(ECOSYSTEM_DIR)/agda-unimath && \
+	   time $(ECOSYSTEM_AGDA) src/everything.lagda.md))
+
+# PLFA has to be checked chapter by chapter, see ecosystem/plfa-test.sh.
+.PHONY : plfa-test ##
+plfa-test : ecosystem-libraries-file
+	@$(call decorate, "PLFA test", \
+	  time AGDA="$(ECOSYSTEM_AGDA)" $(ECOSYSTEM_DIR)/plfa-test.sh)
+
+.PHONY : TypeTopology-test ##
+TypeTopology-test : ecosystem-libraries-file
+	@$(call decorate, "TypeTopology library test", \
+	  (cd $(ECOSYSTEM_DIR)/TypeTopology/source && \
+	   time $(ECOSYSTEM_AGDA) AllModulesIndex.lagda))
+
+.PHONY : clean-ecosystem ## Delete the interface files of the ecosystem libraries.
+clean-ecosystem :
+	rm -rf $(ECOSYSTEM_DIR)/agda-categories/_build
+	rm -rf $(ECOSYSTEM_DIR)/agda-unimath/_build
+	rm -rf $(ECOSYSTEM_DIR)/plfa/src/_build
+	rm -rf $(ECOSYSTEM_DIR)/TypeTopology/_build
 
 .PHONY : std-lib-succeed ##
 std-lib-succeed :

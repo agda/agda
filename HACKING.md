@@ -323,6 +323,23 @@ Standard library submodule
 
   See: https://www.git-scm.com/book/en/v2/Git-Tools-Submodules
 
+* The cubical library is vendored as a submodule `/cubical` in the same way,
+  with goals `cubical`, `up-to-date-cubical` and `fast-forward-cubical`.
+
+Ecosystem libraries
+-------------------
+
+Several further large Agda developments are vendored as submodules under
+`/ecosystem` so that we get alerted of regressions we introduce on `master`:
+`agda-categories`, `agda-unimath`, `plfa` and `TypeTopology`.
+
+Unlike `/std-lib` and `/cubical` these submodules are marked `update = none` in
+`/.gitmodules` and are hence *not* populated by `git clone
+--recurse-submodules`; run `make ecosystem` (or `make <library>`) to check them
+out.  `make ecosystem-test` type-checks them all, `make <library>-test` just one.
+
+See [`ecosystem/README.md`](ecosystem/README.md) for the details.
+
 Testing and documentation
 =========================
 
@@ -568,6 +585,7 @@ They can be enabled by including a special phrase in the commit message
 | Phrase | Effect |
 |--------|--------|
 | `[cubical]` | Runs the cubical library tests (adds ~10 minutes) |
+| `[ecosystem]` | Runs the tests of the ecosystem libraries (adds hours) |
 
 ### Editing the GitHub Actions
 

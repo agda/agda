@@ -1,0 +1,13 @@
+diff --git a/agda-categories.agda-lib b/agda-categories.agda-lib
+index ed09e77e..5a7c038f 100644
+--- a/agda-categories.agda-lib
++++ b/agda-categories.agda-lib
+@@ -1,3 +1,7 @@
+ name: agda-categories
+-depend: standard-library-2.4
++-- Patched by the Agda repository (ecosystem/patches/agda-categories-use-vendored-std-lib.patch):
++-- agda-categories pins a released agda-stdlib (standard-library-2.4) that does not
++-- typecheck with Agda master.  We depend on the version-less library name instead so
++-- that the agda-stdlib vendored as the `std-lib` submodule is picked up.
++depend: standard-library
+ include: src/
