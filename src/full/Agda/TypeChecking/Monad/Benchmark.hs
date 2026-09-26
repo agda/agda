@@ -31,7 +31,6 @@ import Agda.TypeChecking.Monad.Imports (getVisitedModule)
 
 import qualified Agda.Utils.Benchmark as B
 import qualified Agda.Utils.Trie as Trie
-import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Monad
 import Agda.Utils.Time (CPUTime(..), fromMilliseconds)
 import Agda.Syntax.Common.Pretty
@@ -105,7 +104,7 @@ instance Pretty ModuleThroughput where
 
 moduleThroughputDoc :: Benchmark -> TCM Doc
 moduleThroughputDoc b = do
-  stats <- mapM loadModuleThroughput (moduleRows b)
+  stats <- mapMaybeM loadModuleThroughput (moduleRows b)
   pure $ renderModuleThroughput stats
 
 renderModuleThroughput :: [ModuleThroughput] -> Doc
@@ -151,20 +150,18 @@ aggregateNode t =
   , getSum $ foldMap' Sum t
   )
 
+-- | Compute the throughput of a module from the benchmark time.
+--   Returns 'Nothing' if the module is not in the visited-module cache,
+--   which happens when the module failed to check: its time was billed,
+--   but it never got an interface.
 loadModuleThroughput
   :: (TopLevelModuleName, CPUTime)
-  -> TCM ModuleThroughput
-loadModuleThroughput (mName, totalTime) = do
-  mi <- getVisitedModule mName >>= \case
-    Just mi -> pure mi
-    -- Module throughput is rendered only for modules already present in the benchmark output,
-    -- so the corresponding module info should already be in the visited-module cache.
-    Nothing -> __IMPOSSIBLE__
-  let lineCount = length (lines (TL.unpack (iSource (miInterface mi))))
-  pure ModuleThroughput
+  -> TCM (Maybe ModuleThroughput)
+loadModuleThroughput (mName, totalTime) =
+  getVisitedModule mName <&> fmap \ mi -> ModuleThroughput
     { mtModuleName = mName
     , mtTime = totalTime
-    , mtLineCount = lineCount
+    , mtLineCount = length (lines (TL.unpack (iSource (miInterface mi))))
     }
 
 picosecondsPerSecond :: Integer
