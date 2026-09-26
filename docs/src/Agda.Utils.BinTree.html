@@ -1,0 +1,303 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="annot"><span class="hs-comment">-- | Binary trees, used for O(1) append.</span></span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.BinTree.html"><span class="hs-identifier">Agda.Utils.BinTree</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.BinTree.html#BinTree"><span class="hs-identifier">BinTree</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.BinTree.html#prependToList"><span class="hs-identifier">prependToList</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.BinTree.html#toList"><span class="hs-identifier">toList</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.BinTree1.html"><span class="hs-identifier">Agda.Utils.BinTree1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.BinTree1.html#BinTree1"><span class="hs-identifier">BinTree1</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.BinTree1.html"><span class="hs-identifier">Agda.Utils.BinTree1</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">BinTree1</span></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Singleton.html"><span class="hs-identifier">Agda.Utils.Singleton</span></a></span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">data</span><span> </span><span id="BinTree"><span class="annot"><a href="Agda.Utils.BinTree.html#BinTree"><span class="hs-identifier hs-var">BinTree</span></a></span></span><span> </span><span id="local-6989586621681713212"><span class="annot"><a href="#local-6989586621681713212"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="BT0"><span class="annot"><a href="Agda.Utils.BinTree.html#BT0"><span class="hs-identifier hs-var">BT0</span></a></span></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="BT1"><span class="annot"><a href="Agda.Utils.BinTree.html#BT1"><span class="hs-identifier hs-var">BT1</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.BinTree1.html#BinTree1"><span class="hs-identifier hs-type">BinTree1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681713212"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621681713237"><span id="local-6989586621681713245"><span class="annot"><span class="annottext">BinTree a -&gt; BinTree a -&gt; Bool
+(BinTree a -&gt; BinTree a -&gt; Bool)
+-&gt; (BinTree a -&gt; BinTree a -&gt; Bool) -&gt; Eq (BinTree a)
+forall a. Eq a =&gt; BinTree a -&gt; BinTree a -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: forall a. Eq a =&gt; BinTree a -&gt; BinTree a -&gt; Bool
+== :: BinTree a -&gt; BinTree a -&gt; Bool
+$c/= :: forall a. Eq a =&gt; BinTree a -&gt; BinTree a -&gt; Bool
+/= :: BinTree a -&gt; BinTree a -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681713255"><span id="local-6989586621681713260"><span id="local-6989586621681713264"><span id="local-6989586621681713269"><span id="local-6989586621681713273"><span id="local-6989586621681713277"><span id="local-6989586621681713281"><span class="annot"><span class="annottext">Eq (BinTree a)
+Eq (BinTree a) =&gt;
+(BinTree a -&gt; BinTree a -&gt; Ordering)
+-&gt; (BinTree a -&gt; BinTree a -&gt; Bool)
+-&gt; (BinTree a -&gt; BinTree a -&gt; Bool)
+-&gt; (BinTree a -&gt; BinTree a -&gt; Bool)
+-&gt; (BinTree a -&gt; BinTree a -&gt; Bool)
+-&gt; (BinTree a -&gt; BinTree a -&gt; BinTree a)
+-&gt; (BinTree a -&gt; BinTree a -&gt; BinTree a)
+-&gt; Ord (BinTree a)
+BinTree a -&gt; BinTree a -&gt; Bool
+BinTree a -&gt; BinTree a -&gt; Ordering
+BinTree a -&gt; BinTree a -&gt; BinTree a
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+forall a. Ord a =&gt; Eq (BinTree a)
+forall a. Ord a =&gt; BinTree a -&gt; BinTree a -&gt; Bool
+forall a. Ord a =&gt; BinTree a -&gt; BinTree a -&gt; Ordering
+forall a. Ord a =&gt; BinTree a -&gt; BinTree a -&gt; BinTree a
+$ccompare :: forall a. Ord a =&gt; BinTree a -&gt; BinTree a -&gt; Ordering
+compare :: BinTree a -&gt; BinTree a -&gt; Ordering
+$c&lt; :: forall a. Ord a =&gt; BinTree a -&gt; BinTree a -&gt; Bool
+&lt; :: BinTree a -&gt; BinTree a -&gt; Bool
+$c&lt;= :: forall a. Ord a =&gt; BinTree a -&gt; BinTree a -&gt; Bool
+&lt;= :: BinTree a -&gt; BinTree a -&gt; Bool
+$c&gt; :: forall a. Ord a =&gt; BinTree a -&gt; BinTree a -&gt; Bool
+&gt; :: BinTree a -&gt; BinTree a -&gt; Bool
+$c&gt;= :: forall a. Ord a =&gt; BinTree a -&gt; BinTree a -&gt; Bool
+&gt;= :: BinTree a -&gt; BinTree a -&gt; Bool
+$cmax :: forall a. Ord a =&gt; BinTree a -&gt; BinTree a -&gt; BinTree a
+max :: BinTree a -&gt; BinTree a -&gt; BinTree a
+$cmin :: forall a. Ord a =&gt; BinTree a -&gt; BinTree a -&gt; BinTree a
+min :: BinTree a -&gt; BinTree a -&gt; BinTree a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681713293"><span id="local-6989586621681713300"><span id="local-6989586621681713305"><span class="annot"><span class="annottext">Int -&gt; BinTree a -&gt; ShowS
+[BinTree a] -&gt; ShowS
+BinTree a -&gt; String
+(Int -&gt; BinTree a -&gt; ShowS)
+-&gt; (BinTree a -&gt; String)
+-&gt; ([BinTree a] -&gt; ShowS)
+-&gt; Show (BinTree a)
+forall a. Show a =&gt; Int -&gt; BinTree a -&gt; ShowS
+forall a. Show a =&gt; [BinTree a] -&gt; ShowS
+forall a. Show a =&gt; BinTree a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall a. Show a =&gt; Int -&gt; BinTree a -&gt; ShowS
+showsPrec :: Int -&gt; BinTree a -&gt; ShowS
+$cshow :: forall a. Show a =&gt; BinTree a -&gt; String
+show :: BinTree a -&gt; String
+$cshowList :: forall a. Show a =&gt; [BinTree a] -&gt; ShowS
+showList :: [BinTree a] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681713311"><span id="local-6989586621681713315"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; BinTree a -&gt; BinTree b)
+-&gt; (forall a b. a -&gt; BinTree b -&gt; BinTree a) -&gt; Functor BinTree
+forall a b. a -&gt; BinTree b -&gt; BinTree a
+forall a b. (a -&gt; b) -&gt; BinTree a -&gt; BinTree b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b. (a -&gt; b) -&gt; BinTree a -&gt; BinTree b
+fmap :: forall a b. (a -&gt; b) -&gt; BinTree a -&gt; BinTree b
+$c&lt;$ :: forall a b. a -&gt; BinTree b -&gt; BinTree a
+&lt;$ :: forall a b. a -&gt; BinTree b -&gt; BinTree a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681713321"><span id="local-6989586621681713327"><span id="local-6989586621681713334"><span id="local-6989586621681713339"><span id="local-6989586621681713342"><span id="local-6989586621681713345"><span id="local-6989586621681713348"><span id="local-6989586621681713351"><span id="local-6989586621681713354"><span id="local-6989586621681713357"><span id="local-6989586621681713360"><span id="local-6989586621681713363"><span id="local-6989586621681713366"><span id="local-6989586621681713371"><span id="local-6989586621681713376"><span id="local-6989586621681713381"><span id="local-6989586621681713386"><span class="annot"><span class="annottext">(forall m. Monoid m =&gt; BinTree m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; BinTree a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; BinTree a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; BinTree a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; BinTree a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; BinTree a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; BinTree a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; BinTree a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; BinTree a -&gt; a)
+-&gt; (forall a. BinTree a -&gt; [a])
+-&gt; (forall a. BinTree a -&gt; Bool)
+-&gt; (forall a. BinTree a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; BinTree a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; BinTree a -&gt; a)
+-&gt; (forall a. Ord a =&gt; BinTree a -&gt; a)
+-&gt; (forall a. Num a =&gt; BinTree a -&gt; a)
+-&gt; (forall a. Num a =&gt; BinTree a -&gt; a)
+-&gt; Foldable BinTree
+forall a. Eq a =&gt; a -&gt; BinTree a -&gt; Bool
+forall a. Num a =&gt; BinTree a -&gt; a
+forall a. Ord a =&gt; BinTree a -&gt; a
+forall m. Monoid m =&gt; BinTree m -&gt; m
+forall a. BinTree a -&gt; Bool
+forall a. BinTree a -&gt; Int
+forall a. BinTree a -&gt; [a]
+forall a. (a -&gt; a -&gt; a) -&gt; BinTree a -&gt; a
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; BinTree a -&gt; m
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; BinTree a -&gt; b
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; BinTree a -&gt; b
+forall (t :: * -&gt; *).
+(forall m. Monoid m =&gt; t m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. t a -&gt; [a])
+-&gt; (forall a. t a -&gt; Bool)
+-&gt; (forall a. t a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; t a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; Foldable t
+$cfold :: forall m. Monoid m =&gt; BinTree m -&gt; m
+fold :: forall m. Monoid m =&gt; BinTree m -&gt; m
+$cfoldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; BinTree a -&gt; m
+foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; BinTree a -&gt; m
+$cfoldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; BinTree a -&gt; m
+foldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; BinTree a -&gt; m
+$cfoldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; BinTree a -&gt; b
+foldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; BinTree a -&gt; b
+$cfoldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; BinTree a -&gt; b
+foldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; BinTree a -&gt; b
+$cfoldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; BinTree a -&gt; b
+foldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; BinTree a -&gt; b
+$cfoldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; BinTree a -&gt; b
+foldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; BinTree a -&gt; b
+$cfoldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; BinTree a -&gt; a
+foldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; BinTree a -&gt; a
+$cfoldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; BinTree a -&gt; a
+foldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; BinTree a -&gt; a
+$ctoList :: forall a. BinTree a -&gt; [a]
+toList :: forall a. BinTree a -&gt; [a]
+$cnull :: forall a. BinTree a -&gt; Bool
+null :: forall a. BinTree a -&gt; Bool
+$clength :: forall a. BinTree a -&gt; Int
+length :: forall a. BinTree a -&gt; Int
+$celem :: forall a. Eq a =&gt; a -&gt; BinTree a -&gt; Bool
+elem :: forall a. Eq a =&gt; a -&gt; BinTree a -&gt; Bool
+$cmaximum :: forall a. Ord a =&gt; BinTree a -&gt; a
+maximum :: forall a. Ord a =&gt; BinTree a -&gt; a
+$cminimum :: forall a. Ord a =&gt; BinTree a -&gt; a
+minimum :: forall a. Ord a =&gt; BinTree a -&gt; a
+$csum :: forall a. Num a =&gt; BinTree a -&gt; a
+sum :: forall a. Num a =&gt; BinTree a -&gt; a
+$cproduct :: forall a. Num a =&gt; BinTree a -&gt; a
+product :: forall a. Num a =&gt; BinTree a -&gt; a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621681713399"><span id="local-6989586621681713408"><span id="local-6989586621681713414"><span id="local-6989586621681713419"><span class="annot"><span class="annottext">Functor BinTree
+Foldable BinTree
+(Functor BinTree, Foldable BinTree) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; BinTree a -&gt; f (BinTree b))
+-&gt; (forall (f :: * -&gt; *) a.
+    Applicative f =&gt;
+    BinTree (f a) -&gt; f (BinTree a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; BinTree a -&gt; m (BinTree b))
+-&gt; (forall (m :: * -&gt; *) a.
+    Monad m =&gt;
+    BinTree (m a) -&gt; m (BinTree a))
+-&gt; Traversable BinTree
+forall (t :: * -&gt; *).
+(Functor t, Foldable t) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; t a -&gt; f (t b))
+-&gt; (forall (f :: * -&gt; *) a. Applicative f =&gt; t (f a) -&gt; f (t a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; t a -&gt; m (t b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; t (m a) -&gt; m (t a))
+-&gt; Traversable t
+forall (m :: * -&gt; *) a. Monad m =&gt; BinTree (m a) -&gt; m (BinTree a)
+forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+BinTree (f a) -&gt; f (BinTree a)
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; BinTree a -&gt; m (BinTree b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; BinTree a -&gt; f (BinTree b)
+$ctraverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; BinTree a -&gt; f (BinTree b)
+traverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; BinTree a -&gt; f (BinTree b)
+$csequenceA :: forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+BinTree (f a) -&gt; f (BinTree a)
+sequenceA :: forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+BinTree (f a) -&gt; f (BinTree a)
+$cmapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; BinTree a -&gt; m (BinTree b)
+mapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; BinTree a -&gt; m (BinTree b)
+$csequence :: forall (m :: * -&gt; *) a. Monad m =&gt; BinTree (m a) -&gt; m (BinTree a)
+sequence :: forall (m :: * -&gt; *) a. Monad m =&gt; BinTree (m a) -&gt; m (BinTree a)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Traversable</span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681713205"><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.BinTree.html#BinTree"><span class="hs-identifier hs-type">BinTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681713205"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-18"></span><span>  </span><span id="local-6989586621681713430"><span class="annot"><span class="annottext">empty :: BinTree a
+</span><a href="#local-6989586621681713430"><span class="hs-identifier hs-var hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BinTree a
+forall a. BinTree a
+</span><a href="Agda.Utils.BinTree.html#BT0"><span class="hs-identifier hs-var">BT0</span></a></span><span>
+</span><span id="line-19"></span><span>  </span><span id="local-6989586621681713432"><span class="annot"><span class="annottext">null :: BinTree a -&gt; Bool
+</span><a href="#local-6989586621681713432"><span class="hs-identifier hs-var hs-var hs-var">null</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-20"></span><span>    </span><span class="annot"><span class="annottext">BinTree a
+</span><a href="Agda.Utils.BinTree.html#BT0"><span class="hs-identifier hs-var">BT0</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-21"></span><span>    </span><span class="annot"><a href="Agda.Utils.BinTree.html#BT1"><span class="hs-identifier hs-type">BT1</span></a></span><span> </span><span class="annot"><span class="annottext">BinTree1 a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681713210"><span id="local-6989586621681713436"><span id="local-6989586621681713440"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.BinTree.html#BinTree"><span class="hs-identifier hs-type">BinTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681713210"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-24"></span><span>  </span><span class="annot"><span class="annottext">BinTree a
+</span><a href="Agda.Utils.BinTree.html#BT0"><span class="hs-identifier hs-var">BT0</span></a></span><span> </span><span id="local-6989586621681713447"><span class="annot"><span class="annottext">&lt;&gt; :: BinTree a -&gt; BinTree a -&gt; BinTree a
+</span><span class="hs-operator hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span id="local-6989586621681713448"><span class="annot"><span class="annottext">BinTree a
+</span><a href="#local-6989586621681713448"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BinTree a
+</span><a href="#local-6989586621681713448"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-25"></span><span>  </span><span id="local-6989586621681713449"><span class="annot"><span class="annottext">BinTree a
+</span><a href="#local-6989586621681713449"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">BinTree a
+</span><a href="Agda.Utils.BinTree.html#BT0"><span class="hs-identifier hs-var">BT0</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BinTree a
+</span><a href="#local-6989586621681713449"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span class="annot"><a href="Agda.Utils.BinTree.html#BT1"><span class="hs-identifier hs-type">BT1</span></a></span><span> </span><span id="local-6989586621681713450"><span class="annot"><span class="annottext">BinTree1 a
+</span><a href="#local-6989586621681713450"><span class="hs-identifier hs-var">t1</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><a href="Agda.Utils.BinTree.html#BT1"><span class="hs-identifier hs-type">BT1</span></a></span><span> </span><span id="local-6989586621681713451"><span class="annot"><span class="annottext">BinTree1 a
+</span><a href="#local-6989586621681713451"><span class="hs-identifier hs-var">t2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BinTree1 a -&gt; BinTree a
+forall a. BinTree1 a -&gt; BinTree a
+</span><a href="Agda.Utils.BinTree.html#BT1"><span class="hs-identifier hs-var">BT1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BinTree1 a
+</span><a href="#local-6989586621681713450"><span class="hs-identifier hs-var">t1</span></a></span><span> </span><span class="annot"><span class="annottext">BinTree1 a -&gt; BinTree1 a -&gt; BinTree1 a
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">BinTree1 a
+</span><a href="#local-6989586621681713451"><span class="hs-identifier hs-var">t2</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681713215"><span id="local-6989586621681713456"><span id="local-6989586621681713460"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.BinTree.html#BinTree"><span class="hs-identifier hs-type">BinTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681713215"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-29"></span><span>  </span><span id="local-6989586621681713464"><span class="annot"><span class="annottext">mempty :: BinTree a
+</span><span class="hs-identifier hs-var hs-var hs-var">mempty</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BinTree a
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681713220"><span class="annot"><a href="Agda.Utils.Singleton.html#Singleton"><span class="hs-identifier hs-type">Singleton</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681713220"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.BinTree.html#BinTree"><span class="hs-identifier hs-type">BinTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681713220"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-32"></span><span>  </span><span id="local-6989586621681713470"><span class="annot"><span class="annottext">singleton :: a -&gt; BinTree a
+</span><a href="#local-6989586621681713470"><span class="hs-identifier hs-var hs-var hs-var">singleton</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BinTree1 a -&gt; BinTree a
+forall a. BinTree1 a -&gt; BinTree a
+</span><a href="Agda.Utils.BinTree.html#BT1"><span class="hs-identifier hs-var">BT1</span></a></span><span> </span><span class="annot"><span class="annottext">(BinTree1 a -&gt; BinTree a) -&gt; (a -&gt; BinTree1 a) -&gt; a -&gt; BinTree a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; BinTree1 a
+forall el coll. Singleton el coll =&gt; el -&gt; coll
+</span><a href="Agda.Utils.Singleton.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span id="local-6989586621681713225"><span class="annot"><a href="Agda.Utils.BinTree.html#prependToList"><span class="hs-identifier hs-type">prependToList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.BinTree.html#BinTree"><span class="hs-identifier hs-type">BinTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681713225"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681713225"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681713225"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-35"></span><span id="prependToList"><span class="annot"><span class="annottext">prependToList :: forall a. BinTree a -&gt; [a] -&gt; [a]
+</span><a href="Agda.Utils.BinTree.html#prependToList"><span class="hs-identifier hs-var hs-var">prependToList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-36"></span><span>  </span><span class="annot"><span class="annottext">BinTree a
+</span><a href="Agda.Utils.BinTree.html#BT0"><span class="hs-identifier hs-var">BT0</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; [a]
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-37"></span><span>  </span><span class="annot"><a href="Agda.Utils.BinTree.html#BT1"><span class="hs-identifier hs-type">BT1</span></a></span><span> </span><span id="local-6989586621681713474"><span class="annot"><span class="annottext">BinTree1 a
+</span><a href="#local-6989586621681713474"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BinTree1 a -&gt; [a] -&gt; [a]
+forall a. BinTree1 a -&gt; [a] -&gt; [a]
+</span><a href="Agda.Utils.BinTree1.html#prependToList"><span class="hs-identifier hs-var">BinTree1.prependToList</span></a></span><span> </span><span class="annot"><span class="annottext">BinTree1 a
+</span><a href="#local-6989586621681713474"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span id="local-6989586621681713476"><span class="annot"><a href="Agda.Utils.BinTree.html#toList"><span class="hs-identifier hs-type">toList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.BinTree.html#BinTree"><span class="hs-identifier hs-type">BinTree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681713476"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681713476"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-40"></span><span id="toList"><span class="annot"><span class="annottext">toList :: forall a. BinTree a -&gt; [a]
+</span><a href="Agda.Utils.BinTree.html#toList"><span class="hs-identifier hs-var hs-var">toList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BinTree a -&gt; [a] -&gt; [a]
+forall a. BinTree a -&gt; [a] -&gt; [a]
+</span><a href="Agda.Utils.BinTree.html#prependToList"><span class="hs-operator hs-var">`prependToList`</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span></pre></body></html>
