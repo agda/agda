@@ -1629,6 +1629,15 @@ defineHCompForFields applyProj name params fsT fns rect = do
           -- Γ ⊢ l : I -> Level of filled_ty
         l <- reduce $ lTypeLevel $ unDom filled_ty'
         let lvl = Lam defaultArgInfo (Abs "i" $ Level l)
+            -- Use hcomp for fields independent of the composition direction.
+            independent = not (0 `freeIn` (unEl $ fromLType $ unDom filled_ty'))
+              && not (0 `freeIn` Level l)
+            composeField
+              | independent = \ la bA phi u u0 ->
+                  pure hcomp <#> (la <@> pure io) <#> (bA <@> pure io)
+                             <#> phi <@> u <@> u0
+              | otherwise = comp
+
         return $ runNames [] $ do
              lvl       <- open lvl
              phi       <- open the_phi
@@ -1636,7 +1645,7 @@ defineHCompForFields applyProj name params fsT fns rect = do
              w0        <- open the_u0
              filled_ty <- open filled_ty
 
-             comp lvl
+             composeField lvl
                   filled_ty
                   phi
                   (lam "i" $ \ i -> ilam "o" $ \ o -> proj $ w <@> i <..> o) -- TODO wait for phi = 1
