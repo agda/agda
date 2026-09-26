@@ -21,6 +21,7 @@ import Data.Word
 import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
+import Agda.Syntax.Internal (TermSize(..))
 import Agda.Syntax.Literal
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
@@ -40,11 +41,37 @@ data ArgUsage
   | ArgUnused
   deriving (Show, Eq, Ord, Generic)
 
+-- | Strictness.
+data Strictness
+  = NonStrict
+  | Strict
+  deriving (Show, Eq, Ord, Generic)
+
 -- | The treeless compiler can behave differently depending on the target
 --   language evaluation strategy. For instance, more aggressive erasure for
 --   lazy targets.
-data EvaluationStrategy = LazyEvaluation | EagerEvaluation
-  deriving (Eq, Show)
+data EvaluationStrategy
+  = LazyEvaluation !Strictness
+    -- ^ Lazy evaluation. If the argument is 'Strict', then
+    -- applications of inductive (or non-recursive) constructors are
+    -- strict.
+  | EagerEvaluation
+    -- ^ Strict evaluation.
+  deriving (Show, Eq, Ord, Generic)
+
+-- | The default strictness.
+
+defaultStrictness :: EvaluationStrategy -> Strictness
+defaultStrictness EagerEvaluation    = Strict
+defaultStrictness (LazyEvaluation _) = NonStrict
+
+-- | The default strictness for constructors of the given kind.
+
+defaultConstructorStrictness ::
+  EvaluationStrategy -> Induction -> Strictness
+defaultConstructorStrictness _                  CoInductive = NonStrict
+defaultConstructorStrictness EagerEvaluation    Inductive   = Strict
+defaultConstructorStrictness (LazyEvaluation s) Inductive   = s
 
 type Args = [TTerm]
 
@@ -59,11 +86,12 @@ data TTerm = TVar Int
            | TLam TTerm
            | TLit Literal
            | TCon QName
-           | TLet TTerm TTerm
-           -- ^ introduces a new (non-recursive) local binding. The bound term
-           -- MUST only be evaluated if it is used inside the body.
-           -- Sharing may happen, but is optional.
-           -- It is also perfectly valid to just inline the bound term in the body.
+           | TLet Strictness TTerm TTerm
+           -- ^ Introduces a new (non-recursive) local binding. It can
+           -- be strict or non-strict. Non-strict bindings should not
+           -- be made more strict, this could lead to crashes. Sharing
+           -- may happen, but is optional. It is also perfectly valid
+           -- to just inline the bound term in the body.
            | TCase Int CaseInfo TTerm [TAlt]
            -- ^ Case scrutinee (always variable), case type, default value, alternatives
            -- First, all TACon alternatives are tried; then all TAGuard alternatives
@@ -137,9 +165,9 @@ coerceAppView = \case
   TApp a bs -> second (++ bs) $ coerceAppView a
   t         -> ((False, t), [])
 
-tLetView :: TTerm -> ([TTerm], TTerm)
-tLetView (TLet e b) = first (e :) $ tLetView b
-tLetView e          = ([], e)
+tLetView :: TTerm -> ([(Strictness, TTerm)], TTerm)
+tLetView (TLet s e b) = first ((s, e) :) $ tLetView b
+tLetView e            = ([], e)
 
 tLamView :: TTerm -> (Int, TTerm)
 tLamView = go 0
@@ -150,8 +178,8 @@ mkTLam :: Int -> TTerm -> TTerm
 mkTLam n b = foldr ($) b $ replicate n TLam
 
 -- | Introduces a new binding
-mkLet :: TTerm -> TTerm -> TTerm
-mkLet x body = TLet x body
+mkLet :: Strictness -> TTerm -> TTerm -> TTerm
+mkLet = TLet
 
 tInt :: Integer -> TTerm
 tInt = TLit . LitNat
@@ -210,6 +238,9 @@ data CaseType
 
 data CaseInfo = CaseInfo
   { caseLazy :: Bool
+  , caseInduction :: !Induction
+    -- ^ Is the matched type inductive (or non-recursive), or is it
+    -- coinductive?
   , caseErased :: Erased
     -- ^ Is this a match on an erased argument?
   , caseType :: CaseType }
@@ -250,7 +281,7 @@ instance Unreachable TAlt where
 
 instance Unreachable TTerm where
   isUnreachable (TError TUnreachable{}) = True
-  isUnreachable (TLet _ b) = isUnreachable b
+  isUnreachable (TLet _ _ b) = isUnreachable b
   isUnreachable _ = False
 
 instance KillRange Compiled where
@@ -283,11 +314,39 @@ filterUsed = curry $ \case
   (ArgUsed   : used, a : args) -> a : filterUsed used args
   (ArgUnused : used, _ : args) ->     filterUsed used args
 
+-- TermSize instances
+------------------------------------------------------------------------
+
+instance TermSize TTerm where
+  tsize = \case
+    TVar _         -> 1
+    TPrim _        -> 1
+    TDef _         -> 1
+    TLit _         -> 1
+    TCon _         -> 1
+    TUnit          -> 1
+    TSort          -> 1
+    TErased        -> 1
+    TError _       -> 1
+    TApp t ts      -> tsize t + tsize ts
+    TLam t         -> 1 + tsize t
+    TLet _ t1 t2   -> 1 + tsize t1 + tsize t2
+    TCase _ _ t bs -> 1 + tsize t + tsize bs
+    TCoerce t      -> 1 + tsize t
+
+instance TermSize TAlt where
+  tsize = \case
+    TACon _ _ t   -> tsize t
+    TAGuard t1 t2 -> tsize t1 + tsize t2
+    TALit _ t     -> tsize t
+
 -- NFData instances
 ---------------------------------------------------------------------------
 
 instance NFData Compiled
 instance NFData ArgUsage
+instance NFData Strictness
+instance NFData EvaluationStrategy
 instance NFData TTerm
 instance NFData TPrim
 instance NFData CaseType

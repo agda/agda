@@ -1,8 +1,0 @@
-TestOptions
-  { forCompilers =
-      [ (MAlonzo Lazy,    CompilerOptions {extraAgdaArgs = ["--no-main"]})
-      , (JS NonOptimized, CompilerOptions {extraAgdaArgs = ["--no-main"]})
-      ]
-  , runtimeOptions = []
-  , executeProg = False
-  }

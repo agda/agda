@@ -1,0 +1,66 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > CaseOnCase-strict.isLess =
+out >   λ a →
+out >     case a of
+out >       CaseOnCase-strict.Cmp.less → Agda.Builtin.Bool.Bool.true
+out >       CaseOnCase-strict.Cmp.equal → Agda.Builtin.Bool.Bool.false
+out >       CaseOnCase-strict.Cmp.greater → Agda.Builtin.Bool.Bool.false
+out > CaseOnCase-strict.compareInt =
+out >   λ a b →
+out >     let !c = CaseOnCase-strict._-_ a b in
+out >     case c of
+out >       0 → CaseOnCase-strict.Cmp.equal
+out >       _ | c >= 1 → CaseOnCase-strict.Cmp.greater
+out >       _ → CaseOnCase-strict.Cmp.less
+out > CaseOnCase-strict._<_ =
+out >   λ a b →
+out >     let !c =
+out >           let !d = CaseOnCase-strict._-_ a b in
+out >           case d of
+out >             0 → CaseOnCase-strict.Cmp.equal
+out >             _ | d >= 1 → CaseOnCase-strict.Cmp.greater
+out >             _ → CaseOnCase-strict.Cmp.less in
+out >     case c of
+out >       CaseOnCase-strict.Cmp.less → Agda.Builtin.Bool.Bool.true
+out >       CaseOnCase-strict.Cmp.equal → Agda.Builtin.Bool.Bool.false
+out >       CaseOnCase-strict.Cmp.greater → Agda.Builtin.Bool.Bool.false
+out > CaseOnCase-strict.cmp =
+out >   λ a b →
+out >     let !c =
+out >           let !d =
+out >                 let !e = CaseOnCase-strict._-_ a b in
+out >                 case e of
+out >                   0 → CaseOnCase-strict.Cmp.equal
+out >                   _ | e >= 1 → CaseOnCase-strict.Cmp.greater
+out >                   _ → CaseOnCase-strict.Cmp.less in
+out >           case d of
+out >             CaseOnCase-strict.Cmp.less → Agda.Builtin.Bool.Bool.true
+out >             CaseOnCase-strict.Cmp.equal → Agda.Builtin.Bool.Bool.false
+out >             CaseOnCase-strict.Cmp.greater → Agda.Builtin.Bool.Bool.false in
+out >     case c of
+out >       Agda.Builtin.Bool.Bool.false → "not less"
+out >       Agda.Builtin.Bool.Bool.true → "less"
+out > CaseOnCase-strict.fancyCase =
+out >   λ a b →
+out >     let !c = a - 1 in
+out >     case a of
+out >       0 → 0
+out >       1 → 1
+out >       2 → 2
+out >       _ → let !d = a - 3 in
+out >           case b of
+out >             CaseOnCase-strict.Cmp.equal → 4
+out >             CaseOnCase-strict.Cmp.greater → d
+out >             CaseOnCase-strict.Cmp.less → c
+out > CaseOnCase-strict.main =
+out >   Common.IO.then
+out >     () () _ _ (Common.IO.putStrLn (CaseOnCase-strict.cmp 31 -6))
+out >     (Common.IO.then
+out >        () () _ _ (Common.IO.putStrLn (CaseOnCase-strict.cmp 5 5))
+out >        (Common.IO.putStrLn (CaseOnCase-strict.cmp -5 -3)))
+out > not less
+out > not less
+out > less
+out >

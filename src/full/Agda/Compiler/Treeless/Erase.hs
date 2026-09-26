@@ -107,13 +107,13 @@ eraseTerms q eval t = do
         TCon{}         -> pure t
         TApp f es      -> tApp <$> erase f <*> mapM erase es
         TLam b         -> tLam <$> erase b
-        TLet e b       -> do
+        TLet s e b     -> do
           e <- erase e
           if isErased e
             then case b of
-                   TCase 0 _ _ _ -> tLet TErased <$> erase b
+                   TCase 0 _ _ _ -> tLet s TErased <$> erase b
                    _             -> erase $ subst 0 TErased b
-            else tLet e <$> erase b
+            else tLet s e <$> erase b
         TCase x t d bs -> do
           (d, bs) <- pruneUnreachable x (caseErased t) (caseType t) d bs
           d       <- erase d
@@ -127,11 +127,13 @@ eraseTerms q eval t = do
         TCoerce e      -> TCoerce <$> erase e
 
     -- #3380: this is not safe for strict backends
-    tLam TErased | eval == LazyEvaluation = TErased
-    tLam t                                = TLam t
+    tLam TErased = case eval of
+      LazyEvaluation _ -> TErased
+      EagerEvaluation  -> TLam TErased
+    tLam t = TLam t
 
-    tLet e b
-      | freeIn 0 b = TLet e b
+    tLet s e b
+      | freeIn 0 b = TLet s e b
       | otherwise  = strengthen impossible b
 
     tApp f []                  = f

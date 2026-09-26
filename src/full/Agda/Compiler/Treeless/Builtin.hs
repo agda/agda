@@ -101,8 +101,18 @@ transform BuiltinKit{..} = tr
       -- primForce e f es
       -- >>>
       -- let e (seq x⁰ ((raise 1 f) x⁰) (raise 1 es))
+      --
+      -- Now that there are strict let bindings one might think that
+      -- PSeq could be removed, but the "unchainCase" transformation
+      -- implemented by Agda.Compiler.Treeless.Simplify.simplify can
+      -- make strict bindings non-strict. If PSeq is removed, then it
+      -- might make sense to have strict bindings that cannot be made
+      -- non-strict.
       TApp (TDef q) (_ : _ : _ : _ : e : f : es)
-        | isForce q -> tr $ TLet e $ mkTApp (tOp PSeq (TVar 0) $ mkTApp (raise 1 f) [TVar 0]) $ raise 1 es
+        | isForce q ->
+          tr $ TLet Strict e $
+          mkTApp (tOp PSeq (TVar 0) $ mkTApp (raise 1 f) [TVar 0]) $
+          raise 1 es
 
       TApp (TCon s) [e] | isSuc s ->
         case tr e of
@@ -128,14 +138,17 @@ transform BuiltinKit{..} = tr
                 TCase 0 _ d bs' -> map sucBranch bs' ++ [nPlusKAlt 1 d]
                 b -> [nPlusKAlt 1 b]
               where
-                sucBranch (TALit (LitNat i) b) = TALit (LitNat (i + 1)) $ TLet (tInt i) b
+                sucBranch (TALit (LitNat i) b) =
+                  TALit (LitNat (i + 1)) $ TLet Strict (tInt i) b
                 sucBranch alt | Just (k, b) <- nPlusKView alt =
-                  nPlusKAlt (k + 1) $ TLet (tOp PAdd (TVar 0) (tInt 1)) $
+                  nPlusKAlt (k + 1) $
+                    TLet Strict (tOp PAdd (TVar 0) (tInt 1)) $
                     applySubst ([TVar 1, TVar 0] ++# wkS 2 idS) b
                 sucBranch _ = __IMPOSSIBLE__
 
-                nPlusKAlt k b = TAGuard (tOp PGeq (TVar e) (tInt k)) $
-                                TLet (tOp PSub (TVar e) (tInt k)) b
+                nPlusKAlt k b =
+                  TAGuard (tOp PGeq (TVar e) (tInt k)) $
+                  TLet Strict (tOp PSub (TVar e) (tInt k)) b
             TACon c 1 b | isPos c ->
               case tr b of
                 -- collapse nested nat patterns
@@ -154,13 +167,14 @@ transform BuiltinKit{..} = tr
                 TCase 0 _ d bs -> map negsucBranch bs ++ [negAlt d]
                 b -> [negAlt b]
               where
-                body b   = TLet (tNegPlusK 1 (TVar e)) b
+                body b   = TLet Strict (tNegPlusK 1 (TVar e)) b
                 negAlt b = TAGuard (tOp PLt (TVar e) (tInt 0)) $ body b
 
                 negsucBranch (TALit (LitNat i) b) = TALit (LitNat (-i - 1)) $ body b
                 negsucBranch alt | Just (k, b) <- nPlusKView alt =
                   TAGuard (tOp PLt (TVar e) (tInt (-k))) $
-                  body $ TLet (tNegPlusK (k + 1) (TVar $ e + 1)) b
+                  body $
+                  TLet Strict (tNegPlusK (k + 1) (TVar $ e + 1)) b
                 negsucBranch _ = __IMPOSSIBLE__
 
             TACon c a b -> [TACon c a (tr b)]
@@ -181,7 +195,7 @@ transform BuiltinKit{..} = tr
 
       TLam b                  -> TLam (tr b)
       TApp a bs               -> TApp (tr a) (map tr bs)
-      TLet e b                -> TLet (tr e) (tr b)
+      TLet s e b              -> TLet s (tr e) (tr b)
 
     inferCaseType t (TACon c _ _ : _)
       | isZero c   = t { caseType = CTNat }
@@ -190,7 +204,8 @@ transform BuiltinKit{..} = tr
       | isNegSuc c = t { caseType = CTInt }
     inferCaseType t _ = t
 
-    nPlusKView (TAGuard (TApp (TPrim PGeq) [TVar 0, (TLit (LitNat k))])
-                        (TLet (TApp (TPrim PSub) [TVar 0, (TLit (LitNat j))]) b))
+    nPlusKView
+      (TAGuard (TApp (TPrim PGeq) [TVar 0, (TLit (LitNat k))])
+         (TLet _ (TApp (TPrim PSub) [TVar 0, (TLit (LitNat j))]) b))
       | k == j = Just (k, b)
     nPlusKView _ = Nothing

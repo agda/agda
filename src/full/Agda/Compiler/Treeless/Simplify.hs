@@ -2,10 +2,14 @@
 
 module Agda.Compiler.Treeless.Simplify (simplifyTTerm) where
 
+import Control.Applicative
 import Control.Monad        ( (>=>), guard )
 import Control.Monad.Reader ( MonadReader(..), asks, Reader, runReader )
+import Control.Monad.Trans
+import Control.Monad.Trans.Maybe
 import qualified Data.List as List
 
+import Agda.Syntax.Internal (termSize)
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 
@@ -15,6 +19,8 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Compiler.Treeless.Compare
 
+import Agda.Utils.IndexMap (IndexMap)
+import qualified Agda.Utils.IndexMap as IndexMap
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple ( (***), second )
@@ -22,19 +28,27 @@ import Agda.Utils.Tuple ( (***), second )
 import Agda.Utils.Impossible
 
 data SEnv = SEnv
-  { envSubst   :: Substitution' TTerm
+  { envSubst :: Substitution' TTerm
+  , envStrictness :: IndexMap Strictness
+    -- ^ What strictness was the given variable bound with?
   , envRewrite :: [(TTerm, TTerm)] }
 
 type S = Reader SEnv
 
 runS :: S a -> a
-runS m = runReader m $ SEnv IdS []
+runS m = runReader m $ SEnv IdS IndexMap.nil []
 
-lookupVar :: Int -> S TTerm
-lookupVar i = asks $ (`lookupS` i) . envSubst
+lookupVar :: Int -> S (Strictness, TTerm)
+lookupVar i = do
+  env <- ask
+  return (IndexMap.index i (envStrictness env), lookupS (envSubst env) i)
 
 onSubst :: (Substitution' TTerm -> Substitution' TTerm) -> S a -> S a
 onSubst f = local $ \ env -> env { envSubst = f (envSubst env) }
+
+onStrictness :: (IndexMap Strictness -> IndexMap Strictness) -> S a -> S a
+onStrictness f =
+  local (\env -> env { envStrictness = f (envStrictness env) })
 
 onRewrite :: Substitution' TTerm -> S a -> S a
 onRewrite rho = local $ \ env -> env { envRewrite = map (applySubst rho *** applySubst rho) (envRewrite env) }
@@ -42,17 +56,28 @@ onRewrite rho = local $ \ env -> env { envRewrite = map (applySubst rho *** appl
 addRewrite :: TTerm -> TTerm -> S a -> S a
 addRewrite lhs rhs = local $ \ env -> env { envRewrite = (lhs, rhs) : envRewrite env }
 
-underLams :: Int -> S a -> S a
-underLams i = onRewrite (raiseS i) . onSubst (liftS i)
+-- | There is one strictness per binding, and the first element in the
+-- list corresponds to the first new binding.
 
-underLam :: S a -> S a
-underLam = underLams 1
+underLams :: [Strictness] -> S a -> S a
+underLams ss =
+  onRewrite (raiseS i) . onSubst (liftS i) .
+  onStrictness (flip IndexMap.append ss)
+  where
+  i = length ss
 
-underLet :: TTerm -> S a -> S a
-underLet u = onRewrite (raiseS 1) . onSubst (\rho -> wkS 1 $ u :# rho)
+underLam :: Strictness -> S a -> S a
+underLam s = underLams [s]
 
-bindVar :: Int -> TTerm -> S a -> S a
-bindVar x u = onSubst (inplaceS x u `composeS`)
+underLet :: Strictness -> TTerm -> S a -> S a
+underLet s u =
+  onRewrite (raiseS 1) . onSubst (\rho -> wkS 1 $ u :# rho) .
+  onStrictness (flip IndexMap.snoc s)
+
+bindVar :: Int -> Strictness -> TTerm -> S a -> S a
+bindVar x s u =
+  onSubst (inplaceS x u `composeS`) .
+  onStrictness (IndexMap.update x s)
 
 rewrite :: TTerm -> S TTerm
 rewrite t = do
@@ -64,17 +89,18 @@ rewrite t = do
 data FunctionKit = FunctionKit
   { modAux, divAux, natMinus, true, false :: Maybe QName }
 
-simplifyTTerm :: TTerm -> TCM TTerm
-simplifyTTerm t = do
+simplifyTTerm :: EvaluationStrategy -> TTerm -> TCM TTerm
+simplifyTTerm eval t = do
   kit <- FunctionKit <$> getBuiltinName builtinNatModSucAux
                      <*> getBuiltinName builtinNatDivSucAux
                      <*> getBuiltinName builtinNatMinus
                      <*> getBuiltinName builtinTrue
                      <*> getBuiltinName builtinFalse
-  return $ runS $ simplify kit t
+  return $ runS $ simplify eval kit t
 
-simplify :: FunctionKit -> TTerm -> S TTerm
-simplify FunctionKit{ divAux, modAux, natMinus, true, false } = simpl
+simplify :: EvaluationStrategy -> FunctionKit -> TTerm -> S TTerm
+simplify eval FunctionKit{ divAux, modAux, natMinus, true, false } =
+  simpl
   where
     simpl = rewrite' >=> unchainCase >=> \case
 
@@ -104,10 +130,10 @@ simplify FunctionKit{ divAux, modAux, natMinus, true, false } = simpl
         f  <- simpl f
         es <- traverse simpl es
         maybeMinusToPrim f es
-      TLam b    -> TLam <$> underLam (simpl b)
-      t@TLit{}  -> pure t
-      t@TCon{}  -> pure t
-      TLet e b  -> do
+      TLam b     -> TLam <$> underLam (defaultStrictness eval) (simpl b)
+      t@TLit{}   -> pure t
+      t@TCon{}   -> pure t
+      TLet s e b -> do
         simpl e >>= \case
           TPFn P64ToI a -> do
             -- Inline calls to P64ToI since these trigger optimisations.
@@ -115,15 +141,18 @@ simplify FunctionKit{ divAux, modAux, natMinus, true, false } = simpl
             -- moment they only do if inlining the entire let looks like a
             -- good idea.
             let rho = inplaceS 0 (TPFn P64ToI (TVar 0))
-            tLet a <$> underLet a (simpl (applySubst rho b))
-          e -> tLet e <$> underLet e (simpl b)
+            tLet s a <$> underLet s a (simpl (applySubst rho b))
+          e -> tLet s e <$> underLet s e (simpl b)
 
       TCase x t d bs -> do
-        v <- lookupVar x
+        (_, v) <- lookupVar x
         let (lets, u) = tLetView v
-        (d, bs) <- pruneBoolGuards d <$> traverse (simplAlt x) bs
+        (d, bs) <-
+          pruneBoolGuards d <$>
+            traverse (simplAlt x (caseInduction t)) bs
         case u of                          -- TODO: also for literals
-          _ | Just (c, as)     <- conView u   -> simpl $ matchCon lets c as d bs
+          _ | Just (c, as) <- conView u ->
+              simpl $ matchCon lets c as (caseInduction t) d bs
             | Just (k, TVar y) <- plusKView u -> simpl . mkLets lets . TCase y t d =<< mapM (matchPlusK y x k) bs
             -- We are not normalizing the case-of-case commuting converison
             -- since it can lead to major code duplication without join points
@@ -147,24 +176,121 @@ simplify FunctionKit{ divAux, modAux, natMinus, true, false } = simpl
     unchainCase e@(TCase x t d bs) = do
       let (lets, u) = tLetView d
           k = length lets
-      return $ case u of
-        TCase y _ d' bs' | x + k == y ->
-          mkLets lets $ TCase y t d' $ raise k bs ++ filter (`noOverlap` bs) bs'
-        _ -> e
+      case u of
+        TCase y _ d' bs' | x + k == y -> do
+          lets <- runMaybeT (mapM safeLet lets)
+          return $ case lets of
+            Just lets ->
+              mkLets lets $ TCase y t d' $
+              raise k bs ++ filter (`noOverlap` bs) bs'
+            Nothing -> e
+        _ -> return e
     unchainCase e = return e
 
+    -- If chained cases of the following form are collapsed, and the
+    -- lets moved to the outside, then performance could take a hit
+    -- (see issue #8767):
+    --
+    --   case x of
+    --     ⋮
+    --     _ -> let … in case y of …
+    --
+    -- If strict evaluation is used, then this transformation is only
+    -- allowed if all let bindings are "safe", i.e. non-strict or
+    -- (heuristically) cheap to compute. If non-strict evaluation is
+    -- used, then "unsafe" bindings are made non-strict.
 
-    mkLets es b = foldr TLet b es
-
-    matchCon _ _ _ d [] = d
-    matchCon lets c as d (TALit{}   : bs) = matchCon lets c as d bs
-    matchCon lets c as d (TAGuard{} : bs) = matchCon lets c as d bs
-    matchCon lets c as d (TACon c' a b : bs)
-      | c == c'        = flip (foldr TLet) lets $ mkLet 0 as (raiseFrom a (length lets) b)
-      | otherwise      = matchCon lets c as d bs
+    safeLet :: (Strictness, TTerm) -> MaybeT S (Strictness, TTerm)
+    safeLet l@(NonStrict, _) =
+      return l
+    safeLet l@(Strict, t) = MaybeT $ do
+      t' <- runMaybeT (do
+        -- The number 30 does not have any special significance other
+        -- than being "not too small, but not very large".
+        guard (termSize t < 30)
+        cheap t)
+      return $ case t' of
+        Just t  -> Just (Strict, t)
+        Nothing -> case eval of
+          LazyEvaluation _ -> Just (NonStrict, t)
+          EagerEvaluation  -> Nothing
       where
-        mkLet _ []       b = b
-        mkLet i (a : as) b = TLet (raise i a) $ mkLet (i + 1) as b
+      cheap :: TTerm -> MaybeT S TTerm
+      cheap t = case t of
+        -- Error calls should definitely not be evaluated prematurely.
+        TError{} -> empty
+        -- Case expressions and top-level definitions are treated as
+        -- expensive.
+        TCase{} -> empty
+        TDef{}  -> empty
+        -- Strictly bound variables are treated as cheap.
+        TVar x -> do
+          (s, _) <- lift (lookupVar x)
+          case s of
+            NonStrict -> empty
+            Strict    -> return t
+        -- Lets, coercions and applications of primitives are handled
+        -- recursively.
+        TLet s t1 t2 -> uncurry TLet <$> safeLet (s, t1) <*> cheap t2
+        TCoerce t    -> TCoerce <$> cheap t
+        TApp t args  -> case t of
+          TPrim p -> TApp <$> (if cheapPrim p then return (TPrim p)
+                               else empty)
+                          <*> mapM cheap args
+          _       -> empty
+        -- Things that are known to be (basically) values are treated
+        -- as cheap.
+        TPrim{}   -> return t
+        TLam{}    -> return t
+        TLit{}    -> return t
+        TCon{}    -> return t
+        TUnit{}   -> return t
+        TSort{}   -> return t
+        TErased{} -> return t
+
+      cheapPrim = \case
+        -- String comparison might be expensive.
+        PEqS -> False
+        -- If expressions are treated as expensive, just like case
+        -- expressions.
+        PIf -> False
+        -- All other primitives are treated as cheap, including PSeq.
+        PSeq    -> True
+        PAdd    -> True
+        PAdd64  -> True
+        PSub    -> True
+        PSub64  -> True
+        PMul    -> True
+        PMul64  -> True
+        PQuot   -> True
+        PQuot64 -> True
+        PRem    -> True
+        PRem64  -> True
+        PGeq    -> True
+        PLt     -> True
+        PLt64   -> True
+        PEqI    -> True
+        PEq64   -> True
+        PEqF    -> True
+        PEqC    -> True
+        PEqQ    -> True
+        PITo64  -> True
+        P64ToI  -> True
+
+    mkLets es b = foldr (uncurry TLet) b es
+
+    matchCon _ _ _ _ d [] = d
+    matchCon lets c as i d (TALit{}   : bs) = matchCon lets c as i d bs
+    matchCon lets c as i d (TAGuard{} : bs) = matchCon lets c as i d bs
+    matchCon lets c as i d (TACon c' a b : bs)
+      | c == c'   = flip (foldr (uncurry TLet)) lets $
+                    mkLet 0 as (raiseFrom a (length lets) b)
+      | otherwise = matchCon lets c as i d bs
+      where
+      s = defaultConstructorStrictness eval i
+
+      mkLet _ []       b = b
+      mkLet i (a : as) b = TLet s (raise i a) $ mkLet (i + 1) as b
 
     -- Simplify let y = x + k in case y of j     -> u; _ | g[y]     -> v
     -- to       let y = x + k in case x of j - k -> u; _ | g[x + k] -> v
@@ -182,12 +308,12 @@ simplify FunctionKit{ divAux, modAux, natMinus, true, false } = simpl
         pure $ if v `betterThan` u then v else u
       where
         inline (TVar x)                   = do
-          v <- lookupVar x
+          (_, v) <- lookupVar x
           if v == TVar x then pure v else inline v
-        inline (TApp f@TPrim{} args)      = TApp f <$> mapM inline args
-        inline u@(TLet _ (TCase 0 _ _ _)) = pure u
-        inline (TLet e b)                 = inline (subst 0 e b)
-        inline u                          = pure u
+        inline (TApp f@TPrim{} args)        = TApp f <$> mapM inline args
+        inline u@(TLet _ _ (TCase 0 _ _ _)) = pure u
+        inline (TLet _ e b)                 = inline (subst 0 e b)
+        inline u                            = pure u
     simplPrim t = pure t
 
     simplPrim' :: TTerm -> TTerm
@@ -301,16 +427,22 @@ simplify FunctionKit{ divAux, modAux, natMinus, true, false } = simpl
       | op == PSub = Just (PAdd, -k, u)
     constArithView _ = Nothing
 
-    simplAlt x (TACon c a b) = TACon c a <$> underLams a (maybeAddRewrite (x + a) conTerm $ simpl b)
-      where conTerm = mkTApp (TCon c) $ map TVar $ downFrom a
-    simplAlt x (TALit l b)   = TALit l   <$> maybeAddRewrite x (TLit l) (simpl b)
-    simplAlt x (TAGuard g b) = TAGuard   <$> simpl g <*> simpl b
+    simplAlt x i (TACon c a b) =
+      TACon c a <$>
+        underLams (replicate a (defaultConstructorStrictness eval i))
+          (maybeAddRewrite (x + a) conTerm $ simpl b)
+      where
+      conTerm = mkTApp (TCon c) $ map TVar $ downFrom a
+    simplAlt x _ (TALit l b) =
+      TALit l <$> maybeAddRewrite x (TLit l) (simpl b)
+    simplAlt x _ (TAGuard g b) =
+      TAGuard <$> simpl g <*> simpl b
 
     -- If x is already bound we add a rewrite, otherwise we bind x to rhs.
     maybeAddRewrite x rhs cont = do
-      v <- lookupVar x
+      (s, v) <- lookupVar x
       case v of
-        TVar y | x == y -> bindVar x rhs $ cont
+        TVar y | x == y -> bindVar x s rhs $ cont
         _ -> addRewrite v rhs cont
 
     isTrue (TCon c) = Just c == true
@@ -327,9 +459,9 @@ simplify FunctionKit{ divAux, modAux, natMinus, true, false } = simpl
 
     maybeMinusToPrim f es = tApp f es
 
-    tLet (TVar x) b = subst 0 (TVar x) b
-    tLet e (TVar 0) = e
-    tLet e b        = TLet e b
+    tLet _ (TVar x) b = subst 0 (TVar x) b
+    tLet _ e (TVar 0) = e
+    tLet s e b        = TLet s e b
 
     tCase :: Int -> CaseInfo -> TTerm -> [TAlt] -> S TTerm
     tCase x t d [] = pure d
@@ -349,7 +481,7 @@ simplify FunctionKit{ divAux, modAux, natMinus, true, false } = simpl
       where
         bs' = filter (not . isUnreachable) bs
 
-        lookupIfVar (TVar i) = lookupVar i
+        lookupIfVar (TVar i) = snd <$> lookupVar i
         lookupIfVar t = pure t
 
     noOverlap b bs = not $ any (overlapped b) bs
@@ -390,25 +522,31 @@ simplify FunctionKit{ divAux, modAux, natMinus, true, false } = simpl
     tCase' x t d bs = pruneLitCases x t d bs
 
     tApp :: TTerm -> [TTerm] -> S TTerm
-    tApp (TLet e b) es = TLet e <$> underLet e (tApp b (raise 1 es))
+    tApp (TLet s e b) es = TLet s e <$> underLet s e (tApp b (raise 1 es))
     tApp (TCase x t d bs) es = do
       d  <- tApp d es
-      bs <- mapM (`tAppAlt` es) bs
+      bs <- mapM (flip (tAppAlt (caseInduction t)) es) bs
       simpl $ TCase x t d bs    -- will resimplify branches
     tApp (TVar x) es = do
-      v <- lookupVar x
+      (_, v) <- lookupVar x
       case v of
         _ | v /= TVar x && isAtomic v -> tApp v es
         TLam{} -> tApp v es   -- could blow up the code
         _      -> pure $ mkTApp (TVar x) es
     tApp f [] = pure f
     tApp (TLam b) (TVar i : es) = tApp (subst 0 (TVar i) b) es
-    tApp (TLam b) (e : es) = tApp (TLet e b) es
+    tApp (TLam b) (e : es) =
+      tApp (TLet (defaultStrictness eval) e b) es
+      -- Applications are strict in strict backends and non-strict in
+      -- non-strict backends.
     tApp f es = pure $ TApp f es
 
-    tAppAlt (TACon c a b) es = TACon c a <$> underLams a (tApp b (raise a es))
-    tAppAlt (TALit l b) es   = TALit l   <$> tApp b es
-    tAppAlt (TAGuard g b) es = TAGuard g <$> tApp b es
+    tAppAlt i (TACon c a b) es =
+      TACon c a <$>
+        underLams (replicate a (defaultConstructorStrictness eval i))
+          (tApp b (raise a es))
+    tAppAlt _ (TALit l b) es   = TALit l   <$> tApp b es
+    tAppAlt _ (TAGuard g b) es = TAGuard g <$> tApp b es
 
     isAtomic = \case
       TVar{}    -> True
