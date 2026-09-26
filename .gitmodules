@@ -5,3 +5,29 @@
 [submodule "cubical"]
 	path = cubical
 	url = https://github.com/agda/cubical
+# The libraries under ecosystem/ are large third-party developments that we
+# type-check to detect regressions in Agda (see the `ecosystem` and
+# `ecosystem-test` goals of the top-level Makefile).  They are marked
+# `update = none` so that they are *not* populated by a
+# `git clone --recurse-submodules` or by CI checkouts that initialize submodules
+# recursively; the Makefile checks them out on demand with
+# `git submodule update --init --checkout`.
+[submodule "ecosystem/agda-categories"]
+	path = ecosystem/agda-categories
+	url = https://github.com/agda/agda-categories.git
+	update = none
+	# We patch agda-categories.agda-lib to use our vendored std-lib, so the
+	# working tree of this submodule is always dirty.
+	ignore = dirty
+[submodule "ecosystem/agda-unimath"]
+	path = ecosystem/agda-unimath
+	url = https://github.com/UniMath/agda-unimath.git
+	update = none
+[submodule "ecosystem/plfa"]
+	path = ecosystem/plfa
+	url = https://github.com/plfa/plfa.github.io.git
+	update = none
+[submodule "ecosystem/TypeTopology"]
+	path = ecosystem/TypeTopology
+	url = https://github.com/martinescardo/TypeTopology.git
+	update = none

@@ -430,6 +430,52 @@ jobs:
     - name: "Successful tests using the cubical library"
       run: make cubical-succeed
 
+  # Step 2e: type-checking the vendored ecosystem libraries
+  ###########################################################################
+
+  ecosystem:
+    # These jobs take up to a couple of hours each, so we do not run them on
+    # every pull request: only on `master`, on schedule, on manual dispatch,
+    # or when requested by a tag in the commit message or the PR title.
+    if: |
+      github.event_name == 'push'
+      || github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
+      || contains(github.event.head_commit.message, '[ecosystem]')
+      || contains(github.event.pull_request.title, '[ecosystem]')
+    needs: build
+    runs-on: *runs_on
+
+    strategy:
+      # Don't cancel the other libraries when one of them fails.
+      fail-fast: false
+      matrix:
+        # These are both the names of the submodules under ecosystem/
+        # and the names of the corresponding Makefile goals.
+        library:
+        - agda-categories
+        - agda-unimath
+        - plfa
+        - TypeTopology
+
+    steps:
+    - *checkout
+    - *haskell_setup
+    - *download_artifact
+    - *unpack_artifact
+    # - *icu
+    # - *cache
+    - *agda_setup
+
+    # The ecosystem submodules are marked `update = none` in .gitmodules,
+    # so the recursive checkout above skipped them.
+    - name: "Check out ${{ matrix.library }}"
+      run: make ${{ matrix.library }}
+
+    # Hint: add AGDA_OPTS="-j" to type-check in parallel.
+    - name: "Type-check ${{ matrix.library }}"
+      run: make ${{ matrix.library }}-test
+
   ## Andreas, 2025-03-04: disable the size-solver-test
   #
   # # Step 2e: running size-solver-test

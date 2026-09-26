@@ -39,6 +39,7 @@
 /benchmark/logs
 /doc/**/MAlonzo
 /doc/user-manual.pdf
+/ecosystem/libraries
 /examples/**/MAlonzo
 /examples/compiler/main
 /hie.yaml
