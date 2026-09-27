@@ -8,7 +8,7 @@
 
 {-# OPTIONS --cohesion #-}
 
-module Issue8784 where
+module Issue8775b where
 
 open import Agda.Primitive
 
