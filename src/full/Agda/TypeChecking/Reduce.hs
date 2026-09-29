@@ -1032,6 +1032,7 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
   where
     goCls :: [Clause] -> [Elim] -> ReduceM (Reduced (Blocked Term) Term)
     goCls cl es = do
+      let done b es = rewrite (NotBlocked b ()) (applyE v) rewr es
       case cl of
         -- Andreas, 2013-10-26  In case of an incomplete match,
         -- we just do not reduce.  This allows adding single function
@@ -1041,39 +1042,41 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
         -- is the most conservative reason.
         [] -> do
           f <- fromMaybe __IMPOSSIBLE__ <$> viewTC eAppDef
-          rewrite (NotBlocked (MissingClauses f) ()) (applyE v) rewr es
+          done (MissingClauses f) es
         cl : cls -> do
           let pats = namedClausePats cl
               body = clauseBody cl
               npats = length pats
               nvars = size $ clauseTel cl
-          -- if clause is underapplied, skip to next clause
-          if length es < npats then goCls cls es else do
-            allowedReductions <- viewTC eAllowedReductions
-            let (es0, es1) = splitAt' npats es
-            (m, es0) <- matchCopatterns pats es0
-            let es = es0 ++! es1
-            case m of
-              No _ -> goCls cls es
-              -- Szumi, 2024-03-29, issue #7181:
-              -- If a lazy match is stuck and all non-lazy matches are conclusive,
-              -- then reduction should not be stuck on the current clause and it
-              -- should be fine to continue matching on the next clause.
-              -- This assumes it's impossible for a lazy match to be stuck if
-              -- all non-lazy matches succeed.
-              DontKnow _ OnlyLazy _ -> goCls cls es
-              DontKnow _ NonLazy  b -> rewrite b (applyE v) rewr es
-              Yes simpl vs -- vs is the subst. for the variables bound in body
-                | couldBeRecursive (clauseRecursive cl)
-                , RecursiveReductions `SmallSet.notMember` allowedReductions ->
-                    return $ NoReduction __IMPOSSIBLE__
-                | Just w <- body -> do -- clause has body?
-                    -- TODO: let matchPatterns also return the reduced forms
-                    -- of the original arguments!
-                    -- Andreas, 2013-05-19 isn't this done now?
-                    let sigma = buildSubstitution impossible nvars vs
-                    return $ YesReduction simpl $ applySubst sigma w `applyE` es1
-                | otherwise     -> rewrite (NotBlocked AbsurdMatch ()) (applyE v) rewr es
+          allowedReductions <- viewTC eAllowedReductions
+          let (es0, es1) = splitAt' npats es
+              -- If ps1 /= [] then the function is underapplied
+              (ps0, ps1) = splitAt' (length es) pats
+          (m, es0) <- matchCopatterns ps0 es0
+          let es = es0 ++! es1
+          case m of
+            No _ -> goCls cls es
+            -- Szumi, 2024-03-29, issue #7181:
+            -- If a lazy match is stuck and all non-lazy matches are conclusive,
+            -- then reduction should not be stuck on the current clause and it
+            -- should be fine to continue matching on the next clause.
+            -- This assumes it's impossible for a lazy match to be stuck if
+            -- all non-lazy matches succeed.
+            DontKnow _ OnlyLazy _ -> goCls cls es
+            DontKnow _ NonLazy  b -> rewrite b (applyE v) rewr es
+            Yes simpl vs -- vs is the subst. for the variables bound in body
+              -- Jesper, issue #8703: underapplied functions are stuck
+              | not (null ps1) -> done Underapplied es
+              | couldBeRecursive (clauseRecursive cl)
+              , RecursiveReductions `SmallSet.notMember` allowedReductions ->
+                  return $ NoReduction __IMPOSSIBLE__
+              | Just w <- body -> do -- clause has body?
+                  -- TODO: let matchPatterns also return the reduced forms
+                  -- of the original arguments!
+                  -- Andreas, 2013-05-19 isn't this done now?
+                  let sigma = buildSubstitution impossible nvars vs
+                  return $ YesReduction simpl $ applySubst sigma w `applyE` es1
+              | otherwise -> done AbsurdMatch es
 
 instance Reduce a => Reduce (Closure a) where
     reduce' cl = do
