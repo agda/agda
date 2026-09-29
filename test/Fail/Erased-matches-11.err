@@ -1,0 +1,5 @@
+Erased-matches-11.agda:13.1-11: error: [SplitError.ErasedDatatype.ErasedMatchesDisabledEmpty]
+Cannot branch on erased argument of datatype ⊥′ because the option
+--erased-matches=empty is not active
+when checking the clause left hand side
+⊥′-elim ()
