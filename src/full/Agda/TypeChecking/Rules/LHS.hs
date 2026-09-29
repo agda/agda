@@ -10,6 +10,7 @@ module Agda.TypeChecking.Rules.LHS
   , checkSortOfSplitVar
   , LetOrClause(LetLHS, ClauseLHS)
   , buildLHSSubstitutions
+  , checkAbsurdPattern
   ) where
 
 import Prelude hiding ( null )
@@ -413,7 +414,14 @@ checkDotPattern (Dot e v dom@(unDom -> a)) =
       equalTerm a u v
 
 checkAbsurdPattern :: AbsurdPattern -> TCM ()
-checkAbsurdPattern (Absurd r a) = ensureEmptyType r a
+checkAbsurdPattern (Absurd r a) = do
+  ensureEmptyType r a
+  erased        <- hasQuantity0 <$> viewTC eQuantity
+  erasedMatches <- optErasedMatches <$> pragmaOptions
+  when (not erased && not (emEmpty erasedMatches) && hasQuantity0 a) $
+    typeError . SplitError .
+      ErasedDatatype ErasedMatchesDisabledEmpty =<<
+      buildClosure (unDom a)
 
 checkAnnotationPattern :: AnnotationPattern -> TCM ()
 checkAnnotationPattern (Ann t a) = do
