@@ -356,13 +356,16 @@ flexibly = local $ set lensFlexRig $ Flexible ()
 
 -- ** Managing modality during occurs check.
 -- | Updates both the 'feModality' and the modalities of each variable
--- in the 'occVars'.
+-- in the 'occVars'/'occLocalModalities'.
 {-# INLINE occUnderArgModality #-}
 occUnderArgModality :: Modality -> OccursM a -> OccursM a
 occUnderArgModality mod = local \e -> e
   { occModality = composeModality mod (occModality e)
   , occVars     = if mod == unitModality then occVars e
                   else mapVarMap (fmap (inverseApplyModalityButNotQuantity mod)) (occVars e)
+  , occLocalModalities
+                = if mod == unitModality then occLocalModalities e
+                  else map (inverseApplyModalityButNotQuantity mod) (occLocalModalities e)
   }
 
 {-# INLINE debugModalities #-}
@@ -418,17 +421,20 @@ metaOccurs3 m x y z = metaOccurs m x >> metaOccurs m y >> metaOccurs m z
 
 -- | Going under a binder.
 --
---   Andreas, 2026-09-24, issue #8775.
---   The ascribed modality of the new local variable has to be composed with the
---   modality of the current position: a variable bound underneath.
---   E.g. a crisp or erased position is itself crisp resp. erased.
---   Cf. the LAM rule in Conor McBride's, I got plenty of nuttin' (Wadlerfest 2016).
+--   Issue #8775 + #8784.
+--   The ascribed modality of the new local variable has to be relative to the
+--   position the binder sits in, just like the modalities in 'occVars', which
+--   'occUnderArgModality' divides by the modality of every argument it descends
+--   into.  A binder introduced *inside* an erased or flat argument is usable
+--   there, so we compose with the ambient modality and divide it out again,
+--   which puts the binder on the same footing as a free variable.
 {-# INLINE underBinder #-}
 underBinder :: Modality -> OccursM z -> OccursM z
 underBinder mod = local \e ->
-  e { occLocals = occLocals e + 1
-    , occLocalModalities = composeModality (occModality e) mod : occLocalModalities e
-    }
+  let amb  = occModality e
+      mod' = inverseApplyModalityButNotQuantity amb (composeModality amb mod)
+  in e { occLocals = occLocals e + 1
+       , occLocalModalities = mod' : occLocalModalities e }
 
 -- | Changing the 'Relevance'.
 {-# INLINE underRelevance #-}
