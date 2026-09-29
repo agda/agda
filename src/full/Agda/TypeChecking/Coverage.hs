@@ -1397,11 +1397,10 @@ split' checkEmpty ind allowPartialCover inserttrailing
           do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
   case numMatching of
-    -- A disallowed erased match for an empty type.
-    0 | not erased && not (usableQuantity t) &&
-        not (emEmpty erasedMatches) ->
-      erasedError ErasedMatchesDisabledEmpty
-
+    -- Erased matches for empty types can be disallowed, but there is
+    -- no check for such matches here: such a check can instead be
+    -- found in Agda.TypeChecking.Rules.LHS.checkAbsurdPattern (see
+    -- issue #8788).
     0  -> do
       let absurdp = VarP (PatternInfo PatOAbsurd []) $ SplitPatVar underscore 0 []
           rho = liftS x $ consS absurdp $ raiseS 1
