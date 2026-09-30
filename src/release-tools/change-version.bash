@@ -23,11 +23,11 @@ files+='test/Fail/Issue2771.err '
 files+='test/Fail/Issue2763.err '
 files+='test/Fail/Issue5805.err '
 files+='test/Fail/MagicWith.err '
-files+='test/interaction/Issue1244a.out '
-files+='test/interaction/Issue1244b.out '
-files+='test/interaction/Issue6261.out '
-files+='test/interaction/Issue8098.out '
-files+='test/interaction/Issue8647.out '
+files+='test/Interaction/Issue1244a.out '
+files+='test/Interaction/Issue1244b.out '
+files+='test/Interaction/Issue6261.out '
+files+='test/Interaction/Issue8098.out '
+files+='test/Interaction/Issue8647.out '
 
 if [ "$2" == "" -o "$1" == "-h" -o "$1" == "--help" ]; then
   echo "Usage: $0 OLD NEW"

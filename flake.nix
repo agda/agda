@@ -40,7 +40,7 @@
               ./LICENSE
               (fs.difference  # agda-tests Haskell source
                 (fs.fileFilter (file: file.hasExt "hs") ./test)
-                ./test/interaction  # Haskell files not for agda-tests
+                fs.empty  # TODO: Haskell files in test/Interaction not for agda-tests
               )
             ];
           };
@@ -168,6 +168,7 @@
           # Makefile targets run by `make test`:
             "check-whitespace" = { buildInputs = [ hpkgs.fix-whitespace ]; };
             "check-encoding" = {};
+            "check-filename-case-clashes" = {};
             "check-mdo" = {};
             "common" = {};
             "succeed" = {};

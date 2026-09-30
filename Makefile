@@ -649,7 +649,7 @@ accept-interaction-simple :
 .PHONY : interaction-custom ##
 interaction-custom :
 	@$(call decorate, "Suite of interaction tests (custom)", \
-		$(MAKE) -C test/interaction)
+		$(MAKE) -C test/Interaction)
 
 .PHONY : interactive ##
 interactive :
