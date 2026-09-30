@@ -18,6 +18,7 @@ import Prelude hiding (null)
 import Control.DeepSeq
 import Control.Applicative ((<|>), liftA2)
 
+import Data.Array (Ix)
 import Data.Bifunctor
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
@@ -53,6 +54,7 @@ import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
 import Agda.Utils.Singleton
+import Agda.Utils.SmallSet (SmallSetElement)
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
@@ -2570,7 +2572,9 @@ data Origin
   | RecordSelf
   -- ^ Inserted to stand for the record "self" variable when checking a
   -- declaration inside a record module.
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Enum, Bounded, Ix)
+
+instance SmallSetElement Origin
 
 instance HasRange Origin where
   getRange _ = noRange

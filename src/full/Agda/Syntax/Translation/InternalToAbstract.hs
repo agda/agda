@@ -27,23 +27,23 @@ import Control.Monad.Trans.Maybe
 import Control.Applicative ( liftA2 )
 import Control.Monad       ( filterM, forM )
 
-import qualified Data.List as List
-import qualified Data.Map as Map
+import Data.List qualified as List
+import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set (Set)
-import qualified Data.Set as Set
-import qualified Data.Text as T
+import Data.Set qualified as Set
+import Data.Text qualified as T
 import Data.Traversable (mapM)
 
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Common.Aspect as Asp
-import qualified Agda.Syntax.Concrete.Name as C
+import Agda.Syntax.Common.Aspect qualified as Asp
+import Agda.Syntax.Concrete.Name qualified as C
 import Agda.Syntax.Concrete (FieldAssignment'(..), TacticAttribute'(..))
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Abstract as A hiding (Binder)
-import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract qualified as A
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Abstract.UsedNames
@@ -71,8 +71,8 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
-import qualified Agda.Utils.List1 as List1
-import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.List1 qualified as List1
+import Agda.Utils.Maybe.Strict qualified as Strict
 import Agda.Syntax.Scope.Monad (freshAbstractName_)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -81,6 +81,8 @@ import Agda.Utils.Permutation
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.SmallSet (SmallSet)
+import Agda.Utils.SmallSet qualified as SmallSet
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
@@ -1416,8 +1418,8 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
     addAsBindings :: Functor m => [A.Name] -> m A.Pattern -> m A.Pattern
     addAsBindings xs p = foldr (fmap . AsP patNoRange . mkBindName) p xs
 
-{-# SPECIALIZE reifyRecordFields :: [Origin] -> RecordData -> (NamedArg A.Pattern -> A.Pattern) -> [NamedArg A.Pattern] -> TCM [FieldAssignment' A.Pattern] #-}
-{-# SPECIALIZE reifyRecordFields :: [Origin] -> RecordData -> (Arg Expr -> Expr) -> [Arg Expr] -> TCM [FieldAssignment' Expr] #-}
+{-# SPECIALIZE reifyRecordFields :: SmallSet Origin -> RecordData -> (NamedArg A.Pattern -> A.Pattern) -> [NamedArg A.Pattern] -> TCM [FieldAssignment' A.Pattern] #-}
+{-# SPECIALIZE reifyRecordFields :: SmallSet Origin -> RecordData -> (Arg Expr -> Expr) -> [Arg Expr] -> TCM [FieldAssignment' Expr] #-}
 -- | Pair the fields of a record type with the arguments of its constructor,
 --   producing the field assignments of a record pattern or record expression.
 --
@@ -1426,7 +1428,7 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
 --   This conforms the printing of records to the printing of applications
 --   of a record constructor (see 'stripImplicits' and 'nelims').
 reifyRecordFields :: (MonadReify m, LensOrigin a)
-  => [Origin]         -- ^ Origins that make us keep an invisible field anyway.
+  => SmallSet Origin  -- ^ Set of origins that make us keep an invisible field anyway.
   -> RecordData       -- ^ Definition of the record type, supplying the field names.
   -> (a -> e)         -- ^ How to extract the content of a constructor argument.
   -> [a]              -- ^ The arguments of the record constructor.
@@ -1438,7 +1440,7 @@ reifyRecordFields keepOrigins def content args = do
   let keep (f, a) = or
         [ showImp
         , visible f
-        , getOrigin a `elem` keepOrigins
+        , getOrigin a `SmallSet.member` keepOrigins
         ]
   return $! map' (\ (f, a) -> FieldAssignment (unDom f) (content a))
          $  filter' keep
@@ -1461,8 +1463,18 @@ tryRecPFromConP p = do
           if _recNamedCon def && conPatOrigin ci /= ConORec then fallback else
             -- Andreas, 2025-09-29, issue #8787: Keep the invisible fields
             -- the user wrote, just like 'stripImplicits' does for constructor patterns.
-            A.RecP empty ci <$> reifyRecordFields [ UserWritten, CaseSplit ] def namedArg ps
+            A.RecP empty ci <$> reifyRecordFields recordPatternKeeperOrigins def namedArg ps
     _ -> __IMPOSSIBLE__
+
+-- | 'Origin' values (e.g. 'UserWritten') that indicate an implicit record field
+--   should be kept during printing of a record pattern.
+recordPatternKeeperOrigins :: SmallSet Origin
+recordPatternKeeperOrigins = SmallSet.fromList [ UserWritten, CaseSplit ]
+
+-- | 'Origin' values (e.g. 'ConversionFail') that indicate an implicit record field
+--   should be kept during printing of a record expression.
+recordExpressionKeeperOrigins :: SmallSet Origin
+recordExpressionKeeperOrigins = SmallSet.fromList [ ConversionFail ]
 
 {-# SPECIALIZE recOrCon :: QName -> ConOrigin -> [Arg Expr] -> TCM A.Expr #-}
 -- | If the record constructor is generated or the user wrote a record expression,
@@ -1478,7 +1490,7 @@ recOrCon c co es = do
     if _recNamedCon def && co /= ConORec then fallback else
       -- Andreas, 2025-09-29, issue #8787: Keep the invisible fields
       -- the conversion checker insists on, just like 'nelims' does for applications.
-      A.Rec empty empty . map' Left <$> reifyRecordFields [ ConversionFail ] def unArg es
+      A.Rec empty empty . map' Left <$> reifyRecordFields recordExpressionKeeperOrigins def unArg es
   where
   fallback = apps (A.Con (unambiguous c)) es
 

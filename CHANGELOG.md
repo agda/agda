@@ -733,8 +733,8 @@ Interaction and emacs mode
   Now, the correct `id {A = A} x = ?` is produced
   (Issue [#8153](https://github.com/agda/agda/issue/8153)).
 
-* The invisible (hidden and instance) fields of a record are no longer printed
-  by default, neither in record patterns nor in record expressions.
+* The implicit (hidden and instance) fields of a record pattern are
+  no longer printed by default.
   They are only printed with option `--show-implicit`
   (`C-c C-x C-h` in Emacs), or if the user wrote them in the first place.
   For instance, case splitting on `x` in
@@ -749,7 +749,7 @@ Interaction and emacs mode
   ```
   now produces `f record { rf = rf } = ?` instead of
   `f record { n = n ; rf = rf } = ?`.
-  This conforms the treatment of record patterns and expressions to the
+  This conforms the treatment of record patterns to the
   situation where the record type has a constructor, in which case the
   hidden arguments were already omitted
   (Issue [#8787](https://github.com/agda/agda/issue/8787)).
