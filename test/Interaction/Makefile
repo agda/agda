@@ -1,3 +1,11 @@
+# Andreas, 2026-09-30
+# Switch off default rules in a POSIX-compliant way
+.SUFFIXES:
+
+# Empty SUFFIXES is not sufficient to cancel the built-in %.out rule,
+# so we do it manually.
+%.out: %
+
 TOP = ../..
 
 include $(TOP)/mk/paths.mk
