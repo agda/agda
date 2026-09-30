@@ -289,7 +289,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
     -- Andreas, 2019-08-08, issue #3966
     -- Kill the ranges of the existing clauses to prevent wrong error
     -- location to be set by the coverage checker (via isCovered)
-    -- for test/interaction/Issue191
+    -- for test/Interaction/Issue191
 
   -- See below, CLEAN UP OF THE GENERATED CLAUSES
   let

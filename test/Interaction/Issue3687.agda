@@ -28,4 +28,4 @@ FunEq.eqMap (test C D F G) f g f=g = {!D!}  -- C-c C-o
 --   id   : (A : f) → g A A
 --   comp : {A B : d} {C = C₁ : d} → f B C₁ → f A B → f A C₁
 
--- test/interaction$ make AGDA_BIN=agda-2.5.1.1 Issue3687.cmp
+-- test/Interaction$ make AGDA_BIN=agda-2.5.1.1 Issue3687.cmp

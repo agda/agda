@@ -926,7 +926,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     fp  <- liftIO $ absolute file
     sf  <- liftTCM $ srcFromPath fp
     src <- lift $ Imp.parseSource sf
-    -- Andreas, 2024-08-03, see test/interaction/FileNotFound:
+    -- Andreas, 2024-08-03, see test/Interaction/FileNotFound:
     -- Run 'getModificationTime' after 'parseSource',
     -- otherwise the user gets a weird error for non-existing files.
     -- (We assume that parsing is fast in comparison to type-checking,

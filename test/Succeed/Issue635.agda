@@ -1,5 +1,5 @@
 -- Andreas, 2019-02-23, re #3578, less reduction in the unifier.
--- Non-interactive version of interaction/Issue635c.agda.
+-- Non-interactive version of Interaction/Issue635c.agda.
 
 -- {-# OPTIONS -v tc.lhs.unify:50 #-}
 

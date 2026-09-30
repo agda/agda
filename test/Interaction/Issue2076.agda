@@ -24,7 +24,7 @@ test a = foo a a
 -- Normalize me! Expected:
 -- λ a → λ { true → a , a }
 
--- From test/interaction/ExtendedLambdaCase.agda
+-- From test/Interaction/ExtendedLambdaCase.agda
 
 data Bool : Set where
   true false : Bool
@@ -148,4 +148,4 @@ f n = h λ where []       → 0
 -- λ n → h (λ { [] → 0 ; {suc n₁} (x ∷ xs) → n })
 --
 -- This should be investigated.  Similar effect for
--- interaction/ExpandEllipsis
+-- Interaction/ExpandEllipsis

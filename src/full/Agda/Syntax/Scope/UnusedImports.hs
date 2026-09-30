@@ -91,7 +91,7 @@ lookedupName x = \case
       -- since it should have been looked up already
       -- when processing the pattern from the original lhs
       -- (that was duplicated by ellipsis expansion).
-      -- See test/interaction/ExpandEllipsis.
+      -- See test/Interaction/ExpandEllipsis.
       Nothing -> pure ()
       Just i -> modifyTCLens stAmbiguousLookups $ IntMap.insert i xs
 
