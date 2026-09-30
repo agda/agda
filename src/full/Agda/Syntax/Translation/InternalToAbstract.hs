@@ -1416,6 +1416,34 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
     addAsBindings :: Functor m => [A.Name] -> m A.Pattern -> m A.Pattern
     addAsBindings xs p = foldr (fmap . AsP patNoRange . mkBindName) p xs
 
+{-# SPECIALIZE reifyRecordFields :: [Origin] -> RecordData -> (NamedArg A.Pattern -> A.Pattern) -> [NamedArg A.Pattern] -> TCM [FieldAssignment' A.Pattern] #-}
+{-# SPECIALIZE reifyRecordFields :: [Origin] -> RecordData -> (Arg Expr -> Expr) -> [Arg Expr] -> TCM [FieldAssignment' Expr] #-}
+-- | Pair the fields of a record type with the arguments of its constructor,
+--   producing the field assignments of a record pattern or record expression.
+--
+--   Andreas, 2025-09-29, issue #8787:
+--   Invisible (hidden and instance) fields are dropped unless @--show-implicit@ is on.
+--   This conforms the printing of records to the printing of applications
+--   of a record constructor (see 'stripImplicits' and 'nelims').
+reifyRecordFields :: (MonadReify m, LensOrigin a)
+  => [Origin]         -- ^ Origins that make us keep an invisible field anyway.
+  -> RecordData       -- ^ Definition of the record type, supplying the field names.
+  -> (a -> e)         -- ^ How to extract the content of a constructor argument.
+  -> [a]              -- ^ The arguments of the record constructor.
+  -> m [FieldAssignment' e]
+reifyRecordFields keepOrigins def content args = do
+  let fs = recordFieldNames def
+  unless (length fs == length args) __IMPOSSIBLE__
+  showImp <- showImplicitArguments
+  let keep (f, a) = or
+        [ showImp
+        , visible f
+        , getOrigin a `elem` keepOrigins
+        ]
+  return $! map' (\ (f, a) -> FieldAssignment (unDom f) (content a))
+         $  filter' keep
+         $  zip' fs args
+
 {-# SPECIALIZE tryRecPFromConP :: A.Pattern -> TCM A.Pattern #-}
 -- | If the record constructor is generated or the user wrote a record pattern,
 --   turn constructor pattern into record pattern.
@@ -1430,12 +1458,10 @@ tryRecPFromConP p = do
           -- If the record constructor is generated or the user wrote a record pattern,
           -- print record pattern.
           -- Otherwise, print constructor pattern.
-          if _recNamedCon def && conPatOrigin ci /= ConORec then fallback else do
-            let fs = recordFieldNames def
-            unless (length fs == length ps) __IMPOSSIBLE__
-            return $! A.RecP empty ci $ zipWith' mkFA fs ps
-        where
-          mkFA ax nap = FieldAssignment (unDom ax) (namedArg nap)
+          if _recNamedCon def && conPatOrigin ci /= ConORec then fallback else
+            -- Andreas, 2025-09-29, issue #8787: Keep the invisible fields
+            -- the user wrote, just like 'stripImplicits' does for constructor patterns.
+            A.RecP empty ci <$> reifyRecordFields [ UserWritten, CaseSplit ] def namedArg ps
     _ -> __IMPOSSIBLE__
 
 {-# SPECIALIZE recOrCon :: QName -> ConOrigin -> [Arg Expr] -> TCM A.Expr #-}
@@ -1449,13 +1475,12 @@ recOrCon c co es = do
     -- If the record constructor is generated or the user wrote a record expression,
     -- print record expression.
     -- Otherwise, print constructor expression.
-    if _recNamedCon def && co /= ConORec then fallback else do
-      let fs = recordFieldNames def
-      unless (length fs == length es) __IMPOSSIBLE__
-      return $! A.Rec empty empty $ zipWith' mkFA fs es
+    if _recNamedCon def && co /= ConORec then fallback else
+      -- Andreas, 2025-09-29, issue #8787: Keep the invisible fields
+      -- the conversion checker insists on, just like 'nelims' does for applications.
+      A.Rec empty empty . map' Left <$> reifyRecordFields [ ConversionFail ] def unArg es
   where
   fallback = apps (A.Con (unambiguous c)) es
-  mkFA ax  = Left . FieldAssignment (unDom ax) . unArg
 
 instance Reify (QNamed I.Clause) where
   type ReifiesTo (QNamed I.Clause) = A.Clause
