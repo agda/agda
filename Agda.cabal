@@ -452,7 +452,6 @@ common language
       NondecreasingIndentation
       OverloadedLists
       PartialTypeSignatures
-      PatternGuards
       PolyKinds
       RebindableSyntax
       RecordWildCards
