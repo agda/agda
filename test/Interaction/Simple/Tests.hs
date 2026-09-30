@@ -27,7 +27,7 @@ import Utils (readAgdaProcessWithExitCode, getAgdaFilesInDir, pattern Rec, readF
 import Agda.Utils.Monad (filterM)
 
 testDir :: FilePath
-testDir = "test" </> "interaction"
+testDir = "test" </> "Interaction"
 
 tests :: IO TestTree
 tests = Tasty.testGroup "Interaction" . singleton <$>

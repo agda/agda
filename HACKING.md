@@ -330,10 +330,10 @@ Testing and documentation
   `doc/user-manual/` and `CHANGELOG.md`.
 
 * In both cases, you need to add regression tests under `test/Succeed`
-  and `test/Fail`, and maybe also `test/interaction`.
+  and `test/Fail`, and maybe also `test/Interaction`.
     * When adding test cases under `test/Fail`, remember to record the error messages
       (`.err` files) after running make test.
-    * Same for `.warn` files in `test/Succeed` and `.out` files in `test/interaction`.
+    * Same for `.warn` files in `test/Succeed` and `.out` files in `test/Interaction`.
     * You can also add `.flags` files to set Agda options.
     * You can also add `.vars` files to set environment variables (which may reference other environment variables, even those in the file appearing before them).
 
@@ -375,7 +375,7 @@ Testing and documentation
   or in `mk/config.mk`.
 
 * You can run a single interaction test by going into the
-  `test/interaction` directory and typing `make <test name>.cmp`.
+  `test/Interaction` directory and typing `make <test name>.cmp`.
 
 * Additional options for the tests using the Haskell/tasty test runner
   can be given using `AGDA_TESTS_OPTIONS`. By default, the interactive
@@ -649,7 +649,7 @@ Emacs mode
 ==========
 
 * If you fix a bug related to syntax highlighting, please add a test
-  case under `test/interaction`. Example `.in` file command:
+  case under `test/Interaction`. Example `.in` file command:
 
       IOTCM "Foo.agda" NonInteractive Direct (Cmd_load "Foo.agda" [])
 
@@ -715,7 +715,7 @@ Since: July 2019.
   `M-x agda2-set-program-version RET quicker RET`.
 
 * Running the testsuite requires some tinkering.  E.g., the interactive testsuite
-  can be run via `make -C test/interaction AGDA_BIN=agda-quicker`.
+  can be run via `make -C test/Interaction AGDA_BIN=agda-quicker`.
 
 
 Bisecting: Finding the commit that introduced a regression

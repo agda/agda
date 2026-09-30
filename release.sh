@@ -64,8 +64,8 @@ updateVersion() {
     sed -ri "s/^(VERSION\s+=\s+).*/\1$version/" mk/paths.mk
 
     sed -ri "s/\"Agda version [0-9.]+\"/\"Agda version $version\"/" \
-        test/interaction/Issue1244a.out \
-        test/interaction/Issue1244b.out
+        test/Interaction/Issue1244a.out \
+        test/Interaction/Issue1244b.out
 }
 
 run () {
@@ -96,8 +96,8 @@ updateVersion "$version"
 git add -v Agda.cabal \
            src/data/emacs-mode/agda2-mode.el \
            mk/paths.mk \
-           test/interaction/Issue1244a.out \
-           test/interaction/Issue1244b.out
+           test/Interaction/Issue1244a.out \
+           test/Interaction/Issue1244b.out
 
 # Add a second source-repository section to Agda.cabal:
 cat >> Agda.cabal <<-EOF
