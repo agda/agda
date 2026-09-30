@@ -29,7 +29,7 @@ binAppView t = case t of
   Var i xs   -> appE (Var i) xs
   Def c xs   -> appE (Def c) xs
   -- Andreas, 2013-09-17: do not eta-contract when body is (record) constructor
-  -- like in \ x -> s , x!  (See interaction/DoNotEtaContractFunIntoRecord)
+  -- like in \ x -> s , x!  (See Interaction/DoNotEtaContractFunIntoRecord)
   -- (Cf. also issue 889 (fixed differently).)
   -- At least record constructors should be fully applied where possible!
   -- TODO: also for ordinary constructors (\ x -> suc x  vs.  suc)?

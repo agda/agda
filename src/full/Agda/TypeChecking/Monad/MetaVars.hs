@@ -644,7 +644,7 @@ getInteractionPoints :: ReadTCState m => m [InteractionId]
 getInteractionPoints =
   map fst . filter (not . ipSolved . snd) . BiMap.toList <$> useR stInteractionPoints
   -- The following alternative will not include the unreachable IPs
-  -- (e.g. test/interaction/Issue2807).
+  -- (e.g. test/Interaction/Issue2807).
   -- This might lead to a wrong numbering of ?s.
   -- map fst <$> getInteractionIdsAndMetas
 

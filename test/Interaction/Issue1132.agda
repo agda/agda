@@ -13,4 +13,4 @@ test .? (zero n) = Nat
 
 -- The questionmark in the dot pattern is not recognized by emacs-mode.
 
--- This cannot be tested by test/interaction, but I still put the test case here.
+-- This cannot be tested by test/Interaction, but I still put the test case here.
