@@ -503,6 +503,7 @@ workflows :
 .PHONY : test ## Run all test suites.
 test : check-whitespace \
        check-encoding \
+       check-filename-case-clashes \
        check-mdo \
        common \
        succeed \
@@ -912,6 +913,11 @@ run-doctest:
 
 ##############################################################################
 ## Development
+
+## Prevent files only differing in case #####################################
+.PHONY : check-filename-case-clashes ## Check that there are no filename clashes based on case-sensitivity in the git tree.
+check-filename-case-clashes :
+	test/check-filename-case-clashes.py
 
 ## Setting the `stack.yaml` file ############################################
 
