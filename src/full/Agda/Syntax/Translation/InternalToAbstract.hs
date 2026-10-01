@@ -67,6 +67,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Records
 import Agda.Interaction.Options
 
 import Agda.Utils.Either
+import Agda.Utils.Function (applyUnless)
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -1437,13 +1438,9 @@ reifyRecordFields keepOrigins def content args = do
   let fs = recordFieldNames def
   unless (length fs == length args) __IMPOSSIBLE__
   showImp <- showImplicitArguments
-  let keep (f, a) = or
-        [ showImp
-        , visible f
-        , getOrigin a `SmallSet.member` keepOrigins
-        ]
+  let keep (f, a) = visible f || getOrigin a `SmallSet.member` keepOrigins
   return $! map' (\ (f, a) -> FieldAssignment (unDom f) (content a))
-         $  filter' keep
+         $  applyUnless showImp (filter' keep)
          $  zip' fs args
 
 {-# SPECIALIZE tryRecPFromConP :: A.Pattern -> TCM A.Pattern #-}
