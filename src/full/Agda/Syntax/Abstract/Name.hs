@@ -358,6 +358,10 @@ isLeChildModuleOf = flip isLeParentModuleOf
 isLtChildModuleOf :: ModuleName -> ModuleName -> Bool
 isLtChildModuleOf = flip isLtParentModuleOf
 
+-- | Drop anonymous modules at the end of the module name
+dropAnonymousModules :: ModuleName -> ModuleName
+dropAnonymousModules (MName ms) = MName $ List.dropWhileEnd isNoName ms
+
 ---------------------------------------------------------------------------
 -- * 'QName'
 ---------------------------------------------------------------------------
