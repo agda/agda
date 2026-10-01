@@ -169,16 +169,15 @@ isAccessibleDef env state defn =
 
       AbstractMode -> let
         dropLastModule (MName ms) = MName $ initWithDefault __IMPOSSIBLE__ ms
-        dropAnon       (MName ms) = MName $ List.dropWhileEnd isNoName ms
 
-        current = dropAnon $ env ^. eCurrentModule
+        current = dropAnonymousModules $ env ^. eCurrentModule
 
         modname = case theDef defn of
           -- Hack to make abstract constructors work properly. The constructors
           -- live in a module with the same name as the datatype, but for 'abstract'
           -- purposes they're considered to be in the same module as the datatype.
-          Constructor{} -> dropAnon $ dropLastModule $ qnameModule $ defName defn
-          _             -> dropAnon $ qnameModule $ defName defn
+          Constructor{} -> dropAnonymousModules $ dropLastModule $ qnameModule $ defName defn
+          _             -> dropAnonymousModules $ qnameModule $ defName defn
 
        in if current `isLeChildModuleOf` modname
         then ConcreteDef
