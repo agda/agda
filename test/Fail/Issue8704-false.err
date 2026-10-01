@@ -1,0 +1,12 @@
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  g hh (_14 (n = n) (v = v)) true = false : Bool (blocked on _14)
+  g 1 (_14 (n = n) (v = v)) true = true : Bool (blocked on _14)
+  tt ∷ [] = _14 (n = n) (v = v) : Vec ⊤ hh (blocked on _14)
+
+Issue8704-false.agda:23.10-32.16: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue8704-false.agda:23.10-11
+  Issue8704-false.agda:28.15-27
+  Issue8704-false.agda:30.14-18
+  Issue8704-false.agda:32.12-16
