@@ -39,6 +39,7 @@ import Agda.TypeChecking.Positivity.Occurrence (Occurrence(StrictPos))
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free.Reduce (reallyFree)
 import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Telescope
@@ -1628,12 +1629,15 @@ defineHCompForFields applyProj name params fsT fns rect = do
           filled_ty = Lam defaultArgInfo (Abs "i" $ (unEl . fromLType . unDom) filled_ty')
           -- Γ ⊢ l : I -> Level of filled_ty
         l <- reduce $ lTypeLevel $ unDom filled_ty'
+        -- Check the type and its level, reducing only where i occurs.
+        -- Keep comp if independence is blocked on metavariables.
+        independent <- addContext gamma $
+          addContext ("i" :: String, defaultDom interval) $ liftReduce $
+            reallyFree (VarSet.singleton 0) $
+              El (Type l) (unEl $ fromLType $ unDom filled_ty')
         let lvl = Lam defaultArgInfo (Abs "i" $ Level l)
-            -- Use hcomp for fields independent of the composition direction.
-            independent = not (0 `freeIn` (unEl $ fromLType $ unDom filled_ty'))
-              && not (0 `freeIn` Level l)
             composeField
-              | independent = \ la bA phi u u0 ->
+              | Right (Just _) <- independent = \ la bA phi u u0 ->
                   pure hcomp <#> (la <@> pure io) <#> (bA <@> pure io)
                              <#> phi <@> u <@> u0
               | otherwise = comp
