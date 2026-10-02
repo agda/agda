@@ -306,7 +306,7 @@ constituents.")
     (eri-indent-reverse          [S-iso-lefttab])
     (eri-indent-reverse          [S-lefttab])
     (eri-indent-reverse          [S-tab])
-    (xref-find-definitions-at-mouse [mouse-2]))
+    (agda2-goto-definition-mouse [mouse-2]))
   "Table of commands, used to build keymaps and menus.
 Each element has the form (CMD &optional KEYS WHERE DESC) where
 CMD is a command; KEYS is its key binding (if any); WHERE is a
@@ -1127,7 +1127,7 @@ The buffer is returned.")
         ;; buffer, away from compilation-mode's, into something that
         ;; can read definition sites from highlighting info.
         (define-key map (kbd "RET") #'xref-find-definitions)
-        (define-key map '[mouse-2]  #'xref-find-definitions-at-mouse)
+        (define-key map '[mouse-2]  #'agda2-goto-definition-mouse)
 
         (use-local-map map))
 
@@ -2278,9 +2278,10 @@ to display the given position."
 (defun agda2-goto-definition-mouse (ev)
   "Go to the definition site of the name clicked on, if any.
 Otherwise, yank (see `mouse-yank-primary')."
-  (declare (obsolete "Use `xref-find-definitions-at-mouse'" "2.9.0"))
   (interactive "e")
-  (unless (annotation-goto-indirect ev)
+  (if (consp (get-text-property (point) 'annotation-goto))
+      (let ((xref-auto-jump-to-first-definition t))
+        (call-interactively #'xref-find-definitions))
     ;; FIXME: Shouldn't we use something like
     ;; (call-interactively (key-binding ev))?  --Stef
     (mouse-yank-primary ev)))
