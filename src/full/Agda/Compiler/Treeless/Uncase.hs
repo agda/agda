@@ -23,7 +23,7 @@ uncase t = case t of
   TLam b    -> TLam $ uncase b
   TLit{}    -> t
   TCon{}    -> t
-  TLet e b  -> tLet (uncase e) (uncase b)
+  TLet s e b -> tLet s (uncase e) (uncase b)
   TCase x t d bs -> doCase x t (uncase d) (map uncaseAlt bs)
   TUnit{}   -> t
   TSort{}   -> t
@@ -59,10 +59,10 @@ uncase t = case t of
     equalTo x t (TALit l b)   = equalTerms (subst x (TLit l) t) (subst x (TLit l) b)
     equalTo x t (TAGuard _ b) = equalTerms t b
 
-    tLet e b =
+    tLet s e b =
       case occursIn 0 b of
         Occurs 0 _ _ -> strengthen impossible b
-        _            -> TLet e b
+        _            -> TLet s e b
 
     -- Primitive operations are already strict
     tApp (TPrim PSeq) [_, b@(TApp (TPrim op) _)]

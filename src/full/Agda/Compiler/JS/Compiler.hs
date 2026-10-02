@@ -595,9 +595,13 @@ compileTerm kit = go
             -- curriedApply' <$> go t <*> mapM go xs
             curriedApply <$> go t <*> mapM go xs
       T.TLam t -> Lambda 1 <$> go t
+      T.TLet T.Strict t e -> do
+        t' <- go t
+        e' <- go e
+        return $ Apply (Lambda 1 e') [t']
       -- `let x = t in e` is compiled to `(x => e[x()/x])(() => t)` so that `t`
       -- is only evaluated inside the body
-      T.TLet t e -> do
+      T.TLet T.NonStrict t e -> do
         t' <- Lambda 0 <$> go t
         e' <- substShift 1 1 [Apply (Local (LocalId 0)) []] <$> go e
         return $ Apply (Lambda 1 e') [t']

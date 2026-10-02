@@ -40,6 +40,7 @@ import qualified Internal.Utils.Either
 import qualified Internal.Utils.Favorites
 import qualified Internal.Utils.FileName
 import qualified Internal.Utils.Graph.AdjacencyMap.Unidirectional
+import qualified Internal.Utils.IndexMap
 import qualified Internal.Utils.IntSet
 import qualified Internal.Utils.Lens
 import qualified Internal.Utils.List
@@ -93,6 +94,7 @@ tests = testGroup "Internal" $
   Internal.Utils.Favorites.tests :
   Internal.Utils.FileName.tests :
   Internal.Utils.Graph.AdjacencyMap.Unidirectional.tests :
+  Internal.Utils.IndexMap.tests :
   Internal.Utils.IntSet.tests :
   Internal.Utils.Lens.tests :
   Internal.Utils.List.tests :

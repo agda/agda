@@ -8,11 +8,11 @@ module Agda.Compiler.MAlonzo.Strict where
 
 import Agda.Utils.Haskell.Syntax
 
--- | The function 'makeStrict' makes every function argument, case and
--- generator pattern, and 'LocalBind' binding strict (except for those
--- patterns that are marked as irrefutable, and anything in a
--- 'FakeDecl' or 'FakeExp'). Note that only the outermost patterns are
--- made strict.
+-- | The function 'makeStrict' makes every function argument and case
+-- and generator pattern strict (except for those patterns that are
+-- marked as irrefutable, and anything in a 'FakeDecl' or 'FakeExp').
+-- Note that only the outermost patterns are made strict, and that
+-- 'LocalBind' bindings are not made strict.
 
 class MakeStrict a where
   makeStrict :: a -> a
@@ -33,7 +33,7 @@ instance MakeStrict Decl where
     d@DataDecl{}      -> d
     d@TypeSig{}       -> d
     FunBind ms        -> FunBind (makeStrict ms)
-    LocalBind s f rhs -> LocalBind Strict f (makeStrict rhs)
+    LocalBind s f rhs -> LocalBind s f (makeStrict rhs)
     d@PatSyn{}        -> d
     d@FakeDecl{}      -> d
     d@Comment{}       -> d

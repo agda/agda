@@ -9,12 +9,12 @@ import Agda.Compiler.Treeless.Subst () --instance only
 equalTerms :: TTerm -> TTerm -> Bool
 equalTerms u v =
   case (evalPrims u, evalPrims v) of
-    (TLet s u@(TCase 0 _ _ _), TLet t v@(TCase 0 _ _ _)) ->
+    (TLet _ s u@(TCase 0 _ _ _), TLet _ t v@(TCase 0 _ _ _)) ->
       equalTerms s t && equalTerms u v
-    (TLet _ (TCase 0 _ _ _), _)      -> False
-    (_, TLet _ (TCase 0 _ _ _))      -> False
-    (TLet t u, v)                    -> equalTerms (subst 0 t u) v
-    (u, TLet t v)                    -> equalTerms u (subst 0 t v)
+    (TLet _ _ (TCase 0 _ _ _), _)    -> False
+    (_, TLet _ _ (TCase 0 _ _ _))    -> False
+    (TLet _ t u, v)                  -> equalTerms (subst 0 t u) v
+    (u, TLet _ t v)                  -> equalTerms u (subst 0 t v)
     (u, v) | u == v                  -> True
     (TApp f us, TApp g vs)           -> eqList equalTerms (f : us) (g : vs)
     (TCase x _ d as, TCase y _ e bs) -> x == y && equalTerms d e && eqList equalAlts as bs

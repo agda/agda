@@ -40,7 +40,7 @@ addCoercions = coerceTop
             then TApp (TCoerce f) <$> mapM softCoerce vs
             else TCoerce . TApp f <$> mapM coerce vs
         TLam b         -> TCoerce . TLam <$> softCoerce b
-        TLet e b       -> TLet <$> softCoerce e <*> coerce b
+        TLet s e b     -> TLet s <$> softCoerce e <*> coerce b
         TCase x t d bs -> TCase x t <$> coerce d <*> mapM coerceAlt bs
 
     coerceAlt (TACon c a b) = TACon c a <$> coerce b
@@ -67,7 +67,7 @@ addCoercions = coerceTop
             then TApp (TCoerce f) <$> mapM softCoerce vs
             else TApp f <$> mapM coerce vs
         TLam b         -> TLam <$> softCoerce b
-        TLet e b       -> TLet <$> softCoerce e <*> softCoerce b
+        TLet s e b     -> TLet s <$> softCoerce e <*> softCoerce b
         TCase x t d bs -> TCase x t <$> coerce d <*> mapM coerceAlt bs
 
 funArity :: HasConstInfo m => TTerm -> m Nat
