@@ -530,8 +530,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
 
       -- If the origin is a record expression, print a record expression.
       if
-        | ci == ConORec      -> recordExpression Nothing
-        | ci == ConORecWhere -> recordWhereExpr
+        | ci == ConORec -> recordExpression Nothing
         | otherwise -> isRecordConstructor x >>= \case
           -- If it is a generated constructor, print a record expression.
           Just (r, def) | not (_recNamedCon def) -> recordExpression $ Just (r, def)
@@ -550,23 +549,6 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
             . filter' keep
             . zip' (recordFieldNames def)
             <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims es)
-
-        recordWhereExpr = do
-          (r, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordConstructor x
-          showImp <- showImplicitArguments
-          let
-            keep (a, v) = showImp || ConversionFail == argInfoOrigin (argInfo v) || visible a
-            fake (nm, Arg _ exp) = do
-              qn <- freshName_ (unDom nm)
-              let decl = A.LetBind (LetRange noRange) (domInfo nm) (A.BindName qn) (A.Underscore emptyMetaInfo) exp
-              pure (decl, FieldAssignment (unDom nm) (A.Var qn))
-
-          -- The list of fake FieldAssignments tells AbstractToConcrete
-          -- to not pick disambiguators for the names we just invented.
-          fields <- filter keep . zip' (recordFieldNames def) <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims es)
-          (decl, assign) <- unzip <$> traverse fake fields
-
-          pure $ A.RecWhere empty noExprInfo decl assign
 
         constructorApplication = reifyDisplayForm x es $ do
           def <- getConstInfo x
@@ -1228,8 +1210,6 @@ instance BlankVars A.Expr where
     A.Let _ _ _              -> __IMPOSSIBLE__
     A.Rec kwr i es           -> A.Rec kwr i $ blank bound es
     A.RecUpdate kwr i e es   -> uncurry (A.RecUpdate kwr i) $ blank bound (e, es)
-    A.RecWhere _ _ _ _       -> __IMPOSSIBLE__
-    A.RecUpdateWhere{}       -> __IMPOSSIBLE__
     A.Quote {}               -> __IMPOSSIBLE__
     A.QuoteTerm {}           -> __IMPOSSIBLE__
     A.Unquote {}             -> __IMPOSSIBLE__

@@ -159,8 +159,6 @@ exprToTerm e =
     A.Let{}            -> fail "let"
     A.Rec{}            -> fail "record"
     A.RecUpdate{}      -> fail "record update"
-    A.RecWhere{}       -> fail "record where"
-    A.RecUpdateWhere{} -> fail "record update"
     A.Quote{}          -> fail "quotation"
     A.QuoteTerm{}      -> fail "quotation"
     A.Unquote{}        -> fail "unquote"

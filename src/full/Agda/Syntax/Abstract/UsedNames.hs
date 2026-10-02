@@ -105,8 +105,6 @@ instance BoundAndUsed Expr where
     Let _ binds expr          -> boundAndUsed (binds, expr)
     Rec _ _ as                -> boundAndUsed as
     RecUpdate _ _ expr as     -> boundAndUsed expr <> boundAndUsed as
-    RecWhere _ _ bnd expr     -> boundAndUsed (bnd, expr)
-    RecUpdateWhere _ _ e bs _ -> boundAndUsed (e, bs)
     ScopedExpr _ expr         -> boundAndUsed expr
     Quote{}                   -> mempty
     QuoteTerm{}               -> mempty

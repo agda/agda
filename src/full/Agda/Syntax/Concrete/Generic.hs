@@ -135,8 +135,6 @@ instance ExprLike Expr where
      Pi tel e                -> f $ Pi          (mapE tel)      $ mapE e
      Rec kwr r es            -> f $ Rec kwr r                   $ mapE es
      RecUpdate k r e es      -> f $ RecUpdate k r (mapE e)      $ mapE es
-     RecWhere kwr r es       -> f $ RecWhere kwr r              $ mapE es
-     RecUpdateWhere k r e es -> f $ RecUpdateWhere k r (mapE e) $ mapE es
      Let r ds e              -> f $ Let r       (mapE ds)       $ mapE e
      Paren r e               -> f $ Paren r                     $ mapE e
      IdiomBrackets r q es    -> f $ IdiomBrackets r q           $ mapE es

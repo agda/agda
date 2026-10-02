@@ -1014,25 +1014,6 @@ instance ToConcrete A.Expr where
       bracket appBrackets $ do
         C.RecUpdate kwr (getRange i) <$> toConcrete e <*> toConcreteTop fs
 
-    toConcrete (A.RecWhere kwr i es ass) = bracket appBrackets $ do
-      -- InternalToAbstract generates FieldAssignments of the following
-      -- form to associate the fresh 'A.Name's generated for the record
-      -- field bindings should be printed back without disambiguators
-      Fold.for_ ass \case
-        FieldAssignment cn (A.Var an) -> pickConcreteName an cn
-        _                             -> pure ()
-      C.RecWhere kwr (getRange i) . concat . List1.toList <$> toConcrete es
-
-    toConcrete (A.RecUpdateWhere kwr i e0 es ass) = bracket appBrackets do
-      -- InternalToAbstract generates FieldAssignments of the following
-      -- form to associate the fresh 'A.Name's generated for the record
-      -- field bindings should be printed back without disambiguators
-      Fold.for_ ass \case
-        FieldAssignment cn (A.Var an) -> pickConcreteName an cn
-        _                             -> pure ()
-      e0 <- toConcrete e0
-      C.RecUpdateWhere kwr (getRange i) e0 . concat . List1.toList <$> toConcrete es
-
     -- Annotated 'leftovers' from the scope-checker
     toConcrete (A.ScopedExpr _ e) = toConcrete e
     toConcrete (A.Qualified  _ e) = toConcrete e
