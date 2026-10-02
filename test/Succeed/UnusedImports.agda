@@ -11,7 +11,7 @@
 -- open import Agda.Primitive using (Set)
 
 -- There should be no warning for public opens!
-open import Agda.Builtin.Bool public
+open import Agda.Builtin.String public
 
 -- We are not using _≡_, so this opening is redundant.
 -- (However, when we remove the 'using' clause then there is no warning,
@@ -75,3 +75,15 @@ module Issue8258 where
 
   ff : Bool
   ff = false
+
+-- Andreas, 2026-10-02, issue #8294 reported by Oskar Eriksson
+module Issue8294 where
+
+  open import Agda.Builtin.Bool using (Bool)
+
+  -- We use imported constructors in pattern, so there should be no warning.
+  open import Agda.Builtin.Bool using (true; false)
+
+  if_then_else_ : {A : Set} → Bool → A → A → A
+  if true  then t else f = t
+  if false then t else f = f
