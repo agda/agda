@@ -1010,6 +1010,23 @@ instance ToAbstract C.Expr where
             i    = ExprRange r
         return $ A.mkLet i ds' (A.Rec kwr i fs'')
 
+      C.RecWhere kwr r [] -> pure $ A.Rec kwr (ExprRange r) []
+      C.RecWhere kwr r (d0:ds0) -> localToAbstract (LetDefs RecordWhereLetDef (d0 :| ds0)) $ \ds -> do
+        nms <- recordWhereNames ds
+        reportSDoc "scope.record.where" 30 $ vcat
+          [ "decls:"
+          , nest 2 (vcat (map prettyA ds))
+          , "names:" <+> prettyA nms
+          ]
+        return $ A.RecWhere kwr (ExprRange r) ds nms
+
+      C.RecUpdateWhere kwr r e [] -> toAbstract e
+      C.RecUpdateWhere kwr r e (d0:ds0) -> do
+        e <- toAbstract e
+        localToAbstract (LetDefs RecordWhereLetDef (d0 :| ds0)) $ \ds -> do
+          nms <- recordWhereNames ds
+          return $ A.RecUpdateWhere kwr (ExprRange r) e ds nms
+
   -- Record update
       C.RecUpdate kwr r e fs -> do
         A.RecUpdate kwr (ExprRange r) <$> toAbstract e <*> toAbstractCtx TopCtx fs

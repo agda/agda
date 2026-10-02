@@ -1,0 +1,8 @@
+Issue7837.agda:13.24-14.52: error: [RepeatedNamesInImportDirective]
+Repeated names in import directive: module ,; f; g
+when scope checking
+record where
+  private
+    open
+      R v
+        using (f; g; module ,) renaming (f to f; g to g; module , to ,)

@@ -786,6 +786,8 @@ Expr3NoCurly_P(recordUpdate)
 
     | 'record' '{' RecordAssignments '}'
       { Rec (kwRange $1) (getRange ($1,$2,$3,$4)) $3 }
+    | 'record' 'where' Declarations0
+      { RecWhere (kwRange $1) (getRange ($1,$2,$3)) $3 }
     | recordUpdate                      { $1 }
 
     | '...'                             { Ellipsis (getRange $1) }
@@ -804,6 +806,8 @@ RecordUpdate :: { Expr }
 RecordUpdate
     : 'record' Expr3NoCurly '{' FieldAssignments '}'
       { RecUpdate (kwRange $1) (getRange ($1,$2,$3,$4,$5)) $2 $4 }
+    | 'record' Expr3NoCurly 'where' Declarations0
+      { RecUpdateWhere (kwRange $1) (getRange ($1,$2,$3,$4)) $2 $4 }
 
 -- Level 4: Maybe named, or cubical faces
 Expr4 :: { Expr }

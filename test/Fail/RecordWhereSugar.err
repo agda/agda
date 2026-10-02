@@ -1,0 +1,11 @@
+RecordWhereSugar.agda:16.8-12: error: [UnequalTerms]
+The terms
+  1
+and
+  3
+are not equal at type Nat
+when checking that the expression refl has type
+record { fst = 1 ; snd = 2 } ≡
+record where
+  fst = 3
+  snd = 4

@@ -1582,6 +1582,9 @@ checkExpr' cmp e t =
 
         A.RecUpdate kwr ei recexpr fs -> checkRecordUpdate cmp kwr ei recexpr fs e t
 
+        A.RecWhere kwr ei decls fs           -> checkRecordWhere cmp kwr ei Nothing decls fs e t
+        A.RecUpdateWhere kwr ei exp decls fs -> checkRecordWhere cmp kwr ei (Just exp) decls fs e t
+
         A.DontCare e -> do
           rel <- viewTC eRelevance
           if isIrrelevant rel then dontCare <$> do
