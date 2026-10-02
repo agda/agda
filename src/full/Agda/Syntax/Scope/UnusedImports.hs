@@ -145,6 +145,7 @@ warnUnusedImports = do
     -- so we should warn about them.
     qualifiedInstances <- optQualifiedInstances <$> pragmaOptions
 
+    reportSLn "warning.unusedImports" 60 $ "ambiguousLookups: " <> prettyShow (ambiguousLookups st)
     reportSLn "warning.unusedImports" 60 $ "unambiguousLookups: " <> prettyShow (unambiguousLookups st)
 
     let
