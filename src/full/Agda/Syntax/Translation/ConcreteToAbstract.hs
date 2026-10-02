@@ -635,6 +635,7 @@ instance ToAbstract PatName where
           -- Andreas, 2020-04-11 CoConName:
           -- coinductive constructors will be rejected later, in the type checker
     reportSLn "scope.pat" 40 $ "resolved as " ++ prettyShow rx
+    lookedupName x rx
     case rx of
       ConstructorName _ ds -> ConPatName ds <$ do
         reportSLn "scope.pat" 30 $ "it was a con: " ++ prettyShow (fmap anameName ds)
