@@ -45,8 +45,10 @@ import Agda.Utils.DocTree qualified as DocTree
 import Agda.Utils.FileName
 import Agda.Utils.Float
 import Agda.Utils.List1 (List1)
-import qualified Agda.Utils.List1 as List1
-import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.List1 qualified as List1
+import Agda.Utils.List2 (List2)
+import Agda.Utils.List2 qualified as List2
+import Agda.Utils.Maybe.Strict qualified as Strict
 import Agda.Utils.Null
 import Agda.Utils.Size
 
@@ -128,6 +130,9 @@ instance Pretty a => Pretty [a] where
 
 instance Pretty a => Pretty (List1 a) where
   pretty = prettyList . List1.toList
+
+instance Pretty a => Pretty (List2 a) where
+  pretty = prettyList . List2.toList
 
 instance Pretty IntSet where
   pretty = prettySet . IntSet.toList
