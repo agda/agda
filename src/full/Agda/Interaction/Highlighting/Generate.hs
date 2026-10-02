@@ -634,10 +634,10 @@ warningHighlighting' b w = case tcWarning w of
 recordFieldWarningHighlighting ::
   RecordFieldWarning -> HighlightingInfoBuilder
 recordFieldWarningHighlighting = \case
-  W.DuplicateFields xrs      -> sconcat $ fmap (dead . snd) xrs
-  W.TooManyFields _q _ys xrs -> dead $ fmap snd xrs
+  W.DuplicateFields xrs      -> dead xrs
+  W.TooManyFields _q _ys xrs -> dead xrs
   where
-  dead :: List1 Range -> HighlightingInfoBuilder
+  dead :: List1 (C.Name, Range) -> HighlightingInfoBuilder
   dead = sconcat . fmap deadcodeHighlighting
   -- Andreas, 2020-03-27 #3684: This variant seems to only highlight @x@:
   -- dead = mconcat . map f

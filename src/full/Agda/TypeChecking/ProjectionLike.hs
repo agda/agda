@@ -359,7 +359,6 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     isRecordExpression :: Term -> Bool
     isRecordExpression = \case
       Con _ ConORec _ -> True
-      Con _ ConORecWhere _ -> True
       _ -> False
 
     recursive = getMutual x >>= \case
