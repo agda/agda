@@ -263,7 +263,7 @@ updateProblemEqs eqs = do
 
             -- In fs omitted explicit fields are replaced by underscores,
             -- and the fields are put in the correct order.
-            ps <- insertMissingFieldsFail d (const $ A.WildP empty) fs cxs
+            ps <- insertMissingFieldsFail ConORec d (const $ A.WildP empty) fs cxs
 
             -- We also need to insert missing implicit or instance fields.
             ps <- insertImplicitPatterns ExpandLast ps ctel
@@ -468,7 +468,7 @@ transferOrigins ps qs = do
         let Def d _  = unEl $ unArg $ fromMaybe __IMPOSSIBLE__ mb
             axs = map' (nameConcrete . qnameName . unArg) (conFields c) `withArgsFrom` qs
             cpi = ConPatternInfo (PatternInfo PatORec asB) r ft mb l prio
-        ps <- insertMissingFieldsFail d (const $ A.WildP empty) fs axs
+        ps <- insertMissingFieldsFail ConORec d (const $ A.WildP empty) fs axs
         ConP c cpi <$> transfers ps qs
 
       ((asB , p) , ConP c (ConPatternInfo i r ft mb l prio) qs) -> do
@@ -1428,7 +1428,7 @@ checkLHS mf = updateModality checkLHS_ where
         A.RecP _ _ fs -> do
           RecordDefn def <- theDef <$> getConstInfo d
           let axs = map' argFromDom $ recordFieldNames def
-          ps <- insertMissingFieldsFail d (const $ A.WildP empty) fs axs
+          ps <- insertMissingFieldsFail ConORec d (const $ A.WildP empty) fs axs
           ps <- insertImplicitPatterns ExpandLast ps gamma
           return $ useNamesFromPattern ps gamma
         _ -> __IMPOSSIBLE__
