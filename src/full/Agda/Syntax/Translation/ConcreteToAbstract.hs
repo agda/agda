@@ -16,7 +16,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
 
 import Prelude hiding ( null, (||) )
 
-import Control.Monad        ( (>=>), foldM, forM, forM_, zipWithM, zipWithM_ )
+import Control.Monad        ( (>=>), (<=<), foldM, forM, forM_, zipWithM, zipWithM_ )
 import Control.Applicative  ( liftA2, liftA3 )
 import Control.Monad.Except ( runExceptT, MonadError(..) )
 import Control.Monad.State  ( StateT, execStateT, get, put )
@@ -49,7 +49,7 @@ import Agda.Syntax.Abstract.Pattern as A
   ( patternVars, checkPatternLinearity, containsAsPattern, lhsCoreApp, lhsCoreWith, noDotOrEqPattern )
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Abstract.UsedNames
-  ( allUsedNames )
+  ( allUsedNames, allBoundNames )
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
@@ -1053,6 +1053,149 @@ instance ToAbstract C.Expr where
         (s, e) <- collectGeneralizables $ toAbstract e
         pure $ A.generalized s e
 
+-- | The bindings collected while checking a @record where@ expression.
+--
+-- To each field name is associated a nonempty list of expressions
+-- (always 'A.Def' or 'A.Var') pointing to the relevant let-declaration,
+-- together with a range representing the entire declaration.
+newtype PendingBinds = PBs { getPBs :: Map C.Name (List1 (A.Expr, Range)) }
+
+instance Semigroup PendingBinds where
+  PBs x <> PBs y = PBs (Map.unionWith (<>) x y)
+
+instance Monoid PendingBinds where
+  mempty = PBs mempty
+
+-- | State accumulated while checking a @record where@ expression.
+data RecWhereState = RecWhereState
+  { recWhereBinds :: PendingBinds
+    -- ^ The actual bindings.
+  , recWhereMods :: Map ModuleName PendingBinds
+    -- ^ A list from (locally-bound) module names to bindings associated
+    -- with that module; see #7838.
+  }
+
+-- | Chooses the appropriate field assignments for a @record where@
+-- expression given a list of @let@ declarations. Handles both local
+-- declarations and copying from a module (possibly a module
+-- application).
+recordWhereNames :: [A.LetBinding] -> ScopeM Assigns
+recordWhereNames = finish <=< foldM decl st0 where
+  st0 = RecWhereState mempty mempty
+
+  -- Turn the accumulated state into a list of assignments, potentially
+  -- choosing a binding if there are multiple for the same field; if
+  -- this is the case, also raise a warning.
+  finish :: RecWhereState -> ScopeM Assigns
+  finish (RecWhereState (PBs pending) _) = do
+    let
+      go :: Assigns
+         -> Map C.Name (List1 Range)
+         -> [(C.Name, List1 (A.Expr, Range))]
+         -> (Assigns, Map C.Name (List1 Range))
+      go !fs !ws ((con, (exp, rs) :| exps):rest) =
+        case exps of
+          []            -> go fs' ws rest
+          ((_, r):exps) -> go fs' (Map.insert con (r :| map snd exps) ws) rest
+        where fs' = FieldAssignment con exp:fs
+
+      go fs ws [] = (fs, ws)
+
+      (out, warns) = go mempty mempty (Map.toList pending)
+    List1.unlessNull (Map.toList warns) \ls -> warning . RecordFieldWarning . W.DuplicateFields $ ls
+    pure out
+
+  pb :: C.Name -> A.Expr -> Range -> PendingBinds
+  pb n e r = PBs $ Map.singleton n ((e, r) :| [])
+
+  -- Construct a single PendingBind coming from an import directive. We
+  -- take the name from the ScopeCopyInfo if it is present (i.e. if the
+  -- import directive is associated with a local module-macro),
+  -- otherwise we trust that the scope checker did the right thing...
+  def :: Maybe ScopeCopyInfo -> A.QName -> ScopeM PendingBinds
+  def ren nm = do
+    let
+      new = case ren of
+        Just ren -> maybe nm List1.head $ Map.lookup nm (renNames ren)
+        Nothing  -> nm
+
+    -- N.B.: since this is somewhere we might invent a reference to an
+    -- internal name that does not go through resolveName', we have to
+    -- explicitly mark the name we used as alive.
+    pure $ pb (nameConcrete (qnameName nm)) (A.Def new) (getRange nm)
+
+  fromRenaming :: Maybe ScopeCopyInfo -> [A.Renaming] -> ScopeM PendingBinds
+  fromRenaming ren fs | (rens, _) <- partitionImportedNames (map renTo fs) = foldMap (def ren) rens
+
+  fromImport :: Maybe ScopeCopyInfo -> A.ImportDirective -> ScopeM PendingBinds
+  fromImport inv ImportDirective{ using = using, impRenaming = renaming } =
+    case using of
+      UseEverything
+        | null renaming -> pure mempty -- TODO: raise a warning?
+        | otherwise     -> fromRenaming inv renaming
+      Using using | (names, _) <- partitionImportedNames using ->
+        fromRenaming inv renaming <> foldMap (def inv) names
+
+  ins :: PendingBinds -> RecWhereState -> RecWhereState
+  ins pb (RecWhereState pb' m) = let pb'' = pb <> pb' in pb'' `seq` RecWhereState pb'' m
+
+  applyHiding :: A.ImportDirective -> PendingBinds -> PendingBinds
+  applyHiding ImportDirective{ hiding = hiding } (PBs pb) =
+    let
+      (names, _) = partitionImportedNames hiding
+      nset = Set.fromList $ map (nameConcrete . qnameName) names
+    in PBs $ Map.filterKeys (\k -> k `Set.notMember` nset) pb
+
+  var :: A.Name -> Range -> RecWhereState -> RecWhereState
+  var x r = ins (pb (nameConcrete x) (A.Var x) r)
+
+  decl :: RecWhereState -> A.LetBinding -> ScopeM RecWhereState
+  decl st0 r@(A.LetBind _ _ bn _ _) = pure $! var (unBind bn) (getRange r) st0
+  decl st0 r@(A.LetAxiom _ _ bn _)  = pure $! var (unBind bn) (getRange r) st0
+  decl st0 (A.LetPatBind _ _ pat _) = pure $! Set.foldr (\x -> var x (getRange x)) st0 $ allBoundNames pat
+
+  decl st0 (A.LetApply mi _ modn ma ren idr) = do
+    mod_pbs  <- fromImport (Just ren) idr
+
+    reportSDoc "scope.record.where" 30 $ vcat
+      [ "module macro in `record where`:"
+      , "  idr:" <+> pure (pretty idr)
+      , "  pbs:" <+> prettyTCM (getPBs mod_pbs)
+      ]
+
+    -- If the module is immediately opened, then we do not keep around
+    -- the pending bindings. This is to prevent introducing fake
+    -- duplicate bindings if this module macro is opened again, and the
+    -- opens have some overlap.
+    case minfoOpenShort mi of
+      DoOpen _kwr -> pure $! ins mod_pbs st0
+      _ -> pure st0{ recWhereMods = Map.insert modn mod_pbs (recWhereMods st0) }
+
+  -- If we're opening a module macro which was created in the scope of
+  -- this 'record where' expression, then it might have pending bindings
+  -- from not being opened yet.
+  -- Those need to be added to the resulting expression, but any which
+  -- are mentioned in a new hiding directive should be dropped, i.e.
+  --
+  --    module A = X using (field)
+  --    open A hiding (field)
+  --
+  -- should not add a binding for field.
+  decl st0@RecWhereState{recWhereMods = mods} (A.LetOpen _ mod idr) = do
+    -- If the module is not coming from this 'record where' expression
+    -- then we can just give it the empty list of bindings.
+    let mod_pbs = applyHiding idr (fromMaybe mempty (Map.lookup mod mods))
+    this_pbs <- fromImport Nothing idr
+
+    reportSDoc "scope.record.where" 30 $ vcat
+      [ "opening module macro in `record where` with import directive:"
+      , "     idr:" <+> pure (pretty idr)
+      , " mod_pbs:" <+> prettyTCM (getPBs (applyHiding idr mod_pbs))
+      , "this_pbs:" <+> prettyTCM (getPBs this_pbs)
+      ]
+
+    pure $! ins this_pbs $! ins mod_pbs st0
+
 instance ToAbstract C.ModuleAssignment where
   type AbsOfCon C.ModuleAssignment = (A.ModuleName, Maybe A.LetBinding)
   toAbstract (C.ModuleAssignment m es i)
@@ -1497,6 +1640,8 @@ scopeCheckDeclarations ds = niceDecls DoWarn ds \ niceds -> catMaybes <$> toAbst
 data LetDefOrigin
   = ExprLetDef
   -- ^ A let expression or do statement
+  | RecordWhereLetDef
+  -- ^ A @record where@ expression
   | RecordLetDef
   -- ^ Definitions in a record declaration, before the last field
   deriving (Eq, Show)
@@ -1524,7 +1669,8 @@ checkLetDefInfo wh access macro abstract = do
     -- in explicit, user-written expressions.
     --
     -- It should not raise a warning when scope-checking the type of a
-    -- record constructor (it has an effect there).
+    -- record constructor (it has an effect there), or when elaborating
+    -- the lets generated by a 'record where' expression.
     PrivateAccess rng _
       | wh == ExprLetDef -> scopeWarning (UselessPrivate rng)
     _ -> pure ()

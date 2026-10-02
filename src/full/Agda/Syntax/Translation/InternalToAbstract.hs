@@ -74,6 +74,7 @@ import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import Agda.Utils.List1 qualified as List1
 import Agda.Utils.Maybe.Strict qualified as Strict
+import Agda.Syntax.Scope.Monad (freshAbstractName_)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -528,8 +529,9 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
     I.Con c ci es -> do
 
       -- If the origin is a record expression, print a record expression.
-      if ci == ConORec then recordExpression Nothing else do
-        isRecordConstructor x >>= \case
+      if
+        | ci == ConORec -> recordExpression Nothing
+        | otherwise -> isRecordConstructor x >>= \case
           -- If it is a generated constructor, print a record expression.
           Just (r, def) | not (_recNamedCon def) -> recordExpression $ Just (r, def)
 

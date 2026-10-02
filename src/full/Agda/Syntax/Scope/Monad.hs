@@ -969,11 +969,6 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
       -- abstract QName, rather than
       --
       --    renaming (Some.Qualified.Original to new)
-      --
-      -- Andreas, 2026-10-02
-      -- Even though @record where@ has been removed again, and @upd@
-      -- does not make an observable difference any more, we can leave
-      -- @upd@ in.
 
       upd :: C.Name -> A.QName -> A.QName
       upd x nm = setRange (getRange x) $ qualify_ $ (qnameName nm) { nameConcrete = x }
