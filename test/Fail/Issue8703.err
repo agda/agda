@@ -1,4 +1,4 @@
-Issue8703.agda:15.11-15: error: [UnequalTerms]
+Issue8703.agda:33.11-15: error: [UnequalTerms]
 The terms
   true
 and
