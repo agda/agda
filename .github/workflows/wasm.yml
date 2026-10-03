@@ -17,7 +17,7 @@ jobs:
       || contains(github.event.pull_request.title, '[wasm]')
       || github.event_name == 'schedule'
       || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
     - if: github.ref != 'refs/heads/master'
       uses: styfle/cancel-workflow-action@0.13.1
