@@ -18,8 +18,11 @@ jobs:
       WIN64_ARGS: --flags=optimise-heavily --enable-split-sections
     runs-on: ${{ matrix.os }}
     steps:
-    - name: Check out the master branch
+    - name: Minimal checkout of the master branch
       uses: actions/checkout@v7
+      with:
+        fetch-depth: 1
+        submodules: false
     - id: vars
       name: Set up build variables
       run: |
@@ -178,9 +181,11 @@ jobs:
     needs: sanity-check
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v7
+    - name: Minimal checkout of the master branch
+      uses: actions/checkout@v7
       with:
-        sparse-checkout: .
+        fetch-depth: 1
+        submodules: false
     - uses: actions/download-artifact@v8
       with:
         path: artifacts
@@ -191,7 +196,7 @@ jobs:
       run: |
         sha=$(git rev-parse --short=7 HEAD)
 
-        git fetch -q origin 'refs/tags/*:refs/tags/*'
+        git fetch --no-recurse-submodules -q origin 'refs/tags/*:refs/tags/*'
         last_tag=$(git tag -l | grep -e '^v[[:digit:]]\+\(\.[[:digit:]]\+\)\{2,\}$' | sort -Vr | head -n 1)
         echo "last_tag  = ${last_tag}"
 
