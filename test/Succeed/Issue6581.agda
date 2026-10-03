@@ -31,5 +31,5 @@ module
   test : Σ A P
   test = primHComp {A = Σ A P} {φ = φ} (λ i .o → uf i o , us i o) (primSubOut u0f , primSubOut u0s)
 
-  _ : f test ≡ primComp (λ _ → A) uf (primSubOut u0f)
+  _ : f test ≡ primHComp uf (primSubOut u0f)
   _ = refl
