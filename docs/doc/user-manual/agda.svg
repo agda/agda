@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="5217px" height="1707px" viewBox="0 0 5217 1707" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 52.6 (67491) - http://www.bohemiancoding.com/sketch -->
+    <title>logotype</title>
+    <desc>Created with Sketch.</desc>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Group" transform="translate(-4781.000000, -4784.000000)">
+            <rect id="white-background" fill="#FFFFFF" x="0" y="0" width="45624" height="78038"></rect>
+            <g id="black-logotypes" transform="translate(4781.000000, 4784.000000)">
+                <g id="logotype" transform="translate(219.000000, 219.000000)">
+                    <g id="logo">
+                        <circle id="left-eye" fill="#000000" cx="240" cy="270" r="27"></circle>
+                        <circle id="right-eye" fill="#000000" cx="340" cy="270" r="27"></circle>
+                        <path d="M1000,0 L600,400" id="wing" stroke="#000000" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <path d="M1200,100 L1000,300" id="tail-middle" stroke="#000000" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <path d="M1200,0 L1000,200" id="tail-top" stroke="#000000" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <path d="M500,0 L300,200" id="head-middle" stroke="#000000" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <path d="M600,0 L400,200" id="head-right" stroke="#000000" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <path d="M400,-2.84217094e-13 L0,400 L200,400 L200,600 C200,820 380,1000 600,1000 C820,1000 1000,820 1000,600 L1000,400 L1200,200" id="body" stroke="#000000" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </g>
+                    <g id="type" transform="translate(1200.000000, 0.000000)" stroke="#000000" stroke-width="36">
+                        <g id="A">
+                            <polyline id="A-body" stroke-linecap="round" stroke-linejoin="round" points="0 1000 1002 -2.27373675e-13 1002 1000"></polyline>
+                            <path d="M360,640.5 L1000.5,640.5" id="A-stroke"></path>
+                        </g>
+                        <g id="g" transform="translate(1140.000000, 280.000000)">
+                            <circle id="g-body" cx="360" cy="360" r="360"></circle>
+                            <path d="M720,0 L720,630 C720,830 560,990 360,990 C225.742948,990 109.510851,917.900176 47.6033734,810.000189" id="g-stroke" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </g>
+                        <g id="d" transform="translate(2000.000000, 0.000000)">
+                            <circle id="d-body" cx="360" cy="640" r="360"></circle>
+                            <path d="M720.5,5.68434189e-14 L720.5,1000" id="d-stroke" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </g>
+                        <g id="a" transform="translate(2860.000000, 280.000000)">
+                            <circle id="a-body" cx="360" cy="360" r="360"></circle>
+                            <path d="M720,0 L720,720" id="a-stroke" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>
