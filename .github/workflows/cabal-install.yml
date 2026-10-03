@@ -25,7 +25,7 @@ jobs:
       FLAGS: -O0 -f enable-cluster-counting
     name: cabal install ${{ matrix.name }}
     needs: auto-cancel
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
     - uses: actions/checkout@v7
     - id: setup-haskell

@@ -38,7 +38,7 @@ jobs:
     timeout-minutes: 60
 
     name: cabal install ${{ matrix.name }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     strategy:
       fail-fast: false
