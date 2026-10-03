@@ -116,6 +116,13 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
+    # ubuntu-26.04 no longer ships the gold linker by default as it is deprecated,
+    # but GHC <= 9.4 still uses it when linking C libraries.
+    # The easiest work around is to install it here.
+    - name: Install gold linker for GHC 9.2 and 9.4
+      if: runner.os == 'Linux' && (env.GHC_VER == '9.2.8' || env.GHC_VER == '9.4.8')
+      run: sudo apt-get install -y binutils-gold
+
     - name: Switch off XDG directories for cabal (Linux)
       if: runner.os == 'Linux'
       run: |
