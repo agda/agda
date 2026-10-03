@@ -538,7 +538,7 @@ library
     , monad-control        >= 1.0.3.1   && < 1.1
     , mtl                  >= 2.2.2     && < 2.4
     , murmur-hash          >= 0.1.0.10  && < 0.2
-    , nonempty-containers  >= 0.3.4.4   && < 0.4
+    , nonempty-containers  >= 0.3.4.4   && < 0.5
     , parallel             >= 3.2.2.0   && < 3.4
     , peano                >= 0.1.0.1   && < 0.2
     , pqueue               >= 1.4.3.0   && < 1.8
@@ -1192,7 +1192,7 @@ executable agda-tests
     , mtl
     , process
     , process-extras
-    , QuickCheck        >= 2.14.3    && < 2.19
+    , QuickCheck        >= 2.14.3    && < 2.20
     , regex-tdfa
     , split
     , tasty             >= 1.4.3     && < 1.6
