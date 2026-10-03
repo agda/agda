@@ -414,8 +414,11 @@ ECOSYSTEM_DIR = $(TOP)/ecosystem
 ecosystem_update       = git submodule update --init --checkout          $(ECOSYSTEM_DIR)/$(1)
 ecosystem_fast_forward = git submodule update --init --checkout --remote $(ECOSYSTEM_DIR)/$(1)
 
-.PHONY : ecosystem ## Update all the ecosystem libraries.
+.PHONY : ecosystem ## Install all the ecosystem libraries.
 ecosystem : agda-categories agda-unimath plfa TypeTopology
+
+.PHONY: fast-forward-ecosystem ## Update all the ecosystem libraries.
+fast-forward-ecosystem : fast-forward-agda-categories fast-forward-agda-unimath fast-forward-plfa fast-forward-TypeTopology
 
 #### agda-categories ####
 
