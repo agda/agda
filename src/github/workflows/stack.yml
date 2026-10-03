@@ -80,6 +80,13 @@ jobs:
     # because it provides the stack-*.yaml file.
     - uses: actions/checkout@v7
 
+    # ubuntu-26.04 no longer ships the gold linker by default as it is deprecated,
+    # but GHC <= 9.4 still uses it when linking C libraries.
+    # The easiest work around is to install it here.
+    - name: Install gold linker for GHC 9.2 and 9.4
+      if: runner.os == 'Linux' && (matrix.ghc-ver == '9.2.8' || matrix.ghc-ver == '9.4.8')
+      run: sudo apt-get install -y binutils-gold
+
     - uses: haskell-actions/setup@v2
       id: haskell-setup
       with:

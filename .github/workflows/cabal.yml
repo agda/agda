@@ -30,6 +30,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v7
+    - if: runner.os == 'Linux' && (env.GHC_VER == '9.2.8' || env.GHC_VER == '9.4.8')
+      name: Install gold linker for GHC 9.2 and 9.4
+      run: sudo apt-get install -y binutils-gold
     - if: runner.os == 'Linux'
       name: Switch off XDG directories for cabal (Linux)
       run: |
