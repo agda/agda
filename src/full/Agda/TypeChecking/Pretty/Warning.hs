@@ -335,7 +335,7 @@ prettyWarning = \case
 
     UnusedImports m (Just xs) -> fsep $
       [ "Opening", prettyTCM m ] ++ pwords "brings the following unused names into scope:"
-      ++ fmap prettyTCM (List1.toList xs)
+      ++ fmap pretty (List1.toList xs)
 
     UselessPragma _r d -> return d
 

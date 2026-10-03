@@ -42,7 +42,7 @@ import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) ,DeclarationWar
   -- TODO: move the relevant warnings out of there
 import Agda.Syntax.Scope.Base as A
 import Agda.Syntax.Scope.State
-import Agda.Syntax.Scope.UnusedImports (registerModuleOpening)
+import Agda.Syntax.Scope.UnusedImports (lookedupModule, registerModuleOpening)
 
 import Agda.TypeChecking.Monad.Base as I
 import Agda.TypeChecking.Monad.Builtin
@@ -416,11 +416,14 @@ canHaveSuffixTest = do
   return $ \x -> Just x `elem` [builtinProp, builtinSet, builtinSSet, builtinPropOmega, builtinSetOmega, builtinSSetOmega]
 
 -- | Look up a module in the scope.
+--   Marks the module as used for the unused-imports analysis.
 resolveModule :: C.QName -> ScopeM AbstractModule
 resolveModule x = do
   ms <- scopeLookup x <$> getScope
   caseMaybe (nonEmpty ms) (typeError $ NoSuchModule x) $ \ case
-    AbsModule m why :| [] -> return $ AbsModule (m `withRangeOf` x) why
+    AbsModule m why :| [] -> do
+      let am = AbsModule (m `withRangeOf` x) why
+      am <$ lookedupModule x am
     ms                    -> typeError $ AmbiguousModule x (fmap amodName ms)
 
 -- | Get the fixity of a not yet bound name.

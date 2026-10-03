@@ -308,11 +308,15 @@ Errors
 Warnings
 --------
 
-* New warning `UnusedImports` when `open` brings identifiers into scope
+* New warning `UnusedImports` when `open` brings identifiers or modules into scope
   that are definitely not used subsequently.
+  A module counts as used if it is referred to,
+  e.g. in a qualified name `M.x`, in `open M`, or in `module N = M`.
 
   If `using` or `renaming` directives are given, or in flavor `-WUnusedImports=all`,
-  Agda warns about each name that is unused.
+  Agda warns about each name and module that is unused,
+  except for modules of data and record types that are not mentioned
+  explicitly in the directive.
   If no directive or only a `hiding` directive is given,
   and unless the flavor is `all`,
   Agda only warns if none of the imported names are used.

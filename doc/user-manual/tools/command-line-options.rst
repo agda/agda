@@ -2201,9 +2201,13 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      .. versionadded:: 2.9.0
 
-     Warn about openings of modules that do not bring identifiers into scope that are subsequently used.
+     Warn about openings of modules that do not bring identifiers or modules into scope that are subsequently used.
+     A module is used if it is referred to, e.g. as qualifier ``M`` in a qualified name ``M.x``,
+     or in ``open M``, or in a module application ``module N = M``.
      If the ``open`` comes with an explicit ``using`` or ``renaming`` directive,
-     warn about individual unused identifiers (typically those mentioned in the directive).
+     warn about individual unused identifiers and modules (typically those mentioned in the directive).
+     The modules of data and record types are not reported individually
+     unless they are mentioned explicitly in the directive.
      There is no warning about ``public`` openings.
      In the presence of option:`--no-qualified-instances`,
      there are also no warnings about unused instances brought into scope.
