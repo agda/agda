@@ -821,6 +821,11 @@ js-compiler-test :
 	@$(call decorate, "JS Compiler tests", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler/JS_MinifiedOptimized --regex-exclude AllStdLib)
 
+.PHONY : js-compiler-test-non-optimized ##
+js-compiler-test-non-optimized :
+	@$(call decorate, "JS Compiler tests", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler/JS_NonOptimized --regex-exclude AllStdLib)
+
 .PHONY : std-lib-compiler-test ##
 std-lib-compiler-test :
 	@$(call decorate, "Standard library compiler tests", \

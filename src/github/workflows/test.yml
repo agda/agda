@@ -91,7 +91,7 @@ jobs:
       || github.event_name == 'schedule'
       || github.event_name == 'workflow_dispatch'
 
-    runs-on: &runs_on ubuntu-24.04
+    runs-on: &runs_on ubuntu-26.04
 
     steps:
     - name: Info about the context

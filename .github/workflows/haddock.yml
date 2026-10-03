@@ -65,7 +65,7 @@ jobs:
         ghc-ver:
         - 9.14.1
         os:
-        - ubuntu-24.04
+        - ubuntu-26.04
 name: Haddock
 'on':
   pull_request:
