@@ -701,6 +701,13 @@ Interaction and emacs mode
   - `Mimer` responses now include the `interactionPoint` the solution
     refers to.
 
+* Proof search (Mimer, `C-c C-a` in Emacs) now also uses functions
+  defined in the same `mutual` block as the function being defined,
+  without having to give them as hints.
+  As for recursive calls to the function itself, they are only applied
+  to structurally smaller arguments
+  (Issue [#8783](https://github.com/agda/agda/issues/8783)).
+
 * Syntax highlighting and go-to-definition now also works in the Agda
   information and debug buffers in Emacs where goals etc. are displayed.
   This fixes long-standing [Issue #706](https://github.com/agda/agda/issues/706).
