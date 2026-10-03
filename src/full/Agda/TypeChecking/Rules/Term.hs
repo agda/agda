@@ -60,6 +60,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting (checkEquationValid, checkLocalRewriteRule)
 import Agda.TypeChecking.Rules.LHS
+import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Sort
@@ -879,7 +880,7 @@ checkAbsurdLambda cmp i h e t =
         if not (sameHiding h info') then
           typeError $ WrongHidingInLambda t'
         else blockTerm t' $ do
-          ensureEmptyType (getRange i) a
+          checkAbsurdPattern (Absurd (getRange i) a)
           -- Add helper function
           aux <- makeAbsurdLambda (getRange i) a b
           -- Andreas 2012-01-30: since aux is lifted to toplevel
