@@ -355,18 +355,31 @@ flexibly :: OccursM a -> OccursM a
 flexibly = local $ set lensFlexRig $ Flexible ()
 
 -- ** Managing modality during occurs check.
--- | Updates both the 'feModality' and the modalities of each variable
--- in the 'occVars'/'occLocalModalities'.
+--
+-- The variables are checked as the type checker checks them (see
+-- 'Agda.TypeChecking.Rules.Application.inferHead'): the modalities in
+-- 'occVars' and 'occLocalModalities' are relative to the current position,
+-- divided by the modality of every position we descend into, and must be
+-- usable there.  Only the 'Quantity' is absolute: division leaves it alone,
+-- and it is compared against the one in 'occModality'.
+
+-- | Divide the modalities of all variables by the given modality,
+--   as 'applyModalityToContext' does.
+{-# INLINE divideVars #-}
+divideVars :: Modality -> OccursCxt -> OccursCxt
+divideVars mod e
+  | mod == unitModality = e
+  | otherwise = e
+      { occVars            = mapVarMap (fmap (inverseApplyModalityButNotQuantity mod)) (occVars e)
+      , occLocalModalities = map (inverseApplyModalityButNotQuantity mod) (occLocalModalities e)
+      }
+
+-- | Going into an argument of the given modality.
+--   Updates both the 'occModality' and the modalities of each variable.
 {-# INLINE occUnderArgModality #-}
 occUnderArgModality :: Modality -> OccursM a -> OccursM a
-occUnderArgModality mod = local \e -> e
-  { occModality = composeModality mod (occModality e)
-  , occVars     = if mod == unitModality then occVars e
-                  else mapVarMap (fmap (inverseApplyModalityButNotQuantity mod)) (occVars e)
-  , occLocalModalities
-                = if mod == unitModality then occLocalModalities e
-                  else map (inverseApplyModalityButNotQuantity mod) (occLocalModalities e)
-  }
+occUnderArgModality mod = local \e -> divideVars mod e
+  { occModality = composeModality mod (occModality e) }
 
 {-# INLINE debugModalities #-}
 debugModalities :: OccursM ()
@@ -421,25 +434,41 @@ metaOccurs3 m x y z = metaOccurs m x >> metaOccurs m y >> metaOccurs m z
 
 -- | Going under a binder.
 --
---   Issue #8775 + #8784.
---   The ascribed modality of the new local variable has to be relative to the
---   position the binder sits in, just like the modalities in 'occVars', which
---   'occUnderArgModality' divides by the modality of every argument it descends
---   into.  A binder introduced *inside* an erased or flat argument is usable
---   there, so we compose with the ambient modality and divide it out again,
---   which puts the binder on the same footing as a free variable.
+--   Issues #8775 , #8784 and #8793.
+--   The new local variable gets the modality ascribed by its binder, which is
+--   relative to the position the binder sits in, like the modalities of the
+--   other variables.  Only its quantity is composed with the ambient one,
+--   since quantities are absolute (a variable bound in an erased position is
+--   itself erased, cf. the LAM rule in Conor McBride's
+--   I got plenty o' nuttin', Wadlerfest 2016).
 {-# INLINE underBinder #-}
 underBinder :: Modality -> OccursM z -> OccursM z
 underBinder mod = local \e ->
-  let amb  = occModality e
-      mod' = inverseApplyModalityButNotQuantity amb (composeModality amb mod)
-  in e { occLocals = occLocals e + 1
-       , occLocalModalities = mod' : occLocalModalities e }
+  e { occLocals = occLocals e + 1
+    , occLocalModalities =
+        mapQuantity (composeQuantity (getQuantity (occModality e))) mod
+          : occLocalModalities e
+    }
+
+-- | Going under the binder of a 'Pi' (or 'PiSort'): its codomain is a type,
+--   so the type checker makes the bound variable usable at any polarity,
+--   and, with @--experimental-irrelevance@, shape-irrelevant if it was
+--   irrelevant (see @modMod PiNotLam@ in
+--   'Agda.TypeChecking.Rules.Term.checkTypedBindings').
+--   We do the latter regardless of the option: the use of a local variable
+--   was already checked when the solution was type checked.
+{-# INLINE underPiBinder #-}
+underPiBinder :: Modality -> OccursM z -> OccursM z
+underPiBinder = underBinder
+  . mapRelevance irrelevantToShapeIrrelevant
+  . inverseApplyPolarity (withStandardLock UnusedPolarity)
 
 -- | Changing the 'Relevance'.
 {-# INLINE underRelevance #-}
 underRelevance :: (LensRelevance o) => o -> OccursM z -> OccursM z
-underRelevance = local . mapRelevance . composeRelevance . getRelevance
+underRelevance o = local \e -> divideVars (setRelevance r unitModality) $
+    mapRelevance (composeRelevance r) e
+  where r = getRelevance o
 
 -- | In the given computation the 'Quantity' is locally scaled using
 -- the 'Quantity' of the first argument.
@@ -453,11 +482,13 @@ variableCheck :: Int -> OccursM Bool
 variableCheck i = do
   locals <- asks occLocals
   -- For bound variables, check if they are usable in current modality
+  -- The modalities of the variables have been divided on the way down,
+  -- so they have to be usable, except for the quantity, which is absolute.
+  required <- asks \e -> setQuantity (getQuantity (occModality e)) unitModality
   if i < locals then do
-    currentMod <- asks occModality
     localMods <- asks occLocalModalities
     let mod = indexWithDefault __IMPOSSIBLE__ localMods i
-    pure $! mod `moreUsableModality` currentMod
+    pure $! mod `moreUsableModality` required
   else do
     vars <- asks occVars
     case lookupVarMap (i - locals) vars of
@@ -465,9 +496,8 @@ variableCheck i = do
       Nothing -> pure False
       -- otherwise check the usability of modality
       Just o -> do
-        currentMod <- asks occModality
         let !mod = getModality o
-        pure $! mod `moreUsableModality` currentMod
+        pure $! mod `moreUsableModality` required
 
 
 -- | When assigning @m xs := v@, check that @m@ does not occur in @v@
@@ -480,7 +510,8 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
   let initCxt unf = OccursCxt
        { occUnfold = unf
        , occMeta   = m
-       , occVars   = xs
+         -- The solution is checked at the meta's modality, so divide by it.
+       , occVars   = mapVarMap (fmap (inverseApplyModalityButNotQuantity (getModality mv))) xs
        , occRHS    = v
        , occLocals = 0
        , occModality = getModality mv
@@ -563,7 +594,7 @@ instance Occurs Term where
           Con c ci vs -> ret do
             definitionCheck (conName c)
             Con c ci <$> conArgs vs (occurs vs)  -- if strongly rigid, remain so, except with unreduced IApply arguments.
-          Pi a b      -> ret $ Pi <$> occurs a <*> occursInAbs (getModality a) b
+          Pi a b      -> ret $ Pi <$> occurs a <*> occursInPiAbs (getModality a) b
           Sort s      -> ret $ Sort <$> do underRelevance shapeIrrelevant $ occurs_ s
           MetaV m' es -> ret do
             m' <- metaCheck m'
@@ -679,8 +710,8 @@ instance Occurs Sort where
     unfold s >>= \case
       PiSort a s1 s2 -> do
         s1' <- flexibly $ occurs_ s1
-        a'  <- (a $>) <$> do flexibly $ occurs (unDom a)
-        s2' <- mapAbstraction (El s1' <$> a') (flexibly . underBinder (getModality a) . occurs_) s2
+        a'  <- flexibly $ occurs a
+        s2' <- mapAbstraction (El s1' <$> a') (flexibly . underPiBinder (getModality a) . occurs_) s2
         return $ PiSort a' s1' s2'
       FunSort s1 s2 -> FunSort <$> flexibly (occurs_ s1) <*> flexibly (occurs_ s2)
       Univ u a -> do
@@ -751,6 +782,10 @@ occursInAbs :: (Occurs a, Subst a) => Modality -> Abs a -> OccursM (Abs a)
 occursInAbs mod (NoAbs s x) = NoAbs s <$> occurs x
 occursInAbs mod x           = mapAbstraction_ (underBinder mod . occurs) x
 
+occursInPiAbs :: (Occurs a, Subst a) => Modality -> Abs a -> OccursM (Abs a)
+occursInPiAbs mod (NoAbs s x) = NoAbs s <$> occurs x
+occursInPiAbs mod x           = mapAbstraction_ (underPiBinder mod . occurs) x
+
 metaOccursInAbs :: Occurs a => MetaId -> Abs a -> TCM ()
 metaOccursInAbs m (Abs _ x)   = metaOccurs m x
 metaOccursInAbs m (NoAbs _ x) = metaOccurs m x
@@ -767,8 +802,11 @@ instance Occurs a => Occurs (Arg a) where
 
 instance Occurs a => Occurs (Dom a) where
   occurs :: Dom a -> OccursM (Dom a)
+  -- As in 'Agda.TypeChecking.Rules.Term.checkTypedBindings': the domain is
+  -- checked at the binder's quantity and cohesion, in negative position.
   occurs (Dom info n f t r x) =
-    Dom info n f t r <$> underQuantity info (occurs x)
+    Dom info n f t r <$> underQuantity info (local (divideVars domMod) $ occurs x)
+    where domMod = setCohesion (getCohesion info) $ setModalPolarity negativePolarity unitModality
 
 ---------------------------------------------------------------------------
 -- * Pruning: getting rid of flexible occurrences.
