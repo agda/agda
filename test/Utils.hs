@@ -324,7 +324,9 @@ cleanOutput' agda pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
       , ("/[^ ]*/MAlonzo/Code/", "«path»/MAlonzo/Code/")
       , ("\\.hs(:[[:digit:]]+){2}", ".hs:«line»:«col»")
       -- Strip NodeJS stack trace & version
-      , ("at .+[(]node:internal[^)]+[)]", "at «NodeJS internals»")
+      -- , ("at .+[(]node:internal[^)]+[)]", "at «NodeJS internals»")
+      , ("at .+node:internal[^ ]+", "at «NodeJS internals»")
+          -- Andreas, 2026-10-03, also e.g. "at async node:internal/modules/esm/loader:647:26"
       , ("Node[.]js v[0-9.]+", "Node.js «NodeJS version»")
       , (T.pack Agda.Version.package, "«Agda-package»")
       -- Andreas, 2021-08-26.  When run with 'cabal test',
