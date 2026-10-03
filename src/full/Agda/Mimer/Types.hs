@@ -105,6 +105,8 @@ data BaseComponents = BaseComponents
   , hintProjections :: [Component]
   -- ^ Variables that are candidates for arguments to recursive calls
   , hintThisFn :: Maybe Component
+  , hintMutualFns :: [Component]
+  -- ^ Functions mutually defined with the one we are defining (#8783).
   , hintLetVars :: [Open Component]
   , hintRecVars :: Open [(Term, NoSubst Term Int)] -- ^ Variable terms and which argument they come from
   }
@@ -119,13 +121,31 @@ data Component = Component
   , compPars  :: Nat -- ^ How many arguments should be dropped (e.g. constructor parameters)
   , compTerm  :: Term
   , compType  :: Type
-  , compRec   :: Bool -- ^ Is this a recursive call
+  , compRec   :: RecCall -- ^ Is this a (mutually) recursive call?
   , compMetas :: [MetaId]
   , compCost  :: Cost
   }
   deriving (Eq, Generic)
 
 instance NFData Component
+
+-- | Is a component a call to the function we are defining
+--   or a function mutually defined with it?
+--   Such calls are only generated with structurally smaller arguments.
+data RecCall
+  = NotRecCall
+      -- ^ Not a recursive call.
+  | SelfCall
+      -- ^ Recursive call to the function we are defining.
+      --   An argument needs to be structurally smaller than the parameter
+      --   in the same position.
+  | MutualCall
+      -- ^ Call to a function mutually defined with the one we are defining (#8783).
+      --   As arguments of different functions need not correspond by position,
+      --   we accept any structurally smaller variable in any position.
+  deriving (Eq, Show, Generic)
+
+instance NFData RecCall
 
 -- TODO: Is this reasonable?
 instance Ord Component where
@@ -138,7 +158,7 @@ mkComponent cId metaIds cost mName pars term typ = Component
   , compPars  = pars
   , compTerm  = term
   , compType  = typ
-  , compRec   = False
+  , compRec   = NotRecCall
   , compMetas = metaIds
   , compCost  = cost }
 
@@ -283,6 +303,7 @@ instance PrettyTCM BaseComponents where
            , f "hintLevel" (hintLevel comps)
            , f "hintProjections" (hintProjections comps)
            , "hintThisFn:" <+> thisFn
+           , f "hintMutualFns" (hintMutualFns comps)
            , g prettyOpenComp "hintLetVars" (hintLetVars comps)
            , "hintRecVars: Open" <+> pretty (second unNoSubst <$> openThing (hintRecVars comps))
            ]

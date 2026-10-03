@@ -63,6 +63,7 @@ import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Maybe (catMaybes)
 import Agda.Utils.Monad (concatMapM, ifM, whenM)
 import Agda.Utils.Null
+import Agda.Utils.Singleton
 import Agda.Utils.Tuple (first, second)
 import Agda.Utils.Time (measureTime, getCPUTime, fromMilliseconds)
 
@@ -71,7 +72,7 @@ import Data.IORef (readIORef)
 import Agda.Interaction.Base (Rewrite(..))
 import Agda.Interaction.BasicOps (normalForm)
 
-import Agda.Mimer.Types (MimerResult(..), BaseComponents(..), Component(..),
+import Agda.Mimer.Types (MimerResult(..), BaseComponents(..), Component(..), RecCall(..),
                          SearchBranch(..), SearchStepResult(..), SearchOptions(..),
                          Goal(..), Costs(..), goalMeta, deleteCompMeta,
                          incRefineFail, incRefineSuccess, incCompRegen, incCompNoRegen,
@@ -318,7 +319,7 @@ genComponents = do
   localVars <- lift (getLocalVars n (costLocal $ searchCosts opts))
     >>= genAddSource (searchGenProjectionsLocal opts)
   reportSDoc "mimer.components" 25 $ "  localVars = " <+> pretty localVars
-  recCalls <- genAddSource (searchGenProjectionsRec opts) (maybeToList $ hintThisFn comps)
+  recCalls <- genAddSource (searchGenProjectionsRec opts) (maybeToList (hintThisFn comps) ++ hintMutualFns comps)
   reportSDoc "mimer.components" 25 $ "  recCalls = " <+> pretty recCalls
   letVars <- mapM getOpenComponent (hintLetVars comps)
     >>= genAddSource (searchGenProjectionsLet opts)
@@ -338,8 +339,10 @@ genComponentsFrom :: Bool -- ^ Apply record elimination
                   -> SM [Component]
 genComponentsFrom appRecElims origComp = do
   reportSDoc "mimer.components" 50 $ "Generating components from original component" <+> prettyTCM (compId origComp) <+> prettyTCM (compName origComp)
-  comps <- if | compRec origComp -> mapM (applyToMetasG Nothing) =<< genRecCalls origComp
-              | otherwise        -> (:[]) <$> applyToMetasG Nothing origComp
+  comps <- if | compRec origComp /= NotRecCall
+                  -> mapM (applyToMetasG Nothing) =<< genRecCalls origComp
+              | otherwise
+                  -> singleton <$> applyToMetasG Nothing origComp
   if appRecElims
   then concat <$> mapM (applyProjections Set.empty) comps
   else return comps
@@ -377,7 +380,11 @@ genRecCalls thisFn = do
       localVars <- lift $ getLocalVars n costLocal
       let recCands = [ (t, i) | t@(compTerm -> v@Var{}) <- localVars, NoSubst i <- maybeToList $ lookup v recCandTerms ]
 
-      let newRecCall = do
+      -- For a mutual call, argument positions need not correspond (#8783).
+      let isMutualCall = compRec thisFn == MutualCall
+          samePos i j  = isMutualCall || i == j
+
+          newRecCall = do
             -- Apply the recursive call to new metas
             (thisFnTerm, thisFnType, newMetas) <- lift $ applyToMetas 0 (compTerm thisFn) (compType thisFn)
             let argGoals = map Goal newMetas
@@ -390,7 +397,7 @@ genRecCalls thisFn = do
           --   -> SM [Component]
           go _thisFn [] _args = return []
           go thisFn (_ : goals) [] = go thisFn goals recCands
-          go thisFn ((goal, i) : goals) ((arg, j) : args) | i == j = do
+          go thisFn ((goal, i) : goals) ((arg, j) : args) | samePos i j = do
             reportSMDoc "mimer.components.rec" 80 $ hsep
               [ "Trying to generate recursive call"
               , prettyTCM (compTerm thisFn)

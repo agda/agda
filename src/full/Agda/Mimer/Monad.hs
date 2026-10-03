@@ -13,6 +13,7 @@ import Data.Map qualified as Map
 import Data.List qualified as List
 import Data.List.NonEmpty qualified as NonEmptyList (head)
 import Data.Maybe
+import Data.Set qualified as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty qualified as P
@@ -268,15 +269,23 @@ collectComponents opts costs ii mDefName whereNames metaId = do
         , hintAxioms = []
         , hintLevel = []
         , hintThisFn = Nothing
+        , hintMutualFns = []
         , hintRecVars = recVars
         , hintLetVars = letVars
         }
+
+  -- Names in the same (syntactic) mutual block as the function we are defining (#8783).
+  mutualBlockNames <- case mDefName of
+    Nothing -> return Set.empty
+    Just defName -> do
+      mid <- defMutual <$> getConstInfo defName
+      if mid == 0 then return Set.empty else mutualNames <$> lookupMutualBlock mid
 
   -- Extract additional components from the names given as hints.
   hintNames <- getEverythingInScope <$> lookupLocalMeta metaId
   isToLevel <- endsInLevelTester
   scope <- getScope
-  components' <- foldM (go isToLevel scope) components $
+  components' <- foldM (go isToLevel scope mutualBlockNames) components $
     explicitHints ++ (hintNames List.\\ explicitHints)
 
   return BaseComponents
@@ -287,6 +296,7 @@ collectComponents opts costs ii mDefName whereNames metaId = do
     , hintAxioms = doSort $ hintAxioms components'
     , hintLevel = doSort $ hintLevel components'
     , hintThisFn = hintThisFn components'
+    , hintMutualFns = hintMutualFns components'
     , hintRecVars = recVars
     , hintLetVars = letVars
     }
@@ -296,11 +306,17 @@ collectComponents opts costs ii mDefName whereNames metaId = do
     -- Sort by the arity of the type
     doSort = List.sortOn (arity . compType)
 
-    isNotMutual qname f = case mDefName of
-      Nothing -> True
-      Just defName -> defName /= qname && fmap (defName `elem`) (funMutual f) /= Just True
+    -- A function is mutual with the one we are defining if it is in the
+    -- same recursive group (computed by the positivity checker), or if it
+    -- is declared in the same mutual block and not a local helper in a @where@.
+    isMutual mutualBlockNames qname f = case mDefName of
+      Nothing -> False
+      Just defName -> defName /= qname && or
+        [ fmap (defName `elem`) (funMutual f) == Just True
+        , qname `Set.member` mutualBlockNames && qname `notElem` whereNames
+        ]
 
-    go isToLevel scope comps qname = do
+    go isToLevel scope mutualBlockNames comps qname = do
         def <- getConstInfo qname
         let typ = defType def
         case theDef def of
@@ -309,12 +325,13 @@ collectComponents opts costs ii mDefName whereNames metaId = do
             | shouldKeep    -> addAxiom
             | otherwise     -> done
           -- We can't use pattern lambdas as components nor with-functions.
-          -- If the function is in the same mutual block, do not include it.
+          -- If the function is in the same mutual block, we only call it
+          -- with structurally smaller arguments, like the function itself (#8783).
           f@Function{ funWith = NoWithFunction, funExtLam = Nothing }
-            | Just qname == mDefName   -> addThisFn
-            | notMutual, isToLevel typ -> addLevel
-            | notMutual, shouldKeep    -> addFn
-            where notMutual = isNotMutual qname f
+            | Just qname == mDefName -> addThisFn
+            | isMutual mutualBlockNames qname f -> addMutualFn
+            | isToLevel typ  -> addLevel
+            | shouldKeep     -> addFn
           Function{} -> done
           Datatype{} -> addData
           Record{} -> do
@@ -348,11 +365,12 @@ collectComponents opts costs ii mDefName whereNames metaId = do
                 Module      -> Just (qnameModule qname) == mThisModule
                 NoHints     -> False
             ]
-          addLevel  = qnameToComponent (costLevel   costs) qname <&> \ comp -> comps{hintLevel     = comp : hintLevel  comps}
-          addAxiom  = qnameToComponent (costAxiom   costs) qname <&> \ comp -> comps{hintAxioms    = comp : hintAxioms comps}
-          addThisFn = qnameToComponent (costRecCall costs) qname <&> \ comp -> comps{hintThisFn    = Just comp{ compRec = True }}
-          addFn     = qnameToComponent (costFn      costs) qname <&> \ comp -> comps{hintFns       = comp : hintFns comps}
-          addData   = qnameToComponent (costSet     costs) qname <&> \ comp -> comps{hintDataTypes = comp : hintDataTypes comps}
+          addLevel    = qnameToComponent (costLevel   costs) qname <&> \ comp -> comps{hintLevel     = comp : hintLevel  comps}
+          addAxiom    = qnameToComponent (costAxiom   costs) qname <&> \ comp -> comps{hintAxioms    = comp : hintAxioms comps}
+          addThisFn   = qnameToComponent (costRecCall costs) qname <&> \ comp -> comps{hintThisFn    = Just comp{ compRec = SelfCall }}
+          addMutualFn = qnameToComponent (costRecCall costs) qname <&> \ comp -> comps{hintMutualFns = comp{ compRec = MutualCall } : hintMutualFns comps}
+          addFn       = qnameToComponent (costFn      costs) qname <&> \ comp -> comps{hintFns       = comp : hintFns comps}
+          addData     = qnameToComponent (costSet     costs) qname <&> \ comp -> comps{hintDataTypes = comp : hintDataTypes comps}
 
 
 qnameToComponent :: (HasConstInfo tcm, ReadTCState tcm, MonadFresh CompId tcm)
