@@ -11,7 +11,7 @@ import Control.Monad ((>=>))
 import Data.List (isSuffixOf, singleton)
 import Data.Text (Text)
 import Test.Tasty (TestTree)
-import System.FilePath (FilePath, dropFileName, takeBaseName, (</>), (-<.>))
+import System.FilePath (FilePath, dropFileName, takeFileName, (</>))
 import System.Directory (listDirectory, doesFileExist, getCurrentDirectory)
 import Data.Maybe (fromMaybe)
 
@@ -24,6 +24,7 @@ import qualified Test.Tasty.Silver.Advanced as Tasty
 import qualified Utils
 
 import Utils (readAgdaProcessWithExitCode, getAgdaFilesInDir, pattern Rec, readFileMaybeText, writeTextFile, textDiffWithTouch, textDiff, runAgdaWithOptions, readAgdaProcessWithCWD)
+import Agda.Interaction.FindFile (dropAgdaExtension)
 import Agda.Utils.Monad (filterM)
 
 testDir :: FilePath
@@ -45,6 +46,12 @@ getSimplyTestableAgdaFiles dir = filterM isSimple =<< getAgdaFilesInDir Rec dir
   isSimple fp = (&&)
     <$>          doesFileExist (fp -<.> "in")
     <*> (not <$> doesFileExist (fp -<.> "sh"))
+
+-- | Replace the Agda extension of a file path by the given extension.
+--   Unlike 'System.FilePath.-<.>', this also handles composite
+--   (literate) extensions like @.lagda.md@ (issue #6705).
+(-<.>) :: FilePath -> String -> FilePath
+fp -<.> ext = dropAgdaExtension fp ++ "." ++ ext
 
 -- | Helper: call out to `sed` for string operation
 sed :: String -> Text -> IO Text
@@ -96,7 +103,7 @@ filterOutput dir = let  in
 mkSimpleTest :: FilePath -> TestTree
 mkSimpleTest agdaFile =
     Tasty.goldenTestIO1
-      (takeBaseName agdaFile)
+      (dropAgdaExtension $ takeFileName agdaFile)
       (readFileMaybeText (agdaFile -<.> "out"))
       runTest
       (textDiffWithTouch agdaFile)
