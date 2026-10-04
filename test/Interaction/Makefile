@@ -94,25 +94,14 @@ cleanup_QuickLaTeX-Caching = rm -rf latex
 # No recorded output
 ########################################################################
 
-# Andreas, 2017-01-27, issue #2438
-# The following rule does not work on my system.
-#
-#   $(OutFiles) : %.out : $(wildcard %.agda %.lagda) $(wildcard %.in %.in_ghci)
-#
-# According to the gnu-make manual, the wildcard command matches
-# immediately, but files like %.agda or %.lagda is not what we are looking for.
-# It would work if pattern matching (%) is done first.
-#
-# However, we can use second expansion, following
-# http://make.mad-scientist.net/secondary-expansion/.
-# The evaluation of the automatic variable $@ is first delayed,
-# such that it remains as literal string.
-# After the pattern matches, and $@ is instantiated to the stem of the target
-# say Issue123, we force evaluation of Issue123*.agda which gives us
-# the .agda or .lagda file.
+# Andreas, 2026-10-04
+# Only create .out file without interaction if none is present.
+# (This was the status quo, but only due to a bug in the SECONDEXPANSION
+# contraption originally introduced in 2a429b2, which left the list of
+# prerequisites empty.)
+# Note: I think "$(@:.out=.FOO)" is just fancy syntax for "$*.FOO" here.
 
-.SECONDEXPANSION:
-$(OutFiles) : %.out : $$($$@.*agda) $$($$@.in $$@.hs $$@.sh)
+$(OutFiles) : %.out :
 	@-mkdir -p $(TMPDIR)
 	@$(setup_$*)
 	@rm -f "$(@:.out=.agdai)"
