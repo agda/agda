@@ -1,0 +1,1 @@
+(agda2-highlight-add-annotations 'remove '(1 27 (background) t) '(27 28 (background) t) '(28 32 (background) t) '(32 33 (background) t) '(33 41 (markup) t) '(41 50 (keyword) t) '(53 54 (symbol) t) '(59 63 (markup) t))
