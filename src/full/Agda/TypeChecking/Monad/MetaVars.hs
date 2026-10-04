@@ -494,7 +494,14 @@ createMetaInfo' b = do
   r        <- getCurrentRange
   cl       <- buildClosure r
   gen      <- viewTC eGeneralizeMetas
-  modality <- currentModality
+  -- Andreas, 2026-10-03, issue #8171.
+  -- The polarity of the current position is not tracked in the environment;
+  -- instead, the context is divided by the polarity of each argument we enter.
+  -- Thus, relative to its context, a meta always sits at the unit polarity (@++),
+  -- not at the 'defaultPolarity' (mixed) supplied by 'currentModality'.
+  -- Otherwise, the occurs check, which divides the variables by the meta's
+  -- modality, rejects solutions mentioning variables of non-mixed polarity.
+  modality <- setModalPolarity unitPolarity <$> currentModality
   return MetaInfo
     { miClosRange       = cl
     , miModality        = modality

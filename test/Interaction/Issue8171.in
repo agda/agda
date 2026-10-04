@@ -1,0 +1,5 @@
+top_command (cmd_load currentFile [])
+goal_command 0 cmd_give "D⟦ d₁ ⟧ ρ X ⊎ D⟦ d₂ ⟧ ρ X"
+goal_command 1 cmd_give "Σ (⟦ a ⟧ ρ) λ v → D⟦ d ⟧ (ρ > v) X"
+goal_command 2 cmd_give "Σ X λ _ → D⟦ d ⟧ ρ X"
+goal_command 3 cmd_give "Σ ((v : ⟦ b ⟧ ρ) → X) λ _ → D⟦ d ⟧ ρ X"
