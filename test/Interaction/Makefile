@@ -34,13 +34,17 @@ clean=/usr/bin/env bash $(shell pwd)/clean.sh $(SED)
 
 # Construct the list of tests to carry out.
 # Andreas, 2017-04-24 ls -t: sort by newest first
-AgdaFiles=$(shell ls -t *agda)
+# Andreas, 2026-10-04, issue #6705: also literate extensions like .lagda.md.
+# All Agda file extensions are .agda or start with .lagda.
+AgdaFiles=$(shell ls -t *.agda *.lagda *.lagda.* 2>/dev/null)
+# Shell snippet: strip the Agda extension from $$file, giving $$base.
+strip_agda_ext=base=$${file%.lagda*}; base=$${base%.agda}
 # Lawrence, 2025-04-13: skip files with .in
 # (these now have a tasty test runner),
 # unless they have a .sh file
-AgdaFilesWithoutIn=$(shell for file in $(AgdaFiles); do (test ! -f $${file%.*}.in || test -f $${file%.*}.sh) && echo $$file; done)
-OutFiles=$(patsubst %.lagda,%.out,$(patsubst %.agda,%.out,$(AgdaFilesWithoutIn)))
-Tests=$(patsubst %.lagda,%.cmp,$(patsubst %.agda,%.cmp,$(AgdaFilesWithoutIn)))
+AgdaBasesWithoutIn=$(shell for file in $(AgdaFiles); do $(strip_agda_ext); (test ! -f $$base.in || test -f $$base.sh) && echo $$base; done)
+OutFiles=$(addsuffix .out,$(AgdaBasesWithoutIn))
+Tests=$(addsuffix .cmp,$(AgdaBasesWithoutIn))
 
 default : $(Tests)
 
@@ -134,7 +138,7 @@ $(Tests) : %.cmp : %.out
 	@if diff -q -b $*.out $*.tmp; \
 		then rm -f $*.tmp; true; \
 		else \
-			touch -c $*.*agda; \
+			touch -c $*.agda $*.lagda $*.lagda.*; \
 			echo "=== Old output ==="; \
 			cat $*.out; \
 			echo "=== New output ==="; \
@@ -168,7 +172,7 @@ debug:
 	@echo "filter             = $(filter)"
 	@echo "run_test           = $(run_test)"
 	@echo "AgdaFiles          = $(AgdaFiles)"
-	@echo "AgdaFilesWithoutIn = $(AgdaFilesWithoutIn)"
+	@echo "AgdaBasesWithoutIn = $(AgdaBasesWithoutIn)"
 	@echo "OutFiles           = $(OutFiles)"
 	@echo "Tests              = $(Tests)"
 	@echo "AGDA_OPT           = $(AGDA_OPT)"
