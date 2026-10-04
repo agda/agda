@@ -1,4 +1,4 @@
-Checking QuickLaTeX-with-existing-interface (QuickLaTeX-with-existing-interface.lagda).
+Checking QuickLaTeX-with-existing-interface (QuickLaTeX-with-existing-interface.lagda.tex).
 \begin{code}%
 \>[0]\AgdaSymbol{\{-\#}\AgdaSpace{}%
 \AgdaKeyword{OPTIONS}\AgdaSpace{}%
