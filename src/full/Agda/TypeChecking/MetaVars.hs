@@ -1205,13 +1205,14 @@ isInteractionMetaB mid args =
       iid  <- MaybeT (isInteractionMeta m)
       args <- MaybeT (pure (allApplyElims args))
       pure (m, iid, args)
-    -- It might be the case that the inner meta (the interaction point)
-    -- exists in a larger context, so instantiating the outer meta (the
-    -- original argument) will produce lambdas.
-    --
-    -- Since the boundary code runs in the inner, larger context, we can
-    -- peel off the lambdas without running afoul of the scope.
-    there (Lam _ as) = there (absApp as (var 0))
+    -- Andreas, 2026-10-05, issue #8808:
+    -- If the instantiation is a lambda, the interaction point lives in a
+    -- larger context than the current one.  We must not peel off the
+    -- lambdas here, since the boundary code runs in the current context,
+    -- where the bound variables are not in scope.
+    -- Instead, we give up; the conversion checker will eta-expand and
+    -- come back here with the variables in scope.
+    -- WAS: there (Lam _ as) = there (absApp as (var 0)) -- produces out-of-scope indices
     there _ = mzero
 
 {- UNUSED
