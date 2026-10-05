@@ -1,7 +1,7 @@
 {
   description = "Agda is a dependently typed programming language / interactive theorem prover.";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/25.11"; # Has lib.fileset.empty
   inputs.flake-parts.url = "github:hercules-ci/flake-parts";
   inputs.ghc-wasm.url = "git+https://gitlab.haskell.org/haskell-wasm/ghc-wasm-meta.git";
 
@@ -12,7 +12,7 @@
     perSystem = { system, pkgs, lib, inputs', ... }: let
       hlib = pkgs.haskell.lib.compose;
       hpkgs = pkgs.haskell.packages.ghc910; # pqueue fails with ghc912
-      fs = lib.fileset;
+      fs = pkgs.lib.fileset;  # need fs.empty. Provided by nixpkgs 25.11
       ghc-wasm = inputs'.ghc-wasm;
 
       # An overlay for the Haskell package set that adds various builds of Agda
