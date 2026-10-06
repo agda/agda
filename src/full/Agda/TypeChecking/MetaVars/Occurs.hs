@@ -476,6 +476,23 @@ underRelevance o = local \e -> divideVars (setRelevance r unitModality) $
 underQuantity :: (LensQuantity o) => o -> OccursM a -> OccursM a
 underQuantity = local . mapQuantity . composeQuantity . getQuantity
 
+-- | Going into the sort annotation @s@ of a type @El s t@.
+--
+--   Issue #8811.
+--   The type checker infers @s@ from @t@ rather than checking it,
+--   so @s@ is subject to no modality restrictions: it is irrelevant,
+--   erased (its metas are created with quantity 0 by 'workOnTypes'),
+--   and has unused polarity.  Only scoping is still checked.
+--
+--   Note that this is more liberal than 'workOnTypes', which makes
+--   irrelevant variables at most shape-irrelevant.
+{-# INLINE underSortAnnotation #-}
+underSortAnnotation :: OccursM a -> OccursM a
+underSortAnnotation
+  = underQuantity zeroQuantity
+  . underRelevance irrelevant
+  . local (divideVars $ setModalPolarity (withStandardLock UnusedPolarity) unitModality)
+
 -- | Check whether a free variable is allowed in the context as
 --   specified by the modality.
 variableCheck :: Int -> OccursM Bool
@@ -701,10 +718,7 @@ instance Occurs PlusLevel where
   metaOccurs m (Plus n l) = metaOccurs m l
 
 instance Occurs Type where
-  -- Andreas, 2026-10-06, issue #8811:
-  -- The sort annotation is computationally irrelevant;
-  -- its metas are created by 'workOnTypes' with quantity 0.
-  occurs (El s v) = El <$> underQuantity zeroQuantity (occurs_ s) <*> occurs v
+  occurs (El s v) = El <$> underSortAnnotation (occurs_ s) <*> occurs v
 
   metaOccurs m (El s v) = metaOccurs2 m s v
 
