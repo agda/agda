@@ -701,7 +701,10 @@ instance Occurs PlusLevel where
   metaOccurs m (Plus n l) = metaOccurs m l
 
 instance Occurs Type where
-  occurs (El s v) = El <$> occurs_ s <*> occurs v
+  -- Andreas, 2026-10-06, issue #8811:
+  -- The sort annotation is computationally irrelevant;
+  -- its metas are created by 'workOnTypes' with quantity 0.
+  occurs (El s v) = El <$> underQuantity zeroQuantity (occurs_ s) <*> occurs v
 
   metaOccurs m (El s v) = metaOccurs2 m s v
 
