@@ -167,6 +167,16 @@ checkDataDef i name pc uc (A.DataDefParams gpars ps) cs =
             hit <- or <$> forM cs \ c ->
               (PathCons ==) <$> checkConstructor name uc tel' nofIxs s c
 
+            -- The constructor heads are needed before we know whether the
+            -- datatype is a HIT. Update them now that all constructors have
+            -- been checked.
+            let isHIT = fromBool hit
+            forM_ cs $ \ c ->
+              modifySignature $ updateDefinition (A.axiomName c) $ updateTheDef $ \case
+                con@Constructor{ conSrcCon = ch } ->
+                  con { conSrcCon = ch { conIsHIT = isHIT } }
+                def -> def
+
             -- cubical: the interval universe does not contain datatypes
             -- similar: SizeUniv, ...
             checkDataSort name s
@@ -315,7 +325,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , "names  =" <+> pretty names
               ]
 
-            let con = ConHead c IsData Inductive $ zipWith' (<$) names $ map' argFromDom $ telToList fields
+            let con = ConHead c IsData Inductive NotHIT $ zipWith' (<$) names $ map' argFromDom $ telToList fields
 
             defineProjections d con params names fields dataT
             -- Andreas, 2024-01-05 issue #7048:

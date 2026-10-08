@@ -111,7 +111,7 @@ canProject f v =
   case v of
     -- Andreas, 2022-06-10, issue #5922: also unfold data projections
     -- (not just record projections).
-    (Con (ConHead _ _ _ fs) _ vs) ->
+    (Con (ConHead _ _ _ _ fs) _ vs) ->
       findWithIndex' ((f ==) . unArg) fs Nothing \fld i -> do
         -- Jesper, 2019-10-17: dont unfold irrelevant projections
         guard $ not $ isIrrelevant fld
@@ -124,7 +124,7 @@ canProject f v =
 -- | Eliminate a constructed term.
 conApp :: forall t. (Coercible t Term, Apply t)
        => (Empty -> Term -> Elims -> Term) -> ConHead -> ConInfo -> Elims -> Elims -> Term
-conApp fallback ch@(ConHead c _ _ fs) ci args topEs = go topEs where
+conApp fallback ch@(ConHead c _ _ _ fs) ci args topEs = go topEs where
 
   -- print a message when we can't project "f" field
   {-# INLINE traceProjFailure #-}

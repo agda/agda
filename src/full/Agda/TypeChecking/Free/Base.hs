@@ -240,13 +240,15 @@ oneVarOcc = VarOcc Unguarded unitModality
 
 -- | What's the rigidity of a constructor?
 constructorFlexRig :: ConHead -> Elims -> FlexRig' a
-constructorFlexRig (ConHead _ _ i fs) es = case i of
+constructorFlexRig (ConHead _ _ i hit fs) es
+  | hit == YesHIT = WeaklyRigid
+  | otherwise = case i of
 
   -- Coinductive (record) constructors admit infinite cycles:
-  CoInductive -> WeaklyRigid
+    CoInductive -> WeaklyRigid
   -- Inductive constructors do not admit infinite cycles:
-  Inductive   | size es == size fs -> StronglyRigid
-              | otherwise          -> WeaklyRigid
+    Inductive   | size es == size fs -> StronglyRigid
+                | otherwise          -> WeaklyRigid
   -- Jesper, 2020-10-22: Issue #4995: treat occurrences in non-fully
   -- applied constructors as weakly rigid.
   -- Ulf, 2019-10-18: Now the termination checker treats inductive recursive records

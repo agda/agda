@@ -678,7 +678,7 @@ instance TermToPattern Term DeBruijnPattern where
         ConP c noConPatternInfo . map' (fmap unnamed) <$> mapM argToPattern (mustAllApplyElims args)
       Def s [Apply arg] -> do
         suc <- terGetSizeSuc
-        if Just s == suc then ConP (ConHead s IsData Inductive []) noConPatternInfo . singleton . fmap unnamed <$> argToPattern arg
+        if Just s == suc then ConP (ConHead s IsData Inductive NotHIT []) noConPatternInfo . singleton . fmap unnamed <$> argToPattern arg
          else fallback
       -- Leaves.
       -- Any (not coinductively) projected variable becomes a variable pattern.
@@ -767,7 +767,7 @@ termClause clause = do
       p        -> return p
     stripCoCon :: DeBruijnPattern -> TerM DeBruijnPattern
     stripCoCon = \case
-      ConP (ConHead c _ CoInductive _) _ _ -> return unusedVar
+      ConP (ConHead c _ CoInductive _ _) _ _ -> return unusedVar
       p -> return p
     reportBody :: Term -> TerM ()
     reportBody v = verboseS "term.check.clause" 6 $ do

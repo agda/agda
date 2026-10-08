@@ -8,6 +8,7 @@ import qualified Data.HashSet as HashSet
 import Control.Monad
 
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Common ( IsHIT(..) )
 import Agda.Syntax.Position as P
 
 import Agda.TypeChecking.Serialise.Base
@@ -76,7 +77,7 @@ instance EmbPrj a => EmbPrj (Elim' a) where
 
 
 instance EmbPrj I.ConHead where
-  icod_ (ConHead a b c d) = icodeN' ConHead a b c d
+  icod_ (ConHead a b c d e) = icodeN' ConHead a b c d e
 
   value = valueN ConHead
 

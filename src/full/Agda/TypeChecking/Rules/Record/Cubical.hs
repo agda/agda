@@ -142,7 +142,7 @@ defineKanOperationR cmd name params fsT fns rect = do
                   -- body = u i1 itIsOne
                   DoHComp  -> (2,Var 1 [] `apply` [argN io, setRelevance irrelevant $ argN one])
 
-              p = ConP (ConHead io_name IsData Inductive [])
+              p = ConP (ConHead io_name IsData Inductive NotHIT [])
                        (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
                                          , conPFallThrough = True })
                          []
@@ -206,4 +206,3 @@ defineKanOperationR cmd name params fsT fns rect = do
   setCompiledClauses theName cc
   reportSDoc "trans.rec" 15 $ text $ "compiled"
   return $ Just theName
-

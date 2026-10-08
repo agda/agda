@@ -208,7 +208,7 @@ translateCompiledClauses defn cc = ignoreAbstractMode $ do
           [(c, b)] | not comatch -> -- possible eta-match
             getConstructorInfo' c >>= \ case
               Just (RecordCon pm YesEta _ar fs) -> yesEtaCase b $
-                ConHead c (IsRecord pm) Inductive (map argFromDom fs)
+                ConHead c (IsRecord pm) Inductive NotHIT (map argFromDom fs)
               _ -> noEtaCase
           _ -> noEtaCase
       return $ Case i cs{ conBranches    = conMap
@@ -257,7 +257,7 @@ recordRHSToCopatterns cl0 = do
 
     -- RHS must be fully applied coinductive constructor/record expression.
     cl@Clause{ namedClausePats = ps
-             , clauseBody      = Just v0@(Con con@(ConHead c _ _ind fs) _ci es)
+              , clauseBody      = Just v0@(Con con@(ConHead c _ _ind _hit fs) _ci es)
              , clauseType      = mt
              }
       | not (null fs)           -- at least one field
