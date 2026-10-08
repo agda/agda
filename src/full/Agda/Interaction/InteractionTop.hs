@@ -224,11 +224,23 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         unsolved <- lift $ computeUnsolvedInfo
         err     <- lift $ errorHighlighting e
         modFile <- lift $ useSession lensModuleToSource
+        let errorInImportedModule = case e of
+              TypeError _ _ cl -> case (rangeFile (getRange e), reverse $ clEnv cl ^. eImportStack) of
+                (Strict.Just rf, root : _) -> rangeFileName rf /= Just root
+                _ -> False
+              _ -> False
         method  <- case method of
           Nothing -> lift $ viewTC eHighlightingMethod
           Just m  -> return m
-        let info = convert $ err <> unsolved
-                     -- Errors take precedence over unsolved things.
+        let errorInfo = convert err
+            unsolvedInfo = convert unsolved
+            -- Emacs highlighting ranges are applied to the currently loaded
+            -- buffer. Keep error highlighting there only when the error
+            -- originates in that file; the jump-to-error response below can
+            -- still navigate to an imported file.
+            info = (if errorInImportedModule then mempty else errorInfo)
+                   <> unsolvedInfo
+              -- Errors take precedence over unsolved things.
 
         showImpl <- lift $ optShowImplicit <$> useTC stPragmaOptions
         showIrr <- lift $ optShowIrrelevant <$> useTC stPragmaOptions
@@ -236,8 +248,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
           mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error $ Info_GenericError e ] ++
             tellEmacsToJumpToError (getRange e) ++
-            [ Resp_HighlightingInfo info KeepHighlighting
-                                    method modFile ] ++
+            [ Resp_HighlightingInfo info KeepHighlighting method modFile ] ++
             [ Resp_Status $ Status { sChecked = False
                                    , sShowImplicitArguments = showImpl
                                    , sShowIrrelevantArguments = showIrr

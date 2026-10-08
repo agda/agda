@@ -2353,7 +2353,8 @@ If there is no buffer visiting FILE, do nothing."
           ;; Buffer exists, but is not visible.
           ;; We do not display the buffer here, as can be jarring for slow loads.
           ;; See https://github.com/agda/agda/pull/8458#issuecomment-4032442448
-          (goto-char (cdr filepos))))))
+          (with-current-buffer buffer
+            (goto-char (cdr filepos)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implicit arguments
