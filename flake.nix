@@ -45,7 +45,7 @@
             ];
           };
 
-          cabal2nixOptions = "-fenable-cluster-counting";
+          cabal2nixOptions = "-fenable-cluster-counting -fversion-with-git-hash";
 
           modifier = hlib.overrideCabal (drv: {
             # Typecheck the primitive modules.
