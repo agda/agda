@@ -35,7 +35,6 @@ import Agda.TypeChecking.Reduce (reduce, instantiateFull, instantiate)
 import Agda.TypeChecking.Records (isRecord)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Conversion (equalType)
-import Agda.TypeChecking.Constraints (noConstraints)
 import Agda.TypeChecking.Telescope (flattenTel, piApplyM)
 import Agda.TypeChecking.Substitute (pattern TelV, telView', piApply, apply, applyE)
 import Agda.Interaction.BasicOps (normalForm)
@@ -594,10 +593,12 @@ checkSolved branch = do
     -- Here we just prune the subgoals that are already solved by unification.
     goals <- filterM (isNothing <.> getMetaInstantiation . goalMeta) $ sbGoals branch
     case goals of
+      -- Postponed constraints must be solved by the complete solution.
+      [] -> ifM (not <$> searchConstraintsSolved) (return NoSolution) $
       -- Issue #378: Blank out variables that are not in scope.
       -- This might leave unsolved metas but is probably better
       -- than generating out-of-scope variables.
-      [] -> ResultExpr <$> (blankNotInScope =<< reify inst)
+        ResultExpr <$> (blankNotInScope =<< reify inst)
       _ -> do
         return $ OpenBranch branch { sbGoals = goals }
 
@@ -648,6 +649,7 @@ makeSearchOptions norm options ii = do
   components <- collectComponents options costs ii mTheFunctionQName whereNames metaId
   statsRef   <- liftIO $ newIORef emptyMimerStats
   checkpoint <- viewTC eCurrentCheckpoint
+  pid        <- fresh
   mflat      <- getBuiltinName BuiltinFlat
   pure SearchOptions
         { searchBaseComponents         = components
@@ -661,6 +663,7 @@ makeSearchOptions norm options ii = do
         , searchTopMeta                = metaId
         , searchTopEnv                 = env
         , searchTopCheckpoint          = checkpoint
+        , searchProblem                = pid
         , searchInteractionId          = ii
         , searchFnName                 = mTheFunctionQName
         , searchCosts                  = costs
@@ -673,10 +676,31 @@ makeSearchOptions norm options ii = do
 -- * Unification
 ------------------------------------------------------------------------
 
+-- | Unify the type of a candidate with the goal type.
+--
+--   Constraints that cannot be solved yet, e.g. @f ?n = f n@ blocked on
+--   meta @?n@ which is a subgoal of the candidate, are postponed under
+--   the search problem (see 'searchProblem').
+--   They are woken up when their blocking metas are solved, and
+--   'checkSolved' only accepts a branch once they are gone.
 dumbUnifier :: Type -> Type -> SM ()
 dumbUnifier t1 t2 = bench [Bench.UnifyIndices] $ do
   updateStat incTypeEqChecks
-  noConstraints (lift $ equalType t2 t1)
+  pid <- asks searchProblem
+  lift $ solvingProblem pid $ equalType t2 t1
+  solveSearchConstraints
+
+-- | Solve constraints woken up by meta assignments.
+--   Throws an error if one of them turns out to be unsolvable.
+solveSearchConstraints :: SM ()
+solveSearchConstraints = lift solveAwakeConstraints
+
+-- | Are all constraints solved that were postponed during search?
+searchConstraintsSolved :: SM Bool
+searchConstraintsSolved = do
+  pid <- asks searchProblem
+  (solveSearchConstraints >> null <$> getConstraintsForProblem pid)
+    `catchError` \ _ -> return False
 
 ------------------------------------------------------------------------
 -- * Debugging
