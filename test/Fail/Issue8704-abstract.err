@@ -3,9 +3,9 @@ Failed to solve the following constraints:
   _12 = refl : hh ≡ true (blocked on _12)
   false = _4 : Bool (blocked on _4)
 
-Issue8704-abstract.agda:12.19-31.17: error: [UnsolvedMetaVariables]
+Issue8704-abstract.agda:23.19-54.17: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue8704-abstract.agda:12.19-20
-  Issue8704-abstract.agda:16.12-16
-  Issue8704-abstract.agda:24.8-9
-  Issue8704-abstract.agda:31.13-17
+  Issue8704-abstract.agda:23.19-20
+  Issue8704-abstract.agda:31.12-16
+  Issue8704-abstract.agda:43.8-9
+  Issue8704-abstract.agda:54.13-17

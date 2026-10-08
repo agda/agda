@@ -1,12 +1,12 @@
 error: [UnsolvedConstraints]
 Failed to solve the following constraints:
-  g hh (_14 (n = n) (v = v)) true = false : Bool (blocked on _14)
-  g 1 (_14 (n = n) (v = v)) true = true : Bool (blocked on _14)
-  tt ∷ [] = _14 (n = n) (v = v) : Vec ⊤ hh (blocked on _14)
+  g secret (_12 (n = n) (v = v)) true = false : Bool (blocked on _12)
+  g 1 (_12 (n = n) (v = v)) true = true : Bool (blocked on _12)
+  isSuc zero = _12 (n = n) (v = v) : IsNat secret (blocked on _12)
 
-Issue8704-false.agda:23.10-32.16: error: [UnsolvedMetaVariables]
+Issue8704-false.agda:44.12-60.23: error: [UnsolvedMetaVariables]
 Unsolved metas at the following locations:
-  Issue8704-false.agda:23.10-11
-  Issue8704-false.agda:28.15-27
-  Issue8704-false.agda:30.14-18
-  Issue8704-false.agda:32.12-16
+  Issue8704-false.agda:44.12-13
+  Issue8704-false.agda:49.15-30
+  Issue8704-false.agda:54.15-19
+  Issue8704-false.agda:60.18-23
