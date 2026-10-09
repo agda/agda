@@ -257,7 +257,7 @@ recordRHSToCopatterns cl0 = do
 
     -- RHS must be fully applied coinductive constructor/record expression.
     cl@Clause{ namedClausePats = ps
-              , clauseBody      = Just v0@(Con con@(ConHead c _ _ind _hit fs) _ci es)
+             , clauseBody      = Just v0@(Con con@(ConHead c _ _ind _hit fs) _ci es)
              , clauseType      = mt
              }
       | not (null fs)           -- at least one field
