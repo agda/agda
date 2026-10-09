@@ -942,10 +942,10 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = noMutualBlock $ d
   genRecName   <- freshQName generalizeRecordName
   genRecCon    <- freshQName generalizeConstructorName <&> \ con -> ConHead
                   { conName      = con
-                   , conDataRecord= IsRecord CopatternMatching
-                   , conInductive = Inductive
-                   , conIsHIT     = NotHIT
-                   , conFields    = map' argFromDom genRecFields
+                  , conDataRecord= IsRecord CopatternMatching
+                  , conInductive = Inductive
+                  , conIsHIT     = NotHIT
+                  , conFields    = map' argFromDom genRecFields
                   }
   projIx <- succ . size <$> getContext
   erasure <- optErasure <$> pragmaOptions
