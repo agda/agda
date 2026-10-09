@@ -688,7 +688,6 @@ dumbUnifier t1 t2 = bench [Bench.UnifyIndices] $ do
   updateStat incTypeEqChecks
   pid <- asks searchProblem
   lift $ solvingProblem pid $ equalType t2 t1
-  solveSearchConstraints
 
 -- | Solve constraints woken up by meta assignments.
 --   Throws an error if one of them turns out to be unsolvable.
