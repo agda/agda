@@ -1,0 +1,8 @@
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  A → X =< _X_4 : Set (blocked on _X_4)
+
+Issue8171.agda:17.9-15: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue8171.agda:17.9-10
+  Issue8171.agda:17.12-15

@@ -256,7 +256,9 @@ instance UsableModality Term where
     Sort s   -> usableMod mod s
     Level l  -> return True
     MetaV m vs -> do
-      mmod <- lookupMetaModality m
+      -- Polarity is a pure modality, as for definitions (see above).
+      -- (The free variables of the meta solution are checked via @vs@.)
+      mmod <- setModalPolarity mixedPolarity <$> lookupMetaModality m
       let ok = mmod `moreUsableModality` mod
       reportSDoc "tc.irr" 50 $
         "Metavariable" <+> prettyTCM (MetaV m []) <+>
