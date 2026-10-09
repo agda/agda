@@ -1,0 +1,8 @@
+Issue7181b.agda:33.13-17: error: [UnequalTerms]
+The terms
+  g p (mk' p) true
+and
+  false
+are not equal at type Bool
+when checking that the expression refl has type
+g p (mk' p) true ≡ false
