@@ -1057,13 +1057,17 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
           case m of
             No _ -> goCls cls es
             -- Szumi, 2024-03-29, issue #7181:
-            -- If a lazy match is stuck and all non-lazy matches are conclusive,
+            -- If a lazy match is stuck but some non-lazy match fails,
             -- then reduction should not be stuck on the current clause and it
             -- should be fine to continue matching on the next clause.
-            -- This assumes it's impossible for a lazy match to be stuck if
-            -- all non-lazy matches succeed.
-            DontKnow _ OnlyLazy _ -> goCls cls es
-            DontKnow _ NonLazy  b -> rewrite b (applyE v) rewr es
+            -- This is handled by the Semigroup instance of 'Match',
+            -- where a 'No' wins over a 'DontKnow' that is only stuck on lazy patterns.
+            -- Andreas, 2026-10-09, issue #8704:
+            -- If a lazy match is stuck and all non-lazy matches succeed,
+            -- we have to remain stuck.  It is possible that the lazy match
+            -- would succeed after all, e.g. if the term only matches the
+            -- lazy pattern up to eta or after unfolding an abstract definition.
+            DontKnow _ _ b -> rewrite b (applyE v) rewr es
             Yes simpl vs -- vs is the subst. for the variables bound in body
               -- Jesper, issue #8703: underapplied functions are stuck
               | not (null ps1) -> done Underapplied es

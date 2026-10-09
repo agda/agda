@@ -75,12 +75,22 @@ buildSubstitution err n vs = foldr cons idS $ matchedArgs' n vs
 -- | Combining match results.
 -- When combining 'No' and 'DontKnow', the lower priority wins!
 -- See issue #3054 / #8559.
+--
+-- Exception: a 'DontKnow' that is only stuck on lazy patterns always
+-- loses against a 'No', since the case tree never splits on lazy patterns.
+-- Likewise, its priority is ignored when combined with a non-lazy 'DontKnow'.
+-- See issue #7181 / #8704.
 instance Semigroup (Match a) where
   m <> m' = case (m, m') of
     -- @NotBlocked (StuckOn e)@ means blocked by a variable.
     -- In this case, no instantiation of meta-variables will make progress.
-    (DontKnow p l b , DontKnow p' l' b' ) -> DontKnow (p <> p') (l <> l') (b <> b')
+    (DontKnow p l b , DontKnow p' l' b' ) -> case (l, l') of
+      (OnlyLazy, NonLazy ) -> DontKnow p'        NonLazy (b <> b')
+      (NonLazy , OnlyLazy) -> DontKnow p         NonLazy (b <> b')
+      _                    -> DontKnow (p <> p') (l <> l') (b <> b')
     (DontKnow{}     , Yes{}             ) -> m
+    (DontKnow _ OnlyLazy _ , No{}       ) -> m'
+    (No{}           , DontKnow _ OnlyLazy _) -> m
     (DontKnow p _ _ , No p'             ) -> if p < p' then m else m'
     (Yes{}          , DontKnow{}        ) -> m'
     (No p           , DontKnow p' _ _   ) -> if p' < p then m' else m

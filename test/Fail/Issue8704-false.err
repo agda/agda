@@ -1,0 +1,7 @@
+Issue8704-false.agda:59.18-23: error: [UnequalTerms]
+The terms
+  g secret leak true
+and
+  false
+are not equal at type Bool
+when checking that the expression lemma has type false ≡ true
