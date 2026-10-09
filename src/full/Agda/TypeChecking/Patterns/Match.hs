@@ -81,9 +81,17 @@ instance Semigroup (Match a) where
     -- In this case, no instantiation of meta-variables will make progress.
     (DontKnow p l b , DontKnow p' l' b' ) -> DontKnow (p <> p') (l <> l') (b <> b')
     (DontKnow{}     , Yes{}             ) -> m
-    (DontKnow p _ _ , No p'             ) -> if p < p' then m else m'
+    -- Issue #7181: Whatever splitting order we decide on, non-lazy matches will
+    -- happen before lazy ones. Hence if one pattern is blocked on a lazy match
+    -- and another pattern is negative, it is safe to assume the overall match
+    -- is negative.
+    (DontKnow p l _ , No p'             ) -> if | OnlyLazy <- l -> m'
+                                                | p < p'        -> m
+                                                | otherwise     -> m'
     (Yes{}          , DontKnow{}        ) -> m'
-    (No p           , DontKnow p' _ _   ) -> if p' < p then m' else m
+    (No p           , DontKnow p' l _   ) -> if | OnlyLazy <- l -> m
+                                                | p' < p        -> m'
+                                                | otherwise     -> m
     (No p           , No p'             ) -> No (p <> p')
     (No{}           , Yes{}             ) -> m
     (Yes{}          , No{}              ) -> m'
