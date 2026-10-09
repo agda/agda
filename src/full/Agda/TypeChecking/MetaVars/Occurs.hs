@@ -56,7 +56,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
-import Agda.Interaction.Options (optFirstOrder, optErasure)
+import Agda.Interaction.Options (optFirstOrder, optErasure, optExperimentalIrrelevance)
 
 import Agda.Utils.Either
 import Agda.Utils.Function
@@ -480,18 +480,31 @@ underQuantity = local . mapQuantity . composeQuantity . getQuantity
 --
 --   Issue #8811.
 --   The type checker infers @s@ from @t@ rather than checking it,
---   so @s@ is subject to no modality restrictions: it is irrelevant,
---   erased (its metas are created with quantity 0 by 'workOnTypes'),
---   and has unused polarity.  Only scoping is still checked.
+--   so @s@ should be subject to no more modality restrictions than @t@
+--   is when checked by 'workOnTypes':
+--   it is erased (its metas are created with quantity 0 by 'workOnTypes'),
+--   has unused polarity, and, with @--experimental-irrelevance@,
+--   it is shape-irrelevant and irrelevant variables become
+--   shape-irrelevant.
 --
---   Note that this is more liberal than 'workOnTypes', which makes
---   irrelevant variables at most shape-irrelevant.
+--   Issue #8823.
+--   We must not treat @s@ as irrelevant: in irrelevant positions,
+--   the occurs check does not reduce, so it misses the blockers
+--   of offending occurrences, and postponed assignments are not retried.
 {-# INLINE underSortAnnotation #-}
 underSortAnnotation :: OccursM a -> OccursM a
-underSortAnnotation
-  = underQuantity zeroQuantity
-  . underRelevance irrelevant
-  . local (divideVars $ setModalPolarity (withStandardLock UnusedPolarity) unitModality)
+underSortAnnotation cont = do
+  experimental <- optExperimentalIrrelevance <$> pragmaOptions
+  underQuantity zeroQuantity
+    . applyWhen experimental (local wakeIrrelevantVars . underRelevance shapeIrrelevant)
+    . local (divideVars $ setModalPolarity (withStandardLock UnusedPolarity) unitModality)
+    $ cont
+  where
+    -- Make irrelevant variables shape-irrelevant, as 'workOnTypes' does.
+    wakeIrrelevantVars e = e
+      { occVars            = mapVarMap (fmap $ mapRelevance irrelevantToShapeIrrelevant) (occVars e)
+      , occLocalModalities = map (mapRelevance irrelevantToShapeIrrelevant) (occLocalModalities e)
+      }
 
 -- | Check whether a free variable is allowed in the context as
 --   specified by the modality.
