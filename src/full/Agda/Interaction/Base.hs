@@ -192,6 +192,8 @@ data Interaction' range
   | Cmd_autoOne  Rewrite   InteractionId range String
   | Cmd_autoAll  Rewrite
 
+  -- | Search (Lemmings)
+  | Cmd_search Rewrite InteractionId range String
     -- | Parse the given expression (as if it were defined at the
     -- top-level of the current module) and infer its type.
   | Cmd_infer_toplevel Rewrite -- Normalise the type?
