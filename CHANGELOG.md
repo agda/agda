@@ -19,6 +19,8 @@ Pragmas and options
   type-check imported modules in parallel. For large libraries, this can
   result in a speedup of ~3x, at the cost of roughly doubling the
   maximum memory usage.
+  This option does not yet work well with `--interaction`
+  ([issue #8477](https://github.com/agda/agda/issues/8477)).
 
 * New option `--print-options` to print a simple list of all options.
   This list can e.g. be used to implement bash completion.
