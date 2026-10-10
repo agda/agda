@@ -434,15 +434,19 @@ jobs:
   ###########################################################################
 
   ecosystem:
-    # These jobs take up to a couple of hours each, so we do not run them on
-    # every pull request: only on `master`, on schedule, on manual dispatch,
-    # or when requested by a tag in the commit message or the PR title.
-    if: |
-      github.event_name == 'push'
-      || github.event_name == 'schedule'
-      || github.event_name == 'workflow_dispatch'
-      || contains(github.event.head_commit.message, '[ecosystem]')
-      || contains(github.event.pull_request.title, '[ecosystem]')
+    # Andreas, 2026-10-10, in the light of recent regressions that are not
+    # caught while a PR is evaluated, it is better to have these jobs on
+    # always.
+    #
+    # # These jobs take up to 10 min each, so we do not run them on
+    # # every pull request: only on `master`, on schedule, on manual dispatch,
+    # # or when requested by a tag in the commit message or the PR title.
+    # if: |
+    #   github.event_name == 'push'
+    #   || github.event_name == 'schedule'
+    #   || github.event_name == 'workflow_dispatch'
+    #   || contains(github.event.head_commit.message, '[ecosystem]')
+    #   || contains(github.event.pull_request.title, '[ecosystem]')
     needs: build
     runs-on: *runs_on
 

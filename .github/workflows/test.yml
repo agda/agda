@@ -126,12 +126,6 @@ jobs:
     - name: Successful tests using the cubical library
       run: make cubical-succeed
   ecosystem:
-    if: |
-      github.event_name == 'push'
-      || github.event_name == 'schedule'
-      || github.event_name == 'workflow_dispatch'
-      || contains(github.event.head_commit.message, '[ecosystem]')
-      || contains(github.event.pull_request.title, '[ecosystem]')
     needs: build
     runs-on: ubuntu-26.04
     steps:
