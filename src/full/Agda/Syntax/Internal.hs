@@ -285,6 +285,7 @@ data ConHead = ConHead
   { conName       :: QName         -- ^ The name of the constructor.
   , conDataRecord :: DataOrRecord  -- ^ Data or record constructor?
   , conInductive  :: Induction     -- ^ Record constructors can be coinductive.
+  , conIsHIT      :: IsHIT         -- ^ Is the datatype of this constructor a HIT?
   , conFields     :: [Arg QName]   -- ^ The name of the record fields.
       --   'Arg' is stored since the info in the constructor args
       --   might not be accurate because of subtyping (issue #2170).
@@ -1629,7 +1630,7 @@ instance TermSize a => TermSize (Substitution' a) where
 ---------------------------------------------------------------------------
 
 instance KillRange ConHead where
-  killRange (ConHead c d i fs) = killRangeN ConHead c d i fs
+  killRange (ConHead c d i h fs) = killRangeN ConHead c d i h fs
 
 instance KillRange Term where
   killRange = \case

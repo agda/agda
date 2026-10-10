@@ -318,7 +318,7 @@ instance GenC Term where
       genDef args = Def <$> elements defs <*> args
 
       genCon :: Gen Args -> Gen Term
-      genCon args = Con <$> ((\ c -> ConHead c IsData Inductive []) <$> elements cons) <*> pure ConOSystem <*> (map Apply `fmap` args)
+      genCon args = Con <$> ((\ c -> ConHead c IsData Inductive NotHIT []) <$> elements cons) <*> pure ConOSystem <*> (map Apply `fmap` args)
 
       genLeaf :: Gen Term
       genLeaf = frequency
@@ -410,7 +410,7 @@ instance ShrinkC DefName where
 
 instance ShrinkC ConName where
   type ShrinksTo ConName = ConHead
-  shrinkC conf (ConName (ConHead{conName = c})) = map (\ c -> ConHead c IsData Inductive []) $ takeWhile (/= c) $ tcConstructorNames conf
+  shrinkC conf (ConName (ConHead{conName = c})) = map (\ c -> ConHead c IsData Inductive NotHIT []) $ takeWhile (/= c) $ tcConstructorNames conf
   noShrink = unConName
 
 instance ShrinkC Literal where

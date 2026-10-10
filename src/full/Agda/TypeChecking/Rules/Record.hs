@@ -180,7 +180,7 @@ checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDef
           indCo = rangedThing <$> ind
           -- A constructor is inductive unless declared coinductive.
           conInduction = fromMaybe Inductive indCo
-          con = ConHead conName (IsRecord patCopat) conInduction $ map' argFromDom fs
+          con = ConHead conName (IsRecord patCopat) conInduction NotHIT $ map' argFromDom fs
 
           -- A record is irrelevant if all of its fields are.
           -- In this case, the associated module parameter will be irrelevant.

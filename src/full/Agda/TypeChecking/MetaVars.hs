@@ -1604,7 +1604,7 @@ instance NoProjectedVar Term where
         -> Left $ ProjectedVar i qs
       -- Andreas, 2015-09-12 Issue #1316:
       -- Also look in inductive record constructors
-      Con (ConHead _ IsRecord{} Inductive _) _ es
+      Con (ConHead _ IsRecord{} Inductive _ _) _ es
         | Just vs <- allApplyElims es
         -> noProjectedVar vs
       _ -> return ()

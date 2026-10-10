@@ -944,6 +944,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = noMutualBlock $ d
                   { conName      = con
                   , conDataRecord= IsRecord CopatternMatching
                   , conInductive = Inductive
+                  , conIsHIT     = NotHIT
                   , conFields    = map' argFromDom genRecFields
                   }
   projIx <- succ . size <$> getContext

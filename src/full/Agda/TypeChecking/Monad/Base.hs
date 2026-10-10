@@ -2861,19 +2861,6 @@ emptyCompKit = CompKit Nothing Nothing
 data IsPathCons = PathCons | PointCons
   deriving (Eq, Show, Generic)
 
--- | Does a data type have path constructors,
---   i.e., is it a higher inductive type (HIT)?
-data IsHIT = YesHIT | NotHIT
-  deriving (Eq, Show, Generic)
-
-instance Boolean IsHIT where
-  fromBool True  = YesHIT
-  fromBool False = NotHIT
-
-instance IsBool IsHIT where
-  toBool YesHIT = True
-  toBool NotHIT = False
-
 defaultAxiom :: Defn
 defaultAxiom = Axiom False
 
@@ -7338,9 +7325,6 @@ instance KillRange CompKit where
 instance KillRange IsPathCons where
   killRange = id
 
-instance KillRange IsHIT where
-  killRange = id
-
 instance KillRange ProjectionLikenessMissing where
   killRange = id
 
@@ -7502,7 +7486,6 @@ instance NFData DataOrRecSigData
 instance NFData ProjectionLikenessMissing
 instance NFData FunctionData
 instance NFData IsPathCons
-instance NFData IsHIT
 instance NFData DatatypeData
 instance NFData RecordData
 instance NFData ConstructorData
