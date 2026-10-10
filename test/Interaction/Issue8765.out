@@ -1,0 +1,21 @@
+Issue8765/M2.agda:4.1-25: error: [FileNotFound]
+Failed to find source of module Issue8765.M3 in any of the
+following locations:
+Issue8765/M3.AGDA
+../Issue8765/M3.AGDA
+space in the path/Issue8765/M3.AGDA
+agda-default-include-path/Issue8765/M3.AGDA
+where .AGDA denotes a legal extension for an Agda file
+(i.e., one of .agda .lagda .lagda.rst .lagda.tex .lagda.md
+.lagda.org .lagda.tree .lagda.typ)
+when scope checking the declaration
+open import Issue8765.M3
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Issue8765 (Issue8765.agda)." t)
+(agda2-info-action "*Type-checking*" " Checking Issue8765.M2 (Issue8765/M2.agda)." t)
+(agda2-info-action "*Error*" "Issue8765/M2.agda:4.1-25: error: [FileNotFound] Failed to find source of module Issue8765.M3 in any of the following locations: Issue8765/M3.AGDA ../Issue8765/M3.AGDA space in the path/Issue8765/M3.AGDA agda-default-include-path/Issue8765/M3.AGDA where .AGDA denotes a legal extension for an Agda file (i.e., one of .agda .lagda .lagda.rst .lagda.tex .lagda.md .lagda.org .lagda.tree .lagda.typ) when scope checking the declaration open import Issue8765.M3" nil)
+((last . 3) . (agda2-maybe-goto '("Issue8765/M2.agda" . 42)))
+(agda2-highlight-add-annotations 'nil)
+(agda2-status-action "")
