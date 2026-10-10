@@ -1,0 +1,221 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | Maps from de Bruijn indices, implemented using 'IntMap's from de</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Bruijn levels.</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html"><span class="hs-identifier">Agda.Utils.IndexMap</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier">IndexMap</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#invariant"><span class="hs-identifier">invariant</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#nil"><span class="hs-identifier">nil</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#snoc"><span class="hs-identifier">snoc</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#append"><span class="hs-identifier">append</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#fromList"><span class="hs-identifier">fromList</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#update"><span class="hs-identifier">update</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#index"><span class="hs-identifier">index</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntMap.Strict</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IntMap</span></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntMap.Strict</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">IntMap</span></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">L</span></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Impossible.html"><span class="hs-identifier">Agda.Utils.Impossible</span></a></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="annot"><span class="hs-comment">-- | Maps from de Bruijn indices.</span></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- Note that the map goes from de Bruijn *levels*.</span><span>
+</span><span id="line-17"></span><span class="hs-comment">--</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- Invariant: The map keys form a (possibly empty) contiguous range</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- from 0 upwards.</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">newtype</span><span> </span><span id="IndexMap"><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-var">IndexMap</span></a></span></span><span> </span><span id="local-6989586621681528698"><span class="annot"><a href="#local-6989586621681528698"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="IndexMap"><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-var">IndexMap</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="indexMap"><span class="annot"><span class="annottext">forall a. IndexMap a -&gt; IntMap a
+</span><a href="Agda.Utils.IndexMap.html#indexMap"><span class="hs-identifier hs-var hs-var">indexMap</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IntMap</span></span><span> </span><span class="annot"><a href="#local-6989586621681528698"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621681528763"><span id="local-6989586621681528769"><span class="annot"><span class="annottext">IndexMap a -&gt; IndexMap a -&gt; Bool
+(IndexMap a -&gt; IndexMap a -&gt; Bool)
+-&gt; (IndexMap a -&gt; IndexMap a -&gt; Bool) -&gt; Eq (IndexMap a)
+forall a. Eq a =&gt; IndexMap a -&gt; IndexMap a -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: forall a. Eq a =&gt; IndexMap a -&gt; IndexMap a -&gt; Bool
+== :: IndexMap a -&gt; IndexMap a -&gt; Bool
+$c/= :: forall a. Eq a =&gt; IndexMap a -&gt; IndexMap a -&gt; Bool
+/= :: IndexMap a -&gt; IndexMap a -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621681528712"><span id="local-6989586621681528778"><span id="local-6989586621681528784"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621681528712"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-type">IndexMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681528712"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-25"></span><span>  </span><span id="local-6989586621681528794"><span class="annot"><span class="annottext">show :: IndexMap a -&gt; String
+</span><a href="#local-6989586621681528794"><span class="hs-identifier hs-var hs-var hs-var">show</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-type">IndexMap</span></a></span><span> </span><span id="local-6989586621681528796"><span class="annot"><span class="annottext">IntMap a
+</span><a href="#local-6989586621681528796"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-26"></span><span>    </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Agda.Utils.IndexMap.fromList &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IntMap a -&gt; [a]
+forall a. IntMap a -&gt; [a]
+</span><span class="hs-identifier hs-var">IntMap.elems</span></span><span> </span><span class="annot"><span class="annottext">IntMap a
+</span><a href="#local-6989586621681528796"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="annot"><span class="hs-comment">-- | The 'IndexMap' invariant.</span></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span id="local-6989586621681528718"><span class="annot"><a href="Agda.Utils.IndexMap.html#invariant"><span class="hs-identifier hs-type">invariant</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-type">IndexMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681528718"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-31"></span><span id="invariant"><span class="annot"><span class="annottext">invariant :: forall a. IndexMap a -&gt; Bool
+</span><a href="Agda.Utils.IndexMap.html#invariant"><span class="hs-identifier hs-var hs-var">invariant</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-type">IndexMap</span></a></span><span> </span><span id="local-6989586621681528807"><span class="annot"><span class="annottext">IntMap a
+</span><a href="#local-6989586621681528807"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntMap a -&gt; [Int]
+forall a. IntMap a -&gt; [Int]
+</span><span class="hs-identifier hs-var">IntMap.keys</span></span><span> </span><span class="annot"><span class="annottext">IntMap a
+</span><a href="#local-6989586621681528807"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">[Int] -&gt; [Int] -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">IntMap a -&gt; Int
+forall a. IntMap a -&gt; Int
+</span><span class="hs-identifier hs-var">IntMap.size</span></span><span> </span><span class="annot"><span class="annottext">IntMap a
+</span><a href="#local-6989586621681528807"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">]</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="annot"><span class="hs-comment">-- | Converts a de Bruijn index to a map index.</span></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span id="local-6989586621681528725"><span class="annot"><a href="Agda.Utils.IndexMap.html#mapIndex"><span class="hs-identifier hs-type">mapIndex</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-type">IndexMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681528725"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span></span><span>
+</span><span id="line-36"></span><span id="mapIndex"><span class="annot"><span class="annottext">mapIndex :: forall a. IndexMap a -&gt; Int -&gt; Int
+</span><a href="Agda.Utils.IndexMap.html#mapIndex"><span class="hs-identifier hs-var hs-var">mapIndex</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681528814"><span class="annot"><span class="annottext">IndexMap a
+</span><a href="#local-6989586621681528814"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681528815"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681528815"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntMap a -&gt; Int
+forall a. IntMap a -&gt; Int
+</span><span class="hs-identifier hs-var">IntMap.size</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IndexMap a -&gt; IntMap a
+forall a. IndexMap a -&gt; IntMap a
+</span><a href="Agda.Utils.IndexMap.html#indexMap"><span class="hs-identifier hs-var">indexMap</span></a></span><span> </span><span class="annot"><span class="annottext">IndexMap a
+</span><a href="#local-6989586621681528814"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681528815"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="annot"><span class="hs-comment">-- | Is the index in range for the given map?</span></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span id="local-6989586621681528727"><span class="annot"><a href="Agda.Utils.IndexMap.html#inRange"><span class="hs-identifier hs-type">inRange</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-type">IndexMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681528727"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-41"></span><span id="inRange"><span class="annot"><span class="annottext">inRange :: forall a. Int -&gt; IndexMap a -&gt; Bool
+</span><a href="Agda.Utils.IndexMap.html#inRange"><span class="hs-identifier hs-var hs-var">inRange</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681528821"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681528821"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681528822"><span class="annot"><span class="annottext">IndexMap a
+</span><a href="#local-6989586621681528822"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681528821"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681528821"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">IntMap a -&gt; Int
+forall a. IntMap a -&gt; Int
+</span><span class="hs-identifier hs-var">IntMap.size</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IndexMap a -&gt; IntMap a
+forall a. IndexMap a -&gt; IntMap a
+</span><a href="Agda.Utils.IndexMap.html#indexMap"><span class="hs-identifier hs-var">indexMap</span></a></span><span> </span><span class="annot"><span class="annottext">IndexMap a
+</span><a href="#local-6989586621681528822"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="annot"><span class="hs-comment">-- | An empty map.</span></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span id="local-6989586621681528730"><span class="annot"><a href="Agda.Utils.IndexMap.html#nil"><span class="hs-identifier hs-type">nil</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-type">IndexMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681528730"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-46"></span><span id="nil"><span class="annot"><span class="annottext">nil :: forall a. IndexMap a
+</span><a href="Agda.Utils.IndexMap.html#nil"><span class="hs-identifier hs-var hs-var">nil</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntMap a -&gt; IndexMap a
+forall a. IntMap a -&gt; IndexMap a
+</span><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-var">IndexMap</span></a></span><span> </span><span class="annot"><span class="annottext">IntMap a
+forall a. IntMap a
+</span><span class="hs-identifier hs-var">IntMap.empty</span></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- | Inserts a new binding, which will have de Bruijn index 0, and</span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- shifts other bindings one step.</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span id="local-6989586621681528733"><span class="annot"><a href="Agda.Utils.IndexMap.html#snoc"><span class="hs-identifier hs-type">snoc</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-type">IndexMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681528733"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681528733"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-type">IndexMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681528733"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-52"></span><span id="snoc"><span class="annot"><span class="annottext">snoc :: forall a. IndexMap a -&gt; a -&gt; IndexMap a
+</span><a href="Agda.Utils.IndexMap.html#snoc"><span class="hs-identifier hs-var hs-var">snoc</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-type">IndexMap</span></a></span><span> </span><span id="local-6989586621681528827"><span class="annot"><span class="annottext">IntMap a
+</span><a href="#local-6989586621681528827"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681528828"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681528828"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntMap a -&gt; IndexMap a
+forall a. IntMap a -&gt; IndexMap a
+</span><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-var">IndexMap</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; a -&gt; IntMap a -&gt; IntMap a
+forall a. Int -&gt; a -&gt; IntMap a -&gt; IntMap a
+</span><span class="hs-identifier hs-var">IntMap.insert</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IntMap a -&gt; Int
+forall a. IntMap a -&gt; Int
+</span><span class="hs-identifier hs-var">IntMap.size</span></span><span> </span><span class="annot"><span class="annottext">IntMap a
+</span><a href="#local-6989586621681528827"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681528828"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">IntMap a
+</span><a href="#local-6989586621681528827"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- | Inserts a number of new bindings. The last element in the list</span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- will have de Bruijn index 0.</span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span id="local-6989586621681528736"><span class="annot"><a href="Agda.Utils.IndexMap.html#append"><span class="hs-identifier hs-type">append</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-type">IndexMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681528736"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681528736"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-type">IndexMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681528736"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-58"></span><span id="append"><span class="annot"><span class="annottext">append :: forall a. IndexMap a -&gt; [a] -&gt; IndexMap a
+</span><a href="Agda.Utils.IndexMap.html#append"><span class="hs-identifier hs-var hs-var">append</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681528832"><span class="annot"><span class="annottext">IndexMap a
+</span><a href="#local-6989586621681528832"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681528833"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681528833"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(IndexMap a -&gt; a -&gt; IndexMap a) -&gt; IndexMap a -&gt; [a] -&gt; IndexMap a
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall (t :: * -&gt; *) b a.
+Foldable t =&gt;
+(b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">L.foldl'</span></span><span> </span><span class="annot"><span class="annottext">IndexMap a -&gt; a -&gt; IndexMap a
+forall a. IndexMap a -&gt; a -&gt; IndexMap a
+</span><a href="Agda.Utils.IndexMap.html#snoc"><span class="hs-identifier hs-var">snoc</span></a></span><span> </span><span class="annot"><span class="annottext">IndexMap a
+</span><a href="#local-6989586621681528832"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621681528833"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- | Converts a list to an 'IndexMap'. The last element in the list</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- will have de Bruijn index 0.</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span id="local-6989586621681528741"><span class="annot"><a href="Agda.Utils.IndexMap.html#fromList"><span class="hs-identifier hs-type">fromList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621681528741"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-type">IndexMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681528741"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-64"></span><span id="fromList"><span class="annot"><span class="annottext">fromList :: forall a. [a] -&gt; IndexMap a
+</span><a href="Agda.Utils.IndexMap.html#fromList"><span class="hs-identifier hs-var hs-var">fromList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IndexMap a -&gt; [a] -&gt; IndexMap a
+forall a. IndexMap a -&gt; [a] -&gt; IndexMap a
+</span><a href="Agda.Utils.IndexMap.html#append"><span class="hs-identifier hs-var">append</span></a></span><span> </span><span class="annot"><span class="annottext">IndexMap a
+forall a. IndexMap a
+</span><a href="Agda.Utils.IndexMap.html#nil"><span class="hs-identifier hs-var">nil</span></a></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- Overwrites a binding with the given de Bruijn index.</span><span>
+</span><span id="line-67"></span><span class="hs-comment">--</span><span>
+</span><span id="line-68"></span><span class="hs-comment">-- Precondition: The binding must already exist in the map.</span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span id="local-6989586621681528743"><span class="annot"><a href="Agda.Utils.IndexMap.html#update"><span class="hs-identifier hs-type">update</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681528743"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-type">IndexMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681528743"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-type">IndexMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681528743"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-71"></span><span id="update"><span class="annot"><span class="annottext">update :: forall a. Int -&gt; a -&gt; IndexMap a -&gt; IndexMap a
+</span><a href="Agda.Utils.IndexMap.html#update"><span class="hs-identifier hs-var hs-var">update</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681528838"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681528838"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681528839"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681528839"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681528840"><span class="annot"><span class="annottext">IndexMap a
+</span><a href="#local-6989586621681528840"><span class="hs-identifier hs-var">m</span></a></span></span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int -&gt; IndexMap a -&gt; Bool
+forall a. Int -&gt; IndexMap a -&gt; Bool
+</span><a href="Agda.Utils.IndexMap.html#inRange"><span class="hs-identifier hs-var">inRange</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681528838"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">IndexMap a
+</span><a href="#local-6989586621681528840"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntMap a -&gt; IndexMap a
+forall a. IntMap a -&gt; IndexMap a
+</span><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-var">IndexMap</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; a -&gt; IntMap a -&gt; IntMap a
+forall a. Int -&gt; a -&gt; IntMap a -&gt; IntMap a
+</span><span class="hs-identifier hs-var">IntMap.insert</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IndexMap a -&gt; Int -&gt; Int
+forall a. IndexMap a -&gt; Int -&gt; Int
+</span><a href="Agda.Utils.IndexMap.html#mapIndex"><span class="hs-identifier hs-var">mapIndex</span></a></span><span> </span><span class="annot"><span class="annottext">IndexMap a
+</span><a href="#local-6989586621681528840"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681528838"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681528839"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IndexMap a -&gt; IntMap a
+forall a. IndexMap a -&gt; IntMap a
+</span><a href="Agda.Utils.IndexMap.html#indexMap"><span class="hs-identifier hs-var">indexMap</span></a></span><span> </span><span class="annot"><span class="annottext">IndexMap a
+</span><a href="#local-6989586621681528840"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IndexMap a
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- Looks up the thing with the given de Bruijn index.</span><span>
+</span><span id="line-76"></span><span class="hs-comment">--</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- Precondition: The index should be in range.</span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span id="local-6989586621681528749"><span class="annot"><a href="Agda.Utils.IndexMap.html#index"><span class="hs-identifier hs-type">index</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.IndexMap.html#IndexMap"><span class="hs-identifier hs-type">IndexMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621681528749"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621681528749"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-80"></span><span id="index"><span class="annot"><span class="annottext">index :: forall a. Int -&gt; IndexMap a -&gt; a
+</span><a href="Agda.Utils.IndexMap.html#index"><span class="hs-identifier hs-var hs-var">index</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681528844"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681528844"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621681528845"><span class="annot"><span class="annottext">IndexMap a
+</span><a href="#local-6989586621681528845"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Int -&gt; IntMap a -&gt; Maybe a
+forall a. Int -&gt; IntMap a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">IntMap.lookup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IndexMap a -&gt; Int -&gt; Int
+forall a. IndexMap a -&gt; Int -&gt; Int
+</span><a href="Agda.Utils.IndexMap.html#mapIndex"><span class="hs-identifier hs-var">mapIndex</span></a></span><span> </span><span class="annot"><span class="annottext">IndexMap a
+</span><a href="#local-6989586621681528845"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621681528844"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IndexMap a -&gt; IntMap a
+forall a. IndexMap a -&gt; IntMap a
+</span><a href="Agda.Utils.IndexMap.html#indexMap"><span class="hs-identifier hs-var">indexMap</span></a></span><span> </span><span class="annot"><span class="annottext">IndexMap a
+</span><a href="#local-6989586621681528845"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-81"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621681528847"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681528847"><span class="hs-identifier hs-var">x</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621681528847"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-82"></span><span>  </span><span class="annot"><span class="annottext">Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a
+forall a. HasCallStack =&gt; a
+</span><a href="Agda.Utils.Impossible.html#__IMPOSSIBLE__"><span class="hs-identifier hs-var">__IMPOSSIBLE__</span></a></span><span>
+</span><span id="line-83"></span></pre></body></html>
