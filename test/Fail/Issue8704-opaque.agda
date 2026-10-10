@@ -6,24 +6,8 @@
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Equality
 
-dummy1 : Bool
-dummy1 = true where
-  opaque
-    secret : Bool
-    secret = false
-
-  opaque
-    Test : Set
-    Test = secret ≡ _
-
-  opaque
-    unfolding secret Test
-
-    test : Test
-    test = refl
-
-dummy2 : Bool
-dummy2 = true where
+dummy : Bool
+dummy = true where
   opaque
     hh : Bool
     hh = true

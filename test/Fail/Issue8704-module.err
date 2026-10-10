@@ -1,0 +1,8 @@
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  isSuc zero = _8 : IsNat secret (blocked on _8)
+
+Issue8704-module.agda:27.14-46.32: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue8704-module.agda:27.14-15
+  Issue8704-module.agda:46.17-32
