@@ -938,6 +938,16 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
     void $ boundary v
     patternViolation neverUnblock
 
+  -- Issue #8704: if we are inside an abstract or opaque block that the meta
+  -- is not part of, we may unfold definitions the meta cannot see.
+  -- Then the solution has to be rechecked in the meta's own environment.
+  -- We must not refuse the assignment altogether, as this would also reject
+  -- solutions that do not depend on any abstract or opaque definition
+  -- (regression in TypeTopology, test/Succeed/Issue8704-concrete-meta.agda).
+  recheck <- not . (`envCanSolveMeta` mvar) <$> askTC
+  when recheck $ reportSLn "tc.meta.assign" 25 $
+    "solution will be rechecked: we see more abstract or opaque definitions than the meta"
+
   -- We never get blocked terms here anymore. TODO: we actually do. why?
   whenM (isBlockedTerm x) $ do
     reportSLn "tc.meta.assign" 25 $ "aborting: meta is a blocked term!"
@@ -1158,7 +1168,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
           -- Solve.
           m <- getContextSize
-          assignMeta' m x t n ids v
+          assignMeta' recheck m x t n ids v
   where
     -- Try to remove meta arguments from lhs that mention variables not occurring on rhs.
     attemptPruning
@@ -1323,13 +1333,16 @@ assignMeta :: Int -> MetaId -> Type -> [Int] -> Term -> TCM ()
 assignMeta m x t ids v = do
   let n    = length ids
       cand = List.sort $ zip' ids $ map' var $ downFrom n
-  assignMeta' m x t n cand v
+  assignMeta' False m x t n cand v
 
--- | @assignMeta' m x t ids u@ solves @x = [ids]u@ for meta @x@ of type @t@,
+-- | @assignMeta' recheck m x t ids u@ solves @x = [ids]u@ for meta @x@ of type @t@,
 --   where term @u@ lives in a context of length @m@,
 --   and @ids@ is a partial substitution.
-assignMeta' :: Int -> MetaId -> Type -> Int -> SubstCand -> Term -> TCM ()
-assignMeta' m x t n ids v = do
+--
+--   If @recheck@, the solution is first checked in the environment of @x@,
+--   see 'checkSolutionInMetaEnv'.
+assignMeta' :: Bool -> Int -> MetaId -> Type -> Int -> SubstCand -> Term -> TCM ()
+assignMeta' recheck m x t n ids v = do
   -- we are linear, so we can solve!
   reportSDoc "tc.meta.assign" 25 $
       "preparing to instantiate: " <+> prettyTCM v
@@ -1406,6 +1419,9 @@ assignMeta' m x t n ids v = do
 
     v' <- blockOnBoundary telv bs v'
 
+    -- Issue #8704: make sure the solution is valid for the meta.
+    when recheck $ checkSolutionInMetaEnv x t $ abstract mTel v'
+
     -- Andreas, 2013-10-25 double check solution before assigning
     whenM (optDoubleCheck  <$> pragmaOptions) $ do
       m <- lookupLocalMeta x
@@ -1428,6 +1444,72 @@ assignMeta' m x t n ids v = do
           equalTermOnFace (neg `apply1` r) t x v
           equalTermOnFace r  t y v
         return v
+
+-- | Issue #8704: Can a meta be solved in the given environment
+--   without rechecking the solution in the meta's own environment?
+--
+--   Not if the environment can unfold definitions that the meta cannot:
+--
+--   * In an abstract block, we unfold the abstract definitions of the
+--     current module and its parents.  So the meta has to be abstract
+--     as well and be created in the current module or one of its children.
+--
+--   * In an opaque block, we unfold the definitions it lists.
+--     So the meta has to be created in the same opaque block.
+--
+--   Otherwise, a solution might only be well-typed thanks to these unfoldings.
+--   Ill-typed meta solutions break invariants that, e.g., the clause-based
+--   reducer relies on, leading to a proof of false (#8704).
+envCanSolveMeta :: TCEnv -> MetaVariable -> Bool
+envCanSolveMeta env mv = abstractOk && opaqueOk
+  where
+    menv = getMetaEnv mv
+    abstractOk
+      | view eAbstractMode env == AbstractMode =
+          view eAbstractMode menv /= ConcreteMode &&
+          dropAnonymousModules (view eCurrentModule menv) `isLeChildModuleOf`
+          dropAnonymousModules (view eCurrentModule env)
+      | otherwise = True
+    opaqueOk = case view eCurrentOpaqueId env of
+      Nothing  -> True
+      Just oid -> view eCurrentOpaqueId menv == Just oid
+
+-- | Issue #8704: Check that a solution for meta @x@,
+--   found in an environment that can unfold more abstract or opaque definitions
+--   than @x@ (see 'envCanSolveMeta'), is also valid in @x@'s own environment:
+--
+--   1. The solution must not contain unsolved metas that can unfold
+--      more definitions than @x@, since their solutions might not be valid for @x@.
+--
+--   2. The solution must be well-typed in the environment of @x@.
+--
+--   If these checks fail, we do not assign @x@ (pattern violation).
+checkSolutionInMetaEnv
+  :: MetaId  -- ^ Meta @x@.
+  -> Type    -- ^ Type of @x@ (in the empty context).
+  -> Term    -- ^ Solution for @x@ (in the empty context).
+  -> TCM ()
+checkSolutionInMetaEnv x t u = do
+  mv <- lookupLocalMeta x
+  u  <- instantiateFull u
+  reportSDoc "tc.meta.check.env" 30 $ "checking solution in the environment of the meta:" <+>
+    sep [ prettyTCM x <+> ":=" , nest 2 $ prettyTCM u ]
+
+  -- 1. No unsolved metas that see more than @x@.
+  let seesMore y = not . (`envCanSolveMeta` mv) . getMetaEnv <$> lookupLocalMeta y
+  ys <- filterM seesMore $ allMetasList u
+  unless (List.null ys) $ do
+    reportSDoc "tc.meta.check.env" 25 $ "not solving" <+> prettyTCM x <+>
+      "since its solution mentions metas that see more definitions:" <+> prettyList_ (map' prettyTCM ys)
+    patternViolation $ unblockOnAnyMeta $ Set.fromList ys
+
+  -- 2. Well-typed in the environment of @x@.
+  ok <- withMetaInfo' mv $ inTopContext $
+    isJust <$> tryMaybe (noConstraints $ checkSolutionForMeta x mv u t)
+  unless ok $ do
+    reportSDoc "tc.meta.check.env" 25 $ "not solving" <+> prettyTCM x <+>
+      "since its solution is not well-typed in the environment of the meta"
+    patternViolation =<< updateBlocker (unblockOnAnyMetaIn (t, u))
 
 -- | Check that the instantiation of the given metavariable fits the
 --   type of the metavariable. If the metavariable is not yet

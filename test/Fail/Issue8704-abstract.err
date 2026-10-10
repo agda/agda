@@ -1,0 +1,11 @@
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  _20 = refl : hh' ≡ true (blocked on _20)
+  _5 = refl : hh ≡ true (blocked on _5)
+
+Issue8704-abstract.agda:23.8-65.19: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue8704-abstract.agda:23.8-9
+  Issue8704-abstract.agda:34.13-17
+  Issue8704-abstract.agda:50.9-10
+  Issue8704-abstract.agda:65.15-19
