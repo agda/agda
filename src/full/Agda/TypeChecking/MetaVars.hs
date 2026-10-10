@@ -938,24 +938,6 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
     void $ boundary v
     patternViolation neverUnblock
 
-  -- Issue #8704: if we are inside an abstract block, we don't instantiate metas
-  -- except the ones created in an abstract block of the current module
-  whenM ((== AbstractMode) <$> viewTC eAbstractMode) $ do
-    currentMod <- dropAnonymousModules <$> viewTC eCurrentModule
-    let metaMod = dropAnonymousModules $ view eCurrentModule $ getMetaEnv mvar
-    unless (view lensIsAbstract mvar == AbstractDef
-            && currentMod `isLeChildModuleOf` metaMod) $ do
-      reportSLn "tc.meta.assign" 25 $ "aborting: we are abstract but meta isn't"
-      patternViolation (unblockOnMeta x)
-
-  -- Issue #8704: if we are in an opaque block, we don't instantiate metas
-  -- except the ones created in the current opaque block.
-  whenJustM (viewTC eCurrentOpaqueId) $ \oid -> do
-    let metaOId = view eCurrentOpaqueId $ getMetaEnv mvar
-    unless (metaOId == Just oid) $ do
-      reportSLn "tc.meta.assign" 25 $ "aborting: meta is from outside current opaque block"
-      patternViolation (unblockOnMeta x)
-
   -- We never get blocked terms here anymore. TODO: we actually do. why?
   whenM (isBlockedTerm x) $ do
     reportSLn "tc.meta.assign" 25 $ "aborting: meta is a blocked term!"

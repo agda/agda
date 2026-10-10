@@ -1,12 +1,7 @@
-error: [UnsolvedConstraints]
-Failed to solve the following constraints:
-  g secret (_12 (n = n) (v = v)) true = false : Bool (blocked on _12)
-  g 1 (_12 (n = n) (v = v)) true = true : Bool (blocked on _12)
-  isSuc zero = _12 (n = n) (v = v) : IsNat secret (blocked on _12)
-
-Issue8704-false.agda:44.12-60.23: error: [UnsolvedMetaVariables]
-Unsolved metas at the following locations:
-  Issue8704-false.agda:44.12-13
-  Issue8704-false.agda:49.15-30
-  Issue8704-false.agda:54.15-19
-  Issue8704-false.agda:60.18-23
+Issue8704-false.agda:60.18-23: error: [UnequalTerms]
+The terms
+  g secret leak true
+and
+  false
+are not equal at type Bool
+when checking that the expression lemma has type false ≡ true
