@@ -91,10 +91,10 @@ jobs:
       id: haskell-setup
       with:
         ghc-version: ${{ matrix.ghc-ver }}
-        stack-version: '3.9.3'
-          # Andreas, 2026-09-22
-          # 'latest' now resolves to '3.11.1' which breaks pkg-config here.
-          # See https://github.com/commercialhaskell/stack/issues/6967
+        # stack-version: '3.9.3'
+        #   # Andreas, 2026-09-22
+        #   # 'latest' now resolves to '3.11.1' which breaks pkg-config here.
+        #   # See https://github.com/commercialhaskell/stack/issues/6967
         enable-stack: true
         cabal-update: false
 
@@ -142,16 +142,8 @@ jobs:
     - name: Install the ICU library (Windows)
       if: runner.os == 'Windows'
       run: |
-        # stack exec ${ARGS} -- pacman --noconfirm -Syuu
-        # stack exec ${ARGS} -- pacman --noconfirm -S msys2-keyring
-        # stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
         # shellcheck disable=SC2086
-        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-icu mingw-w64-x86_64-pkgconf mingw-w64-x86_64-zlib
-      # env:
-      #   # Amélia Liao (2022-08-16):
-      #   # Use a known-good version of ICU from the msys2 repository since
-      #   # GHC does not work with ICU ≠ 69
-      #   ICU_URL: "https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-icu-69.1-1-any.pkg.tar.zst"
+        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-clang-x86_64-icu mingw-w64-clang-x86_64-pkgconf mingw-w64-clang-x86_64-zlib
 
     - name: Determine the ICU version
       run: |

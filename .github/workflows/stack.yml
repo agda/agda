@@ -38,7 +38,6 @@ jobs:
         cabal-update: false
         enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}
-        stack-version: 3.9.3
     - name: Environment settings based on the Haskell setup
       run: |
         echo "runner.os         = ${{ runner.os                               }}"
@@ -66,11 +65,8 @@ jobs:
     - if: runner.os == 'Windows'
       name: Install the ICU library (Windows)
       run: |
-        # stack exec ${ARGS} -- pacman --noconfirm -Syuu
-        # stack exec ${ARGS} -- pacman --noconfirm -S msys2-keyring
-        # stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
         # shellcheck disable=SC2086
-        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-icu mingw-w64-x86_64-pkgconf mingw-w64-x86_64-zlib
+        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-clang-x86_64-icu mingw-w64-clang-x86_64-pkgconf mingw-w64-clang-x86_64-zlib
     - name: Determine the ICU version
       run: |
         # shellcheck disable=SC2086
