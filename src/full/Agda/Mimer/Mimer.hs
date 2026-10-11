@@ -645,6 +645,8 @@ tryRefineWith' goal goalType comp = do
     dumbUnifier (compType comp) goalType
     reportSLn "mimer.search" 45 "assignMeta"
     assignMeta (goalMeta goal) (compTerm comp) goalType
+    -- Postponed constraints might have been woken up by the assignment.
+    solveSearchConstraints
 
     updateStat incRefineSuccess
     reportSMDoc "mimer.refine" 50 $ "Refinement succeeded"

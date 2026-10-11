@@ -190,6 +190,9 @@ data SearchOptions = SearchOptions
   , searchTopMeta :: MetaId
   , searchTopEnv :: TCEnv
   , searchTopCheckpoint :: CheckpointId
+  , searchProblem :: ProblemId
+      -- ^ Constraints postponed during search are tagged with this problem.
+      --   A branch is only a solution once all of them are solved.
   , searchInteractionId :: InteractionId
   , searchFnName :: Maybe QName
   , searchCosts :: Costs
