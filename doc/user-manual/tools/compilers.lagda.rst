@@ -29,6 +29,8 @@ GHC Backend
 
 The GHC backend translates Agda programs into GHC Haskell programs.
 
+It supports the same :ref:`GHC versions <ghc-versions>` as building Agda from source.
+
 Usage
 ^^^^^
 
