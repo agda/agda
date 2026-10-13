@@ -224,8 +224,14 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         unsolved <- lift $ computeUnsolvedInfo
         err     <- lift $ errorHighlighting e
         modFile <- lift $ useSession lensModuleToSource
+        -- `theCurrentFile` may have been reset by `onFail`; use the IOTCM
+        -- path to distinguish another file from the current buffer.
+        currentPath <- gets theCurrentFilePath
         let errorFile = case rangeFile (getRange e) of
-              Strict.Just rf -> Just $ filePath $ rangeFilePath rf
+              Strict.Just rf
+                | Just (rangeFilePath rf) /= currentPath ->
+                    Just $ filePath $ rangeFilePath rf
+                | otherwise -> Nothing
               Strict.Nothing -> Nothing
         method  <- case method of
           Nothing -> lift $ viewTC eHighlightingMethod
@@ -264,9 +270,10 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
 --   loaded interfaces for example).
 
 runInteraction :: IOTCM -> CommandM ()
-runInteraction iotcm =
+runInteraction iotcm = do
+  currentAbs <- liftIO $ absolute current
+  modify $ \s -> s { theCurrentFilePath = Just currentAbs }
   handleCommand inEmacs onFail $ do
-    currentAbs <- liftIO $ absolute current
     cf  <- gets theCurrentFile
     cmd <- if independent cmd then return cmd else do
       when (Just currentAbs /= (currentFilePath <$> cf)) $ do

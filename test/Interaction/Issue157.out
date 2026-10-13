@@ -7,6 +7,5 @@
 (agda2-highlight-add-annotations nil 'nil '(25 26 (function) nil nil ("Issue157.agda" . 25)) '(33 34 (function) nil nil ("Issue157.agda" . 25)) '(35 36 (symbol) t) '(37 38 (symbol) t))
 (agda2-info-action "*Error*" "Issue157.agda:8.9-12: error: [UnequalTypes] The types Set₁ and Set are not equal when checking that the expression Set has type Set" nil)
 ((last . 3) . (agda2-maybe-goto '("Issue157.agda" . 60)))
-(agda2-highlight-add-annotations "Issue157.agda" 'nil '(60 63 (error) nil "Issue157.agda:8.9-12: error: [UnequalTypes] The types Set₁ and Set are not equal when checking that the expression Set has type Set"))
-(agda2-highlight-add-annotations nil 'nil '(37 38 (unsolvedmeta)))
+(agda2-highlight-add-annotations nil 'nil '(37 38 (unsolvedmeta)) '(60 63 (error) nil "Issue157.agda:8.9-12: error: [UnequalTypes] The types Set₁ and Set are not equal when checking that the expression Set has type Set"))
 (agda2-status-action "")
