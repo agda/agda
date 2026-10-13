@@ -243,13 +243,13 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
             tellEmacsToJumpToError (getRange e) ++
             (case errorFile of
               Just file ->
-                [ Resp_HighlightingInfoForFile errorInfo KeepHighlighting
-                                               method modFile file
+                [ Resp_HighlightingInfo errorInfo KeepHighlighting
+                                        method modFile (Just file)
                 , Resp_HighlightingInfo unsolvedInfo KeepHighlighting
-                                        method modFile
+                                        method modFile Nothing
                 ]
               Nothing ->
-                [ Resp_HighlightingInfo info KeepHighlighting method modFile ]) ++
+                [ Resp_HighlightingInfo info KeepHighlighting method modFile Nothing ]) ++
             [ Resp_Status $ Status { sChecked = False
                                    , sShowImplicitArguments = showImpl
                                    , sShowIrrelevantArguments = showIrr
@@ -1241,7 +1241,7 @@ tellToUpdateHighlighting
   :: Maybe (HighlightingInfo, HighlightingMethod, ModuleToSource) -> IO [Response]
 tellToUpdateHighlighting Nothing                = return []
 tellToUpdateHighlighting (Just (info, method, modFile)) =
-  return [Resp_HighlightingInfo info KeepHighlighting method modFile]
+  return [Resp_HighlightingInfo info KeepHighlighting method modFile Nothing]
 
 -- | Tells the Emacs mode to go to the first error position (if any).
 

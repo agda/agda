@@ -51,8 +51,9 @@ jsonifyHighlightingInfo
   -> HighlightingMethod
   -> ModuleToSource
      -- ^ Must contain a mapping for every definition site's module.
+  -> Maybe FilePath
   -> IO Value
-jsonifyHighlightingInfo info remove method modFile =
+jsonifyHighlightingInfo info remove method modFile file =
   case chooseHighlightingMethod info method of
     Direct   -> direct
     Indirect -> indirect
@@ -66,17 +67,19 @@ jsonifyHighlightingInfo info remove method modFile =
       ]
 
     direct :: IO Value
-    direct = return $ object
+    direct = return $ object $
       [ "kind"   .= String "HighlightingInfo"
       , "direct" .= True
       , "info"   .= result
-      ]
+      ] ++ fileField
 
     indirect :: IO Value
     indirect = do
       filepath <- writeToTempFile (BS.unpack (encode result))
-      return $ object
+      return $ object $
         [ "kind"     .= String "HighlightingInfo"
         , "direct"   .= False
         , "filepath" .= filepath
-        ]
+        ] ++ fileField
+
+    fileField = maybe [] (\path -> ["file" .= path]) file

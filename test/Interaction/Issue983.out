@@ -13,5 +13,6 @@
 (agda2-info-action "*Error*" "Issue983-Bad.agda:2.7-31: error: [NotInScope] Not in scope: Issue983-Lib.NonExisting at Issue983-Bad.agda:2.7-31 when scope checking Issue983-Lib.NonExisting" nil)
 ((last . 3) . (agda2-maybe-goto '("Issue983-Bad.agda" . 32)))
 (agda2-highlight-load-and-delete-action)
+(agda2-highlight-load-and-delete-action nil)
 (agda2-status-action "")
 (agda2-status-action "")

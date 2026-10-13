@@ -7222,7 +7222,6 @@ defaultInteractionOutputCallback = \case
     putDocTreeLn msg
     liftIO $ hFlush stdout
   Resp_HighlightingInfo {}  -> __IMPOSSIBLE__
-  Resp_HighlightingInfoForFile {} -> __IMPOSSIBLE__
   Resp_Status {}            -> __IMPOSSIBLE__
   Resp_JumpToError {}       -> __IMPOSSIBLE__
   Resp_InteractionPoints {} -> __IMPOSSIBLE__

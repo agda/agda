@@ -75,6 +75,7 @@
 (agda2-info-action "*Error*" "Long.agda:22.16-19: error: [UnequalTypes] The type Nat is not a subtype of Maybe Nat when checking that the inferred type of an application Nat matches the expected type Maybe Nat" nil)
 ((last . 3) . (agda2-maybe-goto '("Long.agda" . 304)))
 (agda2-highlight-load-and-delete-action)
+(agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
 (agda2-status-action "")
 (agda2-info-action "*Normal Form*" "?1" nil)

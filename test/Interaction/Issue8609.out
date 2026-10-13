@@ -53,4 +53,5 @@
 (agda2-info-action "*Error*" "Issue8609.agda:15.16-18: error: [UnequalTerms] The terms [] and _x_13 ∷ _xs_14 are not equal at type (List Nat) when checking that the expression [] has type List Nat" nil)
 ((last . 3) . (agda2-maybe-goto '("Issue8609.agda" . 325)))
 (agda2-highlight-load-and-delete-action)
+(agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
