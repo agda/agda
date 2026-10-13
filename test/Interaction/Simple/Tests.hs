@@ -84,7 +84,8 @@ filterOutput dir = let  in
   . re "\\(agda2-info-action \"\\*Agda Version\\*\" \"Agda version [.0-9]+(-[[:alnum:]]+(-[[:alnum:]]+)?)?\" nil\\)" "(agda2-info-action \"*Agda Version*\" \"Agda version «Agda-version»\" nil)"
   . re "in Agda?-[.0-9]+(-[[:alnum:]]+)?" "«Agda-package»"
   . re "[.]hs:[0-9]+:[0-9]+" ".hs:«line»:«col»"
-  . re "\\(agda2-highlight-load-and-delete-action .*\\)" "(agda2-highlight-load-and-delete-action)"
+  -- Drop the transient payload file but preserve the optional target file.
+  . re "\\(agda2-highlight-load-and-delete-action \"[^\"]*\" " "(agda2-highlight-load-and-delete-action "
   . re "[^ (\"]*lib.prim" "agda-default-include-path"
   . re parentDir' "../"
   . re dir' ""
