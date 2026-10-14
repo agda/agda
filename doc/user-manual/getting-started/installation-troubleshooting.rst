@@ -40,4 +40,5 @@ Cabal issues
 ============
 
 If you chose to install Agda with a Haskell build tool like ``cabal`` or ``stack``,
-see the "Troubleshooting Cabal" section in ``HACKING.md``.
+see the "Troubleshooting Cabal" section in ``HACKING.md``,
+and the :ref:`cabal flag reference <cabal-flags>` section of this manual.
