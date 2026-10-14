@@ -2279,12 +2279,14 @@ to display the given position."
   "Go to the definition site of the name clicked on, if any.
 Otherwise, yank (see `mouse-yank-primary')."
   (interactive "e")
-  (if (consp (get-text-property (point) 'annotation-goto))
-      (let ((xref-auto-jump-to-first-definition t))
-        (call-interactively #'xref-find-definitions))
-    ;; FIXME: Shouldn't we use something like
-    ;; (call-interactively (key-binding ev))?  --Stef
-    (mouse-yank-primary ev)))
+  (save-excursion
+    (mouse-set-point ev)
+    (if (consp (get-text-property (point) 'annotation-goto))
+        (let ((xref-prompt-for-identifier nil))
+          (call-interactively #'xref-find-definitions))
+      ;; FIXME: Shouldn't we use something like
+      ;; (call-interactively (key-binding ev))?  --Stef
+      (mouse-yank-primary ev))))
 
 (defun agda2-info-goto-definition-mouse (ev)
   "While in the information buffer, to the definition site of the name
