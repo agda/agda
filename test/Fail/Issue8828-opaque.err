@@ -1,0 +1,11 @@
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  _13 = refl : hh ≡ true (blocked on _13)
+  false = _4 : Bool (blocked on _4)
+
+Issue8828-opaque.agda:19.23-46.17: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue8828-opaque.agda:19.23-24
+  Issue8828-opaque.agda:25.13-17
+  Issue8828-opaque.agda:37.10-11
+  Issue8828-opaque.agda:46.13-17
