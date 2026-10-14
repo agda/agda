@@ -9,6 +9,7 @@ Tools
    :maxdepth: 2
 
    auto
+   cabal-flags
    command-line-options
    compilers
    debugging
