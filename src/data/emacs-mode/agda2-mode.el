@@ -1099,7 +1099,7 @@ The buffer is returned.")
       (compilation-mode ,name-of-mode)
       ;; Support for jumping to positions mentioned in the text.
       (set (make-local-variable 'compilation-error-regexp-alist)
-           '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\)\\.\\([0-9]+\\)\\(-\\(\\([0-9]+\\)\\.\\)?\\([0-9]+\\)\\)?"
+           '(("^\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\)\\.\\([0-9]+\\)\\(-\\(\\([0-9]+\\)\\.\\)?\\([0-9]+\\)\\)?"
               1 (2 . 6) (3 . 7))))
 
       ;; compilation-mode adds font-lock keywords for highlighting
