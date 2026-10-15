@@ -130,49 +130,49 @@ Also sets the default value of VARIABLE to GROUP."
              :background "light blue")))
          ((equal group 'default-faces)
           (list (cons 'agda2-highlight-keyword-face
-                      (list :inherit font-lock-keyword-face))
+                      (list :inherit 'font-lock-keyword-face))
                 (cons 'agda2-highlight-string-face
-                      (list :inherit font-lock-string-face))
+                      (list :inherit 'font-lock-string-face))
                 (cons 'agda2-highlight-number-face
-                      (list :inherit font-lock-constant-face))
+                      (list :inherit 'font-lock-constant-face))
                 (cons 'agda2-highlight-symbol-face
-                      (list :inherit font-lock-keyword-face))
+                      (list :inherit 'font-lock-keyword-face))
                 (cons 'agda2-highlight-primitive-type-face
-                      (list :inherit font-lock-keyword-face))
+                      (list :inherit 'font-lock-keyword-face))
                 (cons 'agda2-highlight-bound-variable-face
-                      (list :inherit font-lock-variable-name-face))
+                      (list :inherit 'font-lock-variable-name-face))
                 (cons 'agda2-highlight-generalizable-variable-face
-                      (list :inherit font-lock-variable-name-face))
+                      (list :inherit 'font-lock-variable-name-face))
                 (cons 'agda2-highlight-inductive-constructor-face
-                      (list :inherit font-lock-type-face))
+                      (list :inherit 'font-lock-type-face))
                 (cons 'agda2-highlight-coinductive-constructor-face
-                      (list :inherit font-lock-type-face))
+                      (list :inherit 'font-lock-type-face))
                 (cons 'agda2-highlight-datatype-face
-                      (list :inherit font-lock-type-face))
+                      (list :inherit 'font-lock-type-face))
                 (cons 'agda2-highlight-field-face
-                      (list :inherit font-lock-variable-name-face))
+                      (list :inherit 'font-lock-variable-name-face))
                 (cons 'agda2-highlight-function-face
-                      (list :inherit font-lock-function-name-face))
+                      (list :inherit 'font-lock-function-name-face))
                 (cons 'agda2-highlight-module-face
-                      (list :inherit font-lock-type-face))
+                      (list :inherit 'font-lock-type-face))
                 (cons 'agda2-highlight-postulate-face
-                      (list :inherit font-lock-type-face))
+                      (list :inherit 'font-lock-type-face))
                 (cons 'agda2-highlight-primitive-face
-                      (list :inherit font-lock-constant-face))
+                      (list :inherit 'font-lock-constant-face))
                 (cons 'agda2-highlight-macro-face
-                      (list :inherit font-lock-function-name-face))
+                      (list :inherit 'font-lock-function-name-face))
                 (cons 'agda2-highlight-record-face
-                      (list :inherit font-lock-variable-name-face))
+                      (list :inherit 'font-lock-variable-name-face))
                 (cons 'agda2-highlight-dotted-face
-                      (list :inherit font-lock-variable-name-face))
+                      (list :inherit 'font-lock-variable-name-face))
                 (cons 'agda2-highlight-operator-face
-                      (list :inherit font-lock-function-name-face))
+                      (list :inherit 'font-lock-function-name-face))
                 (cons 'agda2-highlight-error-face
-                      (list :inherit font-lock-warning-face))
+                      (list :inherit 'font-lock-warning-face))
                 (cons 'agda2-highlight-typechecks-face
-                      (list :inherit font-lock-type-face))
+                      (list :inherit 'font-lock-type-face))
                 (cons 'agda2-highlight-typechecking-face
-                      (list :inherit font-lock-preprocessor-face)))))))
+                      (list :inherit 'font-lock-preprocessor-face)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Faces
