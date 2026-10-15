@@ -779,6 +779,7 @@ ecosystem-test : agda-categories-test \
                  agda-unimath-test \
                  plfa-test \
                  TypeTopology-test \
+                 agda-stdlib-classes-test \
                  agda-stdlib-meta-test
 
 .PHONY : agda-categories-test ##
@@ -806,6 +807,12 @@ TypeTopology-test : ecosystem-libraries-file
 	@$(call decorate, "TypeTopology library test", \
 	  (cd $(ECOSYSTEM_DIR)/TypeTopology/source && \
 	   time $(ECOSYSTEM_AGDA) AllModulesIndex.lagda))
+
+.PHONY : agda-stdlib-classes-test ##
+agda-stdlib-classes-test : ecosystem-libraries-file
+	@$(call decorate, "agda-stdlib-classes library test", \
+	  (cd $(ECOSYSTEM_DIR)/agda-stdlib-classes && \
+	   time $(ECOSYSTEM_AGDA) standard-library-classes.agda))
 
 .PHONY : agda-stdlib-meta-test ##
 agda-stdlib-meta-test : ecosystem-libraries-file

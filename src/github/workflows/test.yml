@@ -461,6 +461,7 @@ jobs:
         - agda-unimath
         - plfa
         - TypeTopology
+        - agda-stdlib-classes
         - agda-stdlib-meta
 
     steps:
