@@ -192,7 +192,8 @@ checkAlias t ai i name e mc =
 
   -- Add the definition
   fun <- emptyFunctionData
-  addConstant' name ai t $ FunctionDefn $
+  applyWhenM (optPolarity <$> pragmaOptions) (applyPolarityToContext ai) $
+    applyCohesionToContext ai $ addConstant' name ai t $ FunctionDefn $
     set funMacro_ (Info.defMacro i == MacroDef) $
     set funAbstr_ (Info.defAbstract i) $
       fun { _funClauses   = [ Clause  -- trivial clause @name = v@

@@ -552,11 +552,20 @@ instance PrettyTCM TypeError where
 
     InvalidModalTelescopeUse t used avail def -> fsep
       [ "Telescope variable" <+> prettyTCM t
-      , "is indirectly being used in the" <+> text (verbalize (getModality used)) <+> "modality"
-      , "but only available in the" <+> text (verbalize (getModality avail)) <+> "modality"
+      , "is indirectly being used in the" <+> text (verbalizePositional used) <+> "modality"
+      , "but only available in the" <+> text (verbalizePositional avail) <+> "modality"
       , "when inserting into the telescope of definition"
       , pretty (defName def) <+> ":" <+> prettyTCM (defType def)
       ]
+      where
+        -- Only the cohesion and polarity components are relevant here.
+        verbalizePositional m =
+          case [ verbalize c | c /= defaultCohesion ] ++ [ verbalize p | p /= defaultPolarity ] of
+            [] -> "default"
+            ws -> intercalate ", " ws
+          where
+            c = getCohesion m
+            p = getModalPolarity m
 
     VariableIsOfUnusablePolarity x c -> fsep $
       ["Variable", prettyTCM (nameConcrete x), "is bound with", text (verbalize p)] ++ pwords "polarity, so it cannot be used here at" ++

@@ -865,10 +865,11 @@ defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion defa
 defaultCheckModality :: Modality
 defaultCheckModality = defaultModality { modPolarity = withStandardLock StrictlyPositive }
 
--- | Extract the positional modality component for checks regarding only them.
+-- | Extract the positional modality components (cohesion and polarity)
+--   for checks regarding only them.
 positionalModalityComponent :: Modality -> Modality
 positionalModalityComponent m =
-  defaultModality {modCohesion = modCohesion m}
+  defaultModality {modCohesion = modCohesion m, modPolarity = modPolarity m}
 
 -- | Equality ignoring origin.
 
