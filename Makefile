@@ -415,10 +415,10 @@ ecosystem_update       = git submodule update --init --checkout          $(ECOSY
 ecosystem_fast_forward = git submodule update --init --checkout --remote $(ECOSYSTEM_DIR)/$(1)
 
 .PHONY : ecosystem ## Install all the ecosystem libraries.
-ecosystem : agda-categories agda-unimath plfa TypeTopology
+ecosystem : agda-categories agda-unimath plfa TypeTopology agda-stdlib-meta
 
 .PHONY: fast-forward-ecosystem ## Update all the ecosystem libraries.
-fast-forward-ecosystem : fast-forward-agda-categories fast-forward-agda-unimath fast-forward-plfa fast-forward-TypeTopology
+fast-forward-ecosystem : fast-forward-agda-categories fast-forward-agda-unimath fast-forward-plfa fast-forward-TypeTopology fast-forward-agda-stdlib-meta
 
 #### agda-categories ####
 
@@ -492,6 +492,30 @@ up-to-date-TypeTopology : TypeTopology
 .PHONY : fast-forward-TypeTopology ##
 fast-forward-TypeTopology :
 	$(call ecosystem_fast_forward,TypeTopology)
+
+#### agda-stdlib-meta ####
+
+.PHONY : agda-stdlib-classes ## Update the agda-stdlib-classes dependency.
+agda-stdlib-classes :
+	$(call ecosystem_update,agda-stdlib-classes)
+
+.PHONY : up-to-date-agda-stdlib-classes ##
+up-to-date-agda-stdlib-classes : agda-stdlib-classes
+
+.PHONY : fast-forward-agda-stdlib-classes ##
+fast-forward-agda-stdlib-classes :
+	$(call ecosystem_fast_forward,agda-stdlib-classes)
+
+.PHONY : agda-stdlib-meta ## Update the agda-stdlib-meta library.
+agda-stdlib-meta : agda-stdlib-classes
+	$(call ecosystem_update,agda-stdlib-meta)
+
+.PHONY : up-to-date-agda-stdlib-meta ##
+up-to-date-agda-stdlib-meta : agda-stdlib-meta
+
+.PHONY : fast-forward-agda-stdlib-meta ##
+fast-forward-agda-stdlib-meta : fast-forward-agda-stdlib-classes
+	$(call ecosystem_fast_forward,agda-stdlib-meta)
 
 ##############################################################################
 ## Continuous Integration
@@ -754,7 +778,8 @@ ecosystem-libraries-file :
 ecosystem-test : agda-categories-test \
                  agda-unimath-test \
                  plfa-test \
-                 TypeTopology-test
+                 TypeTopology-test \
+                 agda-stdlib-meta-test
 
 .PHONY : agda-categories-test ##
 agda-categories-test : ecosystem-libraries-file patch-agda-categories
@@ -782,12 +807,20 @@ TypeTopology-test : ecosystem-libraries-file
 	  (cd $(ECOSYSTEM_DIR)/TypeTopology/source && \
 	   time $(ECOSYSTEM_AGDA) AllModulesIndex.lagda))
 
+.PHONY : agda-stdlib-meta-test ##
+agda-stdlib-meta-test : ecosystem-libraries-file
+	@$(call decorate, "agda-stdlib-meta library test", \
+	  (cd $(ECOSYSTEM_DIR)/agda-stdlib-meta && \
+	   time $(ECOSYSTEM_AGDA) -i. -i../agda-stdlib-classes standard-library-meta.agda))
+
 .PHONY : clean-ecosystem ## Delete the interface files of the ecosystem libraries.
 clean-ecosystem :
 	rm -rf $(ECOSYSTEM_DIR)/agda-categories/_build
 	rm -rf $(ECOSYSTEM_DIR)/agda-unimath/_build
 	rm -rf $(ECOSYSTEM_DIR)/plfa/src/_build
 	rm -rf $(ECOSYSTEM_DIR)/TypeTopology/_build
+	rm -rf $(ECOSYSTEM_DIR)/agda-stdlib-meta/_build
+	rm -rf $(ECOSYSTEM_DIR)/agda-stdlib-classes/_build
 
 .PHONY : std-lib-succeed ##
 std-lib-succeed :
