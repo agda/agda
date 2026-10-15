@@ -21,8 +21,8 @@ Makefile goals
 --------------
 
 All goals live in the top-level `Makefile`; `LIB` below stands for the name of
-one of the tested libraries above.  `agda-stdlib-classes` is a dependency of
-`agda-stdlib-meta` and has no separate test goal.
+one of the submodule directories above.  `agda-stdlib-classes` is a dependency
+of `agda-stdlib-meta`; both libraries have separate test goals.
 
 | Goal                     | Effect                                                     |
 |--------------------------|------------------------------------------------------------|
