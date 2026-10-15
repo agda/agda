@@ -35,7 +35,8 @@ dummy = zero
         secret : Nat
         secret = suc zero
 
-        -- This solves N := IsNat secret, which is fine.
+        -- This does not solve N since we are in a Child abstract block,
+        -- and the type signature N ≡ IsNat secret alone does not determine N.
         fixN : N ≡ IsNat secret
         fixN = refl
 
