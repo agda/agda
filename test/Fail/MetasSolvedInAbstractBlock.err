@@ -1,0 +1,14 @@
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  _x_27 = r : R (blocked on _x_27)
+  _x_7 = a : A (blocked on _x_7)
+  _x_14 = a : A (blocked on _x_14)
+
+MetasSolvedInAbstractBlock.agda:26.9-61.12: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  MetasSolvedInAbstractBlock.agda:26.9-10
+  MetasSolvedInAbstractBlock.agda:29.9-10
+  MetasSolvedInAbstractBlock.agda:34.9-10
+  MetasSolvedInAbstractBlock.agda:37.9-10
+  MetasSolvedInAbstractBlock.agda:58.15-16
+  MetasSolvedInAbstractBlock.agda:61.11-12

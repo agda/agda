@@ -4,6 +4,11 @@
 -- Non-abstract (non-opaque) metas could no longer be solved
 -- from an abstract (opaque) block, not even if the solution
 -- does not depend on any abstract (opaque) definition.
+--
+-- Jesper, 2026-10-14, after discussion we agreed that this
+-- is failing as intended: the concrete expression that is
+-- given as the body of an abstract definition should not be
+-- observable from outside that abstract block.
 
 
 postulate
