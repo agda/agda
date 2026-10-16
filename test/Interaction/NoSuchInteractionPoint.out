@@ -5,5 +5,5 @@
 (agda2-info-action "*All Done*" "" nil)
 ((last . 1) . (agda2-goals-action '()))
 (agda2-info-action "*Error*" "error: [Interaction.NoSuchInteractionPoint] Unknown interaction point ?0" nil)
-(agda2-highlight-load-and-delete-action)
+(agda2-highlight-load-and-delete-action nil)
 (agda2-status-action "")

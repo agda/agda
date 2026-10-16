@@ -54,6 +54,8 @@ data Response_boot tcErr tcWarning warningsAndNonFatalErrors
         RemoveTokenBasedHighlighting
         HighlightingMethod
         ModuleToSource
+        (Maybe FilePath)
+        -- ^ Target file, or 'Nothing' for the current buffer.
     | Resp_Status Status
     | Resp_JumpToError FilePath Word32
     | Resp_InteractionPoints [InteractionId]

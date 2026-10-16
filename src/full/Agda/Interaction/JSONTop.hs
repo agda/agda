@@ -438,8 +438,8 @@ instance EncodeTCM TCWarning where
     ]
 
 instance EncodeTCM Response where
-  encodeTCM (Resp_HighlightingInfo info remove method modFile) =
-    liftIO $ jsonifyHighlightingInfo info remove method modFile
+  encodeTCM (Resp_HighlightingInfo info remove method modFile file) =
+    liftIO $ jsonifyHighlightingInfo info remove method modFile file
   encodeTCM (Resp_DisplayInfo info) = kind "DisplayInfo"
     [ "info"          @= info
     ]

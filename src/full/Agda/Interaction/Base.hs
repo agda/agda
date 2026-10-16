@@ -70,6 +70,10 @@ data CommandState = CommandState
     -- ^ The file which the state applies to. Only stored if the
     -- module was successfully type checked (potentially with
     -- warnings).
+  , theCurrentFilePath   :: Maybe AbsolutePath
+    -- ^ The path supplied by the current interaction command. Unlike
+    -- 'theCurrentFile', this is available while a file is being loaded,
+    -- even if loading fails.
   , optionsOnReload      :: CommandLineOptions
     -- ^ Reset the options on each reload to these.
   , oldInteractionScopes :: !OldInteractionScopes
@@ -92,6 +96,7 @@ initCommandState commandQueue =
   CommandState
     { theInteractionPoints = []
     , theCurrentFile       = Nothing
+    , theCurrentFilePath   = Nothing
     , optionsOnReload      = defaultOptions
     , oldInteractionScopes = Map.empty
     , commandQueue         = commandQueue

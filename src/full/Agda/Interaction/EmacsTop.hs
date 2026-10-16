@@ -70,8 +70,8 @@ mimicGHCi = repl (liftIO . putStrLn . prettyShow <=< lispifyResponse) "Agda2> "
 lispifyResponse :: Response -> TCM (Lisp String)
 lispifyResponse = \case
 
-  Resp_HighlightingInfo info remove method modFile ->
-    liftIO (lispifyHighlightingInfo info remove method modFile)
+  Resp_HighlightingInfo info remove method modFile file ->
+    liftIO (lispifyHighlightingInfo info remove method modFile file)
 
   Resp_DisplayInfo info ->
     lispifyDisplayInfo info
