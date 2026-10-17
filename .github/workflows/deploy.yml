@@ -46,7 +46,7 @@ jobs:
 
           compress_cmd="tar -a -cvf ${filename} -C ${bindist} ${exe}"
 
-        elif [[ "${{ matrix.os }}" == macos-15-arm64 ]]; then
+        elif [[ "${{ matrix.os }}" == macos-15 ]]; then
 
           args="${{ env.ARGS }} ${MACOS_ARGS}"
           filename=macOS-arm64.tar.xz
@@ -174,7 +174,7 @@ jobs:
         - 9.14.1
         os:
         - windows-latest
-        - macos-15-arm64
+        - macos-15
         - macos-26-intel
         - ubuntu-latest
   deploy:
@@ -237,7 +237,7 @@ jobs:
           ext="tar.xz"
           decompress_cmd_base="tar -xf"
 
-        elif [[ "${{ matrix.os }}" == "macos-15-arm64" ]]; then
+        elif [[ "${{ matrix.os }}" == "macos-15" ]]; then
 
           osname="macOS-arm64"
           ext="tar.xz"
@@ -296,7 +296,7 @@ jobs:
       matrix:
         os:
         - windows-latest
-        - macos-15-arm64
+        - macos-15
         - macos-26-intel
         - ubuntu-latest
 name: Deploy

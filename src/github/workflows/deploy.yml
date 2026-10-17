@@ -39,7 +39,7 @@ jobs:
         # When you change the following values, also UPDATE the conditionals below.
         os:
           - windows-latest
-          - macos-15-arm64
+          - macos-15
           - macos-26-intel
           - ubuntu-latest
         ghc-ver: ['9.14.1']
@@ -98,7 +98,7 @@ jobs:
 
           compress_cmd="tar -a -cvf ${filename} -C ${bindist} ${exe}"
 
-        elif [[ "${{ matrix.os }}" == macos-15-arm64 ]]; then
+        elif [[ "${{ matrix.os }}" == macos-15 ]]; then
 
           args="${{ env.ARGS }} ${MACOS_ARGS}"
           filename=macOS-arm64.tar.xz
@@ -292,7 +292,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-15-arm64, macos-26-intel, ubuntu-latest]
+        os: [windows-latest, macos-15, macos-26-intel, ubuntu-latest]
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -311,7 +311,7 @@ jobs:
           ext="tar.xz"
           decompress_cmd_base="tar -xf"
 
-        elif [[ "${{ matrix.os }}" == "macos-15-arm64" ]]; then
+        elif [[ "${{ matrix.os }}" == "macos-15" ]]; then
 
           osname="macOS-arm64"
           ext="tar.xz"
