@@ -31,3 +31,11 @@
 	path = ecosystem/TypeTopology
 	url = https://github.com/martinescardo/TypeTopology.git
 	update = none
+[submodule "ecosystem/agda-stdlib-classes"]
+	path = ecosystem/agda-stdlib-classes
+	url = https://github.com/agda/agda-stdlib-classes.git
+	update = none
+[submodule "ecosystem/agda-stdlib-meta"]
+	path = ecosystem/agda-stdlib-meta
+	url = https://github.com/agda/agda-stdlib-meta.git
+	update = none
