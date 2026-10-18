@@ -1,6 +1,22 @@
 Release notes for Agda version 2.9.0
 ====================================
 
+Highlights
+----------
+
+* Option `-j` to type check modules in parallel in batch mode (experimental; Amélia Liao).
+* Substantial performance improvements (András Kovács, Amélia Liao Reed Mullanix).
+* Agda on WASM (Jonathan Coates, Andy Pam).
+* Qualified `do` (Amélia Liao).
+* Local rewrite rules (experimental; Nathaniel Burke, Jesper Cockx).
+* Improved termination checker for copatterns (Nate Soares).
+* Warning about unused imports (experimental; Andreas Abel).
+* Emacs: Syntax highlighting in the Agda information buffer (Andreas Abel, Amélia Liao).
+* Improvements to automatic term synthesis, "Mimer" (Andreas Abel, Jesper Cockx).
+* Forester backend (Lîm Tsú-thuàn).
+* Around 60 fixes of inconsistencies, internal errors, and regressions.
+* Around 130 other issues fixed.
+
 Installation
 ------------
 
@@ -451,7 +467,7 @@ Changes to the Agda syntax.
 * Idiom brackets and `do` notation may now appear *qualified*, as in
   `M.do` or `M.(| f x y z |)`, in which case the functions needed for
   desugaring these are looked up in `M` rather than in the surrounding
-  scope.
+  scope ([PR #8280](https://github.com/agda/agda/pull/8280)).
 
 Language
 --------
