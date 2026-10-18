@@ -29,7 +29,7 @@
 
 ;;; Code:
 
-(defvar agda2-version "2.9.0"
+(defvar agda2-version "2.10.0"
   "The version of the Agda mode.
 Note that the same version of the Agda executable must be used.")
 
@@ -2278,7 +2278,7 @@ to display the given position."
 (defun agda2-goto-definition-mouse (ev)
   "Go to the definition site of the name clicked on, if any.
 Otherwise, yank (see `mouse-yank-primary')."
-  (declare (obsolete "Use `xref-find-definitions-at-mouse'" "2.9.0"))
+  (declare (obsolete "Use `xref-find-definitions-at-mouse'" "2.10.0"))
   (interactive "e")
   (unless (annotation-goto-indirect ev)
     ;; FIXME: Shouldn't we use something like
@@ -2299,7 +2299,7 @@ Otherwise, invoke `compile-goto'."
 
 (defun agda2-info-goto-definition-keyboard ()
   "As `agda2-info-goto-definition-mouse', but at point."
-  (declare (obsolete "Use `xref-find-definitions'" "2.9.0"))
+  (declare (obsolete "Use `xref-find-definitions'" "2.10.0"))
   (interactive)
   (agda2-info-goto-definition-mouse (point)))
 
@@ -2307,7 +2307,7 @@ Otherwise, invoke `compile-goto'."
   "Go back to the previous position in which
 `agda2-goto-definition-keyboard' or `agda2-goto-definition-mouse' was
 invoked."
-  (declare (obsolete "Use `xref-go-back'" "2.9.0"))
+  (declare (obsolete "Use `xref-go-back'" "2.10.0"))
   (interactive)
   (annotation-go-back))
 
@@ -2429,7 +2429,7 @@ Agda 2.8 is the version where the agda-mode executable was deprecated.
 
 If the version cannot be parsed, the answer is no.
 So e.g. agda-fast would be interpreted as not older than
-agda-2.9.0"
+agda-2.10.0"
   ;; If the given string does not have a numeric prefix, we answer no.
   (and (string-match "^[0-9][0-9.]*" version)
        (version< (match-string 0 version) "2.8")))
@@ -2453,7 +2453,7 @@ otherwise \"agda --emacs-mode locate\" is invoked.
 If VERSION is empty or \"agda\", then agda is used.
 A prefix \"agda-\" is stripped from VERSION,
 so one can invoke this function e.g. with
-\"agda-2.9.0\" instead of \"2.9.0\".
+\"agda-2.10.0\" instead of \"2.10.0\".
 
 An attempt is made to preserve the default value of `agda2-mode-hook'."
   (interactive
@@ -2474,7 +2474,7 @@ An attempt is made to preserve the default value of `agda2-mode-hook'."
        ;; * Replace version "agda" by just "".
        ;;
        ;; Rationale:
-       ;; The user might by accident enter "agda-2.9.0" instead of "2.9.0",
+       ;; The user might by accident enter "agda-2.10.0" instead of "2.10.0",
        ;; or "agda" instead of "".
        (version
         (cond
