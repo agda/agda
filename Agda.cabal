@@ -326,76 +326,75 @@ common language
 
   ghc-options:
       -- ASR (2022-05-31). Workaround to Issue #5932.
-      -Werror
-      -Werror=cpp-undef
-      -Werror=deprecated-flags
-      -Werror=deriving-defaults
-      -Werror=deriving-typeable
-      -Werror=dodgy-exports
-      -Werror=dodgy-foreign-imports
-      -Werror=dodgy-imports
-      -Werror=duplicate-exports
-      -Werror=empty-enumerations
-      -Werror=identities
-      -Werror=inaccessible-code
-      -Werror=incomplete-patterns
-      -Werror=incomplete-record-updates
-      -Werror=inline-rule-shadowing
-      -Werror=invalid-haddock
-      -Werror=missed-extra-shared-lib
-      -Werror=missing-fields
-      -Werror=missing-home-modules
-      -Werror=missing-methods
-      -Werror=missing-pattern-synonym-signatures
-      -Werror=missing-signatures
-      -Werror=noncanonical-monad-instances
-      -Werror=noncanonical-monoid-instances
-      -Werror=operator-whitespace
-      -Werror=overflowed-literals
-      -Werror=overlapping-patterns
-      -Werror=overlapping-patterns
-      -Werror=redundant-bang-patterns
-      -Werror=redundant-constraints
-      -Werror=redundant-record-wildcards
-      -Werror=simplifiable-class-constraints
-      -Werror=star-binder
-      -Werror=star-is-type
-      -Werror=tabs
-      -Werror=typed-holes
-      -Werror=unbanged-strict-patterns
-      -Werror=unrecognised-pragmas
-      -Werror=unrecognised-warning-flags
-      -Werror=unticked-promoted-constructors
-      -Werror=unused-do-bind
-      -Werror=unused-foralls
-      -Werror=unused-packages
-      -Werror=unused-record-wildcards
-      -Werror=warnings-deprecations
-      -Werror=wrong-do-bind
+      -Wcpp-undef
+      -Wdeprecated-flags
+      -Wderiving-defaults
+      -Wderiving-typeable
+      -Wdodgy-exports
+      -Wdodgy-foreign-imports
+      -Wdodgy-imports
+      -Wduplicate-exports
+      -Wempty-enumerations
+      -Widentities
+      -Winaccessible-code
+      -Wincomplete-patterns
+      -Wincomplete-record-updates
+      -Winline-rule-shadowing
+      -Winvalid-haddock
+      -Wmissed-extra-shared-lib
+      -Wmissing-fields
+      -Wmissing-home-modules
+      -Wmissing-methods
+      -Wmissing-pattern-synonym-signatures
+      -Wmissing-signatures
+      -Wnoncanonical-monad-instances
+      -Wnoncanonical-monoid-instances
+      -Woperator-whitespace
+      -Woverflowed-literals
+      -Woverlapping-patterns
+      -Woverlapping-patterns
+      -Wredundant-bang-patterns
+      -Wredundant-constraints
+      -Wredundant-record-wildcards
+      -Wsimplifiable-class-constraints
+      -Wstar-binder
+      -Wstar-is-type
+      -Wtabs
+      -Wtyped-holes
+      -Wunbanged-strict-patterns
+      -Wunrecognised-pragmas
+      -Wunrecognised-warning-flags
+      -Wunticked-promoted-constructors
+      -Wunused-do-bind
+      -Wunused-foralls
+      -Wunused-packages
+      -Wunused-record-wildcards
+      -Wwarnings-deprecations
+      -Wwrong-do-bind
 
   if impl(ghc < 9.10)
     ghc-options:
-      -Werror=semigroup
+      -Wsemigroup
         -- The semigroup warning is deprecated in GHC 9.10
 
   -- ASR (2022-04-27). This warning was added in GHC 9.0.2, removed
   -- from 9.2.1 and added back in 9.2.2.
   if impl(ghc >= 9.2.2)
     ghc-options:
-      -Werror=unicode-bidirectional-format-characters
+      -Wunicode-bidirectional-format-characters
 
   if impl(ghc >= 9.4)
     ghc-options:
-      -Werror=type-equality-out-of-scope
+      -Wtype-equality-out-of-scope
 
   if impl(ghc >= 9.4 && < 9.10)
     ghc-options:
-      -Werror=forall-identifier
+      -Wforall-identifier
         -- The forall-identifier warning is deprecated in GHC 9.10
 
   if impl(ghc >= 9.8)
     ghc-options:
-      -Werror=x-partial
+      -Wx-partial
          -- The x-partial warning was introduced in GHC 9.8 and is default in GHC 10
 
   default-language: Haskell2010
