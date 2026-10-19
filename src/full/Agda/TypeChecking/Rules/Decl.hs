@@ -348,7 +348,7 @@ revisitRecordPatternTranslation qs = do
 type FinalChecks = Maybe (TCM ())
 
 checkUnquoteDecl :: Info.MutualInfo -> [A.DefInfo] -> [QName] -> A.Expr -> TCM FinalChecks
-checkUnquoteDecl mi is xs e = do
+checkUnquoteDecl _mi _is xs e = do
   reportSDoc "tc.unquote.decl" 20 $ "Checking unquoteDecl" <+> sep (map' prettyTCM xs)
   Nothing <$ unquoteTop xs e
 
