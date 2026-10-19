@@ -12,6 +12,7 @@
 
 (require 'annotation)
 (require 'font-lock)
+(require 'agda2)
 
 (defgroup agda2-highlight nil
   "Syntax highlighting for Agda."
@@ -129,49 +130,49 @@ Also sets the default value of VARIABLE to GROUP."
              :background "light blue")))
          ((equal group 'default-faces)
           (list (cons 'agda2-highlight-keyword-face
-                      (list :inherit font-lock-keyword-face))
+                      (list :inherit 'font-lock-keyword-face))
                 (cons 'agda2-highlight-string-face
-                      (list :inherit font-lock-string-face))
+                      (list :inherit 'font-lock-string-face))
                 (cons 'agda2-highlight-number-face
-                      (list :inherit font-lock-constant-face))
+                      (list :inherit 'font-lock-constant-face))
                 (cons 'agda2-highlight-symbol-face
-                      (list :inherit font-lock-keyword-face))
+                      (list :inherit 'font-lock-keyword-face))
                 (cons 'agda2-highlight-primitive-type-face
-                      (list :inherit font-lock-keyword-face))
+                      (list :inherit 'font-lock-keyword-face))
                 (cons 'agda2-highlight-bound-variable-face
-                      (list :inherit font-lock-variable-name-face))
+                      (list :inherit 'font-lock-variable-name-face))
                 (cons 'agda2-highlight-generalizable-variable-face
-                      (list :inherit font-lock-variable-name-face))
+                      (list :inherit 'font-lock-variable-name-face))
                 (cons 'agda2-highlight-inductive-constructor-face
-                      (list :inherit font-lock-type-face))
+                      (list :inherit 'font-lock-type-face))
                 (cons 'agda2-highlight-coinductive-constructor-face
-                      (list :inherit font-lock-type-face))
+                      (list :inherit 'font-lock-type-face))
                 (cons 'agda2-highlight-datatype-face
-                      (list :inherit font-lock-type-face))
+                      (list :inherit 'font-lock-type-face))
                 (cons 'agda2-highlight-field-face
-                      (list :inherit font-lock-variable-name-face))
+                      (list :inherit 'font-lock-variable-name-face))
                 (cons 'agda2-highlight-function-face
-                      (list :inherit font-lock-function-name-face))
+                      (list :inherit 'font-lock-function-name-face))
                 (cons 'agda2-highlight-module-face
-                      (list :inherit font-lock-type-face))
+                      (list :inherit 'font-lock-type-face))
                 (cons 'agda2-highlight-postulate-face
-                      (list :inherit font-lock-type-face))
+                      (list :inherit 'font-lock-type-face))
                 (cons 'agda2-highlight-primitive-face
-                      (list :inherit font-lock-constant-face))
+                      (list :inherit 'font-lock-constant-face))
                 (cons 'agda2-highlight-macro-face
-                      (list :inherit font-lock-function-name-face))
+                      (list :inherit 'font-lock-function-name-face))
                 (cons 'agda2-highlight-record-face
-                      (list :inherit font-lock-variable-name-face))
+                      (list :inherit 'font-lock-variable-name-face))
                 (cons 'agda2-highlight-dotted-face
-                      (list :inherit font-lock-variable-name-face))
+                      (list :inherit 'font-lock-variable-name-face))
                 (cons 'agda2-highlight-operator-face
-                      (list :inherit font-lock-function-name-face))
+                      (list :inherit 'font-lock-function-name-face))
                 (cons 'agda2-highlight-error-face
-                      (list :inherit font-lock-warning-face))
+                      (list :inherit 'font-lock-warning-face))
                 (cons 'agda2-highlight-typechecks-face
-                      (list :inherit font-lock-type-face))
+                      (list :inherit 'font-lock-type-face))
                 (cons 'agda2-highlight-typechecking-face
-                      (list :inherit font-lock-preprocessor-face)))))))
+                      (list :inherit 'font-lock-preprocessor-face)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Faces
@@ -575,11 +576,19 @@ removed. Otherwise all token-based syntax highlighting is removed."
            nil ;; apply highlighting to current buffer
            cmds)))
 
-(defun agda2-highlight-add-annotations (remove &rest cmds)
-  "Like `agda2-highlight-apply'.
-But only if `agda2-highlight-in-progress' is non-nil."
+(defun agda2-highlight-add-annotations (file remove &rest cmds)
+  "Apply highlighting CMDS to FILE, or to the current buffer if FILE is nil.
+But only if `agda2-highlight-in-progress' is non-nil.  If REMOVE is
+non-nil, token-based highlighting is removed first.  CMDS are annotation
+commands as described by `agda2-highlight-apply'."
+  (declare (agda2-command (t boolean &repeat list)))
   (if agda2-highlight-in-progress
-      (apply 'agda2-highlight-apply remove cmds)))
+      (if file
+          (let ((buffer (find-buffer-visiting file)))
+            (when buffer
+              (with-current-buffer buffer
+                (apply 'agda2-highlight-apply remove cmds))))
+        (apply 'agda2-highlight-apply remove cmds))))
 
 (defun agda2-highlight-load (file)
   "Load syntax highlighting information from FILE.
@@ -592,13 +601,21 @@ Old syntax highlighting information is not removed."
                  (read (current-buffer)))))
       (apply 'agda2-highlight-apply cmds)))
 
-(defun agda2-highlight-load-and-delete-action (file)
+(defun agda2-highlight-load-and-delete-action (file target)
   "Like `agda2-highlight-load', but deletes FILE when done.
 And highlighting is only updated if `agda2-highlight-in-progress'
-is non-nil."
+is non-nil.  TARGET is the buffer's file, or nil for the current buffer."
+  (declare (agda2-command (string t)))
   (unwind-protect
       (if agda2-highlight-in-progress
-          (agda2-highlight-load file))
+          (let* ((coding-system-for-read 'utf-8)
+                 (cmds (with-temp-buffer
+                         (insert-file-contents file)
+                         (goto-char (point-min))
+                         (read (current-buffer)))))
+            (if target
+                (apply 'agda2-highlight-add-annotations target cmds)
+              (apply 'agda2-highlight-apply cmds))))
     (delete-file file)))
 
 (defun agda2-highlight-clear (&optional token-based)
@@ -606,6 +623,7 @@ is non-nil."
 
 If TOKEN-BASED is non-nil, then only token-based highlighting is
 removed."
+  (declare (agda2-command (boolean)))
   (interactive)
   (let ((inhibit-read-only t))
        ; Ignore read-only status, otherwise this function may fail.

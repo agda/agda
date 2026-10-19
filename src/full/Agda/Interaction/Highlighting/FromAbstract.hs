@@ -21,7 +21,7 @@ import           Agda.Interaction.Highlighting.Precise hiding ( singleton )
 import qualified Agda.Interaction.Highlighting.Precise as H
 import           Agda.Interaction.Highlighting.Range   ( rToR )  -- Range is ambiguous
 
-import           Agda.Syntax.Abstract                ( IsProjP(..) )
+import           Agda.Syntax.Abstract                ( IsProjP(..), anameName, getAmbiguous, nameBindingSite )
 import qualified Agda.Syntax.Abstract      as A
 import           Agda.Syntax.Common        as Common
 import           Agda.Syntax.Concrete                ( FieldAssignment'(..), TacticAttribute' )
@@ -30,14 +30,13 @@ import           Agda.Syntax.Info                    ( ModuleInfo(..) )
 import           Agda.Syntax.Literal
 import qualified Agda.Syntax.Position      as P
 import           Agda.Syntax.Position                ( Range, HasRange, getRange, noRange )
-import           Agda.Syntax.Scope.Base              ( AbstractName(..), ResolvedName(..), exactConName )
+import           Agda.Syntax.Scope.Base              ( ResolvedName(..), exactConName )
 import           Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Monad
   hiding (ModuleInfo, MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 
 import           Agda.Utils.Function
-import           Agda.Utils.Functor
 import           Agda.Utils.List                     ( initLast1 )
 import           Agda.Utils.List1                    ( List1 )
 import qualified Agda.Utils.List1          as List1
@@ -211,9 +210,9 @@ instance Hilite A.Declaration where
       A.Open mi x dir                        -> hl mi <> hl x <> hl dir
       A.FunDef _di x cs                      -> hl x <> hl cs
       A.DataSig _di er x tel e               -> hl er <> hl x <> hl tel <> hl e
-      A.DataDef _di x _uc pars cs            -> hl x <> hl pars <> hl cs
+      A.DataDef _di x _pc _uc pars cs        -> hl x <> hl pars <> hl cs
       A.RecSig _di er x tel e                -> hl er <> hl x <> hl tel <> hl e
-      A.RecDef _di x _uc dir bs e ds         -> hl x <> hl dir <> hl bs <> hl e <> hl ds
+      A.RecDef _di x _pc _uc _eta dir bs e ds-> hl x <> hl dir <> hl bs <> hl e <> hl ds
       A.PatternSynDef x xs p                 -> hl x <> hl xs <> hl p
       A.UnquoteDecl _mi _di xs e             -> hl xs <> hl e
       A.UnquoteDef _di xs e                  -> hl xs <> hl e
@@ -223,7 +222,7 @@ instance Hilite A.Declaration where
       A.UnfoldingDecl _r names               -> hl names
     where
     hl      a = hilite a
-    hlField x = hiliteField (concreteQualifier x) (concreteBase x) (Just $ bindingSite x)
+    hlField x = hiliteField (concreteQualifier x) (concreteBase x) (Just $ nameBindingSite x)
 
 instance Hilite A.Pragma where
   hilite = \case
@@ -231,9 +230,9 @@ instance Hilite A.Pragma where
     A.BuiltinPragma b x             -> singleAspect Keyword b <> hilite x
     A.BuiltinNoDefPragma b k x      -> singleAspect Keyword b <> hiliteQName (Just $ kindOfNameToNameKind k) x
     A.CompilePragma b x _foreign    -> singleAspect Keyword b <> hilite x
+    A.ForeignPragma b _foreign      -> singleAspect Keyword b
     A.RewritePragma r xs            -> singleAspect Keyword r <> hilite xs
     A.StaticPragma x                -> hilite x
-    A.EtaPragma x                   -> hilite x
     A.InjectivePragma x             -> hilite x
     A.InjectiveForInferencePragma x -> hilite x
     A.NotProjectionLikePragma x     -> hilite x
@@ -265,13 +264,13 @@ instance Hilite A.Expr where
       A.Let _r bs e                 -> hl bs <> hl e
       A.Rec _kwr _r ass             -> hl ass
       A.RecUpdate _kwr _r e ass     -> hl e <> hl ass
-      A.RecWhere _kwr _r e ass      -> hl e
-      A.RecUpdateWhere _k _r e bs _ -> hl e <> hl bs
       A.ScopedExpr _ e              -> hl e
       A.Quote _r                    -> mempty
       A.QuoteTerm _r                -> mempty
       A.Unquote _r                  -> mempty
       A.DontCare e                  -> hl e
+      A.Qualified m e               -> hl m <> hl e
+      A.Highlighted m e             -> pure (H.singleton (rToR $ getRange e) m) <> hl e
     where
     hl a = hilite a
 
@@ -454,10 +453,10 @@ instance Hilite ResolvedName where
   hilite = \case
     VarName           x _bindSrc -> hiliteBound x
     DefinedName  _acc x _suffix  -> hilite $ anameName x
-    FieldName         xs         -> hiliteProjection $ A.AmbQ $ fmap anameName xs
-    ConstructorName i xs         -> hiliteAmbiguousQName k $ A.AmbQ $ fmap anameName xs
+    FieldName         xs         -> hiliteProjection $ A.ambigName xs
+    ConstructorName i xs         -> hiliteAmbiguousQName k $ A.ambigName xs
       where k = kindOfNameToNameKind <$> exactConName i
-    PatternSynResName xs         -> hilitePatternSynonym $ A.AmbQ $ fmap anameName xs
+    PatternSynResName xs         -> hilitePatternSynonym $ A.ambigName xs
     UnknownName                  -> mempty
 
 instance Hilite A.QName where
@@ -515,7 +514,7 @@ hiliteAmbiguousQName
   :: Maybe NameKind   -- ^ Is 'NameKind' already known from the context?
   -> A.AmbiguousQName
   -> Hiliter
-hiliteAmbiguousQName mkind (A.AmbQ qs) = do
+hiliteAmbiguousQName mkind x = do
   kind <- ifJust mkind (pure . Just) {-else-} $ do
     kinds <- asks hleNameKinds
     pure $ listToMaybe $ List1.catMaybes $ fmap kinds qs
@@ -525,7 +524,8 @@ hiliteAmbiguousQName mkind (A.AmbQ qs) = do
   flip foldMap qs $ \ q ->
     hiliteAName q include $ nameAsp' kind
   where
-  include = List1.allEqual $ fmap bindingSite qs
+    qs = getAmbiguous x
+    include = List1.allEqual $ fmap nameBindingSite qs
 
 hiliteBound :: A.Name -> Hiliter
 hiliteBound x =
@@ -656,7 +656,7 @@ hiliteAName x include asp = do
   hiliteCName (concreteQualifier x)
               (concreteBase x)
               (rangeOfFixityDeclaration currentModule)
-              (if include then Just $ bindingSite x else Nothing)
+              (if include then Just $ nameBindingSite x else Nothing)
               asp
     <> notationFile currentModule
   where
@@ -706,6 +706,3 @@ concreteBase = A.nameConcrete . A.qnameName
 
 concreteQualifier :: A.QName -> [C.Name]
 concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
-
-bindingSite :: A.QName -> Range
-bindingSite = A.nameBindingSite . A.qnameName

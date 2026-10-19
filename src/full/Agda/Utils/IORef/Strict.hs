@@ -4,24 +4,25 @@
 -- This module should be imported qualified, ala
 --
 -- @
--- import qualified Agda.Utils.IORef.Strict as Strict
+-- import Agda.Utils.IORef.Strict qualified as Strict
 -- @
 module Agda.Utils.IORef.Strict
   (
     -- * Strict IO references #strict-ioref#
     --
     -- $strictIORef
-    IORef
+    IORef(..)
   , newIORef
   , readIORef
   , writeIORef
   , modifyIORef
+  , atomicModifyIORef
   ) where
 
 import Control.Exception (evaluate)
 
 import Data.Coerce
-import qualified Data.IORef as Lazy
+import Data.IORef qualified as Lazy
 
 
 -- $strictIORef
@@ -233,3 +234,9 @@ modifyIORef = \ref f -> do
   a <- readIORef ref
   writeIORef ref (f a)
 {-# INLINE modifyIORef #-}
+
+-- | Atomically modify the contents of a strict 'IORef'.
+-- Both the stored value and the result are forced.
+atomicModifyIORef :: IORef a -> (a -> (a, b)) -> IO b
+atomicModifyIORef (StrictIORef r) = Lazy.atomicModifyIORef' r
+{-# INLINE atomicModifyIORef #-}

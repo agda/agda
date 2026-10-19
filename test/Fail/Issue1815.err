@@ -1,3 +1,6 @@
-Issue1815.agda:20.24-25: error: [UnequalTerms]
-Set !=< (R2 _A_11)
+Issue1815.agda:20.24-25: error: [UnequalTypes]
+The type
+  Set
+is not a subtype of
+  R2 _A_11
 when checking that the expression A has type R2 _A_11

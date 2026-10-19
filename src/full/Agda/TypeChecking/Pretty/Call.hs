@@ -211,8 +211,8 @@ instance PrettyTCM Call where
         pwords "when checking the module application" ++
         [prettyA $ A.Apply info erased m1 modapp copy empty]
       where
-      info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
-      copy = ScopeCopyInfo { renNames = mempty, renModules = mempty, renPublic = True, renTrimming = __IMPOSSIBLE__ }
+      info = A.ModuleInfo noRange noRange Nothing empty Nothing
+      copy = ScopeCopyInfo { renNames = mempty, renModules = mempty }
 
     ModuleContents -> fsep $ pwords "when retrieving the contents of a module"
 
@@ -226,6 +226,12 @@ instance PrettyTCM Call where
         , nest 2 (prettyTCM r)
         , fsep (pwords "must be equal, since" ++ [prettyTCM fn] ++ pwords "could reduce to either.")
         ]
+
+    CheckLocalRewriteConstraint e c -> vcat
+      [ fsep $ pwords "when checking the following local rewrite rule constraint:"
+      , nest 2 $ prettyTCM e
+      , prettyTCM c
+      ]
 
     where
     hPretty :: MonadPretty m => Arg (Named_ Expr) -> m Doc

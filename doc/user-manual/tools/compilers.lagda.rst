@@ -148,16 +148,15 @@ The JavaScript backend can be invoked from the command line using the flag :opti
 
 .. code-block:: bash
 
-  agda --js [--js-optimize] [--js-minify] [--compile-dir=<DIR>] <FILE>.agda
+  agda --js --js-es6 [--js-optimize] [--js-minify] [--compile-dir=<DIR>] <FILE>.agda
+
+The :option:`--js-es6` flag makes the generated JavaScript code use ES6-style module syntax.
 
 The :option:`--js-optimize` flag makes the generated JavaScript code
 typically faster and less readable.
 
 The :option:`--js-minify` flag makes the generated JavaScript code
 smaller and less readable.
-
-Agda generates JavaScript modules in CommonJS style by default (:option:`--js-cjs`),
-but can also generate modules in ES6 style (:option:`--js-es6`) or AMD style (:option:`--js-amd`).
 
 Options
 ~~~~~~~
@@ -177,9 +176,13 @@ Options
 
 .. option:: --js-amd
 
+     ..deprecated:: 2.9.0
+
      Produce AMD style modules (for in-browser usage with a wrapper like `require.js`).
 
 .. option:: --js-cjs
+
+     ..deprecated:: 2.9.0
 
      Produce CommonJS style modules (supported natively by NodeJS).
      This is the default.

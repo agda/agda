@@ -121,6 +121,7 @@ data BuiltinId
   | BuiltinFromNat
   | BuiltinFromNeg
   | BuiltinFromString
+  | BuiltinQuotientConstructor
   | BuiltinQName
   | BuiltinAgdaSort
   | BuiltinAgdaSortSet
@@ -341,6 +342,7 @@ instance IsBuiltin BuiltinId where
     BuiltinFromNat                           -> "FROMNAT"
     BuiltinFromNeg                           -> "FROMNEG"
     BuiltinFromString                        -> "FROMSTRING"
+    BuiltinQuotientConstructor               -> "QUOTIENTCONSTRUCTOR"
     BuiltinQName                             -> "QNAME"
     BuiltinAgdaSort                          -> "AGDASORT"
     BuiltinAgdaSortSet                       -> "AGDASORTSET"
@@ -537,6 +539,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinLevelUniv,
   builtinIntervalUniv,
   builtinFromNat, builtinFromNeg, builtinFromString,
+  builtinQuotientConstructor,
   builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
   builtinAgdaSortProp, builtinAgdaSortPropLit, builtinAgdaSortInf,
   builtinAgdaSortUnsupported,
@@ -665,6 +668,7 @@ builtinLevelUniv                         = BuiltinLevelUniv
 builtinFromNat                           = BuiltinFromNat
 builtinFromNeg                           = BuiltinFromNeg
 builtinFromString                        = BuiltinFromString
+builtinQuotientConstructor               = BuiltinQuotientConstructor
 builtinQName                             = BuiltinQName
 builtinAgdaSort                          = BuiltinAgdaSort
 builtinAgdaSortSet                       = BuiltinAgdaSortSet
@@ -905,6 +909,8 @@ data PrimitiveId
   | PrimStringEquality
   | PrimShowString
   | PrimStringUncons
+  -- Quotients
+  | PrimQrec
   -- "Other stuff"
   | PrimErase
   | PrimEraseEquality
@@ -922,6 +928,7 @@ data PrimitiveId
   | PrimMetaToNat
   | PrimMetaToNatInjective
   | PrimLockUniv
+  | PrimRewriteNoMatch
   deriving (Show, Eq, Ord, Bounded, Enum, Generic)
 
 instance NFData PrimitiveId
@@ -1042,6 +1049,8 @@ instance IsBuiltin PrimitiveId where
     PrimStringEquality                    -> "primStringEquality"
     PrimShowString                        -> "primShowString"
     PrimStringUncons                      -> "primStringUncons"
+    -- Quotients
+    PrimQrec                              -> "qrec"
     -- "Other stuff"
     PrimErase                             -> "primErase"
     PrimEraseEquality                     -> "primEraseEquality"
@@ -1059,12 +1068,13 @@ instance IsBuiltin PrimitiveId where
     PrimMetaToNat                         -> "primMetaToNat"
     PrimMetaToNatInjective                -> "primMetaToNatInjective"
     PrimLockUniv                          -> "primLockUniv"
+    PrimRewriteNoMatch                    -> "primRewriteNoMatch"
 
 builtinSubOut,
   builtinIMin, builtinIMax, builtinINeg,
   builtinGlue, builtin_glue, builtin_unglue, builtin_glueU, builtin_unglueU,
   builtinFaceForall, builtinComp, builtinPOr,
-  builtinTrans,  builtinHComp, builtinLockUniv
+  builtinTrans,  builtinHComp, builtinLockUniv, builtinRewriteNoMatch
   :: PrimitiveId
 builtinIMin                              = PrimIMin
 builtinIMax                              = PrimIMax
@@ -1081,6 +1091,7 @@ builtinPOr                               = PrimPOr
 builtinTrans                             = PrimTrans
 builtinHComp                             = PrimHComp
 builtinLockUniv                          = PrimLockUniv
+builtinRewriteNoMatch                    = PrimRewriteNoMatch
 
 -- | Lookup a primitive by its identifier.
 primitiveById :: String -> Maybe PrimitiveId

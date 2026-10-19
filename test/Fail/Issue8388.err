@@ -1,0 +1,7 @@
+Issue8388.agda:18.1-19.12: error: [NoBindingForBuiltin]
+No binding for builtin REFL, use {-# BUILTIN EQUALITY name #-} to
+bind the builtin equality type to 'name'
+when checking that the clause
+f a b with gab : g a b
+... | q = q
+has type (a b : T) → a ≡ b

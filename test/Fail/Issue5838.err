@@ -1,13 +1,15 @@
-Issue5838.agda:211.1-6: error: [UnequalTerms]
-false != true of type Bool
+Issue5838.agda:208.1-6: error: [UnequalTerms]
+The terms
+  false
+and
+  true
+are not equal at type Bool
 when checking that a clause of bad has the correct boundary.
 
 Specifically, the terms
   false
 and
   transp
-  (λ i →
-     DoubleCover
-     (transp (twisted-square i) (primIMin i1 (primIMax i (~ i))) base))
+  (λ i → DoubleCover (transp (twisted-square i) (i1 ∧ i ∨ ~ i) base))
   i0 false
 must be equal, since bad i1 could reduce to either.

@@ -11,13 +11,11 @@ Cubical Agda was originally contributed by Andrea Vezzosi.
 Agda 2 is currently actively developed mainly by (in alphabetical order):
 
 * Andreas Abel
-* Liang-Ting Chen
+* Nathaniel Burke
 * Lawrence Chonavel
 * Jesper Cockx
 * Nils Anders Danielsson
-* Amélia Liao
-* Ulf Norell
-* Szumi Xie
+* András Kovács
 
 Agda 2 has received major contributions by the following developers, amongst others.
 Some contributors have pioneered a feature which shall be mentioned here.
@@ -36,12 +34,12 @@ But many have worked on these features for improvements and maintenance.
 * James Chapman
 * Liang-Ting Chen: *github workflows*
 * Lawrence Chonavel
-* Jonathan Coates: *performance*
+* Jonathan Coates: *performance, WASM*
 * Jesper Cockx: *rewriting, unification* :option:`--without-K`, *recursive instance search*, *reflection*, ``Prop``, *cumulativity*
 * Catarina Coquand: *Agda 1*
 * Jonathan Coates: *performance*
 * Matthew Daggitt: *standard library 1.0 and above*
-* Nils Anders Danielsson: *efficient positivity checker, HTML backend, highlighting, standard library*, :option:`--erased-cubical`, *erasure*, *performance improvements*
+* Nils Anders Danielsson: *efficient positivity checker, HTML backend, highlighting, standard library*, :option:`--cubical=erased`, *erasure*, *performance improvements*
 * Dominique Devriese: ``instance`` *arguments*
 * Péter Diviánszky: *web frontent,* ``variable`` *declarations*
 * Lucas Escot: ``--polarity``
@@ -58,22 +56,25 @@ But many have worked on these features for improvements and maintenance.
 * Alan Jeffrey: *JavaScript compiler backend*
 * Phil de Joux: some *hlinting*
 * Wolfram Kahl
-* Andre Knispel: *reflection, ``INJECTIVE_FOR_INFERENCE``*
+* Philip Kaludercic: *emacs mode refactoring*
+* Andre Knispel: *reflection*, ``INJECTIVE_FOR_INFERENCE``
 * Wen Kokke
 * András Kovács: *performance, serialization*
 * John Leo
 * Fredrik Lindblad: *Agsy proof search "Auto"*
 * Víctor López Juan: *"tog" prototype, markdown frontend, documentation*
-* Amélia Liao: *maintenance of Cubical Agda*
+* Amélia Liao: *maintenance and enhancements of Cubical Agda and instance search*, ``opaque`` *definitions, parallel type-checking* ``-j``, *colored output*
 * Ting-Gan Lua
 * Francesco Mazzoli: *"tog" prototype*
 * James McKinna: *standard library 1.7 and above*
 * Stefan Monnier
 * Guilhem Moulin: *highlighting*
+* Reed Mullanix: *performance, emacs mode fixes*
 * Fredrik Nordvall Forsberg: *pattern lambdas, warnings*
 * Konstantin Nisht
 * Ulf Norell: *Agda 2*
 * Andreas Nuyts: ``--polarity``
+* Andy Pam: *WASM*
 * Josselin Poiret: ``--polarity``
 * Nicolas Pouillard: *module record expressions*
 * Jonathan Prieto: *Agda package manager*
@@ -81,13 +82,14 @@ But many have worked on these features for improvements and maintenance.
 * Michael Shulman: *some Agda input key bindings*
 * Andrés Sicard-Ramírez: *Agda releases, stackage, Travis CI*
 * Lukas Skystedt: *Mimer proof search "Auto"*
+* Nate Soares: *improvements of termination checking for copatterns*
 * Makoto Takeyama: *Agda 1, Emacs mode, "MAlonzo" compiler to Haskell, serialization*
 * Andrea Vezzosi: *Cubical Agda, Agda-flat, Agda-parametric, Guarded Cubical Agda*
 * Szumi Xie: *some bug fixes*
 * Noam Zeilberger: *pattern lambdas*
 * Tesla Ice Zhang
 
-The full list of code and documentation contributors (close to 200)
+The full list of code and documentation contributors (over 200)
 is available at https://github.com/agda/agda/graphs/contributors
 or from the git repository via ``git shortlog -sne``.
 Numerous further individuals have contributed to Agda by reporting

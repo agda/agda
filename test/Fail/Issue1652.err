@@ -1,3 +1,7 @@
 Issue1652.agda:21.12-15: error: [UnequalTerms]
-f y != g y of type B
+The terms
+  f y
+and
+  g y
+are not equal at type B
 when checking that the expression idp has type f y == g y

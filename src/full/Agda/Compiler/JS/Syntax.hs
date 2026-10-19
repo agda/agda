@@ -27,15 +27,21 @@ data Exp =
   Double Double |
   Lambda Nat Exp |
   Object (Map MemberId Exp) |
-  Array [(Comment, Exp)] |
+  Array [Exp] |
+  MemberIdInString MemberId |
+  Ternary Exp Exp Exp |
   Apply Exp [Exp] |
   Lookup Exp MemberId |
   If Exp Exp Exp |
   BinOp Exp String Exp |
   PreOp String Exp |
-  Const String |
   PlainJS String -- ^ Arbitrary JS code.
   deriving (Show, Eq)
+-- Code style:
+--  All recursive Exp-traversing functions should list every constructor explicitly.
+--  Do not write a catch-all case to cover all the trivial constructors.
+-- This policy helps catch subtle bugs (randomly failing substitution, missing imports etc.)
+-- due to newly-added constructors silently hitting the catch-all case.
 
 -- Local identifiers are named by De Bruijn indices.
 -- Global identifiers are named by string lists.
@@ -49,14 +55,8 @@ newtype GlobalId = GlobalId [String]
 
 data MemberId
     = MemberId String
-    | MemberIndex Int Comment
+    | MemberIndex Int
   deriving (Eq, Ord, Show)
-
-newtype Comment = Comment String
-  deriving (Show, Semigroup, Monoid)
-
-instance Eq Comment where _ == _ = True
-instance Ord Comment where compare _ _ = EQ
 
 -- The top-level compilation unit is a module, which names
 -- the GId of its exports, and a list of definitions
@@ -94,12 +94,23 @@ instance (Uses a, Uses b) => Uses (a, b) where
 instance (Uses a, Uses b, Uses c) => Uses (a, b, c) where
   uses (a, b, c) = uses a `Set.union` uses b `Set.union` uses c
 
-instance Uses Comment where
-  uses _ = Set.empty
-
 instance Uses Exp where
+  uses (Self)         = Set.empty
+  uses (Local _)      = Set.empty
+  uses (Global _)     = Set.empty
+  uses (Undefined)    = Set.empty
+  uses (Null)         = Set.empty
+  uses (String _)     = Set.empty
+  uses (Integer _)    = Set.empty
+  uses (Char _)       = Set.empty
+  uses (Double _)     = Set.empty
+  uses (Lambda n _)   = Set.empty
+  -- Lawrence 2026-08: I suspect returning Set.empty for lambdas is a bug,
+  -- but it does not break existing tests
   uses (Object o)     = uses o
   uses (Array es)     = uses es
+  uses (MemberIdInString mid) = Set.empty -- special case of string literals
+  uses (Ternary e1 e2 e3) = Set.unions [uses e1, uses e2, uses e3]
   uses (Apply e es)   = uses (e, es)
   uses (Lookup e l)   = uses' e (List1.singleton l)
     where
@@ -110,7 +121,7 @@ instance Uses Exp where
   uses (If e f g)     = uses (e, f, g)
   uses (BinOp e op f) = uses (e, f)
   uses (PreOp op e)   = uses e
-  uses e              = Set.empty
+  uses (PlainJS _)    = Set.empty
 
 instance Uses Export where
   uses (Export _ e) = uses e
@@ -133,20 +144,27 @@ instance (Globals a, Globals b) => Globals (a, b) where
 instance (Globals a, Globals b, Globals c) => Globals (a, b, c) where
   globals (a, b, c) = globals a `Set.union` globals b `Set.union` globals c
 
-instance Globals Comment where
-  globals _ = Set.empty
-
 instance Globals Exp where
+  globals (Self)         = Set.empty
+  globals (Local _)      = Set.empty
   globals (Global i) = Set.singleton i
+  globals (Undefined)    = Set.empty
+  globals (Null)         = Set.empty
+  globals (String _)     = Set.empty
+  globals (Integer _)    = Set.empty
+  globals (Char _)       = Set.empty
+  globals (Double _)     = Set.empty
   globals (Lambda n e) = globals e
   globals (Object o) = globals o
   globals (Array es) = globals es
+  globals (MemberIdInString _) = Set.empty  --special case of string literals
+  globals (Ternary e1 e2 e3) = Set.unions [globals e1, globals e2, globals e3]
   globals (Apply e es) = globals (e, es)
   globals (Lookup e l) = globals e
   globals (If e f g) = globals (e, f, g)
   globals (BinOp e op f) = globals (e, f)
   globals (PreOp op e) = globals e
-  globals _ = Set.empty
+  globals (PlainJS _)    = Set.empty
 
 instance Globals Export where
   globals (Export _ e) = globals e

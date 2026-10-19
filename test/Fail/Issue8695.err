@@ -1,0 +1,4 @@
+Issue8695.agda:23.5-7: error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  Is empty: Id x (wrapA (inB x)) (stuck)
+      [ at Issue8695.agda:23.5-7 ]

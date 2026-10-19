@@ -7,7 +7,6 @@
 {-# LANGUAGE RoleAnnotations      #-}
 
 {-# OPTIONS_GHC -Wunused-imports #-}
--- {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures #-}
 
 {-
 András, 2023-10-2:
@@ -42,18 +41,21 @@ import Control.Monad.Reader
 
 import Data.Proxy
 import Data.Hashable
-import Data.Word (Word32)
+import Data.Word (Word32, Word64)
 import Data.Maybe
 import qualified Data.Text      as T
 import qualified Data.Text.Lazy as TL
 import Data.Typeable (Typeable, TypeRep, typeRep, typeRepFingerprint)
 import GHC.Exts
-import GHC.Stack
+import GHC.Float (castDoubleToWord64)
 import GHC.Fingerprint.Type
+import GHC.Generics (Generic)
 import Unsafe.Coerce
 
+import Agda.Syntax.Abstract.Name (Name, nameBindingSite)
 import Agda.Syntax.Common (NameId)
-import Agda.Syntax.Internal (QName(..), ModuleName(..), nameId, Term(..), varTable, varTableSize)
+import Agda.Syntax.Internal (QName(..), nameId, Term(..), varTable, varTableSize)
+import Agda.Syntax.Position (Range)
 import Agda.TypeChecking.Monad.Base.Types (ModuleToSource)
 import Agda.TypeChecking.Serialise.Node
 
@@ -147,12 +149,28 @@ getFresh far = MP.unsafeRead far 0
 getReuse :: FreshAndReuse -> IO Word32
 getReuse far = MP.unsafeRead far 1
 
--- | Two 'QName's are equal if their @QNameId@ is equal.
-type QNameId = [NameId]
+-- Andreas, 2026-03-12, issue #8465
+-- | We need to distinguish 'A.Name's with different 'nameBindingSite',
+--   so we complement the key 'NameId' with that 'Range'.
+data NameIdR = NameIdR
+  { nidNameId      :: {-# UNPACK #-} !NameId
+  , nidBindingSite :: !Range
+  } deriving (Eq, Generic)
 
--- | Computing a qualified names composed ID.
+instance Hashable NameIdR where
+  {-# INLINE hashWithSalt #-}
+  hashWithSalt h (NameIdR a b) = h `hashWithSalt` a `hashWithSalt` b
+
+-- | Computing a key of an abstract name.
+nameIdR :: Name -> NameIdR
+nameIdR x = NameIdR (nameId x) (nameBindingSite x)
+
+-- | Two 'QName's are equal if their @NameId@ is equal.
+type QNameId = NameIdR
+
+-- | Computing a key of a qualified name.
 qnameId :: QName -> QNameId
-qnameId (QName (MName ns) n) = map nameId $ n:ns
+qnameId = nameIdR . qnameName
 
 -- | State of the the encoder.
 data Dict = Dict
@@ -163,12 +181,20 @@ data Dict = Dict
   , sTextD       :: !(HashTableLU T.Text  Word32)    -- ^ Written to interface file.
   , integerD     :: !(HashTableLU Integer Word32)    -- ^ Written to interface file.
   , varSetD      :: !(HashTableLU VarSet Word32)    -- ^ Written to interface file.
-  , doubleD      :: !(HashTableLU Double  Word32)    -- ^ Written to interface file.
+    -- Andreas, 2026-08-29, issue #8697:
+    -- The 'Double' dictionary is keyed by the /bit pattern/ of the 'Double',
+    -- because the 'Eq Double' instance identifies @0.0@ and @-0.0@, which
+    -- would make hash-consing conflate these two distinct literals.
+    -- (This is the inconsistency of issue #2169, which is why 'Eq Literal'
+    -- compares 'Double's bitwise.)
+  , doubleD      :: !(HashTableLU Word64  Word32)    -- ^ Written to interface file (as 'Double's).
   -- Dicitionaries which are not serialized, but provide
   -- short cuts to speed up serialization:
   -- Andreas, Makoto, AIM XXI
   -- Memoizing A.Name does not buy us much if we already memoize A.QName.
-  , nameD        :: !(HashTableLU NameId  Word32)    -- ^ Not written to interface file.
+  -- Andreas, 2026-03-12
+  -- Memoizing A.Name saves ~17% of serialization time (25s -> 21s for std-lib).
+  , nameD        :: !(HashTableLU NameIdR Word32)    -- ^ Not written to interface file.
   , qnameD       :: !(HashTableLU QNameId Word32)    -- ^ Not written to interface file.
   -- Fresh UIDs and reuse statistics:
   , nodeC        :: !FreshAndReuse  -- counters for fresh indexes
@@ -246,11 +272,11 @@ type S a = ReaderT Dict IO a
 -- decoding slower.
 type R = ReaderT Decode IO
 
-malformed :: HasCallStack => R a
+malformed :: R a
 malformed = liftIO $ E.throwIO $ E.ErrorCall "Malformed input."
 {-# NOINLINE malformed #-} -- 2023-10-2 András: cold code, so should be out-of-line.
 
-malformedIO :: HasCallStack => IO a
+malformedIO :: IO a
 malformedIO = E.throwIO $ E.ErrorCall "Malformed input."
 {-# NOINLINE malformedIO #-}
 
@@ -277,7 +303,7 @@ class Typeable a => EmbPrj a where
     then pure $! toEnum i'
     else malformed
 
-  default icod_ :: (Enum a, Bounded a) => a -> S Word32
+  default icod_ :: (Enum a) => a -> S Word32
   icod_ x = return $! fromIntegral $! fromEnum x
 
 -- | The actual logic of `tickICode` is cold code, so it's out-of-line,
@@ -357,7 +383,8 @@ icodeDouble key = do
   d <- asks doubleD
   c <- asks doubleC
   liftIO $
-    H.insertingIfAbsent d key
+    -- Key on the bit pattern, not on the 'Double' itself, see 'doubleD'.
+    H.insertingIfAbsent d (castDoubleToWord64 key)
       (\i -> do
 #ifdef DEBUG_SERIALISATION
         bumpReuse c
@@ -397,7 +424,7 @@ icodeNode key = do
 
 -- | @icode@ only if thing has not been seen before.
 icodeMemo
-  :: (Ord a, Hashable a)
+  :: (Hashable a)
   => (Dict -> HashTableLU a Word32)    -- ^ Memo structure for thing of key @a@.
   -> (Dict -> FreshAndReuse)         -- ^ Counter and statistics.
   -> a        -- ^ Key to the thing.

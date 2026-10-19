@@ -1,5 +1,5 @@
 Issue2100.agda:14.1-18.27: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   fails
 Problematic calls:
   u (at Issue2100.agda:15.36-37)

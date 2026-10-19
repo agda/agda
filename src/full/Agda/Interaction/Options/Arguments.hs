@@ -21,6 +21,7 @@ optionValues = Map.fromList $
   ( profileArg      , profileValues      ) :
   ( traceImportsArg , traceImportsValues ) :
   ( warningArg      , warningValues      ) :
+  ( erasedMatchesArg, erasedMatchesValues) :
   []
 
 -- ** @--color@
@@ -42,6 +43,19 @@ emacsModeArg = "EMACS_MODE_COMMAND"
 -- | Possible values for @--emacs-mode@.
 emacsModeValues :: [String]
 emacsModeValues = [EmacsMode.setupFlag, EmacsMode.compileFlag, EmacsMode.locateFlag]
+
+-- ** @--erased-matches@
+
+-- | The argument to @--erased-matches@.
+
+erasedMatchesArg :: String
+erasedMatchesArg = "MATCH_KINDS"
+
+-- | Possible values for @--erased-matches@.
+
+erasedMatchesValues :: [String]
+erasedMatchesValues =
+  ["none", "empty", "non-dependent", "restricted", "unrestricted"]
 
 -- ** @--help@
 

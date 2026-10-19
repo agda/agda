@@ -6,7 +6,6 @@ module Agda.Interaction.MakeCase where
 
 import Prelude hiding ((!!), null)
 
-import Data.Either
 import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
@@ -14,22 +13,22 @@ import Data.Monoid
 import Agda.Syntax.Common
 import Agda.Syntax.Info
 import Agda.Syntax.Position
-import Agda.Syntax.Concrete (NameInScope(..))
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Concrete.Pattern as C
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Pattern as A
 import qualified Agda.Syntax.Common.Pretty as P
+import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Parser.Helpers ( mkValidName )
-import Agda.Syntax.Scope.Base  ( ResolvedName(..), BindingSource(..), KindOfName(..), exceptKindsOfNames )
+import Agda.Syntax.Scope.Base  ( ResolvedName(..), BindingSource(..), exceptKindsOfNames )
 import Agda.Syntax.Scope.Monad ( resolveName' )
 import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Coverage
-import Agda.TypeChecking.Coverage.Match ( SplitPatVar(..) , SplitPattern , applySplitPSubst , fromSplitPatterns )
+import Agda.TypeChecking.Coverage.SplitPattern ( SplitPatVar(..) , SplitPattern , applySplitPSubst , fromSplitPatterns )
 import Agda.TypeChecking.Empty ( isEmptyTel )
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Rules.Def (checkClauseLHS)
@@ -41,15 +40,32 @@ import Agda.Interaction.Options
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.Lens   (set)
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Three
 import Agda.Utils.WithDefault (lensKeepDefault)
 
 import Agda.Utils.Impossible
 
 type CaseContext = Maybe ExtLamInfo
+
+-- | For the names the user enters for case-splitting, there can be different actions
+--   depending on what the name resolved to.
+data SplitAction
+  = RevealDotPattern     Name
+      -- ^ De Bruijn index of a pattern variable bound to a value, turn into dot pattern.
+  | RevealHiddenVariable Int
+      -- ^ De Bruijn index of a hidden argument, make this argument visible.
+  | SplitOnVariable      Int
+      -- ^ De Bruijn index of an unconstrained pattern variable, split on it.
+  deriving (Show)
+
+splitActionToEither3 :: SplitAction -> Either3 Name Int Int
+splitActionToEither3 = \case
+  RevealDotPattern     i -> In1 i
+  RevealHiddenVariable i -> In2 i
+  SplitOnVariable      i -> In3 i
 
 -- | Parse variables (visible or hidden), returning their de Bruijn indices.
 --   Used in 'makeCase'.
@@ -61,8 +77,8 @@ parseVariables
   -> InteractionId   -- ^ The hole of this function we are working on.
   -> Range           -- ^ The range of this hole.
   -> [String]        -- ^ The words the user entered in this hole (variable names).
-  -> TCM [(Int,NameInScope)] -- ^ The computed de Bruijn indices of the variables to split on,
-                             --   with information about whether each variable is in scope.
+  -> TCM [SplitAction]
+       -- ^ The computed de Bruijn indices of the variables and the inferred action.
 parseVariables f cxt asb ii rng ss = do
 
   -- We parse the variables in two steps:
@@ -140,9 +156,10 @@ parseVariables f cxt asb ii rng ss = do
       -- has been refined to a module parameter we do allow splitting
       -- on it, since the instantiation could as well have been the
       -- other way around (see #2183).
-      (Just (Var i []), PatternBound _) -> return (i, C.InScope)
+      (Just (Var i []), PatternBound _) -> return (SplitOnVariable i)
       -- Case 1b: the variable has been refined.
-      (Just v         , PatternBound _) -> failInstantiatedVar s v
+      -- Andreas, 2025-10-12, issue #7941: We can turn it into an explicit dot pattern.
+      (Just v         , PatternBound _) -> return (RevealDotPattern name) -- failInstantiatedVar s v
       -- Case 1c: the variable is bound locally (e.g. a record let)
       (Nothing        , PatternBound _) -> failCaseLet s
       -- Case 1d: module parameter
@@ -162,10 +179,11 @@ parseVariables f cxt asb ii rng ss = do
       -- clause context. If it is not a parameter, we can make it
       -- visible.
       Just (x, Var i []) | isParam i -> failHiddenModuleBound s
-                         | otherwise -> return (i, C.NotInScope)
+                         | otherwise -> return (RevealHiddenVariable i)
       -- Case 2b: there is a variable with that concrete name, but it
       -- has been refined.
-      Just (x, v) -> failInstantiatedVar s v
+      -- Andreas, 2025-10-12, issue #7941: We can turn it into an explicit dot pattern.
+      Just (x, v) -> return (RevealDotPattern x) -- failInstantiatedVar s v
       -- Case 2c: there is no variable with that name. Since it was in
       -- scope for the interaction meta, the only possibility is that
       -- it is a hidden lambda-bound variable.
@@ -190,10 +208,10 @@ parseVariables f cxt asb ii rng ss = do
   failWithBound s = interactionError $ CaseSplitError $ P.text $
     "Cannot split on variable " ++ s ++
     ", because it is an equality proof bound by a with-abstraction"
-  failInstantiatedVar s v = interactionError . CaseSplitError =<< sep
-      [ text $ "Cannot split on variable " ++ s ++ ", because it is bound to"
-      , prettyTCM v
-      ]
+  -- failInstantiatedVar s v = interactionError . CaseSplitError =<< sep
+  --     [ text $ "Cannot split on variable " ++ s ++ ", because it is bound to"
+  --     , prettyTCM v
+  --     ]
   failCaseLet s     = interactionError $ CaseSplitError $ P.text $
     "Cannot split on variable " ++ s ++
     ", because let-declarations may not be defined by pattern-matching"
@@ -225,7 +243,7 @@ getClauseZipperForIP f clauseNo = do
         ]
       __IMPOSSIBLE__
 
-recheckAbstractClause :: Type -> Maybe Substitution -> A.SpineClause -> TCM (Clause, Context, [AsBinding])
+recheckAbstractClause :: Type -> IsWithFunction Substitution -> A.SpineClause -> TCM (Clause, Context, [AsBinding])
 recheckAbstractClause t sub acl = checkClauseLHS t sub acl $ \ lhs -> do
   let cl = Clause { clauseLHSRange    = getRange acl
                   , clauseFullRange   = getRange acl
@@ -250,7 +268,7 @@ makeCase :: InteractionId -> Range -> String -> TCM (QName, CaseContext, [A.Clau
 makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) $ do
 
   -- Jesper, 2018-12-10: print unsolved metas in dot patterns as _
-  localTC (\ e -> e { envPrintMetasBare = True }) $ do
+  localTC (set ePrintMetasBare True) do
 
   -- Get function clause which contains the interaction point.
   InteractionPoint { ipMeta = mm, ipClause = ipCl} <- lookupInteractionPoint hole
@@ -271,7 +289,35 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
     -- Andreas, 2019-08-08, issue #3966
     -- Kill the ranges of the existing clauses to prevent wrong error
     -- location to be set by the coverage checker (via isCovered)
-    -- for test/interaction/Issue191
+    -- for test/Interaction/Issue191
+
+  -- See below, CLEAN UP OF THE GENERATED CLAUSES
+  let
+   filterOutExistingClauses :: [(SplitClause,a)] -> TCM [(SplitClause,a)]
+   filterOutExistingClauses scs = do
+    -- 1. filter out the generated clauses that are already covered
+    --    we consider a generated clause already covered if it is covered by:
+    --    a. a pre-existing clause defined before the one we splitted (prevClauses)
+    --    b. a pre-existing clause defined after the one we splitted (follClauses)
+    --       under the condition that it did not cover the one we splitted but was
+    --       covered by it (i.e. it was considered unreachable).
+    -- The key idea here is:
+    --       f m    zero = ?  ---- split on m --->  f (suc m) zero = ?
+    --       f zero zero = ?                        f zero    zero = ?
+    --       f _    _    = ?                        f _       _    = ?
+    -- because [f zero zero] is already defined.
+    -- However we ignore [f _ _]: [f m zero] was already a refinement of it,
+    -- hinting that we considered it more important than the catchall.
+    reportSDoc "interaction.case.filter" 20 $ vcat
+      [ "prevClauses:"
+      , nest 2 $ vcat $ map prettyTCM prevClauses
+      ]
+    let sclause = clauseToSplitClause clause
+    fcs <- filterM (\ cl -> (isCovered f [clause] (clauseToSplitClause cl)) `and2M`
+                            (not <$> isCovered f [cl] sclause))
+                   follClauses
+    filterM (not <.> isCovered f (prevClauses ++ fcs) . fst) scs
+
   let perm = fromMaybe __IMPOSSIBLE__ $ clausePerm clause
       tel  = clauseTel  clause
       ps   = namedClausePats clause
@@ -340,7 +386,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
       -- if any of them is shown by the printer
       imp <- optShowImplicit <$> pragmaOptions
       return $ imp || any visible (telToList piTel)
-    scs <- if newPats then return [sc] else postProjInExtLam $ do
+    scs <- if newPats then pure [sc] else postProjInExtLam $ do
       res <- splitResult f sc
       case res of
 
@@ -358,7 +404,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
             typeError $ SplitError err
           -- Otherwise, we make these user-written
           let xs = map (dbPatVarIndex . namedArg) trailingPatVars
-          return [makePatternVarsVisible xs sc]
+          return [makePatternVarsVisible [] xs sc]
 
         Right cov -> ifNotM (optCopatterns <$> pragmaOptions) failNoCop $ {-else-} do
           -- Andreas, 2016-05-03: do not introduce function arguments after projection.
@@ -371,22 +417,31 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
       -- When result splitting yields no clauses, replace rhs by @record{}@.
       if null scs then
         return [ A.spineToLhs $ absCl{ A.clauseRHS = makeRHSEmptyRecord rhs } ]
-      else mapM (makeAbstractClause f rhs ell) scs
+      else do
+        scs <- map fst <$> filterOutExistingClauses (map (, ()) scs)
+        mapM (makeAbstractClause f rhs ell) scs
   else do
     -- split on variables
     xs <- parseVariables f clauseCxt clauseAsBindings hole rng vars
     reportSLn "interaction.case" 30 $ "parsedVariables: " ++ show (zip xs vars)
     -- Variables that are not in scope yet are brought into scope (@toShow@)
     -- The other variables are split on (@toSplit@).
-    let (toShow, toSplit) = partitionEithers $ for (zip xs vars) $ \ ((x,nis), s) ->
-          if (nis == C.NotInScope) then Left x else Right x
-    let sc = makePatternVarsVisible toShow $ clauseToSplitClause clause
+    let (toDotP, toShow, toSplit) = mapEither3 splitActionToEither3 xs
+    let sc0 = clauseToSplitClause clause
+    let sc  = makePatternVarsVisible toDotP toShow sc0
+    reportSLn "interaction.case" 30 $ "toDot = " ++ prettyShow toDotP
+    reportSLn "interaction.case" 30 $ "splitclause before makePatternVarsVisible: " ++ prettyShow sc0
+    reportSLn "interaction.case" 30 $ "splitclause after: " ++ prettyShow sc
+    reportSLn "interaction.case" 60 $ "splitclause before makePatternVarsVisible: " ++ show (killRange $ scPats sc0)
+    reportSLn "interaction.case" 60 $ "splitclause after: " ++ show (killRange $ scPats sc)
     scs <- split f toSplit sc
     reportSLn "interaction.case" 70 $ "makeCase: survived the splitting"
 
     -- If any of the split variables is hidden by the ellipsis, we
     -- should force the expansion of the ellipsis.
-    let splitNames = map (\i -> ctxEntryName $ clauseCxt !! i) toSplit
+    let splitNames =
+          map (ctxEntryName . fromMaybe __IMPOSSIBLE__ . (`cxLookup` clauseCxt))
+          toSplit
     shouldExpandEllipsis <- return (not $ null toShow) `or2M` anyEllipsisVar f absCl splitNames
     let ell' | shouldExpandEllipsis = NoEllipsis
              | otherwise            = ell
@@ -405,11 +460,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
     -- because [f zero zero] is already defined.
     -- However we ignore [f _ _]: [f m zero] was already a refinement of it,
     -- hinting that we considered it more important than the catchall.
-    let sclause = clauseToSplitClause clause
-    fcs <- filterM (\ cl -> (isCovered f [clause] (clauseToSplitClause cl)) `and2M`
-                            (not <$> isCovered f [cl] sclause))
-                   follClauses
-    scs <- filterM (not <.> isCovered f (prevClauses ++ fcs) . fst) scs
+    scs <- filterOutExistingClauses scs
     reportSLn "interaction.case" 70 $ "makeCase: survived filtering out already covered clauses"
     -- 2. filter out trivially impossible clauses not asked for by the user
     cs <- catMaybes <$> do
@@ -468,9 +519,8 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
 
 -- | Make the given pattern variables visible by marking their origin as
 --   'CaseSplit' and pattern origin as 'PatOSplit' in the 'SplitClause'.
-makePatternVarsVisible :: [Nat] -> SplitClause -> SplitClause
-makePatternVarsVisible [] sc = sc
-makePatternVarsVisible is sc@SClause{ scPats = ps } =
+makePatternVarsVisible :: [Name] -> [Nat] -> SplitClause -> SplitClause
+makePatternVarsVisible xs is sc@SClause{ scPats = ps } =
   sc{ scPats = mapNamedArgPattern mkVis ps }
   where
   mkVis :: NamedArg SplitPattern -> NamedArg SplitPattern
@@ -480,6 +530,8 @@ makePatternVarsVisible is sc@SClause{ scPats = ps } =
       -- if visible ai then __IMPOSSIBLE__ else
       -- or passing the parsed name along and comparing it with @x@
       Arg (setOrigin CaseSplit ai) $ Named n $ VarP (PatternInfo PatOSplit []) $ SplitPatVar x i ls
+  mkVis (Arg ai (Named n (DotP (PatternInfo (PatOVar x) _) v)))
+    | x `elem` xs = Arg ai (Named n (DotP (PatternInfo PatOSplit []) v))
   mkVis np = np
 
 -- | If a copattern split yields no clauses, we must be at an empty record type.
@@ -495,22 +547,16 @@ makeRHSEmptyRecord = \case
 
 makeAbsurdClause :: QName -> ExpandedEllipsis -> SplitClause -> TCM A.Clause
 makeAbsurdClause f ell (SClause tel sps _ _ t) = do
-  let ps = fromSplitPatterns sps
-  reportSDoc "interaction.case" 10 $ vcat
-    [ "Interaction.MakeCase.makeAbsurdClause: split clause:"
-    , nest 2 $ vcat
-      [ "context =" <+> do (inTopContext . prettyTCM) =<< getContextTelescope
-      , "tel     =" <+> do inTopContext $ prettyTCM tel
-      , "ps      =" <+> do inTopContext $ addContext tel $ prettyTCMPatternList ps -- P.sep <$> prettyTCMPatterns ps
-      , "ell     =" <+> text (show ell)
-      ]
-    ]
-  withCurrentModule (qnameModule f) $
-    inTopContext $ reify $ QNamed f $ Clause
+  showImp <- showImplicitArguments
+  let
+    ps  = fromSplitPatterns sps
+    ps' = applyWhen showImp filterOutGeneralizedVarPatterns ps
+    -- Internal clause
+    cl = Clause
       { clauseLHSRange  = noRange
       , clauseFullRange = noRange
       , clauseTel       = tel
-      , namedClausePats = ps
+      , namedClausePats = ps'
       , clauseBody      = Nothing
       , clauseType      = argFromDom <$> t
       , clauseCatchall    = empty
@@ -519,6 +565,39 @@ makeAbsurdClause f ell (SClause tel sps _ _ t) = do
       , clauseEllipsis    = ell
       , clauseWhereModule = Nothing
       }
+  reportSDoc "interaction.case" 10 $ vcat
+    [ "Interaction.MakeCase.makeAbsurdClause: split clause:"
+    , nest 2 $ vcat
+      [ "context =" <+> do (inTopContext . prettyTCM) =<< getContextTelescope
+      , "tel     =" <+> do inTopContext $ prettyTCM tel
+      , "ps      =" <+> do inTopContext $ addContext tel $ prettyTCMPatternList ps -- P.sep <$> prettyTCMPatterns ps
+      , "ps'     =" <+> do inTopContext $ addContext tel $ prettyTCMPatternList ps'
+      , "ell     =" <+> text (show ell)
+      ]
+    ]
+  reportSDoc "interaction.case" 10 $
+    nest 2 $ vcat
+      [ "ps (raw)=" <+> text (show ps)
+      ]
+  withCurrentModule (qnameModule f) $
+    inTopContext $ reify $ QNamed f cl
+
+-- | Drop hidden patterns introduced by generalization with an unparsable name.
+--   If we drop one, we need to make the next non-dropped hidden pattern named.
+filterOutGeneralizedVarPatterns :: [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
+filterOutGeneralizedVarPatterns = go False
+  where
+    go b [] = []
+    go b (p : ps)
+      | maybe False (isGeneralizedVarName . prettyShow) (getNameOf p) = go True ps
+      | otherwise = applyWhen (b && getHiding p == Hidden) makeNamedArgUserWritten p : go False ps
+
+makeNamedArgUserWritten :: NamedArg a -> NamedArg a
+makeNamedArgUserWritten (Arg info (Named n a)) = Arg info (Named (setOrigin UserWritten <$> n) a)
+
+-- | Unparseable variable names are those that contain a '.'.
+isGeneralizedVarName :: PatVarName -> Bool
+isGeneralizedVarName = elem '.'
 
 -- | Make a clause with a question mark as rhs.
 

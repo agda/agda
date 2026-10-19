@@ -1,0 +1,3 @@
+NoIrrelevance9.agda:3.12-19: error: [NeedOptionIrrelevance]
+Irrelevance modality is disabled (use options --irrelevance and
+--no-irrelevance to enable/disable irrelevance)

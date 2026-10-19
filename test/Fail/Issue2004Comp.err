@@ -1,3 +1,6 @@
-Issue2004Comp.agda:13.5-8: error: [UnequalTerms]
-Set₁ !=< (x : A) → P x
+Issue2004Comp.agda:13.5-8: error: [UnequalTypes]
+The type
+  Set₁
+is not a subtype of
+  (x : A) → P x
 when checking that the expression Set has type (x : A) → P x

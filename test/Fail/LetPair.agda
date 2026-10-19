@@ -16,3 +16,7 @@ swap : {A B : Set} → A × B → B × A
 swap p =
   let (a , b) = p  -- works only for record patterns
   in  (b , a)
+
+-- 2026-01-20 error: [ShouldBeRecordPattern]
+-- Expected record pattern
+-- when checking that the pattern a , b has type A × B

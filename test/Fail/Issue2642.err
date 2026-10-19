@@ -1,7 +1,9 @@
-Issue2642.agda:5.5-6.6: error: [DuplicateFields]
-Duplicate field F in record
+Issue2642.agda:5.5-7.8: error: [DuplicateFields]
+Duplicate fields in record: F G
 when scope checking the declaration
   record R where
     field
       F : Set
       F : Set
+      G : Set
+      G : Set

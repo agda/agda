@@ -1,6 +1,6 @@
 Issue5763.agda:8.1-15: error: [NoParseForLHS]
 Could not parse the left-hand side foo (fn x , y)
 Operators used in the grammar:
-  None
+  fn_, (prefix notation, unrelated) [fun (Issue5763.agda:3.3-6)]
 when scope checking the left-hand side foo (fn x , y) in the
 definition of foo

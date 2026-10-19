@@ -113,50 +113,53 @@ byteArrayDisjoint# bs1 bs2 =
 -- 'ByteArray#'. We opt to use the convention where we treat the 0th bit as the "head" of
 -- the 'ByteArray#', so a right fold like @byteArrayFoldrBits# f x 0b1011@ would give @f 0 (f 1 (f 3 x))@.
 
+
+{-# INLINE byteArrayFoldrBits# #-}
 -- | Perform a lazy right fold over the bit indicies of a 'ByteArray#'.
 byteArrayFoldrBits# :: (Int -> a -> a) -> a -> ByteArray# -> a
-byteArrayFoldrBits# f a bs = loop 0#
+byteArrayFoldrBits# f = \a bs -> loop 0# a bs (wordArraySize# bs)
   where
-    len = wordArraySize# bs
-
     -- Not tail recursive.
-    loop i =
+    loop i a bs len =
       if isTrue# (i <# len) then
-        wordFoldrBitsOffset# (WORD_SIZE_IN_BITS# *# i) f (loop (i +# 1#)) (indexWordArray# bs i)
+        wordFoldrBitsOffset# (WORD_SIZE_IN_BITS# *# i) f (loop (i +# 1#) a bs len) (indexWordArray# bs i)
       else
         a
 
+{-# INLINE byteArrayFoldlBits# #-}
 -- | Perform a lazy left fold over the bit indicies of a 'ByteArray#'.
 byteArrayFoldlBits# :: (a -> Int -> a) -> a -> ByteArray# -> a
-byteArrayFoldlBits# f a bs = loop (wordArraySize# bs -# 1#)
+byteArrayFoldlBits# f = \a bs -> loop (wordArraySize# bs -# 1#) bs a
   where
     -- Not tail recursive.
-    loop i =
+    loop i bs a =
       if isTrue# (i >=# 0#) then
-        wordFoldlBitsOffset# (WORD_SIZE_IN_BITS# *# i) f (loop (i -# 1#)) (indexWordArray# bs i)
+        wordFoldlBitsOffset# (WORD_SIZE_IN_BITS# *# i) f (loop (i -# 1#) bs a) (indexWordArray# bs i)
       else
         a
 
+{-# INLINE byteArrayFoldrBitsStrict# #-}
 -- | Perform a strict right fold over the bit indicies of a 'ByteArray#'.
 byteArrayFoldrBitsStrict# :: (Int -> a -> a) -> a -> ByteArray# -> a
-byteArrayFoldrBitsStrict# f a bs = loop (wordArraySize# bs -# 1#) a
+byteArrayFoldrBitsStrict# f = \a bs -> loop (wordArraySize# bs -# 1#) a bs
   where
     -- Tail recursive.
-    loop i !acc =
+    loop i !acc bs =
       if isTrue# (i >=# 0#) then
         loop (i -# 1#) (wordFoldrBitsOffsetStrict# (WORD_SIZE_IN_BITS# *# i) f acc (indexWordArray# bs i))
+             bs
       else
         acc
 
+{-# INLINE byteArrayFoldlBitsStrict# #-}
 -- | Perform a strict left fold over the bit indicies of a 'ByteArray#'.
 byteArrayFoldlBitsStrict# :: (a -> Int -> a) -> a -> ByteArray# -> a
-byteArrayFoldlBitsStrict# f a bs = loop 0# a
+byteArrayFoldlBitsStrict# f = \a bs -> loop 0# a bs (wordArraySize# bs)
   where
-    len = wordArraySize# bs
-
     -- Tail recursive.
-    loop i !acc =
+    loop i !acc bs len =
       if isTrue# (i <# len) then
         loop (i +# 1#) (wordFoldlBitsOffsetStrict# (WORD_SIZE_IN_BITS# *# i) f acc (indexWordArray# bs i))
+                       bs len
       else
         acc

@@ -8,8 +8,8 @@ include tests.mk
 # side of TAG is not expanded multiple times.
 TAG := $(shell echo `date +"%Y%m%d-%H.%M"`-`hostname -s`)
 LOG_DIR = logs
-PROC_INFO := $(shell which procinfo)
-HOST_INFO := $(shell which hostinfo)
+PROC_INFO := $(shell command -v procinfo)
+HOST_INFO := $(shell command -v hostinfo)
 
 ifeq ($(HOST_INFO),)
 ifeq ($(PROC_INFO),)

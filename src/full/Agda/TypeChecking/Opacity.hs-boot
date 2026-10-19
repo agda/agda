@@ -10,4 +10,4 @@ import Agda.Syntax.Abstract.Name
 isAccessibleDef :: TCEnv -> TCState -> Definition -> Bool
 
 hasAccessibleDef
-  :: (ReadTCState m, MonadTCEnv m, HasConstInfo m) => QName -> m Bool
+  :: (ReadTCState m, HasConstInfo m) => QName -> m Bool

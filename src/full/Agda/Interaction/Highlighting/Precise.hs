@@ -41,9 +41,9 @@ import qualified Data.Set as Set
 
 import GHC.Generics (Generic)
 
-import qualified Agda.Syntax.Common   as Common
+import Agda.Syntax.Common qualified as Common
 import Agda.Syntax.TopLevelModuleName
-import Agda.Syntax.Scope.Base                   ( KindOfName(..) )
+import Agda.Syntax.Abstract.Name ( KindOfName(..) )
 
 import Agda.Utils.Range
 
@@ -311,13 +311,3 @@ instance Semigroup PositionMap where
 instance Monoid PositionMap where
   mempty  = PositionMap { positionMap = IntMap.empty }
   mappend = (<>)
-
-------------------------------------------------------------------------
--- NFData instances
-
-instance NFData Aspect
-instance NFData OtherAspect
-instance NFData DefinitionSite
-
-instance NFData Aspects where
-  rnf (Aspects a b c d _) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d

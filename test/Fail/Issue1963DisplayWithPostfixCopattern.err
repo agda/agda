@@ -13,5 +13,9 @@ withDisplayForm
   qs[rho]= [$ x, .proj₁]
   dt     = f x .proj₁ | w1
 Issue1963DisplayWithPostfixCopattern.agda:30.8-12: error: [UnequalTerms]
-f 0 .proj₁ | p 0 != zero of type Nat
+The terms
+  f 0 .proj₁ | p 0
+and
+  zero
+are not equal at type Nat
 when checking that the expression refl has type f 0 ≡ (0 , 1)

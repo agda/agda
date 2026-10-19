@@ -2,6 +2,7 @@
   ::
 
   {-# OPTIONS --cubical #-}
+  {-# OPTIONS --erasure #-}
   {-# OPTIONS -WnoUnsupportedIndexedMatch #-} -- silence warnings for indexed families
 
   module language.cubical where
@@ -9,9 +10,9 @@
   open import Agda.Primitive
   open import Agda.Primitive.Cubical
     using    ( I; i0; i1; Partial )
-    renaming ( primIMin to _∧_
-             ; primIMax to _∨_
-             ; primINeg to ~_
+    renaming ( primIMin to infixr 20 _∧_
+             ; primIMax to infixr 20 _∨_
+             ; primINeg to infix  30 ~_
              ; primHComp to hcomp
              ; primTransp to transp
              ; itIsOne to 1=1 )
@@ -67,11 +68,18 @@ the general schema for higher inductive types work, following the
 Cubical Agda at https://www.doi.org/10.1017/S0956796821000034.
 
 To use the cubical mode Agda needs to be run with the
-:option:`--cubical` command-line-option or with ``{-#
-OPTIONS --cubical #-}`` at the top of the file. There is also a
-variant of the cubical mode, activated using
-:option:`--erased-cubical`, which is described
-:ref:`below<erased-cubical>`.
+:option:`--cubical` command-line-option,
+as a flag in your ``.agda-lib`` file
+or with ``{-# OPTIONS --cubical #-}`` at the top of the file.
+
+There are also two other :ref:`variants<variants>` of the cubical mode:
+
+- :option:`--cubical=erased`,
+  which is described :ref:`below<erased-cubical>`, and
+
+- :option:`--cubical=no-glue`,
+  which allows Cubical features without the :ref:`Glue types<glue-types>`,
+  described :ref:`below<cubical-without-glue>`.
 
 The cubical mode adds the following features to Agda:
 
@@ -83,24 +91,15 @@ The cubical mode adds the following features to Agda:
 6. Higher inductive types
 7. Cubical identity types
 
-There are two major libraries for Cubical Agda:
+In this documentation we will rely on the ``agda/cubical`` library
+available at https://github.com/agda/cubical.
+We use the naming conventions of this library; for a
+detailed list of all of the built-in Cubical Agda files and
+primitives see :ref:`primitives-ref`.
 
-- ``agda/cubical``: originally intended as a standard library for
-  Cubical Agda available at https://github.com/agda/cubical. This
-  documentation uses the naming conventions of this library, for a
-  detailed list of all of the built-in Cubical Agda files and
-  primitives see :ref:`primitives-ref`.
-
-- ``1lab``: A formalised and cross linked reference resource for
-  cubical methods in Homotopy Type Theory which can be found at
-  https://1lab.dev/. Much better documented than the ``agda/cubical``
-  library and hence more accessible to newcomers. The sources can be
-  found at https://github.com/plt-amy/1lab.
-
-In this documentation we will rely on the ``agda/cubical`` library and
-the recommended way to get access to the cubical primitives is to add
-the following to the top of a file (this assumes that the
-``agda/cubical`` library is installed and visible to Agda).
+The recommended way to get access to the cubical primitives is to add
+the following to the top of a file; this assumes that the
+``agda/cubical`` library is installed and visible to Agda.
 
 .. code-block:: agda
 
@@ -238,7 +237,7 @@ definitional equalities compared to the standard Agda definitions:
                cong (λ a → g (f a)) p ≡ cong g (cong f p)
   congComp f g p = refl
 
-Path types also let us prove new things are not provable in standard Agda.
+Path types also let us prove new things that are not provable in standard Agda.
 For example, function extensionality, stating that pointwise equal functions
 are equal, has an extremely simple proof:
 
@@ -524,6 +523,8 @@ direct cubical proof that composing ``p`` with ``refl`` is ``p``.
                                              (~ j)
 
 
+.. _glue-types:
+
 Glue types
 ==========
 
@@ -634,7 +635,7 @@ We have the following equalities:
 
 
 For more results about Glue types and univalence see the files of Glue
-types and univalence in the ``agda/cubical`` library or the ``1lab``.
+types and univalence in the ``agda/cubical`` library.
 
 
 Higher inductive types
@@ -713,26 +714,67 @@ that the torus is equal to two circles.
   Torus≡S¹×S¹ : Torus ≡ S¹ × S¹
   Torus≡S¹×S¹ = isoToPath (iso t2c c2t t2c-c2t c2t-t2c)
 
+A type is a *proposition* if all of its elements are connected by a path::
+
+  IsProp : ∀ {ℓ} → Set ℓ → Set ℓ
+  IsProp A = (x y : A) → x ≡ y
+
 Cubical Agda also supports parameterized and recursive higher
 inductive types, for example propositional truncation (squash types)
 is defined as:
 
+..
+  ::
+
+  module PropositionalTruncationHIT where
+
 ::
 
-  data ∥_∥ {ℓ} (A : Set ℓ) : Set ℓ where
-    ∣_∣ : A → ∥ A ∥
-    squash : ∀ (x y : ∥ A ∥) → x ≡ y
+    data ∥_∥ {ℓ} (A : Set ℓ) : Set ℓ where
+      ∣_∣ : A → ∥ A ∥
+      squash : ∀ (x y : ∥ A ∥) → x ≡ y
 
-  isProp : ∀ {ℓ} → Set ℓ → Set ℓ
-  isProp A = (x y : A) → x ≡ y
+    recPropTrunc : ∀ {ℓ} {A : Set ℓ} {P : Set ℓ} → IsProp P → (A → P) → ∥ A ∥ → P
+    recPropTrunc Pprop f ∣ x ∣          = f x
+    recPropTrunc Pprop f (squash x y i) =
+      Pprop (recPropTrunc Pprop f x) (recPropTrunc Pprop f y) i
 
-  recPropTrunc : ∀ {ℓ} {A : Set ℓ} {P : Set ℓ} → isProp P → (A → P) → ∥ A ∥ → P
-  recPropTrunc Pprop f ∣ x ∣          = f x
-  recPropTrunc Pprop f (squash x y i) =
-    Pprop (recPropTrunc Pprop f x) (recPropTrunc Pprop f y) i
+
+.. _erased-constructors:
+
+Erased constructors
+-------------------
+
+In combination with :option:`--erasure` it can make sense to mark constructors as erased,
+in particular higher constructors such as ``squash``:
+
+..
+  ::
+
+  module PropositionalTruncationHITErased where
+
+::
+
+    data ∥_∥ {ℓ} (A : Set ℓ) : Set ℓ where
+      ∣_∣ : A → ∥ A ∥
+      @0 squash : ∀ (x y : ∥ A ∥) → x ≡ y
+
+    recPropTrunc : ∀ {ℓ} {A : Set ℓ} {P : Set ℓ} → @0 IsProp P → (A → P) → ∥ A ∥ → P
+    recPropTrunc Pprop f ∣ x ∣          = f x
+    recPropTrunc Pprop f (squash x y i) =
+      Pprop (recPropTrunc Pprop f x) (recPropTrunc Pprop f y) i
+
+In the code above the constructor ``squash`` is only available at
+compile-time, whereas ``∣_∣`` is also available at run-time. Clauses
+that match on erased constructors in non-erased positions are omitted
+by (at least some) compiler backends, so one can use erased names in
+the bodies of such clauses. (There is an exception for constructors
+that were not originally declared as erased, but that are currently
+treated as erased.)
+
 
 For many more examples of higher inductive types see the
-``agda/cubical`` library or the ``1lab``.
+``agda/cubical`` library.
 
 .. _indexed-inductive-types:
 
@@ -830,7 +872,6 @@ constructors (specifically of the constructor ``suc``), and so will not
 compute on transported values.
 
 ::
-
 
   sucInjEq : ∀ {n k} → Eq (suc n) (suc k) → Eq n k
   sucInjEq reflEq = reflEq
@@ -940,19 +981,47 @@ relevant position.
 Any argument which is used in the result type, or appears after a forced
 (dot) pattern, must have a modality-correct type.
 
+
+.. _variants:
+
+Variants
+========
+
+Summary of variant compatibilities:
+
+.. |cng| replace:: :option:`--cubical=no-glue`
+.. |ec|  replace:: :option:`--cubical=erased`
+.. |c|   replace:: :option:`--cubical[=full]`
+.. |v|   replace:: :math:`\checkmark`
+.. |x|   replace:: :math:`\times`
+
++---------------------+-------+------+----------+
+| Current \\ Imported | |cng| | |ec| | |c|      |
++=====================+=======+======+==========+
+| |cng|               | |v|   | |x|  | |x|      |
++---------------------+-------+------+----------+
+| |ec|                | |v|   | |v|  | |v| [#]_ |
++---------------------+-------+------+----------+
+| |c|                 | |v|   | |v|  | |v|      |
++---------------------+-------+------+----------+
+
+.. [#] only if :option:`--erasure` is enabled and is used in erased positions.
+       See :ref:`below<erased-cubical>`.
+
 .. _erased-cubical:
 
-Cubical Agda with erased Glue
-=============================
 
-The option :option:`--erased-cubical` enables a variant of Cubical
+Cubical Agda with erased Glue
+-----------------------------
+
+The option :option:`--cubical=erased` enables a variant of Cubical
 Agda in which Glue (and the other builtins defined in
 ``Agda.Builtin.Cubical.Glue``) must only be used in
 :ref:`erased<runtime-irrelevance>` settings.
 
 Regular Cubical Agda code can import code that uses
-:option:`--erased-cubical`. Regular Cubical Agda code can also be
-imported from code that uses :option:`--erased-cubical`, but names
+:option:`--cubical=erased`. Regular Cubical Agda code can also be
+imported from code that uses :option:`--cubical=erased`, but names
 defined using Cubical Agda can only be used if the option
 :option:`--erasure` is used. In that case the names are treated as if
 they had been marked as erased, with an exception related to pattern
@@ -968,6 +1037,36 @@ non-erased constructors are not treated as erased.
 Note that names that are re-exported from a Cubical Agda module using
 ``open import M args public`` are seen as defined using Cubical Agda.
 
+
+.. _cubical-without-glue:
+
+Cubical Agda without Glue
+-------------------------
+
+The option :option:`--cubical=no-glue` enables a variant (strict subset) of Cubical Agda,
+in which primitives such as ``hcomp`` and ``transp`` are still available,
+but Glue types (and the other builtins defined in ``Agda.Builtin.Cubical.Glue``) are disabled.
+Therefore, it should be sound to postulate in this variant
+either the uniqueness of identity proofs (UIP) or univalence; but of course not both.
+A source of inspiration for a Cubical Type Theory compatible with UIP is `XTT`_,
+in which UIP holds definitionally.
+
+If the current module enables the option :option:`--cubical=no-glue`, then:
+
+- It cannot import from modules with the options
+  :option:`--cubical` or :option:`--cubical=erased`,
+  since they allow the use of Glue types (to different extents).
+
+- Modules that depend on the current module must enable
+  any of the Cubical (variant) options:
+  :option:`--cubical=no-glue`, :option:`--cubical=erased`, or :option:`--cubical`.
+
+On the other hand, if the current module enables any of the the opions
+:option:`--cubical=erased` or :option:`--cubical`,
+one can always import modules with :option:`--cubical=no-glue`.
+
+
+
 References
 ==========
 
@@ -981,6 +1080,11 @@ References
 
   Thierry Coquand, Simon Huber, Anders Mörtberg; `"On Higher Inductive
   Types in Cubical Type Theory" <https://arxiv.org/abs/1802.01170>`_.
+
+.. _`XTT`:
+
+  Jonathan Sterling, Carlo Angiuli, Daniel Gratzer; `"A Cubical Language for
+  Bishop Sets" <https://dblp.org/rec/journals/lmcs/SterlingAG22.html>`_.
 
 .. _primitives-ref:
 
@@ -1013,13 +1117,10 @@ the following ``BUILTIN``, primitives and postulates:
   {-# BUILTIN IZERO    i0   #-}
   {-# BUILTIN IONE     i1   #-}
 
-  infix 30 primINeg
-  infixr 20 primIMin primIMax
-
   primitive
-    primIMin : I → I → I   -- _∧_
-    primIMax : I → I → I   -- _∨_
-    primINeg : I → I       -- ~_
+    primIMin : I → I → I   -- infixr 30 _∧_
+    primIMax : I → I → I   -- infixr 30 _∨_
+    primINeg : I → I       -- infix  20 ~_
 
   {-# BUILTIN ISONE IsOne #-} -- IsOne : I → SSet
 

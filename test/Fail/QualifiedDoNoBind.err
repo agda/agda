@@ -1,0 +1,5 @@
+QualifiedDoNoBind.agda:6.5-8.6: error: [DoNotationError]
+X._>>_ needs to be in scope to desugar 'do' block
+when scope checking
+X.do Set
+     Set

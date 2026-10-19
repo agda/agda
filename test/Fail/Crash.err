@@ -1,3 +1,6 @@
-Crash.agda:21.9-13: error: [UnequalTerms]
-N !=< B
+Crash.agda:21.9-13: error: [UnequalTypes]
+The type
+  N
+is not a subtype of
+  B
 when checking that the expression zero has type F false

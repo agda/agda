@@ -1220,6 +1220,59 @@ order for the change to take effect."
   ("Mfy" . ("𝔶"))
   ("Mfz" . ("𝔷"))
 
+  ("MFA" . ("𝕬"))
+  ("MFB" . ("𝕭"))
+  ("MFC" . ("𝕮"))
+  ("MFD" . ("𝕯"))
+  ("MFE" . ("𝕰"))
+  ("MFF" . ("𝕱"))
+  ("MFG" . ("𝕲"))
+  ("MFH" . ("𝕳"))
+  ("MFI" . ("𝕴"))
+  ("MFJ" . ("𝕵"))
+  ("MFK" . ("𝕶"))
+  ("MFL" . ("𝕷"))
+  ("MFM" . ("𝕸"))
+  ("MFN" . ("𝕹"))
+  ("MFO" . ("𝕺"))
+  ("MFP" . ("𝕻"))
+  ("MFQ" . ("𝕼"))
+  ("MFR" . ("𝕽"))
+  ("MFS" . ("𝕾"))
+  ("MFT" . ("𝕿"))
+  ("MFU" . ("𝖀"))
+  ("MFV" . ("𝖁"))
+  ("MFW" . ("𝖂"))
+  ("MFX" . ("𝖃"))
+  ("MFY" . ("𝖄"))
+  ("MFZ" . ("𝖅"))
+  ("MFa" . ("𝖆"))
+  ("MFb" . ("𝖇"))
+  ("MFc" . ("𝖈"))
+  ("MFd" . ("𝖉"))
+  ("MFe" . ("𝖊"))
+  ("MFf" . ("𝖋"))
+  ("MFg" . ("𝖌"))
+  ("MFh" . ("𝖍"))
+  ("MFi" . ("𝖎"))
+  ("MFj" . ("𝖏"))
+  ("MFk" . ("𝖐"))
+  ("MFl" . ("𝖑"))
+  ("MFm" . ("𝖒"))
+  ("MFn" . ("𝖓"))
+  ("MFo" . ("𝖔"))
+  ("MFp" . ("𝖕"))
+  ("MFq" . ("𝖖"))
+  ("MFr" . ("𝖗"))
+  ("MFs" . ("𝖘"))
+  ("MFt" . ("𝖙"))
+  ("MFu" . ("𝖚"))
+  ("MFv" . ("𝖛"))
+  ("MFw" . ("𝖜"))
+  ("MFx" . ("𝖝"))
+  ("MFy" . ("𝖞"))
+  ("MFz" . ("𝖟"))
+
   ;; (Sub / Super) scripts.
   ;;
   ;; Unicode 12.1 omits several latin characters from sub/superscript.
@@ -1510,6 +1563,34 @@ Suitable for use in the :set field of `defcustom'."
 ;; Set up the input method.
 
 (agda-input-setup)
+
+;; Allow disabling resizing of the minibuffer
+
+(defun agda-input--fix-quail-newline (arglist)
+  "Argument-filtering advice for `quail-minibuffer-message'.
+This function takes the argument list ARGLIST before it is
+applied to `quail-minibuffer-message', and makes sure the first
+and only argument has no newline.  This only has an effect if the
+Agda input method is active."
+  (save-match-data
+    (pcase arglist
+      ((and `(,(and (pred stringp) prompt))
+            (guard (string-match
+                    (rx "[" (literal (cadr (assoc "Agda" quail-package-alist))) "]" (group "\n"))
+                    prompt)))
+       (list (replace-match " " nil nil prompt 1)))
+      (_ arglist))))
+
+(defcustom agda-input-single-line nil
+  "Avoid the Agda input method from resizing the minibuffer."
+  :set (lambda (var val)
+         (if val
+             (advice-add #'quail-minibuffer-message :filter-args
+                         #'agda-input--fix-quail-newline)
+           (advice-remove #'quail-minibuffer-message
+                          #'agda-input--fix-quail-newline))
+         (custom-set-default var val))
+  :type 'boolean)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Administrative details

@@ -40,7 +40,6 @@ import Prelude hiding ( null )
 import System.Directory ( createDirectoryIfMissing )
 import System.FilePath ( takeDirectory )
 
-import Control.Arrow (second)
 import qualified Control.Exception as E
 import Control.Monad
 import Control.Monad.Reader
@@ -55,29 +54,33 @@ import qualified Data.List as List
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 
+import GHC.Float (castWord64ToDouble)
+
 import qualified Codec.Compression.Zstd as Z
 
-import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-
-import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances () --instance only
+import Agda.Interaction.Options.ProfileOptions qualified as Profile
 import Agda.TypeChecking.Monad
-import Agda.Utils.Monad ((<*!>))
+import Agda.TypeChecking.Monad.Benchmark qualified as Bench
+import Agda.TypeChecking.Serialise.Base
+import Agda.TypeChecking.Serialise.Instances () -- instances only
+
+import Agda.Utils.CompactRegion qualified as Compact
 import Agda.Utils.Hash
+import Agda.Utils.HashTable qualified as H
 import Agda.Utils.IORef
+import Agda.Utils.MinimalArray.Lifted qualified as AL
+import Agda.Utils.MinimalArray.MutableLifted qualified as ML
+import Agda.Utils.Monad ((<*!>))
 import Agda.Utils.Serialize
+import Agda.Utils.Tuple (second)
 import Agda.Utils.VarSet (VarSet)
+
 import Agda.Utils.Impossible
-import qualified Agda.Utils.HashTable as H
-import qualified Agda.Interaction.Options.ProfileOptions as Profile
-import qualified Agda.Utils.MinimalArray.Lifted as AL
-import qualified Agda.Utils.MinimalArray.MutableLifted as ML
-import qualified Agda.Utils.CompactRegion as Compact
 
 #include "MachDeps.h"
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20250812 * 10 + 0
+currentInterfaceVersion = 20261003 * 10 + 0
 
 ifaceVersionSize :: Int
 ifaceVersionSize = SIZEOF_WORD64
@@ -119,7 +122,7 @@ encode a = do
                <*!> toArray (sTextD newD)
                <*!> toArray (integerD newD)
                <*!> toArray (varSetD newD)
-               <*!> toArray (doubleD newD)
+               <*!> toArrayWith castWord64ToDouble (doubleD newD)
 
   -- Record reuse statistics.
   whenProfile Profile.Sharing $ do
@@ -143,10 +146,15 @@ encode a = do
   pure (root, nodeA, stringA, lTextA, sTextA, integerA, varSetA, doubleA)
   where
     toArray :: H.HashTableLU k Word32 -> IO (AL.Array k)
-    toArray tbl = do
+    toArray = toArrayWith id
+
+    -- The 'Double' dictionary is keyed by bit patterns (see 'icodeDouble'),
+    -- so its keys have to be converted back to 'Double's here.
+    toArrayWith :: (k -> a) -> H.HashTableLU k Word32 -> IO (AL.Array a)
+    toArrayWith f tbl = do
       size <- H.size tbl
       arr <- ML.new size undefined
-      H.forAssocs tbl \k v -> ML.write arr (fromIntegral v) k
+      H.forAssocs tbl \k v -> ML.write arr (fromIntegral v) $! f k
       ML.unsafeFreeze arr
 
     statistics :: String -> FreshAndReuse -> TCM ()
@@ -162,15 +170,14 @@ encode a = do
 
 -- | Decode a hash-consed value. The result depends on the include path.
 decode :: EmbPrj a => Encoded -> MaybeT TCM a
-decode enc = do
-  mf       <- lift $ useTC stModuleToSource
+decode enc = stateSessionLensM lensModuleToSource \mf -> do
   includes <- lift $ getIncludeDirs
   arena    <- liftIO $ Compact.new (2 ^ 12) -- 4 KB blocks
 
   let compactElems :: AL.Array a -> IO (AL.Array a)
       compactElems = AL.traverseIO' (Compact.add arena)
 
-  (mf, res) <- tryDecode $ do
+  tryDecode $ do
     let (r, nodeA, stringA, lTextA, sTextA, integerA, varSetA, doubleA) = enc
 
     stringA      <- compactElems stringA
@@ -186,10 +193,7 @@ decode enc = do
                      doubleA filePathMemo modFile includes
     res <- runReaderT (value r) dec
     mf  <- readIORef modFile
-    pure (mf, res)
-
-  lift $ setTCLens stModuleToSource mf
-  pure res
+    pure (res, mf)
   -- -- "Compact" the interfaces (without breaking sharing) to
   -- -- reduce the amount of memory that is traversed by the
   -- -- garbage collector.

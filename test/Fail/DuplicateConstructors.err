@@ -1,6 +1,10 @@
-DuplicateConstructors.agda:5.3-6.4: error: [DuplicateConstructors]
-Duplicate constructor c in datatype
+DuplicateConstructors.agda:5.3-7.6: error: [DuplicateConstructors]
+Duplicate constructors in datatype: c d e
 when scope checking the declaration
   data D where
     c : D
     c : D
+    d : D
+    d : D
+    e : D
+    e : D

@@ -9,6 +9,7 @@ import GHC.Exts
 import GHC.Word
 import Agda.Utils.Serialize
 import Agda.Utils.Word
+import Agda.Utils.Hash (combineWord)
 import Data.Hashable
 import Data.Bits
 
@@ -69,39 +70,18 @@ instance Eq Node where
 instance Hashable Node where
   -- Adapted from https://github.com/tkaitchuck/aHash/wiki/AHash-fallback-algorithm
   hashWithSalt h n = fromIntegral (go (fromIntegral h) n) where
-    xor (W# x) (W# y) = W# (xor# x y)
-
-    foldedMul :: Word -> Word -> Word
-    foldedMul (W# x) (W# y) = case timesWord2# x y of (# hi, lo #) -> W# (xor# hi lo)
-
-    combine :: Word -> Word -> Word
-    combine x y = foldedMul (xor x y) factor where
-      -- We use a version of fibonacci hashing, where our multiplier is the
-      -- nearest prime to 2^64/phi or 2^32/phi. See https://stackoverflow.com/q/4113278.
-#if WORD_SIZE_IN_BITS == 64
-      factor = 11400714819323198549
-#else
-      factor = 2654435741
-#endif
 
     go :: Word -> Node -> Word
     go h N0           = h
-    go h (N1# a)      = h `combine` fromIntegral a
-    go h (N2# a)      = h `combine` fromIntegral a
-    go h (N3# a b)    = h `combine` fromIntegral a `combine` fromIntegral b
-    go h (N4# a b)    = h `combine` fromIntegral a `combine` fromIntegral b
-    go h (N5# a b c)  = h `combine` fromIntegral a `combine` fromIntegral b
-                        `combine` fromIntegral c
-    go h (N6# a b c n) = let h' = h `combine` fromIntegral a
-                                   `combine` fromIntegral b `combine` fromIntegral c
+    go h (N1# a)      = h `combineWord` fromIntegral a
+    go h (N2# a)      = h `combineWord` fromIntegral a
+    go h (N3# a b)    = h `combineWord` fromIntegral a `combineWord` fromIntegral b
+    go h (N4# a b)    = h `combineWord` fromIntegral a `combineWord` fromIntegral b
+    go h (N5# a b c)  = h `combineWord` fromIntegral a `combineWord` fromIntegral b
+                        `combineWord` fromIntegral c
+    go h (N6# a b c n) = let h' = h `combineWord` fromIntegral a
+                                   `combineWord` fromIntegral b `combineWord` fromIntegral c
                          in go h' n
-
-  hash = hashWithSalt seed where
-#if WORD_SIZE_IN_BITS == 64
-      seed = 3032525626373534813
-#else
-      seed = 1103515245
-#endif
 
 --------------------------------------------------------------------------------
 

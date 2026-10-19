@@ -92,6 +92,14 @@ import Agda.Utils.Monad
 
 import Agda.Utils.Impossible
 
+checkIrrelevanceAllowed :: LensRelevance a => a -> TCM ()
+checkIrrelevanceAllowed x = unlessM isIrrelevanceEnabled $
+  when (isIrrelevant x) $ typeError NeedOptionIrrelevance
+
+checkAllIrrelevanceAllowed :: (Traversable f, LensRelevance a) => f a -> TCM ()
+checkAllIrrelevanceAllowed xs = unlessM isIrrelevanceEnabled $
+  when (any isIrrelevant xs) $ typeError NeedOptionIrrelevance
+
 -- | Check whether something can be used in a position of the given relevance.
 --
 --   This is a substitute for double-checking that only makes sure
@@ -108,7 +116,7 @@ import Agda.Utils.Impossible
 --
 class UsableRelevance a where
   usableRel
-    :: (ReadTCState m, HasConstInfo m, MonadTCEnv m, MonadAddContext m, MonadDebug m)
+    :: (ReadTCState m, HasConstInfo m, MonadAddContext m)
     => Relevance -> a -> m Bool
 
 instance UsableRelevance Term where
@@ -182,7 +190,7 @@ instance UsableRelevance a => UsableRelevance (Arg a) where
     in  usableRel (rel `composeRelevance` rel') u
 
 instance UsableRelevance a => UsableRelevance (Dom a) where
-  usableRel rel Dom{unDom = u} = usableRel rel u
+  usableRel rel d = usableRel rel (unDom d)
 
 instance (Subst a, UsableRelevance a) => UsableRelevance (Abs a) where
   usableRel rel abs = underAbstraction_ abs $ \u -> usableRel rel u
@@ -202,7 +210,7 @@ instance (Subst a, UsableRelevance a) => UsableRelevance (Abs a) where
 --
 class UsableModality a where
   usableMod
-    :: (ReadTCState m, HasConstInfo m, MonadTCEnv m, MonadAddContext m, MonadDebug m, MonadReduce m, MonadError Blocker m)
+    :: (HasConstInfo m, MonadAddContext m, MonadReduce m, MonadError Blocker m)
     => Modality -> a -> m Bool
 
 instance UsableModality Term where
@@ -248,7 +256,9 @@ instance UsableModality Term where
     Sort s   -> usableMod mod s
     Level l  -> return True
     MetaV m vs -> do
-      mmod <- lookupMetaModality m
+      -- Polarity is a pure modality, as for definitions (see above).
+      -- (The free variables of the meta solution are checked via @vs@.)
+      mmod <- setModalPolarity mixedPolarity <$> lookupMetaModality m
       let ok = mmod `moreUsableModality` mod
       reportSDoc "tc.irr" 50 $
         "Metavariable" <+> prettyTCM (MetaV m []) <+>
@@ -260,8 +270,7 @@ instance UsableModality Term where
     DontCare v -> usableMod mod v
     Dummy{}  -> return True
 
-usableModAbs :: (Subst a, MonadAddContext m, UsableModality a,
-                       ReadTCState m, HasConstInfo m, MonadReduce m, MonadError Blocker m) =>
+usableModAbs :: (Subst a, MonadAddContext m, UsableModality a, HasConstInfo m, MonadReduce m, MonadError Blocker m) =>
                       ArgInfo -> Modality -> Abs a -> m Bool
 usableModAbs info mod abs = underAbstraction (setArgInfo info $ __DUMMY_DOM__) abs $ \ u -> usableMod mod u
 
@@ -297,7 +306,7 @@ instance UsableModality a => UsableModality (Arg a) where
     in  usableMod (mod `composeModality` mod') u
 
 instance UsableModality a => UsableModality (Dom a) where
-  usableMod mod Dom{unDom = u} = usableMod mod u
+  usableMod mod d = usableMod mod (unDom d)
 
 usableAtModality' :: MonadConstraint TCM
   -- Note: This weird-looking constraint is to trick GHC into accepting
@@ -315,6 +324,71 @@ usableAtModality' ms why mod t =
 usableAtModality :: MonadConstraint TCM => WhyCheckModality -> Modality -> Term -> TCM ()
 usableAtModality = usableAtModality' Nothing
 
+-- | Given a partitioning of the context into the local context, telescope of
+--   of pattern variables and pattern-lambda bound variables, return whether
+--   the given variable is one of the pattern variables.
+isPatternVar :: Nat -> Nat -> Nat -> Bool
+isPatternVar k0 k1 x = k0 > x && x >= k1
+
+{-# SPECIALIZE isDefSing :: Nat -> Nat -> Type -> TCM DefSing #-}
+-- | Compute whether a type is a definitional singleton or might become one
+--   after a substitution or after the addition of some rewrite rules
+--   Assumes type passed in has been reduced (otherwise will be even more
+--   conservative than necessary).
+isDefSing :: (PureTCM m, MonadBlock m) => Nat -> Nat -> Type -> m DefSing
+isDefSing k0 k1 a = do
+  let s = getSort a
+  p <- isProp <$> abortIfBlocked s
+  -- Strict propositions are always definitional singletons
+  if p
+  then pure MaybeSing
+  else do
+  case unEl a of
+    Var x _           ->
+      -- Pattern variables might get substituted for definitional singletons
+      -- but bound variables cannot
+      if isPatternVar k0 k1 x then pure MaybeSing else pure NeverSing
+    Lam _ _           -> __IMPOSSIBLE__
+    Lit _             -> __IMPOSSIBLE__
+    Def d es          -> do
+      def <- theDef <$> getConstInfo d
+      case def of
+        Datatype{}         -> pure NeverSing
+        Record{recTel=tel} -> case recEtaEquality def of
+          YesEta  -> do
+            let Just vs = allApplyElims es
+            sings <- traverse (isDefSing' k0 k1) $ tel `apply` vs
+            pure $ foldr minDefSing AlwaysSing sings
+          NoEta _ -> pure NeverSing
+        Axiom{}            -> pure $ NeverSing
+          -- TODO: Postulated type formers might still become definitionally
+          -- singular if further rewrites are added (see #8266)
+        DataOrRecSig{}     -> pure NeverSing
+        AbstractDefn{}     -> pure MaybeSing
+          -- I am erring on the side of caution here: specifically, I am
+          -- worried about the possibility that a rewrite might look fine
+          -- outside of an abstract block, but then inside an abstract block,
+          -- all the abstract definitions will reduce and the rewrite will
+          -- become invalid.
+        Function{}         -> pure MaybeSing
+        Primitive{}        -> pure MaybeSing
+        PrimitiveSort{}    -> __IMPOSSIBLE__
+        GeneralizableVar{} -> __IMPOSSIBLE__
+        Constructor{}      -> __IMPOSSIBLE__
+    Con _ _ _         -> __IMPOSSIBLE__
+    Pi _ (unAbs -> b) -> isDefSing k0 (k1 + 1) b
+    Sort _            -> pure NeverSing
+    Level _           -> __IMPOSSIBLE__
+    MetaV _ _         -> __IMPOSSIBLE__
+    DontCare a        -> __IMPOSSIBLE__
+    Dummy _ _         -> __IMPOSSIBLE__
+
+{-# SPECIALIZE isDefSing' :: Nat -> Nat -> Dom Type -> TCM DefSing #-}
+isDefSing' :: (PureTCM m, MonadBlock m) => Nat -> Nat -> Dom Type -> m DefSing
+isDefSing' k0 k1 t =
+  if isIrrelevant $ getRelevance t
+  then pure AlwaysSing
+  else isDefSing k0 k1 $ unDom t
 
 -- * Propositions
 

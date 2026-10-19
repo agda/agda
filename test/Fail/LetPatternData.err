@@ -1,0 +1,3 @@
+LetPatternData.agda:9.15-21: error: [ShouldBeRecordPattern]
+Expected record pattern
+when checking that the pattern wrap a has type Wrap A

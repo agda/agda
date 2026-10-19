@@ -144,11 +144,11 @@ prop_minView (Vars ns) =
 --------------------------------------------------------------------------------
 -- Folds
 
-prop_foldr :: (Function a, CoArbitrary a, Arbitrary a, Show a, Eq a) => Fun (Int, a) a -> a -> [Var] -> Property
+prop_foldr :: (Show a, Eq a) => Fun (Int, a) a -> a -> [Var] -> Property
 prop_foldr f a (Vars xs) =
   VarSet.foldr (applyFun2 f) a (VarSet.fromList xs) === IntSet.foldr (applyFun2 f) a (IntSet.fromList xs)
 
-prop_foldl :: (Function a, CoArbitrary a, Arbitrary a, Show a, Eq a) => Fun (a, Int) a -> a -> [Var] -> Property
+prop_foldl :: (Show a, Eq a) => Fun (a, Int) a -> a -> [Var] -> Property
 prop_foldl f a (Vars xs) =
   VarSet.foldl (applyFun2 f) a (VarSet.fromList xs) === IntSet.foldl (applyFun2 f) a (IntSet.fromList xs)
 

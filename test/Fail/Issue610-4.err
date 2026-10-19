@@ -1,3 +1,6 @@
-Issue610-4.agda:28.11-30: error: [UnequalTerms]
-ack (set _) !=< ⊥
+Issue610-4.agda:28.11-30: error: [UnequalTypes]
+The type
+  ack (set _)
+is not a subtype of
+  ⊥
 when checking that the expression subst (λ x → x) q _ has type ⊥

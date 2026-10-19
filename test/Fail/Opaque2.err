@@ -1,3 +1,7 @@
-Opaque2.agda:20.9-12: error: [UnequalTerms]
-Nat != bar
+Opaque2.agda:20.9-12: error: [UnequalTypes]
+The types
+  Nat
+and
+  bar
+are not equal
 when checking that the expression 123 has type ty

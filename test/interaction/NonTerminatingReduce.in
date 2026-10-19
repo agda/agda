@@ -1,8 +1,0 @@
-top_command (cmd_load currentFile [])
-
--- Should be '0'
-top_command (cmd_compute_toplevel DefaultCompute "loop 5")
-
--- Should be 'loop 5'
-goal_command 0 (cmd_compute DefaultCompute) "loop 5"
-

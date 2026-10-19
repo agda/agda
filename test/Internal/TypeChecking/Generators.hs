@@ -14,7 +14,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Fixity
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal as I hiding (ConName)
 import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.TypeChecking.Free
@@ -22,6 +22,7 @@ import Agda.TypeChecking.Substitute
 
 import qualified Agda.Utils.VarSet as Set
 
+import Agda.Utils.Lens
 import Agda.Utils.Impossible
 
 import Internal.Helpers hiding ( Args )
@@ -151,10 +152,10 @@ makeConfiguration ds cs ps vs = TermConf
       n <- tick
       return $ QName { qnameModule = MName []
                      , qnameName   = Name
-                        { nameId          = NameId n (ModuleNameHash 1)
+                        { _nameId         = NameId n (ModuleNameHash 1)
                         , nameConcrete    = C.simpleName s
                         , nameCanonical   = C.simpleName s
-                        , nameBindingSite = noRange
+                        , _nameBindingSite = noRange
                         , nameFixity      = noFixity'
                         , nameIsRecordName = False
                         }
@@ -317,7 +318,7 @@ instance GenC Term where
       genDef args = Def <$> elements defs <*> args
 
       genCon :: Gen Args -> Gen Term
-      genCon args = Con <$> ((\ c -> ConHead c IsData Inductive []) <$> elements cons) <*> pure ConOSystem <*> (map Apply `fmap` args)
+      genCon args = Con <$> ((\ c -> ConHead c IsData Inductive NotHIT []) <$> elements cons) <*> pure ConOSystem <*> (map Apply `fmap` args)
 
       genLeaf :: Gen Term
       genLeaf = frequency
@@ -409,7 +410,7 @@ instance ShrinkC DefName where
 
 instance ShrinkC ConName where
   type ShrinksTo ConName = ConHead
-  shrinkC conf (ConName (ConHead{conName = c})) = map (\ c -> ConHead c IsData Inductive []) $ takeWhile (/= c) $ tcConstructorNames conf
+  shrinkC conf (ConName (ConHead{conName = c})) = map (\ c -> ConHead c IsData Inductive NotHIT []) $ takeWhile (/= c) $ tcConstructorNames conf
   noShrink = unConName
 
 instance ShrinkC Literal where
@@ -451,7 +452,9 @@ instance ShrinkC a => ShrinkC (Arg a) where
 
 instance ShrinkC a => ShrinkC (Dom a) where
   type ShrinksTo (Dom a) = Dom (ShrinksTo a)
-  shrinkC conf dom@Dom{domInfo = info,unDom = x} = (\ (h,x) -> x <$ dom{domInfo = (setHiding h info)}) <$> shrinkC conf (argInfoHiding info, x)
+  shrinkC conf dom@(unDom -> x) =
+    let info = dom ^. I.dInfo in
+    (\ (h,x) -> x <$ (dom & I.dInfo .~ setHiding h info)) <$> shrinkC conf (argInfoHiding info, x)
   noShrink = fmap noShrink
 
 instance ShrinkC a => ShrinkC (Blocked a) where
@@ -586,7 +589,7 @@ instance (KillVar a, KillVar b) => KillVar (a, b) where
 -- Tests ------------------------------------------------------------------
 
 isWellScoped :: Free a => TermConfiguration -> a -> Bool
-isWellScoped conf t = allFreeVars t `Set.isSubsetOf` Set.fromList (tcFreeVariables conf)
+isWellScoped conf t = freeVarSet t `Set.isSubsetOf` Set.fromList (tcFreeVariables conf)
 
 -- | Check that the generated terms don't have any out of scope variables.
 prop_wellScopedVars :: TermConfiguration -> Property

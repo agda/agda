@@ -1,3 +1,6 @@
-Issue2494-pattern-instance.agda:17.28-32: error: [UnequalTerms]
-Blue !=< Red
+Issue2494-pattern-instance.agda:17.28-32: error: [UnequalTypes]
+The type
+  Blue
+is not a subtype of
+  Red
 when checking that the expression blue has type Red

@@ -6,8 +6,6 @@ on:
   push:
     branches:
     - master
-    - ci-*
-    - release*
     paths: &trigger_path_list
     - '.github/workflows/cabal-install.yml'
     - 'Agda.cabal'
@@ -30,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest # Required, but it can be anything here.
 
     steps:
-    - uses: styfle/cancel-workflow-action@0.12.1
+    - uses: styfle/cancel-workflow-action@0.13.1
       with:
         access_token: ${{ github.token }}
 
@@ -40,7 +38,7 @@ jobs:
     timeout-minutes: 60
 
     name: cabal install ${{ matrix.name }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     strategy:
       fail-fast: false
@@ -56,12 +54,12 @@ jobs:
       FLAGS: "-O0 -f enable-cluster-counting"
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - uses: haskell-actions/setup@v2
       id: setup-haskell
       with:
-        ghc-version:   '9.12.2'
+        ghc-version:   '9.14.1'
         cabal-version: latest
         cabal-update:  true
 
@@ -73,7 +71,7 @@ jobs:
       # cabal build --dry-run creates dist-newstyle/cache/plan.json
 
     - name: Restore cached dependencies
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v6
       id: cache
       env:
         key: cabal-install.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
@@ -96,7 +94,7 @@ jobs:
         cabal install ${FLAGS} ${{ matrix.install_flags }}
 
     - name: Save cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v6
       if:   always() && steps.cache.outputs.cache-hit != 'true'
             # save cache even when build fails
       with:

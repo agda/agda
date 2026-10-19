@@ -1,3 +1,7 @@
-Cumulativity-inequal-universes.agda:12.9-13: error: [UnequalSorts]
-Set != Set₁
+Cumulativity-inequal-universes.agda:12.9-13: error: [UnequalTypes]
+The types
+  Set
+and
+  Set₁
+are not equal
 when checking that the expression refl has type Set ≡ Set₁

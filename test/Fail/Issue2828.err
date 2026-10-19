@@ -1,3 +1,6 @@
-Issue2828.agda:12.9-11: error: [UnequalTerms]
-⊤ !=< X
+Issue2828.agda:12.9-11: error: [UnequalTypes]
+The type
+  ⊤
+is not a subtype of
+  X
 when checking that the expression tt has type X

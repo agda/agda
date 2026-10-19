@@ -7,7 +7,6 @@ module Utils
   ) where
 
 import Control.Applicative
-import Control.Arrow ((&&&))
 import Control.Exception (finally)
 import Control.Monad
 
@@ -54,6 +53,7 @@ import Agda.Utils.Environment
 import Agda.Utils.FileName            ( stripAnyOfExtensions )
 import Agda.Utils.Functor
 import Agda.Utils.IO.Directory        ( findWithInfo )
+import Agda.Utils.Tuple ((&&&))
 
 import qualified Agda.Version (package)
 
@@ -324,7 +324,9 @@ cleanOutput' agda pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
       , ("/[^ ]*/MAlonzo/Code/", "«path»/MAlonzo/Code/")
       , ("\\.hs(:[[:digit:]]+){2}", ".hs:«line»:«col»")
       -- Strip NodeJS stack trace & version
-      , ("at .+[(]node:internal[^)]+[)]", "at «NodeJS internals»")
+      -- , ("at .+[(]node:internal[^)]+[)]", "at «NodeJS internals»")
+      , ("at .+node:internal[^ ]+", "at «NodeJS internals»")
+          -- Andreas, 2026-10-03, also e.g. "at async node:internal/modules/esm/loader:647:26"
       , ("Node[.]js v[0-9.]+", "Node.js «NodeJS version»")
       , (T.pack Agda.Version.package, "«Agda-package»")
       -- Andreas, 2021-08-26.  When run with 'cabal test',
@@ -382,6 +384,9 @@ textDiffWithTouch agdaFile t1 t2
         touchFile agdaFile
         return $ DiffText Nothing t1 t2
 
+readFileMaybeText :: FilePath -> IO (Maybe Text)
+readFileMaybeText fp = fmap decodeUtf8 <$> readFileMaybe fp
+
 -- | Compare something text-like against the golden file contents.
 -- For the conversion of inputs to text you may want to use the Data.Text.Encoding
 -- or/and System.Process.Text modules.
@@ -399,11 +404,12 @@ goldenVsAction'
 goldenVsAction' name ref act toTxt =
   goldenTest1
     name
-    (fmap decodeUtf8 <$> readFileMaybe ref)
+    (readFileMaybeText ref)
     (toTxt <$> act)
     textDiff
     ShowText
     (BS.writeFile ref . encodeUtf8)
+
 
 -- | Scrapes the output of @agda --version@
 -- to determine whether agda was built with or without

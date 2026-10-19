@@ -16,6 +16,7 @@ import qualified BuildSucceed.Tests
 import qualified Compiler.Tests
 import qualified CubicalSucceed.Tests
 import qualified Fail.Tests
+import qualified Interaction.Simple.Tests
 import qualified Interactive.Tests
 import qualified Internal.Tests
 import qualified LaTeXAndHTML.Tests
@@ -32,6 +33,7 @@ main = do
   agdaBinExists <- doesCommandExist agdaBin
   builtWithMakefile <- doesEnvContain "AGDA_BIN"
   builtWithFDebug <- wasAgdaCompiledWithFDebug
+  skipNoExec <- doesEnvContain "AGDA_NO_EXEC"
   -- Warn/err about un-recommended builds
   when (not agdaBinExists) do
       putStrLn $ unwords ["Could not find executable", agdaBin ]
@@ -57,6 +59,7 @@ main = do
         [ if not builtWithFDebug   then fdebugTestFilter       else []
         , if not builtWithMakefile then testsWithSystemDeps    else []
         , if not builtWithMakefile then makefileDependentTests else []
+        , if skipNoExec            then execTestFilter else []
         , alwaysDisabledTests
         ]
   -- Run tests
@@ -74,6 +77,7 @@ allTests = do
       {- 1 -} sg Succeed.Tests.tests        :
       {- 2 -} sg Fail.Tests.tests           :
       {- 3 -} sg Bugs.Tests.tests           :
+      {-   -} sg Interaction.Simple.Tests.tests :
       {- 4 -} pu Interactive.Tests.tests    :
       {- 9 -} sg UserManual.Tests.tests     :
       {- 5 -} sg LaTeXAndHTML.Tests.tests   :
@@ -96,6 +100,13 @@ fdebugTestFilter = concat
   [ Succeed.Tests.fdebugTestFilter
   , Fail.Tests.fdebugTestFilter
   , Compiler.Tests.fdebugTestFilter
+  ]
+
+-- | Tests which shell out to subprocesses
+execTestFilter :: [RegexFilter]
+execTestFilter = concat
+  [ Succeed.Tests.execTestFilter
+  , Fail.Tests.execTestFilter
   ]
 
 -- | Tests with system dependencies

@@ -1,0 +1,4 @@
+LocalRewriteRecordCubical.agda:11.10-13: error: [CannotGenerateTransportLocalRewrite]
+Could not generate a transport function for Bar
+because there is a local rewrite rule in its telescope
+when checking the definition of Bar

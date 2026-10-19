@@ -1,3 +1,6 @@
-Issue1643a.agda:20.8-9: error: [UnequalTerms]
-A !=< Set
+Issue1643a.agda:20.8-9: error: [UnequalTypes]
+The type
+  A
+is not a subtype of
+  Set
 when checking that the expression a has type Set

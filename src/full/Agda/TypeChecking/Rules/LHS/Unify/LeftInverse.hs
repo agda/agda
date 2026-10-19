@@ -1,6 +1,8 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
-
 {-# LANGUAGE NondecreasingIndentation #-}
+
+{-| Functions for building the left inverse part of a 'UnifyEquiv'.
+ -}
 
 module Agda.TypeChecking.Rules.LHS.Unify.LeftInverse where
 
@@ -11,6 +13,8 @@ import Control.Monad.State
 import Control.Monad.Except
 
 import Data.Functor
+
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -31,9 +35,41 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Permutation
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
+
+
+data DigestedUnifyStep
+  = DSolution Int (Dom Type) (FlexibleVar Int) Term (Either () ())
+  | DEtaExpandVar (FlexibleVar Int) QName Args
+
+instance PrettyTCM DigestedUnifyStep where
+  prettyTCM (DSolution a b c d e) = prettyTCM (Solution a b c d e)
+  prettyTCM (DEtaExpandVar a b c) = prettyTCM (EtaExpandVar a b c)
+
+data DigestedUnifyLogEntry
+  = DUnificationStep UnifyState DigestedUnifyStep UnifyOutput
+
+type DigestedUnifyLog = [(DigestedUnifyLogEntry,UnifyState)]
+
+-- | Pre-process a UnifyLog so that we catch unsupported steps early.
+digestUnifyLog :: UnifyLog -> Either NoLeftInv DigestedUnifyLog
+digestUnifyLog log = forM log \(UnificationStep s step out, s') -> do
+  let illegal     = Left $ Illegal step
+      unsupported = Left $ UnsupportedYet step
+      ret step    = pure (DUnificationStep s step out, s')
+  case step of
+    Solution a b c d e   -> ret $ DSolution a b c d e
+    EtaExpandVar a b c   -> ret $ DEtaExpandVar a b c
+    Deletion{}           -> illegal
+    TypeConInjectivity{} -> illegal
+    -- These should end up in a NoUnify
+    Conflict{}    -> __IMPOSSIBLE__
+    LitConflict{} -> __IMPOSSIBLE__
+    Cycle{}       -> __IMPOSSIBLE__
+    _             -> unsupported
 
 instance PrettyTCM NoLeftInv where
   prettyTCM (UnsupportedYet s) = fsep $ pwords "It relies on" ++ [explainStep s <> ","] ++ pwords "which is not yet supported"
@@ -44,6 +80,7 @@ instance PrettyTCM NoLeftInv where
   prettyTCM SplitOnStrict      = fwords "It splits on a type in SSet"
   prettyTCM SplitOnFlat        = fwords "It splits on a @♭ argument"
   prettyTCM (CantTransport t)  = fsep $ pwords "The type" <> [prettyTCM t] <> pwords "can not be transported"
+  prettyTCM (CantTransport' t) = fsep $ pwords "The type" <> [prettyTCM t] <> pwords "can not be transported"
 
 data NoLeftInv
   = UnsupportedYet {badStep :: UnifyStep}
@@ -53,67 +90,74 @@ data NoLeftInv
   | SplitOnStrict  -- ^ splitting on a Strict Set.
   | SplitOnFlat    -- ^ splitting on a @♭ argument
   | UnsupportedCxt
-  | CantTransport (Closure (Abs Type))
+  | CantTransport  (Closure (Abs Type))
+  | CantTransport' (Closure Type)
   deriving Show
 
-buildLeftInverse :: forall tcm. (PureTCM tcm, MonadError TCErr tcm) => UnifyState -> UnifyLog -> tcm (Either NoLeftInv (Substitution, Substitution))
-buildLeftInverse s0 log = do
-  reportSDoc "tc.lhs.unify.inv.badstep" 20 $ do
-    cubical <- cubicalOption
-    "cubical:" <+> text (show cubical)
-  reportSDoc "tc.lhs.unify.inv.badstep" 20 $ do
-    pathp <- getTerm' builtinPathP
-    "pathp:" <+> text (show $ isJust pathp)
-  let
-    cond = andM
-      -- TODO: handle open contexts: they happen during "higher dimensional" unification,
-      --       in injectivity cases.
-      [ null <$> getContext
-      ]
+-- | Build the left inverse part of a 'UnifyEquiv' (@τ@, @leftInv@).
+buildLeftInverse :: UnifyState -> UnifyLog -> TCM (Either NoLeftInv (Substitution, Substitution))
+buildLeftInverse s0 log = Bench.billTo [Bench.UnifyIndices, Bench.CubicalLeftInversion] $ case digestUnifyLog log of
+  Left no -> do
+    reportSDoc "tc.lhs.unify.inv.badstep" 20 $ "No Left Inverse:" <+> prettyTCM (badStep no)
+    return (Left no)
+  Right log -> do
 
-    compose :: [(Retract, Term)] -> ExceptT NoLeftInv tcm Retract
-    compose [] = __IMPOSSIBLE__
-    compose [(xs, _)] = pure xs
-    compose ((x, t):xs) = do
-      r <- compose xs
-      ExceptT $ composeRetract x t r <&> \case
-        Left e  -> Left (CantTransport e)
-        Right x -> Right x
+    reportSDoc "tc.lhs.unify.inv.badstep" 20 $ do
+      cubical <- cubicalOption
+      "cubical:" <+> text (show cubical)
+    reportSDoc "tc.lhs.unify.inv.badstep" 20 $ do
+      pathp <- getTerm' builtinPathP
+      "pathp:" <+> text (show $ isJust pathp)
+    let
+      cond = andM
+        -- TODO: handle open contexts: they happen during "higher dimensional" unification,
+        --       in injectivity cases.
+        [ null <$!> getContext
+        ]
 
-  ifNotM cond (return $ Left UnsupportedCxt) $ do
-  equivs <- forM log $ uncurry buildEquiv
-  case sequence equivs of
-    Left no -> do
-      reportSDoc "tc.lhs.unify.inv.badstep" 20 $ "No Left Inverse:" <+> prettyTCM (badStep no)
-      return (Left no)
-    Right xs -> runExceptT (compose xs) >>= \case
-      Left no -> return (Left no)
-      Right (_, _, tau0, leftInv0) -> do
-      -- Γ,φ,us =_Δ vs ⊢ τ0 : Γ', φ
-      -- leftInv0 : [wkS |φ,us =_Δ vs| ρ,1,refls][τ] = idS : Γ,φ,us =_Δ vs
-      let tau = tau0 `composeS` raiseS 1
-      unview <- intervalUnview'
-      let replaceAt n x xs = xs0 ++ x:xs1
-                  where (xs0,_:xs1) = splitAt n xs
-      let max r s = unview $ IMax (argN r) (argN s)
-          neg r = unview $ INeg (argN r)
-      let phieq = neg (var 0) `max` var (size (eqTel s0) + 1)
-                        -- I + us =_Δ vs -- inplaceS
-      let leftInv = termsS __IMPOSSIBLE__ $ replaceAt (size (varTel s0)) phieq $ map (lookupS leftInv0) $ downFrom (size (varTel s0) + 1 + size (eqTel s0))
-      let working_tel = abstract (varTel s0) (ExtendTel __DUMMY_DOM__ $ Abs "phi0" $ (eqTel s0))
-      reportSDoc "tc.lhs.unify.inv" 20 $ "=== before mod"
-      do
-          addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau0    :" <+> prettyTCM tau0
-          addContext working_tel $ addContext ("r" :: String, __DUMMY_DOM__)
-                                $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv0:  " <+> prettyTCM leftInv0
+      compose :: [(Retract, Term)] -> ExceptT NoLeftInv TCM Retract
+      compose [] = __IMPOSSIBLE__
+      compose [(xs, _)] = pure xs
+      compose ((x, t):xs) = do
+        r <- compose xs
+        ExceptT $ composeRetract x t r <&> \case
+          Left e  -> Left (CantTransport e)
+          Right x -> Right x
 
-      reportSDoc "tc.lhs.unify.inv" 20 $ "=== after mod"
-      do
-          addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau    :" <+> prettyTCM tau
-          addContext working_tel $ addContext ("r" :: String, __DUMMY_DOM__)
-                                $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv:   " <+> prettyTCM leftInv
+    ifNotM cond (return $ Left UnsupportedCxt) $ do
+    equivs <- forM log $ uncurry buildEquiv
+    case sequence equivs of
+      Left no -> do
+        reportSDoc "tc.lhs.unify.inv.badstep" 20 $ "No Left Inverse:" <+> prettyTCM (badStep no)
+        return (Left no)
+      Right xs -> runExceptT (compose xs) >>= \case
+        Left no -> return (Left no)
+        Right (_, _, tau0, leftInv0) -> do
+        -- Γ,φ,us =_Δ vs ⊢ τ0 : Γ', φ
+        -- leftInv0 : [wkS |φ,us =_Δ vs| ρ,1,refls][τ] = idS : Γ,φ,us =_Δ vs
+        let tau = tau0 `composeS` raiseS 1
+        unview <- intervalUnview'
+        let replaceAt n x xs = xs0 ++! (x:xs1)
+                    where (xs0,_:xs1) = splitAt' n xs
+        let max r s = unview $ IMax (argN r) (argN s)
+            neg r = unview $ INeg (argN r)
+        let phieq = neg (var 0) `max` var (size (eqTel s0) + 1)
+                          -- I + us =_Δ vs -- inplaceS
+        let leftInv = termsS __IMPOSSIBLE__ $ replaceAt (size (varTel s0)) phieq $ map' (lookupS leftInv0) $ downFrom (size (varTel s0) + 1 + size (eqTel s0))
+        let working_tel = abstract (varTel s0) (ExtendTel __DUMMY_DOM__ $ Abs "phi0" $ (eqTel s0))
+        reportSDoc "tc.lhs.unify.inv" 20 $ "=== before mod"
+        do
+            reportSDoc "tc.lhs.unify.inv" 20 $ addContext working_tel $  "tau0    :" <+> prettyTCM tau0
+            reportSDoc "tc.lhs.unify.inv" 20 $ addContext working_tel $ addContext ("r" :: String, __DUMMY_DOM__) $
+              "leftInv0:  " <+> prettyTCM leftInv0
 
-      return $ Right (tau,leftInv)
+        reportSDoc "tc.lhs.unify.inv" 20 $ "=== after mod"
+        do
+            reportSDoc "tc.lhs.unify.inv" 20 $ addContext working_tel $ "tau    :" <+> prettyTCM tau
+            reportSDoc "tc.lhs.unify.inv" 20 $ addContext working_tel $ addContext ("r" :: String, __DUMMY_DOM__) $
+              "leftInv:   " <+> prettyTCM leftInv
+
+        return $ Right (tau,leftInv)
 
 type Retract = (Telescope, Substitution, Substitution, Substitution)
      -- Γ (the problem, including equalities),
@@ -125,13 +169,13 @@ type Retract = (Telescope, Substitution, Substitution, Substitution)
 termsS ::  DeBruijn a => Impossible -> [a] -> Substitution' a
 termsS e xs = reverse xs ++# EmptyS e
 
-composeRetract :: (PureTCM tcm, MonadError TCErr tcm, MonadDebug tcm, HasBuiltins tcm, MonadAddContext tcm) => Retract -> Term -> Retract -> tcm (Either (Closure (Abs Type)) Retract)
+composeRetract :: Retract -> Term -> Retract -> TCM (Either (Closure (Abs Type)) Retract)
 composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
   reportSDoc "tc.lhs.unify.inv" 20 $ "=== composing"
   reportSDoc "tc.lhs.unify.inv" 20 $ "Γ0   :" <+> prettyTCM prob0
-  addContext prob0 $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau0  :" <+> prettyTCM tau0
+  reportSDoc "tc.lhs.unify.inv" 20 $ addContext prob0 $ "tau0  :" <+> prettyTCM tau0
   reportSDoc "tc.lhs.unify.inv" 20 $ "Γ1   :" <+> prettyTCM prob1
-  addContext prob1 $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau1  :" <+> prettyTCM tau1
+  reportSDoc "tc.lhs.unify.inv" 20 $ addContext prob1 $ "tau1  :" <+> prettyTCM tau1
 
 
   {-
@@ -162,7 +206,7 @@ composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
   let rho = rho1 `composeS` rho0
   let tau = tau0 `composeS` tau1
 
-  addContext prob0 $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau  :" <+> prettyTCM tau
+  reportSDoc "tc.lhs.unify.inv" 20 $ addContext prob0 $ "tau  :" <+> prettyTCM tau
 
   {-
   Γ0 ⊢ leftInv : ρ[τ] = idΓ0
@@ -189,31 +233,31 @@ composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
   -}
   let step0 = liftS 1 tau0 `composeS` leftInv1 `composeS` rho0
 
-  addContext prob0 $ addContext ("r" :: String, __DUMMY_DOM__) $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv0  :" <+> prettyTCM leftInv0
-  addContext prob1 $ reportSDoc "tc.lhs.unify.inv" 20 $ "rho0  :" <+> prettyTCM rho0
-  addContext prob0 $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau0  :" <+> prettyTCM tau0
-  addContext prob0 $ reportSDoc "tc.lhs.unify.inv" 20 $ "rhos0[tau0]  :" <+> prettyTCM (tau0 `composeS` rho0)
+  reportSDoc "tc.lhs.unify.inv" 20 $ addContext prob0 $ addContext ("r" :: String, __DUMMY_DOM__) $ "leftInv0  :" <+> prettyTCM leftInv0
+  reportSDoc "tc.lhs.unify.inv" 20 $ addContext prob1 $ "rho0  :" <+> prettyTCM rho0
+  reportSDoc "tc.lhs.unify.inv" 20 $ addContext prob0 $ "tau0  :" <+> prettyTCM tau0
+  reportSDoc "tc.lhs.unify.inv" 20 $ addContext prob0 $ "rhos0[tau0]  :" <+> prettyTCM (tau0 `composeS` rho0)
 
-  addContext prob1 $ addContext ("r" :: String, __DUMMY_DOM__) $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv1  :" <+> prettyTCM leftInv1
-  addContext prob0 $ addContext ("r" :: String, __DUMMY_DOM__) $ reportSDoc "tc.lhs.unify.inv" 20 $ "step0  :" <+> prettyTCM step0
+  reportSDoc "tc.lhs.unify.inv" 20 $ addContext prob1 $ addContext ("r" :: String, __DUMMY_DOM__) $ "leftInv1  :" <+> prettyTCM leftInv1
+  reportSDoc "tc.lhs.unify.inv" 20 $ addContext prob0 $ addContext ("r" :: String, __DUMMY_DOM__) $ "step0  :" <+> prettyTCM step0
 
   interval <- primIntervalType
   max <- primIMax
   neg <- primINeg
-  result <- sequenceA <$> do
+  result <- sequenceA <$!> do
     addContext prob0 $ runNamesT (teleNames prob0) $ do
              phi <- open phi0
              g0 <- open $ raise (size prob0) prob0
              step0 <- open $ Abs "i" $ step0 `applySubst` teleArgs prob0
-             leftInv0 <- open $ Abs "i" $ map unArg $ leftInv0 `applySubst` teleArgs prob0
+             leftInv0 <- open $ Abs "i" $ map' unArg $ leftInv0 `applySubst` teleArgs prob0
              bind "i" $ \ i -> addContext ("i" :: String, defaultDom interval) $ do
               tel <- bind "_" $ \ (_ :: NamesT tcm Term) -> g0
-              step0i <- lazyAbsApp <$> step0 <*> i
+              step0i <- lazyAbsApp <$!> step0 <*!> i
               face <- pure max <@> (pure neg <@> i) <@> phi
               leftInv0 <- leftInv0
               i <- i
               -- this composition could be optimized further whenever step0i is actually constant in i.
-              lift $ runExceptT (map unArg <$> transpSysTel' True tel [(i, leftInv0)] face step0i)
+              lift $ runExceptT (map' unArg <$> transpSysTel' True tel [(i, leftInv0)] face step0i)
   case result of
     Left  cl      -> pure (Left cl)
     Right leftInv -> do
@@ -225,75 +269,84 @@ composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
           reportSDoc "tc.lhs.unify.inv" 40 $ "leftInvSub :" <+> pretty sigma
       return $ Right (prob, rho, tau, sigma)
 
-buildEquiv :: forall tcm. (PureTCM tcm, MonadError TCErr tcm) => UnifyLogEntry -> UnifyState -> tcm (Either NoLeftInv (Retract,Term))
-buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = runExceptT $ do
+-- | Build the left inverse corresponding to a single unification step.
+buildEquiv :: DigestedUnifyLogEntry -> UnifyState -> TCM (Either NoLeftInv (Retract,Term))
+buildEquiv (DUnificationStep st step@(DSolution k ty fx tm side) output) next = runExceptT $ do
         let
-          errorToUnsupported :: ExceptT a tcm b -> ExceptT NoLeftInv tcm b
-          errorToUnsupported m = withExceptT (\ _ -> UnsupportedYet step) m
+          cantTransport' :: ExceptT (Closure Type) TCM b -> ExceptT NoLeftInv TCM b
+          cantTransport' m = withExceptT CantTransport' m
+          cantTransport :: ExceptT (Closure (Abs Type)) TCM b -> ExceptT NoLeftInv TCM b
+          cantTransport m = withExceptT CantTransport m
+
         reportSDoc "tc.lhs.unify.inv" 20 $ "step unifyState:" <+> prettyTCM st
         reportSDoc "tc.lhs.unify.inv" 20 $ "step step:" <+> addContext (varTel st) (prettyTCM step)
         unview <- intervalUnview'
         cxt <- getContextTelescope
         reportSDoc "tc.lhs.unify.inv" 20 $ "context:" <+> prettyTCM cxt
         let
-          -- k counds in eqs from the left
           m = varCount st
           gamma = varTel st
           eqs = eqTel st
+          -- k counts in eqs from the left
           u = eqLHS st !! k
           v = eqRHS st !! k
-          x = flexVar fx
+          -- Γ ⊢ perm : Γ' is a reordering used by instantiateTelescope to ensure the
+          -- resulting context is well-formed. Works on de Bruijn levels.
+          perm = fromMaybe __IMPOSSIBLE__ $ unifySolutionPerm output
+          -- The new de Bruijn index of fx in Γ'. The target context for τ is obtained by dropping
+          -- x from Γ' (and the kth equation from the equation telescope) and instantiating
+          -- it with u (resp. refl).
+          x = fromMaybe __IMPOSSIBLE__ $ lookupRP (reverseP perm) (flexVar fx)
           neqs = size eqs
-          phis = 1 -- neqs
+          phis = 1
         interval <- lift $ primIntervalType
-         -- Γ, φs : I^phis
+         -- Γ, φ : I
         let gamma_phis = abstract gamma $ telFromList $
-              map (defaultDom . (,interval) . ("phi" ++) . show) [0 .. phis - 1]
-        working_tel <- abstract gamma_phis <$>
-          errorToUnsupported (pathTelescope' (raise phis $ eqTel st) (raise phis $ eqLHS st) (raise phis $ eqRHS st))
+              map' (defaultDom . (,interval) . ("phi" ++) . show) [0 .. phis - 1]
+        -- working_tel = Γ, φ : I, eqs : lhs ≡ rhs
+        working_tel <- abstract gamma_phis <$!>
+          cantTransport' (pathTelescope' (raise phis $ eqTel st) (raise phis $ eqLHS st) (raise phis $ eqRHS st))
+        -- working_tel' = Γ'           , φ : I, eqs : lhs ≡ rhs
+        --              = Γ₁, x : A, Γ₂, φ : I, eqs : lhs ≡ rhs
+        let permw = liftP (size working_tel - size gamma) perm
+        working_tel' <- pure $ permuteTel permw working_tel
         reportSDoc "tc.lhs.unify.inv" 20 $ vcat
           [ "working tel:" <+> prettyTCM (working_tel :: Telescope)
           , addContext working_tel $ "working tel args:" <+> prettyTCM (teleArgs working_tel :: [Arg Term])
+          , "perm:" <+> prettyTCM perm
           ]
         (tau,leftInv,phi) <- addContext working_tel $ runNamesT [] $ do
-          let raiseFrom tel x = raise (size working_tel - size tel) x
+          let
+            raiseFrom :: Subst a => Telescope -> a -> a
+            raiseFrom tel x = raise (size working_tel - size tel) x
+            bindSplit (tel1,tel2) = (tel1,AbsN (teleNames tel1) tel2)
           u <- open . raiseFrom gamma . unArg $ u
           v <- open . raiseFrom gamma . unArg $ v
           -- φ
           let phi = raiseFrom gamma_phis $ var 0
-          -- working_tel ⊢ γ₁,x,γ₂,φ,eqs
-          let all_args = teleArgs working_tel
-          -- Γ₁,x : A,Γ₂
---          gamma <- open $ raiseFrom EmptyTel gamma
-          -- -- γ₁,x,γ₂,φ,eqs : W
-          -- working_tel <- open $ raiseFrom EmptyTel working_tel
+          -- working_tel ⊢ γ₁,x,γ₂,φ,eqs : working_tel'
+          let all_args = permute permw $ teleArgs working_tel
 
-          -- eq_tel <- open $ raiseFrom gamma (eqTel st)
-
-          -- [lhs,rhs] <- mapM (open . raiseFrom gamma) [eqLHS st,eqRHS st]
-          let bindSplit (tel1,tel2) = (tel1,AbsN (teleNames tel1) tel2)
-          -- . ⊢ Γ₁  ,  γ₁. (x : A),Γ₂,φ : I,[lhs ≡ rhs]
-          let (gamma1, xxi) = bindSplit $ splitTelescopeAt (size gamma - x - 1) working_tel
-          let (gamma1_args,xxi_args) = splitAt (size gamma1) all_args
+          -- . ⊢ Γ₁  ,  γ₁. x : A, Γ₂, φ : I, eqs : lhs ≡ rhs
+          let (gamma1, xxi) = bindSplit $ splitTelescopeAt (size gamma - x - 1) working_tel'
+              (gamma1_args,xxi_args) = splitAt' (size gamma1) all_args
               (_x_arg:xi_args) = xxi_args
-              (x_arg:xi0,k_arg:xi1) = splitAt ((size gamma - size gamma1) + phis + k) xxi_args
-              -- W ⊢ (x : A),Γ₂,φ : I,[lhs ≡ rhs]
-          let
-            xxi_here :: Telescope
-            xxi_here = absAppN xxi $ map unArg gamma1_args
-          --                                                      x:A,Γ₂                φ
-          let (xpre,krest) = bindSplit $ splitTelescopeAt ((size gamma - size gamma1) + phis + k) xxi_here
+              (x_arg:xi0,k_arg:xi1) = splitAt' (size gamma - size gamma1 + phis + k) xxi_args
+              -- working_tel ⊢ x : A, Γ₂, φ : I, eqs : lhs ≡ rhs
+              xxi_here = absAppN xxi $ map' unArg gamma1_args
+              --                                                  x:A, Γ₂               φ
+              (xpre,krest) = bindSplit $ splitTelescopeAt ((size gamma - size gamma1) + phis + k) xxi_here
           k_arg <- open $ unArg k_arg
           xpre <- open xpre
           krest <- open krest
+          -- Δ₀ = Γ₁, Γ₂
+          -- Δ  = x eq. Δ₀, φ : I, eqs-k : lhs-k ≡ rhs-k
           delta <- bindN ["x","eq"] $ \ [x,eq] -> do
-                     let pre = apply1 <$> xpre <*> x
+                     let pre = apply1 <$!> xpre <*!> x
                      abstractN pre $ \ args ->
-                       apply1 <$> applyN krest (x:args) <*> eq
---          let delta_zero = absAppN delta $ map unArg [x_arg,k_arg]
-          let d_zero_args = xi0 ++ xi1
-          reportSDoc "tc.lhs.unify.inv" 20 $ "size delta:" <+> text (show $ size $ unAbsN delta)
-          reportSDoc "tc.lhs.unify.inv" 20 $ "size d0args:" <+> text (show $ size d_zero_args)
+                       apply1 <$!> applyN krest (x:args) <*!> eq
+          -- working_tel ⊢ delta0_args : Δ₀
+          let delta0_args = xi0 ++! xi1
           let appSide = case side of
                           Left{} -> id
                           Right{} -> unview . INeg . argN
@@ -301,18 +354,19 @@ buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = ru
                   -- csingl :: NamesT tcm Term -> NamesT tcm [Arg Term]
                   csingl i = mapM (fmap defaultArg) $ csingl' i
                   -- csingl' :: NamesT tcm Term -> [NamesT tcm Term]
-                  csingl' i = [ k_arg <@@> (u, v, appSide <$> i)
+                  csingl' i = [ k_arg <@@> (u, v, appSide <$!> i)
                               , lam "j" $ \ j ->
                                   let r i j = case side of
                                             Left{} -> unview (IMax (argN j) (argN i))
                                             Right{} -> unview (IMin (argN j) (argN . unview $ INeg $ argN i))
-                                  in k_arg <@@> (u, v, r <$> i <*> j)
+                                  in k_arg <@@> (u, v, r <$!> i <*!> j)
                               ]
-          let replaceAt n x xs = xs0 ++ x:xs1
-                where (xs0,_:xs1) = splitAt n xs
-              dropAt n xs = xs0 ++ xs1
-                where (xs0,_:xs1) = splitAt n xs
+          let replaceAt n x xs = xs0 ++! (x:xs1)
+                where (xs0,_:xs1) = splitAt' n xs
+              dropAt n xs = xs0 ++! xs1
+                where (xs0,_:xs1) = splitAt' n xs
           delta <- open delta
+          -- d = i. Δ (k i) (λ j → k (i ∧ j))
           d <- bind "i" $ \ i -> applyN delta (csingl' i)
 
           -- Andrea 06/06/2018
@@ -321,19 +375,17 @@ buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = ru
           -- whose types do not depend on "x" are left alone, in
           -- particular those the solution "t" depends on.
           --
-          -- We might want to instead use the info discovered by the
-          -- solver when checking if "t" depends on "x" to decide what
+          -- We might want to instead use the info discovered by instantiateTelescope
+          -- when checking if "t" depends on "x" to decide what
           -- to transp and what not to.
           let flag = True
-                 {-   φ -}
-          tau <- {-dropAt (size gamma - 1 + k) .-} (gamma1_args ++) <$>
-                                                   lift (errorToUnsupported (transpTel' flag d phi d_zero_args))
+          tau <- (gamma1_args ++!) <$!> lift (cantTransport (transpTel' flag d phi delta0_args))
           reportSDoc "tc.lhs.unify.inv" 20 $ "tau    :" <+> prettyTCM (map (setHiding NotHidden) tau)
           leftInv <- do
             gamma1_args <- open gamma1_args
             phi <- open phi
             -- xxi_here <- open xxi_here
-            -- (xi_here_f :: Abs Telescope) <- bind "i" $ \ i -> apply <$> xxi_here <*> (take 1 `fmap` csingl i)
+            -- (xi_here_f :: Abs Telescope) <- bind "i" $ \ i -> apply <$> xxi_here <*> (take' 1 `fmap` csingl i)
             -- xi_here_f <- open xi_here_f
             -- xi_args <- open xi_args
             -- xif <- bind "i" $ \ i -> do
@@ -343,63 +395,61 @@ buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = ru
 
             xi0 <- open xi0
             xi1 <- open xi1
-            delta0 <- bind "i" $ \ i -> apply <$> xpre <*> (take 1 `fmap` csingl i)
+            delta0 <- bind "i" $ \ i -> apply <$!> xpre <*!> (take' 1 <$!> csingl i)
             delta0 <- open delta0
             xi0f <- bind "i" $ \ i -> do
-                                 m <- trFillTel' flag <$> delta0 <*> phi <*> xi0 <*> i
-                                 lift (errorToUnsupported m)
+                                 m <- trFillTel' flag <$!> delta0 <*!> phi <*!> xi0 <*!> i
+                                 lift (cantTransport m)
             xi0f <- open xi0f
 
             delta1 <- bind "i" $ \ i -> do
 
-                   args <- mapM (open . unArg) =<< (lazyAbsApp <$> xi0f <*> i)
-                   apply <$> applyN krest (take 1 (csingl' i) ++ args) <*> (drop 1 `fmap` csingl i)
+                   args <- mapM (open . unArg) =<< (lazyAbsApp <$!> xi0f <*!> i)
+                   apply <$> applyN krest (take' 1 (csingl' i) ++! args) <*!> (drop 1 <$!> csingl i)
             delta1 <- open delta1
             xi1f <- bind "i" $ \ i -> do
-                                 m <- trFillTel' flag <$> delta1 <*> phi <*> xi1 <*> i
-                                 lift (errorToUnsupported m)
+                                 m <- trFillTel' flag <$!> delta1 <*!> phi <*!> xi1 <*!> i
+                                 lift (cantTransport m)
             xi1f <- open xi1f
             fmap absBody $ bind "i" $ \ i' -> do
-              let (+++) m = liftM2 (++) m
+              let (+++) m = liftM2 (++!) m
                   i = cl (lift primINeg) <@> i'
---              replaceAt (size gamma + k) <$> (fmap defaultArg $ cl primIMax <@> phi <@> i) <*> do
-              do
-                gamma1_args +++ (take 1 `fmap` csingl i +++ ((lazyAbsApp <$> xi0f <*> i) +++ (drop 1 `fmap` csingl i +++ (lazyAbsApp <$> xi1f <*> i))))
+              fmap (permute (invertP __IMPOSSIBLE__ permw)) $
+                gamma1_args +++ ((take' 1 <$!> csingl i) +++ ((lazyAbsApp <$!> xi0f <*!> i) +++ ((drop 1 <$!> csingl i) +++ (lazyAbsApp <$!> xi1f <*!> i))))
           return (tau,leftInv,phi)
         iz <- lift $ primIZero
         io <- lift $ primIOne
-        addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau    :" <+> prettyTCM (map (setHiding NotHidden) tau)
-        addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "tauS   :" <+> prettyTCM (termsS __IMPOSSIBLE__ $ map unArg tau)
-        addContext working_tel $ addContext ("r" :: String, defaultDom interval)
-                               $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv:   " <+> prettyTCM (map (setHiding NotHidden) leftInv)
-        addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv[0]:" <+> (prettyTCM =<< reduce (subst 0 iz $ map (setHiding NotHidden) leftInv))
-        addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv[1]:" <+> (prettyTCM =<< reduce  (subst 0 io $ map (setHiding NotHidden) leftInv))
-        addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "[rho]tau :" <+>
-                                                                                  -- k   φ
+        reportSDoc "tc.lhs.unify.inv" 20 $ addContext working_tel $  "tau    :" <+> prettyTCM (map (setHiding NotHidden) tau)
+        reportSDoc "tc.lhs.unify.inv" 20 $ addContext working_tel $  "tauS   :" <+> prettyTCM (termsS __IMPOSSIBLE__ $ map unArg tau)
+        reportSDoc "tc.lhs.unify.inv" 20 $ addContext working_tel $ addContext ("r" :: String, defaultDom interval) $
+           "leftInv:   " <+> prettyTCM (map (setHiding NotHidden) leftInv)
+        reportSDoc "tc.lhs.unify.inv" 20 $ addContext working_tel $  "leftInv[0]:" <+> (prettyTCM =<< reduce (subst 0 iz $ map (setHiding NotHidden) leftInv))
+        reportSDoc "tc.lhs.unify.inv" 20 $ addContext working_tel $  "leftInv[1]:" <+> (prettyTCM =<< reduce  (subst 0 io $ map (setHiding NotHidden) leftInv))
+        reportSDoc "tc.lhs.unify.inv" 20 $ addContext working_tel $  "[rho]tau :" <+>
           prettyTCM (applySubst (termsS __IMPOSSIBLE__ $ map unArg tau) $ fromPatternSubstitution
-                                                                      $ raise (size (eqTel st) - 1{-k-} + phis {-neqs{-φs-} - 1{-φ0-}-})
+                                                                      $ raise (size (eqTel st) - 1 + phis)
                                                                       $ unifySubst output)
         reportSDoc "tc.lhs.unify.inv" 20 $ "."
         let rho0 = fromPatternSubstitution $ unifySubst output
-        addContext (varTel next) $ addContext (eqTel next) $ reportSDoc "tc.lhs.unify.inv" 20 $
+        reportSDoc "tc.lhs.unify.inv" 20 $ addContext (varTel next) $ addContext (eqTel next) $
           "prf :" <+> prettyTCM (fromPatternSubstitution $ unifyProof output)
         let c0 = Lam defaultArgInfo $ Abs "i" $ raise 1 $ lookupS (fromPatternSubstitution $ unifyProof output) (neqs - k - 1)
         let c = liftS (size $ eqTel next) (raiseS 1) `applySubst` c0
-        addContext (varTel next) $ addContext ("φ" :: String, __DUMMY_DOM__) $ addContext (raise 1 $ eqTel next) $
-          reportSDoc "tc.lhs.unify.inv" 20 $ "c :" <+> prettyTCM c
---        let rho = liftS (neqs - k - 1) $ consS (raise (1 + k) c) $ liftS (1 + k) rho0
+        reportSDoc "tc.lhs.unify.inv" 20 $
+          addContext (varTel next) $ addContext ("φ" :: String, __DUMMY_DOM__) $ addContext (raise 1 $ eqTel next) $
+            "c :" <+> prettyTCM c
         let rho = singletonS (neqs - k - 1) c  `composeS` liftS (1 + neqs) rho0
         reportSDoc "tc.lhs.unify.inv" 20 $ text "old_sizes: " <+> pretty (size $ varTel st, size $ eqTel st)
         reportSDoc "tc.lhs.unify.inv" 20 $ text "new_sizes: " <+> pretty (size $ varTel next, size $ eqTel next)
---        addContext (abstract (varTel next) $ ExtendTel __DUMMY_DOM__ (Abs "φ" $ raise 1 $ eqTel next)) $
-        addContext (varTel next) $ addContext ("φ" :: String, __DUMMY_DOM__) $ addContext (raise 1 $ eqTel next) $
-          reportSDoc "tc.lhs.unify.inv" 20 $ "rho   :" <+> prettyTCM rho
-        return $ ((working_tel
-                 , rho
-                 , termsS __IMPOSSIBLE__ $ map unArg tau
-                 , termsS __IMPOSSIBLE__ $ map unArg leftInv)
-                 , phi)
-buildEquiv (UnificationStep st step@(EtaExpandVar fv _d _args) output) next = fmap Right $ do
+        reportSDoc "tc.lhs.unify.inv" 20 $
+          addContext (varTel next) $ addContext ("φ" :: String, __DUMMY_DOM__) $ addContext (raise 1 $ eqTel next) $
+            "rho   :" <+> prettyTCM rho
+        return ((working_tel
+                , rho
+                , termsS __IMPOSSIBLE__ $ map' unArg tau
+                , termsS __IMPOSSIBLE__ $ map' unArg leftInv)
+                , phi)
+buildEquiv (DUnificationStep st step@(DEtaExpandVar fv _d _args) output) next = runExceptT $ do
         reportSDoc "tc.lhs.unify.inv" 20 "buildEquiv EtaExpandVar"
         let
           gamma = varTel st
@@ -407,12 +457,13 @@ buildEquiv (UnificationStep st step@(EtaExpandVar fv _d _args) output) next = fm
           x = flexVar fv
           neqs = size eqs
           phis = 1
-        interval <- primIntervalType
+        interval <- lift primIntervalType
          -- Γ, φs : I^phis
         let gamma_phis = abstract gamma $ telFromList $
-              map (defaultDom . (,interval) . ("phi" ++) . show) [0 .. phis - 1]
-        working_tel <- abstract gamma_phis <$>
-          pathTelescope (raise phis $ eqTel st) (raise phis $ eqLHS st) (raise phis $ eqRHS st)
+              map' (defaultDom . (,interval) . ("phi" ++) . show) [0 .. phis - 1]
+        working_tel <- abstract gamma_phis <$!> do
+         withExceptT CantTransport' $
+          pathTelescope' (raise phis $ eqTel st) (raise phis $ eqLHS st) (raise phis $ eqRHS st)
         let raiseFrom tel x = (size working_tel - size tel) + x
         let phi = var $ raiseFrom gamma_phis 0
 
@@ -420,18 +471,6 @@ buildEquiv (UnificationStep st step@(EtaExpandVar fv _d _args) output) next = fm
           reportSDoc "tc.lhs.unify.inv" 20 $ addContext working_tel $ "tau    :" <+> prettyTCM tau
           return $ ((working_tel,rho,tau,raiseS 1),phi)
 
-buildEquiv (UnificationStep st step output) _ = do
-  reportSDoc "tc.lhs.unify.inv" 20 $ "steps"
-  let illegal     = return $ Left $ Illegal step
-      unsupported = return $ Left $ UnsupportedYet step
-  case step of
-    Deletion{}           -> illegal
-    TypeConInjectivity{} -> illegal
-    -- These should end up in a NoUnify
-    Conflict{}    -> __IMPOSSIBLE__
-    LitConflict{} -> __IMPOSSIBLE__
-    Cycle{}       -> __IMPOSSIBLE__
-    _ -> unsupported
 
 {-# SPECIALIZE explainStep :: UnifyStep -> TCM Doc #-}
 explainStep :: MonadPretty m => UnifyStep -> m Doc

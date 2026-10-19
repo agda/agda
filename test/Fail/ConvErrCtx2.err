@@ -1,0 +1,7 @@
+ConvErrCtx2.agda:23.15-16: error: [UnequalTerms]
+The terms
+  foo {a = Structure {bar T1} A}
+and
+  foo {a = Structure {bar T2} B}
+are not equal at type Set
+when checking that the expression b has type foo

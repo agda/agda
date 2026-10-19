@@ -1,3 +1,7 @@
 Issue1635.agda:7.10-14: error: [UnequalTerms]
-x != foo of type Foo
+The terms
+  x
+and
+  foo
+are not equal at type Foo
 when checking that the expression refl has type x ≡ foo

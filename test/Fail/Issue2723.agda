@@ -5,12 +5,12 @@
 -- {-# OPTIONS --warning=error #-}
 -- {-# OPTIONS -v tc.cover:30 #-}
 
-record Test : Set1 where
+record Test (A : Set) : Set where
   field
-    one two : Set
+    one two : A
 open Test
 
-foo : Test
+foo : {A : Set} → Test A
 foo .one = {!!}
 foo = {!!}
 foo .two = {!!}
@@ -22,4 +22,9 @@ foo .two = {!!}
 -- NOW: error:
 -- Cannot split into projections because not all clauses have a
 -- projection copattern
+-- when checking the definition of foo
+
+-- Andreas, 2025-10-24, issue #8139, back to
+-- warning: -W[no]UnreachableClauses
+-- Unreachable clause
 -- when checking the definition of foo

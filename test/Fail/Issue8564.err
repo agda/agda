@@ -1,0 +1,7 @@
+Issue8564.agda:19.1-27.28: error: [NotStrictlyPositive]
+FixP is not strictly positive, because it occurs
+in the second argument of P
+(in the type of the constructor wrap
+ in the definition of FixP), which occurs
+                           in the type of the constructor wrap
+                           in the definition of FixP.

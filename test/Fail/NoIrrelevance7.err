@@ -1,0 +1,4 @@
+NoIrrelevance7.agda:4.9-15: error: [NeedOptionIrrelevance]
+Irrelevance modality is disabled (use options --irrelevance and
+--no-irrelevance to enable/disable irrelevance)
+when checking that the expression .D → D is a type

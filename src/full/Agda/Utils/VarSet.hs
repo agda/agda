@@ -105,8 +105,8 @@ module Agda.Utils.VarSet
 import Control.DeepSeq
 import Control.Monad
 
-import qualified Data.ByteString as BS
-import qualified Data.Foldable as Fold
+import Data.ByteString qualified as BS
+import Data.Foldable qualified as Fold
 import Data.Hashable
 import Data.Word
 
@@ -117,7 +117,7 @@ import GHC.Num.WordArray
 import Debug.Trace
 
 import Prelude (Num(..), Show(..))
-import qualified Prelude as P
+import Prelude qualified as P
 
 import Agda.Utils.ByteArray
 import Agda.Utils.Word
@@ -291,6 +291,8 @@ range lo hi =
 --------------------------------------------------------------------------------
 -- Insertion
 
+
+
 -- | Insert an index into a variable set.
 insert :: Int -> VarSet -> VarSet
 insert (I# i) (VS# w) =
@@ -324,6 +326,10 @@ insertsDescFast# (I# x:xs) w = insertsDescFast# xs (uncheckedSetBitWord# w x)
 --------------------------------------------------------------------------------
 -- Deletion
 
+{-# NOINLINE deleteBig# #-}
+deleteBig# :: Int# -> ByteArray# -> VarSet
+deleteBig# i vs = byteArrayToVarSet# (bigNatClearBit# vs (int2Word# i))
+
 -- | Delete an index from a variable set.
 delete :: Int -> VarSet -> VarSet
 delete (I# i) vs@(VS# w) =
@@ -331,7 +337,7 @@ delete (I# i) vs@(VS# w) =
     VS# (uncheckedClearBitWord# w i)
   else
     vs
-delete (I# i) (VB# vs) = byteArrayToVarSet# (bigNatClearBit# vs (int2Word# i))
+delete (I# i) (VB# vs) = deleteBig# i vs
 
 --------------------------------------------------------------------------------
 -- Queries
@@ -342,10 +348,14 @@ null (VS# 0##) = True
 null _ = False
 {-# INLINE null #-}
 
+{-# NOINLINE memberBig# #-}
+memberBig# :: Int# -> ByteArray# -> Bool
+memberBig# i bs = isTrue# (bigNatTestBit# bs (int2Word# i))
+
 -- | Is a variable a member of a var set?
 member :: Int -> VarSet -> Bool
 member (I# i) (VS# w) = isTrue# ((0# <=# i) `andI#` (i <# WORD_SIZE_IN_BITS#) `andI#` (uncheckedTestBitWord# w i))
-member (I# i) (VB# bs) = isTrue# (bigNatTestBit# bs (int2Word# i))
+member (I# i) (VB# bs) = memberBig# i bs
 {-# INLINABLE member #-}
 
 -- | Find the smallest index in the variable set.

@@ -9,8 +9,8 @@
 --
 --     {-# LANGUAGE PatternSynonyms #-}
 --
---     import           Agda.Utils.List1 (List1, pattern (:|))
---     import qualified Agda.Utils.List1 as List1
+--     import Agda.Utils.List1 (List1, pattern (:|))
+--     import Agda.Utils.List1 qualified as List1
 --
 --   @
 
@@ -28,15 +28,15 @@ import Prelude hiding (filter, unzip)
 
 import Control.Arrow ((&&&))
 import Control.Monad (filterM)
-import qualified Control.Monad as List (zipWithM, zipWithM_)
+import Control.Monad qualified as List (zipWithM, zipWithM_)
 
-import qualified Data.Either as Either
+import Data.Either qualified as Either
 import Data.Function ( on )
-import qualified Data.List as List
-import qualified Data.Maybe as Maybe
+import Data.List qualified as List
+import Data.Maybe qualified as Maybe
 
 import Data.List.NonEmpty as List1 hiding (fromList, toList, unzip)
-import qualified Data.List.NonEmpty as List1 (toList)
+import Data.List.NonEmpty qualified as List1 (toList)
 
 -- Prevent warning -Wx-data-list-nonempty-unzip
 #if MIN_VERSION_base(4,19,0)
@@ -49,7 +49,7 @@ import GHC.Exts as IsList ( IsList(..) )
 
 import Agda.Utils.Functor ((<.>), (<&>))
 import Agda.Utils.Null (Null(..))
-import qualified Agda.Utils.List as List
+import Agda.Utils.List qualified as List
 
 -- Set up doctest.
 -- $setup
@@ -62,6 +62,17 @@ type String1 = List1 Char
 --
 toList' :: Maybe (List1 a) -> [a]
 toList' = maybe [] toList
+
+{-# INLINE map' #-}
+-- | Strict map.
+map' :: (a -> b) -> List1 a -> List1 b
+map' f (a :| as) = let !b = f a; !bs = List.map' f as in b :| bs
+
+-- | Strict filter
+filter' :: (a -> Bool) -> List1 a -> [a]
+filter' f (a :| as) =
+  let !as' = List.filter' f as
+  in if f a then a : as' else as'
 
 -- | Lift a function on non-empty lists to a function on lists.
 --
@@ -170,6 +181,9 @@ breakAfter p (x :| xs) = List.breakAfter1 p x xs
 
 concat :: [List1 a] -> [a]
 concat = concatMap toList
+
+concat' :: [List1 a] -> [a]
+concat' = List.concatMap' toList
 
 concatMap1 :: (a -> List1 b) -> List1 a -> List1 b
 concatMap1 = (=<<)

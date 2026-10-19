@@ -2,16 +2,15 @@
 
 module Agda.Syntax.Translation.ReflectedToAbstract where
 
-import Control.Arrow        ( (***) )
 import Control.Monad        ( foldM )
 import Control.Monad.Except ( MonadError )
 import Control.Monad.Reader ( MonadReader(..), asks, reader, runReaderT )
 
 import Data.Maybe
 import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 import Data.Text (Text)
-import qualified Data.Text as Text
+import Data.Text qualified as Text
 
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
@@ -21,11 +20,10 @@ import Agda.Syntax.Abstract
   ( Name, QName, QNamed(QNamed)
   , isNoName, nameConcrete, nextName, qualify, unambiguous
   )
-import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract qualified as A
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Reflected as R
-import Agda.Syntax.Internal (Dom,Dom'(..))
-
+import Agda.Syntax.Internal (Dom,Dom'(..), pattern Dom, dIsFinite, dInfo)
 import Agda.Interaction.Options (optUseUnicode, UnicodeOrAscii(..))
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.Syntax.Scope.Monad (getCurrentModule)
@@ -35,12 +33,13 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1 qualified as List1
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Functor
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.Tuple ( (***) )
 
 type Vars = [(Name,R.Type)]
 
@@ -103,9 +102,7 @@ toAbstract_ ::
   (ToAbstract r
   , MonadFresh NameId m
   , MonadError TCErr m
-  , MonadTCEnv m
   , ReadTCState m
-  , HasOptions m
   , HasBuiltins m
   , HasConstInfo m
   ) => r -> m (AbsOfRef r)
@@ -116,9 +113,7 @@ toAbstractWithoutImplicit ::
   (ToAbstract r
   , MonadFresh NameId m
   , MonadError TCErr m
-  , MonadTCEnv m
   , ReadTCState m
-  , HasOptions m
   , HasBuiltins m
   , HasConstInfo m
   ) => r -> m (AbsOfRef r)
@@ -140,13 +135,13 @@ instance ToAbstract r => ToAbstract [Arg r] where
 -- instance ToAbstract r A.Expr => ToAbstract (Dom r, Name) (A.TypedBinding) where
 instance (ToAbstract r, AbsOfRef r ~ A.Expr) => ToAbstract (Dom r, Name) where
   type AbsOfRef (Dom r, Name) = A.TypedBinding
-  toAbstract (Dom{domInfo = i, domIsFinite = isfin, unDom = x, domTactic = tac}, name) = do
-    dom <- toAbstract x
+  toAbstract (d, name) = do
+    dom <- toAbstract (unDom d)
     -- TODO(Amy): Anyone know why this discards the tactic? It was like
     -- that when I got here!
     return $ A.TBind noRange
-      (A.TypedBindingInfo empty isfin)
-      (singleton $ unnamedArg i $ A.mkBinder_ name)
+      (A.TypedBindingInfo empty (d ^. dIsFinite))
+      (singleton $ unnamedArg (d ^. dInfo) $ A.mkBinder_ name)
       dom
 
 instance ToAbstract (A.Expr, Elim) where
@@ -298,12 +293,8 @@ instance ToAbstract (List1 (QNamed R.Clause)) where
 checkClauseTelescopeBindings :: MonadReflectedToAbstract m => [(Text, Arg R.Type)] -> [Arg R.Pattern] -> m ()
 checkClauseTelescopeBindings tel pats =
   case reverse [ x | ((x, _), i) <- zip (reverse tel) [0..], not $ Set.member i bs ] of
-    [] -> return ()
-    xs -> genericDocError $ vcat
-      [ fsep (pwords "Missing bindings for telescope" ++ [ pluralS xs "variable" ])
-        <?> (fsep (punctuate ", " $ map (text . Text.unpack) xs) <> ".")
-      , "All variables in the clause telescope must be bound in the left-hand side."
-      ]
+    []   -> return ()
+    x:xs -> typeError $ MissingBindingsForTelescopeVariables (x :| xs)
   where
     bs = boundVars pats
 

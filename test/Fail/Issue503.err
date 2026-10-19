@@ -1,6 +1,6 @@
 Issue503.agda:42.1-43.57: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   div
-Problematic calls:
+Problematic call:
   div (m - n) n
     (at Issue503.agda:43.43-46)

@@ -11,7 +11,7 @@ ifeq ($(GHC),)
   ifdef HAS_STACK
     GHC := $(STACK_SILENT) ghc --
   else
-    GHC := $(shell which ghc)
+    GHC := $(shell command -v ghc)
   endif
 endif
 
@@ -19,7 +19,7 @@ ifeq ($(RUNGHC),)
   ifdef HAS_STACK
     RUNGHC := $(STACK_SILENT) runghc --
   else
-    RUNGHC := $(shell which runghc)
+    RUNGHC := $(shell command -v runghc)
   endif
 endif
 

@@ -1,0 +1,6 @@
+Issue8834.agda:14.7-8: error: [InvalidModalTelescopeUse]
+Telescope variable A is indirectly being used in the flat modality
+but only available in the sharp modality
+when inserting into the telescope of definition
+Issue8834.M.B : (@♭ A₁ : Set) → Set
+when checking that the expression B has type Set

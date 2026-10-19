@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical-compatible --safe --no-sized-types --no-guardedness --level-universe #-}
+{-# OPTIONS --cubical-compatible --safe --no-sized-types --no-guardedness --no-irrelevance --level-universe #-}
 
 module Agda.Builtin.List where
 
@@ -13,4 +13,4 @@ data List {a} (A : Set a) : Set a where
   if (x.length < 1) { return v["[]"](); } else { return v["_∷_"](x[0], x.slice(1)); }
 } #-}
 {-# COMPILE JS [] = Array() #-}
-{-# COMPILE JS _∷_ = function (x) { return function(y) { return Array(x).concat(y); }; } #-}
+{-# COMPILE JS _∷_ = function (x) { return function(y) { return [x].concat(y); }; } #-}

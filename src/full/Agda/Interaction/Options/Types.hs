@@ -15,7 +15,8 @@ import           Data.Map                          ( Map )
 import           Data.Set                          ( Set )
 import           GHC.Generics                      ( Generic )
 
-import           Agda.Syntax.Common                ( Cubical )
+import           Agda.Syntax.Common
+                   (Cubical, AllowedErasedMatchesWithDefaults)
 import           Agda.Syntax.Concrete.Glyph        ( UnicodeOrAscii )
 import           Agda.Interaction.Library          ( ExeName, LibName )
 import           Agda.Interaction.Options.Help     ( Help )
@@ -94,6 +95,10 @@ data CommandLineOptions = Options
       -- ^ Should code points that are not supported by the locale be transliterated?
   , optDiagnosticsColour     :: DiagnosticsColours
       -- ^ Configure colour output.
+  , optMdOnlyAgdaBlocks      :: Bool
+      -- ^ In literate Markdown/Typst, only treat @```agda@ blocks as code.
+  , optParallelChecking      :: Parallelism
+      -- ^ Should imports be type-checked in parallel?
   }
   deriving (Show, Generic)
 
@@ -107,6 +112,7 @@ data PragmaOptions = PragmaOptions
   , _optUseUnicode                :: WithDefault' UnicodeOrAscii 'True -- Would like to write UnicodeOk instead of True here
   , _optVerbose                   :: !Verbosity
   , _optProfiling                 :: ProfileOptions
+  , _optIrrelevance               :: WithDefault 'True
   , _optProp                      :: WithDefault 'False
   , _optLevelUniverse             :: WithDefault 'False
   , _optTwoLevel                  :: WithDefault 'False
@@ -142,14 +148,14 @@ data PragmaOptions = PragmaOptions
   , _optProjectionLike            :: WithDefault 'True
       -- ^ Perform the projection-likeness analysis on functions?
   , _optErasure                   :: WithDefault 'False
-  , _optErasedMatches             :: WithDefault 'True
-      -- ^ Allow matching in erased positions for single-constructor,
-      -- non-indexed data/record types. (This kind of matching is always
-      -- allowed for record types with η-equality.)
+  , _optErasedMatches             :: AllowedErasedMatchesWithDefaults
+      -- ^ What kinds of erased matches are allowed?
   , _optEraseRecordParameters     :: WithDefault 'False
       -- ^ Mark parameters of record modules as erased?
   , _optRewriting                 :: WithDefault 'False
       -- ^ Can rewrite rules be added and used?
+  , _optLocalRewriting            :: WithDefault 'False
+      -- ^ Can local rewrite rules be added and used?
   , _optCubical                   :: Maybe Cubical
   , _optGuarded                   :: WithDefault 'False
   , _optFirstOrder                :: WithDefault 'False
@@ -204,6 +210,14 @@ data PragmaOptions = PragmaOptions
       -- ^ Can we split on a @(\@flat x : A)@ argument?
   , _optPolarity                  :: WithDefault 'False
       -- ^ Can we use modal polarities (@++, @+, etc.)?
+  , _optOccurrence                :: WithDefault 'True
+      -- ^ Perform automated occurrence analysis for functions?
+  , _optFunext                    :: WithDefault 'False
+      -- ^ Can @Agda.Builtin.Erased.Funext@ be used?
+  , _optPropext                    :: WithDefault 'False
+      -- ^ Can @Agda.Builtin.Erased.Propext@ be used?
+  , _optQuotients                 :: WithDefault 'False
+      -- ^ Can @Agda.Builtin.Erased.Quotient@ be used?
   , _optImportSorts               :: WithDefault 'True
       -- ^ Should every top-level module start with an implicit statement
       --   @open import Agda.Primitive using (Set; Prop)@?
@@ -227,6 +241,7 @@ data PragmaOptions = PragmaOptions
       -- ^ Allow recursion on forced constructor arguments.
   , _optExperimentalLazyInstances :: WithDefault 'False
       -- ^ Defer instance search based on discrimination tree results
+  , _optQuoteMetas                :: WithDefault 'False
   }
   deriving (Show, Eq, Generic)
 
@@ -242,6 +257,11 @@ data DiagnosticsColours
   = AlwaysColour
   | NeverColour
   | AutoColour
+  deriving (Show, Generic)
+
+data Parallelism
+  = Sequential
+  | Parallel (Maybe Int)
   deriving (Show, Generic)
 
 -- | If several @--emacs-mode@ commands are given,
@@ -303,6 +323,7 @@ instance NFData CommandLineOptions
 instance NFData PragmaOptions
 
 instance NFData ConfluenceCheck
+instance NFData Parallelism
 instance NFData DiagnosticsColours
 instance NFData EmacsModeCommand
 instance NFData InfectiveCoinfective

@@ -1,3 +1,7 @@
 Issue2132.agda:23.8-12: error: [UnequalTerms]
-C′ != c of type D
+The terms
+  C′
+and
+  c
+are not equal at type D
 when checking that the expression refl has type C′ ≡ c

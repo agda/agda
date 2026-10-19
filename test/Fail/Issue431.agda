@@ -1,7 +1,15 @@
-{-# OPTIONS --inversion-max-depth=10 #-}
+{-# OPTIONS --inversion-max-depth=2 #-}
 
-open import Agda.Builtin.Nat
-open import Agda.Builtin.Equality
+-- open import Agda.Builtin.Nat
+-- open import Agda.Builtin.Equality
+
+data Nat : Set where
+  zero : Nat
+  suc : Nat -> Nat
+
+postulate
+  _≡_ : Nat → Nat → Set
+  refl : ∀ {n} → n ≡ n
 
 data ⊥ : Set where
 
@@ -14,6 +22,10 @@ postulate
 
 diverge : ⊥
 diverge = doubleSuc _ _ refl
+
+  -- s s x = s (d y)
+
+  -- s x = db y
 
 {-
   double ?x == suc (double ?y)

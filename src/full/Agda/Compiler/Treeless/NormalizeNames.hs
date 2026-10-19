@@ -33,7 +33,7 @@ normalizeNames = tr
       t@TError{}          -> return t
       TLam b              -> TLam <$> tr b
       TApp a bs           -> TApp <$> tr a <*> mapM tr bs
-      TLet e b            -> TLet <$> tr e <*> tr b
+      TLet s e b          -> TLet s <$> tr e <*> tr b
       TCase sc t def alts -> TCase sc t <$> tr def <*> mapM trAlt alts
       TCoerce a           -> TCoerce <$> tr a
 

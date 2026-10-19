@@ -27,7 +27,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (pretty, prettyShow, (<+>))
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
@@ -35,7 +35,7 @@ import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Constraints (MonadConstraint(..))
 import Agda.TypeChecking.Monad.Debug
-  (MonadDebug, reportSLn, __IMPOSSIBLE_VERBOSE__)
+  (MonadDebug, reportSLn, reportSDoc, __IMPOSSIBLE_VERBOSE__)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Signature (HasConstInfo)
 import Agda.TypeChecking.Monad.State
@@ -52,6 +52,7 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Tuple
 import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.StrictReader qualified as Strict
 
 import Agda.Utils.Impossible
 
@@ -104,7 +105,7 @@ class ( MonadConstraint m
   -- | Directly instantiate the metavariable. Skip pattern check,
   -- occurs check and frozen check. Used for eta expanding frozen
   -- metas.
-  assignTerm' :: MonadMetaSolver m => MetaId -> [Arg ArgName] -> Term -> m ()
+  assignTerm' :: MetaId -> [Arg ArgName] -> Term -> m ()
 
   -- | Eta-expand a local meta-variable, if it is of the specified
   -- class. Don't do anything if the meta-variable is a blocked term.
@@ -126,11 +127,27 @@ instance MonadMetaSolver m => MonadMetaSolver (ReaderT r m) where
   updateMetaVar m f = lift $ updateMetaVar m f
   speculateMetas fallback m = ReaderT $ \x -> speculateMetas (runReaderT fallback x) (runReaderT m x)
 
+instance MonadMetaSolver m => MonadMetaSolver (Strict.ReaderT r m) where
+  {-# INLINE newMeta' #-}
+  newMeta' inst f i p perm j = lift $ newMeta' inst f i p perm j
+  {-# INLINE assignV #-}
+  assignV dir m us v cmp = lift $ assignV dir m us v cmp
+  {-# INLINE assignTerm' #-}
+  assignTerm' m us v = lift $ assignTerm' m us v
+  {-# INLINE etaExpandMeta #-}
+  etaExpandMeta k m = lift $ etaExpandMeta k m
+  {-# INLINE updateMetaVar #-}
+  updateMetaVar m f = lift $ updateMetaVar m f
+  {-# INLINE speculateMetas #-}
+  speculateMetas fallback m =
+    Strict.ReaderT (\x -> speculateMetas (Strict.runReaderT fallback x)
+                                         (Strict.runReaderT m x))
+
 -- | Switch off assignment of metas.
-dontAssignMetas :: (MonadTCEnv m, HasOptions m, MonadDebug m) => m a -> m a
+dontAssignMetas :: (MonadTCEnv m, MonadDebug m) => m a -> m a
 dontAssignMetas cont = do
   reportSLn "tc.meta" 45 $ "don't assign metas"
-  localTC (\ env -> env { envAssignMetas = False }) cont
+  localTC (set eAssignMetas False) cont
 
 -- | Is the meta-variable from another top-level module?
 
@@ -149,9 +166,9 @@ nextLocalMeta = useR stFreshMetaId
 -- | Pairs of local meta-stores.
 
 data LocalMetaStores = LocalMetaStores
-  { openMetas :: LocalMetaStore
+  { openMetas   :: !LocalMetaStore
     -- ^ A 'MetaStore' containing open meta-variables.
-  , solvedMetas :: LocalMetaStore
+  , solvedMetas :: !LocalMetaStore
     -- ^ A 'MetaStore' containing instantiated meta-variables.
   }
 
@@ -173,18 +190,17 @@ metasCreatedBy m = do
       (_, Just m,  ms) -> MapS.insert next m ms
 
 -- | Find information about the given local meta-variable, if any.
-
+{-# SPECIALIZE lookupLocalMeta' :: MetaId -> TCM (Maybe MetaVariable) #-}
 lookupLocalMeta' :: ReadTCState m => MetaId -> m (Maybe MetaVariable)
 lookupLocalMeta' m = do
-  mv <- lkup <$> useR stSolvedMetaStore
-  case mv of
+  tc <- getTCState
+  case MapS.lookup m (tc ^. stSolvedMetaStore) of
     mv@Just{} -> return mv
-    Nothing   -> lkup <$> useR stOpenMetaStore
-  where
-  lkup = MapS.lookup m
+    Nothing   -> pure $! MapS.lookup m (tc ^. stOpenMetaStore)
 
 -- | Find information about the given local meta-variable.
 
+{-# SPECIALIZE lookupLocalMeta :: MetaId -> TCM MetaVariable #-}
 lookupLocalMeta ::
   (HasCallStack, MonadDebug m, ReadTCState m) =>
   MetaId -> m MetaVariable
@@ -332,8 +348,7 @@ getMetaContextArgs MetaVar{ mvPermutation = p } = do
 -- | Given a local meta-variable, return the type applied to the
 -- current context.
 getMetaTypeInContext ::
-  (HasBuiltins m, HasCallStack, MonadDebug m, MonadReduce m,
-   MonadTCEnv m, ReadTCState m) =>
+  (HasBuiltins m, HasCallStack, MonadDebug m, MonadReduce m) =>
   MetaId -> m Type
 getMetaTypeInContext m = do
   mv@MetaVar{ mvJudgement = j } <- lookupLocalMeta m
@@ -437,6 +452,7 @@ constraintMetas = \case
       CheckType t              -> gatherMetas t
       CheckLockedVars a b c d  -> gatherMetas (a, b, c, d)
       UsableAtModality{}       -> return mempty
+      RewConstraint e          -> gatherMetas e
   where
     -- For blocked constant twin variables
     listenerMetas EtaExpand{}           = return Set.empty
@@ -478,7 +494,14 @@ createMetaInfo' b = do
   r        <- getCurrentRange
   cl       <- buildClosure r
   gen      <- viewTC eGeneralizeMetas
-  modality <- currentModality
+  -- Andreas, 2026-10-03, issue #8171.
+  -- The polarity of the current position is not tracked in the environment;
+  -- instead, the context is divided by the polarity of each argument we enter.
+  -- Thus, relative to its context, a meta always sits at the unit polarity (@++),
+  -- not at the 'defaultPolarity' (mixed) supplied by 'currentModality'.
+  -- Otherwise, the occurs check, which divides the variables by the meta's
+  -- modality, rejects solutions mentioning variables of non-mixed polarity.
+  modality <- setModalPolarity unitPolarity <$> currentModality
   return MetaInfo
     { miClosRange       = cl
     , miModality        = modality
@@ -548,8 +571,12 @@ instance MonadInteractionPoints m => MonadInteractionPoints (StateT s m)
 instance (MonadInteractionPoints m, Monoid w) => MonadInteractionPoints (WriterT w m)
 
 instance MonadInteractionPoints TCM where
-  freshInteractionId = fresh
-  modifyInteractionPoints f = stInteractionPoints `modifyTCLens` f
+  -- TODO: does the pure mode happen?
+  freshInteractionId =
+    ifImpureConv fresh (patternViolation alwaysUnblock)
+  -- TODO: does the pure mode happen?
+  modifyInteractionPoints f =
+    ifImpureConv (stInteractionPoints `modifyTCLens` f) (patternViolation alwaysUnblock)
 
 -- | Register an interaction point during scope checking.
 --   If there is no interaction id yet, create one.
@@ -605,7 +632,7 @@ connectInteractionPoint
   :: MonadInteractionPoints m
   => InteractionId -> MetaId -> m ()
 connectInteractionPoint ii mi = do
-  ipCl <- asksTC envClause
+  ipCl <- viewTC eClause
   m <- useR stInteractionPoints
   let ip = InteractionPoint { ipRange = __IMPOSSIBLE__, ipMeta = Just mi, ipSolved = False, ipClause = ipCl, ipBoundary = IPBoundary mempty }
   -- The interaction point needs to be present already, we just set the meta.
@@ -618,10 +645,15 @@ removeInteractionPoint :: MonadInteractionPoints m => InteractionId -> m ()
 removeInteractionPoint ii =
   modifyInteractionPoints $ BiMap.update (\ ip -> Just ip{ ipSolved = True }) ii
 
--- | Get a list of interaction ids.
+-- | Get a list of unsolved interaction ids.
 {-# SPECIALIZE getInteractionPoints :: TCM [InteractionId] #-}
 getInteractionPoints :: ReadTCState m => m [InteractionId]
-getInteractionPoints = BiMap.keys <$> useR stInteractionPoints
+getInteractionPoints =
+  map fst . filter (not . ipSolved . snd) . BiMap.toList <$> useR stInteractionPoints
+  -- The following alternative will not include the unreachable IPs
+  -- (e.g. test/Interaction/Issue2807).
+  -- This might lead to a wrong numbering of ?s.
+  -- map fst <$> getInteractionIdsAndMetas
 
 -- | Get all metas that correspond to unsolved interaction ids.
 getInteractionMetas :: ReadTCState m => m [MetaId]
@@ -713,6 +745,14 @@ getInteractionRange
   => InteractionId -> m Range
 getInteractionRange = ipRange <.> lookupInteractionPoint
 
+-- | Set the 'Range' for an interaction point.
+{-# SPECIALIZE setInteractionRange :: Range -> InteractionId -> TCM () #-}
+setInteractionRange :: (MonadInteractionPoints m, MonadDebug m)
+  => Range -> InteractionId -> m ()
+setInteractionRange r ii = do
+  modifyInteractionPoints $ BiMap.update (\ ip -> Just ip{ ipRange = r }) ii
+  return ()
+
 -- | Get the 'Range' for a local meta-variable.
 getMetaRange ::
   (HasCallStack, MonadDebug m, ReadTCState m) => MetaId -> m Range
@@ -725,24 +765,22 @@ getInteractionScope ::
 getInteractionScope =
   getMetaScope <.> lookupLocalMeta <=< lookupInteractionId
 
-withMetaInfo' :: (MonadTCEnv m, ReadTCState m, MonadTrace m) => MetaVariable -> m a -> m a
+withMetaInfo' :: (MonadTrace m) => MetaVariable -> m a -> m a
 withMetaInfo' mv = withMetaInfo (miClosRange $ mvInfo mv)
 
-withMetaInfo :: (MonadTCEnv m, ReadTCState m, MonadTrace m) => Closure Range -> m a -> m a
+withMetaInfo :: (MonadTrace m) => Closure Range -> m a -> m a
 withMetaInfo mI cont = enterClosure mI $ \ r ->
   setCurrentRange r cont
 
 withInteractionId ::
-  (MonadDebug m, ReadTCState m, MonadError TCErr m,
-   MonadTCEnv m, MonadTrace m) =>
+  (MonadDebug m, MonadError TCErr m, MonadTrace m) =>
   InteractionId -> m a -> m a
 withInteractionId i ret = do
   m <- lookupInteractionId i
   withMetaId m ret
 
 withMetaId ::
-  (HasCallStack, MonadDebug m, MonadTCEnv m, MonadTrace m,
-   ReadTCState m) =>
+  (HasCallStack, MonadDebug m, MonadTrace m) =>
   MetaId -> m a -> m a
 withMetaId m ret = do
   mv <- lookupLocalMeta m
@@ -827,7 +865,9 @@ freezeMetas =
 
 -- | Thaw all open meta variables.
 unfreezeMetas :: TCM ()
-unfreezeMetas = stOpenMetaStore `modifyTCLens` MapS.map unfreeze_
+unfreezeMetas = do
+  reportSDoc "tc.meta" 40 $ "unfreezing ALL metas"
+  stOpenMetaStore `modifyTCLens` MapS.map unfreeze_
 
 unfreeze_ :: MetaVariable -> MetaVariable
 unfreeze_ = \ mvar -> mvar { mvFrozen = Instantiable }
@@ -859,6 +899,7 @@ class UnFreezeMeta a where
 
 instance UnFreezeMeta MetaId where
   unfreezeMeta x = unlessM (($ x) <$> isRemoteMeta) $ do
+    reportSDoc "tc.meta" 50 $ pure $ "unfreezing meta" <+> pretty x
     updateMetaVar x unfreeze_
     unfreezeMeta =<< metaType x
 {-# SPECIALIZE unfreezeMeta :: MetaId -> TCM () #-}

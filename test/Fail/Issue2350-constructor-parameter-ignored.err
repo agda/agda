@@ -1,5 +1,9 @@
 Issue2350-constructor-parameter-ignored.agda:8.18-27: error: [UnequalTerms]
-ℓ != ℓ' of type Agda.Primitive.Level
+The terms
+  D ⦃ ℓ ⦄ _A_13 : Set ℓ
+and
+  D ⦃ ℓ' ⦄ A : Set ℓ'
+are not equal
 when checking that the inferred type of an application
   D _A_13
 matches the expected type

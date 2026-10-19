@@ -41,6 +41,7 @@ import Agda.TypeChecking.Monad.Base.Types
   (HighlightingMethod, ModuleToSource, NamedMeta, IPFace')
 import Agda.Utils.Impossible
 import Agda.Utils.Time
+import qualified Agda.Syntax.Concrete.Name as C
 
 -- | Responses for any interactive interface
 --
@@ -53,6 +54,8 @@ data Response_boot tcErr tcWarning warningsAndNonFatalErrors
         RemoveTokenBasedHighlighting
         HighlightingMethod
         ModuleToSource
+        (Maybe FilePath)
+        -- ^ Target file, or 'Nothing' for the current buffer.
     | Resp_Status Status
     | Resp_JumpToError FilePath Word32
     | Resp_InteractionPoints [InteractionId]
@@ -115,7 +118,7 @@ data DisplayInfo_boot tcErr tcWarning warningsAndNonFatalErrors
     | Info_GoalSpecific InteractionId (GoalDisplayInfo_boot tcErr)
 
 data GoalDisplayInfo_boot tcErr
-    = Goal_HelperFunction (OutputConstraint' A.Expr A.Expr)
+    = Goal_HelperFunction (OutputConstraint' A.Expr C.Name)
     | Goal_NormalForm ComputeMode A.Expr
     | Goal_GoalType Rewrite GoalTypeAux [ResponseContextEntry] [IPFace' Expr] [OutputForm_boot tcErr Expr Expr]
     | Goal_CurrentGoal Rewrite

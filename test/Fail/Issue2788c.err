@@ -1,3 +1,5 @@
-Issue2788c.agda:8.1-39: error: [NeedOptionCubical]
-Option --cubical or --erased-cubical required
-when checking the pragma BUILTIN PATHP PathP
+Issue2788c.agda:3.1-50: error: [CoInfectiveImport]
+Module imports the cubical primitive module but does not enable a
+--cubical[={full,erased,no-glue}] option.
+when scope checking the declaration
+  open import Agda.Primitive.Cubical hiding (PathP)

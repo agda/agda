@@ -1,3 +1,6 @@
-ShouldBePi.agda:8.8-15: error: [UnequalTerms]
-(x : _4) → _4 !=< One
+ShouldBePi.agda:8.8-15: error: [UnequalTypes]
+The type
+  (x : _4) → _4
+is not a subtype of
+  One
 when checking that the expression λ x → x has type One

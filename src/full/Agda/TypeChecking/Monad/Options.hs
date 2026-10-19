@@ -1,7 +1,7 @@
 
 module Agda.TypeChecking.Monad.Options where
 
-import Prelude hiding (null)
+import Prelude hiding (null, (||), not)
 
 import Control.Monad          ( unless, when )
 import Control.Monad.IO.Class ( MonadIO(..) )
@@ -36,12 +36,14 @@ import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Library
 import Agda.Interaction.Library.Base (LibCache(LibCache), libAbove, libFile, runLibM)
 
+import Agda.Utils.Boolean
 import Agda.Utils.FileName
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Maybe (isJust)
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
@@ -253,17 +255,15 @@ setOptionsFromPragma' checkConsistency ps = setCurrentRange (pragmaRange ps) $ d
 
 -- | Disable display forms.
 enableDisplayForms :: MonadTCEnv m => m a -> m a
-enableDisplayForms =
-  localTC $ \e -> e { envDisplayFormsEnabled = True }
+enableDisplayForms = localTC (set eDisplayFormsEnabled True)
 
 -- | Disable display forms.
 disableDisplayForms :: MonadTCEnv m => m a -> m a
-disableDisplayForms =
-  localTC $ \e -> e { envDisplayFormsEnabled = False }
+disableDisplayForms = localTC (set eDisplayFormsEnabled False)
 
 -- | Check if display forms are enabled.
 displayFormsEnabled :: MonadTCEnv m => m Bool
-displayFormsEnabled = asksTC envDisplayFormsEnabled
+displayFormsEnabled = viewTC eDisplayFormsEnabled
 
 -- | Gets the include directories.
 --
@@ -296,7 +296,7 @@ setIncludeDirs incs root = do
   incs <- return $ fmap (mkAbsolute . (filePath root </>)) incs
 
   -- Andreas, 2013-10-30  Add default include dir
-  primdir <- useTC stPrimitiveLibDir
+  primdir <- useSession lensPrimitiveLibDir
       -- We add the default dir at the end, since it is then
       -- printed last in error messages.
       -- Might also be useful to overwrite default imports...
@@ -331,7 +331,7 @@ setIncludeDirs incs root = do
     setTCLens stTCWarnings tcWarnings
     setTCLens stLibCache libCache
     setDecodedModules keptDecodedModules
-    setTCLens stModuleToSourceId modFile
+    setSession lensModuleToSourceId modFile
 
   Lens.putAbsoluteIncludePaths $ List1.toList incs
   where
@@ -408,6 +408,11 @@ setIncludeDirs incs root = do
           _ -> (keep, modFile)
       process keep modFile ms
 
+{-# SPECIALIZE NOINLINE isPropEnabled :: TCM Bool #-}
+isIrrelevanceEnabled :: HasOptions m => m Bool
+isIrrelevanceEnabled = optIrrelevance <$> pragmaOptions
+
+{-# SPECIALIZE NOINLINE isPropEnabled :: TCM Bool #-}
 isPropEnabled :: HasOptions m => m Bool
 isPropEnabled = optProp <$> pragmaOptions
 
@@ -415,7 +420,7 @@ isLevelUniverseEnabled :: HasOptions m => m Bool
 isLevelUniverseEnabled = optLevelUniverse <$> pragmaOptions
 
 isTwoLevelEnabled :: HasOptions m => m Bool
-isTwoLevelEnabled = optTwoLevel <$> pragmaOptions
+isTwoLevelEnabled = (optTwoLevel || (isJust . optCubical)) <$> pragmaOptions
 
 {-# SPECIALIZE hasUniversePolymorphism :: TCM Bool #-}
 hasUniversePolymorphism :: HasOptions m => m Bool
@@ -425,7 +430,7 @@ showImplicitArguments :: HasOptions m => m Bool
 showImplicitArguments = optShowImplicit <$> pragmaOptions
 
 showGeneralizedArguments :: HasOptions m => m Bool
-showGeneralizedArguments = (\opt -> optShowGeneralized opt) <$> pragmaOptions
+showGeneralizedArguments = optShowGeneralized <$> pragmaOptions
 
 showIrrelevantArguments :: HasOptions m => m Bool
 showIrrelevantArguments = optShowIrrelevant <$> pragmaOptions
@@ -462,6 +467,7 @@ positivityCheckEnabled = optPositivityCheck <$> pragmaOptions
 typeInType :: HasOptions m => m Bool
 typeInType = not . optUniverseCheck <$> pragmaOptions
 
+-- | Is eta-equality enabled according to the options (@--(no-)eta-equality@)?
 etaEnabled :: HasOptions m => m Bool
 etaEnabled = optEta <$> pragmaOptions
 

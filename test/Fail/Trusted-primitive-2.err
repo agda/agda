@@ -1,0 +1,4 @@
+Trusted-primitive-2.agda:8.3-13: error: [TrustedPrimitive]
+The trusted primitive qrec is only allowed in certain "builtin"
+modules
+when checking that the type of the primitive function qrec is Set

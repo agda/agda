@@ -1,0 +1,23 @@
+Issue8655.agda:21.13-20: warning: -W[no]RewriteVariablesBoundInSingleton
+I am not certain that the rewrite rule  to-from  is safe because it
+appears that the following variable is only bound in contexts which
+might become definitionally singular:
+  x
+This warning can be silenced with
+  -WnoRewriteVariablesBoundInSingleton
+but be aware that this rewrite might behave strangely in the
+presence of e.g. eta records with no fields
+when checking the pragma REWRITE to-from
+
+———— All done; warnings encountered ————————————————————————
+
+Issue8655.agda:21.13-20: warning: -W[no]RewriteVariablesBoundInSingleton
+I am not certain that the rewrite rule  to-from  is safe because it
+appears that the following variable is only bound in contexts which
+might become definitionally singular:
+  x
+This warning can be silenced with
+  -WnoRewriteVariablesBoundInSingleton
+but be aware that this rewrite might behave strangely in the
+presence of e.g. eta records with no fields
+when checking the pragma REWRITE to-from

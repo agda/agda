@@ -1,3 +1,7 @@
 Issue3276.agda:15.30-32: error: [UnequalTerms]
-n != zero of type Nat
+The terms
+  n
+and
+  zero
+are not equal at type Nat
 when checking that the expression xs has type Vec A 0

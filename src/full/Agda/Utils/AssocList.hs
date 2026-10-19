@@ -11,8 +11,8 @@ import Prelude hiding (lookup)
 
 import Data.Function (on)
 import Data.List (lookup)
-import qualified Data.List as List
-import qualified Data.Map  as Map
+import Data.List qualified as List
+import Data.Map qualified  as Map
 
 import Agda.Utils.Tuple
 
@@ -94,4 +94,4 @@ mapWithKeyM f = mapM $ \ (k,v) -> (k,) <$> f k v
 --   To preserve the invariant, it is sufficient that the key
 --   transformation is injective (rather than monotonic).
 mapKeysMonotonic :: (k -> k') -> AssocList k v -> AssocList k' v
-mapKeysMonotonic f = map $ mapFst f
+mapKeysMonotonic f = map $ first f

@@ -1,6 +1,6 @@
 Issue3032-termination.agda:10.1-19.18: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   foo
-Problematic calls:
+Problematic call:
   foo t bar
     (at Issue3032-termination.agda:13.24-27)

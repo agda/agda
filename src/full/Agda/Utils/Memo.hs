@@ -5,11 +5,12 @@ module Agda.Utils.Memo where
 import Control.Monad.State
 import System.IO.Unsafe
 import Data.IORef
-import qualified Data.Map as Map
-import qualified Data.HashMap.Strict as HMap
+import Data.Map qualified as Map
+import Data.HashMap.Strict qualified as HMap
 import Data.Hashable
 
 import Agda.Utils.Lens
+import qualified Data.IntMap as IntMap
 
 -- Simple memoisation in a state monad
 
@@ -51,7 +52,7 @@ memoUnsafe f = unsafePerformIO $ do
           return y
 
 {-# NOINLINE memoUnsafeH #-}
-memoUnsafeH :: (Eq a, Hashable a) => (a -> b) -> (a -> b)
+memoUnsafeH :: (Hashable a) => (a -> b) -> (a -> b)
 memoUnsafeH f = unsafePerformIO $ do
   tbl <- newIORef HMap.empty
   return (unsafePerformIO . f' tbl)
@@ -63,4 +64,19 @@ memoUnsafeH f = unsafePerformIO $ do
         Nothing -> do
           let y = f x
           writeIORef tbl (HMap.insert x y m)
+          return y
+
+{-# NOINLINE memoUnsafeInt #-}
+memoUnsafeInt :: (Int -> a) -> (Int -> a)
+memoUnsafeInt f = unsafePerformIO $ do
+  tbl <- newIORef IntMap.empty
+  return (unsafePerformIO . f' tbl)
+  where
+    f' tbl x = do
+      m <- readIORef tbl
+      case IntMap.lookup x m of
+        Just y  -> return y
+        Nothing -> do
+          let y = f x
+          writeIORef tbl (IntMap.insert x y m)
           return y

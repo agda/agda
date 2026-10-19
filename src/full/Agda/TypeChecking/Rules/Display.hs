@@ -92,7 +92,7 @@ patternToTerm p ret =
   case p of
     A.VarP A.BindName{unBind = x}   -> bindVar x $ ret 1 var0
     A.ConP _ cs ps
-      | Just c <- getUnambiguous cs -> pappToTerm c (Con (ConHead c IsData Inductive []) ConOCon) ps \ n t -> ret n (IsApp t)
+      | Just c <- getUnambiguous cs -> pappToTerm c (Con (ConHead c IsData Inductive NotHIT []) ConOCon) ps \ n t -> ret n (IsApp t)
       | otherwise                   -> ambigErr "constructor" cs
     A.ProjP _ _ ds
       | Just d <- getUnambiguous ds -> ret 0 $ IsProj d
@@ -112,10 +112,10 @@ patternToTerm p ret =
   where
     fail = throwError . ("its left-hand side contains " ++)
     failP s = fail . (s ++) . (": " ++) . render =<< prettyA p
-    ambigErr thing (AmbQ xs) =
+    ambigErr thing x =
       fail . render =<< do
         text ("an ambiguous " ++ thing ++ ":") <?>
-          fsep (punctuate comma (fmap pretty xs))
+          fsep (punctuate ";" (fmap pretty (getAmbiguous x)))
 
 bindWild :: M a -> M a
 bindWild ret = do
@@ -128,10 +128,17 @@ bindVar x ret = addContext x ret
 exprToTerm :: A.Expr -> M Term
 exprToTerm e =
   case unScope e of
+    -- removed by 'unScope'
+    A.ScopedExpr{}    -> __IMPOSSIBLE__
+
+    -- preserved by 'unScope', but only matters for highlighting
+    A.Qualified   _ e -> exprToTerm e
+    A.Highlighted _ e -> exprToTerm e
+
     A.Var x          -> fst <$> getVarInfo x
     A.Def' f NoSuffix-> pure $ Def f []
     A.Def'{}         -> fail "suffix"
-    A.Con c          -> pure $ Con (ConHead (headAmbQ c) IsData Inductive []) ConOCon [] -- Don't care too much about ambiguity here
+    A.Con c          -> pure $ Con (ConHead (headAmbQ c) IsData Inductive NotHIT []) ConOCon [] -- Don't care too much about ambiguity here
     A.Lit _ l        -> pure $ Lit l
     A.App _ e arg    -> applyE <$> exprToTerm e <*> ((:[]) . inheritHiding arg . IsApp <$> exprToTerm (namedArg arg))
 
@@ -152,9 +159,6 @@ exprToTerm e =
     A.Let{}            -> fail "let"
     A.Rec{}            -> fail "record"
     A.RecUpdate{}      -> fail "record update"
-    A.RecWhere{}       -> fail "record where"
-    A.RecUpdateWhere{} -> fail "record update"
-    A.ScopedExpr{}     -> __IMPOSSIBLE__
     A.Quote{}          -> fail "quotation"
     A.QuoteTerm{}      -> fail "quotation"
     A.Unquote{}        -> fail "unquote"

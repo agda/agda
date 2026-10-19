@@ -8,13 +8,14 @@ module Agda.Compiler.Treeless.Erase
        , isErasable
        ) where
 
-import Control.Arrow       ( first, second )
 import Control.Monad.State ( StateT, evalStateT )
 
+import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
@@ -26,17 +27,17 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 
+import Agda.Compiler.Treeless.Pretty ()
 import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Unused
 
 import Agda.Utils.Functor
-import Agda.Utils.Lens
+import Agda.Utils.IntSet.Infinite ( IntSet )
+import Agda.Utils.IntSet.Infinite qualified as IntSet
 import Agda.Utils.Maybe
 import Agda.Utils.Memo
 import Agda.Utils.Monad
-import Agda.Syntax.Common.Pretty (prettyShow)
-import Agda.Utils.IntSet.Infinite (IntSet)
-import qualified Agda.Utils.IntSet.Infinite as IntSet
+import Agda.Utils.Tuple           ( first, second )
 
 import Agda.Utils.Impossible
 
@@ -67,7 +68,12 @@ computeErasedConstructorArgs d = do
   runE $ mapM_ getFunInfo cs
 
 eraseTerms :: QName -> EvaluationStrategy -> TTerm -> TCM TTerm
-eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
+eraseTerms q eval t = do
+  t' <- usedArguments q t *> runE (eraseTop q t)
+  reportSDoc "treeless.opt.erase" 40 $
+    "Term before erasure:" $$ nest 2 (pretty t) $$
+    "Term after erasure:" $$ nest 2 (pretty t')
+  return t'
   where
     eraseTop q t = do
       (_, h) <- getFunInfo q
@@ -101,13 +107,13 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
         TCon{}         -> pure t
         TApp f es      -> tApp <$> erase f <*> mapM erase es
         TLam b         -> tLam <$> erase b
-        TLet e b       -> do
+        TLet s e b     -> do
           e <- erase e
           if isErased e
             then case b of
-                   TCase 0 _ _ _ -> tLet TErased <$> erase b
+                   TCase 0 _ _ _ -> tLet s TErased <$> erase b
                    _             -> erase $ subst 0 TErased b
-            else tLet e <$> erase b
+            else tLet s e <$> erase b
         TCase x t d bs -> do
           (d, bs) <- pruneUnreachable x (caseErased t) (caseType t) d bs
           d       <- erase d
@@ -121,11 +127,13 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
         TCoerce e      -> TCoerce <$> erase e
 
     -- #3380: this is not safe for strict backends
-    tLam TErased | eval == LazyEvaluation = TErased
-    tLam t                                = TLam t
+    tLam TErased = case eval of
+      LazyEvaluation _ -> TErased
+      EagerEvaluation  -> TLam TErased
+    tLam t = TLam t
 
-    tLet e b
-      | freeIn 0 b = TLet e b
+    tLet s e b
+      | freeIn 0 b = TLet s e b
       | otherwise  = strengthen impossible b
 
     tApp f []                  = f
@@ -206,12 +214,18 @@ pruneUnreachable' _ erased (CTData q) d bs' = do
         if isErased erased
         then getConstructors q
         else getNotErasedConstructors q
-  let bs | isErased erased = bs'
-         | otherwise       =
-           flip filter bs' $ \case
-             a@TACon{} -> (aCon a) `elem` cs
-             TAGuard{} -> True
-             TALit{}   -> True
+  let (bs, pruned)
+        | isErased erased = (bs', [])
+        | otherwise       =
+          flip List.partition bs' $ \case
+            a@TACon{} -> (aCon a) `elem` cs
+            TAGuard{} -> True
+            TALit{}   -> True
+  lift $ reportSDoc "treeless.opt.erase.prune" 50 $
+    ("The match is" <+>
+     (if isErased erased then id else ("not" <+>)) "erased.") $$
+    "Kept branches:" $$ nest 2 (vcat (map pretty bs)) $$
+    "Pruned branches:" $$ nest 2 (vcat (map pretty pruned))
   let -- In the case of a match on an erased argument the value d is
       -- equal to tUnreachable, except perhaps if bs is empty. In the
       -- latter case complete is True exactly when the type has zero

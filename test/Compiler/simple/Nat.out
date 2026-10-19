@@ -1,0 +1,148 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > div-helper 0 0 0 0 == 0 PASSED: 0 == 0
+out > mod-helper 0 0 0 0 == 0 PASSED: 0 == 0
+out > div-helper 0 0 0 1 == 0 PASSED: 0 == 0
+out > mod-helper 0 0 0 1 == 0 PASSED: 0 == 0
+out > div-helper 0 0 0 2 == 0 PASSED: 0 == 0
+out > mod-helper 0 0 0 2 == 0 PASSED: 0 == 0
+out > div-helper 0 0 1 0 == 1 PASSED: 1 == 1
+out > mod-helper 0 0 1 0 == 0 PASSED: 0 == 0
+out > div-helper 0 0 1 1 == 0 PASSED: 0 == 0
+out > mod-helper 0 0 1 1 == 1 PASSED: 1 == 1
+out > div-helper 0 0 1 2 == 0 PASSED: 0 == 0
+out > mod-helper 0 0 1 2 == 1 PASSED: 1 == 1
+out > div-helper 0 0 2 0 == 2 PASSED: 2 == 2
+out > mod-helper 0 0 2 0 == 0 PASSED: 0 == 0
+out > div-helper 0 0 2 1 == 1 PASSED: 1 == 1
+out > mod-helper 0 0 2 1 == 0 PASSED: 0 == 0
+out > div-helper 0 0 2 2 == 0 PASSED: 0 == 0
+out > mod-helper 0 0 2 2 == 2 PASSED: 2 == 2
+out > div-helper 0 1 0 0 == 0 PASSED: 0 == 0
+out > mod-helper 0 1 0 0 == 0 PASSED: 0 == 0
+out > div-helper 0 1 0 1 == 0 PASSED: 0 == 0
+out > mod-helper 0 1 0 1 == 0 PASSED: 0 == 0
+out > div-helper 0 1 0 2 == 0 PASSED: 0 == 0
+out > mod-helper 0 1 0 2 == 0 PASSED: 0 == 0
+out > div-helper 0 1 1 0 == 1 PASSED: 1 == 1
+out > mod-helper 0 1 1 0 == 0 PASSED: 0 == 0
+out > div-helper 0 1 1 1 == 0 PASSED: 0 == 0
+out > mod-helper 0 1 1 1 == 1 PASSED: 1 == 1
+out > div-helper 0 1 1 2 == 0 PASSED: 0 == 0
+out > mod-helper 0 1 1 2 == 1 PASSED: 1 == 1
+out > div-helper 0 1 2 0 == 1 PASSED: 1 == 1
+out > mod-helper 0 1 2 0 == 1 PASSED: 1 == 1
+out > div-helper 0 1 2 1 == 1 PASSED: 1 == 1
+out > mod-helper 0 1 2 1 == 0 PASSED: 0 == 0
+out > div-helper 0 1 2 2 == 0 PASSED: 0 == 0
+out > mod-helper 0 1 2 2 == 2 PASSED: 2 == 2
+out > div-helper 0 0 0 0 == 0 PASSED: 0 == 0
+out > mod-helper 0 0 0 0 == 0 PASSED: 0 == 0
+out > div-helper 1 0 0 1 == 1 PASSED: 1 == 1
+out > mod-helper 1 0 0 1 == 1 PASSED: 1 == 1
+out > div-helper 1 0 0 2 == 1 PASSED: 1 == 1
+out > mod-helper 1 0 0 2 == 1 PASSED: 1 == 1
+out > div-helper 1 0 1 0 == 2 PASSED: 2 == 2
+out > mod-helper 1 0 1 0 == 0 PASSED: 0 == 0
+out > div-helper 1 0 1 1 == 1 PASSED: 1 == 1
+out > mod-helper 1 0 1 1 == 2 PASSED: 2 == 2
+out > div-helper 1 0 1 2 == 1 PASSED: 1 == 1
+out > mod-helper 1 0 1 2 == 2 PASSED: 2 == 2
+out > div-helper 1 0 2 0 == 3 PASSED: 3 == 3
+out > mod-helper 1 0 2 0 == 0 PASSED: 0 == 0
+out > div-helper 1 0 2 1 == 2 PASSED: 2 == 2
+out > mod-helper 1 0 2 1 == 0 PASSED: 0 == 0
+out > div-helper 1 0 2 2 == 1 PASSED: 1 == 1
+out > mod-helper 1 0 2 2 == 3 PASSED: 3 == 3
+out > div-helper 1 1 0 0 == 1 PASSED: 1 == 1
+out > mod-helper 1 1 0 0 == 1 PASSED: 1 == 1
+out > div-helper 1 1 0 1 == 1 PASSED: 1 == 1
+out > mod-helper 1 1 0 1 == 1 PASSED: 1 == 1
+out > div-helper 1 1 0 2 == 1 PASSED: 1 == 1
+out > mod-helper 1 1 0 2 == 1 PASSED: 1 == 1
+out > div-helper 1 1 1 0 == 2 PASSED: 2 == 2
+out > mod-helper 1 1 1 0 == 0 PASSED: 0 == 0
+out > div-helper 1 1 1 1 == 1 PASSED: 1 == 1
+out > mod-helper 1 1 1 1 == 2 PASSED: 2 == 2
+out > div-helper 1 1 1 2 == 1 PASSED: 1 == 1
+out > mod-helper 1 1 1 2 == 2 PASSED: 2 == 2
+out > div-helper 1 1 2 0 == 2 PASSED: 2 == 2
+out > mod-helper 1 1 2 0 == 1 PASSED: 1 == 1
+out > div-helper 1 1 2 1 == 2 PASSED: 2 == 2
+out > mod-helper 1 1 2 1 == 0 PASSED: 0 == 0
+out > div-helper 1 1 2 2 == 1 PASSED: 1 == 1
+out > mod-helper 1 1 2 2 == 3 PASSED: 3 == 3
+out > 0 / 1 == 0 PASSED: 0 == 0
+out > 0 % 1 == 0 PASSED: 0 == 0
+out > 1 / 1 == 1 PASSED: 1 == 1
+out > 1 % 1 == 0 PASSED: 0 == 0
+out > 2 / 1 == 2 PASSED: 2 == 2
+out > 2 % 1 == 0 PASSED: 0 == 0
+out > 3 / 1 == 3 PASSED: 3 == 3
+out > 3 % 1 == 0 PASSED: 0 == 0
+out > 4 / 1 == 4 PASSED: 4 == 4
+out > 4 % 1 == 0 PASSED: 0 == 0
+out > 5 / 1 == 5 PASSED: 5 == 5
+out > 5 % 1 == 0 PASSED: 0 == 0
+out > 6 / 1 == 6 PASSED: 6 == 6
+out > 6 % 1 == 0 PASSED: 0 == 0
+out > 7 / 1 == 7 PASSED: 7 == 7
+out > 7 % 1 == 0 PASSED: 0 == 0
+out > 8 / 1 == 8 PASSED: 8 == 8
+out > 8 % 1 == 0 PASSED: 0 == 0
+out > 0 / 2 == 0 PASSED: 0 == 0
+out > 0 % 2 == 0 PASSED: 0 == 0
+out > 1 / 2 == 0 PASSED: 0 == 0
+out > 1 % 2 == 1 PASSED: 1 == 1
+out > 2 / 2 == 1 PASSED: 1 == 1
+out > 2 % 2 == 0 PASSED: 0 == 0
+out > 3 / 2 == 1 PASSED: 1 == 1
+out > 3 % 2 == 1 PASSED: 1 == 1
+out > 4 / 2 == 2 PASSED: 2 == 2
+out > 4 % 2 == 0 PASSED: 0 == 0
+out > 5 / 2 == 2 PASSED: 2 == 2
+out > 5 % 2 == 1 PASSED: 1 == 1
+out > 6 / 2 == 3 PASSED: 3 == 3
+out > 6 % 2 == 0 PASSED: 0 == 0
+out > 7 / 2 == 3 PASSED: 3 == 3
+out > 7 % 2 == 1 PASSED: 1 == 1
+out > 8 / 2 == 4 PASSED: 4 == 4
+out > 8 % 2 == 0 PASSED: 0 == 0
+out > 0 / 3 == 0 PASSED: 0 == 0
+out > 0 % 3 == 0 PASSED: 0 == 0
+out > 1 / 3 == 0 PASSED: 0 == 0
+out > 1 % 3 == 1 PASSED: 1 == 1
+out > 2 / 3 == 0 PASSED: 0 == 0
+out > 2 % 3 == 2 PASSED: 2 == 2
+out > 3 / 3 == 1 PASSED: 1 == 1
+out > 3 % 3 == 0 PASSED: 0 == 0
+out > 4 / 3 == 1 PASSED: 1 == 1
+out > 4 % 3 == 1 PASSED: 1 == 1
+out > 5 / 3 == 1 PASSED: 1 == 1
+out > 5 % 3 == 2 PASSED: 2 == 2
+out > 6 / 3 == 2 PASSED: 2 == 2
+out > 6 % 3 == 0 PASSED: 0 == 0
+out > 7 / 3 == 2 PASSED: 2 == 2
+out > 7 % 3 == 1 PASSED: 1 == 1
+out > 8 / 3 == 2 PASSED: 2 == 2
+out > 8 % 3 == 2 PASSED: 2 == 2
+out > 0 / 4 == 0 PASSED: 0 == 0
+out > 0 % 4 == 0 PASSED: 0 == 0
+out > 1 / 4 == 0 PASSED: 0 == 0
+out > 1 % 4 == 1 PASSED: 1 == 1
+out > 2 / 4 == 0 PASSED: 0 == 0
+out > 2 % 4 == 2 PASSED: 2 == 2
+out > 3 / 4 == 0 PASSED: 0 == 0
+out > 3 % 4 == 3 PASSED: 3 == 3
+out > 4 / 4 == 1 PASSED: 1 == 1
+out > 4 % 4 == 0 PASSED: 0 == 0
+out > 5 / 4 == 1 PASSED: 1 == 1
+out > 5 % 4 == 1 PASSED: 1 == 1
+out > 6 / 4 == 1 PASSED: 1 == 1
+out > 6 % 4 == 2 PASSED: 2 == 2
+out > 7 / 4 == 1 PASSED: 1 == 1
+out > 7 % 4 == 3 PASSED: 3 == 3
+out > 8 / 4 == 2 PASSED: 2 == 2
+out > 8 % 4 == 0 PASSED: 0 == 0
+out >

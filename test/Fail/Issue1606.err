@@ -1,4 +1,8 @@
 Issue1606.agda:18.24-34: error: [UnequalTerms]
-anything != f of type C
+The terms
+  anything
+and
+  f
+are not equal at type C
 when checking that the given dot pattern c anything matches the
 inferred value c f

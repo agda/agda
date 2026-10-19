@@ -19,13 +19,13 @@ import Prelude hiding (null, splitAt)
 import Control.DeepSeq
 
 import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
+import Data.IntMap qualified as IntMap
 
 import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
+import Data.Map.Strict qualified as Map
 
 import Agda.Utils.Range
-import Agda.Utils.List
+import Agda.Utils.List hiding (splitAt')
 import Agda.Utils.Null
 
 ------------------------------------------------------------------------

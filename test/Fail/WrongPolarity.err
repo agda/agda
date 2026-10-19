@@ -1,5 +1,9 @@
 WrongPolarity.agda:25.23-36: error: [UnequalTerms]
-↑ i !=< i of type Size
+The terms
+  Nat {↑ i}
+and
+  Nat {i}
+are not equal at type Set
 when checking that the inferred type of an application
   Sink (Nat {i})
 matches the expected type

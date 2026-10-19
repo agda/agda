@@ -20,8 +20,7 @@ Code of conduct
 
   Excluded are simple bug fixes with a milestone on github and without
   the tag `not-in-changelog`.  These are added upon release by the
-  release manager via the tool `src/release-tools/closed-issues-for-milestone`.
-  See [Closing issues](#closing-issues).
+  release manager via the tool [`closed-issues-for-milestone`](https://github.com/agda/closed-issues-for-milestone).
 
 * Changes should go through a pull request.
 
@@ -30,6 +29,112 @@ Code of conduct
 Note: Some instructions in this document are likely outdated,
 so take everything with a grain of salt.
 Fixes to outdated instructions welcome!
+
+How to build Agda from source
+=============================
+
+Running `cabal install`, `stack install`, or `make` from the repository root should build Agda,
+assuming you set up dependencies correctly (see "Troubleshooting Cabal").
+
+With nix
+--------
+
+You can also build Agda with nix.
+
+Running
+
+```shellsession
+$ nix build
+```
+
+will build Agda following the instructions in the `flake.nix` file in the current directory, including dependencies.
+Results are cached in `/nix/store`, and a symlink called `result-bin` is created.
+
+`nix` can also build from a URL or other *flake reference*, e.g.
+
+```shellsession
+$ nix build github:agda/agda/v2.8.0
+```
+
+You can also tell `nix` to e.g. run tests and show logs:
+
+```shellsession
+$ nix build .#test -L
+```
+
+See the `flake.nix` to see what build goals are available.
+
+Troubleshooting Cabal
+=====================
+
+Dynamic linking issues
+----------------------
+
+If you have setting ``executable-dynamic: True`` in your cabal configuration
+then installation will likely fail on Windows.
+
+Cure: change to default ``executable-dynamic: False``.
+
+Further information:
+
+* https://github.com/agda/agda/issues/7163
+* https://github.com/haskell/cabal/issues/9784
+
+
+Installing ICU
+--------------
+
+If cluster counting is enabled (see the ``enable-cluster-counting`` flag above, enabled by default), then you will need the [ICU](http://site.icu-project.org) library
+to be installed. See the [text-icu Prerequisites documentation](https://github.com/haskell/text-icu#prerequisites) for how to install ICU on your system.
+
+`zlib` and `ncurses` Dependency
+-------------------------------
+
+Non-Windows users need to ensure that the development files for the C
+libraries *zlib* and *ncurses* are installed (see https://zlib.net
+and https://www.gnu.org/software/ncurses/). Your package manager may be
+able to install these files for you. For instance, on Debian or Ubuntu
+it should suffice to run
+
+    apt-get install zlib1g-dev libncurses5-dev
+
+as root to get the correct files installed.
+
+Keeping the Default Environment Clean
+--------------------------------------
+
+You may want to keep the default environment clean, e.g. to avoid conflicts with
+other installed packages. In this case you can a create a separate GHC environment for Agda by running:
+
+    cabal install --package-env agda --lib Agda ieee754
+
+You then have to set the `GHC_ENVIRONMENT` when you invoke Agda:
+
+    GHC_ENVIRONMENT=agda agda -c hello-world.agda
+
+N.B. Actually it is not necessary to register the Agda library,
+but doing so forces Cabal to install the same version of
+[ieee754](https://hackage.haskell.org/package/ieee754)
+as used by Agda.
+
+Installing Multiple Versions of Agda
+------------------------------------
+
+Multiple versions of Agda can be installed concurrently by using the ``--program-suffix`` flag.
+For example:
+
+    cabal install Agda-2.6.4.3 --program-suffix=-2.6.4.3
+
+will install version 2.6.4.3 under the name agda-2.6.4.3. You can then switch to this version
+of Agda in Emacs via
+
+    C-c C-x C-s 2.6.4.3 RETURN
+
+Switching back to the standard version of Agda is then done by:
+
+    C-c C-x C-s RETURN
+
+The VSCode mode also supports selecting multiple Agda versions.
 
 Working with Git
 ================
@@ -142,6 +247,23 @@ Standard library submodule
 
   See: https://www.git-scm.com/book/en/v2/Git-Tools-Submodules
 
+* The cubical library is vendored as a submodule `/cubical` in the same way,
+  with goals `cubical`, `up-to-date-cubical` and `fast-forward-cubical`.
+
+Ecosystem libraries
+-------------------
+
+Several further large Agda developments are vendored as submodules under
+`/ecosystem` so that we get alerted of regressions we introduce on `master`:
+`agda-categories`, `agda-unimath`, `plfa` and `TypeTopology`.
+
+Unlike `/std-lib` and `/cubical` these submodules are marked `update = none` in
+`/.gitmodules` and are hence *not* populated by `git clone
+--recurse-submodules`; run `make ecosystem` (or `make <library>`) to check them
+out.  `make ecosystem-test` type-checks them all, `make <library>-test` just one.
+
+See [`ecosystem/README.md`](ecosystem/README.md) for the details.
+
 Testing and documentation
 =========================
 
@@ -149,10 +271,10 @@ Testing and documentation
   `doc/user-manual/` and `CHANGELOG.md`.
 
 * In both cases, you need to add regression tests under `test/Succeed`
-  and `test/Fail`, and maybe also `test/interaction`.
+  and `test/Fail`, and maybe also `test/Interaction`.
     * When adding test cases under `test/Fail`, remember to record the error messages
       (`.err` files) after running make test.
-    * Same for `.warn` files in `test/Succeed` and `.out` files in `test/interaction`.
+    * Same for `.warn` files in `test/Succeed` and `.out` files in `test/Interaction`.
     * You can also add `.flags` files to set Agda options.
     * You can also add `.vars` files to set environment variables (which may reference other environment variables, even those in the file appearing before them).
 
@@ -194,7 +316,7 @@ Testing and documentation
   or in `mk/config.mk`.
 
 * You can run a single interaction test by going into the
-  `test/interaction` directory and typing `make <test name>.cmp`.
+  `test/Interaction` directory and typing `make <test name>.cmp`.
 
 * Additional options for the tests using the Haskell/tasty test runner
   can be given using `AGDA_TESTS_OPTIONS`. By default, the interactive
@@ -378,6 +500,16 @@ commit's message is checked for the phrase).
 | `[ci skip]` | Skips GitHub workflows |
 | `[skip ci]` | As-per `[ci skip]` |
 
+### Opt-in test suites
+
+Some test suites are not run by default due to their long running time.
+They can be enabled by including a special phrase in the commit message
+(for push events) or in the PR title (for pull request events).
+
+| Phrase | Effect |
+|--------|--------|
+| `[ecosystem]` | Runs the tests of the ecosystem libraries (adds a few workers at ~10 minutes each) |
+
 ### Editing the GitHub Actions
 
 The actions residing in the standard location `.github/workflows` are
@@ -458,7 +590,7 @@ Emacs mode
 ==========
 
 * If you fix a bug related to syntax highlighting, please add a test
-  case under `test/interaction`. Example `.in` file command:
+  case under `test/Interaction`. Example `.in` file command:
 
       IOTCM "Foo.agda" NonInteractive Direct (Cmd_load "Foo.agda" [])
 
@@ -524,7 +656,7 @@ Since: July 2019.
   `M-x agda2-set-program-version RET quicker RET`.
 
 * Running the testsuite requires some tinkering.  E.g., the interactive testsuite
-  can be run via `make -C test/interaction AGDA_BIN=agda-quicker`.
+  can be run via `make -C test/Interaction AGDA_BIN=agda-quicker`.
 
 
 Bisecting: Finding the commit that introduced a regression
@@ -562,7 +694,7 @@ See `agda-bisect --help` for usage information.
 The following command temporarily enables Bash completion for
 `agda-bisect`:
   ```sh
-    source < (agda-bisect --bash-completion-script `which agda-bisect`)
+    source < (agda-bisect --bash-completion-script `command -v agda-bisect`)
   ```
 Bash completion can perhaps be enabled more permanently by storing the
 output of the command above in a file in a suitable directory (like
@@ -596,16 +728,19 @@ Closed issues reported in the CHANGELOG
 
 Before releasing for example Agda 1.2.3 we add to the `CHANGELOG`
 *all* the closed issues with milestone 1.2.3 except those issues
-tagged with the labels listed in `labelsNotInChangelog` in the
-`src/release-tools/closed-issues-for-milestone/Main.hs` file.
+tagged with the labels listed under `changelog.exclude.labels` in
+`.github/release.yml`. This is also the list used by GitHub when
+automatically generating release notes.
 
 Closed issues by milestone program
 ----------------------------------
 
-The `closed-issues-by-milestone` program requires a GitHub personal
-access token in the `GITHUBTOKEN` environment variable, i.e,
+The `closed-issues-for-milestone` program loads the release configuration
+from `.github/release.yml` by default. Use `--config FILE` to specify a
+different location. It requires a GitHub personal access token in the
+`GITHUB_TOKEN` environment variable, i.e.,
 
-    export GITHUBTOKEN=your-personal-access-token
+    export GITHUB_TOKEN=your-personal-access-token
 
 The personal access token can be generated from your GitHub user:
 

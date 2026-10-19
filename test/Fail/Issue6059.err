@@ -1,6 +1,6 @@
 Issue6059.agda:58.1-68.16: error: [TerminationIssue]
 Termination checking failed for the following functions:
-  f, g
+  f g
 Problematic calls:
   g (_,_ n)
     (at Issue6059.agda:61.45-46)

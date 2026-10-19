@@ -146,7 +146,7 @@ data ModuleInfo = ModuleInfo
     -- if any. Retained for highlighting purposes.
   , minfoAsName   :: Maybe C.Name
     -- ^ The \"as\" module name, if any. Retained for highlighting purposes.
-  , minfoOpenShort :: Maybe OpenShortHand
+  , minfoOpenShort :: OpenShortHand
   , minfoDirective :: Maybe ImportDirective
     -- ^ Retained for @abstractToConcrete@ of 'ModuleMacro'.
   }
@@ -205,7 +205,7 @@ instance HasRange (DefInfo' t) where
 instance SetRange (DefInfo' t) where
   setRange r i = i { defInfo = setRange r (defInfo i) }
 
-instance KillRange t => KillRange (DefInfo' t) where
+instance KillRange (DefInfo' t) where
   killRange i = i { defInfo   = killRange $ defInfo i,
                     defTactic = killRange $ defTactic i }
 

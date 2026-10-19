@@ -2,6 +2,9 @@ Issue1644b.agda:14.1-24: warning: -W[no]InvalidDisplayForm
 Ignoring invalid display form for N.A because it is recursive
 when checking the pragma DISPLAY N.A = A
 
-Issue1644b.agda:19.8-9: error: [UnequalTerms]
-N.A !=< Set
+Issue1644b.agda:19.8-9: error: [UnequalTypes]
+The type
+  N.A
+is not a subtype of
+  Set
 when checking that the expression a has type Set

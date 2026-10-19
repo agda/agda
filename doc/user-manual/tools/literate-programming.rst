@@ -133,6 +133,52 @@ HTML or LaTeX using PanDoc_.
   difficulty of interpreting their indentation level with respect to
   the rest of the file.
 
+.. _literate-markdown-only-agda-blocks:
+
+Only ``agda`` code blocks
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 2.9.0
+
+By default, both unmarked code blocks (```````) and explicitly
+marked code blocks (`````agda``) are treated as Agda code.
+
+With the :option:`--literate-markdown-only-agda-blocks` command-line option
+(off by default), only code blocks explicitly marked with `````agda`` are
+treated as Agda code. Unmarked code blocks are treated as verbatim text and
+are not type-checked. This allows including other code examples in the
+document without Agda attempting to parse them.
+
+Example with ``--literate-markdown-only-agda-blocks``:
+
+.. code-block:: md
+
+   This is prose.
+
+   Here is some Agda code:
+
+   ```agda
+   data Bool : Set where
+     true false : Bool
+   ```
+
+   Here is a JavaScript example that is NOT type-checked:
+
+   ```
+   function hello() { return "world"; }
+   ```
+
+   Here is another verbatim block with a language tag:
+
+   ```haskell
+   main = putStrLn "Hello, World!"
+   ```
+
+This option is not available as pragma since it affects parsing before any pragma options are processed.
+It must be set via command line (``agda --literate-markdown-only-agda-blocks``)
+or passed under ``flags:`` in the ``.agda-lib`` file.
+
+
 Literate Org
 ------------
 
@@ -161,15 +207,13 @@ Literate Forester
 Files ending in :file:`.lagda.tree` are interpreted as literate
 Forester_ files. Literate forester uses ```\agda{...}``` for code blocks.
 
-You will need the postprocessor agda-tree_ to convert ``html/*.tree`` to a valid forester tree.
+  * Run ``agda --html --html-highlight=code example.lagda.tree`` to generate ``html/example.tree``.
+  * Add ``html/`` to the ``trees`` list in ``forest.toml`` so Forester can find the generated trees.
+  * Modify ``theme/tree.xsl`` of your forester project to include ``Agda.css`` in the linked stylesheets.
 
-  * ``agda --html --html-highlight=code example.lagda.tree`` will produce the file ``html/example.tree``.
-  * Run ``agda-tree build`` at where ``html/`` is located, this will produce subdirectory ``trees/`` there.
-  * Add ``trees/`` to ``forest.toml``.
-  * Add ``html/`` to ``forest.toml`` as assets.
-  * Modify ``theme/tree.xsl`` of your forester project, adding ``Agda.css`` to the linked styles.
+Running ``forester build`` produce file ``output/example/index.xml``.
 
-Running ``forester build`` should now produce file ``example.xml`` with Agda syntax highlighting.
+  * Run ``cp html/Agda.css output/``, now you get Agda syntax highlighting.
 
 .. code-block:: text
 
@@ -188,6 +232,9 @@ Running ``forester build`` should now produce file ``example.xml`` with Agda syn
     suc  : ℕ → ℕ
    }
 
+* Self-link issue with Agda + Forester: When compiling ``.lagda.tree`` files, Agda generates links to local definitions using the module name (e.g., ``bool.html#232``). However, Forester outputs pages as ``output/bool/index.html``. This mismatch causes self-referential links to resolve to ``bool/bool.html#232`` instead of ``#232`` on the current page, resulting in 404s. This cannot be fixed in Agda's HTML backend - it has no awareness of Forester's output structure. A post-processing script is needed: for each generated page, copy ``output/i/index.html`` to ``output/i/i.html`` so the incorrect paths become valid redirects.
+* A similar problem occurs with references to Agda modules not compiled as part of your forest - whether standard library modules or local ``.agda`` files without corresponding trees. A script could rewrite these as root-relative paths (e.g., ``/Agda.Primitive.html#388``), which works if you host at a domain root. But this isn't general - on GitHub Pages, for example, your site lives at ``your-id.github.io/your-repo/``, so the correct path would be ``/your-repo/Agda.Primitive.html#388`` - requiring the script to know your deployment prefix. Either way, you also need to copy the generated HTML files from ``html/`` to your output directory - Forester won't include them automatically.
+
 .. _TeX: http://tug.org/
 .. _reStructuredText: http://docutils.sourceforge.io/rst.html
 .. _Markdown: https://daringfireball.net/projects/markdown/
@@ -196,6 +243,5 @@ Running ``forester build`` should now produce file ``example.xml`` with Agda syn
 .. _Forester: https://sr.ht/~jonsterling/forester/
 
 .. _lhs2TeX: https://www.andres-loeh.de/lhs2tex/
-.. _agda-tree: https://github.com/dannypsnl/agda-tree
 .. _Sphinx: http://www.sphinx-doc.org/en/stable/
 .. _Pandoc: https://pandoc.org/

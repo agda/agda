@@ -1,3 +1,6 @@
-Issue1944-checkHidden.agda:18.39-40: error: [UnequalTerms]
-B !=< A
+Issue1944-checkHidden.agda:18.39-40: error: [UnequalTypes]
+The type
+  B
+is not a subtype of
+  A
 when checking that the expression b has type A

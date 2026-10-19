@@ -5,15 +5,57 @@ Emacs Mode
 **********
 
 Agda programs can be edited in
-`Emacs <http://www.gnu.org/software/emacs/>`_ with support by the ``agda-mode``.
+`Emacs <http://www.gnu.org/software/emacs/>`_ with support by the ``agda-mode``,
+which is maintained by the Agda developers in the main Agda repository and offers many advanced features.
 To use it, first ensure
-you have :ref:`installed Agda <installation>` and the :ref:`Emacs agda-mode <install-agda-mode>`.
+you have :ref:`installed Agda <installation>`, installed Emacs,
+and :ref:`installed agda-mode <install-agda-mode>`.
 
 To edit a module in Emacs, open a file ending in ``.agda`` and load it by pressing
 ``C-c C-l`` (other commands are listed under :ref:`notation-for-key-combinations`
 below). This will apply syntax highlighting to the code and display any errors in
 a separate buffer. Agda uses certain background colors to indicate specific issues
 with the code, see :ref:`highlight` below.
+
+
+.. _install-agda-mode:
+
+Installation
+============
+
+After installing the ``agda`` program and Emacs, run the following command:
+
+.. code-block:: bash
+
+  agda --emacs-mode setup
+
+The above command will first write the Agda data files to the
+Agda data directory (see :option:`--print-agda-data-dir`)
+if this directory does not exist yet.
+(To force writing the data files there use the :option:`--setup` option of ``agda``.)
+
+It then tries to set up Emacs for use with Agda.
+As an alternative you can copy the
+following text to your *.emacs* file:
+
+.. code-block:: emacs
+
+  (load-file (let ((coding-system-for-read 'utf-8))
+                  (shell-command-to-string "agda --emacs-mode locate")))
+
+It is also possible (but not necessary) to compile the Emacs mode's
+files:
+
+.. code-block:: bash
+
+  agda --emacs-mode compile
+
+This can, in some cases, give a noticeable speedup.
+
+.. Warning::
+  If you reinstall the Agda mode without recompiling the Emacs Lisp files,
+  then Emacs may continue using the old, compiled files.
+
 
 Menus
 =====
@@ -90,14 +132,27 @@ The following notation is used when describing key combinations:
 :kbd:`SPC`
      is the space bar.
 
-Commands working with terms or types can be prefixed with ``C-u`` to compute without further
-normalisation, with ``C-u C-u`` to compute normal forms, and ``C-u C-u C-u`` to compute
-weak-head normal forms.
+By default, terms and types printed by interactive commands
+will be simplified by evaluating certain functions.
+Specifically, only those functions that match on a
+constructor pattern or a projection copattern will be reduced, as well as
+primitive functions of Agda. For example, ``(suc x) + y`` will be simplified
+to ``suc (x + y)`` but ``id 42`` will be printed as is.
+The level of normalisation of commands that print a term or type can be
+modified by prefixing the command by one or more repetitions of ``C-u``:
+
+* ``C-u`` to print the term without any simplification.
+* ``C-u C-u`` to print the full normal form.
+* ``C-u C-u C-u`` to print the weak-head normal form.
 
 .. _emacs-global-commands:
 
 Global commands
 ~~~~~~~~~~~~~~~
+
+These commands can be invoked both from within or outside of a hole.
+When invoked from within a hole and whenever it makes sense,
+they limit their action to the hole and take context and content of the hole into account.
 
 :kbd:`C-c C-l`
      **L**\ oad file. This type-checks the contents of the file, and
@@ -110,13 +165,16 @@ Global commands
      used by default).
 
 :kbd:`C-c C-i`
-     Call a given backend's top-level **i**\ nteraction command (if any).
+     Call a given backend's top-level (or hole) **i**\ nteraction command (if any).
 
 :kbd:`C-c C-x C-q`
      **Q**\ uit, kill the Agda process.
 
 :kbd:`C-c C-x C-r`
      Kill and **r**\ estart the Agda process.
+
+:kbd:`C-c C-x C-s`
+     **S**\ witch to a different Agda version.
 
 :kbd:`C-c C-x C-a`
      **A**\ bort a command.
@@ -130,31 +188,31 @@ Global commands
 :kbd:`C-c C-x C-i`
      Toggle display of **i**\ rrelevant arguments.
 
-:kbd:`C-c C-=`
-     Show constraints.
-
-:kbd:`C-c C-s`
-     **S**\ olve constraints.
-
-:kbd:`C-c C-?`
-     Show all goals.
-
 :kbd:`C-c C-f`
      Move to next goal (**f**\ orward).
 
 :kbd:`C-c C-b`
      Move to previous goal (**b**\ ackwards).
 
+:kbd:`C-c C-?`
+     Show all goals.
+
+:kbd:`C-c C-=`
+     Show constraints.
+
+:kbd:`C-c C-s`
+     **S**\ olve constraints.
+     Tries to fill holes with existing meta variable solutions
+     (as displayed by :kbd:`C-c C-=`).
+
+:kbd:`C-c C-a`
+     :ref:`auto`
+     Tries to fill holes by **a**\ utomatic type-directed term synthesis.
+
 :kbd:`C-c C-d`
      Infer (**d**\ educe) type. The system asks for a term and infers
      its type.  When executed inside a hole, it will instead take the
      contents of the hole as input (if any).
-
-:kbd:`C-c C-o`
-     M\ **o**\ dule c\ **o**\ ntents.
-
-:kbd:`C-c C-z`
-     :ref:`search-about`
 
 :kbd:`C-c C-n`
      Compute **n**\ ormal form. The system asks for a term which is
@@ -162,21 +220,33 @@ Global commands
      the contents of the hole as input (if any).
 
 :kbd:`C-u C-c C-n`
-     Compute normal form, ignoring ``abstract``.
+     Compute normal form,
+     ignoring :ref:`abstract <abstract-definitions>` and :ref:`NON_TERMINATING <non_terminating-pragma>`.
 
 :kbd:`C-u C-u C-c C-n`
      Compute and print normal form of ``show <expression>``.
 
+:kbd:`C-u C-u C-u C-c C-n`
+     Compute weak head normal form.
+
+:kbd:`C-c C-o`
+     Display c\ **o**\ ntents of the given m\ **o**\ dule.
+
+:kbd:`C-c C-w`
+     **W**\ hy in scope, given a defined name returns how it was brought into scope and its definition.
+
+:kbd:`C-c C-z`
+     :ref:`search-about`
+
 :kbd:`C-c C-x M-;`
      Comment/uncomment rest of buffer.
-
-:kbd:`C-c C-x C-s`
-     Switch to a different Agda version.
 
 .. _emacs-context-sensitive-commands:
 
 Commands in context of a goal
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The following commands only work (and make sense) inside of a hole.
 
 Commands expecting input (for example which variable to case split)
 will either use the text inside the goal or ask the user for input.
@@ -195,9 +265,6 @@ will either use the text inside the goal or ask the user for input.
 :kbd:`C-c C-m`
      Elaborate and Give (fill goal with normalized expression).
      Takes the same ``C-u`` prefixes as ``C-c C-n``.
-
-:kbd:`C-c C-a`
-     :ref:`auto`
 
 :kbd:`C-c C-c`
      **C**\ ase split. If the cursor is positioned in a hole which
@@ -223,9 +290,6 @@ will either use the text inside the goal or ask the user for input.
 :kbd:`C-c C-e`
      Context (**e**\ nvironment).
 
-:kbd:`C-c C-d`
-     Infer (**d**\ educe) type.
-
 :kbd:`C-c C-,`
      Goal type and context. Shows the goal type, i.e. the type
      expected in the current hole, along with the types of locally
@@ -236,24 +300,6 @@ will either use the text inside the goal or ask the user for input.
 
 :kbd:`C-c C-;`
      Goal type, context and checked term.
-
-:kbd:`C-c C-o`
-     M\ **o**\ dule c\ **o**\ ntents.
-
-:kbd:`C-c C-n`
-     Compute **n**\ ormal form.
-
-:kbd:`C-u C-c C-n`
-     Compute normal form, ignoring ``abstract``.
-
-:kbd:`C-u C-u C-c C-n`
-     Compute and print normal form of ``show <expression>``.
-
-:kbd:`C-c C-w`
-     Why in scope, given a defined name returns how it was brought into scope and its definition.
-
-:kbd:`C-c C-i`
-     Call a given backend's hole-level **i**\ nteraction command (if any).
 
 Other commands
 ~~~~~~~~~~~~~~
@@ -270,11 +316,19 @@ Other commands
 :guilabel:`Middle mouse button`
      Go to definition of identifier clicked on.
 
-:kbd:`M-*`
-     Go back (Emacs < 25.1).
+:kbd:`C-u M-.`
+     Go to definition of a prompted identifier.
+
+:kbd:`M-?`
+     Query a list of references in loaded files
+
+:kbd:`C-M-.`
+     Query a list of identifiers that match a prompt.  The prompt may
+     consist of multiple words that can occur in any order or a
+     regular expression.
 
 :kbd:`M-,`
-     Go back (Emacs ≥ 25.1).
+     Go back to previous location.
 
 .. _unicode-input:
 

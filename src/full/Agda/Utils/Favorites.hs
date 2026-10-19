@@ -6,15 +6,15 @@
 --   To avoid name clashes, import this module qualified, as in
 --   @
 --      import Agda.Utils.Favorites (Favorites)
---      import qualified Agda.Utils.Favorites as Fav
+--      import Agda.Utils.Favorites qualified as Fav
 --   @
 
 module Agda.Utils.Favorites where
 
 import Prelude hiding ( null )
 
-import qualified Data.List as List
-import qualified Data.Set as Set
+import Data.List qualified as List
+import Data.Set qualified as Set
 
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
@@ -23,7 +23,7 @@ import Agda.Utils.Tuple
 
 -- | A list of incomparable favorites.
 newtype Favorites a = Favorites { toList :: [a] }
-  deriving (Foldable, Show, Null, Singleton a)
+  deriving (Foldable, Show, Null, Singleton a, Functor)
 
 -- | Equality checking is a bit expensive, since we need to sort!
 --   Maybe use a 'Set' of favorites in the first place?
@@ -73,11 +73,11 @@ compareWithFavorites a favs = loop $ toList favs where
 --   @compareFavorites new old = (new', old')@
 compareFavorites :: PartialOrd a => Favorites a -> Favorites a ->
                     (Favorites a, Favorites a)
-compareFavorites new old = mapFst Favorites $ loop (toList new) old where
+compareFavorites new old = first Favorites $ loop (toList new) old where
   loop []        old = ([], old)
   loop (a : new) old = case compareWithFavorites a old of
     -- Better: Discard all @old@ ones that @a@ dominates and keep @a@
-    Dominates _ old -> mapFst (a:) $ loop new (Favorites old)
+    Dominates _ old -> first (a:) $ loop new (Favorites old)
     -- Not better:  Discard @a@
     IsDominated{}   -> loop new old
 

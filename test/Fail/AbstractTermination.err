@@ -1,5 +1,5 @@
 AbstractTermination.agda:7.1-14.18: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   f
 Problematic calls:
   g n

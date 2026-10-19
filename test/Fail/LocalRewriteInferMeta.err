@@ -1,0 +1,30 @@
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  (@rewrite p : 0 ≡ 1) → Nat =< _A_9 (blocked on _A_9)
+
+LocalRewriteInferMeta.agda:16.7-45: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  LocalRewriteInferMeta.agda:16.7-10
+  LocalRewriteInferMeta.agda:16.16-17
+  LocalRewriteInferMeta.agda:16.20-31
+  LocalRewriteInferMeta.agda:16.34-45
+
+LocalRewriteInferMeta.agda:16.20-31: error: [InferredLocalRewrite]
+Tried to solve
+  _A_9
+with the following function (containing a local rewrite rule
+parameter):
+  (@rewrite p : 0 ≡ 1) → Nat
+Local rewrite rules must be explicitly annotated (never inferred).
+Please annotate all local rewrite rules explicitly.
+when checking that the expression foo λ n → n has type _A_9
+
+LocalRewriteInferMeta.agda:16.34-45: error: [InferredLocalRewrite]
+Tried to solve
+  _A_9
+with the following function (containing a local rewrite rule
+parameter):
+  (@rewrite p : 0 ≡ 1) → Nat
+Local rewrite rules must be explicitly annotated (never inferred).
+Please annotate all local rewrite rules explicitly.
+when checking that the expression bar λ n → n has type _A_9

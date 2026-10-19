@@ -1,4 +1,5 @@
 {-# OPTIONS --sized-types #-}
+{-# OPTIONS --cubical #-}
 
 -- Andreas, 2024-09-27, issue #7514
 

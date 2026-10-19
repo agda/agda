@@ -6,7 +6,11 @@ constraints:
 when checking confluence of the rewrite rule f-b with f-a
 
 ConfluenceTypeLevelReduction.agda:31.8-42: error: [UnequalTerms]
-false != true of type Bool
+The terms
+  false
+and
+  true
+are not equal at type Bool
 when checking that the inferred type of an application
   f unit (a unit) ≡ f unit (b unit)
 matches the expected type

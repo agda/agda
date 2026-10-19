@@ -1,0 +1,6 @@
+DotPatternIrrelevantGarbage.agda:14.9-12: error: [UnequalTypes]
+The type
+  Set
+is not a subtype of
+  Nat
+when checking that the expression Nat has type Nat

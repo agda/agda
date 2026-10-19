@@ -34,6 +34,11 @@ s B = record {L}
     A = B
 
 -- With rewrite:
+-- Andreas, 2026-09-06, issue #8698: this is now rejected with
+-- NamedWhereModuleUnderWith (but scope checking already fails above).
+
+-- This means that the pattern @record {N} module N where@ is maybe not a
+-- meaningful language extension any more---since it does not work under with/rewrite.
 
 postulate
   B : Set
@@ -49,7 +54,5 @@ w : P a → W
 w p rewrite a≡b = record {N}
   module N where
     wrap = p
-
--- Should also succeed in the presence of `rewrite`.
 
 module N' = N  -- See issue #3824.

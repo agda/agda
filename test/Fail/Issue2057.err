@@ -1,3 +1,6 @@
-Issue2057.agda:18.20-21: error: [UnequalTerms]
-(x₁ : _A_9) → P x₁ !=< P x
+Issue2057.agda:18.20-21: error: [UnequalTypes]
+The type
+  (x₁ : _A_9) → P x₁
+is not a subtype of
+  P x
 when checking that the expression p has type P x

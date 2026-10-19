@@ -1,2 +1,13 @@
-Issue4450.agda:15.1-14: error: [SafeFlagEta]
-Cannot use ETA pragma with safe flag.
+Issue4450.agda:15.1-14: warning: -W[no]UselessPragma
+The ETA pragma has been removed, use the attaching ETA_EQUALITY
+pragma instead
+when scope checking the declaration
+  {-# ETA R #-}
+
+Issue4450.agda:21.8-12: error: [UnequalTerms]
+The terms
+  foo .force
+and
+  foo
+are not equal at type R
+when checking that the expression refl has type foo .force ≡ foo

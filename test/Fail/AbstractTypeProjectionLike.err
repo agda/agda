@@ -1,3 +1,7 @@
 AbstractTypeProjectionLike.agda:19.33-37: error: [UnequalTerms]
-true != false of type Bool
+The terms
+  true
+and
+  false
+are not equal at type Bool
 when checking that the expression refl has type f Bool true ≡ false

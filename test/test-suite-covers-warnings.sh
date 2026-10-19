@@ -17,7 +17,11 @@ COVERED=$TMPDIR/covered.txt
 # Those are printed by `agda --help=warning` at line beginnings and follow
 # the camel-case convention, with at least two capital letters.
 #
-${AGDA_BIN:-agda} --help=warning | sed -nr 's/^([A-Z][a-z]+[A-Z][A-Za-z]+).*/\1/p' | sort > $HELPWARNS
+${AGDA_BIN:-agda} --help=warning | sed -nr 's/^([A-Z][a-z]+[A-Z][A-Za-z]+).*/\1/p' | sort | uniq > $HELPWARNS
+
+if [[ "$1" == "--debug" ]]; then
+  cat $HELPWARNS
+fi
 
 # Warnings we do not need to cover by the testsuite.
 #
@@ -43,19 +47,19 @@ EOF
 
 # Testsuite golden value files.
 #
-FILES=$(find \( -name "*.warn" -o -name "*.err" -o -name "*.out" \))
+FILES=$(find . \( -name "*.warn" -o -name "*.err" -o -name "*.out" \))
 
 # Names $WARNINGNAME of benign warnings are CamelCase and printed in this form:
 #
 #    ... warning: -W[no]$WARNINGNAME
 #
-sed --silent --regexp-extended --expression='s/.*warning: -W\[no\]([A-Z][a-z]+[A-Z][A-Za-z]+).*/\1/p' $FILES | sort | uniq >> $BENIGNWARNS
+sed -n -E -e 's/.*warning: -W\[no\]([A-Z][a-z]+[A-Z][A-Za-z]+).*/\1/p' $FILES | sort | uniq >> $BENIGNWARNS
 
 # Names $NAME of errors and error warnings are CamelCase and printed in that form:
 #
 #    ... error: [$NAME]
 #
-sed --silent --regexp-extended --expression='s/.*error: \[([A-Z][a-z]+[A-Z][A-Za-z]+)\].*/\1/p' $FILES | sort | uniq > $ERRORS
+sed -n -E -e 's/.*error: \[([A-Z][a-z]+[A-Z][A-Za-z]+)\].*/\1/p' $FILES | sort | uniq > $ERRORS
 
 cat $BENIGNWARNS $ERRORS | sort | uniq > $COVERED
 

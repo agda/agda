@@ -1,0 +1,9 @@
+Issue8443b.agda:20.8-19: error: [UnequalTypes]
+The type
+  (n : Nat) → ⊥
+is not a subtype of
+  ⊥
+when checking that the inferred type of an application
+  (n : Nat) → ⊥
+matches the expected type
+  ⊥

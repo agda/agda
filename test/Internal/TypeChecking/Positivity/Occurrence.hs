@@ -2,7 +2,8 @@
 
 module Internal.TypeChecking.Positivity.Occurrence ( tests ) where
 
-import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Positivity.Occurrence (Occurrence(..))
+import Agda.TypeChecking.Positivity.Warnings
 import Agda.Utils.SemiRing
 import Agda.Utils.List ( uniqOn )
 
@@ -37,6 +38,7 @@ instance Arbitrary Where where
     , ConEndpoint <$> arbitrary
     , InClause <$> arbitrary
     , return Matched
+    , return InSort
     , InDefOf <$> arbitrary
     ]
 
@@ -55,7 +57,8 @@ instance CoArbitrary Where where
                              = variant 11 . coarbitrary a
   coarbitrary (InClause a)   = variant 7 . coarbitrary a
   coarbitrary Matched        = variant 8
-  coarbitrary IsIndex        = variant 9
+  coarbitrary InIndex        = variant 9
+  coarbitrary InSort         = variant 12
   coarbitrary (InDefOf a)    = variant 10 . coarbitrary a
 
 instance Arbitrary Occurrence where
@@ -99,6 +102,9 @@ prop_Occurrence_ostar x =
   ostar x == oplus oone (otimes x (ostar x))
     &&
   ostar x == oplus oone (otimes (ostar x) x)
+
+prop_Occurrence_mixed_absorptive :: Occurrence -> Bool
+prop_Occurrence_mixed_absorptive = isZero Mixed oplus
 
 -- | Is the given predicate satisfiable?
 

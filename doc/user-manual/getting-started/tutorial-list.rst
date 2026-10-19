@@ -12,16 +12,18 @@ A List of Tutorials
 Books on Agda
 =============
 
+- Sandy Maguire (2023). `Certainty by Construction
+  <https://leanpub.com/certainty-by-construction>`__
 - Phil Wadler, Wen Kokke, and Jeremy G. Siek (2019). `Programming
   Languages Foundations in Agda <https://plfa.github.io/>`__
 - Aaron Stump (2016). `Verified Functional Programming in Agda
   <https://dl.acm.org/doi/book/10.1145/2841316>`__
-- Sandy Maguire (2023). `Certainty by Construction
-  <https://leanpub.com/certainty-by-construction>`__
 
 Tutorials and lecture notes
 ===========================
 
+- Brent Yorgey (2026). `Proving the Fundamental Theorem of Arithmetic in Agda <https://byorgey.github.io/blog/posts/2026/06/26/FTA.lagda.html>`__
+- Ingo Blechschmidt (2025). `Let's Play Agda <https://lets-play-agda.quasicoherent.io/>`__
 - Martín Escardó and Dan Licata (2022). `Lecture notes for the HoTTEST Summer School <https://martinescardo.github.io/HoTTEST-Summer-School/>`__.
 - Danel Ahman and Andrej Bauer (2021). `Logic in Computer Science <https://www.andrej.com/zapiski/ISRM-LOGRAC-2022/>`__.
 - Jesper Cockx (2021). `Programming and Proving in Agda
@@ -35,6 +37,7 @@ Tutorials and lecture notes
 - Musa Al-hassy (2019). `A slow-paced introduction to reflection in Agda <https://github.com/alhassy/gentle-intro-to-reflection>`__.
 - Jesper Cockx (2019). `Formalize all the things (in Agda) <https://jesper.sikanda.be/posts/formalize-all-the-things.html>`__.
 - Peter Dybjer (2017). `An Introduction to Programming and Proving in Agda (incomplete draft) <https://www.cse.chalmers.se/edu/year/2017/course/DAT350/LectureNotes.pdf>`__.
+- Conor McBride (2015). `Datatypes of Datatypes <https://www.cs.ox.ac.uk/projects/utgp/school/conor.pdf>`__.
 - Jan Malakhovski (2013). `Brutal [Meta]Introduction to Dependent
   Types in Agda <https://oxij.org/note/BrutalDepTypes/>`__.
 - Diviánszky Péter (2012). `Agda Tutorial
@@ -126,6 +129,7 @@ Courses using Agda
 - `HoTTEST Summer School 2022 <https://www.uwo.ca/math/faculty/kapulkin/seminars/hottest_summer_school_2022.html>`__,
   online lectures by assorted instructors.
 - `Advanced Programming Paradigms <https://www.msengineering.ch/theory-modules/2024-2025-tsm-advprpa>`__, Postgraduate course jointly offered by the Universities of Applied Sciences in Switzerland, by Daniel Kröni and Farhad Mehta.
+- `Advanced Functional Programming <https://utrechtuniversity.github.io/infoafp>`__, master level course at Utrecht University by Wouter Swierstra and Lawrence Chonavel.
 
 Miscellaneous
 =============

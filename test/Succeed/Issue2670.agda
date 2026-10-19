@@ -30,27 +30,3 @@ module norecord where
 
   lemma2 : ∀{Node Edge : Set} {{i : IsRG Node Edge}} → (n : Node) → rfl-src {Node} (rfl n) ≡ (Edge ∋ rfl n)
   lemma2 {Node}{Edge} n = cong (rfl {Node = Node}) (eq-src-rfl {Edge = Edge})
-
-module yesrecord where
-
-  record RG : Set₁ where
-    constructor mkRG
-    field
-      Node : Set
-      Edge : Set
-      {{isRG}} : IsRG Node Edge
-  open RG public
-
-  source : ∀{rg} → Edge rg → Node rg
-  source x = src x
-
-  lemma1 : ∀{rg} → (e : Edge rg) → (Node rg ∋ source {mkRG (Node rg) (Edge rg)} e) ≡ src e
-  --causes problems:
-  --lemma1 : ∀{rg} → (e : Edge rg) → (Node rg ∋ source {_} e) ≡ src e
-  lemma1 e = refl
-
-  rfl-src : ∀{rg} → Edge rg → Edge rg
-  rfl-src {rg} e = rfl (Node rg ∋ src e)
-
-  lemma2 : ∀{rg} → (n : Node rg) → rfl-src {rg} (rfl n) ≡ (Edge rg ∋ rfl n)
-  lemma2 {rg} n = cong (rfl {Node = Node rg}) (eq-src-rfl {Edge = Edge rg})

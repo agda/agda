@@ -1,3 +1,6 @@
-Issue1346b.agda:21.10-11: error: [UnequalTerms]
-[ (d ! d) ! d ]D !=< [ e ! (e ! e) ]E
+Issue1346b.agda:21.10-11: error: [UnequalTypes]
+The type
+  [ (d ! d) ! d ]D
+is not a subtype of
+  [ e ! (e ! e) ]E
 when checking that the expression x has type [ e ! (e ! e) ]E

@@ -31,7 +31,7 @@ Getting Started
 Contributing to Agda
 --------------------
 
-* Contribution how-to: [`HACKING`](https://github.com/agda/agda/blob/master/HACKING.md)
+* [Contributing to Agda](https://github.com/agda/agda/blob/master/CONTRIBUTING.md)
 * [Haskell style-guide](https://github.com/andreasabel/haskell-style-guide/blob/master/haskell-style.md)
 
 [agdawiki]: http://wiki.portal.chalmers.se/agda/pmwiki.php

@@ -1,11 +1,16 @@
+{-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
+
+#if  __GLASGOW_HASKELL__ > 902
+{-# OPTIONS_GHC -fworker-wrapper-cbv #-}
+#endif
 
 -- | Precompute free variables in a term (and store in 'ArgInfo').
 module Agda.TypeChecking.Free.Precompute
   ( PrecomputeFreeVars, precomputeFreeVars
   , precomputedFreeVars, precomputeFreeVars_ ) where
 
-import Control.Monad.Writer ( Writer, runWriter, censor, listen, tell )
+import Agda.Utils.StrictWriter ( Writer, runWriter, censor, listen, tell )
 
 import Agda.Utils.Singleton
 import Agda.Utils.VarSet (VarSet)

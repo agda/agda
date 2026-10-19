@@ -2,11 +2,11 @@
 
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Equality
-{-# BUILTIN REWRITE _≡_ #-}
+open import Agda.Builtin.Equality.Rewrite
 
-data D (A : Set) : Set where
-  c c' : D A
+data D (A B : Set) : Set where
+  c c' : D A B
 
-postulate rew : c {Bool} ≡ c' {Bool}
+postulate rew : c {Bool} {Bool} ≡ c' {Bool} {Bool}
 
 {-# REWRITE rew #-}

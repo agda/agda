@@ -1,0 +1,9 @@
+LocalRewriteBadMatch2.agda:11.7-11: error: [SplitError.UnificationStuck]
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  f ≟ λ x → x
+Possible reason why unification failed:
+  Cannot solve variable f of type Nat → Nat with solution λ x → x
+  because the variable occurs in a local rewrite rule.
+when checking that the pattern refl has type f ≡ (λ x → x)

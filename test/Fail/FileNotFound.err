@@ -1,11 +1,11 @@
 FileNotFound.agda:3.1-21: error: [FileNotFound]
 Failed to find source of module A.B.WildGoose in any of the
 following locations:
-  ../A/B/WildGoose.agda
-  ../A/B/WildGoose.lagda
-  A/B/WildGoose.agda
-  A/B/WildGoose.lagda
-  agda-default-include-path/A/B/WildGoose.agda
-  agda-default-include-path/A/B/WildGoose.lagda
+  ../A/B/WildGoose.AGDA
+  A/B/WildGoose.AGDA
+  agda-default-include-path/A/B/WildGoose.AGDA
+where .AGDA denotes a legal extension for an Agda file
+(i.e., one of .agda .lagda .lagda.rst .lagda.tex .lagda.md
+ .lagda.org .lagda.tree .lagda.typ)
 when scope checking the declaration
   import A.B.WildGoose

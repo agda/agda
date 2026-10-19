@@ -135,12 +135,10 @@ instance ExprLike Expr where
      Pi tel e                -> f $ Pi          (mapE tel)      $ mapE e
      Rec kwr r es            -> f $ Rec kwr r                   $ mapE es
      RecUpdate k r e es      -> f $ RecUpdate k r (mapE e)      $ mapE es
-     RecWhere kwr r es       -> f $ RecWhere kwr r              $ mapE es
-     RecUpdateWhere k r e es -> f $ RecUpdateWhere k r (mapE e) $ mapE es
      Let r ds e              -> f $ Let r       (mapE ds)       $ mapE e
      Paren r e               -> f $ Paren r                     $ mapE e
-     IdiomBrackets r es      -> f $ IdiomBrackets r             $ mapE es
-     DoBlock r ss            -> f $ DoBlock r                   $ mapE ss
+     IdiomBrackets r q es    -> f $ IdiomBrackets r q           $ mapE es
+     DoBlock r q ss          -> f $ DoBlock r q                 $ mapE ss
      Absurd{}                -> f $ e0
      As r x e                -> f $ As r x                 $ mapE e
      Dot r e                 -> f $ Dot r                  $ mapE e
@@ -155,6 +153,7 @@ instance ExprLike Expr where
      Generalized e           -> f $ Generalized            $ mapE e
      KnownIdent{}            -> f $ e0
      KnownOpApp nk r q ns es -> f $ KnownOpApp nk r q ns   $ mapE es
+     Highlighted r e         -> f $ Highlighted r          $ mapE e
    where
      mapE :: ExprLike e => e -> e
      mapE = mapExpr f
@@ -303,6 +302,10 @@ instance FoldDecl a => FoldDecl [a]
 instance FoldDecl a => FoldDecl (List1 a)
 instance FoldDecl a => FoldDecl (List2 a)
 instance FoldDecl a => FoldDecl (WhereClause' a)
+
+-- | Note: this instance discards top-level OPTIONS pragmas.
+instance FoldDecl Module where
+  foldDecl f (Mod _name _pragmas ds) = foldDecl f ds
 
 instance FoldDecl Declaration where
   foldDecl f d = f d <> case d of

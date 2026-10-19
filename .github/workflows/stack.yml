@@ -14,7 +14,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.12.1
+    - uses: styfle/cancel-workflow-action@0.13.1
       with:
         access_token: ${{ github.token }}
   stack:
@@ -27,14 +27,20 @@ jobs:
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
+    - if: runner.os == 'macOS'
+      name: Work around https://github.com/actions/runner-images/issues/14940
+      run: sudo xcode-select -s /Library/Developer/CommandLineTools
+    - if: runner.os == 'Linux' && (matrix.ghc-ver == '9.2.8' || matrix.ghc-ver ==
+        '9.4.8')
+      name: Install gold linker for GHC 9.2 and 9.4
+      run: sudo apt-get install -y binutils-gold
     - id: haskell-setup
       uses: haskell-actions/setup@v2
       with:
         cabal-update: false
         enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}
-        stack-version: latest
     - name: Environment settings based on the Haskell setup
       run: |
         echo "runner.os         = ${{ runner.os                               }}"
@@ -62,11 +68,8 @@ jobs:
     - if: runner.os == 'Windows'
       name: Install the ICU library (Windows)
       run: |
-        # stack exec ${ARGS} -- pacman --noconfirm -Syuu
-        # stack exec ${ARGS} -- pacman --noconfirm -S msys2-keyring
-        # stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
         # shellcheck disable=SC2086
-        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-icu mingw-w64-x86_64-pkgconf mingw-w64-x86_64-zlib
+        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-clang-x86_64-icu mingw-w64-clang-x86_64-pkgconf mingw-w64-clang-x86_64-zlib
     - name: Determine the ICU version
       run: |
         # shellcheck disable=SC2086
@@ -84,7 +87,7 @@ jobs:
           }}-icu-${{ env.ICU_VER }}
       id: cache
       name: Restore cache from approximate key
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v6
       with:
         key: ${{ env.key }}-plan-${{ hashFiles('Agda.cabal', format('stack-{0}.yaml',
           env.GHC_VER)) }}
@@ -118,7 +121,7 @@ jobs:
         stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
     - if: always() && steps.cache.outputs.cache-matched-key != steps.cache.outputs.cache-primary-key
       name: Save cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v6
       with:
         key: ${{ steps.cache.outputs.cache-primary-key }}
         path: |
@@ -127,19 +130,20 @@ jobs:
       fail-fast: false
       matrix:
         ghc-ver:
-        - 9.12.2
-        - 9.10.2
+        - 9.14.1
+        - 9.12.4
+        - 9.10.3
         - 9.8.4
         - 9.6.7
         - 9.4.8
         - 9.2.8
         include:
-        - ghc-ver: 9.12.2
-          os: macos-15
-        - ghc-ver: 9.12.2
+        - ghc-ver: 9.14.1
+          os: macos-26
+        - ghc-ver: 9.14.1
           os: windows-2025
         os:
-        - ubuntu-24.04
+        - ubuntu-26.04
     timeout-minutes: 60
 name: Build (stack)
 'on':
@@ -152,8 +156,6 @@ name: Build (stack)
   push:
     branches:
     - master
-    - ci-*
-    - release*
     paths:
     - .github/workflows/stack.yml
     - Agda.cabal

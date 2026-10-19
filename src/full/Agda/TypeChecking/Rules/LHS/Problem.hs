@@ -214,7 +214,7 @@ problemInPats = map problemInPat . (^. problemEqs)
 
 data AsBinding = AsB Name Term (Dom Type)
 data DotPattern = Dot A.Expr Term (Dom Type)
-data AbsurdPattern = Absurd Range Type
+data AbsurdPattern = Absurd Range (Dom Type)
 data AnnotationPattern = Ann A.Expr Type
 
 -- | State worked on during the main loop of checking a lhs.
@@ -237,6 +237,14 @@ data LHSState a = LHSState
     -- ^ have we splitted with a PartialFocus?
   , _lhsIndexedSplit :: !Bool
     -- ^ Have we split on any indexed inductive types?
+  , _lhsMatchPrio :: !MatchPrio
+    -- ^ The match priority attached to the next split.
+    --   The priority approximates causality, i.e. some splits (higher prio value) become available
+    --   only after certain splits (lower prio value) have already been made.
+    --   This information is used in the matcher for the non-compiled clauses
+    --   to determine whether a 'DontKnow' dominates a 'No' (mismatch).
+    --   The lower prio value is dominant in case of conflict.
+    --   See issues #2964 and #3054, #8559.
   }
 
 lhsTel :: Lens' (LHSState a) Telescope
@@ -250,6 +258,9 @@ lhsProblem f p = f (_lhsProblem p) <&> \x -> p {_lhsProblem = x}
 
 lhsTarget :: Lens' (LHSState a) (Arg Type)
 lhsTarget f p = f (_lhsTarget p) <&> \x -> p {_lhsTarget = x}
+
+lhsMatchPrio :: Lens' (LHSState a) MatchPrio
+lhsMatchPrio f p = f (_lhsMatchPrio p) <&> \ x -> p{ _lhsMatchPrio = x }
 
 data PatVarPosition = PVLocal | PVParam
   deriving (Show, Eq)
@@ -331,7 +342,7 @@ getLeftoverPatterns eqs = do
       (A.AsP info A.BindName{unBind = x} p)  -> (asPattern x v a `mappend`) <$> do
         getLeftoverPattern isParamName $ ProblemEq p v a
       (A.DotP info e)   -> return $ dotPattern e v a
-      (A.AbsurdP info)  -> return $ absurdPattern (getRange info) (unDom a)
+      (A.AbsurdP info)  -> return $ absurdPattern (getRange info) a
       _                 -> return $ otherPattern p
 
       where
@@ -419,10 +430,14 @@ instance InstantiateFull AsBinding where
   instantiateFull' (AsB x v a) = AsB x <$> instantiateFull' v <*> instantiateFull' a
 
 instance PrettyTCM (LHSState a) where
-  prettyTCM (LHSState tel outPat (Problem eqs rps _) target _ _) = vcat
+  prettyTCM (LHSState tel outPat (Problem eqs rps _) target _ _ prio) = vcat
     [ "tel             = " <+> prettyTCM tel
     , "outPat          = " <+> addContext tel (prettyTCMPatternList outPat)
     , "problemEqs      = " <+> addContext tel (prettyList_ $ map prettyTCM eqs)
     , "problemRestPats = " <+> prettyList_ (map prettyA rps)
     , "target          = " <+> addContext tel (prettyTCM target)
+    , "matchPrio       = " <+> prettyTCM prio
     ]
+
+instance PrettyTCM MatchPrio where
+  prettyTCM (MatchPrio prio) = (text . show) prio

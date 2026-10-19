@@ -1,3 +1,7 @@
 Issue1692a.agda:14.30-33: error: [UnequalTerms]
-a != b of type A
+The terms
+  a
+and
+  b
+are not equal at type A
 when checking that the expression f b has type b ≡ b

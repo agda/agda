@@ -4,6 +4,7 @@
 
 {-# OPTIONS --two-level #-}
 {-# OPTIONS --prop #-}
+{-# OPTIONS --cubical #-}
 
 module _ where
 

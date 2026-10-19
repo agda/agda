@@ -1,0 +1,42 @@
+IOTCM currentFile NonInteractive Indirect (cmd_tokenHighlighting currentFile Keep)
+IOTCM currentFile NonInteractive Indirect (cmd_load_highlighting_info currentFile)
+top_command (cmd_load currentFile [])
+IOTCM currentFile NonInteractive Indirect (cmd_load_highlighting_info currentFile)
+top_command (cmd_compile GHC currentFile [])
+-- Note that the previous fail does not unload the file
+top_command (cmd_constraints AsIs)
+top_command (cmd_load currentFile [])
+top_command (cmd_constraints Normalised)
+top_command (cmd_metas AsIs)
+top_command (cmd_metas Normalised)
+-- Note that cmd_make_case does not update the set of goals.
+goal_command 0 cmd_make_case "n"
+goal_command 0 (cmd_refine_or_intro False) "Just"
+goal_command 7 (cmd_refine_or_intro False) ""
+goal_command 4 (cmd_autoOne AsIs) ""
+goal_command 3 (cmd_infer Instantiated) "D"
+goal_command 7 (cmd_context Normalised) ""
+goal_command 7 (cmd_goal_type Normalised) ""
+goal_command 7 (cmd_goal_type_context Normalised) ""
+goal_command 7 (cmd_goal_type_context_infer Normalised) ""
+goal_command 7 (cmd_goal_type_context_infer Normalised) "n"
+goal_command 3 (cmd_show_module_contents Simplified) "D"
+goal_command 3 (cmd_show_module_contents Simplified) ""
+goal_command 3 (cmd_intro False) ""
+goal_command 6 cmd_refine "Just"
+goal_command 8 (cmd_compute DefaultCompute) "s′ z"
+goal_command 8 (cmd_compute IgnoreAbstract) "s′ z"
+goal_command 8 cmd_give "d"
+-- Note that cmd_solveAll does not update the set of goals.
+top_command (cmd_solveAll AsIs)
+goal_command 1 cmd_give "s z"
+top_command (cmd_compute_toplevel DefaultCompute "eval throw")
+goal_command 1 cmd_give "Nothing"
+goal_command 7 cmd_give "n"
+top_command (cmd_infer_toplevel Normalised "eval throw")
+top_command (cmd_compute_toplevel DefaultCompute "eval throw")
+top_command (cmd_compute_toplevel IgnoreAbstract "s′ n")
+top_command (cmd_compute_toplevel IgnoreAbstract "s′ z")
+top_command (cmd_show_module_contents_toplevel Normalised "D")
+top_command (cmd_show_module_contents_toplevel Simplified "")
+top_command (cmd_compile GHC currentFile [])

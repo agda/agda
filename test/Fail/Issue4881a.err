@@ -1,3 +1,3 @@
 Issue4881a.agda:1.1-2: error: [MissingDefinitions]
-The following names are declared but not accompanied by a
-definition: _
+The following names are declared but lack a definition:
+_

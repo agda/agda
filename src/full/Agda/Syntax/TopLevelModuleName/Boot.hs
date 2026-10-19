@@ -2,9 +2,6 @@
 
 module Agda.Syntax.TopLevelModuleName.Boot where
 
-import Agda.Utils.List1 (List1)
-import Agda.Utils.BiMap (HasTag, Tag, tag)
-
 import Control.DeepSeq (NFData, rnf)
 import Data.Function (on)
 import Data.Hashable (Hashable, hashWithSalt)
@@ -12,8 +9,12 @@ import Data.Text (Text)
 import Data.Word (Word64)
 import GHC.Generics (Generic)
 
+import Agda.Utils.BiMap (HasTag, Tag, tag)
+import Agda.Utils.List1 (List1)
+import Agda.Utils.Null
+
 newtype ModuleNameHash = ModuleNameHash { moduleNameHash :: Word64 }
-  deriving (Eq, Ord, Hashable)
+  deriving (Eq, Ord, Hashable, Null)
 
 instance NFData ModuleNameHash where
   rnf _ = ()
@@ -23,7 +24,7 @@ instance HasTag ModuleNameHash where
   tag = Just
 
 noModuleNameHash :: ModuleNameHash
-noModuleNameHash = ModuleNameHash 0
+noModuleNameHash = empty
 
 -- | The record selector is not included in the resulting strings.
 

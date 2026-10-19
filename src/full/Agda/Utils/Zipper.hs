@@ -2,6 +2,7 @@
 
 module Agda.Utils.Zipper where
 
+import Agda.Utils.List
 
 class Zipper z where
   type Carrier z
@@ -18,7 +19,7 @@ instance Zipper (ListZipper a) where
   type Element (ListZipper a) = a
   firstHole (x : xs)               = Just (x, ListZip [] xs)
   firstHole []                     = Nothing
-  plugHole x (ListZip ys zs)       = reverse ys ++ x : zs
+  plugHole x (ListZip ys zs)       = reverse ys ++! x : zs
   nextHole x (ListZip ys [])       = Left (reverse (x : ys))
   nextHole x (ListZip ys (z : zs)) = Right (z, ListZip (x : ys) zs)
 

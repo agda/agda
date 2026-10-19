@@ -26,12 +26,13 @@ import Data.Function (on)
 import Data.Hashable       ( Hashable )
 import Data.Maybe          ( catMaybes, listToMaybe )
 import Data.Text           ( Text )
-import qualified Data.Text as Text
+import Data.Text qualified as Text
 
 import System.Directory
 import System.FilePath
 
 import Agda.Utils.Monad
+import Agda.Utils.Null
 
 import Agda.Utils.Impossible
 
@@ -41,7 +42,7 @@ import Agda.Utils.Impossible
 -- paths point to the same files or directories.
 
 newtype AbsolutePath = AbsolutePath { textPath :: Text }
-  deriving (Show, Eq, Ord, Hashable, NFData)
+  deriving (Show, Eq, Ord, Hashable, NFData, Null)
 
 -- | Extract the 'AbsolutePath' to be used as 'FilePath'.
 filePath :: AbsolutePath -> FilePath

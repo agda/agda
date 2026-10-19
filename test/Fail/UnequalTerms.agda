@@ -1,12 +1,9 @@
-
 module UnequalTerms where
 
-data Zero : Set where
-data One  : Set where one : One
+open import Agda.Builtin.Nat
 
-err1 : Zero
-err1 = one
+data IsZero : Nat → Set where
+  zero : IsZero 0
 
-err2 : One -> One
-err2 = \(x : Zero) -> one
-
+err1 : IsZero 1
+err1 = zero

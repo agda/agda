@@ -2,15 +2,13 @@
 
 module Agda.TypeChecking.Substitute.Class where
 
-import Control.Arrow ((***), second)
-import Control.DeepSeq
-import GHC.Generics
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute.DeBruijn
+
+import Agda.Utils.Tuple ((***), second)
 
 import Agda.Utils.Impossible
 
@@ -28,7 +26,7 @@ class Apply t where
   -- Andreas, 2018-06-18, issue #3136
   -- This default instance should be removed to get more precise
   -- crash locations (raise the IMPOSSIBLE in a more specific place).
-  -- applyE t es  = apply  t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  -- applyE t es  = apply t $ mustAllApplyElims es
     -- precondition: all @es@ are @Apply@s
 
 -- | Apply to some default arguments.
@@ -74,11 +72,15 @@ class DeBruijn (SubstArg a) => Subst a where
 -- | Simple constraint alias for a `Subst` instance `a` with arg type `t`.
 type SubstWith t a = (Subst a, SubstArg a ~ t)
 
--- | `Subst` instance whose agument type is itself
+-- | `Subst` instance whose argument type is itself
 type EndoSubst a = SubstWith a a
 
 -- | `Subst` instance whose argument type is `Term`
 type TermSubst a = SubstWith Term a
+
+-- | `Subst` instance whose argument type is `Nat` (i.e. for things that
+--   can be weakened, but do not admit arbitrary substitution)
+type WeakSubst a = SubstWith Nat a
 
 -- | Raise de Bruijn index, i.e. weakening
 raise :: Subst a => Nat -> a -> a
@@ -114,12 +116,6 @@ isNoAbs (Abs _ b)
 instance Subst QName where
   type SubstArg QName = Term
   applySubst _ q = q
-
--- | Wrapper for types that do not contain variables (so applying a substitution is the identity).
---   Useful if you have a structure of types that support substitution mixed with types that don't
---   and need to apply a substitution to the full structure.
-newtype NoSubst t a = NoSubst { unNoSubst :: a }
-  deriving (Generic, NFData, Functor)
 
 instance DeBruijn t => Subst (NoSubst t a) where
   type SubstArg (NoSubst t a) = t
@@ -290,20 +286,28 @@ strengthenS' err m rho = case compare m 0 of
 
 {-# INLINABLE lookupS #-}
 lookupS :: EndoSubst a => Substitution' a -> Nat -> a
-lookupS rho i = case rho of
-  IdS                    -> deBruijnVar i
+lookupS = lookupS' 0
+
+{-# INLINABLE lookupS' #-}
+lookupS' :: EndoSubst a
+  => Nat              -- ^ Raise the looked up term/thing by this amount.
+  -> Substitution' a  -- ^ The substitution.
+  -> Nat              -- ^ Index to lookup in the substitution.
+  -> a                -- ^ The raised result.
+lookupS' w rho i = case rho of
+  IdS                    -> deBruijnVar (w + i)
   Wk n IdS               -> let j = i + n in
-                            if  j < 0 then __IMPOSSIBLE__ else deBruijnVar j
-  Wk n rho               -> applySubst (raiseS n) (lookupS rho i)
-  u :# rho   | i == 0    -> u
+                            if  j < 0 then __IMPOSSIBLE__ else deBruijnVar (w + j)
+  Wk n rho               -> lookupS' (n + w) rho i
+  u :# rho   | i == 0    -> raise w u
              | i < 0     -> __IMPOSSIBLE__
-             | otherwise -> lookupS rho (i - 1)
+             | otherwise -> lookupS' w rho (i - 1)
   Strengthen err n rho
              | i < 0     -> __IMPOSSIBLE__
              | i < n     -> throwImpossible err
-             | otherwise -> lookupS rho (i - n)
-  Lift n rho | i < n     -> deBruijnVar i
-             | otherwise -> raise n $ lookupS rho (i - n)
+             | otherwise -> lookupS' w rho (i - n)
+  Lift n rho | i < n     -> deBruijnVar (w + i)
+             | otherwise -> lookupS' (n + w) rho (i - n)
   EmptyS err             -> throwImpossible err
 
 

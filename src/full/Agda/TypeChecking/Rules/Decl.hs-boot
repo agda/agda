@@ -5,7 +5,6 @@ module Agda.TypeChecking.Rules.Decl where
 import Agda.Syntax.Info (ModuleInfo)
 import Agda.Syntax.Abstract
 import Agda.Syntax.Common
-import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.Monad.Base (TCM)
 
 checkDecls :: [Declaration] -> TCM ()

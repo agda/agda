@@ -1,0 +1,5 @@
+Issue8587.agda:5.1-42: error: [CoInfectiveImport]
+Module imports the cubical primitive module but does not enable a
+--cubical[={full,erased,no-glue}] option.
+when scope checking the declaration
+  open import Agda.Primitive.Cubical public

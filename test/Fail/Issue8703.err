@@ -1,0 +1,8 @@
+Issue8703.agda:33.11-15: error: [UnequalTerms]
+The terms
+  true
+and
+  false
+are not equal at type Bool
+when checking that the expression refl has type
+k (f true true) ≡ false

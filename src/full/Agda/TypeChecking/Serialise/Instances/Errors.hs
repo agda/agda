@@ -73,12 +73,12 @@ instance EmbPrj Warning where
     CantGeneralizeOverSorts a             -> icodeN 14 CantGeneralizeOverSorts a
     IllformedAsClause a                   -> icodeN 15 IllformedAsClause a
     WithoutKFlagPrimEraseEquality         -> icodeN 16 WithoutKFlagPrimEraseEquality
-    InstanceWithExplicitArg a             -> icodeN 17 InstanceWithExplicitArg a
+    InstanceWithExplicitArg a b           -> icodeN 17 InstanceWithExplicitArg a b
     InfectiveImport a                     -> icodeN 18 InfectiveImport a
     CoInfectiveImport a                   -> icodeN 19 CoInfectiveImport a
     InstanceNoOutputTypeName a            -> icodeN 20 InstanceNoOutputTypeName a
     InstanceArgWithExplicitArg a          -> icodeN 21 InstanceArgWithExplicitArg a
-    WrongInstanceDeclaration              -> icodeN 22 WrongInstanceDeclaration
+    WrongInstanceDeclaration a            -> icodeN 22 WrongInstanceDeclaration a
     RewriteNonConfluent a b c d           -> icodeN 23 RewriteNonConfluent a b c d
     RewriteMaybeNonConfluent a b c        -> icodeN 24 RewriteMaybeNonConfluent a b c
     PragmaCompileErased a b               -> icodeN 25 PragmaCompileErased a b
@@ -113,6 +113,7 @@ instance EmbPrj Warning where
     PragmaCompileList                           -> __IMPOSSIBLE__
     PragmaCompileMaybe                          -> __IMPOSSIBLE__
     NoMain _                                    -> __IMPOSSIBLE__
+    UnknownJSPrimitive _                        -> __IMPOSSIBLE__
     IllegalRewriteRule a b                      -> icodeN 53 IllegalRewriteRule a b
     MissingTypeSignatureForOpaque a b           -> icodeN 54 MissingTypeSignatureForOpaque a b
     ConflictingPragmaOptions a b                -> icodeN 55 ConflictingPragmaOptions a b
@@ -144,6 +145,14 @@ instance EmbPrj Warning where
     FixingCohesion a b c                        -> icodeN 72 FixingCohesion a b c
     FixingPolarity a b c                        -> icodeN 73 FixingPolarity a b c
     RewritesNothing                             -> icodeN 74 RewritesNothing
+    IllegalDeclarationInDataDefinition ds       -> __IMPOSSIBLE__  -- We don't serialize concrete definitions (yet)
+    UnusedImports a b                           -> icodeN 75 UnusedImports a b
+    DefinitionBeforeDeclaration x               -> icodeN 76 DefinitionBeforeDeclaration x
+    RecursiveRecordNeedsInductivity{}           -> __IMPOSSIBLE__  -- Error warning
+    IgnoringRew a b                             -> icodeN 77 IgnoringRew a b
+    InferredLocalRewrite a b                    -> icodeN 78 InferredLocalRewrite a b
+    ShouldBeEtaRecordPattern                    -> icodeN 79 ShouldBeEtaRecordPattern
+    UnguardedEtaRecordW a                       -> icodeN 80 UnguardedEtaRecordW a
 
   value = vcase $ \ case
     N3 0 a b      -> valuN UnreachableClauses a b
@@ -163,12 +172,12 @@ instance EmbPrj Warning where
     N2 14 a       -> valuN CantGeneralizeOverSorts a
     N2 15 a       -> valuN IllformedAsClause a
     N1 16         -> valuN WithoutKFlagPrimEraseEquality
-    N2 17 a       -> valuN InstanceWithExplicitArg a
+    N3 17 a b     -> valuN InstanceWithExplicitArg a b
     N2 18 a       -> valuN InfectiveImport a
     N2 19 a       -> valuN CoInfectiveImport a
     N2 20 a       -> valuN InstanceNoOutputTypeName a
     N2 21 a       -> valuN InstanceArgWithExplicitArg a
-    N1 22         -> valuN WrongInstanceDeclaration
+    N2 22 a       -> valuN WrongInstanceDeclaration a
     N5 23 a b c d -> valuN RewriteNonConfluent a b c d
     N4 24 a b c   -> valuN RewriteMaybeNonConfluent a b c
     N3 25 a b     -> valuN PragmaCompileErased a b
@@ -222,9 +231,39 @@ instance EmbPrj Warning where
     N4 72 a b c   -> valuN FixingCohesion a b c
     N4 73 a b c   -> valuN FixingPolarity a b c
     N1 74         -> valuN RewritesNothing
+    N3 75 a b     -> valuN UnusedImports a b
+    N2 76 a       -> valuN DefinitionBeforeDeclaration a
+    N3 77 a b     -> valuN IgnoringRew a b
+    N3 78 a b     -> valuN InferredLocalRewrite a b
+    N1 79         -> valuN ShouldBeEtaRecordPattern
+    N2 80 a       -> valuN UnguardedEtaRecordW a
     _ -> malformed
 
 instance EmbPrj UselessPublicReason
+
+instance EmbPrj ContextEntry where
+  icod_ (CtxVar a b) = icodeN 0 CtxVar a b
+
+  value = vcase $ \case
+    N3 0 a b -> valuN CtxVar a b
+    _        -> malformed
+
+instance EmbPrj Context where
+  icod_ (Context a) = icodeN 0 Context a
+
+  value = vcase $ \case
+    N2 0 a -> valuN Context a
+    _      -> malformed
+
+instance EmbPrj SerialisableRewriteSource where
+  icod_ = \case
+    LocalRewrite a b c -> icodeN 0 LocalRewrite a b c
+    GlobalRewrite a    -> icodeN 1 GlobalRewrite a
+
+  value = vcase $ \case
+    N4 0 a b c -> valuN LocalRewrite a b c
+    N2 1 a     -> valuN GlobalRewrite a
+    _          -> malformed
 
 instance EmbPrj IllegalRewriteRuleReason where
   icod_ = \case
@@ -232,7 +271,7 @@ instance EmbPrj IllegalRewriteRuleReason where
     VariablesNotBoundByLHS a                    -> icodeN 1 VariablesNotBoundByLHS a
     VariablesBoundMoreThanOnce a                -> icodeN 2 VariablesBoundMoreThanOnce a
     LHSReduces a b                              -> icodeN 3 LHSReduces a b
-    -- 4 was HeadSymbolIsProjection
+    VariablesBoundInSingleton a                 -> icodeN 4 VariablesBoundInSingleton a
     HeadSymbolIsProjectionLikeFunction a        -> icodeN 5 HeadSymbolIsProjectionLikeFunction a
     HeadSymbolIsTypeConstructor a               -> icodeN 6 HeadSymbolIsTypeConstructor a
     HeadSymbolContainsMetas a                   -> icodeN 7 HeadSymbolContainsMetas a
@@ -244,13 +283,14 @@ instance EmbPrj IllegalRewriteRuleReason where
     BeforeFunctionDefinition                    -> icodeN 13 BeforeFunctionDefinition
     BeforeMutualFunctionDefinition a            -> icodeN 14 BeforeMutualFunctionDefinition a
     DuplicateRewriteRule                        -> icodeN 15 DuplicateRewriteRule
+    LocalRewriteOutsideTelescope                -> icodeN 16 LocalRewriteOutsideTelescope
 
   value = vcase $ \case
     N1 0     -> valuN LHSNotDefinitionOrConstructor
     N2 1 a   -> valuN VariablesNotBoundByLHS a
     N2 2 a   -> valuN VariablesBoundMoreThanOnce a
     N3 3 a b -> valuN LHSReduces a b
-    -- 4 was HeadSymbolIsProjection
+    N2 4 a   -> valuN VariablesBoundInSingleton a
     N2 5 a   -> valuN HeadSymbolIsProjectionLikeFunction a
     N2 6 a   -> valuN HeadSymbolIsTypeConstructor a
     N2 7 a   -> valuN HeadSymbolContainsMetas a
@@ -262,27 +302,42 @@ instance EmbPrj IllegalRewriteRuleReason where
     N1 13    -> valuN BeforeFunctionDefinition
     N2 14 a  -> valuN BeforeMutualFunctionDefinition a
     N1 15    -> valuN DuplicateRewriteRule
+    N1 16    -> valuN LocalRewriteOutsideTelescope
     _        -> malformed
 
 instance EmbPrj OptionWarning where
   icod_ = \case
-    OptionRenamed a b -> icodeN 0 OptionRenamed a b
-    WarningProblem a  -> icodeN 1 WarningProblem a
+    OptionRenamed a b             -> icodeN 0 OptionRenamed a b
+    WarningProblem a              -> icodeN 1 WarningProblem a
+    LocalRewritingConfluenceCheck -> icodeN 2 LocalRewritingConfluenceCheck
 
   value = vcase $ \case
     N3 0 a b -> valuN OptionRenamed a b
     N2 1 a   -> valuN WarningProblem a
+    N1 2     -> valuN LocalRewritingConfluenceCheck
     _        -> malformed
 
 instance EmbPrj WarningModeError where
   icod_ = \case
     Unknown a   -> icodeN 0 Unknown a
     NoNoError a -> icodeN 1 NoNoError a
+    NoUnusedImportsAll -> icodeN 2 NoUnusedImportsAll
 
   value = vcase $ \case
     N2 0 a -> valuN Unknown a
     N2 1 a -> valuN NoNoError a
+    N1 2   -> valuN NoUnusedImportsAll
     _      -> malformed
+
+instance EmbPrj OpenBracket where
+  icod_ = \case
+    OpenIdiomBracket a b -> icodeN 0 OpenIdiomBracket a b
+    OpenDoubleBrace  a b -> icodeN 1 OpenDoubleBrace a b
+
+  value = vcase \case
+    N3 0 a b -> valuN OpenIdiomBracket a b
+    N3 1 a b -> valuN OpenDoubleBrace a b
+    _        -> malformed
 
 instance EmbPrj ParseWarning where
   icod_ = \case
@@ -292,6 +347,7 @@ instance EmbPrj ParseWarning where
     UnknownAttribute a b       -> icodeN 3 UnknownAttribute a b
     UnknownPolarity a b        -> icodeN 4 UnknownPolarity a b
     MisplacedAttributes a b    -> icodeN 5 MisplacedAttributes a b
+    MismatchedBrackets a b     -> icodeN 6 MismatchedBrackets a b
 
   value = vcase $ \case
     N2 0 a   -> valuN OverlappingTokensWarning a
@@ -300,6 +356,7 @@ instance EmbPrj ParseWarning where
     N3 3 a b -> valuN UnknownAttribute a b
     N3 4 a b -> valuN UnknownPolarity a b
     N3 5 a b -> valuN MisplacedAttributes a b
+    N3 6 a b -> valuN MismatchedBrackets a b
     _        -> malformed
 
 instance EmbPrj RecordFieldWarning where
@@ -320,6 +377,11 @@ instance EmbPrj DeclarationWarning where
 
 instance EmbPrj DeclarationWarning' where
   icod_ = \case
+    -- Andreas, 2026-02-14:
+    -- UnknownNamesInFixityDecl and UnknownNamesInPolarityPragmas are now error warnings,
+    -- so the following two cases are impossible.
+    -- We leave them in as long as they are not a nuisance for maintenance,
+    -- should we decide in the future to revert them to non-error-warnings.
     UnknownNamesInFixityDecl a        -> icodeN 0 UnknownNamesInFixityDecl a
     UnknownNamesInPolarityPragmas a   -> icodeN 1 UnknownNamesInPolarityPragmas a
     PolarityPragmasButNotPostulates a -> icodeN 2 PolarityPragmasButNotPostulates a
@@ -355,7 +417,6 @@ instance EmbPrj DeclarationWarning' where
     MissingDataDeclaration a          -> icodeN 32 MissingDataDeclaration a
     HiddenGeneralize r                -> icodeN 33 HiddenGeneralize r
     UselessMacro r                    -> icodeN 34 UselessMacro r
-    SafeFlagEta                    {} -> __IMPOSSIBLE__
     SafeFlagInjective              {} -> __IMPOSSIBLE__
     SafeFlagNoCoverageCheck        {} -> __IMPOSSIBLE__
     SafeFlagNoPositivityCheck      {} -> __IMPOSSIBLE__
@@ -364,6 +425,11 @@ instance EmbPrj DeclarationWarning' where
     SafeFlagPolarity               {} -> __IMPOSSIBLE__
     SafeFlagTerminating            {} -> __IMPOSSIBLE__
     EmptyPolarityPragma r             -> icodeN 35 EmptyPolarityPragma r
+    UselessImport r                   -> icodeN 36 UselessImport r
+    InvalidDataOrRecDefParameter r a b c -> icodeN 37 InvalidDataOrRecDefParameter r a b c
+    InvalidRewriteAttribute r         -> icodeN 38 InvalidTacticAttribute r
+    InvalidEtaEqualityPragma r        -> icodeN 39 InvalidEtaEqualityPragma r
+    FixityDeclarationForNonOperator r a -> icodeN 40 FixityDeclarationForNonOperator r a
 
   value = vcase $ \case
     N2 0  a            -> valuN UnknownNamesInFixityDecl a
@@ -402,6 +468,11 @@ instance EmbPrj DeclarationWarning' where
     N2 33 r            -> valuN HiddenGeneralize r
     N2 34 r            -> valuN UselessMacro r
     N2 35 r            -> valuN EmptyPolarityPragma r
+    N2 36 r            -> valuN UselessImport r
+    N5 37 r a b c      -> valuN InvalidDataOrRecDefParameter r a b c
+    N2 38 r            -> valuN InvalidRewriteAttribute r
+    N2 39 r            -> valuN InvalidEtaEqualityPragma r
+    N3 40 r a          -> valuN FixityDeclarationForNonOperator r a
     _ -> malformed
 
 instance EmbPrj OpenOrImport
@@ -455,8 +526,85 @@ instance EmbPrj InfectiveCoinfective where
     valu _      = malformed
 
 instance EmbPrj PragmaOptions where
-  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss) =
-    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss
+  icod_ o = icodeN' PragmaOptions
+    (_optShowImplicit o)
+    (_optShowGeneralized o)
+    (_optShowIrrelevant o)
+    (_optUseUnicode o)
+    (_optVerbose o)
+    (_optProfiling o)
+    (_optIrrelevance o)
+    (_optProp o)
+    (_optLevelUniverse o)
+    (_optTwoLevel o)
+    (_optAllowUnsolved o)
+    (_optAllowIncompleteMatch o)
+    (_optPositivityCheck o)
+    (_optTerminationCheck o)
+    (_optTerminationDepth o)
+    (_optUniverseCheck o)
+    (_optOmegaInOmega o)
+    (_optCumulativity o)
+    (_optSizedTypes o)
+    (_optGuardedness o)
+    (_optInjectiveTypeConstructors o)
+    (_optUniversePolymorphism o)
+    (_optIrrelevantProjections o)
+    (_optExperimentalIrrelevance o)
+    (_optWithoutK o)
+    (_optCubicalCompatible o)
+    (_optCopatterns o)
+    (_optPatternMatching o)
+    (_optExactSplit o)
+    (_optHiddenArgumentPuns o)
+    (_optEta o)
+    (_optForcing o)
+    (_optProjectionLike o)
+    (_optErasure o)
+    (_optErasedMatches o)
+    (_optEraseRecordParameters o)
+    (_optRewriting o)
+    (_optLocalRewriting o)
+    (_optCubical o)
+    (_optGuarded o)
+    (_optFirstOrder o)
+    (_optRequireUniqueMetaSolutions o)
+    (_optPostfixProjections o)
+    (_optKeepPatternVariables o)
+    (_optInferAbsurdClauses o)
+    (_optInstanceSearchDepth o)
+    (_optBacktrackingInstances o)
+    (_optQualifiedInstances o)
+    (_optInversionMaxDepth o)
+    (_optSafe o)
+    (_optDoubleCheck o)
+    (_optSyntacticEquality o)
+    (_optWarningMode o)
+    (_optCompileMain o)
+    (_optCaching o)
+    (_optCountClusters o)
+    (_optAutoInline o)
+    (_optPrintPatternSynonyms o)
+    (_optFastReduce o)
+    (_optCallByName o)
+    (_optConfluenceCheck o)
+    (_optCohesion o)
+    (_optFlatSplit o)
+    (_optPolarity o)
+    (_optOccurrence o)
+    (_optFunext o)
+    (_optPropext o)
+    (_optQuotients o)
+    (_optImportSorts o)
+    (_optLoadPrimitives o)
+    (_optAllowExec o)
+    (_optSaveMetas o)
+    (_optShowIdentitySubstitutions o)
+    (_optKeepCoveringClauses o)
+    (_optLargeIndices o)
+    (_optForcedArgumentRecursion o)
+    (_optExperimentalLazyInstances o)
+    (_optQuoteMetas o)
 
   value = valueN PragmaOptions
 

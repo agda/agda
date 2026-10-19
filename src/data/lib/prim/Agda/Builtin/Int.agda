@@ -1,11 +1,9 @@
-{-# OPTIONS --cubical-compatible --safe --no-sized-types --no-guardedness --level-universe #-}
+{-# OPTIONS --cubical-compatible --safe --no-sized-types --no-guardedness --no-irrelevance --level-universe #-}
 
 module Agda.Builtin.Int where
 
 open import Agda.Builtin.Nat
 open import Agda.Builtin.String
-
-infix 8 pos  -- Standard library uses this as +_
 
 data Int : Set where
   pos    : (n : Nat) → Int

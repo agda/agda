@@ -1,0 +1,16 @@
+Issue8696-record.agda:16.1-24.18: error: [NotStrictlyPositive]
+D is not strictly positive, because it occurs
+in the first argument of G
+(in the type of the constructor lam
+ in the definition of D), which occurs
+                        in the first argument of N.Neg
+                        (in the first clause
+                         in the definition of G), which occurs
+                                                in the second argument of M.Neg
+                                                in the definition of N.Neg, which occurs
+                                                                          in the first clause
+                                                                          in the definition of
+                                                                          G, which occurs
+                                                                           in the type of the
+                                                                           constructor lam
+                                                                           in the definition of D.

@@ -9,6 +9,8 @@ module Agda.Syntax.Common.Pretty
 
 import Prelude hiding (null)
 
+import Control.DeepSeq
+
 import qualified Data.List as List
 import qualified Data.Foldable as Fold
 import qualified Data.IntSet as IntSet
@@ -33,6 +35,7 @@ import Text.PrettyPrint.Annotated hiding
 
   , semi, comma, colon, space, equals, lparen, rparen, lbrack, rbrack
   , lbrace, rbrace
+  , annotate
   )
 
 import Agda.Syntax.Common.Aspect
@@ -42,8 +45,10 @@ import Agda.Utils.DocTree qualified as DocTree
 import Agda.Utils.FileName
 import Agda.Utils.Float
 import Agda.Utils.List1 (List1)
-import qualified Agda.Utils.List1 as List1
-import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.List1 qualified as List1
+import Agda.Utils.List2 (List2)
+import Agda.Utils.List2 qualified as List2
+import Agda.Utils.Maybe.Strict qualified as Strict
 import Agda.Utils.Null
 import Agda.Utils.Size
 
@@ -116,11 +121,18 @@ instance Pretty a => Pretty (Maybe a) where
   prettyPrec p Nothing  = P.empty
   prettyPrec p (Just x) = prettyPrec p x
 
+instance Pretty a => Pretty (Strict.Maybe a) where
+  prettyPrec p Strict.Nothing  = P.empty
+  prettyPrec p (Strict.Just x) = prettyPrec p x
+
 instance Pretty a => Pretty [a] where
   pretty = prettyList
 
 instance Pretty a => Pretty (List1 a) where
   pretty = prettyList . List1.toList
+
+instance Pretty a => Pretty (List2 a) where
+  pretty = prettyList . List2.toList
 
 instance Pretty IntSet where
   pretty = prettySet . IntSet.toList
@@ -153,8 +165,8 @@ instance Pretty a => Pretty (Position' (Strict.Maybe a)) where
 instance Pretty PositionWithoutFile where
   pretty = prettyLineColumn
 
-instance Pretty IntervalWithoutFile where
-  pretty (Interval () s e)
+prettyInterval :: Eq a => Position' a -> Position' a -> Doc
+prettyInterval s e
     | s == e    = start
     | otherwise = start <> "-" <> end
     where
@@ -170,15 +182,11 @@ instance Pretty IntervalWithoutFile where
         | sl == el  = pretty ec
         | otherwise = pretty el <> dot <> pretty ec
 
-instance Pretty a => Pretty (Interval' (Strict.Maybe a)) where
-  pretty i@(Interval f s e) = file <> pretty (Interval () s e)
-    where
-      file :: Doc
-      file = case f of
-               Strict.Nothing -> empty
-               Strict.Just f  -> pretty f <> colon
+instance Pretty a => Pretty (Interval' a) where
+  pretty :: Interval' a -> Doc
+  pretty i@(Interval f s e) = applyUnlessNull (pretty f) (\ d -> ((d <> colon) <>)) (prettyInterval s e)
 
-instance Pretty a => Pretty (Range' (Strict.Maybe a)) where
+instance Pretty a => Pretty (Range' a) where
   pretty r = maybe empty pretty (rangeToIntervalWithFile r)
 
 instance (Pretty a, HasRange a) => Pretty (PrintRange a) where
@@ -203,6 +211,9 @@ punctuate d = P.punctuate d . Fold.toList
 
 vsep :: [Doc] -> Doc
 vsep = vcat . List.intersperse ""
+
+twords :: Text -> [Doc]
+twords = map pretty . Text.words
 
 pwords :: String -> [Doc]
 pwords = map text . words
@@ -294,6 +305,12 @@ prefixedThings kw = \case
 ---------------------------------------------------------------------------
 -- * Annotations
 
+-- | Only adds an annotation node if the 'Aspects' is non-'null'.
+annotate :: Aspects -> Doc -> Doc
+annotate a x
+  | null a    = x
+  | otherwise = rnf a `seq` P.annotate a x
+
 -- | Attach a simple 'Aspect', rather than a full set of 'Aspects', to a
 -- document.
 annotateAspect :: Aspect -> Doc -> Doc
@@ -320,7 +337,11 @@ url s = href (Text.pack s) (text s)
 githubIssue :: Int -> Doc
 githubIssue = url . ("https://github.com/agda/agda/issues/" ++) . show
 
--- ** Syntax highlighting helpers
+-- | Attach the position of something as the "binding site" of a 'Doc'.
+definedAt :: HasRange a => Doc -> a -> Doc
+definedAt doc p = annotate (rangeDefinitionSite p) doc
+
+-- ** Basic syntax highlighting helpers
 
 hlComment, hlSymbol, hlKeyword, hlString, hlNumber, hlHole, hlPrimitiveType, hlPragma
   :: Doc -> Doc
@@ -333,6 +354,30 @@ hlNumber        = annotateAspect Number
 hlHole          = annotateAspect Hole
 hlPrimitiveType = annotateAspect PrimitiveType
 hlPragma        = annotateAspect Pragma
+
+-- ** Helpers introducing 'NameKind's
+
+hlNameKind :: NameKind -> Doc -> Doc
+hlNameKind k = annotateAspect (Name (Just k) False)
+
+hlBound, hlGeneralizable, hlDatatype, hlField,
+  hlFunction, hlModule, hlPostulate, hlPrimitive, hlRecord, hlArgument,
+  hlMacro :: Doc -> Doc
+
+hlBound         = hlNameKind Bound
+hlGeneralizable = hlNameKind Generalizable
+hlDatatype      = hlNameKind Datatype
+hlField         = hlNameKind Field
+hlFunction      = hlNameKind Function
+hlModule        = hlNameKind Module
+hlPostulate     = hlNameKind Postulate
+hlPrimitive     = hlNameKind Primitive
+hlRecord        = hlNameKind Record
+hlArgument      = hlNameKind Argument
+hlMacro         = hlNameKind Macro
+
+hlConstructor :: Induction -> Doc -> Doc
+hlConstructor = hlNameKind . Constructor
 
 ---------------------------------------------------------------------------
 -- * Delimiter wrappers
@@ -350,12 +395,12 @@ parens p       = lparen <> p <> rparen
 brackets p     = lbrack <> p <> rbrack
 braces p       = lbrace <> p <> rbrace
 
-semi, comma, colon, dot, space, equals, lparen, rparen, lbrack, rbrack, lbrace, rbrace :: Doc
+semi, comma, colon, dot, pipe, equals, lparen, rparen, lbrack, rbrack, lbrace, rbrace :: Doc
 semi   = hlSymbol $ char ';'
 comma  = hlSymbol $ char ','
 colon  = hlSymbol $ char ':'
 dot    = hlSymbol $ char '.'
-space  = hlSymbol $ char ' '
+pipe   = hlSymbol $ char '|'
 equals = hlSymbol $ char '='
 lparen = hlSymbol $ char '('
 rparen = hlSymbol $ char ')'

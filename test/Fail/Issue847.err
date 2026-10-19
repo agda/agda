@@ -1,5 +1,5 @@
 Issue847.agda:5.1-10.15: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   bad
 Problematic calls:
   bad′

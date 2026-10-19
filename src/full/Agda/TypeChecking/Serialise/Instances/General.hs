@@ -31,6 +31,8 @@ import qualified Data.Text.Lazy as TL
 import Data.Typeable
 import Data.Void
 import Data.Word (Word32, Word64)
+import Data.HashSet (HashSet)
+import qualified Data.HashSet as HSet
 
 import Agda.TypeChecking.Serialise.Base
 
@@ -293,7 +295,7 @@ instance (EmbPrj k, EmbPrj v, EmbPrj (BiMap.Tag v)) =>
   icod_ m = icode (BiMap.toDistinctAscendingLists m)
   value m = BiMap.fromDistinctAscendingLists <$!> value m
 
-instance (Eq k, Hashable k, EmbPrj k, EmbPrj v) => EmbPrj (HashMap k v) where
+instance (Hashable k, EmbPrj k, EmbPrj v) => EmbPrj (HashMap k v) where
   icod_ m = icodeNode =<< icodeListPair (HMap.foldrWithKey' (\ k v !acc -> Cons k v acc) Nil m)
   value = vcase ((HMap.fromList <$!>) . valueListPair)
 
@@ -308,11 +310,15 @@ instance EmbPrj IntSet where
   icod_ s = icode (IntSet.foldr' (:) [] s)
   value s = IntSet.fromDistinctAscList <$!> value s
 
-instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
+instance (EmbPrj a) => EmbPrj (Set a) where
   icod_ s = icode (Set.foldr' (:) [] s)
   value s = Set.fromDistinctAscList <$!> value s
 
-instance (Ord a, EmbPrj a) => EmbPrj (Set1 a) where
+instance (Hashable a, EmbPrj a) => EmbPrj (HashSet a) where
+  icod_ s = icode (Fold.foldr' (:) [] s)
+  value s = HSet.fromList <$!> value s
+
+instance (EmbPrj a) => EmbPrj (Set1 a) where
   icod_ s = icode (Set1.foldr' (:) [] s)
   value s = Set1.fromDistinctAscList <$!> value s
 

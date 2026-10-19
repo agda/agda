@@ -5,13 +5,12 @@
 module Agda.Syntax.Common.Pretty.ANSI ( printTreeAnsi, putDocLn, putDocTree, putDocTreeLn ) where
 
 import Control.Monad.IO.Class ( MonadIO(..) )
-import Data.Functor ((<&>))
+import Data.Functor ( (<&>) )
 import Data.Text    qualified as Text
 import Data.Text.IO qualified as Text
 
 import System.Console.ANSI
 import System.Console.ANSI.Codes ( osc )
-import System.IO ( stdout )
 
 -- UNUSED:
 -- import Text.PrettyPrint.Annotated.HughesPJ ( renderDecoratedM )
@@ -22,7 +21,8 @@ import Agda.Interaction.Options.Base
 import Agda.Syntax.Common.Aspect as Aspect
 import Agda.Syntax.Common.Pretty ( Doc, DocTree )
 
-import Agda.Utils.DocTree (renderTree', renderToTree, treeToTextNoAnn)
+import Agda.Utils.DocTree ( renderTree', renderToTree, treeToTextNoAnn )
+import Agda.Utils.IO.Terminal ( stdoutSupportsANSI )
 
 -- | Print an annotated, pretty-printing 'DocTree' onto a VT100-compatible terminal.
 printTreeAnsi :: DocTree -> IO ()
@@ -89,7 +89,7 @@ aspSGR = \case
 putDocTree :: (MonadIO m, HasOptions m) => DocTree -> m ()
 putDocTree doc = do
   col <- commandLineOptions <&> optDiagnosticsColour >>= \case
-    AutoColour   -> liftIO (hSupportsANSI stdout)
+    AutoColour   -> liftIO stdoutSupportsANSI
     AlwaysColour -> pure True
     NeverColour  -> pure False
 

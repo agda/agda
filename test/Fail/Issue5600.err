@@ -1,3 +1,7 @@
 Issue5600.agda:19.53-63: error: [UnequalTerms]
-s n != f 1 n of type A
+The terms
+  s n
+and
+  f 1 n
+are not equal at type A
 when checking that the expression refl (s n) has type f 1 n ≡ f 1 n

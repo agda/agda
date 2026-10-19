@@ -1,0 +1,6 @@
+Issue8384.agda:15.14-20: error: [ShouldBeASort]
+Ar → Set should be a sort, but it isn't
+when checking that the inferred type of an application
+  Ar → Set
+matches the expected type
+  _14

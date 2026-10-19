@@ -60,9 +60,9 @@ computeUnused q t = iterateUntilM (==) $ \ used -> do
         used <- fromMaybe [] <$> getCompiledArgUse f
         VarSet.unions <$> sequence [ go t | (t, ArgUsed) <- zip ts $ ListInf.pad used ArgUsed ]
 
-      TApp f ts -> VarSet.unions <$> mapM go (f : ts)
-      TLam b    -> underBinder <$> go b
-      TLet e b  -> do
+      TApp f ts  -> VarSet.unions <$> mapM go (f : ts)
+      TLam b     -> underBinder <$> go b
+      TLet _ e b -> do
         uses <- go b
         if | VarSet.member 0 uses -> VarSet.union (underBinder uses) <$> go e
            | otherwise            -> pure (underBinder uses)

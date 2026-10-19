@@ -1,0 +1,6 @@
+Issue2670.agda:34.14-17: error: [InstanceNoCandidate]
+No instance of type IsRG (Node rg) (Edge rg) was found in scope.
+when checking that x is a valid argument to a function of type
+{Node = Node₁ : Set} {Edge = Edge₁ : Set}
+⦃ r : IsRG Node₁ Edge₁ ⦄ →
+Edge₁ → Node₁

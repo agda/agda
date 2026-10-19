@@ -10,8 +10,8 @@
 --
 -- Import as:
 -- @
---    import qualified Agda.Utils.SmallSet as SmallSet
 --    import Agda.Utils.SmallSet (SmallSet)
+--    import Agda.Utils.SmallSet qualified as SmallSet
 -- @
 
 module Agda.Utils.SmallSet
@@ -45,10 +45,10 @@ import Data.Word (Word64)
 import Data.List (foldl')
 #endif
 import Data.Bits hiding (complement)
-import qualified Data.Bits as Bits
+import Data.Bits qualified as Bits
 import Data.Ix
 
-import qualified Agda.Utils.Null as Null
+import Agda.Utils.Null qualified as Null
 
 -- | An element in a small set.
 --
@@ -59,20 +59,20 @@ newtype SmallSet a = SmallSet { theSmallSet :: Word64 }
   deriving (Eq, Ord, Show, NFData)
 
 
-instance SmallSetElement a => Null.Null (SmallSet a) where
+instance Null.Null (SmallSet a) where
   empty = empty
   null = null
 
-instance SmallSetElement a => Semigroup (SmallSet a) where
+instance Semigroup (SmallSet a) where
   (<>) = union
 
-instance SmallSetElement a => Monoid (SmallSet a) where
+instance Monoid (SmallSet a) where
   mempty = empty
 
 -- * Query
 
 -- | Time O(1).
-null :: SmallSetElement a => SmallSet a -> Bool
+null :: SmallSet a -> Bool
 null s = theSmallSet s == 0
 
 -- | Time O(1).
@@ -86,11 +86,11 @@ notMember a = not . member a
 -- * Construction
 
 -- | The empty set.  Time O(1).
-empty :: SmallSetElement a => SmallSet a
+empty :: SmallSet a
 empty = SmallSet 0
 
 -- | The full set.  Time O(1).
-total :: forall a. SmallSetElement a => SmallSet a
+total :: forall a. SmallSet a
 total = SmallSet $ Bits.complement 0
 
 -- | A singleton set.  Time O(1).
@@ -108,20 +108,20 @@ delete a s = SmallSet $ theSmallSet s `clearBit` idx a
 -- * Combine
 
 -- | Time O(n).
-complement :: SmallSetElement a => SmallSet a -> SmallSet a
+complement :: SmallSet a -> SmallSet a
 complement = SmallSet . Bits.complement . theSmallSet
 
 -- | Time O(1).
-difference, (\\) :: SmallSetElement a => SmallSet a -> SmallSet a -> SmallSet a
+difference, (\\) :: SmallSet a -> SmallSet a -> SmallSet a
 difference s t = SmallSet $ theSmallSet s .&. Bits.complement (theSmallSet t)
 (\\)       = difference
 
 -- | Time O(1).
-intersection ::  SmallSetElement a => SmallSet a -> SmallSet a -> SmallSet a
+intersection ::  SmallSet a -> SmallSet a -> SmallSet a
 intersection s t = SmallSet $ theSmallSet s .&. theSmallSet t
 
 -- | Time O(n).
-union ::  SmallSetElement a => SmallSet a -> SmallSet a -> SmallSet a
+union ::  SmallSet a -> SmallSet a -> SmallSet a
 union s t = SmallSet $ theSmallSet s .|. theSmallSet t
 
 -- * Conversion

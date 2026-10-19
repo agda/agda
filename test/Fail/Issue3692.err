@@ -1,4 +1,8 @@
 Issue3692.agda:33.19-23: error: [UnequalTerms]
-m≤n != m≤n' of type m ≤ n
+The terms
+  m≤n
+and
+  m≤n'
+are not equal at type m ≤ n
 when checking that the expression refl has type
 inject≤ m n i m≤n ≡ inject≤ m n i m≤n'

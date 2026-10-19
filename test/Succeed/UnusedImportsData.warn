@@ -1,0 +1,44 @@
+
+UnusedImportsData.agda:26.5-11: warning: -W[no]UnusedImports
+Redundant opening of M
+
+UnusedImportsData.agda:31.5-11: warning: -W[no]UnusedImports
+Opening M brings the following unused names into scope: c
+
+UnusedImportsData.agda:37.5-11: warning: -W[no]UnusedImports
+Opening M brings the following unused names into scope: D
+
+UnusedImportsData.agda:43.5-11: warning: -W[no]UnusedImports
+Opening M brings the following unused names into scope: D'
+
+UnusedImportsData.agda:61.3-10: warning: -W[no]UnusedImports
+Redundant opening of M2
+
+UnusedImportsData.agda:72.5-11: warning: -W[no]UnusedImports
+Redundant opening of M.R
+
+UnusedImportsData.agda:78.3-8: warning: -W[no]UnusedImports
+Redundant opening of UnusedImportsData.Parameterized._
+
+———— All done; warnings encountered ————————————————————————
+
+UnusedImportsData.agda:26.5-11: warning: -W[no]UnusedImports
+Redundant opening of M
+
+UnusedImportsData.agda:31.5-11: warning: -W[no]UnusedImports
+Opening M brings the following unused names into scope: c
+
+UnusedImportsData.agda:37.5-11: warning: -W[no]UnusedImports
+Opening M brings the following unused names into scope: D
+
+UnusedImportsData.agda:43.5-11: warning: -W[no]UnusedImports
+Opening M brings the following unused names into scope: D'
+
+UnusedImportsData.agda:61.3-10: warning: -W[no]UnusedImports
+Redundant opening of M2
+
+UnusedImportsData.agda:72.5-11: warning: -W[no]UnusedImports
+Redundant opening of M.R
+
+UnusedImportsData.agda:78.3-8: warning: -W[no]UnusedImports
+Redundant opening of UnusedImportsData.Parameterized._

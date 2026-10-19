@@ -1,4 +1,8 @@
-Issue6633.agda:32.47-48: error: [UnequalSorts]
-SSet != Set
+Issue6633.agda:32.47-48: error: [UnequalTypes]
+The types
+  SSet
+and
+  Set
+are not equal
 when checking that the solution x ≡ˢ y of metavariable _A_33 has
 the expected type Set

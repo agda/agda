@@ -9,6 +9,7 @@ Getting Started
 
    what-is-agda
    installation
+   installation-troubleshooting
    hello-world
    a-taste-of-agda
    tutorial-list

@@ -1,0 +1,2 @@
+-- Testing the version option when used without type-check the file.
+--

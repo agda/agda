@@ -49,6 +49,8 @@ postulate
 {-# FOREIGN GHC import qualified Data.Text.IO as Text #-}
 {-# COMPILE GHC putStrLn = Text.putStrLn #-}
 {-# COMPILE GHC _>>_ = \ _ _ -> (>>) #-}
+{-# COMPILE JS putStrLn = x => y => (console.log(x), y) #-}
+{-# COMPILE JS _>>_ = _ => _ => x => y => z => y(x(z)) #-}
 
 assert : String → Bool → IO ⊤
 assert s true  = putStrLn (s ++ " PASSED")
@@ -56,6 +58,8 @@ assert s false = putStrLn (s ++ " FAILED")
 
 main : IO ⊤
 main = do
-  assert "before surrogates" (all (not ∘ isReplaced) (fromTo 0xD780 0xD7FF))
-  assert "surrogate range  " (all isReplaced (fromTo 0xD800 0xDFFF))
-  assert "after surrogates " (all (not ∘ isReplaced) (fromTo 0xE000 0xE07F))
+  assert "lower case ascii alphabets" (primStringEquality "abcdefghijklmnopqrstuvwxyz" (primStringFromList (map primNatToChar (fromTo 97 122))))
+  assert "upper case ascii alphabets" (primStringEquality "ABCDEFGHIJKLMNOPQRSTUVWXYZ" (primStringFromList (map primNatToChar (fromTo 65 90))))
+  assert "before surrogates         " (all (not ∘ isReplaced) (fromTo 0xD780 0xD7FF))
+  assert "surrogate range           " (all isReplaced (fromTo 0xD800 0xDFFF))
+  assert "after surrogates          " (all (not ∘ isReplaced) (fromTo 0xE000 0xE07F))

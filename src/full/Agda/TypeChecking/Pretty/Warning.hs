@@ -37,6 +37,7 @@ import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Constraints
+import Agda.TypeChecking.Monad.Context ( addContext )
 import Agda.TypeChecking.Monad.State ( getScope )
 import Agda.TypeChecking.Monad ( localTCState, enterClosure )
 import Agda.TypeChecking.Positivity () --instance only
@@ -50,10 +51,11 @@ import Agda.Syntax.Common
   ( ImportedName'(..), fromImportedName, partitionImportedNames
   , IsOpaque(OpaqueDef, TransparentDef)
   , ProjOrigin(..)
-  , getHiding
+  , getHiding, DataOrRecord_, DataOrRecord'(IsData, IsRecord)
   )
 import Agda.Syntax.Common.Pretty ( Pretty, prettyShow, singPlural )
 import qualified Agda.Syntax.Common.Pretty as P
+import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
@@ -118,16 +120,16 @@ prettyWarning = \case
       let (guardednessHelps, guardednessHelpsNot) =
             List.partition (toBool . termErrGuardednessHelps) errs
       let report hint because = if null because then empty else do
+            let
+              fs = concatMap termErrFunctions because
+              calls = concatMap termErrCalls because
             vcat
-              [ fwords "Termination checking failed for the following functions:"
+              [ fsep $ pwords "Termination checking failed for the following" ++ [ pluralS fs "function" <> colon ]
               , fwords hint
-              , nest 2 $ fsep $ punctuate comma $
-                  map (pretty . dropTopLevel) $
-                    concatMap termErrFunctions because
-              , fwords "Problematic calls:"
+              , nest 2 $ fsep $ map (prettyTCM . dropTopLevel) fs
+              , fsep [ "Problematic", pluralS calls "call" <> colon ]
               , nest 2 $ fmap (P.vcat . List.nub) $
-                  mapM prettyTCM $ List.sortOn getRange $
-                    concatMap termErrCalls because
+                  mapM prettyTCM $ List.sortOn getRange calls
               ]
       -- Andreas, 2025-04-01, issue #6657
       -- Hint towards --guardedness where appropriate, but not when --sized-types is on.
@@ -198,7 +200,12 @@ prettyWarning = \case
 
     CoinductiveEtaRecord name -> vcat
       [ fsep $ pwords "Not switching on eta-equality for coinductive records."
-      , fsep $ pwords "If you must, use pragma" ++ [ "{-# ETA", prettyTCM name, "#-}" ]
+      , fsep $ pwords "If you must, use pragma" ++ [ "{-# ETA_EQUALITY #-}" ]
+      ]
+
+    UnguardedEtaRecordW name -> vcat
+      [ fsep $ pwords "Recursive occurrence of this record in its definition is unguarded, so eta-equality for this record might lead to non-termination in the type checker."
+      , fsep $ pwords "To suppress this warning, use pragma" ++ [ "{-# ETA_EQUALITY #-}" ]
       ]
 
     UnsupportedIndexedMatch doc -> vcat
@@ -240,21 +247,24 @@ prettyWarning = \case
 
     FixingRelevance s r r' -> fsep $ concat
       [ pwords "Replacing illegal relevance", [ p r ]
-      , pwords s, [ "by", p r' ]
+      , ["of", text s], [ "by", p r' ]
       ]
       where p r = text $ "`" ++ verbalize r ++ "'"
 
     FixingCohesion s c c' -> fsep $ concat
       [ pwords "Replacing illegal cohesion", [ p c ]
-      , pwords s, [ "by", p c' ]
+      , ["of", text s], [ "by", p c' ]
       ]
       where p c = text $ "`" ++ verbalize c ++ "'"
 
     FixingPolarity s q q' ->  fsep $ concat
       [ pwords "Replacing illegal polarity", [ p q ]
-      , pwords s, [ "by", p q' ]
+      , ["of", text s], [ "by", p q' ]
       ]
       where p q = text $ "`" ++ verbalize q ++ "'"
+
+    IgnoringRew s r -> fsep $ concat
+      [pwords "Ignoring illegal local rewrite attribute on", pwords s]
 
     IllformedAsClause s -> fsep . pwords $
       "`as' must be followed by an identifier" ++ s
@@ -280,10 +290,10 @@ prettyWarning = \case
          UselessPublicAnonymousModule
            -> fwords $ "Ignoring `public'; cannot reexport from unopened anonymous module"
 
-    UselessHiding xs -> fsep $ concat
-      [ pwords "Ignoring names in `hiding' directive:"
-      , punctuate "," $ fmap pretty xs
-      ]
+    UselessHiding xs ->
+      fwords "Ignoring names in `hiding' directive:"
+      <?> fsep (punctuate ";" $ fmap pretty xs)
+        -- Andreas, 2026-02-14 punctuate with semicolon since xs may contain "module M" or even ","
 
     UselessInline q -> fsep $
       pwords "It is pointless for INLINE'd function" ++ [prettyTCM q] ++
@@ -291,11 +301,11 @@ prettyWarning = \case
 
     UselessTactic -> fwords $ "Ignoring `tactic' attribute for non-hidden (explicit or instance) binder"
 
-    WrongInstanceDeclaration -> fwords $
+    WrongInstanceDeclaration _kwr -> fwords $
       "Instances should be of type {Γ} → C, where C evaluates to a postulated name or the name of " ++
       "a data or record type, so `instance' is ignored here."
 
-    InstanceWithExplicitArg q -> fsep $
+    InstanceWithExplicitArg _kwr q -> fsep $
       pwords "Instance declarations with explicit arguments are never considered by instance search," ++
       pwords "so making" ++ [prettyTCM q] ++ pwords "into an instance has no effect."
 
@@ -319,6 +329,13 @@ prettyWarning = \case
     InvalidCharacterLiteral c -> fsep $
       pwords "Invalid character literal" ++ [text $ show c] ++
       pwords "(surrogate code points are not supported)"
+
+    UnusedImports m Nothing -> fsep $
+      pwords "Redundant opening of" ++ [ prettyTCM m ]
+
+    UnusedImports m (Just xs) -> fsep $
+      [ "Opening", prettyTCM m ] ++ pwords "brings the following unused names into scope:"
+      ++ fmap pretty (List1.toList xs)
 
     UselessPragma _r d -> return d
 
@@ -347,9 +364,11 @@ prettyWarning = \case
 
     ParseWarning pw -> pretty pw
 
-    DeprecationWarning old new version -> fsep $
-      [text old] ++ pwords "has been deprecated. Use" ++ [text new] ++ pwords
-      "instead. This will be an error in Agda" ++ [text version <> "."]
+    DeprecationWarning old mnew version -> fsep $ concat $ concat
+      [ [ [text old], pwords "has been deprecated." ]
+      , [ ["Use", text new, "instead." ] | new <- maybeToList mnew ]
+      , [ pwords "This will be an error in", [text version <> "."] ]
+      ]
 
     NicifierIssue w -> pretty w
 
@@ -385,78 +404,154 @@ prettyWarning = \case
             NotAmbiguous -> pwords "neither a defined symbol nor a constructor"
         ]
 
-    IllegalRewriteRule q reason -> case reason of
-      LHSNotDefinitionOrConstructor -> hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
-      VariablesNotBoundByLHS xs -> hsep
-        [ prettyTCM q
-        , " is not a legal rewrite rule, since the following variables are not bound by the left hand side: "
-        , prettyList_ (map (prettyTCM . var) $ VarSet.toAscList xs)
-        ]
-      VariablesBoundMoreThanOnce xs -> do
-        (prettyTCM q
-          <+> " is not a legal rewrite rule, since the following parameters are bound more than once on the left hand side: "
-          <+> hsep (List.intersperse "," $ map (prettyTCM . var) $ VarSet.toAscList xs))
-          <> ". Perhaps you can use a postulate instead of a constructor as the head symbol?"
-      LHSReduces v v' -> fsep
-        [ prettyTCM q <+> " is not a legal rewrite rule, since the left-hand side "
-        , prettyTCM v <+> " reduces to " <+> prettyTCM v' ]
-      HeadSymbolIsProjectionLikeFunction f -> hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
-        , hd , "is a projection-like function."
-        , "You can turn off the projection-like optimization for", hd
-        , "with the pragma {-# NOT_PROJECTION_LIKE", hd, "#-}"
-        , "or globally with the flag --no-projection-like"
-        ]
-        where hd = prettyTCM f
-      HeadSymbolIsTypeConstructor f -> hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
-        , prettyTCM f , "is a type constructor."
-        ]
-      HeadSymbolContainsMetas f -> hsep
-        [ prettyTCM q , "is not a legal rewrite rule, since the definition of the head symbol"
-        , prettyTCM f , "contains unsolved metavariables and confluence checking is enabled."
-        ]
-      ConstructorParametersNotGeneral c vs -> vcat
-        [ prettyTCM q <+> text " is not a legal rewrite rule, since the constructor parameters are not fully general:"
-        , nest 2 $ text "Constructor: " <+> prettyTCM c
-        , nest 2 $ text "Parameters: " <+> prettyList (map prettyTCM vs)
-        ]
-      ContainsUnsolvedMetaVariables ms -> hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since"
-        , "it contains the unsolved meta variable(s)", prettyList_ (fmap prettyTCM $ Set1.toList ms)
-        ]
-      BlockedOnProblems ps -> hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since"
-        , "it is blocked on problem(s)", prettyList_ (fmap prettyTCM $ Set1.toList ps)
-        ]
-      RequiresDefinitions qs -> hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since"
-        , "it requires the definition(s) of", prettyList_ (fmap prettyTCM $ Set1.toList qs)
-        ]
-      DoesNotTargetRewriteRelation -> hsep
-        [ prettyTCM q , " does not target rewrite relation" ]
-      BeforeFunctionDefinition -> hsep
-        [ "Rewrite rule from function "
-        , prettyTCM q
-        , " cannot be added before the function definition"
-        ]
-      BeforeMutualFunctionDefinition r -> hsep
-        [ "Rewrite rule from function "
-        , prettyTCM q
-        , " cannot be added before the definition of mutually defined"
-        , prettyTCM r
-        ]
-      DuplicateRewriteRule ->
-        "Rewrite rule " <+> prettyTCM q <+> " has already been added"
+    IllegalRewriteRule q reason -> do
+      let illegalSince q = [ prettyTCM q, "" ] ++ pwords "is not a legal rewrite rule, since"
+      case reason of
 
-    ConfluenceCheckingIncompleteBecauseOfMeta f -> fsep
-      [ "Confluence checking incomplete because the definition of"
-      , prettyTCM f
-      , text "contains unsolved metavariables."
+        LHSNotDefinitionOrConstructor -> do
+          (fsep . concat)
+            [ illegalSince q
+            , pwords "the left-hand side is neither a defined symbol nor a constructor"
+            ]
+
+        VariablesNotBoundByLHS xs -> do
+          (fsep . concat)
+            [ illegalSince q
+            , pwords "the following"
+            , pwords $ singPlural ys "variable is" "variables are"
+            , pwords "not bound by the left hand side:"
+            ]
+          <?> fsep (map (prettyTCM . var) ys)
+          where ys = VarSet.toAscList xs
+
+        VariablesBoundMoreThanOnce xs -> do
+          (fsep . concat)
+            [ illegalSince q
+            , pwords "the following"
+            , pwords $ singPlural ys "parameter is" "parameters are"
+            , pwords "bound more than once on the left hand side:"
+            ]
+          <?> fsep (map (prettyTCM . var) ys)
+          $$ fwords "(Perhaps you can use a postulate instead of a constructor as the head symbol?)"
+          where ys = VarSet.toAscList xs
+
+        VariablesBoundInSingleton xs -> do
+          -- This warning is motivated in #8238. If #6636 is implemented, then
+          -- this warning should be disabled.
+          (fsep . concat)
+            [ pwords "I am not certain that the rewrite rule"
+            , [ "", prettyTCM q, "" ]
+            , pwords "is safe because it appears that the following"
+            , pwords $ singPlural ys "variable is" "variables are"
+            , pwords "only bound in contexts which might become definitionally singular:"
+            ]
+          <?> fsep (map (prettyTCM . var) ys)
+          $$ fwords "This warning can be silenced with"
+          <?> hcat [ "-Wno", text (warningNameToString RewriteVariablesBoundInSingleton_) ]
+          $$ fwords "but be aware that this rewrite might behave strangely in the presence of e.g. eta records with no fields"
+          where ys = VarSet.toAscList xs
+
+        LHSReduces v v' -> vcat
+          [ (fsep . concat) [ illegalSince q, pwords "the left-hand side" ]
+          , nest 2 $ prettyTCM v
+          , fwords "reduces to"
+          , nest 2 $ prettyTCM v'
+          ]
+
+        HeadSymbolIsProjectionLikeFunction f -> vcat
+          [ (fsep . concat)
+            [ illegalSince q , pwords "the head symbol"
+            , [ "", hd, ""]
+            , pwords "is a projection-like function."
+            ]
+          , (fsep . concat)
+            [ pwords "You can turn off the projection-like optimization for"
+            , [ hd ]
+            , pwords "with the pragma"
+            ]
+          , nest 2 $ fsep [ "{-# NOT_PROJECTION_LIKE", hd, "#-}" ]
+          , fwords "or globally with the flag --no-projection-like"
+          ]
+          where hd = prettyTCM f
+
+        HeadSymbolIsTypeConstructor f -> (fsep . concat)
+          [ illegalSince q
+          , pwords "the head symbol"
+          , [ prettyTCM f ]
+          , pwords "is a type constructor."
+          ]
+
+        HeadSymbolContainsMetas f -> (fsep . concat)
+          [ illegalSince q
+          , pwords "the definition of the head symbol"
+          , [ prettyTCM f ]
+          , pwords "contains unsolved metavariables and confluence checking is enabled."
+          ]
+
+        ConstructorParametersNotGeneral c vs -> vcat
+          [ (fsep . concat) [ illegalSince q, pwords "the constructor parameters are not fully general:" ]
+          , nest 2 $ text "Constructor: " <+> prettyTCM c
+          , nest 2 $ (pluralS vs "Parameter" <> ": ") <+> fsep (punctuate ";" $ fmap prettyTCM vs)
+          ]
+
+        ContainsUnsolvedMetaVariables ms -> do
+          (fsep . concat)
+            [ illegalSince q
+            , pwords "it contains the unsolved meta"
+            , [ pluralS ms "variable" <> colon ]
+            ]
+          <?> fsep (fmap prettyTCM $ Set1.toList ms)
+
+        BlockedOnProblems ps -> do
+          (fsep . concat)
+            [ illegalSince q
+            , pwords "it is blocked on"
+            , [ pluralS ps "problem" <> colon]
+            ]
+          <?> fsep (fmap prettyTCM $ Set1.toList ps)
+
+        RequiresDefinitions qs -> do
+          (fsep . concat)
+            [ illegalSince q
+            , pwords "it requires the"
+            , [ pluralS qs "definition", "of" <> colon]
+            ]
+          <?> fsep (fmap prettyTCM $ Set1.toList qs)
+
+        DoesNotTargetRewriteRelation -> (fsep . concat)
+          [ [ prettyTCM q, "" ], pwords "does not target rewrite relation" ]
+
+        BeforeFunctionDefinition -> (fsep . concat)
+          [ pwords "Rewrite rule from function"
+          , [ "", prettyTCM q, ""]
+          , pwords "cannot be added before the function definition"
+          ]
+
+        BeforeMutualFunctionDefinition r -> (fsep . concat)
+          [ pwords "Rewrite rule from function"
+          , [ "", prettyTCM q, ""]
+          , pwords "cannot be added before the definition of mutually defined"
+          , [ prettyTCM r ]
+          ]
+
+        DuplicateRewriteRule -> (fsep . concat)
+          [ pwords "Rewrite rule"
+          , [ "", prettyTCM q, ""]
+          , pwords "has already been added"
+          ]
+
+        LocalRewriteOutsideTelescope -> (fsep . concat)
+          [ illegalSince q
+          , pwords "local rewrite rules are (currently) only allowed in module telescopes. Consider creating an anonymous module"
+          ]
+
+    ConfluenceCheckingIncompleteBecauseOfMeta f -> (fsep . concat)
+      [ pwords "Confluence checking incomplete because the definition of"
+      , [ prettyTCM f ]
+      , pwords "contains unsolved metavariables."
       ]
 
-    ConfluenceForCubicalNotSupported -> fsep $ pwords $
+    ConfluenceForCubicalNotSupported -> fwords $
       "Confluence checking for --cubical is not yet supported, confluence checking might be incomplete"
 
     RewriteNonConfluent lhs rhs1 rhs2 err -> fsep
@@ -501,8 +596,22 @@ prettyWarning = \case
         ]
       ]
 
+    InferredLocalRewrite m v -> vcat
+      [ fsep $ pwords "Tried to solve"
+      , nest 2 $ prettyTCM m
+      , fsep $ pwords "with the following function (containing a local rewrite rule parameter):"
+      , nest 2 $ prettyTCM v
+      , fsep $ pwords "Local rewrite rules must be explicitly annotated (never inferred)."
+      , fsep $ pwords "Please annotate all local rewrite rules explicitly." ]
+
     DuplicateRecordDirective dir ->
       "Ignoring duplicate record directive: " <+> pretty dir
+
+    UnknownJSPrimitive p -> fsep $ concat
+      [ pwords "The primitive"
+      , [ text p ]
+      , pwords "is not known to the JS backend and will be compiled to undefined."
+      ]
 
     PragmaCompileErased bn qn -> fsep $ concat
       [ pwords "The backend"
@@ -627,6 +736,11 @@ prettyWarning = \case
       [pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
       pwords "a function expecting an instance argument."
 
+    IllegalDeclarationInDataDefinition ds -> vcat
+      [ "Illegal declaration in data type definition"
+      , nest 2 $ vcat $ fmap pretty ds
+      ]
+
     InvalidDisplayForm x reason -> fsep $ concat
         [ pwords "Ignoring invalid display form for"
         , [ prettyTCM x ]
@@ -647,9 +761,17 @@ prettyWarning = \case
         ]
       ]
 
+    ShouldBeEtaRecordPattern -> fwords
+      "Irrefutable matching on non-eta record constructor"
+
     TooManyArgumentsToSort q args -> fsep $ concat
       [ pwords "Too many arguments given to sort"
       , [ prettyTCM q ]
+      ]
+
+    DefinitionBeforeDeclaration x -> fsep $ concat
+      [ [ prettyTCM x ]
+      , pwords "defined before its declaration"
       ]
 
     RewritesNothing -> fsep $ pwords "`rewrite' did not apply"
@@ -668,6 +790,12 @@ prettyWarning = \case
         prettyProjOrigin ProjPrefix  = "a prefix projection"
         prettyProjOrigin ProjPostfix = "a postfix projection"
         prettyProjOrigin ProjSystem  = __IMPOSSIBLE__
+
+    RecursiveRecordNeedsInductivity q -> fsep $ concat
+      [ pwords "Recursive record"
+      , [ prettyTCM q ]
+      , pwords "needs to be declared as either inductive or coinductive"
+      ]
 
     FaceConstraintCannotBeHidden ai -> fsep $
       pwords "Face constraint patterns cannot be" ++ [ pretty (getHiding ai), "arguments"]
@@ -690,6 +818,14 @@ instance PrettyTCM DataOrRecord_ where
     IsData{}   -> "data"
     IsRecord{} -> "record"
 
+instance PrettyTCM RewriteSource where
+  prettyTCM s = prettyTCM (defName <$> s)
+
+instance PrettyTCM SerialisableRewriteSource where
+  prettyTCM = \case
+    LocalRewrite g n t ->
+      maybe "_" prettyTCM n <+> ":" <+> addContext g (prettyTCM t)
+    GlobalRewrite q    -> prettyTCM q
 
 {-# SPECIALIZE prettyRecordFieldWarning :: RecordFieldWarning -> TCM Doc #-}
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
@@ -698,28 +834,32 @@ prettyRecordFieldWarning = \case
   W.TooManyFields q ys xrs -> prettyTooManyFields q ys $ fmap fst xrs
 
 prettyDuplicateFields :: MonadPretty m => List1 C.Name -> m Doc
-prettyDuplicateFields xs = fsep $ concat
+prettyDuplicateFields xs =
+  (fsep . concat)
     [ [ "Duplicate", pluralS xs "field" ]
-    , punctuate comma (fmap pretty xs)
-    , pwords "in record"
+    , pwords "in record:"
     ]
+  <?> fsep (fmap pretty xs)
 
 {-# SPECIALIZE prettyTooManyFields :: QName -> [C.Name] -> List1 C.Name -> TCM Doc  #-}
 prettyTooManyFields :: MonadPretty m => QName -> [C.Name] -> List1 C.Name -> m Doc
-prettyTooManyFields r missing xs = fsep $ concat
+prettyTooManyFields r missing xs =
+  (fsep . concat)
     [ pwords "The record type"
     , [prettyTCM r]
     , pwords "does not have the"
     , fields xs
-    , punctuate comma (fmap pretty xs)
-    , if null missing then [] else concat
+    ]
+  <?> fsep (fmap pretty xs)
+  $$
+  if null missing then empty else
+    (fsep . concat)
       [ pwords "but it would have the"
       , fields missing
-      , punctuate comma (map pretty missing)
       ]
-    ]
+    <?> fsep (map pretty missing)
   where
-    fields ys = [ pluralS ys "field" ]
+    fields ys = [ pluralS ys "field" <> colon ]
 
 {-# SPECIALIZE prettyNotInScopeNames :: (Pretty a, HasRange a) => Bool -> (a -> TCM Doc) -> [a] -> TCM Doc #-}
 -- | Report a number of names that are not in scope.
@@ -737,10 +877,10 @@ prettyNotInScopeNames printRange suggestion xs = nest 2 $ vcat $ map name xs
     , suggestion x
     ]
 
-{-# SPECIALIZE didYouMean :: (Pretty a, Pretty b) => [C.QName] -> (a -> b) -> a -> Maybe (TCM Doc) #-}
+{-# SPECIALIZE didYouMean :: (Pretty b) => [C.QName] -> (a -> b) -> a -> Maybe (TCM Doc) #-}
 -- | Suggest some corrections to a misspelled name.
 didYouMean
-  :: (MonadPretty m, Pretty a, Pretty b)
+  :: (MonadPretty m, Pretty b)
   => [C.QName]     -- ^ Names in scope.
   -> (a -> b)      -- ^ Canonization function for similarity search.
   -> a             -- ^ A name which is not in scope.
@@ -783,10 +923,15 @@ filterTCWarnings wset = case Set.toAscList wset of
 
 
 -- | Turns warnings, if any, into errors.
-tcWarningsToError :: [TCWarning] -> TCM ()
-tcWarningsToError mws = case (unsolvedHoles, otherWarnings) of
+tcWarningsToError ::
+     TopLevelModuleNameWithSourceFile
+       -- ^ The module we have checked (which produced the warnings).
+  -> [TCWarning]
+       -- ^ The warnings to turn into errors.
+  -> TCM ()
+tcWarningsToError x mws = case (unsolvedHoles, otherWarnings) of
    ([], [])                   -> return ()
-   (_unsolvedHoles@(_:_), []) -> typeError SolvedButOpenHoles
+   (_unsolvedHoles@(_:_), []) -> typeError $ SolvedButOpenHoles x
    (_ , w : ws)               -> typeError $ NonFatalErrors $ Set1.fromList (w :| ws)
    where
    -- filter out unsolved interaction points for imported module so
@@ -835,7 +980,7 @@ isBoundaryConstraint c =
     g (a, _, _, _) = getRange a
 
 {-# SPECIALIZE getAllUnsolvedWarnings :: TCM [TCWarning] #-}
-getAllUnsolvedWarnings :: (ReadTCState m, MonadWarning m, MonadTCM m) => m [TCWarning]
+getAllUnsolvedWarnings :: (MonadWarning m, MonadTCM m) => m [TCWarning]
 getAllUnsolvedWarnings = do
   unsolvedInteractions <- getUnsolvedInteractionMetas
 
@@ -855,12 +1000,12 @@ getAllUnsolvedWarnings = do
 -- | Collect all warnings that have accumulated in the state.
 
 {-# SPECIALIZE getAllWarnings :: WhichWarnings -> TCM (Set TCWarning) #-}
-getAllWarnings :: (ReadTCState m, MonadWarning m, MonadTCM m) => WhichWarnings -> m (Set TCWarning)
+getAllWarnings :: (MonadWarning m, MonadTCM m) => WhichWarnings -> m (Set TCWarning)
 getAllWarnings = getAllWarningsPreserving Set.empty
 
 {-# SPECIALIZE getAllWarningsPreserving :: Set WarningName -> WhichWarnings -> TCM (Set TCWarning) #-}
 getAllWarningsPreserving ::
-  (ReadTCState m, MonadWarning m, MonadTCM m) => Set WarningName -> WhichWarnings -> m (Set TCWarning)
+  (MonadWarning m, MonadTCM m) => Set WarningName -> WhichWarnings -> m (Set TCWarning)
 getAllWarningsPreserving keptWarnings ww = do
   unsolved            <- Set.fromList <$> getAllUnsolvedWarnings
   collectedTCWarnings <- useTC stTCWarnings

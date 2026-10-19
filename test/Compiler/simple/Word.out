@@ -9,7 +9,7 @@ out > Word._^_ =
 out >   λ a b →
 out >     case b of
 out >       0 → 1
-out >       _ → let c = b - 1 in a * Word._^_ a c
+out >       _ → let !c = b - 1 in a * Word._^_ a c
 out > Word.2⁶⁴ = Word._^_ 2 64
 out > Word.addWord = λ a b → a +64 b
 out > Word.subWord = λ a b → a -64 b
@@ -28,6 +28,6 @@ out > Word.prf = _
 out > Word.prf' = _
 out > Word.main = Word.putStrLn (Word.showWord Word.test)
 out > Word.ltDouble = λ a b → 2 *64 a <64 b
-out > Word.lt4x = λ a b → let c = 2 *64 a in seq c (Word.ltDouble c) b
+out > Word.lt4x = λ a b → let !c = 2 *64 a in seq c (Word.ltDouble c) b
 out > 101
 out >

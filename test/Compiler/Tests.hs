@@ -3,7 +3,6 @@ module Compiler.Tests where
 
 import Utils
 import Test.Tasty
-import Test.Tasty.Silver.Advanced (readFileMaybe)
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Filter
 import Data.Bits (finiteBitSize)
@@ -19,12 +18,15 @@ import System.Exit
 import qualified System.Process as P
 import System.Process.Text as PT
 
+
 import Control.Monad (forM)
 import Data.Maybe
 import Text.Read
 
 import Agda.Utils.List
 import Agda.Utils.List1 (wordsBy, toList)
+import Agda.Utils.Functor ((<&>))
+import Utils (readFileMaybeText)
 
 type GHCArgs = [String]
 
@@ -43,12 +45,9 @@ data CodeOptimization = NonOptimized | Optimized | MinifiedOptimized
 data Strict = Strict | StrictData | Lazy
   deriving (Show, Read, Eq, Enum, Bounded)
 
-data JSModuleStyle = ES6 | CJS | AMD
-  deriving (Show, Read, Eq, Enum, Bounded)
-
 data Compiler
   = MAlonzo Strict
-  | JS JSModuleStyle CodeOptimization
+  | JS CodeOptimization
   deriving (Show, Read, Eq)
 
 data CompilerOptions
@@ -66,7 +65,7 @@ data TestOptions
 allCompilers :: [Compiler]
 allCompilers
   =  [ MAlonzo strict | strict <- [Lazy, StrictData, Strict]]
-  ++ [ JS style opt   | opt <- [minBound..], style <- [minBound..] ]
+  ++ [ JS opt   | opt <- [minBound..] ]
 
 defaultOptions :: TestOptions
 defaultOptions = TestOptions
@@ -78,39 +77,31 @@ defaultOptions = TestOptions
 
 disabledTests :: [RegexFilter]
 disabledTests =
-  [ -----------------------------------------------------------------------------
-    -- These test are disabled on all backends.
-    -- See issue 1528
-    disable "Compiler/.*/simple/Sharing"
-    -- Fix to 2524 is too unsafe
-  , disable "Compiler/.*/simple/Issue2524"
-    -- Issue #2640 (forcing translation for runtime erasure) is still open
-  , disable "Compiler/.*/simple/Erasure-Issue2640"
-    -----------------------------------------------------------------------------
-    -- The test case for #2918 stopped working when inlining of
-    -- recursive pattern-matching lambdas was disabled.
-  , disable "Compiler/MAlonzo_.*/simple/Issue2918$"
-    -----------------------------------------------------------------------------
-    -- The following test cases fail (at least at the time of writing)
-    -- for the JS backend.
-  , disable "Compiler/JS_Optimized/simple/ModuleReexport"
-  , disable "Compiler/JS_MinifiedOptimized/simple/ModuleReexport"
-    -----------------------------------------------------------------------------
-    -- The following test cases use primitives that are not implemented in the
-    -- JS backend.
-  , disable "Compiler/JS_.*/simple/Issue4999"   -- primNatToChar
-    -----------------------------------------------------------------------------
-    -- The following test cases are GHC backend specific and thus disabled on JS.
-  , disable "Compiler/JS_.*/simple/Issue2821"
-  , disable "Compiler/JS_.*/simple/Issue2879-.*"
-  , disable "Compiler/JS_.*/simple/Issue2909-.*"
-  , disable "Compiler/JS_.*/simple/Issue2914"
-  , disable "Compiler/JS_.*/simple/Issue2918$"
-  , disable "Compiler/JS_.*/simple/Issue3732"
-  , disable "Compiler/JS_.*/simple/VecReverseIrr"
-  , disable "Compiler/JS_.*/simple/VecReverseErased"  -- RangeError: Maximum call stack size exceeded
-    -----------------------------------------------------------------------------
-  ]
+  -----------------------------------------------------------------------------
+  -- The GHC backend no longer allows compiling abstract definitions
+  -- to user-chosen Haskell representations.
+  disable "Compiler/MAlonzo_.*/simple/Issue2524" :
+  -----------------------------------------------------------------------------
+  -- The test case for #2918 stopped working when inlining of
+  -- recursive pattern-matching lambdas was disabled.
+  disable "Compiler/MAlonzo_.*/simple/Issue2918$" :
+  -----------------------------------------------------------------------------
+  -- The following test cases fail (at least at the time of writing)
+  -- for the JS backend.
+  disable "Compiler/JS_Optimized/simple/ModuleReexport" :
+  disable "Compiler/JS_MinifiedOptimized/simple/ModuleReexport" :
+  -----------------------------------------------------------------------------
+  -- The following test cases are GHC backend specific and thus disabled on JS.
+  disable "Compiler/JS_.*/simple/Issue2821" :
+  disable "Compiler/JS_.*/simple/Issue2879-.*" :
+  disable "Compiler/JS_.*/simple/Issue2909-.*" :
+  disable "Compiler/JS_.*/simple/Issue2914" :
+  disable "Compiler/JS_.*/simple/Issue2918$" :
+  disable "Compiler/JS_.*/simple/Issue3732" :
+  disable "Compiler/JS_.*/simple/VecReverseIrr" :
+  disable "Compiler/JS_.*/simple/VecReverseErased" :  -- RangeError: Maximum call stack size exceeded
+  -----------------------------------------------------------------------------
+  []
   where disable = RFInclude
 
 -- | Filtering out compiler tests that require Agda built with -fdebug.
@@ -151,10 +142,9 @@ tests = do
         | s <- [Lazy, StrictData] ++
                [Strict | ghcVersionAtLeast9]
         ] ++
-        [ JS style opt
+        [ JS opt
         | isJust nodeBin
         , opt   <- [minBound..]
-        , style <- [CJS,ES6]
         ]
   _ <- case nodeBin of
     Nothing -> putStrLn "No JS node binary found, skipping JS tests."
@@ -185,7 +175,10 @@ simpleTests comp = do
 
   where compArgs :: Compiler -> AgdaArgs
         compArgs MAlonzo{} =
-          ghcArgsAsAgdaArgs ["-itest/", "-fno-excess-precision"]
+          -- Compile the generated code without optimising it: the test
+          -- suite only checks the behaviour of the compiled program, and
+          -- GHC's -O pass dominates the runtime of each test.
+          ghcArgsAsAgdaArgs ["-itest/", "-fno-excess-precision", "-O0"]
         compArgs JS{} = []
 
 -- The Compiler tests using the standard library are horribly
@@ -193,7 +186,7 @@ simpleTests comp = do
 stdlibTests :: Compiler -> IO TestTree
 stdlibTests comp = do
   let testDir = "test" </> "Compiler" </> "with-stdlib"
-  let inps    = [testDir </> "AllStdLib.agda"]
+  let inps    = map (testDir </>) ["AllStdLib.agda", "AllStdLibJS.agda"]
     -- put all tests in AllStdLib to avoid compiling the standard library
     -- multiple times
 
@@ -259,13 +252,14 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
       agdaRunProgGoldenTest1 dir comp extraArgs inp opts $ \compDir out err -> do
         if executeProg opts then do
           -- read input file, if it exists
-          inp' <- maybe T.empty decodeUtf8 <$> readFileMaybe inpFile
+          inp' <- fromMaybe T.empty <$> readFileMaybeText inpFile
           -- now run the new program
           let exec = getExecForComp comp compDir inpFile
           case comp of
             JS{} -> do
               env <- (("NODE_PATH", compDir) :) <$> getEnvironment
-              (ret, out', err') <- readProcessWithEnv env Nothing "node" [exec] inp'
+              nodePath <- fromJust <$> findExecutable "node"
+              (ret, out', err') <- readProcessWithEnv env Nothing nodePath ["--stack-size=4096", exec] inp'
               out' <- cleanOutput out'
               err' <- cleanOutput err'
               return $ ExecutedProg $ ProgramResult ret (out <> out') (err <> err')
@@ -317,11 +311,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
           Lazy       -> []
           StrictData -> ["--ghc-strict-data"]
           Strict     -> ["--ghc-strict"]
-        argsForComp (JS style opt) = [ "--js", "--js-verify" ]
-          ++ case style of
-            ES6 -> ["--js-es6"]
-            AMD -> ["--js-amd"]
-            CJS -> ["--js-cjs"]
+        argsForComp (JS opt) = [ "--js", "--js-verify", "--js-es6" ]
           ++ case opt of
             NonOptimized      -> []
             Optimized         -> [ "--js-optimize" ]
@@ -339,8 +329,12 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
 
 readOptions :: FilePath -- file name of the agda file
     -> IO TestOptions
-readOptions inpFile =
-  maybe defaultOptions (read . T.unpack . decodeUtf8) <$> readFileMaybe optFile
+readOptions inpFile = readFileMaybeText optFile <&> \case
+    Nothing -> defaultOptions
+    (Just optsBS) ->
+      case readMaybe . T.unpack $ optsBS of
+        Nothing -> error $ "Failed to parse options inside file " <> optFile
+        (Just optsParsed) -> optsParsed
   where optFile = dropAgdaOrOtherExtension inpFile <.> "options"
 
 cleanUpOptions :: AgdaArgs -> AgdaArgs
@@ -353,9 +347,8 @@ cleanUpOptions = filter clean
 
 -- gets the generated executable path
 getExecForComp :: Compiler -> FilePath -> FilePath -> FilePath
-getExecForComp (JS style opt) compDir inpFile
-  = compDir </> ("jAgda." ++ takeFileName (dropAgdaOrOtherExtension inpFile) ++ ext)
-    where ext = if style == ES6 then ".mjs" else ".js"
+getExecForComp (JS opt) compDir inpFile
+  = compDir </> ("jAgda." ++ takeFileName (dropAgdaOrOtherExtension inpFile) ++ ".mjs")
 getExecForComp _ compDir inpFile = compDir </> takeFileName (dropAgdaOrOtherExtension inpFile)
 
 printExecResult :: ExecResult -> T.Text

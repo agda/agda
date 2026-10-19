@@ -1,0 +1,9 @@
+InstanceEtaVisibleTel.agda:12.35-56: warning: -W[no]InstanceArgWithExplicitArg
+Instance arguments with explicit arguments are never considered by
+instance search, so having an instance argument
+⦃ G : (x : X) → Outer (F x) ⦄ has no effect.
+when checking the parameters of module InstanceFieldUnderExplicit
+
+InstanceEtaVisibleTel.agda:14.12-17: error: [InstanceNoCandidate]
+No instance of type Inner (F x) was found in scope.
+when checking that the expression inner has type F x

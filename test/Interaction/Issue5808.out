@@ -1,0 +1,11 @@
+JSON> {"kind":"Status","status":{"checked":false,"showImplicitArguments":false,"showIrrelevantArguments":false}}
+{"kind":"ClearRunningInfo"}
+{"kind":"ClearHighlighting","tokenBased":"NotOnlyTokenBased"}
+{"kind":"Status","status":{"checked":false,"showImplicitArguments":false,"showIrrelevantArguments":false}}
+{"info":{"errors":[],"invisibleGoals":[],"kind":"AllGoalsWarnings","visibleGoals":[{"constraintObj":{"id":0,"range":[{"end":{"col":6,"line":16,"pos":110},"start":{"col":5,"line":16,"pos":109}}]},"kind":"OfType","type":"A"}],"warnings":[]},"kind":"DisplayInfo"}
+{"interactionPoints":[{"id":0,"range":[{"end":{"col":6,"line":16,"pos":110},"start":{"col":5,"line":16,"pos":109}}]}],"kind":"InteractionPoints"}
+JSON> {"giveResult":{"str":"id1 ?"},"interactionPoint":{"id":0,"range":[{"end":{"col":6,"line":16,"pos":110},"start":{"col":5,"line":16,"pos":109}}]},"kind":"GiveAction"}
+{"kind":"Status","status":{"checked":false,"showImplicitArguments":false,"showIrrelevantArguments":false}}
+{"info":{"errors":[],"invisibleGoals":[],"kind":"AllGoalsWarnings","visibleGoals":[{"constraintObj":{"id":1,"range":[{"end":{"col":8,"line":16,"pos":112},"start":{"col":8,"line":16,"pos":112}}]},"kind":"OfType","type":"A"}],"warnings":[]},"kind":"DisplayInfo"}
+{"interactionPoints":[{"id":1,"range":[{"end":{"col":8,"line":16,"pos":112},"start":{"col":8,"line":16,"pos":112}}]}],"kind":"InteractionPoints"}
+JSON> 

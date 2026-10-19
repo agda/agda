@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting -WnoRewriteVariablesBoundInSingleton #-}
 
 open import Common.Prelude
 open import Common.Equality

@@ -6,8 +6,6 @@ on:
   push:
     branches:
     - master
-    - ci-*
-    - release*
     paths: &trigger_path_list
     - 'src/full/**.hs'
     - 'Agda.cabal'
@@ -24,8 +22,8 @@ jobs:
         # since this often does not point at the latest version;
         # not for the virtual environments, and also haskell/action/setup
         # is usually not up-to-date.
-        os: [ubuntu-24.04]
-        ghc-ver: ['9.12.2']
+        os: [ubuntu-26.04]
+        ghc-ver: ['9.14.1']
           # Use the versions that come with the virtual environment, if possible.
 
     if: |
@@ -43,7 +41,7 @@ jobs:
       # Could be turned off with --disable-documentation.
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - uses: haskell-actions/setup@v2
       id: setup-haskell
@@ -62,7 +60,7 @@ jobs:
       # https://github.com/haskell/cabal/issues/8706
 
     - name: Cache dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       id: cache
       with:
         path: |

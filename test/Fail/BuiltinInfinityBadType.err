@@ -1,3 +1,7 @@
-BuiltinInfinityBadType.agda:7.22-23: error: [UnequalSorts]
-Set (lsuc a) != Set a
+BuiltinInfinityBadType.agda:7.22-23: error: [UnequalTypes]
+The types
+  Set (lsuc a)
+and
+  Set a
+are not equal
 when checking that the expression ∞ has type Set a → Set a

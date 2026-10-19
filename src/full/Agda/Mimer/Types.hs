@@ -15,9 +15,8 @@ import Agda.Syntax.Common (InteractionId, Nat)
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad (TCState, CheckpointId, Open, TCEnv, openThing)
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Substitute (NoSubst(..))
 import Agda.Interaction.Base (Rewrite(..))
-import Agda.Utils.Tuple (mapSnd)
+import Agda.Utils.Tuple (second)
 import Agda.Utils.Impossible
 
 import Agda.Mimer.Options
@@ -68,9 +67,6 @@ instance Eq SearchBranch where
 instance Ord SearchBranch where
   compare = compare `on` sbCost
 
-addBranchGoals :: [Goal] -> SearchBranch -> SearchBranch
-addBranchGoals goals branch = branch {sbGoals = goals ++ sbGoals branch}
-
 data Goal = Goal
   { goalMeta :: MetaId
   }
@@ -109,6 +105,8 @@ data BaseComponents = BaseComponents
   , hintProjections :: [Component]
   -- ^ Variables that are candidates for arguments to recursive calls
   , hintThisFn :: Maybe Component
+  , hintMutualFns :: [Component]
+  -- ^ Functions mutually defined with the one we are defining (#8783).
   , hintLetVars :: [Open Component]
   , hintRecVars :: Open [(Term, NoSubst Term Int)] -- ^ Variable terms and which argument they come from
   }
@@ -123,13 +121,31 @@ data Component = Component
   , compPars  :: Nat -- ^ How many arguments should be dropped (e.g. constructor parameters)
   , compTerm  :: Term
   , compType  :: Type
-  , compRec   :: Bool -- ^ Is this a recursive call
+  , compRec   :: RecCall -- ^ Is this a (mutually) recursive call?
   , compMetas :: [MetaId]
   , compCost  :: Cost
   }
   deriving (Eq, Generic)
 
 instance NFData Component
+
+-- | Is a component a call to the function we are defining
+--   or a function mutually defined with it?
+--   Such calls are only generated with structurally smaller arguments.
+data RecCall
+  = NotRecCall
+      -- ^ Not a recursive call.
+  | SelfCall
+      -- ^ Recursive call to the function we are defining.
+      --   An argument needs to be structurally smaller than the parameter
+      --   in the same position.
+  | MutualCall
+      -- ^ Call to a function mutually defined with the one we are defining (#8783).
+      --   As arguments of different functions need not correspond by position,
+      --   we accept any structurally smaller variable in any position.
+  deriving (Eq, Show, Generic)
+
+instance NFData RecCall
 
 -- TODO: Is this reasonable?
 instance Ord Component where
@@ -142,7 +158,7 @@ mkComponent cId metaIds cost mName pars term typ = Component
   , compPars  = pars
   , compTerm  = term
   , compType  = typ
-  , compRec   = False
+  , compRec   = NotRecCall
   , compMetas = metaIds
   , compCost  = cost }
 
@@ -155,8 +171,8 @@ noName = Nothing
 addCost :: Cost -> Component -> Component
 addCost cost comp = comp { compCost = cost + compCost comp }
 
-replaceCompMeta :: MetaId -> [MetaId] -> Component -> Component
-replaceCompMeta old new c = c{ compMetas = new ++ List.delete old (compMetas c) }
+deleteCompMeta :: MetaId -> Component -> Component
+deleteCompMeta old c = c{ compMetas = List.delete old (compMetas c) }
 
 ------------------------------------------------------------------------
 -- * SearchOptions
@@ -174,6 +190,9 @@ data SearchOptions = SearchOptions
   , searchTopMeta :: MetaId
   , searchTopEnv :: TCEnv
   , searchTopCheckpoint :: CheckpointId
+  , searchProblem :: ProblemId
+      -- ^ Constraints postponed during search are tagged with this problem.
+      --   A branch is only a solution once all of them are solved.
   , searchInteractionId :: InteractionId
   , searchFnName :: Maybe QName
   , searchCosts :: Costs
@@ -287,8 +306,9 @@ instance PrettyTCM BaseComponents where
            , f "hintLevel" (hintLevel comps)
            , f "hintProjections" (hintProjections comps)
            , "hintThisFn:" <+> thisFn
+           , f "hintMutualFns" (hintMutualFns comps)
            , g prettyOpenComp "hintLetVars" (hintLetVars comps)
-           , "hintRecVars: Open" <+> pretty (mapSnd unNoSubst <$> openThing (hintRecVars comps))
+           , "hintRecVars: Open" <+> pretty (second unNoSubst <$> openThing (hintRecVars comps))
            ]
          ]
     where
@@ -374,7 +394,8 @@ instance Pretty Costs where
         ]
 
 instance PrettyTCM Component where
-  prettyTCM Component{..} = parens (prettyTCM compId) <+> sep
+  prettyTCM Component{ compId, compTerm, compType, compCost, compMetas } =
+    parens (prettyTCM compId) <+> sep
     [ sep [ prettyTCM compTerm
           , ":" <+> prettyTCM compType ]
     , parens $ fsep $ punctuate ","

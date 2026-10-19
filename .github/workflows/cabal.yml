@@ -17,19 +17,25 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.12.1
+    - uses: styfle/cancel-workflow-action@0.13.1
       with:
         access_token: ${{ github.token }}
   cabal:
     env:
-      FLAGS: ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting'
+      FLAGS: -O0 ${{ matrix.cabal-flags || '--enable-tests --flags=enable-cluster-counting'
         }}
-      GHC_VER: ${{ matrix.ghc-ver || '9.12.2' }}
+      GHC_VER: ${{ matrix.ghc-ver || '9.14.1' }}
     name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
+    - if: runner.os == 'macOS'
+      name: Work around https://github.com/actions/runner-images/issues/14940
+      run: sudo xcode-select -s /Library/Developer/CommandLineTools
+    - if: runner.os == 'Linux' && (env.GHC_VER == '9.2.8' || env.GHC_VER == '9.4.8')
+      name: Install gold linker for GHC 9.2 and 9.4
+      run: sudo apt-get install -y binutils-gold
     - if: runner.os == 'Linux'
       name: Switch off XDG directories for cabal (Linux)
       run: |
@@ -68,14 +74,13 @@ jobs:
     - name: Configure the build plan
       run: |
         # shellcheck disable=SC2086
-        cabal configure -O0 ${FLAGS}
-        cabal build --dry-run
+        cabal build ${FLAGS} --dry-run
     - env:
         key: cabal.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version
           }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
       id: cache
       name: Restore cache from approximate key
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v6
       with:
         key: ${{ env.key }}-${{ hashFiles('**/plan.json') }}
         path: |
@@ -83,23 +88,29 @@ jobs:
         restore-keys: ${{ env.key }}
     - name: Install dependencies
       run: |
-        cabal build --only-dependencies
+        # shellcheck disable=SC2086
+        cabal build ${FLAGS} --only-dependencies
     - name: Build Agda
       run: |
-        cabal build
+        # shellcheck disable=SC2086
+        cabal build ${FLAGS}
     - name: Run agda --version
       run: |
-        cabal run agda -- --version
+        # shellcheck disable=SC2086
+        cabal run ${FLAGS} agda -- --version
     - name: Run agda --setup
       run: |
-        cabal run agda -- --setup
+        # shellcheck disable=SC2086
+        cabal run ${FLAGS} agda -- --setup
     - name: Run agda --help
       run: |
-        cabal run agda -- --help
+        # shellcheck disable=SC2086
+        cabal run ${FLAGS} agda -- --help
     - if: runner.os == 'Windows'
       name: Run agda --help in PowerShell (Windows)
       run: |
-        cabal run agda -- --help
+        # shellcheck disable=SC2086
+        cabal run ${FLAGS} agda -- --help
       shell: pwsh
     - if: matrix.doctest
       name: Run doctest
@@ -107,7 +118,7 @@ jobs:
         make doc-test
     - if: always() && steps.cache.outputs.cache-hit != 'true'
       name: Save cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v6
       with:
         key: ${{ steps.cache.outputs.cache-primary-key }}
         path: |
@@ -116,41 +127,49 @@ jobs:
       fail-fast: false
       matrix:
         cabal-flags:
-        - --enable-tests -f enable-cluster-counting
+        - --enable-tests --flags=enable-cluster-counting
         description:
         - Linux
         doctest:
         - false
         ghc-ver:
-        - 9.12.2
-        - 9.10.2
+        - 9.14.1
+        - 9.12.4
+        - 9.10.3
         - 9.8.4
         - 9.6.7
         - 9.4.8
         - 9.2.8
         include:
+        - cabal-flags: --project-file=cabal.project.ghc-10.0.0
+          description: Linux GHC 10.0.0 alpha1
+          doctest: false
+          ghc-ver: 10.0.0.20260917
+          os: ubuntu-26.04
         - cabal-flags: --disable-tests
           description: Linux doctest
           doctest: true
-          ghc-ver: 9.12.2
-          os: ubuntu-24.04
-        - cabal-flags: --enable-tests -f debug
+          ghc-ver: 9.14.1
+          os: ubuntu-26.04
+        - cabal-flags: --enable-tests --flags=debug
           description: Linux debug
-          ghc-ver: 9.12.2
-          os: ubuntu-24.04
-        - cabal-flags: --enable-tests -f use-xdg-data-home -f enable-cluster-counting
-            -f debug -f debug-serialisation -f debug-parsing
+          ghc-ver: 9.14.1
+          os: ubuntu-26.04
+        - cabal-flags: --enable-tests --flags=use-xdg-data-home --flags=enable-cluster-counting
+            --flags=debug --flags=debug-serialisation --flags=debug-parsing
           description: Linux debug all
-          ghc-ver: 9.12.2
-          os: ubuntu-24.04
+          ghc-ver: 9.14.1
+          os: ubuntu-26.04
         - description: macOS
-          ghc-ver: 9.12.2
-          os: macos-15
-        - description: Windows
-          ghc-ver: 9.12.2
+          ghc-ver: 9.14.1
+          os: macos-26
+        - cabal-flags: --enable-tests --flags=use-xdg-data-home --flags=debug --flags=debug-serialisation
+            --flags=debug-parsing
+          description: Windows
+          ghc-ver: 9.14.1
           os: windows-2025
         os:
-        - ubuntu-24.04
+        - ubuntu-26.04
     timeout-minutes: 60
 name: Build (cabal)
 'on':
@@ -165,8 +184,6 @@ name: Build (cabal)
   push:
     branches:
     - master
-    - ci-*
-    - release*
     paths:
     - .github/workflows/cabal.yml
     - Agda.cabal

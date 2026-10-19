@@ -1,0 +1,7 @@
+Issue8454/B.agda:6.8-12: error: [UnequalTypes]
+The types
+  Type₁
+and
+  Type
+are not equal
+when checking that the expression Type has type Type

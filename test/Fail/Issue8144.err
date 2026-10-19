@@ -1,0 +1,7 @@
+Issue8144.agda:6.8-9: error: [NoSuchModule]
+No module A in scope---but a record type of that name is in scope
+whose record module is either not defined yet or hidden (note that
+records defined in a 'mutual' block cannot be opened in the same
+block)
+when scope checking the declaration
+  open A

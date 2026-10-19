@@ -1,0 +1,7 @@
+ConvErrCtxPi1.agda:23.15-16: error: [UnequalTerms]
+The terms
+  foo {a = Structure {T2 → Y} A}
+and
+  foo {a = Structure {T1 → X} B}
+are not equal at type Set
+when checking that the expression b has type foo

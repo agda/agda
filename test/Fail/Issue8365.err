@@ -1,0 +1,7 @@
+Issue8365.agda:17.5-9: error: [SplitError.UnificationStuck]
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  eq (f false) (f true) ≟ true
+when checking that the pattern refl has type
+eq (f false) (f true) ≡ true

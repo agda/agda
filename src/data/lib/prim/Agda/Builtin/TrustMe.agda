@@ -1,4 +1,4 @@
-{-# OPTIONS --no-sized-types --no-guardedness --level-universe #-}
+{-# OPTIONS --no-sized-types --no-guardedness --no-irrelevance --level-universe #-}
 
 module Agda.Builtin.TrustMe where
 

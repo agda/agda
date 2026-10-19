@@ -18,6 +18,7 @@ import Prelude hiding (null)
 import Control.DeepSeq
 import Control.Applicative ((<|>), liftA2)
 
+import Data.Array (Ix)
 import Data.Bifunctor
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
@@ -44,6 +45,7 @@ import Agda.Utils.Boolean (Boolean(fromBool), IsBool(toBool))
 import Agda.Utils.Float (toStringWithoutDotZero)
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.Hash (combineWord)
 import Agda.Utils.List  ( lastMaybe )
 import Agda.Utils.List1  ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
@@ -52,6 +54,7 @@ import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
 import Agda.Utils.Singleton
+import Agda.Utils.SmallSet (SmallSetElement)
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
@@ -106,15 +109,16 @@ instance NFData FileType
 
 -- | Variants of Cubical Agda.
 
-data Cubical = CErased | CFull
+data Cubical = CWithoutGlue | CErased | CFull
     deriving (Eq, Show, Generic)
 
 instance NFData Cubical
 
 cubicalOptionString :: Cubical -> String
 cubicalOptionString = \case
-  CErased -> "--erased-cubical"
-  CFull   -> "--cubical"
+  CWithoutGlue -> "--cubical=no-glue"
+  CErased -> "--cubical=erased"
+  CFull   -> "--cubical[=full]"
 
 -- | Agda variants.
 --
@@ -130,6 +134,98 @@ instance KillRange Language where
   killRange = id
 
 instance NFData Language
+
+------------------------------------------------------------------------
+-- Erased matches
+
+-- | What kinds of erased matches are allowed for indexed,
+-- single-constructor data types?
+
+data AllowedErasedMatchesIndexed
+  = Restricted
+    -- ^ @[]-cong@ is allowed.
+  | Unrestricted
+    -- ^ All erased matches are allowed.
+  deriving (Eq, Ord, Show, Generic)
+
+instance NFData AllowedErasedMatchesIndexed
+
+instance Semigroup AllowedErasedMatchesIndexed where
+  Restricted <> a2 = a2
+  a1         <> _  = a1
+
+instance Monoid AllowedErasedMatchesIndexed where
+  mempty = Restricted
+
+-- | What kinds of erased matches are allowed?
+
+data AllowedErasedMatches = AllowedErasedMatches
+  { emEmpty :: !Bool
+    -- ^ Erased matches are allowed for the empty type.
+  , emNonDependent :: !Bool
+    -- ^ Erased matches are allowed for single-constructor,
+    -- non-indexed data types.
+  , emDependent :: !(Strict.Maybe AllowedErasedMatchesIndexed)
+    -- ^ What kinds of erased matches, if any, are allowed for
+    -- single-constructor, indexed data types?
+  }
+  deriving (Eq, Ord, Show, Generic)
+
+instance NFData AllowedErasedMatches
+
+instance Semigroup AllowedErasedMatches where
+  AllowedErasedMatches e1 n1 d1 <> AllowedErasedMatches e2 n2 d2 =
+    AllowedErasedMatches (e1 || e2) (n1 || n2) (d1 <> d2)
+
+instance Monoid AllowedErasedMatches where
+  mempty = AllowedErasedMatches
+    { emEmpty        = False
+    , emNonDependent = False
+    , emDependent    = Strict.Nothing
+    }
+
+-- | Is @[]-cong@ allowed?
+
+emRestricted :: AllowedErasedMatches -> Bool
+emRestricted = Strict.isJust . emDependent
+
+-- | Are unrestricted erased matches allowed for indexed types?
+
+emUnrestricted :: AllowedErasedMatches -> Bool
+emUnrestricted = (Strict.Just Unrestricted ==) . emDependent
+
+-- | A variant of 'AllowedErasedMatches' that supports default values
+-- that depend on other flags.
+
+data AllowedErasedMatchesWithDefaults
+  = ErasedMatchesDefault
+    -- ^ No flag has been given, the default is used. (The default
+    -- depends on whether the K rule is allowed or not.)
+  | ErasedMatchesDefaultOn
+    -- ^ The flag @--erased-matches@ has been given without any
+    -- options, the \"default on\" value is used. (The default depends
+    -- on whether the K rule is allowed or not.)
+  | ErasedMatches AllowedErasedMatches
+    -- ^ The flag @--erased-matches@ has been given with (valid)
+    -- options.
+  deriving (Eq, Show, Generic)
+
+instance NFData AllowedErasedMatchesWithDefaults
+
+instance Semigroup AllowedErasedMatchesWithDefaults where
+  ErasedMatches m1 <> ErasedMatches m2 =
+    ErasedMatches (m1 <> m2)
+  m@ErasedMatches{} <> _ =
+    m
+  _ <> m@ErasedMatches{} =
+    m
+  m@ErasedMatchesDefaultOn <> _ =
+    m
+  ErasedMatchesDefault <> m =
+    m
+
+instance Monoid AllowedErasedMatchesWithDefaults where
+  mempty = ErasedMatchesDefault
 
 ---------------------------------------------------------------------------
 -- * Backends
@@ -170,8 +266,12 @@ instance IsBool DisplayLHS where
 
 -- | Expression kinds: Expressions or patterns.
 
-data ExprKind = IsExpr | IsPattern
+data ExprKind = IsExpr | IsPattern DisplayLHS
   deriving (Eq, Show)
+
+isKindPattern :: ExprKind -> Bool
+isKindPattern (IsPattern _) = True
+isKindPattern IsExpr        = False
 
 ---------------------------------------------------------------------------
 -- * Record Directives
@@ -273,8 +373,66 @@ instance CopatternMatchingAllowed HasEta where
     NoEta p -> copatternMatchingAllowed p
 
 ---------------------------------------------------------------------------
+-- * Data or record
+---------------------------------------------------------------------------
+
+data DataOrRecord' p
+  = IsData
+  | IsRecord p
+  deriving (Show, Eq, Generic)
+
+instance KillRange a => KillRange (DataOrRecord' a) where
+  killRange = \case
+    IsData     -> IsData
+    IsRecord a -> killRangeN IsRecord a
+
+type DataOrRecord = DataOrRecord' PatternOrCopattern
+type DataOrRecord_ = DataOrRecord' ()
+type DataOrRecordEta = DataOrRecord' ForceRecordEta
+
+pattern IsRecord_ :: DataOrRecord_
+pattern IsRecord_ = IsRecord ()
+
+{-# COMPLETE IsData, IsRecord_ #-}
+
+instance Boolean DataOrRecord_ where
+  fromBool True  = IsData
+  fromBool False = IsRecord_
+
+instance IsBool DataOrRecord_ where
+  toBool IsData    = True
+  toBool IsRecord_ = False
+
+instance PatternMatchingAllowed DataOrRecord where
+  patternMatchingAllowed = \case
+    IsData -> True
+    IsRecord patCopat -> patternMatchingAllowed patCopat
+
+instance CopatternMatchingAllowed DataOrRecord where
+  copatternMatchingAllowed = \case
+    IsData -> False
+    IsRecord patCopat -> copatternMatchingAllowed patCopat
+
+---------------------------------------------------------------------------
 -- * Induction
 ---------------------------------------------------------------------------
+
+-- | Does a datatype have path constructors, i.e. is it a HIT?
+data IsHIT = YesHIT | NotHIT
+  deriving (Eq, Ord, Show, Generic)
+
+instance Boolean IsHIT where
+  fromBool True  = YesHIT
+  fromBool False = NotHIT
+
+instance IsBool IsHIT where
+  toBool YesHIT = True
+  toBool NotHIT = False
+
+instance KillRange IsHIT where
+  killRange = id
+
+instance NFData IsHIT
 
 instance Pretty Induction where
   pretty Inductive   = "inductive"
@@ -547,6 +705,9 @@ prettyHiding a parens =
 instance Pretty a => Pretty (WithHiding a) where
   pretty w = prettyHiding w id $ pretty $ dget w
 
+unArgKeepHiding :: Arg a -> WithHiding a
+unArgKeepHiding (Arg i a) = WithHiding (getHiding i) a
+
 ---------------------------------------------------------------------------
 -- * Modalities
 ---------------------------------------------------------------------------
@@ -568,20 +729,26 @@ instance Applicative UnderComposition where
 -- | We have a tuple of modalities, which might not be fully orthogonal.
 --   For example, irrelevant stuff is also run-time irrelevant.
 data Modality = Modality
-  { modRelevance :: Relevance
+  { modRelevance :: !Relevance
       -- ^ Legacy irrelevance.
       --   See Pfenning, LiCS 2001; Abel, Vezzosi and Winterhalter, ICFP 2017.
-  , modQuantity  :: Quantity
+  , modQuantity  :: !Quantity
       -- ^ Cardinality / runtime erasure.
       --   See Conor McBride, I got plenty o' nutting, Wadlerfest 2016.
       --   See Bob Atkey, Syntax and Semantics of Quantitative Type Theory, LiCS 2018.
-  , modCohesion :: Cohesion
+  , modCohesion :: !Cohesion
       -- ^ Cohesion/what was in Agda-flat.
       --   see "Brouwer's fixed-point theorem in real-cohesive homotopy type theory" (arXiv:1509.07584)
       --   Currently only the comonad is implemented.
-  , modPolarity :: PolarityModality
+  , modPolarity :: !PolarityModality
       -- ^ Polarity annotations (strictly positive, ...)
   } deriving (Eq, Ord, Show, Generic)
+
+{-# NOINLINE noinlineEqModality #-}
+-- | Non-inlined equality that's sometimes useful to prevent GHC from ballooning code size.
+noinlineEqModality :: Modality -> Modality -> Bool
+noinlineEqModality (Modality a b c d) (Modality a' b' c' d') =
+  a == a' && b == b' && c == c' && d == d'
 
 -- | Dominance ordering.
 instance PartialOrd Modality where
@@ -698,10 +865,11 @@ defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion defa
 defaultCheckModality :: Modality
 defaultCheckModality = defaultModality { modPolarity = withStandardLock StrictlyPositive }
 
--- | Extract the positional modality component for checks regarding only them.
+-- | Extract the positional modality components (cohesion and polarity)
+--   for checks regarding only them.
 positionalModalityComponent :: Modality -> Modality
 positionalModalityComponent m =
-  defaultModality {modCohesion = modCohesion m}
+  defaultModality {modCohesion = modCohesion m, modPolarity = modPolarity m}
 
 -- | Equality ignoring origin.
 
@@ -1151,21 +1319,21 @@ inverseApplyQuantity :: LensQuantity a => Quantity -> a -> a
 inverseApplyQuantity q = mapQuantity (q `inverseComposeQuantity`)
 
 -- | Check for 'Quantity0'.
-
+{-# INLINE hasQuantity0 #-}
 hasQuantity0 :: LensQuantity a => a -> Bool
 hasQuantity0 a
   | Quantity0{} <- getQuantity a = True
   | otherwise = False
 
 -- | Check for 'Quantity1'.
-
+{-# INLINE hasQuantity1 #-}
 hasQuantity1 :: LensQuantity a => a -> Bool
 hasQuantity1 a
   | Quantity1{} <- getQuantity a = True
   | otherwise = False
 
 -- | Check for 'Quantityω'.
-
+{-# INLINE hasQuantityω #-}
 hasQuantityω :: LensQuantity a => a -> Bool
 hasQuantityω a
   | Quantityω{} <- getQuantity a = True
@@ -1498,9 +1666,9 @@ instance Pretty OriginShapeIrrelevant where
 -- | A function argument can be relevant or irrelevant.
 --   See "Agda.TypeChecking.Irrelevance".
 data Relevance
-  = Relevant OriginRelevant
+  = Relevant !OriginRelevant
       -- ^ The argument is (possibly) relevant at compile-time.
-  | ShapeIrrelevant OriginShapeIrrelevant
+  | ShapeIrrelevant !OriginShapeIrrelevant
       -- ^ Like 'Quantity0', the argument may never flow into evaluation position.
       --   So it is irrelevant at run-time,
       --   yet treated relevantly during equality checking.
@@ -1513,7 +1681,7 @@ data Relevance
       --     (Not enforcing shape-irrelevant codomains can break subject reduction!)
       --   - <https://dl.acm.org/doi/10.1145/3110277>
       --   - <https://doi.org/10.1145/3209108.3209119>
-  | Irrelevant OriginIrrelevant
+  | Irrelevant !OriginIrrelevant
       -- ^ The argument is irrelevant at compile- and runtime.
     deriving (Show, Generic)
 
@@ -1547,14 +1715,17 @@ class LensRelevance a where
 
   getRelevance :: a -> Relevance
 
+  {-# inline setRelevance #-}
   setRelevance :: Relevance -> a -> a
   setRelevance h = mapRelevance (const h)
 
   mapRelevance :: (Relevance -> Relevance) -> a -> a
 
+  {-# INLINE getRelevance #-}
   default getRelevance :: LensModality a => a -> Relevance
   getRelevance = modRelevance . getModality
 
+  {-# INLINE mapRelevance #-}
   default mapRelevance :: LensModality a => (Relevance -> Relevance) -> a -> a
   mapRelevance f = mapModality $ \ ai -> ai { modRelevance = f $ modRelevance ai }
 
@@ -1572,16 +1743,19 @@ irrelevant = Irrelevant empty
 shapeIrrelevant :: Relevance
 shapeIrrelevant = ShapeIrrelevant empty
 
+{-# INLINE isRelevant #-}
 isRelevant :: LensRelevance a => a -> Bool
 isRelevant a = case getRelevance a of
   Relevant{} -> True
   _ -> False
 
+{-# INLINE isIrrelevant #-}
 isIrrelevant :: LensRelevance a => a -> Bool
 isIrrelevant a = case getRelevance a of
   Irrelevant{} -> True
   _ -> False
 
+{-# INLINE isShapeIrrelevant #-}
 isShapeIrrelevant :: LensRelevance a => a -> Bool
 isShapeIrrelevant a = case getRelevance a of
   ShapeIrrelevant{} -> True
@@ -1749,6 +1923,7 @@ data Annotation = Annotation
   { annLock :: Lock
     -- ^ Fitch-style dependent right adjoints.
     --   See Modal Dependent Type Theory and Dependent Right Adjoints, arXiv:1804.05236.
+  , annRewrite :: RewriteAnn
   } deriving (Eq, Ord, Show, Generic)
 
 instance HasRange Annotation where
@@ -1758,14 +1933,14 @@ instance KillRange Annotation where
   killRange = id
 
 defaultAnnotation :: Annotation
-defaultAnnotation = Annotation defaultLock
+defaultAnnotation = Annotation defaultLock defaultRewrite
 
 instance Null Annotation where
   empty = defaultAnnotation
-  null (Annotation lock) = null lock
+  null (Annotation lock rew) = null lock && null rew
 
 instance NFData Annotation where
-  rnf (Annotation l) = rnf l
+  rnf (Annotation l r) = rnf (l, r)
 
 class LensAnnotation a where
 
@@ -1829,6 +2004,8 @@ class LensLock a where
   mapLock :: (Lock -> Lock) -> a -> a
   mapLock f a = setLock (f $ getLock a) a
 
+  {-# MINIMAL getLock , (setLock | mapLock) #-}
+
 instance LensLock Lock where
   getLock = id
   setLock = const
@@ -1852,6 +2029,89 @@ prettyLock :: LensLock a => a -> Doc -> Doc
 prettyLock a = (pretty (getLock a) <+>)
 
 ---------------------------------------------------------------------------
+-- * Rewrite arguments
+---------------------------------------------------------------------------
+
+data RewriteAnn
+  = IsNotRewrite
+  | IsRewrite Range
+  deriving (Show, Generic)
+
+defaultRewrite :: RewriteAnn
+defaultRewrite = IsNotRewrite
+
+instance HasRange RewriteAnn where
+  getRange = \case
+    IsRewrite r  -> r
+    IsNotRewrite -> noRange
+
+instance SetRange RewriteAnn where
+  setRange r = \case
+    IsRewrite _  -> IsRewrite r
+    IsNotRewrite -> IsNotRewrite
+
+instance KillRange RewriteAnn where
+  killRange = setRange noRange
+
+instance Eq RewriteAnn where
+  (==) = (==) `on` isRewrite
+
+instance Ord RewriteAnn where
+  compare = compare `on` isRewrite
+
+instance Null RewriteAnn where
+  empty = defaultRewrite
+
+instance NFData RewriteAnn where
+  rnf IsNotRewrite  = ()
+  rnf (IsRewrite _) = ()
+
+instance Pretty RewriteAnn where
+  pretty = \case
+    (IsRewrite _) -> "@rewrite"
+    IsNotRewrite  -> empty
+
+class LensRewriteAnn a where
+
+  getRewriteAnn :: a -> RewriteAnn
+
+  setRewriteAnn :: RewriteAnn -> a -> a
+  setRewriteAnn = mapRewriteAnn . const
+
+  mapRewriteAnn :: (RewriteAnn -> RewriteAnn) -> a -> a
+  mapRewriteAnn f a = setRewriteAnn (f $ getRewriteAnn a) a
+
+  {-# MINIMAL getRewriteAnn , (setRewriteAnn | mapRewriteAnn) #-}
+
+instance LensRewriteAnn RewriteAnn where
+  getRewriteAnn = id
+  setRewriteAnn = const
+  mapRewriteAnn = id
+
+instance LensRewriteAnn ArgInfo where
+  getRewriteAnn = annRewrite . argInfoAnnotation
+  setRewriteAnn r info = info { argInfoAnnotation = (argInfoAnnotation info){ annRewrite = r } }
+
+instance LensRewriteAnn (Arg t) where
+  getRewriteAnn = getRewriteAnn . getArgInfo
+  setRewriteAnn = mapArgInfo . setRewriteAnn
+
+isRewrite :: LensRewriteAnn a => a -> Bool
+isRewrite a = case getRewriteAnn a of
+  IsRewrite _  -> True
+  IsNotRewrite -> False
+
+ignoreRew :: Monad m => LensRewriteAnn a => (RewriteAnn  -> m ()) -> a -> m a
+ignoreRew warn info
+  | isRewrite info = do
+    warn $ getRewriteAnn info
+    return $ setRewriteAnn IsNotRewrite info
+  | otherwise      = return info
+
+prettyRewriteAnn :: LensRewriteAnn a => a -> Doc -> Doc
+prettyRewriteAnn a = (pretty (getRewriteAnn a) <+>)
+
+---------------------------------------------------------------------------
 -- * Cohesion
 ---------------------------------------------------------------------------
 
@@ -1861,7 +2121,7 @@ prettyLock a = (pretty (getLock a) <+>)
 data Cohesion
   = Flat        -- ^ same points, discrete topology, idempotent comonad, box-like.
   | Continuous  -- ^ identity modality.
-  -- | Sharp    -- ^ same points, codiscrete topology, idempotent monad, diamond-like.
+  | Sharp       -- ^ same points, codiscrete topology, idempotent monad, diamond-like.
   | Squash      -- ^ single point space, artificially added for Flat left-composition.
     deriving (Show, Eq, Enum, Bounded, Generic)
 
@@ -1880,11 +2140,13 @@ instance KillRange Cohesion where
 instance NFData Cohesion where
   rnf Flat       = ()
   rnf Continuous = ()
+  rnf Sharp      = ()
   rnf Squash     = ()
 
 instance Pretty Cohesion where
   pretty Flat   = "@♭"
   pretty Continuous = mempty
+  pretty Sharp   = "@♯"
   pretty Squash  = "@⊤"
 
 -- | A lens to access the 'Cohesion' attribute in data structures.
@@ -1920,7 +2182,7 @@ isContinuous = (Continuous ==) . getCohesion
 moreCohesion :: Cohesion -> Cohesion -> Bool
 moreCohesion = (<=)
 
--- | Equality ignoring origin.
+-- | Equality ignoring origin.  TODO: add origin to 'Cohesion'.
 sameCohesion :: Cohesion -> Cohesion -> Bool
 sameCohesion = (==)
 
@@ -1931,11 +2193,15 @@ instance Ord Cohesion where
     -- top
     (_, Squash) -> LT
     (Squash, _) -> GT
+    -- id < ♯
+    (Sharp,Continuous) -> GT
+    (Continuous,Sharp) -> LT
     -- bottom
     (Flat, _) -> LT
     (_, Flat) -> GT
-    -- redundant case
+    -- redundant cases
     (Continuous,Continuous) -> EQ
+    (Sharp,Sharp)           -> EQ
 
 -- | Flatter is smaller.
 instance PartialOrd Cohesion where
@@ -1952,8 +2218,10 @@ composeCohesion r r' =
   case (r, r') of
     (Squash, _) -> Squash
     (_, Squash) -> Squash
-    (Flat, _)  -> Flat
-    (_, Flat)  -> Flat
+    (Sharp, _)  -> Sharp
+    (Flat, _)   -> Flat
+    (_, Flat)   -> Flat
+    (_, Sharp)  -> Sharp
     (Continuous, Continuous) -> Continuous
 
 -- | Compose with cohesion flag from the left.
@@ -1976,6 +2244,8 @@ inverseComposeCohesion r x =
     (Squash, _)       -> Flat       -- in squash position everything is usable
     (Flat , Flat)     -> Flat       -- otherwise: Flat things remain Flat
     (Flat , _)        -> Squash     -- but everything else becomes unusable.
+    (Sharp, Squash)   -> Squash     -- in sharp everything is usable apart from
+    (Sharp, _)        -> Flat       -- squash
 
 -- | Left division by a 'Cohesion'.
 --   Used e.g. to modify context when going into a @rel@ argument.
@@ -2310,7 +2580,19 @@ data Origin
   | Substitution    -- ^ Named application produced to represent a substitution. E.g. "?0 (x = n)" instead of "?0 n"
   | ExpandedPun     -- ^ An expanded hidden argument pun.
   | Generalization  -- ^ Inserted by the generalization process
-  deriving (Show, Eq, Ord)
+  | ConversionFail
+    -- ^ Inserted by the conversion checker in an argument spine at the
+    -- position where they differ.
+    --
+    -- Indicates that the argument at this position should always be
+    -- reified, even if the visibility/modality would be skipped with
+    -- the current flags.
+  | RecordSelf
+  -- ^ Inserted to stand for the record "self" variable when checking a
+  -- declaration inside a record module.
+  deriving (Show, Eq, Ord, Enum, Bounded, Ix)
+
+instance SmallSetElement Origin
 
 instance HasRange Origin where
   getRange _ = noRange
@@ -2319,13 +2601,15 @@ instance KillRange Origin where
   killRange = id
 
 instance NFData Origin where
-  rnf UserWritten = ()
-  rnf Inserted = ()
-  rnf Reflected = ()
-  rnf CaseSplit = ()
-  rnf Substitution = ()
-  rnf ExpandedPun = ()
+  rnf UserWritten    = ()
+  rnf Inserted       = ()
+  rnf Reflected      = ()
+  rnf CaseSplit      = ()
+  rnf Substitution   = ()
+  rnf ExpandedPun    = ()
   rnf Generalization = ()
+  rnf ConversionFail = ()
+  rnf RecordSelf     = ()
 
 -- | Decorating something with 'Origin' information.
 data WithOrigin a = WithOrigin
@@ -2619,7 +2903,10 @@ isInsertedHidden a = getHiding a == Hidden && getOrigin a == Inserted
 data Arg e  = Arg
   { argInfo :: ArgInfo
   , unArg :: e
-  } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  } deriving (Eq, Ord, Show, Foldable, Traversable)
+
+instance Functor Arg where
+  fmap f = \(Arg x y) -> Arg x $! f y
 
 instance Decoration Arg where
   traverseF f (Arg ai a) = Arg ai <$> f a
@@ -2734,6 +3021,7 @@ instance LensModalPolarity (Arg e) where
   setModalPolarity = setPolarityMod
   mapModalPolarity = mapPolarityMod
 
+{-# INLINE defaultArg #-}
 defaultArg :: a -> Arg a
 defaultArg = Arg defaultArgInfo
 
@@ -3006,11 +3294,10 @@ type RString = Ranged RawName
 
 -- | Where does the 'ConP' or 'Con' come from?
 data ConOrigin
-  = ConOSystem   -- ^ Inserted by system or expanded from an implicit pattern.
-  | ConOCon      -- ^ User wrote a constructor (pattern).
-  | ConORec      -- ^ User wrote a record (pattern).
-  | ConOSplit    -- ^ Generated by interactive case splitting.
-  | ConORecWhere -- ^ User wrote a @record where@ expression.
+  = ConOSystem  -- ^ Inserted by system or expanded from an implicit pattern.
+  | ConOCon     -- ^ User wrote a constructor (pattern).
+  | ConORec     -- ^ User wrote a record (pattern).
+  | ConOSplit   -- ^ Generated by interactive case splitting.
   deriving (Show, Eq, Ord, Enum, Bounded, Generic)
 
 instance NFData ConOrigin
@@ -3128,6 +3415,9 @@ data IsInstance
   | NotInstanceDef
     deriving (Show, Eq, Ord)
 
+instance Null IsInstance where
+  empty = NotInstanceDef
+
 instance KillRange IsInstance where
   killRange = \case
     InstanceDef _    -> InstanceDef empty
@@ -3141,6 +3431,14 @@ instance HasRange IsInstance where
 instance NFData IsInstance where
   rnf (InstanceDef _) = ()
   rnf NotInstanceDef  = ()
+
+class IsInstanceDef a where
+  isInstanceDef :: a -> Maybe KwRange
+
+instance IsInstanceDef IsInstance where
+  isInstanceDef = \case
+    InstanceDef r  -> Just r
+    NotInstanceDef -> Nothing
 
 -- ** macro blocks
 
@@ -3223,6 +3521,10 @@ instance AllAreOpaque a => AllAreOpaque (Maybe a) where
 data NameId = NameId {-# UNPACK #-} !Word64 {-# UNPACK #-} !ModuleNameHash
     deriving (Eq, Ord, Generic, Show)
 
+instance Null NameId where
+  empty = NameId empty empty
+  null (NameId n m) = null n && null m
+
 instance KillRange NameId where
   killRange = id
 
@@ -3240,7 +3542,9 @@ instance NFData NameId where
 
 instance Hashable NameId where
   {-# INLINE hashWithSalt #-}
-  hashWithSalt salt (NameId n (ModuleNameHash m)) = hashWithSalt salt (n, m)
+  hashWithSalt salt (NameId n (ModuleNameHash m)) =
+    fromIntegral
+    (fromIntegral salt `combineWord` fromIntegral n `combineWord` fromIntegral m)
 
 ---------------------------------------------------------------------------
 -- * Meta variables
@@ -3259,8 +3563,8 @@ instance Pretty MetaId where
     text $ "_" ++ show n ++ "@" ++ show (moduleNameHash m)
 
 instance Enum MetaId where
-  succ MetaId{..} = MetaId { metaId = succ metaId, .. }
-  pred MetaId{..} = MetaId { metaId = pred metaId, .. }
+  succ m@MetaId{ metaId } = m { metaId = succ metaId }
+  pred m@MetaId{ metaId } = m { metaId = pred metaId }
 
   -- The following functions should not be used.
   toEnum   = __IMPOSSIBLE__
@@ -3290,7 +3594,7 @@ newtype Constr a = Constr a
 
 -- | A "problem" consists of a set of constraints and the same constraint can be part of multiple
 --   problems.
-newtype ProblemId = ProblemId Nat
+newtype ProblemId = ProblemId Word64
   deriving (Eq, Ord, Enum, Real, Integral, Num, NFData)
 
 -- This particular Show instance is ok because of the Num instance.
@@ -3502,6 +3806,11 @@ instance HasRange Fixity' where
 instance KillRange Fixity' where
   killRange (Fixity' f n r) = killRangeN Fixity' f n r
 
+instance Pretty Fixity' where
+    pretty (Fixity' fix nota _range)
+      | null nota = pretty fix
+      | otherwise = hlKeyword "syntax" <+> pretty nota
+
 -- lenses
 
 _fixityAssoc :: Lens' Fixity Associativity
@@ -3557,7 +3866,7 @@ instance Null (ImportDirective' n m) where
     _ -> False
   empty = defaultImportDir
 
-instance (HasRange n, HasRange m) => Semigroup (ImportDirective' n m) where
+instance Semigroup (ImportDirective' n m) where
   i1 <> i2 = ImportDirective
     { importDirRange = fuseRange i1 i2
     , using          = using i1 <> using i2
@@ -3566,7 +3875,7 @@ instance (HasRange n, HasRange m) => Semigroup (ImportDirective' n m) where
     , publicOpen     = publicOpen i1 <|> publicOpen i2
     }
 
-instance (HasRange n, HasRange m) => Monoid (ImportDirective' n m) where
+instance Monoid (ImportDirective' n m) where
   mempty  = empty
   mappend = (<>)
 
@@ -3647,7 +3956,7 @@ data Renaming' n m = Renaming
 
 -- ** HasRange instances
 
-instance (HasRange a, HasRange b) => HasRange (ImportDirective' a b) where
+instance HasRange (ImportDirective' a b) where
   getRange = importDirRange
 
 instance (HasRange a, HasRange b) => HasRange (Using' a b) where
@@ -3784,9 +4093,11 @@ instance Semigroup PositivityCheck where
   _ <> NoPositivityCheck = NoPositivityCheck
   _ <> _ = YesPositivityCheck
 
+instance Null PositivityCheck where
+  empty = YesPositivityCheck
+
 instance Monoid PositivityCheck where
-  mempty  = YesPositivityCheck
-  mappend = (<>)
+  mempty  = empty
 
 instance NFData PositivityCheck
 
@@ -3802,6 +4113,39 @@ instance KillRange UniverseCheck where
   killRange = id
 
 instance NFData UniverseCheck
+
+instance Null UniverseCheck where
+  empty = YesUniverseCheck
+
+instance Semigroup UniverseCheck where
+  NoUniverseCheck  <> _  = NoUniverseCheck
+  YesUniverseCheck <> uc = uc
+
+instance Monoid UniverseCheck where
+  mempty = empty
+
+-----------------------------------------------------------------------------
+-- * Force record to have eta equality
+-----------------------------------------------------------------------------
+
+-- | Force record type to have eta equality? (Default is no).
+data ForceRecordEta = YesForceRecordEta | NoForceRecordEta
+  deriving (Eq, Ord, Show, Bounded, Enum, Generic)
+
+instance KillRange ForceRecordEta where
+  killRange = id
+
+instance NFData ForceRecordEta
+
+instance Null ForceRecordEta where
+  empty = NoForceRecordEta
+
+instance Semigroup ForceRecordEta where
+  YesForceRecordEta  <> _   = YesForceRecordEta
+  NoForceRecordEta   <> eta = eta
+
+instance Monoid ForceRecordEta where
+  mempty = empty
 
 -----------------------------------------------------------------------------
 -- * Coverage
@@ -3880,7 +4224,7 @@ instance (Pretty nm, Pretty p, Pretty e) => Pretty (RewriteEqn' qn nm p e) where
   pretty = \case
     Rewrite es   -> prefixedThings (text "rewrite") $ List1.toList (pretty . snd <$> es)
     LeftLet pes  -> prefixedThings (text "using") [pretty p <+> "<-" <+> pretty e | (p, e) <- List1.toList pes]
-    Invert _ pes -> prefixedThings (text "invert") $ List1.toList (namedWith <$> pes) where
+    Invert _ pes -> prefixedThings (text "with") $ List1.toList (namedWith <$> pes) where
 
       namedWith (Named nm (p, e)) =
         let patexp = pretty p <+> "<-" <+> pretty e in
@@ -3888,7 +4232,7 @@ instance (Pretty nm, Pretty p, Pretty e) => Pretty (RewriteEqn' qn nm p e) where
           Nothing -> patexp
           Just nm -> pretty nm <+> ":" <+> patexp
 
-instance (HasRange qn, HasRange nm, HasRange p, HasRange e) => HasRange (RewriteEqn' qn nm p e) where
+instance (HasRange qn, HasRange p, HasRange e) => HasRange (RewriteEqn' qn nm p e) where
   getRange = \case
     Rewrite es    -> getRange es
     Invert qn pes -> getRange (qn, pes)
@@ -4031,3 +4375,11 @@ instance NFData NotationPart where
   rnf (HolePart _ a) = rnf a
   rnf (WildPart a)   = rnf a
   rnf (IdPart a)     = rnf a
+
+instance Pretty NotationPart where
+    pretty (IdPart x) = text $ rangedThing x
+    pretty HolePart{} = underscore
+    pretty VarPart{}  = underscore
+    pretty WildPart{} = underscore
+
+    prettyList = hcat . map pretty

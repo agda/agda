@@ -29,13 +29,13 @@ import Prelude hiding (null, lookup, filter)
 import Control.DeepSeq
 
 import Data.Function (on)
-import qualified Data.Maybe as Lazy
+import Data.Maybe qualified as Lazy
 import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
+import Data.Map.Strict qualified as Map
 
-import qualified Data.List as List
+import Data.List qualified as List
 
-import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Maybe.Strict qualified as Strict
 import Agda.Utils.Null
 import Agda.Utils.Lens
 

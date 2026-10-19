@@ -1,6 +1,0 @@
-(agda2-status-action "")
-(agda2-info-action "*Type-checking*" "" nil)
-(agda2-highlight-clear)
-(agda2-info-action "*Error*" "stack overflow" nil)
-(agda2-highlight-add-annotations 'nil)
-(agda2-status-action "")

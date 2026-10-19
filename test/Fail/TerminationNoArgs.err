@@ -1,6 +1,6 @@
 TerminationNoArgs.agda:3.1-4.12: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   loop
-Problematic calls:
+Problematic call:
   loop
     (at TerminationNoArgs.agda:4.8-12)

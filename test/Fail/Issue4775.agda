@@ -25,3 +25,8 @@ test = λ (y1 , isSuc y2) → Nat
 -- Expected record pattern
 -- when checking that the expression λ (y1 , isSuc y2) → Nat has type
 -- Σ Nat IsSuc → Set
+
+-- As of 2026-01-20: More precise location.
+-- error: [ShouldBeRecordPattern]
+-- Expected record pattern
+-- when checking that the pattern isSuc y2 has type IsSuc y1

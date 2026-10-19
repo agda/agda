@@ -1,6 +1,6 @@
-Issue2369.agda:8.1-24: error: [SolvedButOpenHoles]
-Module cannot be imported since it has open interaction points
-(consider adding {-# OPTIONS --allow-unsolved-metas #-} to this
-module)
+Issue2369.agda:10.1-24: error: [SolvedButOpenHoles]
+Issue2369.OpenIP (at Issue2369/OpenIP.agda:1.1)
+cannot be imported since it has open interaction points
+(consider adding {-# OPTIONS --allow-unsolved-metas #-} to that module)
 when scope checking the declaration
   import Issue2369.OpenIP

@@ -1,4 +1,8 @@
-Issue659.agda:32.7-10: error: [UnequalSorts]
-Agda.Primitive.Setω != (Set _a_29)
+Issue659.agda:32.11-15: error: [UnequalTypes]
+The types
+  Agda.Primitive.Setω
+and
+  Set _a_29
+are not equal
 when checking that the solution (ℓ : Level) → R ℓ of metavariable
 _A_30 has the expected type Set _a_29

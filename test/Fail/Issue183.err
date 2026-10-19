@@ -1,3 +1,6 @@
-Issue183.agda:15.13-14: error: [UnequalTerms]
-E _x_10 _x_10 !=< L (E f f)
+Issue183.agda:15.13-14: error: [UnequalTypes]
+The type
+  E _x_10 _x_10
+is not a subtype of
+  L (E f f)
 when checking that the expression e has type L (E f f)

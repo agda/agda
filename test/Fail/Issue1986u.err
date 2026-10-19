@@ -1,4 +1,8 @@
-Issue1986u.agda:21.1-22.2: error: [SplitError.CosplitCatchall]
-Cannot split into projections because not all clauses have a
-projection copattern
+
+Issue1986u.agda:22.1-13: warning: -W[no]UnreachableClauses
+Unreachable clause
+when checking the definition of p
+Issue1986u.agda:21.1-22.2: error: [CoverageIssue]
+Incomplete pattern matching for p. Missing cases:
+  p .snd
 when checking the definition of p

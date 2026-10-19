@@ -1,0 +1,8 @@
+Issue8161.agda:26.55-59: error: [GeneralizationPrepruneErrorRefinedContext]
+Failed to generalize because some of the generalized variables
+depend on an unsolved meta created in a refined context (not a
+simple extension of the context where generalization happens). The
+problematic unsolved meta is
+  _A_46 at Issue8161.agda:26.55-59
+when checking that _ it are valid arguments to a function of type
+{A : Set} {x : A} (it : The A x) → The (The A x) it → Set

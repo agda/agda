@@ -285,7 +285,7 @@ prop_monoid = isMonoid
 ------------------------------------------------------------------------
 -- Generators
 
-instance (Arbitrary a, Semigroup a) => Arbitrary (RangeMap a) where
+instance (Arbitrary a) => Arbitrary (RangeMap a) where
   arbitrary = smaller 5 $ do
     rs <- (\ns1 ns2 ->
             toRanges $ sort $

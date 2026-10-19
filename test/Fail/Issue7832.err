@@ -1,4 +1,8 @@
 Issue7832.agda:30.33-37: error: [UnequalTerms]
-accj₁ != accj₂ of type Acc j
+The terms
+  accj₁
+and
+  accj₂
+are not equal at type Acc j
 when checking that the expression refl has type
 U< accj₁ i i<j₁ ≡ U< accj₂ i i<j₂

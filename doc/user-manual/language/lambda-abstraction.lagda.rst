@@ -1,6 +1,5 @@
 ..
   ::
-  {-# OPTIONS --erasure #-}
 
   module language.lambda-abstraction where
 
@@ -39,7 +38,7 @@ Lambda expressions
 
 Anonymous functions can be defined using a lambda expression ``\x → u``::
 
-  myFun = \x → x + x -- equivalent: `myFun x = x + x`
+  myFun = \ x → x + x -- equivalent: `myFun x = x + x`
 
 You can also use the Unicode symbol ``λ`` (type “\\lambda” or “\\Gl” in the Emacs Agda mode) instead of ``\`` (type “\\\\” in the Emacs Agda mode).
 
@@ -92,12 +91,18 @@ around the argument.
 
   instance-lambda = λ (A : Set) {{monoid-A : Monoid A}} → mempty
 
-Arguments to lambda expressions can also be annotated with any :ref:`modality <modalities>`.
+Arguments to lambda expressions can also be annotated with any :ref:`modality <modalities>`,
+for instance with :ref:`erasure status <erased-lambda>`.
+
+Note that in Cubical Agda (see :option:`--cubical`), many of the examples above do not pass
+because there the types of lambda expressions are not *inferred* in general;
+lambdas are only *checked* against given types.
+Thus, type signatures are needed for ``myFun`` etc.
 
 .. _pattern-lambda:
 
 Pattern lambda
------------------------
+--------------
 
 Anonymous pattern matching functions can be defined by a *pattern lambda* using
 one of the two following syntaxes:
@@ -154,19 +159,6 @@ Pattern lambdas can also use :ref:`copatterns` by using projections in
     (a , b) .snd → a
 
 It is not allowed to use ``where`` and ``with`` constructions in pattern lambdas.
-
-Regular pattern lambdas are treated as non-erased function definitions (see
-::ref:`runtime-irrelevance`). One can make a pattern lambda erased by writing
-``@0`` or ``@erased`` before the lambda:
-
-::
-
-  @0 _ : @0 Set → Set
-  _ = λ @0 { A → A }
-
-  @0 _ : @0 Set → Set
-  _ = λ @erased where
-    A → A
 
 Internal representation of pattern lambdas
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

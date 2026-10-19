@@ -37,6 +37,7 @@ import Agda.Utils.Impossible
 import Agda.Utils.CallStack
 import qualified Agda.Utils.HashTable as H
 import qualified Agda.Utils.CompactRegion as Compact
+import Agda.Utils.Functor ((<.>))
 
 instance EmbPrj ConstructorOrPatternSynonym
 
@@ -60,12 +61,14 @@ instance EmbPrj FileType where
     _ -> malformed
 
 instance EmbPrj Cubical where
-  icod_ CErased = icodeN'  CErased
-  icod_ CFull   = icodeN 0 CFull
+  icod_ CWithoutGlue = icodeN'  CWithoutGlue
+  icod_ CErased      = icodeN 0 CErased
+  icod_ CFull        = icodeN 1 CFull
 
   value = vcase $ \case
-    N0   -> valuN CErased
-    N1 0 -> valuN CFull
+    N0   -> valuN CWithoutGlue
+    N1 0 -> valuN CErased
+    N1 1 -> valuN CFull
     _    -> malformed
 
 instance EmbPrj Language where
@@ -77,6 +80,32 @@ instance EmbPrj Language where
     N0     -> valuN WithoutK
     N1 0   -> valuN WithK
     N2 1 a -> valuN Cubical a
+    _      -> malformed
+
+instance EmbPrj AllowedErasedMatchesIndexed where
+  icod_ Restricted   = icodeN'  Restricted
+  icod_ Unrestricted = icodeN 0 Unrestricted
+
+  value = vcase $ \case
+    N0   -> valuN Restricted
+    N1 0 -> valuN Unrestricted
+    _    -> malformed
+
+instance EmbPrj AllowedErasedMatches where
+  icod_ (AllowedErasedMatches e n d) =
+    icodeN' AllowedErasedMatches e n d
+
+  value = valueN AllowedErasedMatches
+
+instance EmbPrj AllowedErasedMatchesWithDefaults where
+  icod_ ErasedMatchesDefault   = icodeN'  ErasedMatchesDefault
+  icod_ ErasedMatchesDefaultOn = icodeN 0 ErasedMatchesDefaultOn
+  icod_ (ErasedMatches a)      = icodeN 1 ErasedMatches a
+
+  value = vcase $ \case
+    N0     -> valuN ErasedMatchesDefault
+    N1 0   -> valuN ErasedMatchesDefaultOn
+    N2 1 a -> valuN ErasedMatches a
     _      -> malformed
 
 instance EmbPrj a => EmbPrj (Position' a) where
@@ -244,16 +273,35 @@ instance EmbPrj A.QName where
 
   value = valueN A.QName
 
+-- | Note: Serialization of 'A.AmbiguousQName' discards lineage,
+-- treating all entries as just 'A.QName' rather than 'A.AbstractName'.
 instance EmbPrj A.AmbiguousQName where
-  icod_ (A.AmbQ a) = icode a
-  value n          = A.AmbQ <$!> value n
+  icod_ = icod_ . A.getAmbiguous
+  value = A.ambiguous <.> value
+
+-- instance EmbPrj A.AmbiguousQName where
+--   icod_ (A.AmbQ a) = icode a
+--   value n          = A.AmbQ <$!> value n
+
+-- instance EmbPrj A.AmbQNameEntry where
+--   icod_ = \case
+--     A.AmbQName a -> icodeN 0 a
+--     A.AmbAbstractName a -> icodeN 1 a
+--   value = vcase \case
+--     N2 0 a -> valuN A.AmbQName a
+--     N2 1 a -> valuN A.AmbAbstractName a
+--     _ -> malformed
 
 instance EmbPrj A.ModuleName where
   icod_ (A.MName a) = icode a
   value n           = A.MName <$!> value n
 
 instance EmbPrj A.Name where
-  icod_ (A.Name a b c d e f) = icodeMemo nameD nameC a $
+  icod_ x@(A.Name a b c d e f) =
+    -- Andreas, 2026-03-12: issue #8465:
+    -- We include the definition site into the key for 'A.Name'
+    -- to correctly serialize the 'nameDefinitionSite' field.
+    icodeMemo nameD nameC (nameIdR x) $
     icodeN' (\ a b c d e f -> A.Name a b c (underlyingRange d) e f) a b c (SerialisedRange d) e f
 
   value = valueN (\a b c d e f -> A.Name a b c (underlyingRange d) e f)
@@ -313,6 +361,17 @@ instance EmbPrj a => EmbPrj (HasEta' a) where
     valu _      = malformed
 
 instance EmbPrj PatternOrCopattern
+
+instance EmbPrj a => EmbPrj (DataOrRecord' a) where
+  icod_ = \case
+    IsData      -> icodeN' IsData
+    IsRecord pm -> icodeN' IsRecord pm
+
+  value = vcase $ \case
+    N0    -> valuN IsData
+    N1 pm -> valuN IsRecord pm
+    _     -> malformed
+
 instance EmbPrj OverlapMode
 
 instance EmbPrj Induction where
@@ -398,11 +457,13 @@ instance EmbPrj Quantity where
 instance EmbPrj Cohesion where
   icod_ Flat       = return 0
   icod_ Continuous = return 1
-  icod_ Squash     = return 2
+  icod_ Sharp      = return 2
+  icod_ Squash     = return 3
 
   value 0 = return Flat
   value 1 = return Continuous
-  value 2 = return Squash
+  value 2 = return Sharp
+  value 3 = return Squash
   value _ = malformed
 
 instance EmbPrj ModalPolarity where
@@ -487,7 +548,7 @@ instance EmbPrj Relevance where
     _      -> malformed
 
 instance EmbPrj Annotation where
-  icod_ (Annotation l) = icodeN' Annotation l
+  icod_ (Annotation l r) = icodeN' Annotation l r
 
   value = valueN Annotation
 
@@ -501,14 +562,24 @@ instance EmbPrj Lock where
   value 2 = pure (IsLock LockOLock)
   value _ = malformed
 
+instance EmbPrj RewriteAnn where
+  icod_ IsNotRewrite  = pure 0
+  icod_ (IsRewrite _) = pure 1
+
+  value 0 = pure IsNotRewrite
+  value 1 = pure $ IsRewrite noRange
+  value _ = malformed
+
 instance EmbPrj Origin where
-  icod_ UserWritten = return 0
-  icod_ Inserted    = return 1
-  icod_ Reflected   = return 2
-  icod_ CaseSplit   = return 3
-  icod_ Substitution = return 4
-  icod_ ExpandedPun = return 5
+  icod_ UserWritten    = return 0
+  icod_ Inserted       = return 1
+  icod_ Reflected      = return 2
+  icod_ CaseSplit      = return 3
+  icod_ Substitution   = return 4
+  icod_ ExpandedPun    = return 5
   icod_ Generalization = return 6
+  icod_ ConversionFail = return 7
+  icod_ RecordSelf     = return 8
 
   value 0 = return UserWritten
   value 1 = return Inserted
@@ -517,6 +588,8 @@ instance EmbPrj Origin where
   value 4 = return Substitution
   value 5 = return ExpandedPun
   value 6 = return Generalization
+  value 7 = return ConversionFail
+  value 8 = return RecordSelf
   value _ = malformed
 
 instance EmbPrj a => EmbPrj (WithOrigin a) where
@@ -534,17 +607,15 @@ instance EmbPrj FreeVariables where
     valu _      = malformed
 
 instance EmbPrj ConOrigin where
-  icod_ ConOSystem   = return 0
-  icod_ ConOCon      = return 1
-  icod_ ConORec      = return 2
-  icod_ ConOSplit    = return 3
-  icod_ ConORecWhere = return 4
+  icod_ ConOSystem = return 0
+  icod_ ConOCon    = return 1
+  icod_ ConORec    = return 2
+  icod_ ConOSplit  = return 3
 
   value 0 = return ConOSystem
   value 1 = return ConOCon
   value 2 = return ConORec
   value 3 = return ConOSplit
-  value 4 = return ConORecWhere
   value _ = malformed
 
 instance EmbPrj ProjOrigin where
@@ -669,6 +740,8 @@ instance EmbPrj RecordDirective where
     (N2 2 a)   -> valuN Induction a
     (N2 3 a)   -> valuN PatternOrCopattern a
     _ -> malformed
+
+instance EmbPrj PositivityCheck
 
 instance EmbPrj Catchall where
   icod_ NoCatchall  = icodeN' NoCatchall

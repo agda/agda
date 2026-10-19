@@ -11,7 +11,6 @@ import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 
-import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Monad
 import Agda.Syntax.Common.Pretty
@@ -23,7 +22,8 @@ import Agda.Syntax.Common.Pretty
 {-# INLINABLE getClausesAsRewriteRules #-}
 -- | Get all the clauses of a definition and convert them to rewrite
 --   rules.
-getClausesAsRewriteRules :: (HasConstInfo m, ReadTCState m, MonadFresh NameId m) => QName -> m [RewriteRule]
+getClausesAsRewriteRules :: (HasConstInfo m, ReadTCState m, MonadFresh NameId m)
+  => QName -> m [GlobalRewriteRule]
 getClausesAsRewriteRules f = do
   cls <- defClauses <$> getConstInfo f
   forMaybeM (zip [1..] cls) $ \(i,cl) -> do
@@ -43,19 +43,19 @@ clauseQName f i = QName (qnameModule f) <$> clauseName (qnameName f) i
 --   if @clauseBody cl@ is @Nothing@. Precondition: @clauseType cl@ is
 --   not @Nothing@.
 clauseToRewriteRule :: (MonadTCEnv m, ReadTCState m)
-  => QName -> QName -> Clause -> m (Maybe RewriteRule)
+  => QName -> QName -> Clause -> m (Maybe GlobalRewriteRule)
 clauseToRewriteRule f q cl | hasDefP (namedClausePats cl) = return  Nothing
 clauseToRewriteRule f q cl = do
   top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
-  return $ clauseBody cl <&> \rhs -> RewriteRule
-    { rewName    = q
-    , rewContext = clauseTel cl
-    , rewHead    = f
-    , rewPats    = toNLPat $ namedClausePats cl
-    , rewRHS     = rhs
-    , rewType    = unArg $ fromMaybe __IMPOSSIBLE__  $ clauseType cl
-    , rewFromClause = True
-    , rewTopModule  = top
+  return $ clauseBody cl <&> \rhs -> GlobalRewriteRule
+    { grName       = q
+    , grContext    = clauseTel cl
+    , grHead       = f
+    , grPats       = toNLPat $ namedClausePats cl
+    , grRHS        = rhs
+    , grType       = unArg $ fromMaybe __IMPOSSIBLE__  $ clauseType cl
+    , grFromClause = True
+    , grTopModule  = top
     }
 
 class ToNLPat a b where
@@ -73,12 +73,12 @@ instance ToNLPat a b => ToNLPat (Abs a) (Abs b) where
 
 instance ToNLPat (Arg DeBruijnPattern) (Elim' NLPat) where
   toNLPat (Arg ai p) = case p of
-    VarP _ x        -> app $ PVar (dbPatVarIndex x) []
+    VarP _ x        -> app $ PVar MaybeSing (dbPatVarIndex x) []
     DotP _ u        -> app $ PTerm u
     ConP c _ ps     -> app $ PDef (conName c) $ toNLPat ps
     LitP o l        -> app $ PTerm $ Lit l
     ProjP o f       -> Proj o f
-    IApplyP _ u v x -> IApply (PTerm u) (PTerm v) $ PVar (dbPatVarIndex x) []
+    IApplyP _ u v x -> IApply (PTerm u) (PTerm v) $ PVar MaybeSing (dbPatVarIndex x) []
     DefP _ f ps     -> app $ PDef f $ toNLPat ps
 
     where

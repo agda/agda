@@ -10,6 +10,7 @@ module Agda.Termination.Order
   ( -- * Structural orderings
     Order(..), decr
   , increase, decrease, setUsability
+  , makeIncreaseInfinite
   , (.*.)
   , supremum, infimum
   , orderSemiring
@@ -154,6 +155,13 @@ setUsability u o = case o of
   Decr _ k -> Decr u k
   Unknown  -> o
   Mat{}    -> o
+
+-- | Turn any increase into infinite increase ('Unknown').
+
+makeIncreaseInfinite :: Order -> Order
+makeIncreaseInfinite = \case
+  Decr u k | k < 0 -> Unknown
+  o -> o
 
 -- | Smart constructor for @Decr k :: Order@ which cuts off too big values.
 --

@@ -26,7 +26,7 @@ import Data.Word (Word32)
 
 -- import qualified Agda.Syntax.Concrete as C
 -- import qualified Agda.Syntax.Internal as I
-import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad hiding ((.=))
 import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.DocTree qualified as DocTree

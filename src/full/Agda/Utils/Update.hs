@@ -55,7 +55,7 @@ instance Monad m => MonadChange (ChangeT m) where
 
 -- | Run a 'ChangeT' computation, returning result plus change flag.
 runChangeT :: Functor m => ChangeT m a -> m (a, Bool)
-runChangeT = fmap (mapSnd getAny) . runWriterT . fromChangeT
+runChangeT = fmap (second getAny) . runWriterT . fromChangeT
 {-# INLINE runChangeT #-}
 
 -- | Map a 'ChangeT' computation (monad transformer action).
@@ -105,7 +105,7 @@ dirty a = do
 
 {-# SPECIALIZE ifDirty :: Change a -> (a -> Change b) -> (a -> Change b) -> Change b #-}
 {-# SPECIALIZE ifDirty :: Identity a -> (a -> Identity b) -> (a -> Identity b) -> Identity b #-}
-ifDirty :: (Monad m, MonadChange m) => m a -> (a -> m b) -> (a -> m b) -> m b
+ifDirty :: (MonadChange m) => m a -> (a -> m b) -> (a -> m b) -> m b
 ifDirty m f g = do
   (a, dirty) <- listenDirty m
   if dirty then f a else g a

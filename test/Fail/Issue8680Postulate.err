@@ -1,0 +1,4 @@
+Issue8680Postulate.agda:9.15-16: error: [UnusedVariableInPatternSynonym]
+Unused variable in pattern synonym: x
+when scope checking the declaration
+  pattern fails x y = suc y

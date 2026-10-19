@@ -1,3 +1,7 @@
-SetOmega.agda:6.22-31: error: [UnequalSorts]
-Agda.Primitive.Setω != Set _a_3
+SetOmega.agda:6.22-31: error: [UnequalTypes]
+The types
+  Agda.Primitive.Setω
+and
+  Set _a_3
+are not equal
 when checking that the expression ∀ a → Set a has type Set _a_3

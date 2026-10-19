@@ -6,7 +6,7 @@ module Agda.Compiler.MAlonzo.Compiler
   where
 
 import Prelude hiding ( zip, zipWith )
-import Control.Arrow (second)
+
 import Control.DeepSeq
 import Control.Monad.Except   ( throwError )
 import Control.Monad.IO.Class ( MonadIO(..) )
@@ -26,8 +26,6 @@ import qualified Data.Text as Text
 import Data.Monoid (Monoid, mempty, mappend)
 
 import GHC.Generics (Generic)
-
-import qualified Agda.Utils.Haskell.Syntax as HS
 
 import System.Directory (createDirectoryIfMissing)
 import System.Environment (setEnv)
@@ -69,6 +67,7 @@ import Agda.Utils.FileName (isNewerThan)
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Float
+import qualified Agda.Utils.Haskell.Syntax as HS
 import Agda.Utils.IO.Directory
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -77,6 +76,7 @@ import qualified Agda.Utils.ListInf as ListInf
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Singleton
+import Agda.Utils.Tuple (second)
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Zip
 
@@ -228,8 +228,9 @@ data GHCDefinition = GHCDefinition
 ghcPreCompile :: GHCFlags -> TCM GHCEnv
 ghcPreCompile flags = do
   whenJustM cubicalOption \case
-    CErased -> pure ()
-    CFull   -> typeError $ CubicalCompilationNotSupported CFull
+    CWithoutGlue -> pure ()
+    CErased      -> pure ()
+    CFull        -> typeError $ CubicalCompilationNotSupported CFull
 
   outDir <- compileDir
   let ghcOpts = GHCOptions
@@ -390,9 +391,10 @@ ghcPreModule cenv isMain m mifile =
       cubical <- cubicalOption
       case cubical of
         -- Code that uses --cubical is not compiled.
-        Just CFull   -> noComp
-        Just CErased -> check
-        Nothing      -> check)
+        Just CFull        -> noComp
+        Just CErased      -> check
+        Just CWithoutGlue -> check
+        Nothing           -> check)
     `runReaderT` GHCModuleEnv cenv (HsModuleEnv m (isMain == IsMain))
   where
     uptodate = case mifile of
@@ -715,8 +717,8 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
                  emptyBinds]
           ]
 
-      -- TC builtins are compiled to erased, which is an ∞-ary
-      -- function.
+      -- TC builtins are compiled to erased, which is a non-strict
+      -- ∞-ary function.
       Axiom{} | ghcEnvIsTCBuiltin env q -> do
         retDecls $
           [ HS.FunBind
@@ -738,7 +740,6 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       Function{} -> function pragma $ functionViaTreeless def q
 
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl
-              , dataPathCons = pcs
               } | Just hsdata@(HsData r ty hsCons) <- pragma ->
         setCurrentRange r $ do
         reportSDoc "compile.ghc.definition" 40 $ hsep $
@@ -755,7 +756,6 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
               ]
         retDecls result
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl
-              , dataPathCons = pcs
               } -> do
         liftTCM $ computeErasedConstructorArgs q
         cs <- liftTCM $ getNotErasedConstructors q
@@ -799,8 +799,11 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
   functionViaTreeless :: Definition -> QName -> HsCompileM (UsesFloat, [HS.Decl])
   functionViaTreeless def q = do
-    strict <- optGhcStrict <$> askGhcOpts
-    let eval = if strict then EagerEvaluation else LazyEvaluation
+    strict     <- optGhcStrict     <$> askGhcOpts
+    strictData <- optGhcStrictData <$> askGhcOpts
+    let eval =
+          if strict then EagerEvaluation
+          else LazyEvaluation (if strictData then Strict else NonStrict)
     caseMaybeM (liftTCM $ toTreeless eval q) (pure mempty) $ \ treeless -> do
 
       used <- fromMaybe [] <$> getCompiledArgUse q
@@ -1027,10 +1030,13 @@ noApplication = \case
   T.TVar i    -> hsVarUQ . lookupIndex i <$> view ccContext
   T.TLam t    -> intros 1 $ \ [x] -> hsLambda [HS.PVar x] <$> term t
 
-  T.TLet t1 t2 -> do
+  T.TLet s t1 t2 -> do
     t1' <- term t1
+    s'  <- case s of
+      T.Strict    -> return HS.Strict
+      T.NonStrict -> return HS.Lazy
     intros 1 $ \[x] -> do
-      hsLet x t1' . hsCoerce <$> term t2
+      hsLet s' x t1' . hsCoerce <$> term t2
 
   T.TCase sc ct def alts -> do
     sc'   <- term $ T.TVar sc
@@ -1159,7 +1165,7 @@ litqname x =
   where
     apps = foldl HS.App
     rteCon name = HS.Con $ HS.Qual mazRTE $ HS.Ident name
-    NameId n (ModuleNameHash m) = nameId $ qnameName x
+    NameId n (ModuleNameHash m) = nameId x
     fx = theFixity $ nameFixity $ qnameName x
 
     litAssoc NonAssoc   = rteCon "NonAssoc"
@@ -1176,7 +1182,7 @@ litqnamepat x =
           , HS.PLit (HS.Int $ fromIntegral m)
           , HS.PWildCard, HS.PWildCard ]
   where
-    NameId n (ModuleNameHash m) = nameId $ qnameName x
+    NameId n (ModuleNameHash m) = nameId x
 
 litmetapat :: MetaId -> HS.Pat
 litmetapat (MetaId m h) =
@@ -1219,14 +1225,25 @@ compiledTypeSynonym q hsT arity =
   where
     vs = [ ihname A i | i <- [0 .. arity - 1]]
 
-tvaldecl :: QName
-         -> Induction
-            -- ^ Is the type inductive or coinductive?
-         -> Nat -> [HS.ConDecl] -> Maybe Clause -> [HS.Decl]
-tvaldecl q ind npar cds cl =
+-- | Produce Haskell code for a data type declaration.
+tvaldecl ::
+     QName
+       -- ^ Name of the data/record type.
+  -> Induction
+       -- ^ Is the type inductive or coinductive?
+  -> Nat
+       -- ^ Number of parameters.
+  -> [HS.ConDecl]
+       -- ^ Constructors.
+  -> Maybe a
+       -- ^ The definition of this type if it is a copy created by a
+       --   module application (see 'defCopyClause'); such a type is a mere
+       --   alias, so no data declaration is emitted for it.
+  -> [HS.Decl]
+tvaldecl q ind npar cds body =
   HS.FunBind [HS.Match vn pvs (HS.UnGuardedRhs HS.unit_con) emptyBinds] :
   maybe [HS.DataDecl kind tn [] cds' []]
-        (const []) cl
+        (const []) body
   where
   (tn, vn) = (unqhname TypeK q, dname q)
   pvs = [ HS.PVar $ ihname A i | i <- [0 .. npar - 1]]

@@ -20,6 +20,7 @@ class
   , HasConstInfo m
   , MonadAddContext m
   , MonadDebug m
+  , MonadFileId m
   , MonadReduce m
   , MonadTCEnv m
   , ReadTCState m

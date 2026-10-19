@@ -1,4 +1,4 @@
-{-# OPTIONS --warning=error #-}
+
 
 module FixityOutOfScopeInRecord1 where
 

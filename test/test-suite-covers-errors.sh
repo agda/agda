@@ -22,7 +22,6 @@ ${AGDA_BIN:-agda} --help=error | sed -nr 's/^([A-Z][a-z\.]+[A-Z][A-Za-z\.]+).*/\
 #
 cat > $ERRORS <<EOF
 CustomBackendError
-GenericError
 InternalError
 NonFatalErrors
 EOF
@@ -40,6 +39,15 @@ EOF
 #
 cat >> $ERRORS <<EOF
 NeedOptionRewriting
+MismatchedProjectionsError
+EOF
+
+# Errors which became impossible for ordinary data definitions
+# but may be still be triggerable by reflection.
+#
+cat >> $ERRORS <<EOF
+UnexpectedModalityAnnotationInParameter
+UnexpectedTypeSignatureForParameter
 EOF
 
 # Errors we currently do not cover by the testsuite (TODO!).
@@ -52,6 +60,9 @@ Exec.ExeNotFound
 Exec.ExeNotTrusted
 FunctionTypeInSizeUniv
 GeneralizeCyclicDependency
+GeneralizationPrepruneErrorCyclicDependencies
+GeneralizationPrepruneErrorFailedToInstantiate
+Interaction.CannotGive
 ModuleNameHashCollision
 SplitError.CosplitNoTarget
 SplitError.GenericSplitError
@@ -62,13 +73,13 @@ EOF
 
 # Testsuite golden value files.
 #
-FILES=$(find \( -name "*.err" -o -name "*.out" \))
+FILES=$(find . \( -name "*.err" -o -name "*.out" \))
 
 # Names $NAME of errors are CamelCase and printed in that form:
 #
 #    ... error: [$NAME]
 #
-sed --silent --regexp-extended --expression='s/.*error: \[([A-Z][a-z\.]+[A-Z][A-Za-z\.]+)\].*/\1/p' $FILES | sort | uniq >> $ERRORS
+sed -n -E -e 's/.*error: \[([A-Z][a-z\.]+[A-Z][A-Za-z\.]+)\].*/\1/p' $FILES | sort | uniq >> $ERRORS
 
 sort $ERRORS | uniq > $COVERED
 

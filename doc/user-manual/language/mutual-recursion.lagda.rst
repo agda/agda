@@ -63,7 +63,8 @@ declaration from the introduction of constructors in one or many ``data ... wher
 
     -- Btw we know how to pair values in a record
     record _×_ A B where
-      inductive; constructor _,_
+      inductive; no-eta-equality; pattern
+      constructor _,_
       field fst : A; snd : B
 
     -- And we have a code for pairs in our universe
@@ -210,7 +211,7 @@ part and placing the declarations before the definitions.
 
 - Function clauses, ``data`` constructors and ``record`` definitions, ``unquoteDef``.
 - ``pattern`` synonym definitions.
-- Pragmas that need the definition, e.g. ``INLINE``, ``ETA``, etc.
+- Pragmas that need the definition, e.g. ``INLINE``, ``REWRITE``, etc.
 - Pragmas that are not needed for type checking, like compiler pragmas.
 
 Module definitions with ``module ... where`` are not supported in old-style ``mutual`` blocks.

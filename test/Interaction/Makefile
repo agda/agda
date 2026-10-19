@@ -1,0 +1,172 @@
+# Andreas, 2026-09-30
+# Switch off default rules in a POSIX-compliant way
+.SUFFIXES:
+
+# Empty SUFFIXES is not sufficient to cancel the built-in %.out rule,
+# so we do it manually.
+%.out: %
+
+TOP = ../..
+
+include $(TOP)/mk/paths.mk
+
+# Extra options when running agda --interaction
+# Andreas, 2025-08-05, PR #8047:
+# Add --color=never to turn off highlighting info sent to the Agda information buffer.
+# Highlighting information for the info buffer is not portable
+# since its position info varies with the length of filepaths.
+# As they are absolute, they have different length locally and on CI.
+# So, we do not want this highlighting information in the golden values
+# until someone finishes #6192.
+AGDA_OPT=--no-default-libraries --color=never
+
+# Get the current directory (OS dependent).
+uname:=$(shell uname)
+ifeq (NT-5,$(findstring NT-5,$(uname)))
+pwd=$(shell (cmd /c 'echo %CD%') | $(SED) -e 's/\\/\\\\\\\\/g')
+pwdPlusDelimiter=$(pwd)\\\\
+else
+pwd=$(shell pwd)
+pwdPlusDelimiter=$(pwd)/
+endif
+
+clean=/usr/bin/env bash $(shell pwd)/clean.sh $(SED)
+
+# Construct the list of tests to carry out.
+# Andreas, 2017-04-24 ls -t: sort by newest first
+# Andreas, 2026-10-04, issue #6705: also literate extensions like .lagda.md.
+# All Agda file extensions are .agda or start with .lagda.
+AgdaFiles=$(shell ls -t *.agda *.lagda *.lagda.* 2>/dev/null)
+# Shell snippet: strip the Agda extension from $$file, giving $$base.
+strip_agda_ext=base=$${file%.lagda*}; base=$${base%.agda}
+# Lawrence, 2025-04-13: skip files with .in
+# (these now have a tasty test runner),
+# unless they have a .sh file
+AgdaBasesWithoutIn=$(shell for file in $(AgdaFiles); do $(strip_agda_ext); (test ! -f $$base.in || test -f $$base.sh) && echo $$base; done)
+OutFiles=$(addsuffix .out,$(AgdaBasesWithoutIn))
+Tests=$(addsuffix .cmp,$(AgdaBasesWithoutIn))
+
+default : $(Tests)
+
+# TMPDIR is an absolute path because Issue6194.hs changes the working
+# directory.
+export TMPDIR=$(PWD)/highlighting-tmp
+export BUILDDIR=_build/
+
+# Filter out absolute pathes, make all whitespace equal, remove
+# "Linking..." messages since GHC 7.0 doesn't have them.
+filter=$(SED) -e 's"$(pwdPlusDelimiter)""g' \
+              -e 's"$(pwd)""g' \
+              -e 's" \"$(TMPDIR).*\"""' \
+              -e 's"[^ (\"]*lib.prim"agda-default-include-path"g' \
+              -e 's/\((agda2-info-action "\*Agda Version\*" "Agda version \([[:digit:]]\+\.\)\+[[:digit:]]\+\)\(-[[:alnum:]]\+\(-dirty\)\?\)\?\(" nil)\)/\1\5/g' \
+              -e 's/\(\\n\| \)\+/ /g' \
+              -e 's/^ //g' \
+              -e '/Linking /d' \
+              -e 's/Agda2> //g' \
+     | $(clean)
+
+# Turn off "eager failure" flags (e, E, pipefail) while running the test.
+run_test=\
+    set +eE +o pipefail; \
+    if test -f $*.hs; \
+    then $(RUNGHC) --ghc-arg=-v0 --ghc-arg=-w ./$*.hs $(AGDA_BIN) 2>&1 | $(filter) ; \
+    else /usr/bin/env bash ./$*.sh $(AGDA_BIN) "$(RUNGHC)" > $(TMPDIR)/$*.tmp_out ; \
+         cat $(TMPDIR)/$*.tmp_out | $(filter) ; \
+    fi
+
+setup_Issue591     = rm -f Issue591/M.agdai
+setup_Issue2217    = rm -f Issue2217/M.agdai
+setup_Highlighting = rm -f Highlighting/M.agdai
+setup_Auto = $(AGDA_BIN) -v0 Auto/Prelude.agda
+setup_Auto-BasicLogic = $(setup_Auto)
+setup_Auto-DataConstruction = $(setup_Auto)
+setup_Auto-EqualityReasoning = $(setup_Auto)
+setup_Auto-IndexedDatatypes = $(setup_Auto)
+setup_Auto-Misc = $(setup_Auto)
+setup_Auto-Modules = $(setup_Auto)
+cleanup_Issue373   = rm -rf Issue373 MAlonzo
+cleanup_Issue2714  = rm -rf MAlonzo
+cleanup_CompilationWarnings = rm -rf MAlonzo
+setup_QuickLaTeX-Caching = rm -rf latex
+cleanup_QuickLaTeX-Caching = rm -rf latex
+
+# No recorded output
+########################################################################
+
+# Andreas, 2026-10-04
+# Only create .out file without interaction if none is present.
+# (This was the status quo, but only due to a bug in the SECONDEXPANSION
+# contraption originally introduced in 2a429b2, which left the list of
+# prerequisites empty.)
+# Note: I think "$(@:.out=.FOO)" is just fancy syntax for "$*.FOO" here.
+
+$(OutFiles) : %.out :
+	@-mkdir -p $(TMPDIR)
+	@$(setup_$*)
+	@rm -f "$(@:.out=.agdai)"
+	@echo "=== Output for $* ==="
+	@$(run_test) > $@
+	@cat $@
+	@echo "=== End of output ==="
+	@rm -rf $(TMPDIR)
+
+# Comparing output
+########################################################################
+
+# Andreas, 2020-06-09, issue #4736
+# If the output has changed, the test case is "interesting",
+# thus, we sort it up for the next run by touching the .agda file.
+
+$(Tests) : %.cmp : %.out
+	@-mkdir -p $(TMPDIR)
+	@$(setup_$*)
+	@rm -f "$(@:.cmp=.agdai)"
+	@echo $*
+	@$(run_test) > $*.tmp
+	@if diff -q -b $*.out $*.tmp; \
+		then rm -f $*.tmp; true; \
+		else \
+			touch -c $*.agda $*.lagda $*.lagda.*; \
+			echo "=== Old output ==="; \
+			cat $*.out; \
+			echo "=== New output ==="; \
+			cat $*.tmp; \
+			echo "=== Diff ==="; \
+			(  git diff --no-index --no-ext-diff -w $*.out $*.tmp || true  ) ; \
+			while true; do \
+				echo -n "Accept new error [y/n/Q] (default: no)? "; \
+				read -n 1; \
+				echo ""; \
+				case "$$REPLY" in \
+					y|n|Q|"") break;; \
+					*) echo "Invalid input. Please enter y, n, Q, or press Enter.";; \
+				esac; \
+			done; \
+			if [ "fckShPrg$$REPLY" != "fckShPrgy"  ]; \
+			  then echo "Keeping old output"; \
+			       rm -f $*.tmp; \
+                               rm -rf $(TMPDIR); \
+			       if [ "$(cleanup_$*)" != "" ]; then $(cleanup_$*)"" ; fi ; \
+			       [ "X$$REPLY" != "XQ" ]; \
+			  else echo "Replacing output, continuing..."; \
+			    mv $*.tmp $*.out; \
+			    true; \
+			fi; \
+	 fi
+	@$(cleanup_$*)
+	@rm -rf $(TMPDIR) $(BUILDDIR)
+
+debug:
+	@echo "filter             = $(filter)"
+	@echo "run_test           = $(run_test)"
+	@echo "AgdaFiles          = $(AgdaFiles)"
+	@echo "AgdaBasesWithoutIn = $(AgdaBasesWithoutIn)"
+	@echo "OutFiles           = $(OutFiles)"
+	@echo "Tests              = $(Tests)"
+	@echo "AGDA_OPT           = $(AGDA_OPT)"
+	@echo "BUILDDIR           = $(BUILDDIR)"
+	@echo "TMPDIR             = $(TMPDIR)"
+	@echo "pwd                = $(pwd)"
+	@echo "pwdPlusDelimiter   = $(pwdPlusDelimiter)"
+	@echo "uname              = $(uname)"

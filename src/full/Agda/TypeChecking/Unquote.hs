@@ -2,7 +2,6 @@ module Agda.TypeChecking.Unquote where
 
 import Prelude hiding (null)
 
-import Control.Arrow          ( first, second, (&&&) )
 import Control.Monad          ( (<=<) )
 import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
@@ -40,12 +39,12 @@ import Agda.Syntax.Concrete.Name (simpleName)
 import Agda.Syntax.Position
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Translation.ReflectedToAbstract
-import Agda.Syntax.Scope.Base (KindOfName(ConName, DataName)
-                              , scopeLocals, LocalVar(LocalVar), BindingSource(MacroBound) )
+import Agda.Syntax.Scope.Base ( scopeLocals, LocalVar(LocalVar), BindingSource(MacroBound) )
 import Agda.Syntax.Parser
 
 import Agda.Interaction.Library ( ExeName )
 import Agda.Interaction.Options ( optTrustedExecutables, optAllowExec )
+import Agda.Interaction.Options.Lenses qualified as Lens
 
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Constraints
@@ -69,14 +68,14 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl
 import Agda.TypeChecking.Rules.Data
 
-import Agda.Utils.CallStack           ( HasCallStack )
+import Agda.Utils.CallStack ( HasCallStack )
 import Agda.Utils.Either
 import Agda.Utils.Lens
-import Agda.Utils.List1 (List1, pattern (:|))
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1     ( List1, pattern (:|))
+import Agda.Utils.List1     qualified as List1
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Interaction.Options.Lenses as Lens
+import Agda.Utils.Tuple     ( first, second, (&&&) )
 
 import Agda.Utils.Impossible
 
@@ -111,9 +110,8 @@ runUnquoteM m = do
   cxt <- getContext
   s   <- getTC
   pid <- fresh  -- Create a fresh problem for the unquote call. Used in tcSolveInstances.
-  z   <- localTC (\ e -> e { envUnquoteProblem = Just pid })
-       $ solvingProblem pid
-       $ unpackUnquoteM m cxt (Clean, s)
+  z   <- localTC (set eUnquoteProblem (Just pid)) $
+           solvingProblem pid $ unpackUnquoteM m cxt (Clean, s)
   case z of
     Left err              -> return $ Left err
     Right ((v, _), decls) -> Right (v, decls) <$ mapM_ isDefined decls
@@ -375,7 +373,7 @@ instance Unquote a => Unquote [a] where
 instance (Unquote a, Unquote b) => Unquote (a, b) where
   unquote t = do
     t <- reduceQuotedTerm t
-    SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+    SigmaKit{ sigmaCon } <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
     case t of
       Con c _ es | Just [x,y] <- allApplyElims es ->
         choice
@@ -769,7 +767,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcFormatErrorParts msg = quoteString . prettyShow <$> renderErrorParts msg
 
     tcTypeError :: [ErrorPart] -> TCM a
-    tcTypeError err = typeError . GenericDocError =<< renderErrorParts err
+    tcTypeError err = typeError . UserError =<< renderErrorParts err
 
     tcDebugPrint :: Text -> Integer -> [ErrorPart] -> TCM Term
     tcDebugPrint s n msg = do
@@ -870,7 +868,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcGetContext = liftTCM $ do
       r <- isReconstructed
       let getVar (CtxVar x a) = (nameToArgName x, a)
-      as <- map getVar <$> getContext
+      as <- map getVar . cxEntries <$> getContext
       as <- etaContract =<< process as
       if r then do
         as <- recons (reverse as)
@@ -880,7 +878,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
       where
         recons :: [(ArgName, Dom Type)] -> TCM [(ArgName, Dom Type)]
         recons []                        = return []
-        recons ((s, d@Dom {unDom=t}):ds) = do
+        recons ((s, d@(unDom -> t)):ds) = do
           t <- locallyReduceAllDefs $ reconstructParametersInType t
           let d' = d{unDom=t}
           ds' <- addContext (s, d') $ recons ds
@@ -898,7 +896,11 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
       locallyScope scopeLocals ((simpleName (T.unpack s') , LocalVar s MacroBound []) :)
           $ liftU1 (addContext (s, domFromArg a :: Dom Type)) m
 
-    tcExtendContext :: Term -> Term -> Term -> UnquoteM Term
+    tcExtendContext ::
+         Term          -- Name of the variable introduced into the context.
+      -> Term          -- Type of this variable.
+      -> Term          -- Computation to run in the extended context.
+      -> UnquoteM Term -- Result in the original context.
     tcExtendContext s a m = do
       s <- unquote s
       a <- unquote a
@@ -906,9 +908,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         v <- evalTCM $ raise 1 m
         -- 2024-04-20: free variable analysis only really makes sense on normal forms; see #7227
         v <- normalise v
-        when (freeIn 0 v) $ liftTCM $ genericDocError =<<
-          hcat ["Local variable '", prettyTCM (var 0), "' escaping in result of extendContext:"]
-            <?> prettyTCM v
+        when (freeIn 0 v) . throwError . EscapingVariable =<< buildClosure v
         return v
 
     tcInContext :: Term -> Term -> UnquoteM Term
@@ -981,7 +981,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         reconsTel :: Telescope -> TCM Telescope
         reconsTel EmptyTel = return EmptyTel
         reconsTel (ExtendTel _ NoAbs{}) = __IMPOSSIBLE__
-        reconsTel (ExtendTel (d@Dom{unDom=t}) ds@Abs{unAbs=ts}) = do
+        reconsTel (ExtendTel (d@(unDom->t)) ds@Abs{unAbs=ts}) = do
            t <- locallyReduceAllDefs $ reconstructParametersInType t
            let d' = d{unDom=t}
            ts' <- addContext d' $ reconsTel ts
@@ -1004,9 +1004,9 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
         getConstInfo' x >>= \case
           Left _    -> pure ()
-          Right def -> typeError $ ClashingDefinition (qnameToConcrete x) (defName def) Nothing
+          Right def -> typeError $ ClashingDefinition (qnameToConcrete x) (ClashingQName $ defName def) Nothing
         addConstant' x i a defn
-        when (isInstance i) $ addTypedInstance x a
+        when (isInstance i) $ addTypedInstance empty x a
         primUnitUnit
 
     tcDeclareDef :: Arg QName -> R.Type -> UnquoteM Term
@@ -1030,7 +1030,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         ]
       getConstInfo' x >>= \case
         Left _    -> pure ()
-        Right def -> liftTCM $ typeError $ ClashingDefinition (qnameToConcrete x) (defName def) Nothing
+        Right def -> liftTCM $ typeError $ ClashingDefinition (qnameToConcrete x) (ClashingQName $ defName def) Nothing
       e <- liftTCM $ toAbstract_ t
       -- The type to be checked with @checkSig@ is without parameters.
       (tel, e') <- splitPars (fromInteger npars) e
@@ -1044,8 +1044,8 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
       Left _    -> throwError $ MissingDeclaration x
       Right def -> do
         npars <- case theDef def of
-                   DataOrRecSig n -> return n
-                   _              -> throwError $ DefineDataNotData x
+                   DataOrRecSig n IsData -> return n
+                   _ -> throwError $ DefineDataNotData x
 
         -- For some reasons, reifying parameters and adding them to the context via
         -- `addContext` before `toAbstract_` is different from substituting the type after
@@ -1076,7 +1076,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
           [ "checking datatype: " <+> prettyTCM x <+> " with constructors:"
           , nest 2 (vcat (map prettyTCM conNames))
           ]
-        liftTCM $ checkDataDef i x YesUniverseCheck (A.DataDefParams Set.empty lams) as
+        liftTCM $ checkDataDef i x YesPositivityCheck YesUniverseCheck (A.DataDefParams Set.empty lams) as
         liftTCM primUnitUnit
       where
         addDummy :: Int -> R.Type -> R.Type
@@ -1134,7 +1134,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         Con _ _ [Apply (Arg { unArg = x }), Apply (Arg { unArg = b })] -> do
           unlessM (unquote b) $ putTC oldState
           return x
-        _ -> liftTCM $ typeError . GenericDocError =<<
+        _ -> liftTCM $ typeError . UserError =<<
           "Should be a pair: " <+> prettyTCM u
 
     tcGetInstances :: MetaId -> UnquoteM Term
@@ -1149,8 +1149,8 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcSolveInstances = liftTCM $ do
       locallyTCState stPostponeInstanceSearch (const False) $ do
         -- Steal instance constraints (TODO: not all!)
-        current <- asksTC envActiveProblems
-        topPid  <- fromMaybe __IMPOSSIBLE__ <$> asksTC envUnquoteProblem
+        current <- viewTC eActiveProblems
+        topPid  <- fromMaybe __IMPOSSIBLE__ <$> viewTC eUnquoteProblem
         let steal pc@(PConstr pids u c)
               | isInstance pc
               , Set.member topPid pids = PConstr (Set.union current pids) u c

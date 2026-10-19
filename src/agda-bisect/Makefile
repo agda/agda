@@ -4,7 +4,7 @@
 .PHONY: default
 default: help
 
-agda-bisect     = $(shell which agda-bisect)
+agda-bisect     = $(shell command -v agda-bisect)
 bash-completion = /etc/bash_completion.d/agda-bisect
 
 .PHONY: help

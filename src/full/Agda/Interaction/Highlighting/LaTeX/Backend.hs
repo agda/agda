@@ -43,12 +43,11 @@ import Agda.Syntax.TopLevelModuleName (TopLevelModuleName, projectRoot)
 import Agda.TypeChecking.Monad
   ( HasOptions(commandLineOptions)
   , MonadDebug
-  , stModuleToSourceId
-  , useTC
+  , useSession, lensModuleToSourceId
   , ReadTCState
   , reportS
   , MonadFileId
-  , srcFilePath
+  , srcFilePath, ReadTCState
   )
 
 import Agda.Utils.FileName (filePath, mkAbsolute)
@@ -132,13 +131,13 @@ instance MonadDebug m => MonadLogLaTeX (LogLaTeXDebugT m) where
   logLaTeX = LogLaTeXDebugT . (reportS "compile.latex" 1) . T.unpack . logMsgToText
 
 -- Resolve the raw flags into usable LaTeX options.
-resolveLaTeXOptions :: (HasOptions m, ReadTCState m, MonadFileId m)
+resolveLaTeXOptions :: (ReadTCState m, HasOptions m, MonadFileId m)
   => LaTeXFlags
   -> TopLevelModuleName
   -> m LaTeXOptions
 resolveLaTeXOptions flags moduleName = do
   options <- commandLineOptions
-  modFiles <- useTC stModuleToSourceId
+  modFiles <- useSession lensModuleToSourceId
   let msrc = Map.lookup moduleName modFiles
   mf <- traverse srcFilePath msrc
   let

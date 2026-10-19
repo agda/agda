@@ -2,12 +2,11 @@
 
 module Agda.TypeChecking.Monad.Imports
   ( addImport
-  , addImportCycleCheck
+  , locallyAddImport
   , checkForImportCycle
   , dropDecodedModule
   , getDecodedModule
   , getDecodedModules
-  , getImportPath
   , getPrettyVisitedModules
   , getVisitedModule
   , getVisitedModules
@@ -15,25 +14,24 @@ module Agda.TypeChecking.Monad.Imports
   , setVisitedModules
   , storeDecodedModule
   , visitModule
-  , withImportPath
   ) where
 
-import Control.Arrow   ( (***) )
 import Control.Monad   ( when )
 
 import Data.Maybe (catMaybes)
-import qualified Data.Map as Map
+import Data.Map qualified as Map
 import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 
 import Agda.Syntax.Common.Pretty
 import Agda.Syntax.TopLevelModuleName
 import Agda.TypeChecking.Monad.Base
 
-import Agda.Utils.List ( caseListM )
-import qualified Agda.Utils.List1 as List1
-import qualified Agda.Utils.List2 as List2
+import Agda.Utils.List
+import Agda.Utils.List1 qualified as List1
+import Agda.Utils.List2 qualified as List2
 import Agda.Utils.Singleton (singleton)
+import Agda.Utils.Tuple ( (***) )
 
 import Agda.Utils.Impossible
 
@@ -41,32 +39,37 @@ import Agda.Utils.Impossible
 --   Also recursively add its imports to the cumulative imports.
 addImport :: TopLevelModuleName -> TCM ()
 addImport top = do
-  modifyTCLens' stImportedModules $ Set.insert top
-  modifyTCLensM stImportedModulesTransitive $ completeTransitiveImports $ singleton top
+  vis <- getVisitedModules
+  modifyTCLens' stImportedModulesAndTransitive $ updateImports vis top
+
+-- | Temporarily register the given module as imported.
+locallyAddImport :: TopLevelModuleName -> TCM () -> TCM ()
+locallyAddImport top cont = do
+  vis <- getVisitedModules
+  locallyTCState stImportedModulesAndTransitive (updateImports vis top) cont
+
+updateImports :: VisitedModules -> TopLevelModuleName
+              -> (ImportedModules, ImportedModules)
+              -> (ImportedModules, ImportedModules)
+updateImports vis top
+  = Set.insert top *** completeTransitiveImports vis (singleton top)
 
 -- | @completeTransitiveImports ms ms'@.
 --   Precondition: @ms@ disjoint from @ms'@.
-completeTransitiveImports :: ReadTCState m => Set TopLevelModuleName -> ImportedModules -> m ImportedModules
-completeTransitiveImports ms old = if null ms then return old else do
+completeTransitiveImports :: VisitedModules -> Set TopLevelModuleName -> ImportedModules -> ImportedModules
+completeTransitiveImports vis ms old = if null ms then old else do
 
   -- Add the given imports to the current set.
   let next = old `Set.union` ms
 
   -- The interfaces for the modules we added to the transitive imports.
-  is <- catMaybes <$> mapM getVisitedModule (Set.toList ms)
+  let is = catMaybes $ (`Map.lookup` vis) <$> Set.toList ms
 
   -- The imports of these modules.
-  let imps = Set.unions $ map (Set.fromList . map fst . iImportedModules . miInterface) is
+  let imps = Set.unions $ map' (Set.fromList . map' fst . iImportedModules . miInterface) is
 
   -- Recurse on the new imports.
-  completeTransitiveImports (imps `Set.difference` next) next
-
-addImportCycleCheck :: TopLevelModuleName -> TCM a -> TCM a
-addImportCycleCheck m =
-    localTC $ \e -> e { envImportPath = m : envImportPath e }
-
-getImportPath :: TCM [TopLevelModuleName]
-getImportPath = asksTC envImportPath
+  completeTransitiveImports vis (imps `Set.difference` next) next
 
 visitModule :: ModuleInfo -> TCM ()
 visitModule mi =
@@ -98,7 +101,7 @@ getDecodedModules :: TCM DecodedModules
 getDecodedModules = stDecodedModules . stPersistentState <$> getTC
 
 setDecodedModules :: DecodedModules -> TCM ()
-setDecodedModules ms = modifyTC $ \s ->
+setDecodedModules ms = modifyTC' $ \s ->
   s { stPersistentState = (stPersistentState s) { stDecodedModules = ms } }
 
 getDecodedModule :: TopLevelModuleName -> TCM (Maybe ModuleInfo)
@@ -121,14 +124,12 @@ dropDecodedModule x = modifyTC $ \s ->
                               }
   }
 
-withImportPath :: [TopLevelModuleName] -> TCM a -> TCM a
-withImportPath path = localTC $ \e -> e { envImportPath = path }
 
 -- | Assumes that the first module in the import path is the module we are
 --   worried about.
 checkForImportCycle :: TCM ()
 checkForImportCycle = do
-  caseListM getImportPath __IMPOSSIBLE__ $ \ m ms -> do
+  caseListM (viewTC eImportStack) __IMPOSSIBLE__ \m ms -> do
     when (m `elem` ms) $ typeError $ CyclicModuleDependency $
       List2.snoc (List1.fromListSafe __IMPOSSIBLE__ $ dropWhile (/= m) $ reverse ms) m
         -- NB: we know that ms contains m, so even after dropWhile the list is not empty.

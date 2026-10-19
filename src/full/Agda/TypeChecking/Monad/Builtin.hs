@@ -34,6 +34,10 @@ import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 import Agda.Utils.Update
 
+import Agda.Utils.StrictReader qualified as Strict
+import Agda.Utils.StrictWriter qualified as Strict
+import Agda.Utils.StrictState  qualified as Strict
+
 import Agda.Utils.Impossible
 
 class ( Functor m
@@ -42,6 +46,7 @@ class ( Functor m
       ) => HasBuiltins m where
   getBuiltinThing :: SomeBuiltin -> m (Maybe (Builtin PrimFun))
 
+  {-# INLINE getBuiltinThing #-}
   default getBuiltinThing :: (MonadTrans t, HasBuiltins n, t n ~ m) => SomeBuiltin -> m (Maybe (Builtin PrimFun))
   getBuiltinThing = lift . getBuiltinThing
 
@@ -53,6 +58,9 @@ instance HasBuiltins m => HasBuiltins (MaybeT m)
 instance HasBuiltins m => HasBuiltins (ReaderT e m)
 instance HasBuiltins m => HasBuiltins (StateT s m)
 instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m)
+instance HasBuiltins m => HasBuiltins (Strict.ReaderT e m)
+instance HasBuiltins m => HasBuiltins (Strict.StateT s m)
+instance (HasBuiltins m, Monoid w) => HasBuiltins (Strict.WriterT w m)
 
 deriving instance HasBuiltins m => HasBuiltins (BlockT m)
 
@@ -164,13 +172,13 @@ getBuiltinName_ x =
 --       Def f [] -> Just f
 --       _        -> Nothing
 
-{-# INLINABLE getBuiltin #-}
+{-# SPECIALIZE getBuiltin :: BuiltinId -> TCM Term #-}
 getBuiltin :: (HasBuiltins m, MonadTCError m)
            => BuiltinId -> m Term
 getBuiltin x =
   fromMaybeM (typeError $ NoBindingForBuiltin x) $ getBuiltin' x
 
-{-# INLINABLE getBuiltin' #-}
+{-# SPECIALIZE getBuiltin' :: BuiltinId -> TCM (Maybe Term) #-}
 -- | Returns 'Nothing' if built-in is not bound or bound to a 'Prim'.
 getBuiltin' :: HasBuiltins m => BuiltinId -> m (Maybe Term)
 getBuiltin' x = (getBuiltin =<<) <$> getBuiltinThing (BuiltinName x)
@@ -180,7 +188,7 @@ getBuiltin' x = (getBuiltin =<<) <$> getBuiltinThing (BuiltinName x)
       Prim{}                    -> Nothing
       BuiltinRewriteRelations{} -> __IMPOSSIBLE__
 
-{-# INLINABLE getPrimitive' #-}
+{-# SPECIALIZE getPrimitive' :: PrimitiveId -> TCM (Maybe PrimFun)  #-}
 -- | Returns 'Nothing' if primitive is not bound or bound to a 'Builtin'.
 getPrimitive' :: HasBuiltins m => PrimitiveId -> m (Maybe PrimFun)
 getPrimitive' x = (getPrim =<<) <$> getBuiltinThing (PrimitiveName x)
@@ -228,10 +236,19 @@ constructorForm :: HasBuiltins m => Term -> m Term
 constructorForm v = do
   let pZero = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
       pSuc  = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
+  -- By passing the builtins lazily we do not have to look them up if @v@ is not a 'LitNat'.
   constructorForm' pZero pSuc v
+
+-- | Produce a function that rewrites a literal to constructor form if possible.
+constructorFormer :: HasBuiltins m => m (Term -> Term)
+constructorFormer = do
+  mz <- getBuiltin' builtinZero
+  ms <- getBuiltin' builtinSuc
+  return \ v -> fromMaybe v (constructorForm' mz ms v)
 
 {-# INLINABLE constructorForm' #-}
 {-# SPECIALIZE constructorForm' :: TCM Term -> TCM Term -> Term -> TCM Term #-}
+{-# SPECIALIZE constructorForm' :: Maybe Term -> Maybe Term -> Term -> Maybe Term #-}
 constructorForm' :: Applicative m => m Term -> m Term -> Term -> m Term
 constructorForm' pZero pSuc v =
   case v of
@@ -271,6 +288,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primLevelUniv,
     primProp, primSet, primStrictSet, primPropOmega, primSetOmega, primSSetOmega,
     primFromNat, primFromNeg, primFromString,
+    primQuotientConstructor,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
@@ -404,6 +422,7 @@ primLevelUniv                         = getBuiltin builtinLevelUniv
 primFromNat                           = getBuiltin builtinFromNat
 primFromNeg                           = getBuiltin builtinFromNeg
 primFromString                        = getBuiltin builtinFromString
+primQuotientConstructor               = getBuiltin builtinQuotientConstructor
 primQName                             = getBuiltin builtinQName
 primArg                               = getBuiltin builtinArg
 primArgArg                            = getBuiltin builtinArgArg
@@ -587,7 +606,7 @@ mkSortKit prop set sset propomega setomega ssetomega = SortKit
 -- When 'optLoadPrimitives' is set to 'False', 'sortKit' is a fallible operation,
 -- so for the uses of 'sortKit' in fallible contexts (e.g. 'TCM'),
 -- we report a type error rather than exploding.
-sortKit :: (HasBuiltins m, MonadTCError m, HasOptions m) => m SortKit
+sortKit :: (HasBuiltins m, MonadTCError m) => m SortKit
 sortKit = do
   prop      <- getBuiltinName_ builtinProp
   set       <- getBuiltinName_ builtinSet
@@ -617,7 +636,7 @@ infallibleSortKit = do
 
 getPrimName :: Term -> QName
 getPrimName ty = do
-  let lamV (Lam i b)  = mapFst (getHiding i :) $ lamV (unAbs b)
+  let lamV (Lam i b)  = first (getHiding i :) $ lamV (unAbs b)
       lamV (Pi _ b)   = lamV (unEl $ unAbs b)
       lamV v          = ([], v)
   case lamV ty of
@@ -747,7 +766,7 @@ primEqualityName = do
   -- 1. universe and type polymorphic
   -- 2. type polymorphic only
   -- 3. monomorphic.
-  let lamV (Lam i b)  = mapFst (getHiding i :) $ lamV (unAbs b)
+  let lamV (Lam i b)  = first (getHiding i :) $ lamV (unAbs b)
       lamV v          = ([], v)
   return $ case lamV eq of
     (_, Def equality _) -> equality

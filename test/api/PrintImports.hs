@@ -9,7 +9,7 @@ module Main where
 ------------------------------------------------------------------------------
 -- Haskell base imports
 
-import Prelude        ( IO, String, pattern Right, (.), ($), (<>), putStrLn, unwords )
+import Prelude        ( IO, String, pattern False, pattern Right, (.), ($), (<>), putStrLn, unwords )
 import Data.Foldable  ( mapM_ )
 import Data.Functor   ( (<$>) )
 import Data.Monoid    ( mempty )
@@ -44,7 +44,7 @@ main = do
 
   (Right ((modul, _), _), _) <- runPMIO $ do
     txt <- unpack <$> readFilePM rfile
-    parseFile moduleParser rfile txt
+    parseFile False moduleParser rfile txt
 
   -- Print all imports in the parsed module.
 

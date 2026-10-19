@@ -1,0 +1,12 @@
+
+LocalRewriteNonConfluent.agda:1.1-59: warning: -W[no]LocalRewritingConfluenceCheck
+Confluence checking (--confluence-check or
+--local-confluence-check) is not yet implemented for local rewrite
+rules (--local-rewriting)
+
+———— All done; warnings encountered ————————————————————————
+
+LocalRewriteNonConfluent.agda:1.1-59: warning: -W[no]LocalRewritingConfluenceCheck
+Confluence checking (--confluence-check or
+--local-confluence-check) is not yet implemented for local rewrite
+rules (--local-rewriting)

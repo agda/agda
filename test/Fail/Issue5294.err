@@ -1,3 +1,6 @@
-Issue5294.agda:35.15-16: error: [UnequalTerms]
-(F x) !=< A
+Issue5294.agda:35.15-16: error: [UnequalTypes]
+The type
+  F x
+is not a subtype of
+  A
 when checking that the expression r has type A

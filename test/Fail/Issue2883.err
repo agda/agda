@@ -1,3 +1,6 @@
-Issue2883.agda:33.19-20: error: [UnequalTerms]
-Σ (El box) (λ x → El ((λ { [ a ] → box }) x)) !=< Nat
+Issue2883.agda:33.19-20: error: [UnequalTypes]
+The type
+  Σ (El box) (λ x → El ((λ { [ a ] → box }) x))
+is not a subtype of
+  Nat
 when checking that the expression p has type Nat

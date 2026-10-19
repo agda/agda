@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
+-- {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
 
 -- | Compute eta short normal forms.
 module Agda.TypeChecking.EtaContract where
@@ -15,7 +16,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 
 import Agda.Utils.Monad
-import Agda.Utils.List (initLast)
+import Agda.Utils.List (initLast')
 
 import Agda.Utils.Impossible
 
@@ -28,7 +29,7 @@ binAppView t = case t of
   Var i xs   -> appE (Var i) xs
   Def c xs   -> appE (Def c) xs
   -- Andreas, 2013-09-17: do not eta-contract when body is (record) constructor
-  -- like in \ x -> s , x!  (See interaction/DoNotEtaContractFunIntoRecord)
+  -- like in \ x -> s , x!  (See Interaction/DoNotEtaContractFunIntoRecord)
   -- (Cf. also issue 889 (fixed differently).)
   -- At least record constructors should be fully applied where possible!
   -- TODO: also for ordinary constructors (\ x -> suc x  vs.  suc)?
@@ -47,18 +48,18 @@ binAppView t = case t of
   Dummy{}    -> __IMPOSSIBLE__
   where
     noApp = NoApp t
-    appE f es0 | Just (es, Apply v) <- initLast es0 = App (f es) v
+    appE f es0 | Just (es, Apply v) <- initLast' es0 = App (f es) v
     appE _ _ = noApp
 
 -- | Contracts all eta-redexes it sees without reducing.
 {-# SPECIALIZE etaContract :: TermLike a => a -> TCM a #-}
 {-# SPECIALIZE etaContract :: TermLike a => a -> ReduceM a #-}
-etaContract :: (MonadTCEnv m, HasConstInfo m, HasOptions m, TermLike a) => a -> m a
+etaContract :: (HasConstInfo m, TermLike a) => a -> m a
 etaContract = traverseTermM etaOnce
 
 {-# SPECIALIZE etaOnce :: Term -> TCM Term #-}
 {-# SPECIALIZE etaOnce :: Term -> ReduceM Term #-}
-etaOnce :: (MonadTCEnv m, HasConstInfo m, HasOptions m) => Term -> m Term
+etaOnce :: (HasConstInfo m) => Term -> m Term
 etaOnce = \case
   -- Andreas, 2012-11-18: this call to reportSDoc seems to cost me 2%
   -- performance on the std-lib
@@ -72,8 +73,9 @@ etaOnce = \case
 
   v -> return v
 
+{-# INLINE etaCon #-}
 -- | If record constructor, call eta-contraction function.
-etaCon :: (MonadTCEnv m, HasConstInfo m, HasOptions m)
+etaCon :: (HasConstInfo m)
   => ConHead  -- ^ Constructor name @c@.
   -> ConInfo  -- ^ Constructor info @ci@.
   -> Elims     -- ^ Constructor arguments @args@.
@@ -89,8 +91,9 @@ etaCon c ci es cont = ignoreAbstractMode $ do
     let Just args = allApplyElims es
     cont r c ci args
 
+{-# INLINE etaLam #-}
 -- | Try to contract a lambda-abstraction @Lam i (Abs x b)@.
-etaLam :: (MonadTCEnv m, HasConstInfo m, HasOptions m)
+etaLam :: (MonadTCEnv m, HasOptions m)
   => ArgInfo  -- ^ Info @i@ of the 'Lam'.
   -> ArgName  -- ^ Name @x@ of the abstraction.
   -> Term     -- ^ Body ('Term') @b@ of the 'Abs'.
@@ -108,7 +111,7 @@ etaLam i x b = do
              && sameHiding i info
              && sameModality i info
              && not (freeIn 0 u)
-           then return $ strengthen impossible u
+           then return $! strengthen impossible u
            else fallback
       _ -> fallback
   where

@@ -1,0 +1,8 @@
+Issue8700c.agda:31.19-24: error: [UnequalTerms]
+The terms
+  false
+and
+  f (hcomp (λ i → isOneEmpty) x) true
+are not equal at type Bool
+when checking that the expression λ _ → false has type
+f (hcomp (λ _ → isOneEmpty) x) true ≡ false

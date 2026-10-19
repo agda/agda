@@ -83,12 +83,18 @@ data SplitTreeLabel a = SplitTreeLabel
 instance Pretty a => Pretty (SplitTreeLabel a) where
   pretty = \case
     SplitTreeLabel Nothing Nothing   _  (Just n) -> text $ "done, " ++ prettyShow n ++ " bindings"
-    SplitTreeLabel Nothing (Just n)  lz Nothing  -> lzp lz <+> text ("split at " ++ prettyShow n)
+    SplitTreeLabel Nothing (Just n)  lz Nothing  -> lzp n lz <+> text ("split at " ++ prettyShow n)
     SplitTreeLabel (Just q) Nothing  _  (Just n) -> pretty q <+> text ("-> done, " ++ prettyShow n ++ " bindings")
-    SplitTreeLabel (Just q) (Just n) lz Nothing  -> pretty q <+> text "->" <+> lzp lz <+> text ("split at " ++ prettyShow n)
+    SplitTreeLabel (Just q) (Just n) lz Nothing  -> pretty q <+> text "->" <+> lzp n lz <+> text ("split at " ++ prettyShow n)
     _ -> __IMPOSSIBLE__
-    where lzp lz | lz == LazySplit = "lazy"
-                 | otherwise       = empty
+    where
+    lzp n lz =
+      (if hasQuantity0 (getQuantity n)
+       then "erased"
+       else empty) <+>
+      (case lz of
+         LazySplit   -> "lazy"
+         StrictSplit -> empty)
 
 -- | Convert a split tree into a 'Data.Tree' (for printing).
 toTree :: SplitTree' a -> Tree (SplitTreeLabel a)

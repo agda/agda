@@ -12,3 +12,8 @@ record R : Set1 where
 
 -- Expected:
 -- Success, or error outlawing pattern matching definition before last field.
+
+-- As of 2026-01-20:
+-- error: [ShouldBeRecordPattern]
+-- Expected record pattern
+-- when checking that the pattern c has type D

@@ -1,3 +1,6 @@
-Issue958.agda:16.10-11: error: [UnequalTerms]
-IsFunctor !=< map F
+Issue958.agda:16.10-11: error: [UnequalTypes]
+The type
+  IsFunctor
+is not a subtype of
+  map F
 when checking that the expression F has type map F

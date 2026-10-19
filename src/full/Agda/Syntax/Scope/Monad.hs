@@ -3,17 +3,14 @@
 {-| The scope monad with operations.
 -}
 
-module Agda.Syntax.Scope.Monad where
+module Agda.Syntax.Scope.Monad (module Agda.Syntax.Scope.Monad, module Agda.Syntax.Scope.State) where
 
 import Prelude hiding (null)
 
-import Control.Arrow ((***))
 import Control.Monad.Except       ( MonadError, throwError, runExceptT )
 import Control.Monad.State        ( StateT, runStateT, gets, modify )
 import Control.Monad.Trans        ( MonadTrans, lift )
-import Control.Monad.Trans.Maybe  ( MaybeT(MaybeT), runMaybeT )
 import Control.Monad.IO.Class
-import Control.Applicative
 
 import Data.Either ( partitionEithers )
 import Data.Foldable (all, traverse_)
@@ -37,13 +34,15 @@ import Agda.Syntax.Position
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Abstract.Name as A
-import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract qualified as A
 import Agda.Syntax.Abstract (ScopeCopyInfo(..))
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Fixity
 import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) ,DeclarationWarning'(..) )
   -- TODO: move the relevant warnings out of there
 import Agda.Syntax.Scope.Base as A
+import Agda.Syntax.Scope.State
+import Agda.Syntax.Scope.UnusedImports (lookedupModule, registerModuleOpening)
 
 import Agda.TypeChecking.Monad.Base as I
 import Agda.TypeChecking.Monad.Builtin
@@ -71,17 +70,9 @@ import Agda.Utils.Set1 ( Set1 )
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Singleton
 import Agda.Utils.Suffix as C
-import Agda.Utils.Tuple (pattern Pair)
+import Agda.Utils.Tuple ((***), pattern Pair)
 
 import Agda.Utils.Impossible
-
----------------------------------------------------------------------------
--- * The scope checking monad
----------------------------------------------------------------------------
-
--- | To simplify interaction between scope checking and type checking (in
---   particular when chasing imports), we use the same monad.
-type ScopeM = TCM
 
 -- Debugging
 
@@ -103,28 +94,6 @@ scopeWarning = withCallerCallStack scopeWarning'
 isDatatypeModule :: ReadTCState m => A.ModuleName -> m (Maybe DataOrRecordModule)
 isDatatypeModule m = do
    scopeDatatypeModule . Map.findWithDefault __IMPOSSIBLE__ m <$> useScope scopeModules
-
-getCurrentModule :: ReadTCState m => m A.ModuleName
-getCurrentModule = setRange noRange <$> useScope scopeCurrent
-
-setCurrentModule :: MonadTCState m => A.ModuleName -> m ()
-setCurrentModule m = modifyScope $ set scopeCurrent m
-
-withCurrentModule :: (ReadTCState m, MonadTCState m) => A.ModuleName -> m a -> m a
-withCurrentModule new action = do
-  old <- getCurrentModule
-  setCurrentModule new
-  x   <- action
-  setCurrentModule old
-  return x
-
-withCurrentModule' :: (MonadTrans t, Monad (t ScopeM)) => A.ModuleName -> t ScopeM a -> t ScopeM a
-withCurrentModule' new action = do
-  old <- lift getCurrentModule
-  lift $ setCurrentModule new
-  x   <- action
-  lift $ setCurrentModule old
-  return x
 
 getNamedScope :: A.ModuleName -> ScopeM Scope
 getNamedScope m = do
@@ -156,6 +125,8 @@ createModule b m = do
   -- If it is not new (but apparently did not clash),
   -- we do not erase its contents for reasons of monotonicity.
   modifyScopes $ Map.insertWith mergeScope m sm
+  -- András, 2025-08-30: TODO: only inverse modules need to be recomputed
+  recomputeInverseScope
 
 -- | Apply a function to the scope map.
 modifyScopes :: (Map A.ModuleName Scope -> Map A.ModuleName Scope) -> ScopeM ()
@@ -165,30 +136,12 @@ modifyScopes = modifyScope . over scopeModules
 modifyNamedScope :: A.ModuleName -> (Scope -> Scope) -> ScopeM ()
 modifyNamedScope m f = modifyScopes $ Map.adjust f m
 
-setNamedScope :: A.ModuleName -> Scope -> ScopeM ()
-setNamedScope m s = modifyNamedScope m $ const s
-
--- | Apply a monadic function to the top scope.
-modifyNamedScopeM :: A.ModuleName -> (Scope -> ScopeM (a, Scope)) -> ScopeM a
-modifyNamedScopeM m f = do
-  (a, s) <- f =<< getNamedScope m
-  setNamedScope m s
-  return a
-
 -- | Apply a function to the current scope.
 modifyCurrentScope :: (Scope -> Scope) -> ScopeM ()
 modifyCurrentScope f = getCurrentModule >>= (`modifyNamedScope` f)
 
-modifyCurrentScopeM :: (Scope -> ScopeM (a, Scope)) -> ScopeM a
-modifyCurrentScopeM f = getCurrentModule >>= (`modifyNamedScopeM` f)
-
--- | Apply a function to the public or private name space.
-modifyCurrentNameSpace :: NameSpaceId -> (NameSpace -> NameSpace) -> ScopeM ()
-modifyCurrentNameSpace acc f = modifyCurrentScope $ updateScopeNameSpaces $
-  AssocList.updateAt acc f
-
 setContextPrecedence :: PrecedenceStack -> ScopeM ()
-setContextPrecedence = modifyScope_ . set scopePrecedence
+setContextPrecedence = modifyScope . set scopePrecedence
 
 withContextPrecedence :: ReadTCState m => Precedence -> m a -> m a
 withContextPrecedence p =
@@ -198,7 +151,7 @@ getLocalVars :: ReadTCState m => m LocalVars
 getLocalVars = useScope scopeLocals
 
 modifyLocalVars :: (LocalVars -> LocalVars) -> ScopeM ()
-modifyLocalVars = modifyScope_ . updateScopeLocals
+modifyLocalVars = modifyScope . updateScopeLocals
 
 setLocalVars :: LocalVars -> ScopeM ()
 setLocalVars vars = modifyLocalVars $ const vars
@@ -252,7 +205,7 @@ getVarsToBind :: ScopeM LocalVars
 getVarsToBind = useScope scopeVarsToBind
 
 addVarToBind :: C.Name -> LocalVar -> ScopeM ()
-addVarToBind x y = modifyScope_ $ updateVarsToBind $ AssocList.insert x y
+addVarToBind x y = modifyScope $ updateVarsToBind $ AssocList.insert x y
 
 -- | After collecting some variable names in the scopeVarsToBind,
 --   bind them all simultaneously.
@@ -261,13 +214,12 @@ bindVarsToBind = do
   vars <- getVarsToBind
   modifyLocalVars (vars ++)
   printLocals 30 "bound variables:"
-  modifyScope_ $ setVarsToBind []
+  modifyScope $ setVarsToBind []
 
-annotateDecls :: ReadTCState m => m [A.Declaration] -> m A.Declaration
+annotateDecls :: ReadTCState m => m [A.Declaration] -> m (Maybe A.Declaration)
 annotateDecls m = do
-  ds <- m
-  s  <- getScope
-  return $ A.ScopedDecl s ds
+  forMM (List1.nonEmpty <$> m) \ ds1 -> do
+    getScope <&> (`A.ScopedDecl` ds1)
 
 annotateExpr :: ReadTCState m => m A.Expr -> m A.Expr
 annotateExpr m = do
@@ -288,10 +240,10 @@ freshAbstractName :: Fixity' -> C.Name -> ScopeM A.Name
 freshAbstractName fx x = do
   i <- fresh
   return $ A.Name
-    { nameId          = i
+    { _nameId         = i
     , nameConcrete    = x
     , nameCanonical   = x
-    , nameBindingSite = getRange x
+    , _nameBindingSite = getRange x
     , nameFixity      = fx
     , nameIsRecordName = False
     }
@@ -349,7 +301,7 @@ resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
     UnknownName -> setCurrentRange x $ typeError $ I.NotInScope q
     _ -> setCurrentRange x $ typeError $ ConstructorNameOfNonRecord r
 
-  Right x' -> x' <$ markLiveName x'
+  Right x' -> pure x'
 
 tryResolveName :: forall m. (ReadTCState m, HasBuiltins m, MonadError NameResolutionError m)
   => KindsOfNames
@@ -407,21 +359,26 @@ tryResolveName kinds names x = do
           (Just (_, ss), _) ->
             throwAmb $ AmbiguousDeclName $ List2.append (d :| map fst ds) (fmap fst ss)
 
-        -- Name is of the form r.constructor
-        Nothing | Just r <- isRecordConstructor x -> do
-          -- We resolve the record name r with no filter, that way we
-          -- can know when printing an error message whether r is not in
-          -- scope, or whether it's some other type of name, etc.
-          recd <- tryResolveName AllKindsOfNames Nothing r
-
-          case recd of
-            DefinedName acc abs suf -> getRecordConstructor (anameName abs) >>= \case
-              Just (qn, ind) -> return $ ConstructorName (Set1.singleton $ fromMaybe Inductive ind) $
-                List1.singleton $ upd abs { anameName = qn, anameKind = ConName }
-              Nothing -> throwError $ ConstrOfNonRecord r recd
-            _ -> throwError $ ConstrOfNonRecord r recd
-
         Nothing -> case suffixedNames of
+          -- Name is of the form R.constructor but did not resolve.
+          -- Since the record constructor is bound as @constructor@ in the
+          -- scope of the record module R (see 'bindRecordConstructorPseudoName'),
+          -- this means that R is not (the module of) a record type.
+          -- Produce a more informative error than "not in scope".
+          Nothing | Just r <- isRecordConstructor x -> do
+            -- We resolve the record name r with no filter, that way we
+            -- can know when printing an error message whether r is not in
+            -- scope, or whether it's some other type of name, etc.
+            tryResolveName AllKindsOfNames Nothing r >>= \case
+              -- If R does resolve to a record type, its constructor is
+              -- simply not in scope here; report the plain not-in-scope error.
+              DefinedName _ d _ | anameKind d == RecName -> return UnknownName
+              -- If R is not a name but a module (e.g. a copy of a record module),
+              -- report R.constructor rather than R as not in scope.
+              UnknownName | not $ null (scopeLookup r scope :: [AbstractModule]) ->
+                return UnknownName
+              recd -> throwError $ ConstrOfNonRecord r recd
+
           Nothing -> return UnknownName
           Just (suffix , (d, a) :| []) -> return $ DefinedName a (upd d) suffix
           Just (suffix , (d1,_) :| (d2,_) : sds) ->
@@ -459,13 +416,14 @@ canHaveSuffixTest = do
   return $ \x -> Just x `elem` [builtinProp, builtinSet, builtinSSet, builtinPropOmega, builtinSetOmega, builtinSSetOmega]
 
 -- | Look up a module in the scope.
+--   Marks the module as used for the unused-imports analysis.
 resolveModule :: C.QName -> ScopeM AbstractModule
 resolveModule x = do
   ms <- scopeLookup x <$> getScope
   caseMaybe (nonEmpty ms) (typeError $ NoSuchModule x) $ \ case
     AbsModule m why :| [] -> do
-      markLiveName m
-      return $ AbsModule (m `withRangeOf` x) why
+      let am = AbsModule (m `withRangeOf` x) why
+      am <$ lookedupModule x am
     ms                    -> typeError $ AmbiguousModule x (fmap amodName ms)
 
 -- | Get the fixity of a not yet bound name.
@@ -486,12 +444,13 @@ instance MonadFixityError ScopeM where
   warnUnknownFixityInMixfixDecl       = scopeWarning . UnknownFixityInMixfixDecl
   warnPolarityPragmasButNotPostulates = scopeWarning . PolarityPragmasButNotPostulates
   warnEmptyPolarityPragma             = scopeWarning . EmptyPolarityPragma
+  warnFixityDeclarationForNonOperator r x = scopeWarning $ FixityDeclarationForNonOperator r x
 
 -- | Collect the fixity/syntax declarations and polarity pragmas from the list
 --   of declarations and store them in the scope.
 computeFixitiesAndPolarities :: DoWarn -> [C.Declaration] -> ScopeM a -> ScopeM a
 computeFixitiesAndPolarities warn ds cont = do
-  fp <- fixitiesAndPolarities warn ds
+  !fp <- fixitiesAndPolarities warn ds
   -- Andreas, 2019-08-16:
   -- Since changing fixities and polarities does not affect the name sets,
   -- we do not need to invoke @modifyScope@ here
@@ -536,29 +495,41 @@ unbindVariable x = bracket_ (getLocalVars <* modifyLocalVars (AssocList.delete x
 
 -- | Bind a defined name. Must not shadow anything.
 bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
-bindName acc kind x y = bindName' acc kind NoMetadata x y
+bindName acc kind x y = bindName' acc kind noMetadata x y
 
 bindName' :: Access -> KindOfName -> NameMetadata -> C.Name -> A.QName -> ScopeM ()
 bindName' acc kind meta x y = whenJustM (bindName'' acc kind meta x y) typeError
 
+addNameToInverseScope :: KindOfName -> C.Name -> AbstractName -> ScopeInfo -> ScopeInfo
+addNameToInverseScope kind x y s =
+  let !y' = anameName y
+  in s { _scopeInScope     = Set.insert y' (_scopeInScope s)
+       , _scopeInverseName = HMap.insertWith (<>) (A.nameId y')
+                             (NameMapEntry kind (C.QName x :| [])) (_scopeInverseName s)
+       }
+
 -- | Bind a name. Returns the 'TypeError' if exists, but does not throw it.
 bindName'' :: Access -> KindOfName -> NameMetadata -> C.Name -> A.QName -> ScopeM (Maybe TypeError)
 bindName'' acc kind meta x y = do
-  when (isNoName x) $ modifyScopes $ Map.map $ removeNameFromScope PrivateNS x
+  when (isNoName x) $ do
+    modifyScopes $ Map.map $ removeNameFromScope PrivateNS x
+    recomputeInverseScope
   r  <- resolveName (C.QName x)
   let y' :: Either TypeError AbstractName
       y' = case r of
         -- Binding an anonymous declaration always succeeds.
         -- In case it's not the first one, we simply remove the one that came before
         _ | isNoName x      -> success
-        DefinedName _ d _   -> clash $ anameName d
-        VarName z _         -> clash $ A.qualify_ z
+        DefinedName _ d _   -> clash $ ClashingAbstractName d
+        VarName z _         -> clash $ ClashingQName $ A.qualify_ z
         FieldName       ds  -> ambiguous (== FldName) ds
         ConstructorName i ds-> ambiguous (isJust . isConName) ds
         PatternSynResName n -> ambiguous (== PatternSynName) n
         UnknownName         -> success
   let ns = if isNoName x then PrivateNS else localNameSpace acc
-  traverse_ (modifyCurrentScope . addNameToScope ns x) y'
+  forM_ y' \y' -> do
+    modifyCurrentScope $ addNameToScope ns x y'
+    modifyScope $ addNameToInverseScope kind x y'
   pure $ either Just (const Nothing) y'
   where
     success = Right $ AbsName y kind Defined meta
@@ -566,59 +537,103 @@ bindName'' acc kind meta x y = do
 
     ambiguous f ds =
       if f kind && all (f . anameKind) ds
-      then success else clash $ anameName (List1.head ds)
+      then success else clash $ ClashingAbstractName $ List1.head ds
 
 -- | Rebind a name. Use with care!
 --   Ulf, 2014-06-29: Currently used to rebind the name defined by an
 --   unquoteDecl, which is a 'QuotableName' in the body, but a 'DefinedName'
 --   later on.
-rebindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
-rebindName acc kind x y = do
-  if kind == ConName
-    then modifyCurrentScope $
+rebindName :: Access -> KindOfName -> NameMetadata -> C.Name -> A.QName -> ScopeM ()
+rebindName acc kind meta x y = do
+  if kind == ConName then do
+    modifyCurrentScope $
            mapScopeNS (localNameSpace acc)
                       (Map.update (nonEmpty . List1.filter ((ConName ==) . anameKind)) x)
                       id
                       id
-    else modifyCurrentScope $ removeNameFromScope (localNameSpace acc) x
-  bindName acc kind x y
+  else do
+    modifyCurrentScope $ removeNameFromScope (localNameSpace acc) x
+  recomputeInverseScope
+  bindName' acc kind meta x y
 
+-- András, 2025-08-30: TODO: directly extend inverse scope.
 -- | Bind a module name.
 bindModule :: Access -> C.Name -> A.ModuleName -> ScopeM ()
-bindModule acc x m = modifyCurrentScope $
-  addModuleToScope (localNameSpace acc) x (AbsModule m Defined)
+bindModule acc x m = do
+  modifyCurrentScope $ addModuleToScope (localNameSpace acc) x (AbsModule m Defined)
+  recomputeInverseScope
 
 -- | Bind a qualified module name. Adds it to the imports field of the scope.
 bindQModule :: Access -> C.QName -> A.ModuleName -> ScopeM ()
-bindQModule acc q m = modifyCurrentScope $ \s ->
-  s { scopeImports = Map.insert q m (scopeImports s) }
+bindQModule acc q m = do
+  modifyCurrentScope $ \s -> s { scopeImports = Map.insert q m (scopeImports s) }
+  recomputeInverseScope
 
 ---------------------------------------------------
 -- * Operations to do with record constructor names
 ---------------------------------------------------
 
--- | Record (ha) that a given record has the specified constructor name.
-setRecordConstructor :: A.QName -> (A.QName, Maybe Induction) -> ScopeM ()
-setRecordConstructor recr con = modifyScope_ $ over scopeRecords $ Map.insert recr con
+-- | Bind the pseudo-name @constructor@ in the scope of the record module,
+--   mapping it to the (possibly anonymous) constructor of the record.
+--
+--   This is what makes @R.constructor@ resolve: @R@ is the record /module/
+--   and @constructor@ an ordinary name in it, so no special treatment is
+--   needed when resolving the qualified name @R.constructor@.
+--
+--   Note that @constructor@ is a keyword, thus, it can never be parsed
+--   as an unqualified name.  In particular, @open R@ does not make the
+--   record constructor accessible under the name @constructor@, and
+--   @constructor@ cannot be mentioned in @using@, @hiding@ or @renaming@.
+--
+--   This does not put the record constructor itself into the record module
+--   (which would be wrong, see issue #4189, since the record module is
+--   parameterized over the record value, but the constructor is not);
+--   it only adds this alias for it.
+bindRecordConstructorPseudoName :: A.ModuleName -> KindOfName -> A.QName -> ScopeM ()
+bindRecordConstructorPseudoName m kind y = do
+  modifyNamedScope m $
+    addNameToScope PublicNS recordConstructorPseudoName $
+      AbsName y kind Defined noMetadata
+  -- Note: we cannot use 'addNameToInverseScope' here, since that would
+  -- register the unqualified (and thus unparseable) rendering @constructor@.
+  recomputeInverseScope
 
--- | Get the internal 'QName' for the  name of a record constructor. If
--- the name does not refer to a record type, 'Nothing' is returned.
-getRecordConstructor :: ReadTCState m => A.QName -> m (Maybe (A.QName, Maybe Induction))
-getRecordConstructor recr = runMaybeT $ local <|> imported where
-  local = do
-    recs <- useScope scopeRecords
-    MaybeT $ pure $ Map.lookup recr recs
-  imported = do
-    idefs <- useTC (stImports . sigDefinitions)
-    case theDef <$> HMap.lookup recr idefs of
-      Just def@I.Record{} -> pure (I.recCon def, I.recInduction def)
-      _ -> MaybeT $ pure Nothing
+-- | Remove the record constructor pseudo-name from the scope of a record module.
+--
+--   The alias @constructor@ is only meant to be used in the qualified form
+--   @R.constructor@, where @R@ is the record module.  Thus, it is not brought
+--   into scope by @open R@.
+--
+--   It is also not copied when the record module @R@ itself is applied to
+--   arguments (as in @module M = R@): the record module is parameterized over
+--   the record value, but the record constructor is not (issue #4189).
+--   (When @R@ is only copied as a submodule of the applied module, the
+--   constructor is copied correctly, since the arguments are then taken from
+--   the enclosing module.)
+dropRecordConstructorPseudoName :: Scope -> Scope
+dropRecordConstructorPseudoName s
+  | Just IsRecordModule <- scopeDatatypeModule s =
+      -- We don't have enough information for an incremental update of the
+      -- in-scope sets, so recompute them (cheap: record modules are small).
+      recomputeInScopeSets $ mapScope_ (Map.delete recordConstructorPseudoName) id id s
+  | otherwise = s
 
+-- | The pseudo-name @constructor@ under which the constructor of a record
+--   is bound in the scope of the record module.
+--
+--   Since @constructor@ is a keyword, this name is only reachable
+--   as the tail of a qualified name, e.g., @R.constructor@.
+recordConstructorPseudoName :: C.Name
+recordConstructorPseudoName = C.simpleName "constructor"
 
--- | Is this the qualified name which refers to the constructor of an
--- anonymous record (like @Foo.constructor@)?
+-- | Is this the qualified name which refers to the constructor of a
+-- record (like @Foo.constructor@)?
 --
 -- If so, return the part of the name referring to the record (@Foo@).
+--
+-- This is only used to produce a good error message when @Foo.constructor@
+-- does not resolve; the resolution itself goes through the ordinary
+-- scope lookup, see 'bindRecordConstructorPseudoName'.
 isRecordConstructor :: C.QName -> Maybe C.QName
 isRecordConstructor = fmap to . toplevel where
   toplevel, is :: C.QName -> Maybe [C.Name]
@@ -641,9 +656,10 @@ isRecordConstructor = fmap to . toplevel where
 
 -- | Clear the scope of any no names.
 stripNoNames :: ScopeM ()
-stripNoNames = modifyScopes $ Map.map $ mapScope_ stripN stripN id
-  where
-    stripN = Map.filterWithKey $ const . not . isNoName
+stripNoNames = do
+  let stripN = Map.filterWithKey $ const . not . isNoName
+  modifyScopes $ Map.map $ mapScope_ stripN stripN id
+  recomputeInverseScope
 
 type WSM = StateT ScopeMemo ScopeM
 
@@ -653,147 +669,46 @@ data ScopeMemo = ScopeMemo
     -- ^ Bool: did we copy recursively? We need to track this because we don't
     --   copy recursively when creating new modules for reexported functions
     --   (issue1985), but we might need to copy recursively later.
-  , memoTrimming :: A.ScopeCopyRef
   }
 
 memoToScopeInfo :: ScopeMemo -> ScopeCopyInfo
-memoToScopeInfo (ScopeMemo names mods live) =
+memoToScopeInfo (ScopeMemo names mods) =
   ScopeCopyInfo
     { renNames    = names
     , renModules  = Map.map (pure . fst) mods
-
-    -- Conservatively we need to assume that this copy belongs to the
-    -- signature, otherwise we might end up dropping things that
-    -- downstream modules will try to access.
-    --
-    -- The scope checker sets this to 'False' when it is sure that the
-    -- copy is short-lived.
-    , renPublic   = True
-
-    , renTrimming = live
     }
-
----------------------------------------------------------------------------
--- * Definition liveness & copy trimming
----------------------------------------------------------------------------
-
--- $liveness
--- The purpose of these operations is to let the type checker know what
--- definition copies are actually used for type-checking and need to be
--- created, and which can be safely skipped ("trimmed", hence the name
--- 'renTrimming').
---
--- The liveness the scope-checker reports should be a conservative
--- over-approximation of what names are actually used.  For example,
--- when an overloaded field/constructor name is resolved, we (have to)
--- mark all of the names in the set as used: not only do we not know
--- which one the type checker will actually pick, but the type checker
--- will ask for all of their
--- `Agda.TypeChecking.Monad.Signature.getConstInfo` when disambiguating.
---
--- Marking a name as live is done through the `markLiveName` function,
--- which is called from `resolveName'`, so any names coming from
--- concrete syntax will already be marked live. However, if potential
--- references to copies are being inserted "synthetically" by the scope
--- checker, they __must__ be referred to by an explicit `markLiveName`
--- call.
---
--- Module names can also be `markLiveName`d, and this has the effect of
--- transitively saving every definition having that module as a prefix.
-
--- | Create a new reference to store liveness information for names in
--- the given copied module.
-newScopeCopyRef :: A.ModuleName -> ScopeM A.ScopeCopyRef
-newScopeCopyRef mname = liftIO $ A.ScopeCopyRef mname <$> newIORef mempty
 
 -- | Mark a name as being a copy in the TC state, associating it with
 -- the given 'A.ScopeCopyRef' for liveness information.
-copyName :: A.ScopeCopyRef -> A.QName -> A.QName -> ScopeM ()
-copyName copy from to = do
-  from <- fromMaybe from . fmap snd . HMap.lookup from <$> useTC stCopiedNames
-  modifyTCLens stCopiedNames $ HMap.insert to (copy, from)
+copyName :: A.QName -> A.QName -> ScopeM ()
+copyName from to = do
+  from <- fromMaybe from . HMap.lookup from <$> useTC stCopiedNames
+  modifyTCLens stCopiedNames $ HMap.insert to from
   let
     k Nothing  = Just (HSet.singleton to)
     k (Just s) = Just (HSet.insert to s)
   modifyTCLens stNameCopies $ HMap.alter k from
-
--- | Class for entities which contain names that can be marked live.
--- The two fundamental instances are 'A.QName's and 'A.ModuleName's, but
--- there are some convenience instances for things like
--- 'A.ResolvedName's.
-class MarkLive n where
-  -- | Mark a name as (potentially) having been used.
-  markLiveName :: n -> ScopeM ()
-
-  default markLiveName :: forall t n'. (Traversable t, n ~ t n', MarkLive n') => n -> ScopeM ()
-  markLiveName = traverse_ markLiveName
-
-instance MarkLive n => MarkLive (List1 n)
-
-instance MarkLive A.QName where
-  markLiveName qn = HMap.lookup qn <$> useTC stCopiedNames >>= \case
-    Just (A.ScopeCopyRef _ ref, _) ->
-      liftIO $ modifyIORef' ref \case
-        A.SomeLiveNames a b -> A.SomeLiveNames a (Set.insert qn b)
-        A.AllLiveNames      -> A.AllLiveNames
-    Nothing -> pure ()
-
-instance MarkLive A.ModuleName where
-  markLiveName qn = scopeIsCopy <$> getNamedScope qn >>= \case
-    Just (A.ScopeCopyRef _ ref) -> liftIO $ modifyIORef' ref \case
-      A.SomeLiveNames a b -> A.SomeLiveNames (Set.insert qn a) b
-      A.AllLiveNames      -> A.AllLiveNames
-    Nothing -> pure ()
-
-instance MarkLive A.AbstractName where
-  markLiveName = markLiveName . anameName
-
-instance MarkLive ResolvedName where
-  markLiveName = \case
-    UnknownName         -> pure ()
-    VarName{}           -> pure ()
-    DefinedName _ d _   -> markLiveName d
-    FieldName d         -> markLiveName d
-    ConstructorName _ d -> markLiveName d
-    PatternSynResName d -> markLiveName d
-
--- | Read the 'LiveNames' from the given 'ScopeCopyRef'.
-readLiveNames :: ScopeCopyRef -> ScopeM LiveNames
-readLiveNames (ScopeCopyRef _ ref) = liftIO $ readIORef ref
-
--- | Compare the trimming from an old 'ScopeCopyInfo' with a new one.
-sameTrimming :: ScopeCopyInfo -> ScopeCopyInfo -> ScopeM Bool
-sameTrimming old new | renPublic old, renPublic new = pure True
-sameTrimming old new = do
-  a <- readLiveNames (renTrimming old)
-  b <- readLiveNames (renTrimming new)
-  pure (a == b)
-
-clobberLiveNames :: ScopeM ()
-clobberLiveNames = traverse_ (traverse_ go . scopeIsCopy) . _scopeModules =<< getScope where
-  go (ScopeCopyRef _ ref) = liftIO $ writeIORef ref AllLiveNames
 
 -- | Create a new scope with the given name from an old scope. Renames
 --   public names in the old scope to match the new name and returns the
 --   renamings.
 copyScope :: C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, ScopeCopyInfo)
 copyScope oldc new0 s =
-  do
-    live <- newScopeCopyRef new0
-    (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> runStateT (copy live new0 s) (ScopeMemo mempty mempty live)
+  (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$>
+    runStateT (copy new0 $ dropRecordConstructorPseudoName s) (ScopeMemo mempty mempty)
   where
-    copy :: A.ScopeCopyRef -> A.ModuleName -> Scope -> WSM Scope
-    copy live new s = do
+    copy :: A.ModuleName -> Scope -> WSM Scope
+    copy new s = do
       lift $ reportSLn "scope.copy" 20 $ "Copying scope " ++ prettyShow old ++ " to " ++ prettyShow new
       lift $ reportSLn "scope.copy" 50 $ prettyShow s
       s0 <- lift $ getNamedScope new
       -- Delete private names, then copy names and modules. Recompute inScope
-      -- set rather than trying to copy it.
-      s' <- recomputeInScopeSets <$> mapScopeM_ copyD copyM return (setNameSpace PrivateNS emptyNameSpace s)
+      -- set and name parts rather than trying to copy them.
+      s' <- recomputeNameParts . recomputeInScopeSets <$>
+              mapScopeM_ copyD copyM return (setNameSpace PrivateNS emptyNameSpace s)
       -- Fix name and parent.
       return $ s' { scopeName    = scopeName s0
                   , scopeParents = scopeParents s0
-                  , scopeIsCopy  = Just live
                   }
       where
         rnew = getRange new
@@ -802,7 +717,20 @@ copyScope oldc new0 s =
         old  = scopeName s
 
         copyD :: NamesInScope -> WSM NamesInScope
-        copyD = traverse $ mapM $ onName renName
+        copyD = Map.traverseWithKey \ x -> mapM $ onName $ renNameFor x
+
+        -- Andreas, 2026-08-23:
+        -- The pseudo-name @constructor@ bound in a record module
+        -- (see 'bindRecordConstructorPseudoName') is only an alias for the record
+        -- constructor.  If the record has a named constructor, the latter lives
+        -- outside the record module, and copying the alias like an ordinary name
+        -- would produce a second copy of the constructor (plus a spurious copy of
+        -- the module the constructor lives in).  Thus, reuse the existing copy.
+        renNameFor :: C.Name -> A.QName -> WSM A.QName
+        renNameFor x y
+          | x == recordConstructorPseudoName =
+              maybe (renName y) (return . List1.head) =<< findName y
+          | otherwise = renName y
 
         copyM :: ModulesInScope -> WSM ModulesInScope
         copyM = traverse $ mapM $ lensAmodName renMod
@@ -818,20 +746,14 @@ copyScope oldc new0 s =
         addMod  x y rec = modify $ \ i -> i { memoModules = Map.insert x (y, rec) (memoModules i) }
 
         -- Querying the memo structure.
-        findName x = gets (Map.lookup x . memoNames) -- NB:: Defined but not used
+        findName :: A.QName -> WSM (Maybe (List1 A.QName))
+        findName x = gets (Map.lookup x . memoNames)
         findMod  x = gets (Map.lookup x . memoModules)
 
         refresh :: A.Name -> WSM A.Name
         refresh x = do
           i <- lift fresh
-          return $ x { A.nameId = i }
-
-        copyRecordConstr :: A.QName -> A.QName -> WSM ()
-        copyRecordConstr from to = getRecordConstructor from >>= \case
-          Just (con, ind) -> do
-            con' <- renName con
-            lift $ setRecordConstructor to (con', ind)
-          Nothing  -> pure ()
+          return $ x { A._nameId = i }
 
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
         renName :: A.QName -> WSM A.QName
@@ -868,8 +790,7 @@ copyScope oldc new0 s =
           y <- setRange rnew . A.qualify m <$> refresh (qnameName x)
           lift $ reportSLn "scope.copy" 50 $ "  Copying " ++ prettyShow x ++ " to " ++ prettyShow y
           addName x y
-          lift (copyName live x y)
-          copyRecordConstr x y
+          lift (copyName x y)
           return y
 
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
@@ -913,7 +834,8 @@ copyScope oldc new0 s =
           where
             copyRec x y = do
               s0 <- lift $ getNamedScope x
-              s  <- withCurrentModule' y $ copy live y s0
+              s  <- withCurrentModule' y $ copy y s0
+              -- András, 2025-08-30: inverse scope will be computed immediately after copyScope returns
               lift $ modifyNamedScope y (const s)
 
 ---------------------------------------------------------------------------
@@ -933,12 +855,16 @@ checkNoFixityInRenamingModule ren = do
     Renaming ImportedModule{} _ mfx _ -> getRange <$> mfx
     _ -> Nothing
 
--- | Check that an import directive doesn't contain repeated names.
-verifyImportDirective :: [C.ImportedName] -> C.HidingDirective -> C.RenamingDirective -> ScopeM ()
-verifyImportDirective usn hdn ren =
-  List1.unlessNull
-    (mapMaybe List2.fromList1Maybe . List1.group . List.sort $ usn ++ hdn ++ map renFrom ren)
-    \ yss -> setCurrentRange yss $ typeError $ RepeatedNamesInImportDirective yss
+-- | Warn about fixity declarations for targets that are non-operators
+--   or closed operators:
+checkNoFixityForClosedOperator :: [C.Renaming] -> ScopeM ()
+checkNoFixityForClosedOperator ren = do
+  forM_ ren \case
+    Renaming (ImportedName _) (ImportedName x) mfx r
+      | Just _ <- mfx, not (isPrePostOrInfixOperator x) -> warnFixityDeclarationForNonOperator r x
+      | otherwise -> pure ()
+    Renaming ImportedModule{} ImportedModule{} _ _ -> pure ()
+    _ -> __IMPOSSIBLE__
 
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
@@ -955,19 +881,30 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
     -- user has supplied fixity annotations to @renaming module@ clauses.
     checkNoFixityInRenamingModule ren'
 
+    -- Andreas, 2026-09-11, issue #1438
+    -- Warn about fixities declared for non- or closed-operators.
+    checkNoFixityForClosedOperator ren'
+    -- TODO (post 2.9.0): purge fixity declarations for closed and non-operators.
+    -- See also 'fixitiesAndPolarities.
+
     -- Andreas, 2020-06-06, issue #4707
     -- Duplicates in @using@ directive are dropped with a warning.
     usingList <- discardDuplicatesInUsing usn'
 
+    -- Check that an import directive doesn't contain repeated names.
+    -- Historic note:
     -- The following check was originally performed by the parser.
     -- The Great Ulf Himself added the check back in the dawn of time
     -- (5ba14b647b9bd175733f9563e744176425c39126)
     -- when Agda 2 wasn't even believed to exist yet.
-    verifyImportDirective usingList hdn' ren'
+    let names' = usingList ++ hdn' ++ map renFrom ren'  -- all mentioned names from the imported module
+    -- Report any duplicates in @names'@.
+    List1.unlessNull (mapMaybe List2.fromList1Maybe $ List1.group $ List.sort names') \ yss ->
+      setCurrentRange yss $ typeError $ RepeatedNamesInImportDirective yss
 
     -- We start by checking that all of the names talked about in the import
     -- directive do exist.  If some do not then we remove them and raise a warning.
-    let (missingExports, namesA) = checkExist $ usingList ++ hdn' ++ map renFrom ren'
+    let (missingExports, namesA) = checkExist names'
     () <- List1.unlessNull missingExports \ missingExports1 -> setCurrentRange rng do
       reportSLn "scope.import.apply" 30 $ "non existing names: " ++ prettyShow missingExports
       warning $ ModuleDoesntExport m (Map.keys namesInScope) (Map.keys modulesInScope) missingExports1
@@ -1035,6 +972,11 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
       -- abstract QName, rather than
       --
       --    renaming (Some.Qualified.Original to new)
+      --
+      -- Andreas, 2026-10-02
+      -- Even though @record where@ has been removed again, and @upd@
+      -- does not make an observable difference any more, we can leave
+      -- @upd@ in.
 
       upd :: C.Name -> A.QName -> A.QName
       upd x nm = setRange (getRange x) $ qualify_ $ (qnameName nm) { nameConcrete = x }
@@ -1181,12 +1123,12 @@ noGeneralizedVarsIfLetOpen TopOpenModule = id
 noGeneralizedVarsIfLetOpen LetOpenModule = disallowGeneralizedVars
 
 -- | Open a module.
-openModule_ :: OpenKind -> C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
-openModule_ kind cm dir = openModule kind Nothing cm dir
+openModule_ :: KwRange -> OpenKind -> C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
+openModule_ kwr kind cm dir = openModule kwr kind Nothing cm dir
 
 -- | Open a module, possibly given an already resolved module name.
-openModule :: OpenKind -> Maybe A.ModuleName  -> C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
-openModule kind mam cm dir = do
+openModule :: KwRange -> OpenKind -> Maybe A.ModuleName  -> C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
+openModule kwr kind mam cm dir = do
   current <- getCurrentModule
   m <- caseMaybe mam (amodName <$> resolveModule cm) return
   let acc | Nothing <- publicOpen dir     = PrivateNS
@@ -1195,10 +1137,13 @@ openModule kind mam cm dir = do
 
   -- Get the scope exported by module to be opened.
   (adir, s') <- applyImportDirectiveM cm dir . inScopeBecause (Opened cm) .
+                dropRecordConstructorPseudoName .
                 noGeneralizedVarsIfLetOpen kind =<< getNamedScope m
+  registerModuleOpening kwr current cm dir s' -- For the unused import warning
   let s  = setScopeAccess acc s'
   let ns = scopeNameSpace acc s
-  modifyCurrentScope (`mergeScope` s)
+  modifyCurrentScope \current -> recomputeNameParts $ mergeScope current s
+  recomputeInverseScope
   -- Andreas, 2018-06-03, issue #3057:
   -- If we simply check for ambiguous exported identifiers _after_
   -- importing the new identifiers into the current scope, we also
@@ -1240,7 +1185,7 @@ openModule kind mam cm dir = do
               where ks = fmap anameKind qs
         -- We report the first clashing exported identifier.
         () <- List1.unlessNull (filter defClash defClashes) $
-          \ ((x, q :| _) :| _) -> typeError $ ClashingDefinition (C.QName x) (anameName q) Nothing
+          \ ((x, q :| _) :| _) -> typeError $ ClashingDefinition (C.QName x) (ClashingAbstractName q) Nothing
 
         List1.unlessNull modClashes $ \ ((_, ms) :| _) -> do
           caseMaybe (List1.last2 ms) __IMPOSSIBLE__ $ \ (m0, m1) -> do

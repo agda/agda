@@ -25,6 +25,7 @@
 .cabal-sandbox/
 .direnv
 .DS_Store
+.envrc
 .ghc.environment.*
 .python-sphinx-virtualenv/
 .stack-work-*/
@@ -38,6 +39,7 @@
 /benchmark/logs
 /doc/**/MAlonzo
 /doc/user-manual.pdf
+/ecosystem/libraries
 /examples/**/MAlonzo
 /examples/compiler/main
 /hie.yaml
@@ -49,12 +51,15 @@
 /test/**/MAlonzo
 /test/api/*.api
 /test/Compiler/simple/agda-rts.js
+/test/Compiler/simple/agda-rts.mjs
 /test/Compiler/simple/Erasure-Issue2640
 /test/Compiler/simple/highlight-hover.js
+/test/Compiler/simple/highlight-hover.mjs
 /test/Compiler/simple/Issue4168
 /test/Compiler/simple/Issue4168-4185
 /test/Compiler/simple/Issue4168-shirr
 /test/Compiler/simple/jAgda.*.js
+/test/Compiler/simple/jAgda.*.mjs
 /test/Compiler/simple/Literals
 /test/Compiler/simple/ModuleArgs
 /test/Compiler/simple/VecReverse
@@ -62,10 +67,14 @@
 /test/Compiler/simple/VecReverseHand
 /test/Compiler/simple/Word
 /test/Compiler/with-stdlib/agda-rts.js
+/test/Compiler/with-stdlib/agda-rts.mjs
 /test/Compiler/with-stdlib/AllStdLib
 /test/Compiler/with-stdlib/highlight-hover.js
-/test/interaction/Issue6261?.out
+/test/Compiler/with-stdlib/highlight-hover.mjs
+/test/Interaction/Issue6261?.out
+/test/Interaction/latex/
 /test/Succeed/agda-rts.js
+/test/Succeed/agda-rts.mjs
 /test/Succeed/Issue296
 /test/Succeed/Issue867
 /test/Succeed/Options-in-right-order
@@ -80,6 +89,7 @@ dist-*/
 dist/
 hlint-report.html
 jAgda.*.js
+jAgda.*.mjs
 module-dependency-graph.dot
 module-dependency-graph.pdf
 pkg-build*

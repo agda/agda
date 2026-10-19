@@ -45,6 +45,7 @@ mutual
             (A : Record Sig → Set) →
             Signature
 
+  {-# ETA_EQUALITY #-}
   record Record (Sig : Signature) : Set where
     eta-equality
     inductive

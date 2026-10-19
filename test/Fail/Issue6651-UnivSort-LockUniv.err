@@ -1,4 +1,8 @@
-Issue6651-UnivSort-LockUniv.agda:17.5-6: error: [UnequalSorts]
-univSort _10 != primLockUniv
+Issue6651-UnivSort-LockUniv.agda:17.5-6: error: [UnequalTypes]
+The types
+  univSort _10
+and
+  primLockUniv
+are not equal
 when checking that the solution _10 of metavariable _8 has the
 expected type primLockUniv

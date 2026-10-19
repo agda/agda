@@ -1,3 +1,6 @@
-Issue1637.agda:32.9-10: error: [UnequalTerms]
-(Z : R A) → P (R.f Z) !=< Set₁
+Issue1637.agda:32.9-10: error: [UnequalTypes]
+The type
+  (Z : R A) → P (R.f Z)
+is not a subtype of
+  Set₁
 when checking that the expression f has type Set₁

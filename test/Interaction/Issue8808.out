@@ -1,0 +1,8 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-status-action "")
+(agda2-info-action "*All Goals, Errors, Warnings*" "?0 : S² ———— Error ————————————————————————————————————————————————— error: [UnsolvedConstraints] Unsolved constraints ———— Warnings —————————————————————————————————————————————— Issue8808.agda:25.18-22: warning: -W[no]InteractionMetaBoundaries Interaction meta(s) at the following location(s) have unsolved boundary constraints: Issue8808.agda:25.18-22" nil)
+((last . 1) . (agda2-goals-action '(0)))
+(agda2-status-action "")
+(agda2-info-action "*Goal type etc.*" "Goal: S² ———— Boundary (wanted) ————————————————————————————————————— b = i0 ⊢ base b = i1 ⊢ base a = i0 ⊢ base a = i1 ⊢ base i = i0 ⊢ transp (λ _ → Ω² S² base) i0 refl a b i = i1 ⊢ base ———— Context ——————————————————————————————————————————————— b : I a : I i : I ———— Constraints ——————————————————————————————————————————— _24 := λ i → _23 (i = i) (blocked on problem 33) _22 := λ i a → _21 (i = i) (a = a) (blocked on problem 32) _20 := λ i a b → ?0 (i = i) (a = a) (b = b) (blocked on problem 31)" nil)

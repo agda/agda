@@ -1,3 +1,5 @@
+{-# OPTIONS --cubical #-}
+
 -- Andreas, 2020-06-21, issue #4769
 -- Name and hiding ignored in subsequent face constraint patterns.
 -- Instead, we should throw a warning.

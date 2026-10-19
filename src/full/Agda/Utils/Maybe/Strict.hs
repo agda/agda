@@ -4,7 +4,7 @@
 --
 --   Import qualified, as in
 --   @
---     import qualified Agda.Utils.Maybe.Strict as Strict
+--     import Agda.Utils.Maybe.Strict qualified as Strict
 --   @
 
 module Agda.Utils.Maybe.Strict
@@ -15,7 +15,7 @@ module Agda.Utils.Maybe.Strict
 
 import Prelude hiding (Maybe(..), maybe)
 
-import qualified Data.Maybe as Lazy
+import Data.Maybe qualified as Lazy
 import Data.Strict.Classes
 import Data.Strict.Maybe
 

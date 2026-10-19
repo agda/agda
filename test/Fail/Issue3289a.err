@@ -1,0 +1,5 @@
+Issue3289a.agda:15.4-10: error: [CannotEliminateWithPattern]
+Cannot eliminate type R with dot pattern ⦃ .x ⦄ (did you supply too
+many arguments?)
+when checking the clause left hand side
+f₂ ⦃ .x ⦄

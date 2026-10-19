@@ -4,13 +4,13 @@ module _ where
 
 -- trait A { type T <: A }
 record A (self : Set) (T : Set) : Set₁ where
-  inductive
+  inductive; no-eta-equality
   field
     T⊂A : T → A T self
 
 -- trait C extends A with B { type T <: C }
 record C (self : Set) (T : Set) : Set₁ where
-  inductive
+  inductive; no-eta-equality
   field
     a : A T self
     T⊂C : T → C T self

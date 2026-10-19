@@ -1,0 +1,139 @@
+name: Build and test WASM
+
+on:
+  push:
+    branches:
+    - master
+
+    paths: &path_list
+    # This workflow:
+    - '.github/workflows/wasm.yml'
+    # Andreas, 2026-09-12, don't include the template of this workflow
+    # since it has no effect on the workflow run.
+    # - 'src/github/workflows/wasm.yml'
+    # Agda project definition:
+    - 'Agda.cabal'
+    - 'cabal.project'
+    - 'Makefile'
+    # Agda project definition (nix):
+    - 'flake.lock'
+    - 'flake.nix'
+    # Agda source code
+    - 'src/full/Agda/**'
+    - 'src/main/**'
+    - 'src/setup/Agda/**'
+    # agda-mode executable (legacy)
+    - 'src/agda-mode/**'
+    # Data files.
+    # Here we exclude data files for the backends as they are not tested.
+    - 'src/data/lib/**'
+    # Test suite runner
+    - 'test/run-agda-wasm.sh'
+    - 'test/**/*.hs'
+    # Relevant testsuites
+    - 'test/Bugs/**'
+    - 'test/Common/**'
+    - 'test/Fail/**'
+    - 'test/Succeed/**'
+
+  pull_request:
+    paths: *path_list
+    branches:
+    - master
+
+  workflow_dispatch:
+
+  # Run weekly 0:00am on Sunday.
+  schedule:
+    - cron: '0 0 * * 0'
+
+env:
+  PARALLEL_TESTS: 2
+  AGDA_TESTS_OPTIONS: "-j${PARALLEL_TESTS} --hide-successes"
+
+  # tasty configuration (see issue #3905)
+  TASTY_ANSI_TRICKS: "false"
+
+  # Disable tests that spawn subprocesses
+  AGDA_NO_EXEC: 'true'
+
+jobs:
+  build:
+    # Only run the workflow with tag [wasm] in commit message or PR title
+    # or if it was scheduled or started manually.
+    if: |
+      contains(github.event.head_commit.message, '[wasm]')
+      || contains(github.event.pull_request.title, '[wasm]')
+      || github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
+
+    runs-on: ubuntu-26.04
+
+    steps:
+    - uses: styfle/cancel-workflow-action@0.13.1
+      if: github.ref != 'refs/heads/master'
+      with:
+        access_token: ${{ github.token }}
+
+    - name: Check if /mnt is a mountpoint
+      id: check_mnt
+      run: |
+        echo "Running df:"
+        result=$(df)
+        echo "$result"
+        if echo "$result" | awk '{print $6}' | grep -q '/mnt'; then
+          echo "found=1" >> "${GITHUB_OUTPUT}"
+        fi
+
+    - uses: easimon/maximize-build-space@v10
+      if: steps.check_mnt.outputs.found
+      with:
+        root-reserve-mb: 30000
+        remove-dotnet: true
+        remove-android: true
+        remove-haskell: true
+        remove-codeql: true
+        remove-docker-images: true
+
+    - uses: actions/checkout@v7
+      with:
+        submodules: recursive
+
+    - uses: cachix/install-nix-action@v31
+
+    - name: "Setup Cabal"
+      run: nix develop --command bash -c "wasm32-wasi-cabal update && cabal update"
+
+    - name: "Build Agda (WASM)"
+      run: nix develop --command wasm32-wasi-cabal build -fdebug -foptimise-heavily
+
+    - name: "Build Agda (native)"
+      # text-icu fails to build in Nix (and for some reason, isn't added as a
+      # dependency), so disable it by overwriting CABAL_FLAG_ICU for now.
+      run: nix develop --command make CABAL_FLAG_ICU= install-bin
+
+    - name: "Setup test environment"
+      id: test-setup
+      run: |
+        echo "AGDA_WASM=$(nix develop --command wasm32-wasi-cabal list-bin agda 2> /dev/null)" >> "${GITHUB_ENV}"
+        echo "AGDA_BIN=$PWD/test/run-agda-wasm.sh" >> "${GITHUB_ENV}"
+
+    - name: Run Agda setup (WASM)
+      run: nix develop --command "$AGDA_BIN" --setup
+
+    - name: "Suite of tests for bugs"
+      run: nix develop --command make bugs
+
+    - name: "Suite of successful tests: mini-library Common"
+      run: nix develop --command make common
+      if: ${{ !cancelled() && steps.test-setup.conclusion == 'success' }} # run test even if a previous test failed
+
+    - name: "Suite of successful tests"
+      run: nix develop --command make succeed
+      if: ${{ !cancelled() && steps.test-setup.conclusion == 'success' }} # run test even if a previous test failed
+
+    - name: "Suite of failing tests"
+      run: nix develop --command make fail
+      if: ${{ !cancelled() && steps.test-setup.conclusion == 'success' }} # run test even if a previous test failed
+
+    # If you add more tests, also update the path_list on top of the file.

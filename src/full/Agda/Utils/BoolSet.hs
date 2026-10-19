@@ -8,8 +8,8 @@
 --
 -- Import as:
 -- @
---    import qualified Agda.Utils.BoolSet as BoolSet
 --    import Agda.Utils.BoolSet (BoolSet)
+--    import Agda.Utils.BoolSet qualified as BoolSet
 -- @
 
 module Agda.Utils.BoolSet

@@ -29,7 +29,6 @@ import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete.Name
-import Agda.Syntax.Concrete.Pretty()
 import Agda.Syntax.Position
 
 import Agda.Utils.Lens
@@ -106,6 +105,15 @@ notationKind (h:syn) =
     (True , False) -> PostfixNotation
     (False, True ) -> PrefixNotation
     (False, False) -> NonfixNotation
+
+-- | Analogue of 'isPrePostOrInfixOperator': prefix, infix, or postfix.
+isPrePostOrInfixNotation :: Notation -> Bool
+isPrePostOrInfixNotation n = case notationKind n of
+  InfixNotation   -> True
+  PrefixNotation  -> True
+  PostfixNotation -> True
+  NonfixNotation  -> False
+  NoNotation      -> False
 
 -- | From notation with names to notation with indices.
 --

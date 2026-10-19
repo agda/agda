@@ -1,0 +1,11 @@
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  IsNat 1 =< _6 (blocked on _6)
+  _6 = IsNat secret : Set (blocked on _6)
+
+Issue8828-module.agda:25.11-47.31: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue8828-module.agda:25.11-12
+  Issue8828-module.agda:27.14-15
+  Issue8828-module.agda:41.16-20
+  Issue8828-module.agda:47.21-31

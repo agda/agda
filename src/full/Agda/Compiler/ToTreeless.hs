@@ -1,15 +1,17 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.Compiler.ToTreeless
-  ( toTreeless
-  , toTreelessWith
+  ( toTreelessWith
   , closedTermToTreeless
   , Pipeline(..)
   , CompilerPass(..)
   , compilerPass
-  , compilerPipeline
   , CCConfig
   , CCSubst(..)
+  -- * Default pipeline
+  , compilerPipeline
+  , mkDefaultCCConfig
+  , toTreeless
   ) where
 
 import Prelude hiding ((!!))
@@ -46,7 +48,6 @@ import Agda.Compiler.Treeless.Unused
 
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -101,21 +102,27 @@ data CCEnv = CCEnv
     -- ^ TTerm de-bruijn index of the current catch all.
     -- If an inner case has no catch-all clause, we use the one from its parent.
   , ccEvaluation  :: EvaluationStrategy
-    -- ^ Which evaluation strategy does the backend assumes.
+    -- ^ Which evaluation strategy does the backend assume.
+  , ccPipeline  :: BuildPipeline
+    -- ^ Which pipeline does the backend use.
   , ccSubstUnused :: CCSubst
     -- ^ Whether to erase unused arguments.
   }
 
-type CCConfig  = (EvaluationStrategy, CCSubst)
+type CCConfig  = (EvaluationStrategy, CCSubst, BuildPipeline)
 
 -- | Initial environment for expression generation.
 initCCEnv :: CCConfig -> CCEnv
-initCCEnv (eval, su) = CCEnv
+initCCEnv (eval, su, pl) = CCEnv
   { ccCxt         = []
   , ccCatchall    = Nothing
   , ccEvaluation  = eval
   , ccSubstUnused = su
+  , ccPipeline    = pl
   }
+
+ccCCConfig :: CCEnv -> CCConfig
+ccCCConfig e = (ccEvaluation e, ccSubstUnused e, ccPipeline e)
 
 -- | Converts compiled clauses to treeless syntax.
 --
@@ -123,28 +130,22 @@ initCCEnv (eval, su) = CCEnv
 -- term for identification purposes! If you wish to do so,
 -- first apply the Agda.Compiler.Treeless.NormalizeNames
 -- transformation.
-toTreelessWith :: BuildPipeline -> CCConfig -> QName -> TCM (Maybe C.TTerm)
-toTreelessWith pl cfg q
+toTreelessWith :: CCConfig -> QName -> TCM (Maybe C.TTerm)
+toTreelessWith cfg q
   = ifM (alwaysInline q) (pure Nothing)
-  $ Just <$> toTreelessWith' pl cfg q
+  $ Just <$> toTreelessWith' cfg q
 
-toTreeless :: EvaluationStrategy -> QName -> TCM (Maybe C.TTerm)
-toTreeless eval = toTreelessWith compilerPipeline (eval, EraseUnused)
-
-toTreelessWith' :: BuildPipeline -> CCConfig -> QName -> TCM C.TTerm
-toTreelessWith' pl cfg q =
+toTreelessWith' :: CCConfig -> QName -> TCM C.TTerm
+toTreelessWith' cfg q =
   flip fromMaybeM (getTreeless q) $ verboseBracket "treeless.convert" 20 ("compiling " ++ prettyShow q) $ do
     cc <- getCompiledClauses q
     unlessM (alwaysInline q) $ setTreeless q (C.TDef q)
       -- so recursive inlining doesn't loop, but not for always inlined
       -- functions, since that would risk inlining to fail.
-    ccToTreelessWith pl cfg q cc
+    ccToTreelessWith cfg q cc
 
-toTreeless' :: EvaluationStrategy -> QName -> TCM C.TTerm
-toTreeless' eval = toTreelessWith' compilerPipeline (eval, EraseUnused)
-
-ccToTreelessWith :: BuildPipeline -> CCConfig -> QName -> CC.CompiledClauses -> TCM C.TTerm
-ccToTreelessWith pl cfg@(eval, su) q cc = do
+ccToTreelessWith :: CCConfig -> QName -> CC.CompiledClauses -> TCM C.TTerm
+ccToTreelessWith cfg@(eval, su, pl) q cc = do
   let pbody b = pbody' "" b
       pbody' suf b = sep [ text (prettyShow q ++ suf) <+> "=", nest 2 $ prettyPure b ]
   v <- ifM (alwaysInline q) (return 20) (return 0)
@@ -162,29 +163,8 @@ ccToTreelessWith pl cfg@(eval, su) q cc = do
   setCompiledArgUse q used
   return body
 
-ccToTreeless :: EvaluationStrategy -> QName -> CC.CompiledClauses -> TCM C.TTerm
-ccToTreeless eval = ccToTreelessWith compilerPipeline (eval, EraseUnused)
-
 compilerPass :: String -> Int -> String -> (EvaluationStrategy -> TTerm -> TCM TTerm) -> Pipeline
 compilerPass tag v name code = SinglePass (CompilerPass tag v name code)
-
-compilerPipeline :: BuildPipeline
-compilerPipeline v q =
-  Sequential
-    -- Issue #4967: No simplification step before builtin translation! Simplification relies
-    --              on either all or no builtins being translated. Since we might have inlined
-    --              functions that have had the builtin translation applied, we need to apply it
-    --              first.
-    -- [ compilerPass "simpl"   (35 + v) "simplification"      $ const simplifyTTerm
-    [ compilerPass "builtin" (30 + v) "builtin translation" $ const translateBuiltins
-    , FixedPoint 5 $ Sequential
-      [ compilerPass "simpl"  (30 + v) "simplification"     $ const simplifyTTerm
-      , compilerPass "erase"  (30 + v) "erasure"            $ eraseTerms q
-      , compilerPass "uncase" (30 + v) "uncase"             $ const caseToSeq
-      , compilerPass "aspat"  (30 + v) "@-pattern recovery" $ const recoverAsPatterns
-      ]
-    , compilerPass "id" (30 + v) "identity function detection" $ const (detectIdentityFunctions q)
-    ]
 
 runPipeline :: EvaluationStrategy -> QName -> Pipeline -> TTerm -> TCM TTerm
 runPipeline eval q pipeline t = case pipeline of
@@ -223,7 +203,7 @@ alwaysInline :: QName -> TCM Bool
 alwaysInline q = do
   def <- theDef <$> getConstInfo q
   pure $ case def of  -- always inline with functions and pattern lambdas
-    Function{funClauses = cs} -> (isJust (funExtLam def) && not recursive) || isJust (funWith def)
+    Function{funClauses = cs} -> (isJust (funExtLam def) && not recursive) || isWithFunction def
             where
               recursive = any (couldBeRecursive . clauseRecursive) cs
     _ -> False
@@ -280,29 +260,44 @@ casetree cc = do
         updateCatchall catchall fromCatchall
       else do
         -- Get the type of the scrutinee.
-        caseTy <-
+        (caseTy, ind) <-
           case (Map.keys conBrs', Map.keys litBrs) of
             (cs, []) -> lift $ go cs
               where
               go (c:cs) = canonicalName c >>= getConstInfo <&> theDef >>= \case
-                Constructor{conData} ->
-                  return $ C.CTData conData
+                Constructor{conData} -> do
+                  def <- theDef <$> getConstInfo conData
+                  return
+                    ( C.CTData conData
+                    , case def of
+                        Datatype{}             -> Inductive
+                        Record{ recInduction } -> case recInduction of
+                          Just i  -> i
+                          Nothing -> Inductive
+                        _ -> __IMPOSSIBLE__
+                    )
                 _ -> go cs
               go [] = __IMPOSSIBLE__
-            ([], LitChar   _ : _) -> return C.CTChar
-            ([], LitString _ : _) -> return C.CTString
-            ([], LitFloat  _ : _) -> return C.CTFloat
-            ([], LitQName  _ : _) -> return C.CTQName
+            ([], LitChar   _ : _) -> return (C.CTChar,   Inductive)
+            ([], LitString _ : _) -> return (C.CTString, Inductive)
+            ([], LitFloat  _ : _) -> return (C.CTFloat,  Inductive)
+            ([], LitQName  _ : _) -> return (C.CTQName,  Inductive)
             _ -> __IMPOSSIBLE__
 
         updateCatchall catchall $ do
-          x <- asks (lookupLevel n . ccCxt)
-          def <- fromCatchall
-          let caseInfo = C.CaseInfo
-                { caseType   = caseTy
-                , caseLazy   = lazy
-                , caseErased = fromMaybe __IMPOSSIBLE__ $
-                               erasedFromQuantity (getQuantity i)
+          x    <- asks (lookupLevel n . ccCxt)
+          eval <- asks ccEvaluation
+          def  <- fromCatchall
+          let -- Lazy matches are made strict in strict backends.
+              lazy' = lazy && case eval of
+                C.LazyEvaluation _ -> True
+                C.EagerEvaluation  -> False
+              caseInfo = C.CaseInfo
+                { caseType      = caseTy
+                , caseLazy      = lazy'
+                , caseInduction = ind
+                , caseErased    = fromMaybe __IMPOSSIBLE__ $
+                                  erasedFromQuantity (getQuantity i)
                 }
           C.TCase x caseInfo def <$> do
             br1 <- conAlts n conBrs'
@@ -344,7 +339,8 @@ updateCatchall (Just cc) cont = do
     , "--   def =" <+> prettyPure def
     ]
   local (\ e -> e { ccCatchall = Just 0, ccCxt = shift 1 cxt }) $ do
-    C.mkLet def <$> cont
+    -- This binding is non-strict, see issue #8759.
+    C.mkLet C.NonStrict def <$> cont
 
 -- | Shrinks or grows the context to the given size.
 -- Does not update the catchall expression, the catchall expression
@@ -453,7 +449,9 @@ lambdasUpTo n cont = do
           local (\e -> e { ccCatchall = Just 0
                          , ccCxt = shift 1 cxt }) $ do
             let catchallArgs = map C.TVar $ downFrom diff
-            C.mkLet (C.mkTApp (C.TVar $ catchall + diff) catchallArgs)
+            -- This binding is non-strict, see issue #8759.
+            C.mkLet C.NonStrict
+              (C.mkTApp (C.TVar $ catchall + diff) catchallArgs)
               <$> cont
         Nothing -> cont
 
@@ -493,7 +491,7 @@ mkRecord fs = lift $ do
   -- Get the name of the first field
   let p1 = fst $ headWithDefault __IMPOSSIBLE__ $ Map.toList fs
   -- Use the field name to get the record constructor and the field names.
-  I.ConHead c IsRecord{} _ind xs <- conSrcCon . theDef <$> (getConstInfo =<< canonicalName . I.conName =<< recConFromProj p1)
+  I.ConHead c IsRecord{} _ind _hit xs <- conSrcCon . theDef <$> (getConstInfo =<< canonicalName . I.conName =<< recConFromProj p1)
   reportSDoc "treeless.convert.mkRecord" 60 $ vcat
     [ text "record constructor fields: xs      = " <+> (text . show) xs
     , text "to be filled with content: keys fs = " <+> (text . show) (Map.keys fs)
@@ -521,7 +519,7 @@ substTerm term = normaliseStatic term >>= \ term ->
   case I.unSpine $ etaContractErased term of
     I.Var ind es -> do
       ind' <- asks (lookupIndex ind . ccCxt)
-      let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
+      let args = I.mustAllApplyElims es
       C.mkTApp (C.TVar ind') <$> substArgs args
     I.Lam _ ab ->
       C.TLam <$>
@@ -530,10 +528,10 @@ substTerm term = normaliseStatic term >>= \ term ->
     I.Lit l -> return $ C.TLit l
     I.Level _ -> return C.TUnit
     I.Def q es -> do
-      let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
+      let args = I.mustAllApplyElims es
       maybeInlineDef q args
     I.Con c ci es -> do
-        let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
+        let args = I.mustAllApplyElims es
         c' <- lift $ canonicalName $ I.conName c
         C.mkTApp (C.TCon c') <$> substArgs args
     I.Pi _ _ -> return C.TUnit
@@ -598,22 +596,22 @@ normaliseStatic v@(I.Def f es) = lift $ do
 normaliseStatic v = pure v
 
 -- | Does not require the name to refer to a function.
-cacheTreeless :: EvaluationStrategy -> QName -> TCM ()
-cacheTreeless eval q = do
+cacheTreeless :: CCConfig -> QName -> TCM ()
+cacheTreeless cfg q = do
   def <- theDef <$> getConstInfo q
   case def of
-    Function{} -> () <$ toTreeless' eval q
+    Function{} -> () <$ toTreelessWith' cfg q
     _          -> return ()
 
 maybeInlineDef :: I.QName -> I.Args -> CC C.TTerm
 maybeInlineDef q vs = do
-  eval <- asks ccEvaluation
-  ifM (lift $ alwaysInline q) (doinline eval) $ do
-    lift $ cacheTreeless eval q
+  cfg <- asks ccCCConfig
+  ifM (lift $ alwaysInline q) (doinline cfg) $ do
+    lift $ cacheTreeless cfg q
     def <- lift $ getConstInfo q
     case theDef def of
       fun@Function{}
-        | fun ^. funInline -> doinline eval
+        | fun ^. funInline -> doinline cfg
         | otherwise -> do
         -- If ArgUsage hasn't been computed yet, we assume all arguments are used.
         used <- lift $ fromMaybe [] <$> getCompiledArgUse q
@@ -626,8 +624,8 @@ maybeInlineDef q vs = do
         C.mkTApp (C.TDef q) <$> zipWithM substUsed vs (used ++ repeat ArgUsed)
       _ -> C.mkTApp (C.TDef q) <$> substArgs vs
   where
-    doinline eval = C.mkTApp <$> inline eval q <*> substArgs vs
-    inline eval q = lift $ toTreeless' eval q
+    doinline cfg = C.mkTApp <$> inline cfg q <*> substArgs vs
+    inline cfg q = lift $ toTreelessWith' cfg q
 
 substArgs :: [Arg I.Term] -> CC [C.TTerm]
 substArgs = traverse substArg
@@ -635,3 +633,45 @@ substArgs = traverse substArg
 substArg :: Arg I.Term -> CC C.TTerm
 substArg x | usableModality x = substTerm (unArg x)
            | otherwise = return C.TErased
+
+
+-------------------------------------
+-- Default pipeline
+-------------------------------------
+
+-- | Default compiler pipeline
+--
+-- Backends may use different pipelines
+compilerPipeline :: BuildPipeline
+compilerPipeline v q =
+  Sequential
+    -- Issue #4967: No simplification step before builtin translation! Simplification relies
+    --              on either all or no builtins being translated. Since we might have inlined
+    --              functions that have had the builtin translation applied, we need to apply it
+    --              first.
+    -- [ compilerPass "simpl"   (35 + v) "simplification"      $ const simplifyTTerm
+    [ compilerPass "builtin" (30 + v) "builtin translation" $ const translateBuiltins
+    , FixedPoint 5 $ Sequential
+      [ compilerPass "simpl"  (30 + v) "simplification"     $ simplifyTTerm
+      , compilerPass "erase"  (30 + v) "erasure"            $ eraseTerms q
+      , compilerPass "uncase" (30 + v) "uncase"             $ const caseToSeq
+      , compilerPass "aspat"  (30 + v) "@-pattern recovery" $ const recoverAsPatterns
+      ]
+    , compilerPass "id" (30 + v) "identity function detection" $ const (detectIdentityFunctions q)
+    ]
+
+-- | Create default CCConfig using default pipeline
+mkDefaultCCConfig :: EvaluationStrategy -> CCConfig
+mkDefaultCCConfig eval = (eval, EraseUnused, compilerPipeline)
+
+-- | Convert to treeless using default pipeline
+toTreeless :: EvaluationStrategy -> QName -> TCM (Maybe C.TTerm)
+toTreeless = toTreelessWith . mkDefaultCCConfig
+
+-- | Convert to treeless using default pipeline
+toTreeless' :: EvaluationStrategy -> QName -> TCM C.TTerm
+toTreeless' = toTreelessWith' . mkDefaultCCConfig
+
+-- | Convert clauses to treeless using default pipeline
+ccToTreeless :: EvaluationStrategy -> QName -> CC.CompiledClauses -> TCM C.TTerm
+ccToTreeless = ccToTreelessWith . mkDefaultCCConfig

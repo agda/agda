@@ -1,0 +1,8 @@
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  _A_2 =< (@0 A : Set) → A (blocked on _A_2)
+
+Issue8570.agda:6.11-43: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue8570.agda:6.11-12
+  Issue8570.agda:6.13-43

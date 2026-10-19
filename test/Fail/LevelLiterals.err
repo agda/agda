@@ -1,3 +1,7 @@
-LevelLiterals.agda:11.19-30: error: [UnequalSorts]
-Set (lsuc lzero ⊔ ℓ) != Set
+LevelLiterals.agda:11.19-30: error: [UnequalTypes]
+The types
+  Set (lsuc lzero ⊔ ℓ)
+and
+  Set
+are not equal
 when checking that the expression (A → ⊥) → ⊥ has type Set

@@ -1,0 +1,4 @@
+Issue8694.agda:19.5-7: error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  Is empty: x ≡ t _ (stuck)
+      [ at Issue8694.agda:19.5-7 ]

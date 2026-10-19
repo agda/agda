@@ -14,6 +14,7 @@ cong f refl = refl
 postulate
   funExt : ∀{a b}{A : Set a} {B : (x : A) → Set b} {f g : (x : A) → B x} → (∀ (x : A) → f x ≡ g x) → f ≡ g
 
+{-# ETA_EQUALITY #-}
 record Acc {a} {A : Set a} {r} (R : A → A → Set r) (x : A) : Set (a ⊔ r) where
   inductive; eta-equality
   constructor acc
@@ -28,4 +29,3 @@ isPropAcc (acc x) (acc y) = cong acc (funExt λ n → funExt λ p → isPropAcc 
 
 -- Agda used to loop when trying determine whether Acc is a singleton type.
 -- Now it gives a termination error, as expected.
-

@@ -1,3 +1,6 @@
-Sections-16.agda:16.8-10: error: [UnequalTerms]
-D !=< B.D
+Sections-16.agda:16.8-10: error: [UnequalTypes]
+The type
+  D
+is not a subtype of
+  B.D
 when checking that the expression !_ has type B.D

@@ -27,7 +27,7 @@ include ./mk/pretty.mk
 # Or set it in ./mk/config.mk, which is .gitignored
 PARALLEL_TESTS ?= $(shell getconf _NPROCESSORS_ONLN)
 
-AGDA_BIN_SUFFIX = -$(VERSION)
+AGDA_BIN_SUFFIX ?= -$(VERSION)
 AGDA_TESTS_OPTIONS ?=-i -j$(PARALLEL_TESTS)
 
 # A cabal/stack dictionary
@@ -46,6 +46,9 @@ STACK_FLAG_ICU    = --flag Agda:enable-cluster-counting
 
 CABAL_FLAG_OPTIM_HEAVY ?= -foptimise-heavily
 STACK_FLAG_OPTIM_HEAVY ?= --flag Agda:optimise-heavily
+
+CABAL_FLAG_VERSION_WITH_GIT_HASH ?= -fversion-with-git-hash
+STACK_FLAG_VERSION_WITH_GIT_HASH ?= --flag Agda:version-with-git-hash
 
 CABAL_INSTALL_HELPER = $(CABAL) $(CABAL_INSTALL_CMD) $(CABAL_OPT_NO_DOCS)
 STACK_INSTALL_HELPER = $(STACK) build Agda $(STACK_OPT_NO_DOCS)
@@ -98,8 +101,8 @@ ifeq ($(filter msys% mingw%,$(shell echo "$${OSTYPE:-unknown}")),)
   STACK_INSTALL_OPTS += $(STACK_FLAG_ICU)
 endif
 
-CABAL_INSTALL_OPTS += --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
-STACK_INSTALL_OPTS += --ghc-options $(GHC_OPTS) $(STACK_OPTS)
+CABAL_INSTALL_OPTS += $(CABAL_FLAG_VERSION_WITH_GIT_HASH) --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
+STACK_INSTALL_OPTS += $(STACK_FLAG_VERSION_WITH_GIT_HASH) --ghc-options $(GHC_OPTS) $(STACK_OPTS)
 
 # Options for building Agda's dependencies.
 CABAL_INSTALL_DEP_OPTS = --only-dependencies $(CABAL_INSTALL_OPTS)
@@ -123,11 +126,11 @@ CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
 default: install-bin
 
 .PHONY: install ## Install Agda with standard flags, compile and setup Emacs mode
-install:
+install: ensure-hash-is-correct
 ifdef HAS_STACK
-	$(STACK) install --ghc-options $(GHC_OPTS) $(STACK_OPTS)
+	$(STACK) install $(STACK_FLAG_VERSION_WITH_GIT_HASH) --ghc-options $(GHC_OPTS) $(STACK_OPTS)
 else
-	$(CABAL) install --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
+	$(CABAL) install $(CABAL_FLAG_VERSION_WITH_GIT_HASH) --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
 endif
 	agda --setup --emacs-mode compile --emacs-mode setup
 
@@ -142,6 +145,10 @@ setup-agda:
 ensure-hash-is-correct:
 	rm -f $(BUILD_DIR)/build/Agda/VersionCommit.o
 	rm -f $(BUILD_DIR)/build/agda-mode/agda-mode-tmp/Agda/VersionCommit.o
+	rm -f $(FAST_BUILD_DIR)/build/Agda/VersionCommit.o
+	rm -f $(FAST_BUILD_DIR)/build/agda-mode/agda-mode-tmp/Agda/VersionCommit.o
+	rm -f $(QUICK_BUILD_DIR)/build/Agda/VersionCommit.o
+	rm -f $(QUICK_BUILD_DIR)/build/agda-mode/agda-mode-tmp/Agda/VersionCommit.o
 
 .PHONY: copy-bins-with-suffix-% ## Copy binaries to local bin directory with suffix
 copy-bins-with-suffix-%:
@@ -205,7 +212,7 @@ endif
 fast-install-bin: install-deps fast-install-bin-no-deps
 
 .PHONY: fast-install-bin-no-deps ##
- fast-install-bin-no-deps:
+ fast-install-bin-no-deps: ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "============= Installing using Stack with -O0 and test suites ============"
 	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
@@ -223,7 +230,7 @@ endif
 quicker-install-bin: install-deps quicker-install-bin-no-deps
 
 .PHONY: quicker-install-bin-no-deps ##
-quicker-install-bin-no-deps:
+quicker-install-bin-no-deps: ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with -O0 ===================="
 	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
@@ -318,8 +325,8 @@ clean_helper = if [ -d $(1) ]; then $(CABAL) $(CABAL_CLEAN_CMD) --builddir=$(1);
 clean : ## Clean all local builds
 	$(call clean_helper,$(BUILD_DIR))
 	$(call clean_helper,$(QUICK_BUILD_DIR))
-	which $(STACK) > /dev/null 2>&1 && $(STACK) clean --full || true
-	which $(STACK) > /dev/null 2>&1 && $(STACK) clean --full --work-dir=$(QUICK_STACK_WORK_DIR) || true
+	command -v $(STACK) > /dev/null 2>&1 && $(STACK) clean --full || true
+	command -v $(STACK) > /dev/null 2>&1 && $(STACK) clean --full --work-dir=$(QUICK_STACK_WORK_DIR) || true
 
 ##############################################################################
 ## Haddock
@@ -390,6 +397,103 @@ fast-forward-cubical :
 	git submodule update --init --remote cubical
 
 ##############################################################################
+## Ecosystem libraries
+##
+## Large third-party Agda developments vendored under ecosystem/ as submodules.
+## We type-check them to get alerted of regressions we introduce on `master`.
+##
+## The ecosystem submodules are marked `update = none` in .gitmodules so that
+## they are not populated by `git clone --recurse-submodules` or by a CI
+## checkout that initializes submodules recursively (they are big and only a
+## few jobs need them).  Consequently, populating them needs `--checkout`,
+## which overrides `update = none`.
+
+ECOSYSTEM_DIR = $(TOP)/ecosystem
+
+# Populate / fast-forward an ecosystem submodule.  $(1) is its directory name.
+ecosystem_update       = git submodule update --init --checkout          $(ECOSYSTEM_DIR)/$(1)
+ecosystem_fast_forward = git submodule update --init --checkout --remote $(ECOSYSTEM_DIR)/$(1)
+
+.PHONY : ecosystem ## Install all the ecosystem libraries.
+ecosystem : agda-categories agda-unimath plfa TypeTopology
+
+.PHONY: fast-forward-ecosystem ## Update all the ecosystem libraries.
+fast-forward-ecosystem : fast-forward-agda-categories fast-forward-agda-unimath fast-forward-plfa fast-forward-TypeTopology
+
+#### agda-categories ####
+
+# agda-categories pins a released standard library (standard-library-2.4 atm)
+# which does not typecheck with Agda master.  Patch its .agda-lib so that it
+# uses the agda-stdlib vendored as our `std-lib` submodule instead.
+AGDA_CATEGORIES_PATCH = $(ECOSYSTEM_DIR)/patches/agda-categories-use-vendored-std-lib.patch
+
+.PHONY : agda-categories ## Update the agda-categories library.
+agda-categories :
+	$(MAKE) unpatch-agda-categories
+	$(call ecosystem_update,agda-categories)
+	$(MAKE) patch-agda-categories
+
+.PHONY : patch-agda-categories ## Make agda-categories use our vendored std-lib.
+patch-agda-categories :
+	@(cd $(ECOSYSTEM_DIR)/agda-categories && \
+	  git checkout -- agda-categories.agda-lib && \
+	  git apply $(abspath $(AGDA_CATEGORIES_PATCH)))
+
+# Revert the patch so that `git submodule update` can move the submodule.
+# (Ignore failure: the submodule may not be checked out yet.)
+.PHONY : unpatch-agda-categories ## Revert the agda-categories patch.
+unpatch-agda-categories :
+	-@(cd $(ECOSYSTEM_DIR)/agda-categories && git checkout -- agda-categories.agda-lib)
+
+.PHONY : up-to-date-agda-categories ##
+up-to-date-agda-categories : agda-categories
+
+.PHONY : fast-forward-agda-categories ##
+fast-forward-agda-categories :
+	$(MAKE) unpatch-agda-categories
+	$(call ecosystem_fast_forward,agda-categories)
+	$(MAKE) patch-agda-categories
+
+#### agda-unimath ####
+
+.PHONY : agda-unimath ## Update the agda-unimath library.
+agda-unimath :
+	$(call ecosystem_update,agda-unimath)
+
+.PHONY : up-to-date-agda-unimath ##
+up-to-date-agda-unimath : agda-unimath
+
+.PHONY : fast-forward-agda-unimath ##
+fast-forward-agda-unimath :
+	$(call ecosystem_fast_forward,agda-unimath)
+
+#### plfa ####
+
+.PHONY : plfa ## Update the PLFA (Programming Language Foundations in Agda) book.
+plfa :
+	$(call ecosystem_update,plfa)
+
+.PHONY : up-to-date-plfa ##
+up-to-date-plfa : plfa
+
+.PHONY : fast-forward-plfa ##
+fast-forward-plfa :
+	$(call ecosystem_fast_forward,plfa)
+
+#### TypeTopology ####
+
+.PHONY : TypeTopology ## Update the TypeTopology library.
+TypeTopology :
+	$(call ecosystem_update,TypeTopology)
+
+.PHONY : up-to-date-TypeTopology ##
+up-to-date-TypeTopology : TypeTopology
+
+.PHONY : fast-forward-TypeTopology ##
+fast-forward-TypeTopology :
+	$(call ecosystem_fast_forward,TypeTopology)
+
+##############################################################################
 ## Continuous Integration
 
 .PHONY : workflows ## Build the workflow configuration in .github/workflows.
@@ -402,15 +506,24 @@ workflows :
 .PHONY : test ## Run all test suites.
 test : check-whitespace \
        check-encoding \
+       check-filename-case-clashes \
        check-mdo \
        common \
        succeed \
        fail \
        bugs \
-       interaction \
+       build-succeed-test \
+       build-fail-test \
+       interaction-simple \
+       interaction-custom \
+       test-suite-covers-errors \
+       test-suite-covers-warnings \
+       user-manual-covers-options \
+       user-manual-covers-warnings \
        examples \
        std-lib-test \
        cubical-test \
+       cubical-succeed \
        interactive \
        latex-html-test \
        api-test \
@@ -418,6 +531,7 @@ test : check-whitespace \
        benchmark-without-logs \
        compiler-test \
        std-lib-compiler-test \
+       std-lib-js-compiler-test \
        std-lib-succeed \
        std-lib-interaction \
        user-manual-test \
@@ -428,6 +542,7 @@ test : check-whitespace \
 test-using-std-lib : std-lib-test \
                      benchmark-without-logs \
                      std-lib-compiler-test \
+                     std-lib-js-compiler-test \
                      std-lib-succeed \
                      std-lib-interaction
 
@@ -472,14 +587,21 @@ common :
 .PHONY : succeed ##
 succeed :
 	@$(call decorate, "Suite of successful tests", \
-		echo $(shell which $(AGDA_BIN)) > test/helpers/exec-tc/executables && \
+		echo $(shell command -v $(AGDA_BIN)) > test/helpers/exec-tc/executables && \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed ; \
+		rm test/helpers/exec-tc/executables )
+
+.PHONY : accept-succeed ## Run the suite of successful tests and accept new golden values. Ignores AGDA_TESTS_OPTIONS variable.
+accept-succeed :
+	@$(call decorate, "Suite of successful tests", \
+		echo $(shell command -v $(AGDA_BIN)) > test/helpers/exec-tc/executables && \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) -j$(PARALLEL_TESTS) --accept --regex-include all/Succeed ; \
 		rm test/helpers/exec-tc/executables )
 
 .PHONY : fast-succeed ##
 fast-succeed :
 	@$(call decorate, "Suite of successful tests (using agda-fast)", \
-		echo $(shell which $(AGDA_FAST_BIN)) > test/helpers/exec-tc/executables && \
+		echo $(shell command -v $(AGDA_FAST_BIN)) > test/helpers/exec-tc/executables && \
 		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed ; \
 		rm test/helpers/exec-tc/executables )
 
@@ -487,6 +609,11 @@ fast-succeed :
 fail :
 	@$(call decorate, "Suite of failing tests", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail)
+
+.PHONY : accept-fail ## Run the suite of failing tests and accept new golden values. Ignores AGDA_TESTS_OPTIONS variable.
+accept-fail :
+	@$(call decorate, "Suite of failing tests", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) -j$(PARALLEL_TESTS) --accept --regex-include all/Fail)
 
 .PHONY : fast-fail ##
 fast-fail :
@@ -508,10 +635,24 @@ fast-build-succeed-test :
 	@$(call decorate, "Suite of successful --build-library tests (using agda-fast)", \
 		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/BuildSucceed)
 
+# For CI
 .PHONY : interaction ##
-interaction :
-	@$(call decorate, "Suite of interaction tests", \
-		$(MAKE) -C test/interaction)
+interaction : interaction-simple interaction-custom
+
+.PHONY : interaction-simple ##
+interaction-simple :
+	@$(call decorate, "Suite of interaction tests (simple)", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Interaction/simple)
+
+.PHONY : accept-interaction-simple ##  Run the suite of simple interaction tests and accept new golden values. Ignores AGDA_TESTS_OPTIONS variable.
+accept-interaction-simple :
+	@$(call decorate, "Suite of interaction tests (simple)", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) -j$(PARALLEL_TESTS) --accept --regex-include all/Interaction/simple)
+
+.PHONY : interaction-custom ##
+interaction-custom :
+	@$(call decorate, "Suite of interaction tests (custom)", \
+		$(MAKE) -C test/Interaction)
 
 .PHONY : interactive ##
 interactive :
@@ -546,7 +687,7 @@ latex-test-quick :
 .PHONY : std-lib-test ##
 std-lib-test :
 	@$(call decorate, "Standard library test", \
-		(cd std-lib && cabal run GenerateEverything && \
+		(cd std-lib && cabal run --project-dir=. GenerateEverything && \
 						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries $(PROFILEOPTS) \
 														 -i. -isrc Everything.agda \
 														 +RTS -s))
@@ -556,7 +697,7 @@ cubical-test :
 	-rm -rf cubical/_build
 	@$(call decorate, "Cubical library test", \
 		time $(MAKE) -C cubical \
-                  AGDA_BIN=$(AGDA_BIN) RTS_OPTIONS=$(AGDA_OPTS))
+			AGDA_BIN="$(AGDA_BIN)" AGDA_FLAGS="-j" RTS_OPTIONS=$(AGDA_OPTS))
 
 .PHONY : continue-cubical-test ##
 continue-cubical-test :
@@ -567,13 +708,86 @@ continue-cubical-test :
 .PHONY : continue-std-lib-test ##
 continue-std-lib-test :
 	@(cd std-lib && \
-          time $(AGDA_BIN) $(PROFILEOPTS) --no-default-libraries -i. -isrc Everything.agda +RTS -s)
+          time $(AGDA_BIN) $(AGDA_OPTS) $(PROFILEOPTS) --no-default-libraries -i. -isrc Everything.agda +RTS -s)
 
 .PHONY : cubical-succeed ##
 cubical-succeed :
 	@$(call decorate, "Successful tests using the cubical library", \
 	  find test/CubicalSucceed -type f -name '*.agdai' -delete ; \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/CubicalSucceed)
+
+##############################################################################
+## Ecosystem library tests
+##
+## Type-check the large third-party libraries vendored under ecosystem/
+## in order to get alerted of regressions we introduce on `master`.
+##
+## Each of these takes a long time (up to a couple of hours), so they are not
+## part of the `test` goal; they are run by the `ecosystem` job of
+## .github/workflows/test.yml.
+##
+## Note that the interface files under ecosystem/*/_build are only indexed by
+## the Agda *version*, so when re-testing with a rebuilt `agda` of the same
+## version you may want to run `clean-ecosystem` first (or pass
+## AGDA_OPTS=--ignore-interfaces).
+
+# A library file (list of .agda-lib files) making only our vendored std-lib
+# visible, so that the ecosystem libraries are checked against the `std-lib`
+# submodule rather than against whatever standard library the developer happens
+# to have registered in ~/.agda/libraries.
+ECOSYSTEM_LIBRARIES_FILE = $(ECOSYSTEM_DIR)/libraries
+
+# UserWarnings are deprecation notices issued by the libraries themselves,
+# not Agda regressions, so we silence them.
+ECOSYSTEM_AGDA_OPTS ?= -WnoUserWarning
+ECOSYSTEM_RTS_OPTS  ?= -A128M -M12G
+
+ECOSYSTEM_AGDA = $(AGDA_BIN) $(AGDA_OPTS) $(ECOSYSTEM_AGDA_OPTS) \
+  --no-default-libraries --library-file=$(abspath $(ECOSYSTEM_LIBRARIES_FILE)) \
+  +RTS $(ECOSYSTEM_RTS_OPTS) -RTS
+
+.PHONY : ecosystem-libraries-file ## Generate ecosystem/libraries.
+ecosystem-libraries-file :
+	@echo "$(abspath $(TOP)/std-lib/standard-library.agda-lib)" > $(ECOSYSTEM_LIBRARIES_FILE)
+
+.PHONY : ecosystem-test ## Type-check all the ecosystem libraries (takes hours).
+ecosystem-test : agda-categories-test \
+                 agda-unimath-test \
+                 plfa-test \
+                 TypeTopology-test
+
+.PHONY : agda-categories-test ##
+agda-categories-test : ecosystem-libraries-file patch-agda-categories
+	@$(call decorate, "agda-categories library test", \
+	  $(MAKE) -C $(ECOSYSTEM_DIR)/agda-categories Everything.agda && \
+	  (cd $(ECOSYSTEM_DIR)/agda-categories && \
+	   time $(ECOSYSTEM_AGDA) -i. Everything.agda))
+
+.PHONY : agda-unimath-test ##
+agda-unimath-test : ecosystem-libraries-file
+	@$(call decorate, "agda-unimath library test", \
+	  $(MAKE) -C $(ECOSYSTEM_DIR)/agda-unimath src/everything.lagda.md && \
+	  (cd $(ECOSYSTEM_DIR)/agda-unimath && \
+	   time $(ECOSYSTEM_AGDA) src/everything.lagda.md))
+
+# PLFA has to be checked chapter by chapter, see ecosystem/plfa-test.sh.
+.PHONY : plfa-test ##
+plfa-test : ecosystem-libraries-file
+	@$(call decorate, "PLFA test", \
+	  time AGDA="$(ECOSYSTEM_AGDA)" $(ECOSYSTEM_DIR)/plfa-test.sh)
+
+.PHONY : TypeTopology-test ##
+TypeTopology-test : ecosystem-libraries-file
+	@$(call decorate, "TypeTopology library test", \
+	  (cd $(ECOSYSTEM_DIR)/TypeTopology/source && \
+	   time $(ECOSYSTEM_AGDA) AllModulesIndex.lagda))
+
+.PHONY : clean-ecosystem ## Delete the interface files of the ecosystem libraries.
+clean-ecosystem :
+	rm -rf $(ECOSYSTEM_DIR)/agda-categories/_build
+	rm -rf $(ECOSYSTEM_DIR)/agda-unimath/_build
+	rm -rf $(ECOSYSTEM_DIR)/plfa/src/_build
+	rm -rf $(ECOSYSTEM_DIR)/TypeTopology/_build
 
 .PHONY : std-lib-succeed ##
 std-lib-succeed :
@@ -585,6 +799,12 @@ std-lib-succeed :
 std-lib-interaction :
 	@$(call decorate, "Interaction tests using the standard library", \
 	  $(MAKE) -C test/lib-interaction)
+
+.PHONY : issue-8361 ##
+issue-8361 :
+	@$(call decorate, "Testing issue 8361 (file access race)", \
+	  (cd std-lib/src/ && $(AGDA_BIN) -j --ignore-interfaces -vimport.iface.builtin:25 Data/Product/Base.agda) | fgrep "Agda.Builtin.Sigma is")
+
 
 .PHONY : compiler-test ##
 compiler-test :
@@ -599,12 +819,22 @@ ghc-compiler-test :
 .PHONY : js-compiler-test ##
 js-compiler-test :
 	@$(call decorate, "JS Compiler tests", \
-		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler/JS_CJS_MinifiedOptimized --regex-exclude AllStdLib)
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler/JS_MinifiedOptimized --regex-exclude AllStdLib)
+
+.PHONY : js-compiler-test-non-optimized ##
+js-compiler-test-non-optimized :
+	@$(call decorate, "JS Compiler tests", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler/JS_NonOptimized --regex-exclude AllStdLib)
 
 .PHONY : std-lib-compiler-test ##
 std-lib-compiler-test :
 	@$(call decorate, "Standard library compiler tests", \
-	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include AllStdLib)
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include AllStdLib --regex-exclude AllStdLibJS)
+
+.PHONY : std-lib-compiler-test ##
+std-lib-js-compiler-test :
+	@$(call decorate, "Standard library JS compiler tests", \
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include AllStdLibJS)
 
 .PHONY : api-test ##
 api-test :
@@ -692,6 +922,11 @@ run-doctest:
 ##############################################################################
 ## Development
 
+## Prevent files only differing in case #####################################
+.PHONY : check-filename-case-clashes ## Check that there are no filename clashes based on case-sensitivity in the git tree.
+check-filename-case-clashes :
+	test/check-filename-case-clashes.py
+
 ## Setting the `stack.yaml` file ############################################
 
 # The variable `GHC_COMPILER` is to be defined as a command-line argument.
@@ -707,7 +942,7 @@ remove-default-stack-file : ##
 
 .PHONY : have-bin-%
 have-bin-% :
-	@($* --help > /dev/null) || $(CABAL) install --ignore-project $*
+	@(command -v $* > /dev/null) || $(CABAL) install --ignore-project $*
 
 ## Whitespace-related #######################################################
 # Agda can fail to compile on Windows if files which are CPP-processed
@@ -731,7 +966,7 @@ install-agda-bisect :
 
 ## Lines of Code #############################################################
 
-agdalocfiles=$(shell find . \( \( -name '*.agda' -o -name '*.in' \) ! -name '.*' \) )
+agdalocfiles=$(shell find test \( \( -name '*.agda' -o -name '*.lagda*' -o -name '*.in' \) ! -name '.*' \) )
 
 agda-loc : ## Agda files (tests) in this project
 	@wc $(agdalocfiles)
@@ -790,6 +1025,7 @@ debug : ## Print debug information.
 	@echo "CABAL_CONFIGURE_OPTS           = $(CABAL_CONFIGURE_OPTS)"
 	@echo "CABAL_FLAG_ICU                 = $(CABAL_FLAG_ICU)"
 	@echo "CABAL_FLAG_OPTIM_HEAVY         = $(CABAL_FLAG_OPTIM_HEAVY)"
+	@echo "CABAL_FLAG_VERSION_WITH_GIT_HASH = $(CABAL_FLAG_VERSION_WITH_GIT_HASH)"
 	@echo "CABAL_HADDOCK_CMD              = $(CABAL_HADDOCK_CMD)"
 	@echo "CABAL_INSTALL                  = $(CABAL_INSTALL)"
 	@echo "CABAL_INSTALL_BIN_OPTS         = $(CABAL_INSTALL_BIN_OPTS)"
@@ -818,6 +1054,7 @@ debug : ## Print debug information.
 	@echo "STACK_WORK_DIR                 = $(STACK_WORK_DIR)"
 	@echo "STACK_FLAG_ICU                 = $(STACK_FLAG_ICU)"
 	@echo "STACK_FLAG_OPTIM_HEAVY         = $(STACK_FLAG_OPTIM_HEAVY)"
+	@echo "STACK_FLAG_VERSION_WITH_GIT_HASH = $(STACK_FLAG_VERSION_WITH_GIT_HASH)"
 	@echo "STACK_INSTALL                  = $(STACK_INSTALL)"
 	@echo "STACK_INSTALL_BIN_OPTS         = $(STACK_INSTALL_BIN_OPTS)"
 	@echo "STACK_INSTALL_BIN_OPTS_NODEBUG = $(STACK_INSTALL_BIN_OPTS_NODEBUG)"
@@ -827,6 +1064,8 @@ debug : ## Print debug information.
 	@echo "STACK_OPTS                     = $(STACK_OPTS)"
 	@echo "STACK_OPT_FAST                 = $(STACK_OPT_FAST)"
 	@echo "STACK_OPT_NO_DOCS              = $(STACK_OPT_NO_DOCS)"
+	@echo Agda version:
+	$(AGDA_BIN) --version
 	@echo
 	@echo "Run \`make -pq\` to get a detailed report."
 	@echo

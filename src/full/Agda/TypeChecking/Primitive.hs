@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 {-| Primitive functions, such as addition on builtin integers.
@@ -47,6 +48,7 @@ import Agda.Utils.Monad
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
 
@@ -266,6 +268,7 @@ instance (ToTerm a, ToTerm b) => ToTerm (a, b) where
   toTerm = do
     sigKit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
     let con = Con (sigmaCon sigKit) ConOSystem []
+
     fromA <- toTerm
     fromB <- toTerm
     pure $ \ (a, b) -> apply2 con <$> fromA a <*> fromB b
@@ -630,7 +633,7 @@ genPrimForce b ret = do
                     _          -> False
                 Var{}      -> return False
                 MetaV{}    -> __IMPOSSIBLE__
-                Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
+                Dummy s _  -> __IMPOSSIBLE_VERBOSE__ (show s)
         ifM (isWHNF u)
             (redReturn $ ret (unArg f) (ignoreBlocking u))
             (return $ NoReduction $ map notReduced [a, b, s, t] ++ [reduced u, notReduced f])
@@ -682,6 +685,37 @@ primLockUniv' :: TCM PrimitiveImpl
 primLockUniv' = do
   let t = sort $ Type $ levelSuc $ Max 0 []
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort LockUniv
+
+primRewriteNoMatch :: TCM PrimitiveImpl
+primRewriteNoMatch = do
+  t <- hPi "a" (el primLevel) $
+       hPi "A" (pure $ sort $ varSort 0) $
+       (el (pure $ var 0) --> el (pure $ var 0))
+
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 3 $ \ ~[l, a, x] -> do
+    allowed <- viewTC eAllowedReductions
+
+    if RewriteNoMatchReductions `SmallSet.member` allowed
+    then redReturn $ unArg x
+    else return $ NoReduction $ notReduced <$> [l, a, x]
+
+primQrec :: TCM PrimFun
+primQrec = do
+  box <- primQuotientConstructor
+  box <- case box of
+    Def box [] -> return box
+    _          -> __IMPOSSIBLE__
+  return $ primFun __IMPOSSIBLE__ 10 $ \args -> do
+    case args of
+      [a, r, p, a', r', p', f, r'', s, x] -> do
+        x <- reduceB' x
+        case unArg <$> x of
+          NotBlocked _ (Def d [_ , _ , _ , _ , Apply x]) | d == box ->
+            redReturn (apply (unArg f) [x])
+          _ ->
+            return $ NoReduction $
+            map notReduced [a, r, p, a', r', p', f, r'', s] ++ [reduced x]
+      _ -> return (NoReduction (map notReduced args))
 
 mkPrimFun1TCM :: (FromTerm a, ToTerm b) =>
                  TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
@@ -819,7 +853,11 @@ type Fun  a = a -> a
 type Rel  a = a -> a -> Bool
 type Pred a = a -> Bool
 
-primitiveFunctions :: Map PrimitiveId (TCM PrimitiveImpl)
+-- | If the type is 'Nothing', then the type of the given primitive is
+-- \"trusted\", i.e. taken from the primitive declaration in the Agda
+-- file.
+
+primitiveFunctions :: Map PrimitiveId (TCM (Maybe Type, PrimFun))
 primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBLE__
   -- Issue #4375          ^^^^^^^^^^^^^^^^^^^^^^^^^^
   --   Without this the next fresh checkpoint id gets changed building the primitive functions. This
@@ -949,6 +987,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
 
   -- Other stuff
   , PrimEraseEquality     |-> primEraseEquality
+  , PrimRewriteNoMatch    |-> primRewriteNoMatch
     -- This needs to be force : A → ((x : A) → B x) → B x rather than seq because of call-by-name.
   , PrimForce             |-> primForce
   , PrimForceLemma        |-> primForceLemma
@@ -956,7 +995,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
   , PrimQNameLess         |-> mkPrimFun2 ((<) :: Rel QName)
   , PrimShowQName         |-> mkPrimFun1 (T.pack . prettyShow :: QName -> Text)
   , PrimQNameFixity       |-> mkPrimFun1 (nameFixity . qnameName)
-  , PrimQNameToWord64s    |-> mkPrimFun1 ((\ (NameId x (ModuleNameHash y)) -> (x, y)) . nameId . qnameName
+  , PrimQNameToWord64s    |-> mkPrimFun1 ((\ (NameId x (ModuleNameHash y)) -> (x, y)) . nameId
                                           :: QName -> (Word64, Word64))
   , PrimQNameToWord64sInjective   |-> primQNameToWord64sInjective
   , PrimMetaEquality      |-> mkPrimFun2 ((==) :: Rel MetaId)
@@ -982,6 +1021,9 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
   , Prim_glueU            |-> prim_glueU'
   , Prim_unglueU          |-> prim_unglueU'
   , PrimLockUniv          |-> primLockUniv'
+
+  , PrimQrec              |->> primQrec
   ]
   where
-    (|->) = (,)
+  (|->>) = \p f -> (p, do f <- f; return (Nothing, f))
+  (|->)  = \p f -> (p, do PrimImpl t f <- f; return (Just t, f))

@@ -1,3 +1,7 @@
-Issue933.agda:20.38-47: error: [MismatchedProjectionsError]
-The projections RGraph.R and RGraph.O do not match
+Issue933.agda:20.38-47: error: [UnequalTerms]
+The terms
+  Γ.R
+and
+  Γ.O
+are not equal at type Set
 when checking that the expression Γ.refl γo has type Γ.O

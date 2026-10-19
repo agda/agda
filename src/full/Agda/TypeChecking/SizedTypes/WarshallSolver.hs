@@ -949,7 +949,7 @@ solveGraphs pols hg gs =
 -- | Check that after substitution of the solution,
 --   constraints are implied by hypotheses.
 verifySolution
-  :: (Ord r, Ord f, Pretty r, Pretty f, Show r, Show f)
+  :: (Ord r, Ord f, Pretty r, Pretty f)
   => HypGraph r f
   -> [Constraint' r f]
   -> Solution r f

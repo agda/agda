@@ -101,7 +101,7 @@ splitTelForWith
 splitTelForWith delta t vtys = let
     -- Split the telescope into the part needed to type the with arguments
     -- and all the other stuff.
-    fv = allFreeVars vtys
+    fv = freeVarSet vtys
     SplitTel delta1 delta2 perm = splitTelescope fv delta
 
     -- Δ₁Δ₂ ⊢ π : Δ
@@ -389,7 +389,8 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
     ]
 
   -- Andreas, 2015-11-09 Issue 1710: self starts with parent-function, not with-function!
-  (ps', strippedPats) <- runWriterT $ strip (Def parent []) t psi qs
+  (ps', strippedPats) <- runWriterT $ addContext delta $
+    strip (Def parent []) t psi qs
   unless (null strippedPats) $ reportSDoc "tc.with.strip" 50 $ nest 2 $
     "strippedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
   let psp = permute perm ps'
@@ -464,9 +465,9 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         ]
       case namedArg q of
         ProjP o d -> case A.isProjP p of
-          Just (o', AmbQ ds) -> do
+          Just (o', ambP) -> do
             -- We assume here that neither @o@ nor @o'@ can be @ProjSystem@.
-            when (o /= o') $ setCurrentRange p0 $ addContext delta do
+            when (o /= o') $ setCurrentRange p0 $ do
               reportSLn "tc.with.strip" 90 $ "p0 = " ++ show p0
               reportSLn "tc.with.strip" 80 $ "getRange p0 = " ++ prettyShow (getRange p0)
               warning $ WithClauseProjectionFixityMismatch p0 o' q o
@@ -474,7 +475,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
             -- We disambiguate the projection in the with clause
             -- to the projection in the parent clause.
             d  <- liftTCM $ getOriginalProjection d
-            found <- existsM ds $ \ d' -> liftTCM $ (Just d ==) . fmap projOrig <$> isProjection d'
+            found <- existsM (getAmbiguous ambP) $ \ d' -> liftTCM $ (Just d ==) . fmap projOrig <$> isProjection d'
             if not found then mismatch else do
               (self1, t1, ps) <- liftTCM $ do
                 t <- reduce t
@@ -531,9 +532,8 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
               case appView e of
                 -- If dot-pattern is an application of the constructor, try to preserve the
                 -- arguments.
-                Application (A.Con (A.AmbQ cs')) es -> do
-                  cs' <- liftTCM $ List1.rights <$> mapM getConForm cs'
-                  unless (c `elem` cs') mismatch
+                Application (A.Con cs') es -> do
+                  unlessM (liftTCM $ c `elemConForms` cs') mismatch
                   return $ (map . fmap . fmap) (A.DotP r) es
                 _  -> return $ map (unnamed (A.WildP empty) <$) qs'
             stripConP d us b c ConOCon qs' ps'
@@ -556,17 +556,16 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
             let ps' = map (unnamed (A.WildP empty) <$) qs'
             stripConP d us b c ConOCon qs' ps'
 
-          A.ConP _ (A.AmbQ cs') ps' -> do
+          A.ConP _ ambC ps' -> do
             -- Check whether the with-clause constructor can be (possibly trivially)
             -- disambiguated to be equal to the parent-clause constructor.
             -- Andreas, 2017-08-13, herein, ignore abstract constructors.
-            cs' <- liftTCM $ List1.rights <$> mapM getConForm cs'
-            unless (c `elem` cs') mismatch
+            unlessM (liftTCM $ c `elemConForms` ambC) mismatch
             -- Strip the subpatterns ps' and then continue.
             stripConP d us b c ConOCon qs' ps'
 
           A.RecP _ _ fs -> caseMaybeM (liftTCM $ isRecord d) mismatch $ \ def -> do
-            ps' <- liftTCM $ insertMissingFieldsFail ConORec d (const $ A.WildP empty) fs
+            ps' <- liftTCM $ insertMissingFieldsFail d (const $ A.WildP empty) fs
               (map argFromDom $ recordFieldNames def)
             stripConP d us b c ConORec qs' ps'
 
@@ -599,8 +598,8 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           (e, t') <- piOrPathApplyM t v
           strip (self `applyE` e) t' ps qs
 
-        mismatch :: forall m a. (MonadAddContext m, MonadTCError m) => m a
-        mismatch = addContext delta $ typeError $
+        mismatch :: forall m a. MonadTCError m => m a
+        mismatch = typeError $
           WithClausePatternMismatch (namedArg p0) q
 
         -- Make a WildP, keeping arg. info.
@@ -658,6 +657,14 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
 
           -- Keep going
           strip self' t' psi (qs' ++ qs)
+
+-- | Is the first name equal to the 'constructorForm' of any disambiguation of the second name?
+elemConForms :: ConHead -> AmbiguousQName -> TCM Bool
+elemConForms c cs =
+  existsM (getAmbiguous cs) \ c' ->
+    getConForm c' <&> \case
+      Left{}   -> False
+      Right c' -> c == c'
 
 -- | Construct the display form for a with function. It will display
 --   applications of the with function as applications to the original function.

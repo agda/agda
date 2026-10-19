@@ -10,15 +10,16 @@ import qualified Data.Set as Set
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (DataOrRecord)
 import Agda.Syntax.Position
-import Agda.Syntax.Internal hiding (DataOrRecord)
+import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Common.Pretty (prettyShow)
 
 import Agda.TypeChecking.Constraints () -- instance MonadConstraint TCM
 import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Coverage.SplitClause
+import Agda.TypeChecking.Coverage.SplitPattern
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Datatypes (getDatatypeArgs)
 import Agda.TypeChecking.Irrelevance
@@ -46,13 +47,14 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 
 
-createMissingIndexedClauses :: QName
-                            -> Arg Nat
-                            -> BlockingVar
-                            -> SplitClause
-                            -> [(SplitTag,(SplitClause,IInfo))]
-                            -> [Clause]
-                            -> TCM ([(SplitTag,CoverResult)],[Clause])
+createMissingIndexedClauses ::
+     QName
+  -> Arg Nat
+  -> BlockingVar
+  -> SplitClause
+  -> [(SplitTag,(SplitClause,IInfo))]
+  -> [Clause]
+  -> TCM ([(SplitTag,CoverResult)],[Clause])
 createMissingIndexedClauses f n x old_sc scs cs = do
   let infos = [(c,i) | (SplitCon c, (_,TheInfo i)) <- scs ]
   case scs of
@@ -73,8 +75,8 @@ createMissingIndexedClauses f n x old_sc scs cs = do
            cl <- createMissingTrXConClause trX f n x old_sc c i
            return $ ((SplitCon c , SplittingDone (size $ clauseTel cl)) , cl)
          let extra = [ (SplitCon trX, SplittingDone $ size $ clauseTel trX_cl)
-                                           , (SplitCon hcomp, SplittingDone $ size $ clauseTel hcomp_cl)
-                                           ]
+                     , (SplitCon hcomp, SplittingDone $ size $ clauseTel hcomp_cl)
+                     ]
                  --  = [ (SplitCon trX, SplittingDone $ size $ clauseTel trX_cl) ]
              extraCl = [trX_cl, hcomp_cl]
                  --  = [trX_cl]
@@ -102,12 +104,13 @@ covFillTele func tel face d j = do
     Right d_f -> pure $ map unArg d_f
     Left failed_t -> typeError $ CannotGenerateTransportClause func failed_t
 
-createMissingTrXTrXClause :: QName -- ^ trX
-                            -> QName -- ^ f defined
-                            -> Arg Nat
-                            -> BlockingVar
-                            -> SplitClause
-                            -> TCM Clause
+createMissingTrXTrXClause ::
+     QName -- ^ trX
+  -> QName -- ^ f defined
+  -> Arg Nat
+  -> BlockingVar
+  -> SplitClause
+  -> TCM Clause
 createMissingTrXTrXClause q_trX f n x old_sc = do
   let
    old_tel = scTel old_sc
@@ -356,12 +359,14 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
                  }
   debugClause "tc.cover.trx.trx" c
   return $ c
-createMissingTrXHCompClause :: QName
-                            -> QName
-                            -> Arg Nat
-                            -> BlockingVar
-                            -> SplitClause
-                            -> TCM Clause
+
+createMissingTrXHCompClause ::
+     QName
+  -> QName
+  -> Arg Nat
+  -> BlockingVar
+  -> SplitClause
+  -> TCM Clause
 createMissingTrXHCompClause q_trX f n x old_sc = do
   let
    old_tel = scTel old_sc
@@ -623,14 +628,16 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
                  }
   debugClause "tc.cover.trx.hcomp" c
   return c
-createMissingTrXConClause :: QName -- trX
-                            -> QName -- f defined
-                            -> Arg Nat
-                            -> BlockingVar
-                            -> SplitClause
-                            -> QName -- constructor name
-                            -> UnifyEquiv
-                            -> TCM Clause
+
+createMissingTrXConClause ::
+     QName -- trX
+  -> QName -- f defined
+  -> Arg Nat
+  -> BlockingVar
+  -> SplitClause
+  -> QName -- constructor name
+  -> UnifyEquiv
+  -> TCM Clause
 createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau leftInv) = do
   reportSDoc "tc.cover.trxcon" 20 $ "trX-con clause for" <+> prettyTCM f <+> "with con" <+> prettyTCM c
   reportSDoc "tc.cover.trxcon" 20 $ nest 2 $ vcat $
@@ -640,6 +647,7 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
     , "u"  <+> addContext gamma (prettyTCM u)
     , "v"  <+> addContext gamma (prettyTCM v)
     , "rho" <+> addContext gamma' (prettyTCM rho)
+    , "tau" <+> pretty tau
     ]
 
   Constructor{conSrcCon = chead} <- theDef <$> getConstInfo c
@@ -864,12 +872,13 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
     ,  nest 2 $ prettyTCM . QNamed f $ cl
     ]
 
-  let mod =
+  let dom =
         setRelevance irrelevant $  -- See #5611.
-        getModality $ fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
+        fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
+      mod = getModality dom
   -- we follow what `cover` does when updating the modality from the target.
-  applyModalityToContext mod $ do
-    unlessM (hasQuantity0 <$> viewTC eQuantity) $ do
+  applyDomToContext dom $ do
+    unlessM (hasQuantity0 <$> viewTC eQuantityZeroHardCompile) $ do
     reportSDoc "tc.cover.trxcon" 20 $ text "testing usable at mod: " <+> pretty mod
     addContext cTel $ usableAtModality IndexedClause mod rhs
 
@@ -894,12 +903,15 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
 -}
 
 -- | Append an hcomp clause to the clauses of a function.
-createMissingHCompClause
-  :: QName
+createMissingHCompClause ::
+     QName
        -- ^ Function name.
-  -> Arg Nat -- ^ index of hcomp pattern
-  -> BlockingVar -- ^ Blocking var that lead to hcomp split.
-  -> SplitClause -- ^ Clause before the hcomp split
+  -> Arg Nat
+       -- ^ index of hcomp pattern
+  -> BlockingVar
+       -- ^ Blocking var that lead to hcomp split.
+  -> SplitClause
+       -- ^ Clause before the hcomp split
   -> SplitClause
        -- ^ Clause to add.
   -> [Clause]

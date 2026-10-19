@@ -1,6 +1,6 @@
 Issue444.agda:11.1-12.23: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   false
-Problematic calls:
+Problematic call:
   false
     (at Issue444.agda:12.18-23)

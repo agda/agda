@@ -7,5 +7,5 @@ out >   λ a b →
 out >     case b of
 out >       Agda.Builtin.List.List.[] → a
 out >       Agda.Builtin.List.List._∷_ c d →
-out >         CompilePrimSeq.sum (let e = c in seq e (_+_ e) a) d
+out >         CompilePrimSeq.sum (let !e = c in seq e (_+_ e) a) d
 out >

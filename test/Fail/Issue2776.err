@@ -1,3 +1,6 @@
-Issue2776.agda:15.8-11: error: [UnequalTerms]
-(z : C) {y : D} (x : Set) → D → Set₁ !=< Set
+Issue2776.agda:15.8-11: error: [UnequalTypes]
+The type
+  (z : C) {y : D} (x : Set) → D → Set₁
+is not a subtype of
+  Set
 when checking that the expression M.G has type Set

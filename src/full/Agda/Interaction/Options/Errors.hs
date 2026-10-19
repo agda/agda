@@ -35,10 +35,14 @@ data DataRecOrFun_
 data ErasedDatatypeReason
   = SeveralConstructors
     -- ^ There are several constructors.
-  | NoErasedMatches
-    -- ^ The flag @--erased-matches@ is not used.
-  | NoK
-    -- ^ The K rule is not activated.
+  | ErasedMatchesDisabledEmpty
+    -- ^ Erased matches are disabled for empty types.
+  | ErasedMatchesDisabledNonDependent
+    -- ^ Erased matches are disabled for non-indexed,
+    -- single-constructor types.
+  | ErasedMatchesDisabledDependent
+    -- ^ Erased matches are disabled for indexed, single-constructor
+    -- types.
   deriving (Show, Generic, Enum, Bounded)
 
 -- | Things not allowed in dot patterns.
@@ -54,8 +58,8 @@ data NotAValidLetBinding
   = MissingRHS
   | NotAValidLetPattern
   | WhereClausesNotAllowed
+  | CopatternsNotAllowed
   -- These cannot be triggered:
-  -- -- | CopatternsNotAllowed
   -- -- | EllipsisNotAllowed
   -- -- | WithPatternsNotAllowed
   deriving (Show, Generic, Enum, Bounded)
@@ -81,8 +85,6 @@ data ErrorName
   -- Generic errors (alphabetically)
   | CompilationError_
   | CustomBackendError_
-  | GenericError_
-  | GenericDocError_
   | InternalError_
   | LibraryError_
   | NonFatalErrors_
@@ -90,6 +92,7 @@ data ErrorName
   | NotSupported_
   | OptionError_
   | SyntaxError_
+  | UserError_
   -- Other errors (alphabetically)
   | AbsentRHSRequiresAbsurdPattern_
   | AbstractConstructorNotInScope_
@@ -116,8 +119,10 @@ data ErrorName
   | CannotApply_
   | CannotEliminateWithPattern_
   | CannotEliminateWithProjection_
+  | CannotGeneralizeEtaExpandable_
   | CannotGenerateHCompClause_
   | CannotGenerateTransportClause_
+  | CannotGenerateTransportLocalRewrite_
   | CannotQuote_ CannotQuote_
   | CannotQuoteTerm_ CannotQuoteTerm
   | CannotResolveAmbiguousPatternSynonym_
@@ -151,6 +156,7 @@ data ErrorName
   | DuplicateOverlapPragma_
   | DuplicatePrimitiveBinding_
   | EmptyTypeOfSizes_
+  | EtaPragmaVsNoEtaEquality_
   | ExpectedBindingForParameter_
   | ExpectedIntervalLiteral_
   | FieldOutsideRecord_
@@ -159,6 +165,10 @@ data ErrorName
   | FileNotFound_
   | ForcedConstructorNotInstantiated_
   | FunctionTypeInSizeUniv_
+  | GeneralizationFailed_
+  | GeneralizationPrepruneErrorRefinedContext_
+  | GeneralizationPrepruneErrorCyclicDependencies_
+  | GeneralizationPrepruneErrorFailedToInstantiate_
   | GeneralizeCyclicDependency_
   | GeneralizeNotSupportedHere_
   | GeneralizedVarInLetOpenedModule_
@@ -168,8 +178,8 @@ data ErrorName
   | InvalidBuiltin_
   | InvalidDottedExpression_
   | IllTypedPatternAfterWithAbstraction_
+  | IlltypedRewriteRule_
   | IllegalDeclarationBeforeTopLevelModule_
-  | IllegalDeclarationInDataDefinition_
   | IllegalHidingInPostfixProjection_
   | IllegalInstanceVariableInPatternSynonym_
   | IllegalLetInTelescope_
@@ -193,6 +203,7 @@ data ErrorName
   | MetaErasedSolution_
   | MetaIrrelevantSolution_
   | MismatchedProjectionsError_
+  | MissingBindingsForTelescopeVariables_
   | MissingTypeSignature_ DataRecOrFun_
   | ModuleArityMismatch_
   | ModuleDefinedInOtherFile_
@@ -203,10 +214,12 @@ data ErrorName
   | ExplicitPolarityVsPragma_
   | ConstructorNameOfNonRecord_
   | NamedWhereModuleInRefinedContext_
+  | NamedWhereModuleUnderWith_
   | NeedOptionAllowExec_
   | NeedOptionCopatterns_
   | NeedOptionCubical_
   | NeedOptionPatternMatching_
+  | NeedOptionIrrelevance_
   | NeedOptionProp_
   | NeedOptionRewriting_
   | NeedOptionSizedTypes_
@@ -240,7 +253,6 @@ data ErrorName
   | QualifiedLocalModule_
   | QuantityMismatch_
   | RecordIsErased_
-  | RecursiveRecordNeedsInductivity_
   | ReferencesFutureVariables_
   | RelevanceMismatch_
   | RepeatedNamesInImportDirective_
@@ -273,21 +285,17 @@ data ErrorName
   | TooManyFields_
   | TooManyPatternsInWithClause_
   | TriedToCopyConstrainedPrim_
+  | TrustedBuiltin_
+  | TrustedPrimitive_
   | InvalidInstanceHeadType_
   | UnboundVariablesInPatternSynonym_
-  | UnequalCohesion_
-  | UnequalFiniteness_
-  | UnequalHiding_
-  | UnequalLevel_
-  | UnequalQuantity_
-  | UnequalRelevance_
-  | UnequalPolarity_
-  | UnequalSorts_
   | UnequalTerms_
+  | UnequalTypes_
   | UnexpectedModalityAnnotationInParameter_
   | UnexpectedParameter_
   | UnexpectedTypeSignatureForParameter_
   | UnexpectedWithPatterns_
+  | UnguardedEtaRecord_
   | UnknownBackend_
   | UnusableAtModality_
   | UnusedVariableInPatternSynonym_
@@ -377,7 +385,6 @@ data SplitError_
   | BlockedType_
   | CannotCreateMissingClause_
   | CoinductiveDatatype_
-  | CosplitCatchall_
   | CosplitNoRecordType_
   | CosplitNoTarget_
   | NotADatatype_
@@ -406,6 +413,7 @@ data UnquoteError_
   | ConInsteadOfDef_
   | DefineDataNotData_
   | DefInsteadOfCon_
+  | EscapingVariable_
   | MissingDeclaration_
   | MissingDefinition_
   | NakedUnquote_
@@ -529,8 +537,8 @@ verbalizeNotAValidLetBinding = \case
   MissingRHS             -> "Missing right hand side in let binding"
   NotAValidLetPattern    -> "Not a valid let pattern"
   WhereClausesNotAllowed -> "`where` clauses not allowed in let bindings"
+  CopatternsNotAllowed   -> "Copatterns not allowed in let bindings"
   -- These cannot be triggered:
-  -- CopatternsNotAllowed   -> "Copatterns not allowed in let bindings"
   -- EllipsisNotAllowed     -> "`...` not allowed in let bindings"
   -- WithPatternsNotAllowed -> "`with` patterns not allowed in let bindings"
 
@@ -544,7 +552,7 @@ verbalizeNotAValidLetExpression = \case
 deriving via (FiniteEnumeration (Maybe a))
   instance (Bounded a, Enum a) => Enum (Maybe a)
 deriving via (FiniteEnumeration (Maybe a))
-  instance (Bounded a, Enum a) => Bounded (Maybe a)
+  instance (Bounded a) => Bounded (Maybe a)
 
 instance NFData CannotQuoteTerm
 instance NFData ErasedDatatypeReason

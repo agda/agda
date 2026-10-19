@@ -16,16 +16,16 @@ prop_effectfully_modify :: (Eq a, Eq b) => a -> b -> a -> b -> Bool
 prop_effectfully_modify x0 y0 x1 y1 = execState p (x0, y0) == (x1, y1)
   where
     -- The change to @lSnd@ should not get lost by the use of @%==@.
-    p = lFst %== \ _ -> do
-          lSnd .= y1
+    p = _1 %== \ _ -> do
+          _2 .= y1
           return x1
 
 prop_effectfully_modify_and_value :: (Eq a, Eq b, Eq c) => a -> b -> a -> b -> c -> Bool
 prop_effectfully_modify_and_value x0 y0 x1 y1 z = runState p (x0, y0) == (z, (x1, y1))
   where
     -- The change to @lSnd@ should not get lost by the use of @%%=@.
-    p = lFst %%= \ _ -> do
-          lSnd .= y1
+    p = _1 %%= \ _ -> do
+          _2 .= y1
           return (x1, z)
 
 

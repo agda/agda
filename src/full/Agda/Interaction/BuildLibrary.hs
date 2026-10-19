@@ -10,11 +10,10 @@ import           Data.List                        (sort)
 import qualified Data.Set as Set
 
 import           System.Directory                 (getCurrentDirectory)
-import           System.FilePath                  ( (</>) )
 import qualified System.FilePath.Find             as Find
 
 import           Agda.Interaction.FindFile        (hasAgdaExtension, checkModuleName)
-import           Agda.Interaction.Imports         (Source)
+import           Agda.Interaction.Imports         (TCWorkers, Source, MainInterface(..))
 import qualified Agda.Interaction.Imports         as Imp
 import           Agda.Interaction.Library         (pattern AgdaLibFile, _libIncludes, _libPragmas, getAgdaLibFile)
 import           Agda.Interaction.Options         (optOnlyScopeChecking)
@@ -65,27 +64,35 @@ buildLibrary = do
   -- (Code copied from Agda.Main.)
 
   opts <- commandLineOptions
-  let mode = if optOnlyScopeChecking opts
-             then Imp.ScopeCheck
-             else Imp.TypeCheck
+  par <- Imp.wantsParallelChecking
 
-  forM_ files \ inputFile -> do
-    path :: AbsolutePath
-      <- liftIO (absolute inputFile)
-    sf :: SourceFile
-      <- srcFromPath path
-    src :: Source
-      <- Imp.parseSource sf
-    let
-      m :: TopLevelModuleName
-      m = Imp.srcModuleName src
-    setCurrentRange (beginningOfFile path) do
-      checkModuleName m (Imp.srcOrigin src) Nothing
-      _ <- withCurrentModule noModuleName
-           $ withTopLevelModule m
-           $ checkModule m src
-      return ()
+  checks <- forM files \ inputFile -> do
 
+      path :: AbsolutePath
+        <- liftIO (absolute inputFile)
+      sf :: SourceFile
+        <- srcFromPath path
+
+      -- András, 2026-08-19: issue 8627: for some reason, checking
+      -- primitive modules in the following throws coinfectivity error,
+      -- but since they're already checked by importPrimitiveModules,
+      -- there's no point checking them anyway.
+      isBuiltinModule (srcFileId sf) >>= \case
+        Just b | isPrimitiveModule b ->
+          pure $ pure ()
+        _ -> do
+          src :: Source
+            <- Imp.parseSource sf
+          let
+            m :: TopLevelModuleName
+            m = Imp.srcModuleName src
+          setCurrentRange (beginningOfFile path) do
+            checkModuleName m (Imp.srcOrigin src) Nothing
+            withCurrentModule noModuleName
+                 $ withTopLevelModule m
+                 $ checkModule par m src
+
+  sequence_ checks
   printAccumulatedWarnings
 
 printAccumulatedWarnings :: TCM ()
@@ -95,13 +102,23 @@ printAccumulatedWarnings = do
     alwaysReportSDoc "warning" 1 $
       vsep $ (banner :) $ map prettyTCM $ Set.toAscList ws
 
-checkModule :: TopLevelModuleName -> Imp.Source -> TCM ()
-checkModule m src = do
-  mi <- Imp.getNonMainModuleInfo m (Just src)
+postCheckModule :: TopLevelModuleName -> Source -> ModuleInfo -> TCM ()
+postCheckModule m src mi = do
   -- Here we ignore InfectiveImport warnings since we don't have an actual parent module that can
   -- be infected.
-  let isInfectiveWarning InfectiveImport{} = True
-      isInfectiveWarning _                 = False
-      warns = filter (not . isInfectiveWarning . tcWarning) $ Set.toAscList $ miWarnings mi
-  tcWarningsToError warns
-  return ()
+  let
+    isInfectiveWarning InfectiveImport{} = True
+    isInfectiveWarning _                 = False
+    warns = filter (not . isInfectiveWarning . tcWarning) $ Set.toAscList $ miWarnings mi
+  tcWarningsToError (TopLevelModuleNameWithSourceFile m (Imp.srcOrigin src)) warns
+
+checkModule :: Maybe TCWorkers -> TopLevelModuleName -> Source -> TCM (TCM ())
+checkModule (Just w) m src = bracket_ (useTC stPragmaOptions) (stPragmaOptions `setTCLens`) do
+  Imp.setOptionsFromSourcePragmas True src
+  mip <- Imp.chaseModule w m NotMainInterface (Just src)
+  pure $ mip >>= postCheckModule m src
+
+checkModule Nothing m src = do
+  mi <- Imp.getNonMainModuleInfo m (Just src)
+  postCheckModule m src mi
+  pure $ pure ()

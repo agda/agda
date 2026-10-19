@@ -1,4 +1,4 @@
-{-# OPTIONS --erased-cubical #-}
+{-# OPTIONS --cubical=no-glue --safe --no-sized-types --no-guardedness --no-irrelevance #-}
 
 module Agda.Primitive.Cubical where
 
@@ -11,9 +11,6 @@ module Agda.Primitive.Cubical where
 -- I is treated as the type of booleans.
 {-# COMPILE JS i0 = false #-}
 {-# COMPILE JS i1 = true  #-}
-
-infix  30 primINeg
-infixr 20 primIMin primIMax
 
 primitive
     primIMin : I → I → I

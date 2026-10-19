@@ -1,3 +1,7 @@
 Issue4323.agda:28.27-28: error: [UnequalTerms]
-(m + n) != n of type Nat
+The terms
+  m + n
+and
+  n
+are not equal at type Nat
 when checking that the expression q has type Q (m + n)

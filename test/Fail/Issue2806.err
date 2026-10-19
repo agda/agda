@@ -1,4 +1,8 @@
 Issue2806.agda:27.18-22: error: [UnequalTerms]
-b != a of type A
+The terms
+  b
+and
+  a
+are not equal at type A
 when checking that the expression refl has type
 test b .u ≡ v (test b)

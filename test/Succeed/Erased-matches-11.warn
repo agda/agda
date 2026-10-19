@@ -1,0 +1,12 @@
+
+Erased-matches-11.agda:4.1-46: warning: -W[no]ConflictingPragmaOptions
+Conflicting options --erased-matches (with a different argument
+than "=none") and --no-erasure (--erased-matches (with a different
+argument than "=none") implies --erasure). Ignoring --no-erasure.
+
+———— All done; warnings encountered ————————————————————————
+
+Erased-matches-11.agda:4.1-46: warning: -W[no]ConflictingPragmaOptions
+Conflicting options --erased-matches (with a different argument
+than "=none") and --no-erasure (--erased-matches (with a different
+argument than "=none") implies --erasure). Ignoring --no-erasure.

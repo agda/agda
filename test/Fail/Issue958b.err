@@ -1,3 +1,6 @@
-Issue958b.agda:18.10-13: error: [UnequalTerms]
-IsFunctor !=< map fun
+Issue958b.agda:18.10-13: error: [UnequalTypes]
+The type
+  IsFunctor
+is not a subtype of
+  map fun
 when checking that the expression fun has type map fun

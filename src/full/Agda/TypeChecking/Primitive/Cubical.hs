@@ -38,6 +38,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.Boolean ( toBool )
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -56,7 +57,7 @@ import Agda.TypeChecking.Primitive.Cubical.Base
 
 primPOr :: TCM PrimitiveImpl
 primPOr = do
-  requireCubical CErased
+  requireCubical CWithoutGlue
   t    <- runNamesT [] $
           hPi' "a" (els (pure LevelUniv) (cl primLevel))    $ \ a  ->
           nPi' "i" primIntervalType $ \ i  ->
@@ -86,7 +87,7 @@ primPOr = do
 
 primPartial' :: TCM PrimitiveImpl
 primPartial' = do
-  requireCubical CErased
+  requireCubical CWithoutGlue
   t <- runNamesT [] $
        hPi' "a" (els (pure LevelUniv) (cl primLevel)) (\ a ->
         nPi' "φ" primIntervalType $ \ _ ->
@@ -102,7 +103,7 @@ primPartial' = do
 
 primPartialP' :: TCM PrimitiveImpl
 primPartialP' = do
-  requireCubical CErased
+  requireCubical CWithoutGlue
   t <- runNamesT [] $
        hPi' "a" (els (pure LevelUniv) (cl primLevel)) (\ a ->
         nPi' "φ" primIntervalType $ \ phi ->
@@ -117,7 +118,7 @@ primPartialP' = do
 
 primSubOut' :: TCM PrimitiveImpl
 primSubOut' = do
-  requireCubical CErased
+  requireCubical CWithoutGlue
   t    <- runNamesT [] $
           hPi' "a" (els (pure LevelUniv) (cl primLevel)) $ \ a ->
           hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
@@ -141,7 +142,7 @@ primSubOut' = do
 
 primTrans' :: TCM PrimitiveImpl
 primTrans' = do
-  requireCubical CErased
+  requireCubical CWithoutGlue
   t    <- runNamesT [] $
           hPi' "a" (primIntervalType --> els (pure LevelUniv) (cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
@@ -152,7 +153,7 @@ primTrans' = do
 
 primHComp' :: TCM PrimitiveImpl
 primHComp' = do
-  requireCubical CErased
+  requireCubical CWithoutGlue
   t    <- runNamesT [] $
           hPi' "a" (els (pure LevelUniv) (cl primLevel)) $ \ a ->
           hPi' "A" (sort . tmSort <$> a) $ \ bA ->
@@ -570,11 +571,12 @@ primTransHComp cmd ts nelims = do
               -- For data types, if this data type is indexed and/or a
               -- higher inductive type, then hcomp is normal; But
               -- compData knows what to do for the general cases.
-              Datatype{dataPars = pars, dataIxs = ixs, dataPathCons = pcons, dataTransp = mtrD}
-                | and [null pcons && ixs == 0 | DoHComp  <- [cmd]], Just as <- allApplyElims es ->
-                  compData mtrD (not (null pcons) || ixs > 0) (pars + ixs) cmd l (as <$ t) sbA sphi u u0
+              Datatype{dataPars = pars, dataIxs = ixs, dataHIT = hit, dataTransp = mtrD}
+                | and [ hit == NotHIT && ixs == 0 | DoHComp <- [cmd] ]
+                , Just as <- allApplyElims es ->
+                  compData mtrD (hit == YesHIT || ixs > 0) (pars + ixs) cmd l (as <$ t) sbA sphi u u0
 
-              -- Is this an axiom with constrant transport? Then. Well. Transport is constant.
+              -- Is this an axiom with constant transport? Then. Well. Transport is constant.
               Axiom constTransp | constTransp, [] <- es, DoTransp <- cmd -> redReturn $ unArg u0
 
               _          -> fallback
@@ -609,10 +611,7 @@ primTransHComp cmd ts nelims = do
       let iNeg t = tNeg `apply` [argN t]
           iMin t u = tMin `apply` [argN t, argN u]
           iz = pure iZ
-      constrForm <- do
-        mz <- getTerm' builtinZero
-        ms <- getTerm' builtinSuc
-        return $ \ t -> fromMaybe t (constructorForm' mz ms t)
+      constrForm <- constructorFormer
       su  <- reduceB' u
       sa0 <- reduceB' a0
       view   <- intervalView'
@@ -689,10 +688,7 @@ primTransHComp cmd ts nelims = do
           getTermLocal = getTerm $ getBuiltinId builtinTrans ++ " for data types"
       let sc = famThing <$> fsc
       mhcompName <- getName' builtinHComp
-      constrForm <- do
-        mz <- getTerm' builtinZero
-        ms <- getTerm' builtinSuc
-        return $ \ t -> fromMaybe t (constructorForm' mz ms t)
+      constrForm <- constructorFormer
       sa0 <- reduceB' a0
       let f = unArg . ignoreBlocking
           phi = f sphi
@@ -746,7 +742,7 @@ primTransHComp cmd ts nelims = do
 -- The definition of it comes from 'mkComp'.
 primComp :: TCM PrimitiveImpl
 primComp = do
-  requireCubical CErased
+  requireCubical CWithoutGlue
   t    <- runNamesT [] $
           hPi' "a" (primIntervalType --> els (pure LevelUniv) (cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
@@ -781,7 +777,7 @@ primComp = do
 -- TODO Andrea: keep reductions that happen under foralls?
 primFaceForall' :: TCM PrimitiveImpl
 primFaceForall' = do
-  requireCubical CErased
+  requireCubical CWithoutGlue
   t <- (primIntervalType --> primIntervalType) --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \case
     [phi] -> do
@@ -892,8 +888,8 @@ transpSysTel' flag delta us phi args = do
         -- [phi -> a; us]
         face = foldr (\ x y -> pure imax <@> x <@> y) (pure iz) (phi : map fst us)
         uphi = lam "i" $ \ i -> ilam "o" $ \ o -> do
-          let sys' = (phi , a) : map (mapSnd (`bapp` i)) us
-              sys = map (mapSnd $ ilam "o" . const) sys'
+          let sys' = (phi , a) : map (second (`bapp` i)) us
+              sys = map (second $ ilam "o" . const) sys'
           combine (l <@> i) (unEl <$> bapp t i) __IMPOSSIBLE__ sys <..> o
     combine l ty d [] = d
     combine l ty d [(psi,u)] = u
@@ -1044,29 +1040,6 @@ trFillTel' flag delta phi args r = do
             args
 
 
-
--- hcompTel' :: Bool -> Telescope -> [(Term,Abs [Term])] -> [Term] -> ExceptT (Closure (Abs Type)) TCM [Term]
--- hcompTel' b delta sides base = undefined
-
--- hFillTel' :: Bool -> Telescope -- Γ ⊢ Δ
---           -> [(Term,Abs [Term])]  -- [(φ,i.δ)] with  Γ,φ ⊢ i.δ : I → Δ
---           -> [Term]            -- Γ ⊢ δ0 : Δ, matching the [(φ,i.δ)]
---           -> Term -- Γ ⊢ r : I
---           -> ExceptT (Closure (Abs Type)) TCM [Term]
--- hFillTel' b delta sides base = undefined
-
-pathTelescope :: forall m. (PureTCM m, MonadError TCErr m)
-  => Telescope  -- ^ Δ
-  -> [Arg Term] -- ^ lhs : Δ
-  -> [Arg Term] -- ^ rhs : Δ
-  -> m Telescope
-pathTelescope tel lhs rhs = do
-  runExceptT (pathTelescope' tel lhs rhs) >>= \case
-    Left t -> do
-      enterClosure t $ \ t ->
-                 typeError . GenericDocError =<<
-                    (text "The sort of" <+> pretty t <+> text "should be of the form \"Set l\"")
-    Right tel -> return tel
 
 pathTelescope' :: forall m. (PureTCM m, MonadError (Closure Type) m)
   => Telescope  -- ^ Δ
@@ -1298,7 +1271,7 @@ instance Subst CType where
   applySubst rho (ClosedType s q) = ClosedType (applySubst rho s) q
   applySubst rho (LType t) = LType $ applySubst rho t
 
-hcomp :: (HasBuiltins m, MonadError TCErr m, MonadReduce m, MonadPretty m)
+hcomp :: (HasBuiltins m, MonadError TCErr m, MonadReduce m)
   => NamesT m Type
   -> [(NamesT m Term, NamesT m Term)]
   -> NamesT m Term

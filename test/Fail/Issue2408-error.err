@@ -1,3 +1,7 @@
-Issue2408-error.agda:11.18-27: error: [UnequalSorts]
-Set (lsuc (l a)) != Set₁
+Issue2408-error.agda:11.18-27: error: [UnequalTypes]
+The types
+  Set (lsuc (l a))
+and
+  Set₁
+are not equal
 when checking that the expression Set (l a) has type Set₁

@@ -1,4 +1,8 @@
-Issue6651-UnivSort-SetOmega.agda:9.5-6: error: [UnequalSorts]
-univSort _2 != Setω
+Issue6651-UnivSort-SetOmega.agda:9.5-6: error: [UnequalTypes]
+The types
+  univSort _2
+and
+  Setω
+are not equal
 when checking that the solution _2 of metavariable _0 has the
 expected type Setω

@@ -1,0 +1,6 @@
+Issue8688Positivity.agda:11.1-12.20: error: [NotStrictlyPositive]
+D is not strictly positive, because it occurs
+in the first argument of g
+in a sort
+in the type of the constructor c
+in the definition of D.

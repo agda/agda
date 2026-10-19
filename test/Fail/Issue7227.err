@@ -1,2 +1,2 @@
-Issue7227.agda:9.1-12.42: error: [GenericDocError]
+Issue7227.agda:9.1-12.42: error: [Unquote.EscapingVariable]
 Local variable 'foo' escaping in result of extendContext: foo

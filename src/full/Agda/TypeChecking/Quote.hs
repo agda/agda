@@ -5,9 +5,9 @@ module Agda.TypeChecking.Quote where
 import Control.Monad
 
 import Data.Maybe (fromMaybe)
-import qualified Data.Text as T
+import Data.Text qualified as T
 
-import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract qualified as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern ( hasDefP )
@@ -23,12 +23,9 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Impossible
-import Agda.Utils.Functor
 import Agda.Utils.List
-import Agda.Utils.List1 ( pattern (:|) )
-import Agda.Utils.List2 ( pattern List2 )
 import Agda.Utils.Size
-import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Maybe.Strict qualified as Strict
 
 -- | Parse @quote@.
 quotedName :: (MonadTCError m, MonadAbsToCon m) => A.Expr -> m QName
@@ -42,9 +39,9 @@ quotedName = \case
   A.ScopedExpr _ e  -> quotedName e
   e -> typeError $ CannotQuote $ CannotQuoteExpression e
   where
-    unambiguous (AmbQ (x :| xs)) = case xs of
-      []   -> return x
-      y:ys -> typeError $ CannotQuote $ CannotQuoteAmbiguous $ List2 x y ys
+    unambiguous ambX = case getUnambiguous ambX of
+      Just x  -> return x
+      Nothing -> typeError $ CannotQuote $ CannotQuoteAmbiguous ambX
 
 
 data QuotingKit = QuotingKit
@@ -226,8 +223,8 @@ quotingKit = do
       quoteTelescope tel = quoteList quoteTelEntry $ telToList tel
 
       quoteTelEntry :: Dom (ArgName, Type) -> ReduceM Term
-      quoteTelEntry dom@Dom{ unDom = (x , t) } = do
-        SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+      quoteTelEntry dom@(unDom -> (x , t)) = do
+        SigmaKit{ sigmaCon } <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
         Con sigmaCon ConOSystem [] !@! quoteString x @@ quoteDom quoteType (fmap snd dom)
 
       list :: [ReduceM Term] -> ReduceM Term
@@ -237,7 +234,7 @@ quotingKit = do
       quoteList q xs = list (map q xs)
 
       quoteDom :: (a -> ReduceM Term) -> Dom a -> ReduceM Term
-      quoteDom q Dom{domInfo = info, unDom = t} = arg !@ quoteArgInfo info @@ q t
+      quoteDom q d@(unDom -> t) = arg !@ quoteArgInfo (d ^. dInfo) @@ q t
 
       quoteAbs :: Subst a => (a -> ReduceM Term) -> Abs a -> ReduceM Term
       quoteAbs q (Abs s t)   = abs !@! quoteString s @@ q t
@@ -309,7 +306,7 @@ quotingKit = do
                               @@ quoteArgs vs
             where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           DontCare u -> quoteTerm u
-          Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
+          Dummy s _  -> __IMPOSSIBLE_VERBOSE__ (show s)
 
       defParameters :: Definition -> Bool -> [ReduceM Term]
       defParameters def True  = []

@@ -17,6 +17,7 @@ module Agda.Syntax.Concrete
   , rawApp, rawAppP
   , isSingleIdentifierP, removeParenP
   , isPattern, isAbsurdP, isBinderP
+  , PossiblyProjectionPattern(..)
   , observeHiding
   , observeRelevance
   , observeModifiers
@@ -29,7 +30,7 @@ module Agda.Syntax.Concrete
   , mkBinder
   , LamBinding
   , LamBinding'(..)
-  , dropTypeAndModality
+  , DefParameters, parametersToDefParameters, defParametersToParameters
   , TypedBinding
   , TypedBinding'(..)
   , RecordAssignment
@@ -40,7 +41,7 @@ module Agda.Syntax.Concrete
   , TacticAttribute
   , TacticAttribute'(..)
   , Telescope, Telescope1
-  , lamBindingsToTelescope
+  , Parameters, parametersToTelescope
   , makePi
   , mkLam, mkLet, mkTLet
     -- * Declarations
@@ -53,8 +54,9 @@ module Agda.Syntax.Concrete
   , TypeSignatureOrInstanceBlock
   , ImportDirective, Using, ImportedName
   , Renaming, RenamingDirective, HidingDirective
-  , AsName'(..), AsName
-  , OpenShortHand(..), RewriteEqn, WithExpr
+  , AsName'(..), AsName, RawOpenArgs
+  , OpenShortHand(..)
+  , RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
   , LamClause(..)
   , RHS, RHS'(..)
@@ -87,7 +89,7 @@ import GHC.Generics     ( Generic )
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import Agda.Syntax.Common.Aspect (NameKind)
+import Agda.Syntax.Common.Aspect (Aspects)
 import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
 
@@ -176,15 +178,12 @@ data Expr
   | RecUpdate KwRange Range Expr [FieldAssignment]
                                                -- ^ ex: @record e {x = a; y = b}@
                                                --   The 'KwRange' is for the @record@ keyword.
-  | RecWhere KwRange Range [Declaration]
-    -- ^ ex: @record where { open M using (x; y) ; z arg = arg + x }@; the 'KwRange' is for the @record@ keyword.
-  | RecUpdateWhere KwRange Range Expr [Declaration]
-    -- ^ ex: @record e where { open M using (x); y = x + 1 }@; the 'KwRange' is for the @record@ keyword.
   | Let Range (List1 Declaration) (Maybe Expr) -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
   | Paren Range Expr                           -- ^ ex: @(e)@
-  | IdiomBrackets Range [Expr]                 -- ^ ex: @(| e1 | e2 | .. | en |)@ or @(|)@
-  | DoBlock KwRange (List1 DoStmt)             -- ^ ex: @do x <- m1; m2@
-                                               --   The 'KwRange' is for the @do@ keyword.
+  | IdiomBrackets Range (Maybe QName) [Expr]   -- ^ ex: @(| e1 | e2 | .. | en |)@ or @(|)@
+  | DoBlock KwRange (Maybe QName) (List1 DoStmt)
+    -- ^ ex: @do x <- m1; m2@
+    --   The 'KwRange' is for the @do@ keyword.
   | Absurd Range                               -- ^ ex: @()@ or @{}@, only in patterns
   | As Range Name Expr                         -- ^ ex: @x\@p@, only in patterns
   | Dot KwRange Expr                           -- ^ ex: @.p@, only in patterns
@@ -196,13 +195,16 @@ data Expr
   | DontCare Expr                              -- ^ to print irrelevant things
   | Equal Range Expr Expr                      -- ^ ex: @a = b@, used internally in the parser
   | Ellipsis Range                             -- ^ @...@, used internally to parse patterns.
-  | KnownIdent NameKind QName
+  | KnownIdent Aspects QName
     -- ^ An identifier coming from abstract syntax, for which we know a
     -- precise syntactic highlighting class (used in printing).
-  | KnownOpApp NameKind Range QName (Set1 A.Name) OpAppArgs
+  | KnownOpApp Aspects Range QName (Set1 A.Name) OpAppArgs
     -- ^ An operator application coming from abstract syntax, for which
     -- we know a precise syntactic highlighting class (used in
     -- printing).
+  | Highlighted Aspects Expr
+    -- ^ An arbitrary expression bundled with highlighting information
+    -- from abstract (or internal) syntax
   | Generalized Expr
   deriving Eq
 
@@ -237,8 +239,9 @@ data Pattern
   | WildP Range                            -- ^ @_@
   | AbsurdP Range                          -- ^ @()@
   | AsP Range Name Pattern                 -- ^ @x\@p@
-  | DotP KwRange Range Expr                -- ^ @.e@, the 'KwRange' is for the dot,
-                                           --   the 'Range' for the whole thing (including the dot).
+  | DotP KwRange Range !PossiblyProjectionPattern Expr
+      -- ^ @.e@, the 'KwRange' is for the dot, the 'Range' for the whole thing (including the dot).
+      --   If the dot pattern came from parsing e.g. @.{e}@ it cannot be a projection pattern.
   | LitP Range Literal                     -- ^ @0@, @1@, etc.
   | RecP KwRange Range [FieldAssignment' Pattern]
       -- ^ @record {x = p; y = q}@.  The 'KwRange' is for the @record@ keyword.
@@ -248,6 +251,12 @@ data Pattern
                                            --   @Just p@ after expanding ellipsis to @p@.
   | WithP Range Pattern                    -- ^ @| p@, for with-patterns.
   deriving Eq
+
+-- | Can a dot pattern be interpreted as projection pattern?
+data PossiblyProjectionPattern
+  = CouldBeProjectionPattern    -- ^ Yes.
+  | CannotBeProjectionPattern   -- ^ No.
+  deriving (Eq, Show)
 
 data DoStmt
   = DoBind Range Pattern Expr [LamClause]   -- ^ @p ← e where cs@
@@ -270,7 +279,12 @@ mkBinder_ = mkBinder . mkBoundName_
 mkBinder :: a -> Binder' a
 mkBinder = Binder Nothing UserBinderName
 
--- | A lambda binding is either domain free or typed.
+-- | Parameters supplied to data and record definitions (as opposed to their signatures)
+--   are stripped of their type information.
+--   They also cannot contain @let@ or pattern bindings or tactic attributes.
+type DefParameters = [WithHiding (Named_ Name)]
+
+-- | A lambda binding is either untyped (domain free) or typed ('TypedBinding').
 
 type LamBinding = LamBinding' TypedBinding
 data LamBinding' a
@@ -280,12 +294,25 @@ data LamBinding' a
     -- ^ . @(xs : e)@ or @{xs : e}@
   deriving (Functor, Foldable, Traversable, Eq)
 
--- | Drop type annotations and lets from bindings.
-dropTypeAndModality :: LamBinding -> [LamBinding]
-dropTypeAndModality (DomainFull (TBind _ xs _)) =
-  map (DomainFree . setModality defaultModality) $ List1.toList xs
-dropTypeAndModality (DomainFull TLet{}) = []
-dropTypeAndModality (DomainFree x) = [DomainFree $ setModality defaultModality x]
+-- | Parameters are sequences of typed or untyped bindings.
+type Parameters = [LamBinding]
+
+-- | Drop type annotations and modalities from bindings.
+--   Also drop let, patterns, fixity, and tactics,
+--   but those should not be present in the first place when using this function,
+--   because all such cannot occur in data and record parameters.
+parametersToDefParameters :: Parameters -> DefParameters
+parametersToDefParameters = concatMap \case
+    DomainFree x              -> [strip x]
+    DomainFull (TBind _ xs _) -> map strip $ List1.toList xs
+    DomainFull TLet{}         -> __IMPOSSIBLE__
+  where
+    strip :: NamedArg Binder -> WithHiding (Named_ Name)
+    strip = unArgKeepHiding . fmap (fmap (boundName . binderName))
+
+defParametersToParameters :: DefParameters -> Parameters
+defParametersToParameters = map \ (WithHiding h n) ->
+  DomainFree $ setHiding h $ defaultArg $ mkBinder_ <$> n
 
 data BoundName = BName
   { boundName       :: Name
@@ -327,11 +354,11 @@ data TypedBinding' e
 type Telescope1 = List1 TypedBinding
 type Telescope  = [TypedBinding]
 
--- | We can try to get a @Telescope@ from a @[LamBinding]@.
+-- | We can get a @Telescope@ from @Parameters@.
 --   If we have a type annotation already, we're happy.
 --   Otherwise we manufacture a binder with an underscore for the type.
-lamBindingsToTelescope :: Range -> [LamBinding] -> Telescope
-lamBindingsToTelescope r = fmap $ \case
+parametersToTelescope :: Range -> Parameters -> Telescope
+parametersToTelescope r = fmap $ \case
   DomainFull ty -> ty
   DomainFree nm -> TBind r (List1.singleton nm) $ Underscore r Nothing
 
@@ -470,7 +497,7 @@ data AsName' a = AsName
 
 -- | From the parser, we get an expression for the @as@-'Name', which
 --   we have to parse into a 'Name'.
-type AsName = AsName' (Either Expr Name)
+type AsName = AsName' Name
 
 {--------------------------------------------------------------------------
     Declarations
@@ -519,13 +546,13 @@ data Declaration
   | Generalize KwRange [TypeSignature] -- ^ Variables to be generalized, can be hidden and/or irrelevant.
   | Field KwRange [FieldSignature]
   | FunClause ArgInfo LHS RHS WhereClause Catchall -- ^ Only 'Modality' is used in 'ArgInfo'.
-  | DataSig     Range Erased Name [LamBinding] Expr -- ^ lone data signature in mutual block
-  | Data        Range Erased Name [LamBinding] Expr
+  | DataSig     Range Erased Name Parameters Expr -- ^ lone data signature in mutual block
+  | Data        Range Erased Name Parameters Expr
                 [TypeSignatureOrInstanceBlock]
-  | DataDef     Range Name [LamBinding] [TypeSignatureOrInstanceBlock]
-  | RecordSig   Range Erased Name [LamBinding] Expr -- ^ lone record signature in mutual block
-  | RecordDef   Range Name [RecordDirective] [LamBinding] [Declaration]
-  | Record      Range Erased Name [RecordDirective] [LamBinding] Expr
+  | DataDef     Range Name Parameters [TypeSignatureOrInstanceBlock]
+  | RecordSig   Range Erased Name Parameters Expr -- ^ lone record signature in mutual block
+  | RecordDef   Range Name [RecordDirective] Parameters [Declaration]
+  | Record      Range Erased Name [RecordDirective] Parameters Expr
                 [Declaration]
   | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name
@@ -545,8 +572,8 @@ data Declaration
   | Macro       KwRange [Declaration]
   | Postulate   KwRange [TypeSignatureOrInstanceBlock]
   | Primitive   KwRange [TypeSignature]
-  | Open        Range QName ImportDirective
-  | Import      Range QName (Maybe AsName) !OpenShortHand ImportDirective
+  | Open        KwRange QName ImportDirective
+  | Import      OpenShortHand KwRange QName (Either AsName RawOpenArgs) ImportDirective
   | ModuleMacro Range Erased  Name ModuleApplication !OpenShortHand
                 ImportDirective
   | Module      Range Erased QName Telescope [Declaration]
@@ -562,6 +589,17 @@ data Declaration
   | Unfolding   KwRange [QName]
     -- ^ @unfolding ...@
   deriving Eq
+
+-- | Expressions usually instantiating module parameters as in
+-- @
+--   open import Monoid Carrier _==_
+-- @
+-- that might also code an @as@ clause e.g. in
+-- @
+--    open import File as M
+-- @
+-- The parser does not distinguish these so we do it in the nicifier.
+type RawOpenArgs = [Expr]
 
 -- | Return 'Pragma' if 'Declaration' is 'Pragma'.
 {-# SPECIALIZE isPragma :: Declaration -> Maybe Pragma #-}
@@ -609,7 +647,9 @@ data ModuleApplication
     -- ^ @M {{...}}@
   deriving Eq
 
-data OpenShortHand = DoOpen | DontOpen
+data OpenShortHand
+  = DoOpen KwRange -- ^ Range of the @open@ keyword.
+  | DontOpen
   deriving (Eq, Show, Generic)
 
 -- Pragmas ----------------------------------------------------------------
@@ -627,8 +667,7 @@ data Pragma
     -- ^ Throws an internal error in the scope checker.
     --   The 'String's are words to be displayed with the error.
   | EtaPragma                   Range QName
-    -- ^ For coinductive records, use pragma instead of regular
-    --   @eta-equality@ definition (as it is might make Agda loop).
+    -- ^ Removed, replaced by 'EtaEqualityPragma'.
   | WarningOnUsage              Range QName Text
     -- ^ Applies to the named function
   | WarningOnImport             Range Text
@@ -643,6 +682,9 @@ data Pragma
   -- Attached (more or less) pragmas handled in the nicifier (Concrete.Definitions):
   | CatchallPragma              Range
     -- ^ Applies to the following function clause.
+  | EtaEqualityPragma           Range
+    -- ^ Applies to the following record type.
+    --   Force @eta-equality@ for the attached @record@ type for unguarded and @coinductive@ records.
   | TerminationCheckPragma      Range (TerminationCheck Name)
     -- ^ Applies to the following function (and all that are mutually recursive with it)
     --   or to the functions in the following mutual block.
@@ -666,8 +708,13 @@ data Pragma
 -- | Modules: Top-level pragmas plus other top-level declarations.
 
 data Module = Mod
-  { modPragmas :: [Pragma]
+  { modName    :: QName
+      -- ^ The module name as inferred by the parser.
+      --   Could be @_@ if the parser inserted a top-level module declaration.
+  , modPragmas :: [Pragma]
+      -- ^ The top-level OPTIONS pragmas.
   , modDecls   :: [Declaration]
+      -- ^ All the other declarations, including the top-level module.
   }
 
 -- | Splits off allowed (= import) declarations before the first
@@ -811,8 +858,7 @@ exprToPattern fallback = loop
     Underscore  r _      -> pure $ WildP r
     Absurd      r        -> pure $ AbsurdP r
     As          r x e    -> pushUnderBracesP r (AsP r x) <$> loop e
-    e0@(Dot       kwr e) -> pure $ pushUnderBracesE r (DotP kwr r) e
-      where r = getRange e0
+    e0@(Dot     kwr e)   -> pure $ pushDotUnderBraces kwr (getRange e0) e
     -- Wen, 2020-08-27: We disallow Float patterns, since equality for floating
     -- point numbers is not stable across architectures and with different
     -- compiler flags.
@@ -843,11 +889,12 @@ exprToPattern fallback = loop
     InstanceP _ p   -> InstanceP r $ fmap f p
     p               -> f p
 
-  pushUnderBracesE :: Range -> (Expr -> Pattern) -> (Expr -> Pattern)
-  pushUnderBracesE r f = \case
-    HiddenArg   _ p -> HiddenP   r $ fmap f p
-    InstanceArg _ p -> InstanceP r $ fmap f p
-    p               -> f p
+  pushDotUnderBraces :: KwRange -> Range -> Expr -> Pattern
+  pushDotUnderBraces kwr r = \case
+    HiddenArg   _ e -> HiddenP   r $ fmap (DotP kwr r CannotBeProjectionPattern) e
+    InstanceArg _ e -> InstanceP r $ fmap (DotP kwr r CannotBeProjectionPattern) e
+    Paren       _ e -> DotP kwr r CannotBeProjectionPattern e
+    e               -> DotP kwr r CouldBeProjectionPattern e
 
 isAbsurdP :: Pattern -> Maybe (Range, Hiding)
 isAbsurdP = \case
@@ -873,6 +920,9 @@ isBinderP = \case
 
 -- Null
 ------------------------------------------------------------------------
+
+instance Null OpenShortHand where
+  empty = DontOpen
 
 -- | A 'WhereClause' is 'null' when the @where@ keyword is absent.
 --   An empty list of declarations does not count as 'null' here.
@@ -913,6 +963,11 @@ instance LensRelevance TypedBinding where
 -- HasRange instances
 ------------------------------------------------------------------------
 
+instance HasRange OpenShortHand where
+  getRange = \case
+    DoOpen kwr -> getRange kwr
+    DontOpen   -> empty
+
 instance HasRange e => HasRange (OpApp e) where
   getRange = \case
     Ordinary e -> getRange e
@@ -935,8 +990,8 @@ instance HasRange Expr where
       Pi b e                 -> fuseRange b e
       Let r _ _              -> r
       Paren r _              -> r
-      IdiomBrackets r _      -> r
-      DoBlock r ds           -> getRange (r, ds)
+      IdiomBrackets r _ _    -> r
+      DoBlock r q ds         -> getRange (r, q, ds)
       As r _ _               -> r
       Dot r e                -> getRange (r, e)
       DoubleDot r e          -> getRange (r, e)
@@ -945,8 +1000,6 @@ instance HasRange Expr where
       InstanceArg r _        -> r
       Rec _ r _              -> r
       RecUpdate _ r _ _      -> r
-      RecWhere _ r _         -> r
-      RecUpdateWhere _ r _ _ -> r
       Quote r                -> r
       QuoteTerm r            -> r
       Unquote r              -> r
@@ -957,6 +1010,7 @@ instance HasRange Expr where
       Generalized e          -> getRange e
       KnownIdent _ q         -> getRange q
       KnownOpApp _ r _ _ _   -> r
+      Highlighted _ e        -> getRange e
 
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs
@@ -1016,10 +1070,10 @@ instance HasRange Declaration where
   getRange (LoneConstructor kwr ds)= fuseRange kwr ds
   getRange (Abstract kwr ds)       = fuseRange kwr ds
   getRange (Generalize kwr ds)     = fuseRange kwr ds
-  getRange (Open r _ _)            = r
+  getRange (Open kwr x dir)        = getRange (kwr, x, dir)
   getRange (ModuleMacro r _ _ _ _ _)
                                    = r
-  getRange (Import r _ _ _ _)      = r
+  getRange (Import a b c d e)      = getRange (a, b, c, d, e)
   getRange (InstanceB kwr _)       = getRange kwr
   getRange (Macro kwr ds)          = fuseRange kwr ds
   getRange (Private kwr _ ds)      = fuseRange kwr ds
@@ -1069,6 +1123,7 @@ instance HasRange Pragma where
   getRange (InlinePragma r _ _)              = r
   getRange (ImpossiblePragma r _)            = r
   getRange (EtaPragma r _)                   = r
+  getRange (EtaEqualityPragma r)             = r
   getRange (TerminationCheckPragma r _)      = r
   getRange (NoCoverageCheckPragma r)         = r
   getRange (WarningOnUsage r _ _)            = r
@@ -1097,7 +1152,7 @@ instance HasRange Pattern where
   getRange (QuoteP r)         = r
   getRange (HiddenP r _)      = r
   getRange (InstanceP r _)    = r
-  getRange (DotP _kwr r _)    = r
+  getRange (DotP _kwr r _ _)  = r
   getRange (RecP _kwr r _)    = r
   getRange (EqualP r _)       = r
   getRange (EllipsisP r _)    = r
@@ -1119,7 +1174,7 @@ instance SetRange Pattern where
   setRange r (QuoteP _)         = QuoteP r
   setRange r (HiddenP _ p)      = HiddenP r p
   setRange r (InstanceP _ p)    = InstanceP r p
-  setRange r (DotP _ _ e)       = DotP empty r e
+  setRange r (DotP _ _ ppp e)   = DotP empty r ppp e
   setRange r (RecP _ _ fs)      = RecP empty r fs
   setRange r (EqualP _ es)      = EqualP r es
   setRange r (EllipsisP _ mp)   = EllipsisP r mp
@@ -1131,6 +1186,11 @@ instance SetRange TypedBinding where
 
 -- KillRange instances
 ------------------------------------------------------------------------
+
+instance KillRange OpenShortHand where
+  killRange = \case
+    DoOpen _ -> DoOpen empty
+    DontOpen -> DontOpen
 
 instance KillRange a => KillRange (FieldAssignment' a) where
   killRange (FieldAssignment a b) = killRangeN FieldAssignment a b
@@ -1178,8 +1238,8 @@ instance KillRange Declaration where
   killRange (Macro _ d)             = killRangeN (Macro empty) d
   killRange (Postulate _ t)         = killRangeN (Postulate empty) t
   killRange (Primitive _ t)         = killRangeN (Primitive empty) t
-  killRange (Open _ q i)            = killRangeN (Open noRange) q i
-  killRange (Import _ q a o i)      = killRangeN (\q a -> Import noRange q a o) q a i
+  killRange (Open _ q i)            = killRangeN (Open empty) q i
+  killRange (Import a b c d e)      = killRangeN Import a b c d e
   killRange (ModuleMacro _ e n m o i)
                                     = killRangeN
                                         (\e n m -> ModuleMacro noRange e n m o)
@@ -1210,12 +1270,10 @@ instance KillRange Expr where
   killRange (Pi t e)                  = killRangeN Pi t e
   killRange (Rec _ _ ne)              = killRangeN (Rec empty noRange) ne
   killRange (RecUpdate _ _ e ne)      = killRangeN (RecUpdate empty noRange) e ne
-  killRange (RecWhere _ _ ne)         = killRangeN (RecWhere empty noRange) ne
-  killRange (RecUpdateWhere _ _ e ne) = killRangeN (RecUpdateWhere empty noRange) e ne
   killRange (Let _ d e)               = killRangeN (Let noRange) d e
   killRange (Paren _ e)               = killRangeN (Paren noRange) e
-  killRange (IdiomBrackets _ es)      = killRangeN (IdiomBrackets noRange) es
-  killRange (DoBlock _ ss)            = killRangeN (DoBlock empty) ss
+  killRange (IdiomBrackets _ q es)    = killRangeN (IdiomBrackets noRange) q es
+  killRange (DoBlock _ q ss)          = killRangeN (DoBlock empty) q ss
   killRange (Absurd _)                = Absurd noRange
   killRange (As _ n e)                = killRangeN (As noRange) n e
   killRange (Dot _ e)                 = killRangeN (Dot empty) e
@@ -1230,6 +1288,7 @@ instance KillRange Expr where
   killRange (Generalized e)           = killRangeN Generalized e
   killRange (KnownIdent a b)          = killRangeN (KnownIdent a) b
   killRange (KnownOpApp a b c d e)    = killRangeN (KnownOpApp a) b c d e
+  killRange (Highlighted a b)         = killRangeN (Highlighted a) b
 
 instance KillRange LamBinding where
   killRange (DomainFree b) = killRangeN DomainFree b
@@ -1265,7 +1324,7 @@ instance KillRange Pattern where
   killRange (WildP _)         = WildP noRange
   killRange (AbsurdP _)       = AbsurdP noRange
   killRange (AsP _ n p)       = killRangeN (AsP noRange) n p
-  killRange (DotP _ _ e)      = killRangeN (DotP empty noRange) e
+  killRange (DotP _ _ ppp e)  = killRangeN (DotP empty noRange ppp) e
   killRange (LitP _ l)        = killRangeN (LitP noRange) l
   killRange (QuoteP _)        = QuoteP noRange
   killRange (RecP _ _ fs)     = killRangeN (RecP empty noRange) fs
@@ -1291,6 +1350,7 @@ instance KillRange Pragma where
   killRange (CatchallPragma _)                = CatchallPragma noRange
   killRange (DisplayPragma _ lhs rhs)         = killRangeN (DisplayPragma noRange) lhs rhs
   killRange (EtaPragma _ q)                   = killRangeN (EtaPragma noRange) q
+  killRange (EtaEqualityPragma _)             = EtaEqualityPragma noRange
   killRange (NoPositivityCheckPragma _)       = NoPositivityCheckPragma noRange
   killRange (PolarityPragma _ q occs)         = killRangeN (\q -> PolarityPragma noRange q occs) q
   killRange (NoUniverseCheckPragma _)         = NoUniverseCheckPragma noRange
@@ -1334,12 +1394,10 @@ instance NFData Expr where
   rnf (Pi a b)                 = rnf a `seq` rnf b
   rnf (Rec _ _ a)              = rnf a
   rnf (RecUpdate _ _ a b)      = rnf a `seq` rnf b
-  rnf (RecWhere _ _ a)         = rnf a
-  rnf (RecUpdateWhere _ _ a b) = rnf a `seq` rnf b
   rnf (Let _ a b)              = rnf a `seq` rnf b
   rnf (Paren _ a)              = rnf a
-  rnf (IdiomBrackets _ a)      = rnf a
-  rnf (DoBlock _ a)            = rnf a
+  rnf (IdiomBrackets _ a b)    = rnf a `seq` rnf b
+  rnf (DoBlock _ a b)          = rnf a `seq` rnf b
   rnf (Absurd _)               = ()
   rnf (As _ a b)               = rnf a `seq` rnf b
   rnf (Dot _ a)                = rnf a
@@ -1354,6 +1412,7 @@ instance NFData Expr where
   rnf (Generalized e)          = rnf e
   rnf (KnownIdent a b)         = rnf b
   rnf (KnownOpApp a b c d e)   = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf c
+  rnf (Highlighted a b)        = rnf a `seq` rnf b
 
 -- | Ranges are not forced.
 
@@ -1369,7 +1428,7 @@ instance NFData Pattern where
   rnf (WildP _)        = ()
   rnf (AbsurdP _)      = ()
   rnf (AsP _ a b)      = rnf a `seq` rnf b
-  rnf (DotP _ _ a)     = rnf a
+  rnf (DotP _ _ _ a)   = rnf a
   rnf (LitP _ a)       = rnf a
   rnf (RecP _ _ a)     = rnf a
   rnf (EqualP _ es)    = rnf es
@@ -1437,6 +1496,7 @@ instance NFData Pragma where
   rnf (InlinePragma _ _ a)              = rnf a
   rnf (ImpossiblePragma _ a)            = rnf a
   rnf (EtaPragma _ a)                   = rnf a
+  rnf (EtaEqualityPragma _)             = ()
   rnf (TerminationCheckPragma _ a)      = rnf a
   rnf (NoCoverageCheckPragma _)         = ()
   rnf (WarningOnUsage _ a b)            = rnf a `seq` rnf b

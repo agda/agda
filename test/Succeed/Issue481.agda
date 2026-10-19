@@ -52,3 +52,12 @@ module Test2 where
   private
     open module Rec = Issue481Record
 
+-- Andreas, 2025-12-02, issue #8257 reported by nad
+-- Regression on master introduced by PR #8194
+
+module Issue8257 where
+
+  import Common.Issue481ParametrizedModule Set as _
+
+  -- WAS: internal error caused by _.
+  -- Should succeed.

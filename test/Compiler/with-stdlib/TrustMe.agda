@@ -14,7 +14,7 @@ open import Level using (0ℓ)
 -- Check that trustMe works.
 
 testTrustMe : IO {0ℓ} ⊤
-testTrustMe with "apa" ≟ "apa"
+testTrustMe with "apa" ≡? "apa"
 ... | yes refl = putStrLn "Yes!"
 ... | no  _    = putStrLn "No."
 

@@ -26,7 +26,6 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Term
 
-import Agda.Utils.Lens
 import Agda.Utils.Null
 
 -- | The type of @∞@.
@@ -83,11 +82,12 @@ bindBuiltinSharp x =
                   { recPars           = 2
                   , recInduction      = Just CoInductive
                   , recClause         = Nothing
-                  , recConHead        = ConHead sharp (IsRecord CopatternMatching) CoInductive []  -- flat is added later
+                  , recConHead        = ConHead sharp (IsRecord CopatternMatching) CoInductive NotHIT []  -- flat is added later
                   , recNamedCon       = True
                   , recFields         = []  -- flat is added later
                   , recTel            = fieldTel
-                  , recEtaEquality'   = Inferred $ NoEta CopatternMatching
+                  , recPositivityCheck = NoPositivityCheck
+                  , recEtaEquality'   = EtaEquality (NoEta CopatternMatching) EtaFromPragma
                   , recPatternMatching= CopatternMatching
                   , recMutual         = Just []
                   , recTerminates     = Just True  -- not recursive
@@ -99,9 +99,10 @@ bindBuiltinSharp x =
       sharpDefn { theDef = Constructor
                     { conPars   = 2
                     , conArity  = 1
-                    , conSrcCon = ConHead sharp (IsRecord CopatternMatching) CoInductive [] -- flat is added as field later
+                    , conSrcCon = ConHead sharp (IsRecord CopatternMatching) CoInductive NotHIT [] -- flat is added as field later
                     , conData   = defName infDefn
                     , conAbstr  = ConcreteDef
+                    , conPathCons = PointCons
                     , conComp   = emptyCompKit
                     , conProj   = Nothing
                     , conForced = []
@@ -126,7 +127,7 @@ bindBuiltinFlat x =
     Def sharp _ <- primSharp
     kit         <- requireLevels
     Def inf _   <- primInf
-    let sharpCon = ConHead sharp (IsRecord CopatternMatching) CoInductive [defaultArg flat]
+    let sharpCon = ConHead sharp (IsRecord CopatternMatching) CoInductive NotHIT [defaultArg flat]
         level    = El (mkType 0) $ Def (typeName kit) []
         tel     :: Telescope
         tel      = ExtendTel (domH $ level)                  $ Abs "a" $
@@ -162,7 +163,7 @@ bindBuiltinFlat x =
     addConstant flat $
       flatDefn { defPolarity       = []
                , defArgOccurrences = [StrictPos]  -- changing that to [Mixed] destroys monotonicity of 'Rec' in test/succeed/GuardednessPreservingTypeConstructors
-               , defCopatternLHS = hasProjectionPatterns cc
+               , defCopatternLHS' = hasProjectionPatterns cc
                , theDef = FunctionDefn fun
                    { _funClauses      = [clause]
                    , _funCompiled     = Just $ cc

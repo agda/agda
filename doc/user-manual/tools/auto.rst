@@ -81,8 +81,9 @@ There are a few exceptions to what you have to specify as hints:
 * Constructors and projection functions are automatically tried, so
   should never be given as hints.
 
-* Recursive calls, although currently only the function itself, not
-  all functions in the same mutual block.
+* Recursive calls to the function itself and to all functions in the
+  same mutual block. These are only applied to arguments that are
+  structurally smaller than the patterns of the current clause.
 
 Timeout
 -------

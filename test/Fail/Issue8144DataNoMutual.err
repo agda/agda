@@ -1,0 +1,5 @@
+Issue8144DataNoMutual.agda:13.6-7: error: [NoSuchModule]
+No module D in scope---but a data type of that name is in scope
+whose data module is either not defined yet or hidden
+when scope checking the declaration
+  open D

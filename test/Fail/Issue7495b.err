@@ -1,6 +1,6 @@
 Issue7495b.agda:3.1-5.17: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   bad
-Problematic calls:
+Problematic call:
   bad true
     (at Issue7495b.agda:4.12-15)

@@ -1,0 +1,14 @@
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  _27 = refl : hh' ≡ true (blocked on _27)
+  _12 = refl : hh ≡ true (blocked on _12)
+  false = _4 : Bool (blocked on _4)
+
+Issue8828-abstract.agda:25.19-85.19: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue8828-abstract.agda:25.19-20
+  Issue8828-abstract.agda:31.12-16
+  Issue8828-abstract.agda:43.8-9
+  Issue8828-abstract.agda:54.13-17
+  Issue8828-abstract.agda:70.9-10
+  Issue8828-abstract.agda:85.15-19

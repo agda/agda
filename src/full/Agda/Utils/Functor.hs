@@ -24,6 +24,7 @@ import Data.Functor.Compose
 
 infixr 9 <.>
 
+{-# INLINE (<.>) #-}
 -- | Composition: pure function after functorial (monadic) function.
 (<.>) :: Functor m => (b -> c) -> (a -> m b) -> a -> m c
 (f <.> g) a = f <$> g a

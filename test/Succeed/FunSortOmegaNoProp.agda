@@ -3,6 +3,7 @@
 -- In absence of Prop, determine even domain from smaller codomain.
 
 {-# OPTIONS --two-level #-}
+{-# OPTIONS --cubical #-}
 
 module _ where
 

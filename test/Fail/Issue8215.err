@@ -1,0 +1,12 @@
+Issue8215.agda:31.6-7: error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  Resolve instance argument _r_7 : A T
+  Candidates
+    a : {X : Set} ⦃ r : B X ⦄ → A X
+    AT : A T
+    (stuck)
+      [ at Issue8215.agda:31.6-7 ]
+
+Issue8215.agda:31.6-7: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue8215.agda:31.6-7

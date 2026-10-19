@@ -1,4 +1,8 @@
 NoEtaPatterns.agda:19.11-15: error: [UnequalTerms]
-swap p != snd p , fst p of type B × A
+The terms
+  swap p
+and
+  snd p , fst p
+are not equal at type B × A
 when checking that the expression refl has type
 swap p ≡ (snd p , fst p)

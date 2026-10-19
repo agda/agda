@@ -8,16 +8,15 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.State
 
-import Agda.Utils.Lens
-
 {-# INLINE enterClosure #-}
 enterClosure :: (MonadTCEnv m, ReadTCState m, LensClosure c a)
              => c -> (a -> m b) -> m b
 enterClosure c k | Closure _sig env scope cps x <- c ^. lensClosure = do
   isDbg <- viewTC eIsDebugPrinting
-  withScope_ scope
+  evalWithScope scope
+      -- TODO: use the signature here? would that fix parts of issue #118?
     $ locallyTCState stModuleCheckpoints (const cps)
-    $ withEnv env{ envIsDebugPrinting = isDbg }
+    $ withEnv (env & eIsDebugPrinting .~ isDbg)
     $ k x
 
 {-# INLINE withClosure  #-}

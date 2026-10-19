@@ -9,6 +9,7 @@ import Agda.Termination.Semiring (HasZero(..), Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 import Agda.Termination.SparseMatrix
 import Agda.Utils.Functor
+import Agda.Utils.List (initMaybe)
 import Agda.Utils.Tuple
 
 import Data.Array
@@ -164,7 +165,7 @@ toSparseRows' (Matrix _ m) =
   -- group list by row index
   for (List.groupBy ((==) `on` (row . fst)) m) $ \ ((MIx i j, b) : vs) ->
   -- turn each group into a sparse row
-    (i, (j,b) : map (mapFst col) vs)
+    (i, (j,b) : map (first col) vs)
 
 prop_toSparseRows :: TM -> Bool
 prop_toSparseRows m = toSparseRows m == toSparseRows' m
@@ -173,7 +174,7 @@ prop_addColumn :: TM -> Bool
 prop_addColumn m =
   matrixInvariant m'
   &&
-  map init (toLists m') == toLists m
+  map initMaybe (toLists m') == map Just (toLists m)
   where
   m' = addColumn zeroElement m
 
@@ -182,7 +183,7 @@ prop_addRow :: TM -> Bool
 prop_addRow m =
   matrixInvariant m'
   &&
-  init (toLists m') == toLists m
+  initMaybe (toLists m') == Just (toLists m)
   where
   m' = addRow zeroElement m
 
@@ -201,8 +202,8 @@ zipMatrices' :: forall a b c i . (Ord i)
 zipMatrices' f g h zero m1 m2 = Matrix (supSize m1 m2) (merge (unM m1) (unM m2))
   where
     merge :: [(MIx i,a)] -> [(MIx i,b)] -> [(MIx i,c)]
-    merge [] m2 = filter (not . zero . snd) $ map (mapSnd g) m2
-    merge m1 [] = filter (not . zero . snd) $ map (mapSnd f) m1
+    merge [] m2 = filter (not . zero . snd) $ map (second g) m2
+    merge m1 [] = filter (not . zero . snd) $ map (second f) m1
     merge m1@((i,a):m1') m2@((j,b):m2') =
       case compare i j of
         LT -> if zero c then r else (i,c) : r where c = f a   ; r = merge m1' m2

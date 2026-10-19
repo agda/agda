@@ -4,6 +4,7 @@ module Agda.TypeChecking.Errors.Names where
 
 import Agda.Syntax.Concrete.Definitions.Errors as N (DeclarationException'(..))
 import Agda.TypeChecking.Monad.Base            as MB
+import Agda.TypeChecking.Conversion.Errors
 import Agda.Interaction.Options.Errors
 
 -- | Print the name of a 'TypeError'.
@@ -34,12 +35,14 @@ typeErrorName = \case
   NotAValidLetExpression  what -> NotAValidLetExpression_  what
   PatternSynonymArgumentShadows what _ _ -> PatternSynonymArgumentShadows_ what
   -- Wrappers
-  OperatorInformation _    err -> typeErrorName err
+  OperatorInformation _ _  err -> typeErrorName err
+  ConversionError_ ConversionError{convErrTys = cmp} -> case cmp of
+    FailAsTypes{}   -> UnequalTypes_
+    FailAsTermsOf{} -> UnequalTerms_
   -- Generic errors (alphabetically)
   CompilationError          {} -> CompilationError_
   CustomBackendError        {} -> CustomBackendError_
-  GenericError              {} -> GenericError_
-  GenericDocError           {} -> GenericDocError_
+  UserError                 {} -> UserError_
   InternalError             {} -> InternalError_
   LibraryError              {} -> LibraryError_
   NonFatalErrors            {} -> NonFatalErrors_
@@ -73,8 +76,10 @@ typeErrorName = \case
   CannotApply                                                {} -> CannotApply_
   CannotEliminateWithPattern                                 {} -> CannotEliminateWithPattern_
   CannotEliminateWithProjection                              {} -> CannotEliminateWithProjection_
+  CannotGeneralizeEtaExpandable                              {} -> CannotGeneralizeEtaExpandable_
   CannotGenerateHCompClause                                  {} -> CannotGenerateHCompClause_
   CannotGenerateTransportClause                              {} -> CannotGenerateTransportClause_
+  CannotGenerateTransportLocalRewrite                        {} -> CannotGenerateTransportLocalRewrite_
   CannotResolveAmbiguousPatternSynonym                       {} -> CannotResolveAmbiguousPatternSynonym_
   CannotRewriteByNonEquation                                 {} -> CannotRewriteByNonEquation_
   CannotSolveSizeConstraints                                 {} -> CannotSolveSizeConstraints_
@@ -107,6 +112,7 @@ typeErrorName = \case
   DuplicateOverlapPragma                                     {} -> DuplicateOverlapPragma_
   DuplicatePrimitiveBinding                                  {} -> DuplicatePrimitiveBinding_
   EmptyTypeOfSizes                                           {} -> EmptyTypeOfSizes_
+  EtaPragmaVsNoEtaEquality                                   {} -> EtaPragmaVsNoEtaEquality_
   ExpectedBindingForParameter                                {} -> ExpectedBindingForParameter_
   ExpectedIntervalLiteral                                    {} -> ExpectedIntervalLiteral_
   FieldOutsideRecord                                         {} -> FieldOutsideRecord_
@@ -115,6 +121,10 @@ typeErrorName = \case
   FileNotFound                                               {} -> FileNotFound_
   ForcedConstructorNotInstantiated                           {} -> ForcedConstructorNotInstantiated_
   FunctionTypeInSizeUniv                                     {} -> FunctionTypeInSizeUniv_
+  GeneralizationFailed                                       {} -> GeneralizationFailed_
+  GeneralizationPrepruneErrorRefinedContext                  {} -> GeneralizationPrepruneErrorRefinedContext_
+  GeneralizationPrepruneErrorCyclicDependencies              {} -> GeneralizationPrepruneErrorCyclicDependencies_
+  GeneralizationPrepruneErrorFailedToInstantiate             {} -> GeneralizationPrepruneErrorFailedToInstantiate_
   GeneralizeCyclicDependency                                 {} -> GeneralizeCyclicDependency_
   GeneralizeNotSupportedHere                                 {} -> GeneralizeNotSupportedHere_
   GeneralizedVarInLetOpenedModule                            {} -> GeneralizedVarInLetOpenedModule_
@@ -123,8 +133,8 @@ typeErrorName = \case
   InvalidBuiltin                                             {} -> InvalidBuiltin_
   InvalidDottedExpression                                    {} -> InvalidDottedExpression_
   IllTypedPatternAfterWithAbstraction                        {} -> IllTypedPatternAfterWithAbstraction_
+  IlltypedRewriteRule                                        {} -> IlltypedRewriteRule_
   IllegalDeclarationBeforeTopLevelModule                     {} -> IllegalDeclarationBeforeTopLevelModule_
-  IllegalDeclarationInDataDefinition                         {} -> IllegalDeclarationInDataDefinition_
   IllegalHidingInPostfixProjection                           {} -> IllegalHidingInPostfixProjection_
   IllegalInstanceVariableInPatternSynonym                    {} -> IllegalInstanceVariableInPatternSynonym_
   IllegalLetInTelescope                                      {} -> IllegalLetInTelescope_
@@ -147,6 +157,7 @@ typeErrorName = \case
   MetaErasedSolution                                         {} -> MetaErasedSolution_
   MetaIrrelevantSolution                                     {} -> MetaIrrelevantSolution_
   MismatchedProjectionsError                                 {} -> MismatchedProjectionsError_
+  MissingBindingsForTelescopeVariables                       {} -> MissingBindingsForTelescopeVariables_
   ModuleArityMismatch                                        {} -> ModuleArityMismatch_
   ModuleDefinedInOtherFile                                   {} -> ModuleDefinedInOtherFile_
   ModuleNameDoesntMatchFileName                              {} -> ModuleNameDoesntMatchFileName_
@@ -156,10 +167,12 @@ typeErrorName = \case
   MultiplePolarityPragmas                                    {} -> MultiplePolarityPragmas_
   ExplicitPolarityVsPragma                                   {} -> ExplicitPolarityVsPragma_
   NamedWhereModuleInRefinedContext                           {} -> NamedWhereModuleInRefinedContext_
+  NamedWhereModuleUnderWith                                  {} -> NamedWhereModuleUnderWith_
   NeedOptionAllowExec                                        {} -> NeedOptionAllowExec_
   NeedOptionCopatterns                                       {} -> NeedOptionCopatterns_
   NeedOptionCubical                                          {} -> NeedOptionCubical_
   NeedOptionPatternMatching                                  {} -> NeedOptionPatternMatching_
+  NeedOptionIrrelevance                                      {} -> NeedOptionIrrelevance_
   NeedOptionProp                                             {} -> NeedOptionProp_
   NeedOptionRewriting                                        {} -> NeedOptionRewriting_
   NeedOptionSizedTypes                                       {} -> NeedOptionSizedTypes_
@@ -189,7 +202,6 @@ typeErrorName = \case
   QualifiedLocalModule                                       {} -> QualifiedLocalModule_
   QuantityMismatch                                           {} -> QuantityMismatch_
   RecordIsErased                                             {} -> RecordIsErased_
-  RecursiveRecordNeedsInductivity                            {} -> RecursiveRecordNeedsInductivity_
   ReferencesFutureVariables                                  {} -> ReferencesFutureVariables_
   RelevanceMismatch                                          {} -> RelevanceMismatch_
   RepeatedNamesInImportDirective                             {} -> RepeatedNamesInImportDirective_
@@ -222,21 +234,15 @@ typeErrorName = \case
   TooManyFields                                              {} -> TooManyFields_
   TooManyPatternsInWithClause                                {} -> TooManyPatternsInWithClause_
   TriedToCopyConstrainedPrim                                 {} -> TriedToCopyConstrainedPrim_
+  TrustedBuiltin                                             {} -> TrustedBuiltin_
+  TrustedPrimitive                                           {} -> TrustedPrimitive_
   InvalidInstanceHeadType                                    {} -> InvalidInstanceHeadType_
   UnboundVariablesInPatternSynonym                           {} -> UnboundVariablesInPatternSynonym_
-  UnequalCohesion                                            {} -> UnequalCohesion_
-  UnequalFiniteness                                          {} -> UnequalFiniteness_
-  UnequalHiding                                              {} -> UnequalHiding_
-  UnequalLevel                                               {} -> UnequalLevel_
-  UnequalQuantity                                            {} -> UnequalQuantity_
-  UnequalRelevance                                           {} -> UnequalRelevance_
-  UnequalPolarity                                            {} -> UnequalPolarity_
-  UnequalSorts                                               {} -> UnequalSorts_
-  UnequalTerms                                               {} -> UnequalTerms_
   UnexpectedModalityAnnotationInParameter                    {} -> UnexpectedModalityAnnotationInParameter_
   UnexpectedParameter                                        {} -> UnexpectedParameter_
   UnexpectedTypeSignatureForParameter                        {} -> UnexpectedTypeSignatureForParameter_
   UnexpectedWithPatterns                                     {} -> UnexpectedWithPatterns_
+  UnguardedEtaRecord                                         {} -> UnguardedEtaRecord_
   UnknownBackend                                             {} -> UnknownBackend_
   UnusableAtModality                                         {} -> UnusableAtModality_
   UnusedVariableInPatternSynonym                             {} -> UnusedVariableInPatternSynonym_
@@ -332,7 +338,6 @@ splitErrorName = \case
   BlockedType               {} -> BlockedType_
   CannotCreateMissingClause {} -> CannotCreateMissingClause_
   CoinductiveDatatype       {} -> CoinductiveDatatype_
-  CosplitCatchall           {} -> CosplitCatchall_
   CosplitNoRecordType       {} -> CosplitNoRecordType_
   CosplitNoTarget           {} -> CosplitNoTarget_
   NotADatatype              {} -> NotADatatype_
@@ -354,6 +359,7 @@ unquoteErrorName = \case
   ConInsteadOfDef             {} -> ConInsteadOfDef_
   DefineDataNotData           {} -> DefineDataNotData_
   DefInsteadOfCon             {} -> DefInsteadOfCon_
+  EscapingVariable            {} -> EscapingVariable_
   MissingDeclaration          {} -> MissingDeclaration_
   MissingDefinition           {} -> MissingDefinition_
   NakedUnquote                {} -> NakedUnquote_

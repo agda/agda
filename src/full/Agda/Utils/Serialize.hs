@@ -31,14 +31,14 @@ import GHC.Word
 import GHC.Num.Integer
 import System.IO.Unsafe
 
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Internal as B
-import qualified Data.Text as T
-import qualified Data.Text.Array as T
-import qualified Data.Text.Internal as T
-import qualified Data.Text.Internal.Lazy as TL
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Unsafe as T
+import Data.ByteString qualified as B
+import Data.ByteString.Internal qualified as B
+import Data.Text qualified as T
+import Data.Text.Array qualified as T
+import Data.Text.Internal qualified as T
+import Data.Text.Internal.Lazy qualified as TL
+import Data.Text.Lazy qualified as TL
+import Data.Text.Unsafe qualified as T
 
 import Data.Bits
 
@@ -51,6 +51,11 @@ pattern TArray arr = T.ByteArray arr
 {-# INLINE TArray #-}
 {-# COMPLETE TArray #-}
 
+pattern MkText :: T.Array -> Int# -> Int# -> T.Text
+pattern MkText arr start len = T.Text arr (I# start) (I# len)
+{-# INLINE MkText #-}
+{-# COMPLETE MkText #-}
+
 #else
 
 pattern TArray :: ByteArray# -> T.Array
@@ -58,11 +63,14 @@ pattern TArray arr = T.Array arr
 {-# INLINE TArray #-}
 {-# COMPLETE TArray #-}
 
+pattern MkText :: T.Array -> Int# -> Int# -> T.Text
+pattern MkText arr start len <- T.Text arr ((*2) -> I# start) ((*2) -> I# len) where
+  MkText arr start len = T.Text arr (I# (uncheckedIShiftRA# start 1#)) (I# (uncheckedIShiftRA# len 1#))
+{-# INLINE MkText #-}
+{-# COMPLETE MkText #-}
+
 #endif
 
-{-# INLINE tLengthWord8 #-}
-tLengthWord8 :: T.Text -> Int
-tLengthWord8 (T.Text (TArray arr) _ _) = I# (sizeofByteArray# arr)
 
 type RW = State# RealWorld
 newtype Put = Put {unPut :: Addr# -> RW -> (# Addr#, RW #)}
@@ -82,7 +90,7 @@ instance Monoid Put where
   mempty = Put \p s -> (# p, s #)
   {-# INLINE mappend #-}
   mappend = (<>)
-  mconcat = error "Put: mconcat not implemented"
+  mconcat = error "Agda.Utils.Serialize.Put: mconcat not implemented"
 
 instance Functor Get where
   {-# INLINE fmap #-}
@@ -110,7 +118,7 @@ ensure (I# n) k = Get \e p s ->
   let p' = plusAddr# p n in
   case leAddr# p' e of
     1# -> unGet (k p') e p s
-    _  -> error "deserialize: not enough input"
+    _  -> error "Agda.Utils.Serialize.deserialize: not enough input"
 {-# INLINE ensure #-}
 
 serialize :: Serialize a => a -> IO B.ByteString
@@ -121,7 +129,7 @@ serialize a = do
     (# p, s #) -> (# s, B.BS fptr (I# (minusAddr# p addr)) #)
   if B.length str == sz
     then pure str
-    else error "serialize: impossible mismatch of computed and written size"
+    else error "Agda.Utils.Serialize.serialize: impossible mismatch of computed and written size"
 
 deserialize :: forall a. Serialize a => B.ByteString -> IO a
 deserialize (B.BS (ForeignPtr p fp) (I# l)) =
@@ -129,10 +137,10 @@ deserialize (B.BS (ForeignPtr p fp) (I# l)) =
     let e = plusAddr# p l in
     case unGet (get @a) (plusAddr# p l) p s of
       (# p, s, a #) -> case ltAddr# p e of
-        1# -> error "deserialize: not all input was consumed"
+        1# -> error "Agda.Utils.Serialize.deserialize: not all input was consumed"
         _  -> case eqAddr# p e of
           1# -> (# s, a #)
-          _  -> error "deserialize: impossible out of bounds access"
+          _  -> error "Agda.Utils.Serialize.deserialize: impossible out of bounds access"
 
 serializePure :: Serialize a => a -> B.ByteString
 serializePure a = unsafeDupablePerformIO $ serialize a
@@ -345,20 +353,20 @@ getByteArray# len k = ensure (I# len) \p' -> Get \e p s ->
 
 instance Serialize T.Text where
   {-# INLINE size #-}
-  size t = size (0::Int) + tLengthWord8 t
+  size (MkText _ _ len) = size (0::Int) + I# len
 
-  put (T.Text (TArray arr) (I# start) (I# len)) =
+  put text@(MkText (TArray arr) start len) =
     put (I# len) <> putByteArray# arr start len
 
   get = do
     I# l <- get
     getByteArray# l \arr -> Get \e p s ->
-      (# p, s, T.Text (TArray arr) 0 (I# l) #)
+      (# p, s, MkText (TArray arr) 0# l #)
 
 lTextBytes :: TL.Text -> Int
 lTextBytes t = go t 0 where
-  go TL.Empty        acc = acc
-  go (TL.Chunk t ts) acc = go ts (tLengthWord8 t + acc)
+  go TL.Empty                       acc = acc
+  go (TL.Chunk (MkText _ _ len) ts) acc = go ts (I# len + acc)
 
 instance Serialize TL.Text where
   size t = size (0::Int) + lTextBytes t
@@ -367,7 +375,7 @@ instance Serialize TL.Text where
     go :: TL.Text -> Addr# -> RW -> Int# -> (# Addr#, RW, Int# #)
     go TL.Empty        p s len = (# p, s, len #)
     go (TL.Chunk t ts) p s len = case t of
-      T.Text (TArray arr) (I# start) (I# l) ->
+      MkText (TArray arr) start l ->
         case unPut (putByteArray# arr start l) p s of
           (# p , s #) -> go ts p s (len +# l)
 
@@ -392,4 +400,4 @@ instance Serialize Integer where
     0 -> do {I# n  <- get; pure $ IS n}
     1 -> do {I# sz <- get; getByteArray# sz \arr -> pure $ IP arr}
     2 -> do {I# sz <- get; getByteArray# sz \arr -> pure $ IN arr}
-    _ -> error "deserialize: malformed input"
+    _ -> error "Agda.Utils.Serialize.deserialize: malformed input"

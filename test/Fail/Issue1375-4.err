@@ -1,7 +1,7 @@
 Issue1375-4.agda:14.1-19.25: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   weakenType
-Problematic calls:
+Problematic call:
   weakenType (?1 (ty = ty) (ty' = ty')) type
     (at Issue1375-4.agda:16.46-56)
 

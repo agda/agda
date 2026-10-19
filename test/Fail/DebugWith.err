@@ -42,6 +42,9 @@ added with function DebugWith.with-34 of type
   (b : A) (f : (x : A) → P x) →
   P b → (trash1 trash2 trash3 : Trash) → Set
   -|
-DebugWith.agda:15.11-23: error: [UnequalTerms]
-Trash !=< Set
+DebugWith.agda:15.11-23: error: [UnequalTypes]
+The type
+  Trash
+is not a subtype of
+  Set
 when checking that the expression provokeError has type Set

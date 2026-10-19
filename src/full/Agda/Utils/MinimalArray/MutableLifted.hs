@@ -1,11 +1,11 @@
 
 module Agda.Utils.MinimalArray.MutableLifted where
 
-import qualified GHC.Arr as GHC
-import qualified GHC.IOArray as GHC
+import GHC.Arr qualified as GHC
+import GHC.IOArray qualified as GHC
 import Data.Coerce
-import qualified Data.Primitive.Array as A
-import qualified Agda.Utils.MinimalArray.Lifted as LA
+import Data.Primitive.Array qualified as A
+import Agda.Utils.MinimalArray.Lifted qualified as LA
 import Control.Monad.Primitive
 
 newtype Array s a = Array {unwrap :: A.MutableArray s a}

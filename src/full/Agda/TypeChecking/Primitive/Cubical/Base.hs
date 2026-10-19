@@ -56,7 +56,7 @@ import Agda.Syntax.Internal
 
 
 -- | Checks that the correct variant of Cubical Agda is activated.
--- Note that @--erased-cubical@ \"counts as\" @--cubical@ in erased
+-- Note that @--cubical=erased@ \"counts as\" @--cubical@ in erased
 -- contexts.
 requireCubical
   :: Cubical -- ^ Which variant of Cubical Agda is required?
@@ -70,10 +70,11 @@ requireCubical'
   -> TCM ()
 requireCubical' wanted reason = do
   cubical         <- cubicalOption
-  inErasedContext <- hasQuantity0 <$> viewTC eQuantity
+  inErasedContext <- hasQuantity0 <$> viewTC eQuantityZeroHardCompile
   case cubical of
     Just CFull -> return ()
-    Just CErased | wanted == CErased || inErasedContext -> return ()
+    Just CErased | wanted /= CFull || inErasedContext -> return ()
+    Just CWithoutGlue | wanted == CWithoutGlue -> return ()
     _ -> typeError $ NeedOptionCubical wanted reason
 
 -- | Our good friend the interval type.
@@ -84,7 +85,7 @@ primIntervalType = El intervalSort <$> primInterval
 -- their implementation is handled here.
 primINeg' :: TCM PrimitiveImpl
 primINeg' = do
-  requireCubical CErased
+  requireCubical CWithoutGlue
   t <- primIntervalType --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \case
     [x] -> do
@@ -118,7 +119,7 @@ primINeg' = do
 -- parameterised by their unit and absorbing elements.
 primIBin :: IntervalView -> IntervalView -> TCM PrimitiveImpl
 primIBin unit absorber = do
-  requireCubical CErased
+  requireCubical CWithoutGlue
   t <- primIntervalType --> primIntervalType --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 2 $ \case
     [x,y] -> do
@@ -150,14 +151,14 @@ primIBin unit absorber = do
 -- cofibration classifier.
 primIMin' :: TCM PrimitiveImpl
 primIMin' = do
-  requireCubical CErased
+  requireCubical CWithoutGlue
   primIBin IOne IZero
 
 -- | Implements both the @max@ connection /and/ disjunction on the
 -- cofibration classifier.
 primIMax' :: TCM PrimitiveImpl
 primIMax' = do
-  requireCubical CErased
+  requireCubical CWithoutGlue
   primIBin IZero IOne
 
 -- | A helper for evaluating @max@ on the interval in TCM&co.
@@ -321,7 +322,7 @@ fiber la lb bA bB f b = do
 -- | Helper function for constructing the filler of a given composition
 -- problem.
 hfill
-  :: (HasBuiltins m, HasConstInfo m)
+  :: (HasBuiltins m)
   => NamesT m Term -- @la : Level@
   -> NamesT m Term -- @A : Type la@
   -> NamesT m Term -- @φ : I@. Cofibration

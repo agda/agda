@@ -27,11 +27,11 @@ import Agda.TypeChecking.Pretty.Constraint () -- instance PrettyTCM Constraint
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (MonadCheckInternal, infer)
+import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
 import {-# SOURCE #-} Agda.TypeChecking.Constraints () -- instance MonadConstraint TCM
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Conversion.Errors
 
-import Agda.Utils.Functor
 import Agda.Utils.List as List
 import Agda.Utils.List1 (pattern (:|))
 import Agda.Utils.ListInf (ListInf, pattern (:<))
@@ -139,7 +139,7 @@ checkSizeVarNeverZero i = do
   -- Looking for the minimal value for size variable i,
   -- we can restrict to the last i
   -- entries, as only these can contain i in an upper bound.
-  ts <- map ctxEntryType . take i <$> getContext
+  ts <- map ctxEntryType . cxTake i <$> getContext
   -- If we encountered a blocking meta in the context, we cannot
   -- say ``no'' for sure.
   (n, blockers) <- runWriterT $ minSizeValAux ts $ ListInf.repeat 0
@@ -186,9 +186,7 @@ checkSizeVarNeverZero i = do
 isBounded :: PureTCM m => Nat -> m BoundedSize
 isBounded i = isBoundedSizeType =<< typeOfBV i
 
-isBoundedProjVar
-  :: (MonadCheckInternal m, PureTCM m)
-  => ProjectedVar -> m BoundedSize
+isBoundedProjVar :: ProjectedVar -> TCM BoundedSize
 isBoundedProjVar pv = isBoundedSizeType =<< infer (unviewProjectedVar pv)
 
 isBoundedSizeType :: PureTCM m => Type -> m BoundedSize
@@ -204,10 +202,7 @@ isBoundedSizeType t =
 --   In @boundedSizeMetaHook v tel a@, @tel@ includes the current context.
 boundedSizeMetaHook
   :: ( MonadConstraint m
-     , MonadTCEnv m
-     , ReadTCState m
      , MonadAddContext m
-     , HasOptions m
      , HasBuiltins m
      )
   => Term -> Telescope -> Type -> m ()
@@ -234,13 +229,12 @@ boundedSizeMetaHook _ _ _ = __IMPOSSIBLE__
 --   like @Size< i =< Size@.
 --
 --   If it does not succeed it reports failure of conversion check.
-trySizeUniv
-  :: MonadConversion m
-  => Comparison -> CompareAs -> Term -> Term
-  -> QName -> Elims -> QName -> Elims -> m ()
+trySizeUniv ::
+     Comparison -> CompareAs -> Term -> Term
+  -> QName -> Elims -> QName -> Elims -> TCM ()
 trySizeUniv cmp t m n x els1 y els2 = do
-  let failure :: forall m a. MonadTCError m => m a
-      failure = typeError $ UnequalTerms cmp m n t
+  let failure :: forall a. TCM a
+      failure = failConversion cmp m n t
       forceInfty u = compareSizes CmpEq (unArg u) =<< primSizeInf
   -- Get the SIZE built-ins.
   (size, sizelt) <- maybe failure pure =<< runMaybeT do
@@ -299,9 +293,8 @@ sizeMaxView v = do
 -- * Size comparison that might add constraints.
 ------------------------------------------------------------------------
 
-{-# SPECIALIZE compareSizes :: Comparison -> Term -> Term -> TCM () #-}
 -- | Compare two sizes.
-compareSizes :: (MonadConversion m) => Comparison -> Term -> Term -> m ()
+compareSizes :: Comparison -> Term -> Term -> TCM ()
 compareSizes cmp u v = verboseBracket "tc.conv.size" 10 "compareSizes" $ do
   reportSDoc "tc.conv.size" 10 $ vcat
     [ "Comparing sizes"
@@ -322,7 +315,7 @@ compareSizes cmp u v = verboseBracket "tc.conv.size" 10 "compareSizes" $ do
   compareMaxViews cmp us vs
 
 -- | Compare two sizes in max view.
-compareMaxViews :: (MonadConversion m) => Comparison -> SizeMaxView -> SizeMaxView -> m ()
+compareMaxViews :: Comparison -> SizeMaxView -> SizeMaxView -> TCM ()
 compareMaxViews cmp us vs = case (cmp, us, vs) of
   (CmpLeq, _, (DSizeInf :| _)) -> return ()
   (cmp,    u :| [], v :| []) -> compareSizeViews cmp u v
@@ -333,7 +326,7 @@ compareMaxViews cmp us vs = case (cmp, us, vs) of
     compareMaxViews CmpLeq vs us
 
 -- | @compareBelowMax u vs@ checks @u <= max vs@.  Precondition: @size vs >= 2@
-compareBelowMax :: (MonadConversion m) => DeepSizeView -> SizeMaxView -> m ()
+compareBelowMax :: DeepSizeView -> SizeMaxView -> TCM ()
 compareBelowMax u vs = verboseBracket "tc.conv.size" 45 "compareBelowMax" $ do
   reportSDoc "tc.conv.size" 45 $ sep
     [ pretty u
@@ -354,7 +347,7 @@ compareBelowMax u vs = verboseBracket "tc.conv.size" 45 "compareBelowMax" $ do
   where
   alt c1 c2 = c1 `catchError` const c2
 
-compareSizeViews :: (MonadConversion m) => Comparison -> DeepSizeView -> DeepSizeView -> m ()
+compareSizeViews :: Comparison -> DeepSizeView -> DeepSizeView -> TCM ()
 compareSizeViews cmp s1' s2' = do
   reportSDoc "tc.conv.size" 45 $ hsep
     [ "compareSizeViews"
@@ -368,7 +361,7 @@ compareSizeViews cmp s1' s2' = do
         u <- unDeepSizeView s1
         v <- unDeepSizeView s2
         cont u v
-      failure = withUnView $ \ u v -> typeError $ UnequalTerms cmp u v AsSizes
+      failure = withUnView $ \ u v -> failConversion cmp u v AsSizes
       continue cmp = withUnView $ compareAtom cmp AsSizes
   case (cmp, s1, s2) of
     (CmpLeq, _,            DSizeInf)   -> return ()
@@ -395,17 +388,17 @@ compareSizeViews cmp s1' s2' = do
 
 -- | If 'envAssignMetas' then postpone as constraint, otherwise, fail hard.
 --   Failing is required if we speculatively test several alternatives.
-giveUp :: (MonadConversion m) => Comparison -> Type -> Term -> Term -> m ()
+giveUp :: Comparison -> Type -> Term -> Term -> TCM ()
 giveUp cmp size u v =
-  ifM (asksTC envAssignMetas)
+  ifM (viewTC eAssignMetas)
     {-then-} (do
       -- TODO: compute proper blocker
       unblock <- unblockOnAnyMetaIn <$> instantiateFull [u, v]
       addConstraint unblock $ ValueCmp CmpLeq AsSizes u v)
-    {-else-} (typeError $ UnequalTerms cmp u v AsSizes)
+    {-else-} (failConversion cmp u v AsSizes)
 
 -- | Checked whether a size constraint is trivial (like @X <= X+1@).
-trivial :: (MonadConversion m) => Term -> Term -> m Bool
+trivial :: Term -> Term -> TCM Bool
 trivial u v = do
     a@(e , n ) <- oldSizeExpr u
     b@(e', n') <- oldSizeExpr v
@@ -545,10 +538,10 @@ oldComputeSizeConstraints [] = return [] -- special case to avoid maximum []
 oldComputeSizeConstraints cs = catMaybes <$> mapM oldComputeSizeConstraint leqs
   where
     -- get the constraints plus contexts they are defined in
-    gammas       = map (envContext . clEnv . theConstraint) cs
-    ls           = map (clValue . theConstraint) cs
+    gammas       = map' (view eContext . clEnv . theConstraint) cs
+    ls           = map' (clValue . theConstraint) cs
     -- compute the longest context (common water level)
-    ns           = map size gammas
+    ns           = map' size gammas
     waterLevel   = maximum ns
     -- lift all constraints to live in the longest context
     -- (assuming this context is an extension of the shorter ones)
@@ -575,7 +568,7 @@ oldComputeSizeConstraint c =
 -- | Turn a term with de Bruijn indices into a size expression with offset.
 --
 --   Throws a 'patternViolation' if the term isn't a proper size expression.
-oldSizeExpr :: (PureTCM m, MonadBlock m) => Term -> m (OldSizeExpr, Int)
+oldSizeExpr :: Term -> TCM (OldSizeExpr, Int)
 oldSizeExpr u = do
   u <- reduce u -- Andreas, 2009-02-09.
                 -- This is necessary to surface the solutions of metavariables.
@@ -583,7 +576,7 @@ oldSizeExpr u = do
   s <- sizeView u
   case s of
     SizeInf     -> patternViolation neverUnblock
-    SizeSuc u   -> mapSnd (+ 1) <$> oldSizeExpr u
+    SizeSuc u   -> second (+ 1) <$> oldSizeExpr u
     OtherSize u -> case u of
       Var i []  -> return (Rigid i, 0)
       MetaV m es | Just xs <- mapM isVar es, fastDistinct xs

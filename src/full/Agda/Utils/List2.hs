@@ -5,7 +5,7 @@
 --   Import as:
 --   @
 --      import Agda.Utils.List2 (List2(List2))
---      import qualified Agda.Utils.List2 as List2
+--      import Agda.Utils.List2 qualified as List2
 --   @
 
 module Agda.Utils.List2
@@ -18,14 +18,14 @@ import Prelude hiding ( zip, zipWith )
 import Control.DeepSeq
 import Control.Monad                   ( (<=<) )
 
-import qualified Data.List as List
+import Data.List qualified as List
 import Data.Semigroup (sconcat)
 
 import GHC.Exts                        ( IsList(..) )
-import qualified GHC.Exts  as Reexport ( toList )
+import GHC.Exts qualified  as Reexport ( toList )
 
 import Agda.Utils.List1                ( List1, pattern (:|) )
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1 qualified as List1
 
 import Agda.Utils.Impossible
 

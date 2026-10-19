@@ -1,0 +1,4 @@
+Issue8440.agda:14.9-15: error: [SortOfSplitVarError]
+Cannot eliminate fibrant type Wrap i unless context type
+IsOne (i ∨ ~ i) is also fibrant.
+when checking that the pattern wrap a has type Wrap A

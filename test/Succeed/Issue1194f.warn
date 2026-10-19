@@ -1,0 +1,22 @@
+
+Issue1194f.agda:5.11-12: warning: -W[no]FixityDeclarationForNonOperator
+Deprecated: fixity declaration for non-operator c
+when scope checking the declaration
+  module A where
+
+Issue1194f.agda:14.11-12: warning: -W[no]FixityDeclarationForNonOperator
+Deprecated: fixity declaration for non-operator c
+when scope checking the declaration
+  module B where
+
+———— All done; warnings encountered ————————————————————————
+
+Issue1194f.agda:5.11-12: warning: -W[no]FixityDeclarationForNonOperator
+Deprecated: fixity declaration for non-operator c
+when scope checking the declaration
+  module A where
+
+Issue1194f.agda:14.11-12: warning: -W[no]FixityDeclarationForNonOperator
+Deprecated: fixity declaration for non-operator c
+when scope checking the declaration
+  module B where

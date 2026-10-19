@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE MagicHash #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 {-# OPTIONS_GHC -Wunused-matches #-}
 {-# OPTIONS_GHC -Wunused-binds #-}
@@ -18,32 +20,64 @@ module Agda.Syntax.Concrete.Operators.Parser.Monad
   , memoise
   , memoiseIfPrinting
   , grammar
+  , pattern LeftPK
+  , pattern RightPK
   ) where
 
 import Data.Hashable
 import GHC.Generics (Generic)
+#if ! (__GLASGOW_HASKELL__ <= 908)
+import GHC.Exts
+#endif
+import GHC.Word (Word64(..))
 
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty
 
 import qualified Agda.Utils.Parser.MemoisedCPS as Parser
+import Agda.Utils.Hash
 
 -- | Memoisation keys.
 
-data MemoKey = NodeK      PrecedenceKey
-             | PostLeftsK PrecedenceKey
-             | PreRightsK PrecedenceKey
+data MemoKey = NodeK      {-# UNPACK #-} !PrecedenceKey
+             | PostLeftsK {-# UNPACK #-} !PrecedenceKey
+             | PreRightsK {-# UNPACK #-} !PrecedenceKey
              | TopK
              | AppK
              | NonfixK
   deriving (Eq, Show, Generic)
 
-type PrecedenceKey = Either PrecedenceLevel PrecedenceLevel
+data PrecedenceKey = PrecKey !Bool !PrecedenceLevel
+  deriving (Eq, Show)
 
-instance Hashable MemoKey
+pattern RightPK :: PrecedenceLevel -> PrecedenceKey
+pattern RightPK l = PrecKey False l
+
+pattern LeftPK :: PrecedenceLevel -> PrecedenceKey
+pattern LeftPK l = PrecKey True l
+
+#if __GLASGOW_HASKELL__ <= 908
+doubleToWord64 :: Double -> Word64
+doubleToWord64 x = fromIntegral $ hash x
+#else
+doubleToWord64 :: Double -> Word64
+doubleToWord64 (D# x) = W64# (castDoubleToWord64# x)
+#endif
+
+instance Hashable PrecedenceKey where
+  hashWithSalt h (PrecKey b l) = fromIntegral $
+    fromIntegral (h + fromEnum b) `combineWord` fromIntegral (doubleToWord64 l)
+
+instance Hashable MemoKey where
+  hashWithSalt h = \case
+    NodeK pk      -> hashWithSalt (h + 1) pk
+    PostLeftsK pk -> hashWithSalt (h + 2) pk
+    PreRightsK pk -> hashWithSalt (h + 3) pk
+    TopK          -> combineInt h 4
+    AppK          -> combineInt h 5
+    NonfixK       -> combineInt h 6
 
 -- | The parser monad.
-
 type Parser tok a =
 #ifdef DEBUG_PARSING
   Parser.ParserWithGrammar

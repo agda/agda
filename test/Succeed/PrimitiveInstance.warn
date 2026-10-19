@@ -1,12 +1,13 @@
+
 PrimitiveInstance.agda:7.3-11: warning: -W[no]UselessInstance
 Using instance here has no effect. Instance applies only to
-declarations that introduce new identifiers into the module, like
-type signatures and axioms (other than primitives).
+(function) definitions, constructor declarations and axioms (other
+than primitives).
 
 PrimitiveInstance.agda:22.1-9: warning: -W[no]UselessInstance
 Using instance here has no effect. Instance applies only to
-declarations that introduce new identifiers into the module, like
-type signatures and axioms (other than primitives).
+(function) definitions, constructor declarations and axioms (other
+than primitives).
 
 PrimitiveInstance.agda:29.1-10: warning: -W[no]EmptyPrimitive
 Empty primitive block.
@@ -43,8 +44,8 @@ Empty constructor block.
 
 PrimitiveInstance.agda:41.3-11: warning: -W[no]UselessInstance
 Using instance here has no effect. Instance applies only to
-declarations that introduce new identifiers into the module, like
-type signatures and axioms (other than primitives).
+(function) definitions, constructor declarations and axioms (other
+than primitives).
 
 PrimitiveInstance.agda:46.5-12: warning: -W[no]UselessPrivate
 Using private here has no effect. Private applies only to
@@ -58,13 +59,13 @@ when scope checking the declaration
 
 PrimitiveInstance.agda:7.3-11: warning: -W[no]UselessInstance
 Using instance here has no effect. Instance applies only to
-declarations that introduce new identifiers into the module, like
-type signatures and axioms (other than primitives).
+(function) definitions, constructor declarations and axioms (other
+than primitives).
 
 PrimitiveInstance.agda:22.1-9: warning: -W[no]UselessInstance
 Using instance here has no effect. Instance applies only to
-declarations that introduce new identifiers into the module, like
-type signatures and axioms (other than primitives).
+(function) definitions, constructor declarations and axioms (other
+than primitives).
 
 PrimitiveInstance.agda:29.1-10: warning: -W[no]EmptyPrimitive
 Empty primitive block.
@@ -101,8 +102,8 @@ Empty constructor block.
 
 PrimitiveInstance.agda:41.3-11: warning: -W[no]UselessInstance
 Using instance here has no effect. Instance applies only to
-declarations that introduce new identifiers into the module, like
-type signatures and axioms (other than primitives).
+(function) definitions, constructor declarations and axioms (other
+than primitives).
 
 PrimitiveInstance.agda:46.5-12: warning: -W[no]UselessPrivate
 Using private here has no effect. Private applies only to

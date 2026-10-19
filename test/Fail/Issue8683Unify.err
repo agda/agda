@@ -1,0 +1,8 @@
+Issue8683Unify.agda:38.7-10: error: [UnequalTerms]
+The terms
+  1
+and
+  0
+are not equal at type Nat
+when inferring the type of
+primHComp {lzero} {Nat} {j} (λ i o → 0) 1

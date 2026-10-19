@@ -14,7 +14,11 @@ does not fit into data type of sort Set.
 when checking that the type Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₅ of an argument
 to the constructor set fits in the sort Set of the datatype.
 
-Issue5706.agda:37.15-16: error: [UnequalSorts]
-Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₅ != Set
+Issue5706.agda:37.15-16: error: [UnequalTypes]
+The types
+  Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₅
+and
+  Set
+are not equal
 when checking that the solution X of metavariable _A_21 has the
 expected type Set

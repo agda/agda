@@ -1,0 +1,9 @@
+ConvErrCtxDomain.agda:11.7-8: error: [UnequalTerms]
+The terms
+  idh {x = ⦃ x = x₁ : A ⦄ → B x₁}
+and
+  idh {x = (x₁ : A) → B x₁}
+are not equal at type Set, because:
+  the mismatched terms are function types; one takes an instance
+  argument, while the other takes a visible argument.
+when checking that the expression x has type idh

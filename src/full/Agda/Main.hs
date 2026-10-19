@@ -10,6 +10,7 @@ import qualified Control.Exception as E
 import Control.Monad          ( void )
 import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
+import Control.Concurrent     (setNumCapabilities)
 
 import qualified Data.List as List
 import Data.Function          ( (&) )
@@ -17,6 +18,8 @@ import Data.Functor
 import Data.Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as T
+
+import GHC.Conc (getNumProcessors)
 
 import System.Environment ( getArgs, getProgName )
 import System.Exit ( exitSuccess, ExitCode )
@@ -90,17 +93,11 @@ runAgda' backends = do
 runAgdaArgs :: [Backend] -> [String] -> IO ()
 runAgdaArgs backends args = do
   progName <- getProgName
-  let (z, warns) = runOptM $ parseBackendOptions backends args defaultOptions
-  conf     <- runExceptT $ do
-    (bs, opts) <- ExceptT $ pure z
-    -- The absolute path of the input file, if provided
-    inputFile <- liftIO $ mapM absolute $ optInputFile opts
-    mode      <- getInteractor bs inputFile opts
-    return (bs, opts, mode)
+  let (conf, warns) = runOptM $ parseBackendOptions backends args defaultOptions
 
   case conf of
     Left err -> optionError err
-    Right (bs, opts, mode) -> do
+    Right (bs, opts) -> do
 
       -- Setup Agda if requested
       when (optSetup opts) $ Agda.Setup.setup True
@@ -127,8 +124,12 @@ runAgdaArgs backends args = do
         unless (optSetup opts) $ Agda.Setup.setup False
         printEmacsModeFile
 
-      case mode of
-        Nothing -> do
+      -- The absolute path of the input file, if provided
+      inputFile <- liftIO $ mapM absolute $ optInputFile opts
+
+      (runExceptT $ getInteractor bs inputFile opts) >>= \case
+        Left err -> optionError err
+        Right Nothing -> do
           let
             something = or
               [ opts & optSetup
@@ -142,7 +143,7 @@ runAgdaArgs backends args = do
           -- if no task was given to Agda
           unless something $ optionError "No task given."
 
-        Just interactor -> do
+        Right (Just interactor) -> do
          unless (optSetup opts) $ Agda.Setup.setup False
 
          runTCMPrettyErrors do
@@ -163,7 +164,7 @@ runAgdaArgs backends args = do
               IO.hSetEncoding IO.stdout enc
               IO.hSetEncoding IO.stderr enc
 
-          setTCLens stBackends bs
+          setSession lensBackends bs
           runAgdaWithOptions interactor progName opts
 
 
@@ -313,6 +314,23 @@ runAgdaWithOptions interactor progName opts = do
       opts <- addTrustedExecutables opts
       setCommandLineOptions opts
 
+      -- The GHC runtime has some funky behaviour if we ask it to set
+      -- the number of capabilities on startup.
+      --
+      -- a) The minimum heap size seems to shoot up to approx. the GC
+      -- allocation area times the number of processors, which means the
+      -- performance regression tests with very low memory usage limit
+      -- simply fail to start;
+      --
+      -- b) Even if we set the number of capabilities back down to 1,
+      -- the parallel GC seems to be used unconditionally if we have
+      -- more capabilities on startup, which adds a noticeable amount of
+      -- overhead.
+      liftIO case optParallelChecking opts of
+        Parallel Nothing  -> setNumCapabilities =<< getNumProcessors
+        Parallel (Just i) -> setNumCapabilities i
+        Sequential        -> setNumCapabilities 1
+
     checkFile :: AbsolutePath -> TCM CheckResult
     checkFile inputFile = do
         -- Andreas, 2013-10-30 The following 'resetState' kills the
@@ -378,12 +396,7 @@ printVersion backends PrintAgdaVersion = do
   bullet = (" - " ++)
   -- Print cabal flags that were involved in compilation.
   flags =
-#ifdef COUNT_CLUSTERS
-    "enable-cluster-counting: unicode cluster counting in LaTeX backend using the ICU library" :
-#endif
-#ifdef OPTIMISE_HEAVILY
-    "optimise-heavily: extra optimisations" :
-#endif
+    -- Keep in alphabetical order!
 #ifdef DEBUG
     "debug: enable debug printing ('-v' verbosity flags)" :
 #endif
@@ -392,6 +405,12 @@ printVersion backends PrintAgdaVersion = do
 #endif
 #ifdef DEBUG_SERIALISATION
     "debug-serialisation: extra debug info during serialisation into '.agdai' files" :
+#endif
+#ifdef COUNT_CLUSTERS
+    "enable-cluster-counting: unicode cluster counting in LaTeX backend using the ICU library" :
+#endif
+#ifdef OPTIMISE_HEAVILY
+    "optimise-heavily: extra optimisations" :
 #endif
 #ifdef USE_XDG_DATA_HOME
     concat
@@ -402,6 +421,9 @@ printVersion backends PrintAgdaVersion = do
       , " by default instead of the location defined by Cabal"
       ]
     :
+#endif
+#ifdef VERSION_WITH_GIT_HASH
+    "version-with-git-hash: suffix version information with the Git commit hash" :
 #endif
     []
 

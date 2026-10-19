@@ -24,6 +24,7 @@ import Agda.Syntax.Builtin (builtinById, isBuiltinNoDef)
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 import Agda.Syntax.Position
+import Agda.Syntax.Notation (isPrePostOrInfixNotation)
 import Agda.TypeChecking.Positivity.Occurrence (PragmaPolarities)
 
 import Agda.Utils.CallStack (HasCallStack)
@@ -48,6 +49,7 @@ class Monad m => MonadFixityError m where
   warnUnknownFixityInMixfixDecl       :: HasCallStack => Set1 Name -> m ()
   warnPolarityPragmasButNotPostulates :: HasCallStack => Set1 Name -> m ()
   warnEmptyPolarityPragma             :: HasCallStack => Range -> m ()
+  warnFixityDeclarationForNonOperator :: HasCallStack => Range -> Name -> m ()
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 --   OR:  Disjoint union of fixity maps.  Throws exception if not disjoint.
@@ -60,13 +62,21 @@ plusFixities m1 m2
     | otherwise        = return $ Map.unionWithKey mergeFixites m1 m2
   where
     --  Merge two fixities, assuming there is no conflict
-    mergeFixites _name (Fixity' f1 s1 r1) (Fixity' f2 s2 r2) = Fixity' f s $ fuseRange r1 r2
-              where f | null f1 = f2
-                      | null f2 = f1
-                      | otherwise = __IMPOSSIBLE__
-                    s | null s1 = s2
-                      | null s2 = s1
-                      | otherwise = __IMPOSSIBLE__
+    mergeFixites _name (Fixity' f1 s1 r1) (Fixity' f2 s2 r2) = Fixity' f s r
+      where
+        (f, rf)
+          | null f1 = (f2, r2)
+          | null f2 = (f1, r1)
+          | otherwise = __IMPOSSIBLE__
+        (s, rs)
+          | null s1 = (s2, r2)
+          | null s2 = (s1, r1)
+          | otherwise = __IMPOSSIBLE__
+        -- Andreas, 2026-09-07, issue #1438
+        -- If we have both a fixity and a syntax declaration,
+        -- take the range of the fixity declaration.
+        r | null rf   = rs
+          | otherwise = rf
 
     -- Compute a list of conflicts in a format suitable for error reporting.
     isect = [ (x, fmap (Map.findWithDefault __IMPOSSIBLE__ x) $ Pair m1 m2)
@@ -137,9 +147,26 @@ fixitiesAndPolarities doWarn ds = do
       -- return $ Map.restrictKeys polarities declared
       return $ Map.filterWithKey (\ k _ -> Set.member k declared) pols
 
+  -- Andreas, 2026-09-07, issue #1438
+  -- Fixity does not make sense for names that are not operators
+  -- or do not have any @syntax@ declaration attached to it,
+  -- so we discard respective declarations with a warning.
+  _useless <- forM (Map.toList fixs) \ (x, Fixity' fx nota r) ->
+    -- Nothing to do if there is no fixity declaration or it belongs
+    -- to a pre-, post-, or infix operator/syntax.
+    if null fx || isPrePostOrInfixOperator x || isPrePostOrInfixNotation nota then pure Nothing
+    else do
+      when (doWarn == DoWarn) $ warnFixityDeclarationForNonOperator r x
+      -- Discard useless fixity declarations that have no syntax notation.
+      pure $ if null nota then Just x else Nothing
+  -- Andreas, do not remove fixity declarations (yet) since Agda.Primitive.Cubical
+  -- abuses the feature, e.g. @infix 20 primINeg@ (as of 2026-09-07).
+  -- TODO: do remove them in the future (past 2.9.0). See also 'applyImportDirectiveM'.
+  -- fixs <- return $ Map.withoutKeys fixs $ Set.fromList $ catMaybes useless
+
   -- If we have public mixfix identifiers without a corresponding fixity
   -- declaration, we raise a warning
-  Set1.unlessNull (Set.filter isOpenMixfix publicNames Set.\\ Map.keysSet fixs) $
+  Set1.unlessNull (Set.filter isPrePostOrInfixOperator publicNames Set.\\ Map.keysSet fixs) $
     when (doWarn == DoWarn) . warnUnknownFixityInMixfixDecl
 
   -- Check that every polarity pragma is used for a postulate.
@@ -196,7 +223,13 @@ fixitiesAndPolarities' = foldMap $ \case
   Pragma          {}  -> mempty
   Unfolding       {}  -> mempty
 
-data DeclaredNames = DeclaredNames { _allNames, _postulates, _privateNames :: Set Name }
+data DeclaredNames = DeclaredNames
+  { _allNames     :: Set Name
+  , _postulates   :: Set Name
+      -- ^ Subset of postulates within '_allNames'.
+  , _privateNames :: Set Name
+      -- ^ Subset of private names within '_allNames'.
+  }
 
 instance Semigroup DeclaredNames where
   DeclaredNames xs ps as <> DeclaredNames ys qs bs =
@@ -206,11 +239,15 @@ instance Monoid DeclaredNames where
   mempty  = DeclaredNames Set.empty Set.empty Set.empty
   mappend = (<>)
 
+-- | Mark all declared names as postulates.
 allPostulates :: DeclaredNames -> DeclaredNames
-allPostulates (DeclaredNames xs ps as) = DeclaredNames xs (xs <> ps) as
+allPostulates (DeclaredNames xs _ps as) = DeclaredNames xs xs as
+  -- Note that @_ps@ is a subset of @xs@ so we can discard it.
 
+-- | Mark all declared names as private.
 allPrivateNames :: DeclaredNames -> DeclaredNames
-allPrivateNames (DeclaredNames xs ps as) = DeclaredNames xs ps (xs <> as)
+allPrivateNames (DeclaredNames xs ps _as) = DeclaredNames xs ps xs
+  -- Note that @_as@ is a subset of @xs@ so we can discard it.
 
 declaresNames :: [Name] -> DeclaredNames
 declaresNames xs = DeclaredNames (Set.fromList xs) Set.empty Set.empty

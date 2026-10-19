@@ -13,7 +13,7 @@ prettyA :: (ToConcrete a, Pretty (ConOfAbs a), MonadAbsToCon m) => a -> m Doc
 prettyA x = pretty <$> abstractToConcrete_ x
 
 prettyAs :: (ToConcrete a, ConOfAbs a ~ [ce], Pretty ce, MonadAbsToCon m) => a -> m Doc
-prettyAs x = fsep . map pretty <$> abstractToConcrete_ x
+prettyAs x = fsep . map pretty <$> abstractToConcreteCtx (ArgumentCtx PreferParen) x
 
 -- | Variant of 'showA' which does not insert outermost parentheses.
 

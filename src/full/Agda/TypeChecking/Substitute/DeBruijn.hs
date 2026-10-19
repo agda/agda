@@ -26,6 +26,7 @@ class DeBruijn a where
 -- | We can substitute @Term@s for variables.
 instance DeBruijn Term where
   deBruijnVar = var
+  {-# INLINE deBruijnView #-}
   deBruijnView u =
     case u of
       Var i [] -> Just i
@@ -34,6 +35,7 @@ instance DeBruijn Term where
 
 instance DeBruijn PlusLevel where
   deBruijnVar = Plus 0 . deBruijnVar
+  {-# INLINE deBruijnView #-}
   deBruijnView l =
     case l of
       Plus 0 a -> deBruijnView a
@@ -41,6 +43,7 @@ instance DeBruijn PlusLevel where
 
 instance DeBruijn Level where
   deBruijnVar i = Max 0 [deBruijnVar i]
+  {-# INLINE deBruijnView #-}
   deBruijnView l =
     case l of
       Max 0 [p] -> deBruijnView p
@@ -50,7 +53,10 @@ instance DeBruijn DBPatVar where
   deBruijnNamedVar = DBPatVar
   deBruijnView = Just . dbPatVarIndex
 
-
 instance DeBruijn a => DeBruijn (Named_ a) where
   deBruijnNamedVar nm i = unnamed $ deBruijnNamedVar nm i
   deBruijnView = deBruijnView . namedThing
+
+instance DeBruijn Nat where
+  deBruijnVar  x = x
+  deBruijnView x = Just x

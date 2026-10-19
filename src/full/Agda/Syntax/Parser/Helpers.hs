@@ -47,49 +47,62 @@ import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Impossible
 import Data.List (partition)
 
--- | Grab leading OPTIONS pragmas.
-takeOptionsPragmas :: [Declaration] -> Module
-takeOptionsPragmas = uncurry Mod . spanJust (\ d -> case d of
-  Pragma p@OptionsPragma{} -> Just p
-  _                        -> Nothing)
-
 -- | Insert a top-level module if there is none.
 --   Also fix-up for the case the declarations in the top-level module
 --   are not indented (this is allowed as a special case).
-figureOutTopLevelModule :: [Declaration] -> [Declaration]
-figureOutTopLevelModule ds =
-  case spanAllowedBeforeModule ds of
-    -- Andreas 2016-02-01, issue #1388.
-    -- We need to distinguish two additional cases.
+figureOutTopLevelModule :: [Declaration] -> Module
+figureOutTopLevelModule ds00 = Mod moduleName optionPragmas decls
+  where
+  -- First, we grab the leading OPTIONS pragmas.
+  (optionPragmas, ds) = (`spanJust` ds00) \case
+    Pragma p@OptionsPragma{} -> Just p
+    _ -> Nothing
 
-    -- Case 1: Regular file layout: imports followed by one module. Nothing to do.
-    (_ds0, [ Module{} ]) -> ds
+  -- Then, we look for a top-level module and insert one if we cannot find one.
+  (moduleName, decls) = case break isModule ds of
 
-    -- Case 2: The declarations in the module are not indented.
-    -- This is allowed for the top level module, and thus rectified here.
-    (ds0, Module r erased m tel [] : ds2) ->
-      ds0 ++ [Module r erased m tel ds2]
+    -- Andreas, 2026-02-19, issue #7988:
+    -- Case 1: If the first module is a qualified one, this must be the top-level module.
+    (ds0, Module r erased m@Qual{} tel ds1 : ds2) ->
+      (m, ds0 ++ Module r erased m tel ds1' : ds2')
+      where (ds1', ds2') = rectifyNonIndentedDecls ds1 ds2
 
-    -- Case 3: There is a module with indented declarations,
-    -- followed by non-indented declarations.  This should be a
-    -- parse error and be reported later (see @toAbstract TopLevel{}@),
-    -- thus, we do not do anything here.
-    (_ds0, Module{} : _) -> ds  -- Gives parse error in scope checker.
-    -- OLD code causing issue 1388:
-    -- (ds0, Module r m tel ds1 : ds2) -> ds0 ++ [Module r m tel $ ds1 ++ ds2]
+    -- Otherwise, we check what happens after the declarations that are allowed
+    -- before the top-level module.
+    _ -> case spanAllowedBeforeModule ds of
 
-    -- Case 4: a top-level module declaration is missing.
-    -- Andreas, 2017-01-01, issue #2229:
-    -- Put everything (except OPTIONS pragmas) into an anonymous module.
-    _ -> ds0 ++ [Module r defaultErased (QName $ noName r) [] ds1]
-      where
-      (ds0, ds1) = (`span` ds) $ \case
-        Pragma OptionsPragma{} -> True
-        _ -> False
-      -- Andreas, 2017-05-17, issue #2574.
-      -- Since the module noName will act as jump target, it needs a range.
-      -- We use the beginning of the file as beginning of the top level module.
-      r = beginningOfFile $ getRange ds1
+      -- Andreas 2016-02-01, issue #1388.
+      -- We need to distinguish two additional cases.
+
+      -- Case 2: Regular file layout: imports followed by one module.
+      -- The declarations in the module may not be indented.
+      -- This is allowed for the top level module, and thus rectified here.
+      (ds0, Module r erased m tel ds1 : ds2) ->
+        (m, ds0 ++ Module r erased m tel ds1' : ds2')
+        where (ds1', ds2') = rectifyNonIndentedDecls ds1 ds2
+
+      -- Case 3: a top-level module declaration is missing.
+      -- Andreas, 2017-01-01, issue #2229:
+      -- Put everything (except OPTIONS pragmas) into an anonymous module.
+      _ -> (m, [Module r defaultErased m [] ds])
+        where
+        m = QName $ noName r
+        -- Andreas, 2017-05-17, issue #2574.
+        -- Since the module noName will act as jump target, it needs a range.
+        -- We use the beginning of the file as beginning of the top level module.
+        r = beginningOfFile $ getRange ds
+
+  -- Helper to move unindented declarations into the top-level module.
+  -- This is when an empty first module @null ds1@ is followed by (unindented) declarations @ds2@.
+  -- If both ds1 and ds2 are non-empty, this will be an error in the scope checker;
+  -- we can let it through here.
+  rectifyNonIndentedDecls ds1 ds2 = if null ds1 then (ds2, []) else (ds1, ds2)
+
+-- | Is the given declaration a module definition?
+isModule :: Declaration -> Bool
+isModule = \case
+  Module{} -> True
+  _ -> False
 
 -- | Create a name from a string. The boolean indicates whether a part
 -- of the name can be token 'constructor'.
@@ -124,43 +137,47 @@ mkValidName constructor' r s = do
         isValidId con (Id y) = do
           let x = rawNameToString y
               err = "in the name " ++ s ++ ", the part " ++ x ++ " is not valid"
-          case parse defaultParseFlags [0] (lexer return) x of
+          case parse defaultParseFlags [0] (lexer return) (x <> " ") of
             ParseOk _ TokId{}  -> return ()
             ParseFailed{}      -> parseError err
             ParseOk _ TokEOF{} -> parseError err
             ParseOk _ (TokKeyword KwConstructor _) | con -> pure ()
             ParseOk _ t   -> parseError . ((err ++ " because it is ") ++) $ case t of
               TokQId{}      -> "qualified"
+              TokQual q _ _ -> case q of
+                QualDo           -> "a qualified do-block"
+                QualOpenIdiom{}  -> "a qualified idiom bracket"
+                QualEmptyIdiom{} -> "a qualified empty idiom bracket"
               TokKeyword{}  -> "a keyword"
               TokLiteral{}  -> "a literal"
               TokSymbol s _ -> case s of
-                SymDot               -> __IMPOSSIBLE__ -- "reserved"
-                SymSemi              -> "used to separate declarations"
-                SymVirtualSemi       -> __IMPOSSIBLE__
-                SymBar               -> "used for with-arguments"
-                SymColon             -> "part of declaration syntax"
-                SymArrow             -> "the function arrow"
-                SymEqual             -> "part of declaration syntax"
-                SymLambda            -> "used for lambda-abstraction"
-                SymUnderscore        -> "used for anonymous identifiers"
-                SymQuestionMark      -> "a meta variable"
-                SymAs                -> "used for as-patterns"
-                SymOpenParen         -> "used to parenthesize expressions"
-                SymCloseParen        -> "used to parenthesize expressions"
-                SymOpenIdiomBracket  -> "an idiom bracket"
-                SymCloseIdiomBracket -> "an idiom bracket"
-                SymEmptyIdiomBracket -> "an empty idiom bracket"
-                SymDoubleOpenBrace   -> "used for instance arguments"
-                SymDoubleCloseBrace  -> "used for instance arguments"
-                SymOpenBrace         -> "used for hidden arguments"
-                SymCloseBrace        -> "used for hidden arguments"
-                SymOpenVirtualBrace  -> __IMPOSSIBLE__
-                SymCloseVirtualBrace -> __IMPOSSIBLE__
-                SymOpenPragma        -> "used for pragmas"
-                SymClosePragma       -> "used for pragmas"
-                SymEllipsis          -> "used for function clauses"
-                SymDotDot            -> "a modality"
-                SymEndComment        -> "the end-of-comment brace"
+                SymDot                 -> __IMPOSSIBLE__ -- "reserved"
+                SymSemi                -> "used to separate declarations"
+                SymVirtualSemi         -> __IMPOSSIBLE__
+                SymBar                 -> "used for with-arguments"
+                SymColon               -> "part of declaration syntax"
+                SymArrow               -> "the function arrow"
+                SymEqual               -> "part of declaration syntax"
+                SymLambda              -> "used for lambda-abstraction"
+                SymUnderscore          -> "used for anonymous identifiers"
+                SymQuestionMark        -> "a meta variable"
+                SymAs                  -> "used for as-patterns"
+                SymOpenParen           -> "used to parenthesize expressions"
+                SymCloseParen          -> "used to parenthesize expressions"
+                SymOpenIdiomBracket{}  -> "an idiom bracket"
+                SymCloseIdiomBracket{} -> "an idiom bracket"
+                SymEmptyIdiomBracket   -> "an empty idiom bracket"
+                SymDoubleOpenBrace{}   -> "used for instance arguments"
+                SymDoubleCloseBrace{}  -> "used for instance arguments"
+                SymOpenBrace           -> "used for hidden arguments"
+                SymCloseBrace          -> "used for hidden arguments"
+                SymOpenVirtualBrace    -> __IMPOSSIBLE__
+                SymCloseVirtualBrace   -> __IMPOSSIBLE__
+                SymOpenPragma          -> "used for pragmas"
+                SymClosePragma         -> "used for pragmas"
+                SymEllipsis            -> "used for function clauses"
+                SymDotDot              -> "a modality"
+                SymEndComment          -> "the end-of-comment brace"
               TokString{}   -> __IMPOSSIBLE__
               TokTeX{}      -> __IMPOSSIBLE__  -- used by the LaTeX backend only
               TokMarkup{}   -> __IMPOSSIBLE__  -- ditto
@@ -300,6 +317,7 @@ onlyErased as = do
     RelevanceAttribute{} -> unsup "Relevance"
     CohesionAttribute{}  -> unsup "Cohesion"
     LockAttribute{}      -> unsup "Lock"
+    RewriteAttribute{}   -> unsup "Rewrite"
     CA.TacticAttribute{} -> unsup "Tactic"
     PolarityAttribute{}  -> unsup "Polarity"
     QuantityAttribute q  -> maybe (unsup "Linearity") (return . Just) $ erasedFromQuantity q
@@ -535,12 +553,15 @@ patternSynArgs = mapM \ x -> do
         case ai of
 
           -- Benign case:
-          ArgInfo h (Modality Relevant{} (Quantityω _) Continuous (PolarityModality { modPolarityAnn = MixedPolarity })) UserWritten UnknownFVs (Annotation IsNotLock) ->
+          ArgInfo h (Modality Relevant{} (Quantityω _) Continuous (PolarityModality { modPolarityAnn = MixedPolarity })) UserWritten UnknownFVs (Annotation IsNotLock IsNotRewrite) ->
             return $ WithHiding h n
 
           -- Error cases:
-          ArgInfo _ _ _ _ (Annotation (IsLock _)) ->
+          ArgInfo _ _ _ _ (Annotation (IsLock _) _) ->
             abort $ noAnn "Lock"
+
+          ArgInfo _ _ _ _ (Annotation _ (IsRewrite _)) ->
+            abort $ noAnn "Rewrite"
 
           ArgInfo _ (Modality r q c p) _ _ _
             | not (isRelevant r) ->
@@ -584,7 +605,7 @@ patternToNames :: Pattern -> Parser (List1 (Arg Name))
 patternToNames = \case
     IdentP _ (QName i)           -> return $ singleton $ defaultArg i
     WildP r                      -> return $ singleton $ defaultArg $ C.noName r
-    DotP kwr _ (Ident (QName i)) -> return $ singleton $ makeIrrelevant kwr $ defaultArg i
+    DotP kwr _ _ (Ident (QName i)) -> return $ singleton $ makeIrrelevant kwr $ defaultArg i
     RawAppP _ ps                 -> sconcat . List2.toList1 <$> mapM patternToNames ps
     p -> parseError $
       "Illegal name in type signature: " ++ prettyShow p
@@ -593,8 +614,8 @@ patternToNames = \case
 
 patternToArgPattern :: Pattern -> Arg Pattern
 patternToArgPattern = \case
-   DotP kwr _ (Ident x)        -> makeIrrelevant kwr $ defaultArg $ IdentP True x
-   DotP kwr _ (Underscore r _) -> makeIrrelevant kwr $ defaultArg $ WildP r
+   DotP kwr _ _ (Ident x)        -> makeIrrelevant kwr $ defaultArg $ IdentP True x
+   DotP kwr _ _ (Underscore r _) -> makeIrrelevant kwr $ defaultArg $ WildP r
    p -> defaultArg p
 
 
@@ -611,6 +632,9 @@ funClauseOrTypeSigs attrs lhs' with mrhs wh = do
       whenJust (haveTacticAttr attrs) \ re ->
         parseWarning $ MisplacedAttributes (getRange re) $
           "Ignoring tactic attribute, illegal in function clauses"
+      whenJust (haveRewAttr attrs) \ re ->
+        parseWarning $ MisplacedAttributes (getRange re) $
+          "Ignoring local rewrite attribute, illegal in function clauses"
       -- Andreas, 2025-07-09, issue #7989: extract irrelevance info from lhs pattern
       let (Arg info p) = patternToArgPattern $ lhsOriginalPattern lhs
       -- Andreas, 2025-07-10, issue #7988: allow attributes in function clause
@@ -667,12 +691,20 @@ toAttribute :: Range -> Expr -> Parser (Maybe Attr)
 toAttribute r e = do
   case exprToAttribute r e of
     Nothing -> Nothing <$ parseWarning (UnknownAttribute r s)
-    Just a -> do
-      let attr = Attr r s a
-      modify' \ st -> st{ parseAttributes = attr : parseAttributes st }
-      return $ Just attr
+    Just a -> fmap Just $ theAttribute $ Attr r s a
   where
     s = prettyShow e
+
+-- | Updates 'parseAttributes' and returns an @rewrite attribute
+rewAttribute :: Range -> Parser (Maybe Attr)
+rewAttribute r = fmap Just $ theAttribute $
+  Attr r "rewrite" (RewriteAttribute $ IsRewrite r)
+
+-- | Updates 'parseAttributes' and returns the attribute
+theAttribute :: Attr -> Parser Attr
+theAttribute attr = do
+  modify' \ st -> st{ parseAttributes = attr : parseAttributes st }
+  return attr
 
 -- | Apply an attribute to thing (usually `Arg`).
 --   This will fail if one of the attributes is already set
@@ -732,6 +764,13 @@ haveTacticAttr as =
     [] -> Nothing
     _  -> __IMPOSSIBLE__
 
+haveRewAttr :: [Attr] -> Maybe RewriteAnn
+haveRewAttr as =
+  case rewAttributes $ theAttr <$> as of
+    [CA.RewriteAttribute r] -> Just r
+    []                      -> Nothing
+    _                       -> __IMPOSSIBLE__
+
 -- | Report a parse error if two attributes in the list are of the same kind,
 --   thus, present conflicting information.
 checkForUniqueAttribute :: (Attribute -> Bool) -> [Attr] -> Parser ()
@@ -768,3 +807,29 @@ applyAttributes :: Functor f
 applyAttributes attrs ai bs = do
   applyAttrs attrs ai <&> \ ai' ->
     fmap (setTacticAttr attrs . setArgInfo ai') bs
+
+------------------------------------------------------------------------
+-- * Brackets
+
+-- | Turn a 'QualifiedToken' into a properly qualified name, and the
+-- range of its keyword.
+-- If the qualified token is an opening bracket, this also calls
+-- 'openBracket'.
+unqualifyToken :: QualifiedToken -> Parser (QName, Range)
+unqualifyToken (QualifiedToken tok iss kw) = (,) <$> mkQName iss <*> case tok of
+  QualOpenIdiom tok -> openBracket $ TokSymbol (SymOpenIdiomBracket tok) kw
+  _                 -> pure (getRange kw)
+
+-- | Close a double brace from a pair of single closing braces.
+--
+-- This implements the rule described in the grammar that the braces
+-- must be adjacent, and additionally acts as 'closeBracket', generating
+-- the proper error if the opening braces were Unicode.
+closeTwoBraces :: Interval -> Interval -> Parser Range
+closeTwoBraces i1 i2 =
+  let ivl = getIntervalFile i1 <$ fuseIntervals (void i1) (void i2) in
+  if posPos (iEnd i2) - posPos (iStart i1) > 2
+    then parseErrorRange i2 "Expecting '}}', found separated '}'s."
+    -- We just call closeBracket with a fake token so as to not
+    -- duplicate the hairy code below.
+    else closeBracket (TokSymbol (SymDoubleCloseBrace False) ivl)

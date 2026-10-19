@@ -110,7 +110,11 @@ For example::
       where false → []
     x ∷ []
 
-Do-notation is desugared before scope checking and is translated into calls to ``_>>=_`` and ``_>>_``, whatever those happen to be bound in the context of the do-block. This means that do-blocks are not tied to any particular notion of monad. In fact if there are no monadic statements in the do block it can be used as sugar for a ``let``::
+Do-notation is desugared before scope checking and is translated into
+calls to ``_>>=_`` and ``_>>_``, which can be arbitrary user-defined
+functions. This means that do-blocks are not tied to any particular
+notion of monad. In fact, if there are no monadic statements in the do
+block, it can be used as sugar for a ``let``::
 
   pure-do : Nat → Nat
   pure-do n = do
@@ -120,6 +124,30 @@ Do-notation is desugared before scope checking and is translated into calls to `
 
   check-pure-do : pure-do 5 ≡ 625
   check-pure-do = refl
+
+The operators used for desugaring ``do`` notation are resolved as if the
+user had written the desugared version, and so will refer to whatever
+functions are in scope by those names. To control this, the ``do``
+keyword may appear qualified by a *module* name, in which case the
+operators will be drawn from that module instead::
+
+  module Add where
+    _>>_ : Nat → Nat → Nat
+    x >> y = x + y
+
+  qualified-example : Nat
+  qualified-example = Add.do
+    1
+    2
+    3
+
+  _ : qualified-example ≡ 6
+  _ = refl
+
+Note that the qualifying module is **not** opened in the scope of the
+``do`` expression, i.e. no bindings are brought into scope. This means
+that explicit usage of ``_>>=_`` and ``_>>_`` inside a qualified ``do``
+expression will still refer to the **unqualified** versions.
 
 .. _do-desugaring:
 
@@ -299,8 +327,10 @@ functors, i.e. functors ``F`` equipped with two operations
   pure  : ∀ {A} → A → F A
   _<*>_ : ∀ {A B} → F (A → B) → F A → F B
 
-As do-notation, idiom brackets desugar before scope checking, so whatever the names ``pure``
-and ``_<*>_`` are bound to gets used when desugaring the idiom brackets.
+Name resolution for idiom brackets works as for ``do``-notation: the
+operators are resolved as though the user had written them, unless the
+brackets appear qualified, in which case they are looked up in the
+qualifying module.
 
 The syntax for idiom brackets is
 

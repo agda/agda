@@ -16,7 +16,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - id: setup-haskell
       uses: haskell-actions/setup@v2
       with:
@@ -33,7 +33,7 @@ jobs:
           }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
       id: cache
       name: Cache dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         key: ${{ env.key }}-plan-${{ hashFiles('**/plan.json') }}
         path: |
@@ -63,9 +63,9 @@ jobs:
     strategy:
       matrix:
         ghc-ver:
-        - 9.12.2
+        - 9.14.1
         os:
-        - ubuntu-24.04
+        - ubuntu-26.04
 name: Haddock
 'on':
   pull_request:
@@ -76,8 +76,6 @@ name: Haddock
   push:
     branches:
     - master
-    - ci-*
-    - release*
     paths:
     - src/full/**.hs
     - Agda.cabal

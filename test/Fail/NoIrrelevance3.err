@@ -1,0 +1,4 @@
+NoIrrelevance3.agda:3.5-19: error: [NeedOptionIrrelevance]
+Irrelevance modality is disabled (use options --irrelevance and
+--no-irrelevance to enable/disable irrelevance)
+when checking that the expression λ .x → ? has type _1

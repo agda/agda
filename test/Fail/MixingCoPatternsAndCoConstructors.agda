@@ -22,8 +22,8 @@ module MStream where
   tail (weird (suc n)) = tail (weird n)
 
   weird' : (n : ℕ) → Stream ℕ
-  head (weird' zero) = zero
-  tail (weird' zero) = weird' zero
+  weird' zero .head = zero
+  weird' zero .tail = weird' zero
   weird' (suc n) = n ∷ tail (weird' n)
 
   -- BAD:

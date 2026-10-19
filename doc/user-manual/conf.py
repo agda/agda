@@ -20,11 +20,11 @@
 # -- Project information -----------------------------------------------------
 
 project = 'Agda'
-copyright = u'''2005–2025 remains with the authors.'''
+copyright = u'''2005–2026 remains with the authors.'''
 author = u'Agda Developers'
 
 # The short X.Y version
-version = '2.9.0'
+version = '2.10.0'
 # The full version, including alpha/beta/rc tags
 release = version
 
@@ -121,7 +121,12 @@ htmlhelp_basename = 'Agdadoc'
 
 # -- Options for LaTeX output ------------------------------------------------
 
-# latex_additional_files = ["mystyle.sty"]
+# Andreas, 2026-07-06: The following setting fixes a CI
+# "TeX capacity exceeded" error connected to the use of tabulary
+# environments by Sphinx.
+# The problem might be flaky, so this setting can maybe be dropped again
+# in the future if the problem does not resurface.
+latex_table_style = ['standard']
 
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
@@ -199,3 +204,7 @@ epub_exclude_files = ['search.html']
 
 
 # -- Extension configuration -------------------------------------------------
+
+imgmath_image_format = 'svg'
+imgmath_latex_preamble = '\\usepackage{mlmodern}'
+imgmath_font_size = 14

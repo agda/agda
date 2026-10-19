@@ -6,9 +6,9 @@ module Agda.Utils.IO.TempFile
   ( writeToTempFile
   ) where
 
-import qualified Control.Exception as E
-import qualified System.Directory as D
-import qualified System.IO as IO
+import Control.Exception qualified as E
+import System.Directory qualified as D
+import System.IO qualified as IO
 
 -- | Creates a temporary file, writes some stuff, and returns the filepath
 writeToTempFile :: String -> IO FilePath

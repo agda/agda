@@ -19,23 +19,23 @@ import Agda.Utils.List1  ( List1, pattern (:|), (<|) )
 import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.Singleton
 
-parseIdiomBracketsSeq :: Range -> [Expr] -> ScopeM Expr
-parseIdiomBracketsSeq r es = do
-  let qEmpty = QName $ simpleName "empty"
-      qPlus  = QName $ simpleBinaryOperator "<|>"
+parseIdiomBracketsSeq :: Range -> Maybe QName -> [Expr] -> ScopeM Expr
+parseIdiomBracketsSeq r mod es = do
+  let qEmpty = maybe QName qualify mod $ simpleName "empty"
+      qPlus  = maybe QName qualify mod $ simpleBinaryOperator "<|>"
       ePlus a b = App r (App r (Ident qPlus) (defaultNamedArg a)) (defaultNamedArg b)
   case es of
     []       -> ensureInScope qEmpty >> return (Ident qEmpty)
-    [e]      -> parseIdiomBrackets r e
+    [e]      -> parseIdiomBrackets r mod e
     es@(_:_) -> do
       ensureInScope qPlus
-      es' <- mapM (parseIdiomBrackets r) es
+      es' <- mapM (parseIdiomBrackets r mod) es
       return $ foldr1 ePlus es'
 
-parseIdiomBrackets :: Range -> Expr -> ScopeM Expr
-parseIdiomBrackets r e = do
-  let qPure = QName $ simpleName "pure"
-      qAp   = QName $ simpleBinaryOperator "<*>"
+parseIdiomBrackets :: Range -> Maybe QName -> Expr -> ScopeM Expr
+parseIdiomBrackets r mod e = do
+  let qPure = maybe QName qualify mod $ simpleName "pure"
+      qAp   = maybe QName qualify mod $ simpleBinaryOperator "<*>"
       ePure   = App r (Ident qPure) . defaultNamedArg
       eAp a b = App r (App r (Ident qAp) (defaultNamedArg a)) (defaultNamedArg b)
   mapM_ ensureInScope [qPure, qAp]

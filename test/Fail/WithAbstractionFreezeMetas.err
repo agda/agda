@@ -1,0 +1,7 @@
+WithAbstractionFreezeMetas.agda:14.12-16: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  WithAbstractionFreezeMetas.agda:14.12-16
+
+WithAbstractionFreezeMetas.agda:14.22-26: error: [UnsolvedInteractionMetas]
+Unsolved interaction metas at the following locations:
+  WithAbstractionFreezeMetas.agda:14.22-26

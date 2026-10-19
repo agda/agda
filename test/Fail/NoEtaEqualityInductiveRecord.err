@@ -1,3 +1,7 @@
 NoEtaEqualityInductiveRecord.agda:17.10-14: error: [UnequalTerms]
-w != c (p w) of type R
+The terms
+  w
+and
+  c (p w)
+are not equal at type R
 when checking that the expression refl has type w ≡ c (p w)

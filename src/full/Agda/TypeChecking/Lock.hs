@@ -28,7 +28,6 @@ import Agda.TypeChecking.Free
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.VarSet (VarSet)
-import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -73,7 +72,7 @@ checkLockedVars t ty lk lk_ty = do
 
   cxt <- getContext
 
-  let fv = freeVarsIgnore IgnoreInAnnotations (t,ty)
+  let fv = freeVarMapIgnoreAnn (t,ty)
   let
     rigid = rigidVars fv
     -- flexible = IMap.keysSet $ flexibleVars fv
@@ -81,7 +80,7 @@ checkLockedVars t ty lk lk_ty = do
     earlierVars = VarSet.range i (size cxt)
   if termVars `VarSet.isSubsetOf` earlierVars then return () else do
 
-  let toCheck = zip [0..] $ zipWith raise [1..] (take i cxt)
+  let toCheck = zip [0..] $ zipWith raise [1..] $ cxTake i cxt
   checked <- fmap catMaybes . forM toCheck $ \ (j,ce) -> do
     ifM (isTimeless (ctxEntryType ce))
         (return $ Just j)
@@ -108,7 +107,7 @@ checkLockedVars t ty lk lk_ty = do
 getLockVar :: Term -> TCMT IO (Maybe Int)
 getLockVar lk = do
   let
-    fv = freeVarsIgnore IgnoreInAnnotations lk
+    fv = freeVarMapIgnoreAnn lk
     flex = flexibleVars fv
 
     isLock i = fmap (getLock . domInfo) (domOfBV i) <&> \case

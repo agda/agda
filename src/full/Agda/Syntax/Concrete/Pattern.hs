@@ -7,7 +7,6 @@
 module Agda.Syntax.Concrete.Pattern where
 
 import Control.Applicative ( liftA2 )
-import Control.Arrow ( first )
 import Control.Monad ( (>=>) )
 import Control.Monad.Identity
 
@@ -24,7 +23,8 @@ import Agda.Utils.List1  ( List1, pattern (:|), (<|) )
 import Agda.Utils.List2  ( List2 )
 import Agda.Utils.Maybe
 import Agda.Utils.Singleton
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1 qualified as List1
+import Agda.Utils.Tuple ( first )
 
 
 -- | Check for ellipsis @...@.
@@ -128,7 +128,7 @@ mapLhsOriginalPattern f lhs@LHS{ lhsOriginalPattern = p } =
   lhs { lhsOriginalPattern = f p }
 
 -- | Effectfully modify the 'Pattern' component in 'LHS'.
-mapLhsOriginalPatternM :: (Functor m, Applicative m) => (Pattern -> m Pattern) -> LHS -> m LHS
+mapLhsOriginalPatternM :: (Functor m) => (Pattern -> m Pattern) -> LHS -> m LHS
 mapLhsOriginalPatternM f lhs@LHS{ lhsOriginalPattern = p } = f p <&> \ p' ->
   lhs { lhsOriginalPattern = p' }
 
@@ -161,12 +161,12 @@ class CPatternLike p where
   foldrCPattern = foldMap . foldrCPattern
 
   -- | Traverse pattern with option of post-traversal modification.
-  traverseCPatternA :: (Applicative m, Functor m)
+  traverseCPatternA :: (Applicative m)
       => (Pattern -> m Pattern -> m Pattern)
          -- ^ Combine a pattern and the its recursively computed version.
       -> p -> m p
 
-  default traverseCPatternA :: (Traversable f, CPatternLike q, f q ~ p, Applicative m, Functor m)
+  default traverseCPatternA :: (Traversable f, CPatternLike q, f q ~ p, Applicative m)
       => (Pattern -> m Pattern -> m Pattern)
       -> p -> m p
   traverseCPatternA = traverse . traverseCPatternA
@@ -201,7 +201,7 @@ instance CPatternLike Pattern where
       -- Nonrecursive cases:
       IdentP _ _      -> mempty
       WildP _         -> mempty
-      DotP _ _ _      -> mempty
+      DotP _ _ _ _    -> mempty
       AbsurdP _       -> mempty
       LitP _ _        -> mempty
       QuoteP _        -> mempty
@@ -222,7 +222,7 @@ instance CPatternLike Pattern where
       -- Nonrecursive cases:
       IdentP _ _      -> pure p0
       WildP _         -> pure p0
-      DotP _ _ _      -> pure p0
+      DotP _ _ _ _    -> pure p0
       AbsurdP _       -> pure p0
       LitP _ _        -> pure p0
       QuoteP _        -> pure p0
@@ -245,7 +245,7 @@ instance CPatternLike Pattern where
       -- Nonrecursive cases:
       IdentP _ _      -> return p0
       WildP _         -> return p0
-      DotP _ _ _      -> return p0
+      DotP _ _ _ _    -> return p0
       AbsurdP _       -> return p0
       LitP _ _        -> return p0
       QuoteP _        -> return p0
@@ -320,7 +320,7 @@ patternQNames p = foldCPattern f p `appEndo` []
     ParenP _ _     -> mempty
     WildP _        -> mempty
     AbsurdP _      -> mempty
-    DotP _ _ _     -> mempty
+    DotP _ _ _ _   -> mempty
     LitP _ _       -> mempty
     QuoteP _       -> mempty
     InstanceP _ _  -> mempty

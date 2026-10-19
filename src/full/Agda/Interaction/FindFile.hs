@@ -33,7 +33,6 @@ import Agda.Interaction.Library ( findProjectRoot )
 
 import Agda.Syntax.Concrete
 import Agda.Syntax.Parser
-import Agda.Syntax.Parser.Literate (literateExtsShortList)
 import Agda.Syntax.Position
 import Agda.Syntax.TopLevelModuleName
 
@@ -60,6 +59,7 @@ import Agda.Utils.Monad ( ifM, unlessM )
 import Agda.Syntax.Common.Pretty ( Pretty(..), prettyShow )
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Singleton
+import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
 
@@ -109,9 +109,9 @@ replaceModuleExtension ext = replaceModuleExtension ('.':ext)
 -- Invariant: All paths are absolute.
 
 data FindError
-  = NotFound [AbsolutePath]
-      -- ^ The file was not found.
-      --   It should have had one of the given file names.
+  = NotFound (List1 AbsolutePath)
+      -- ^ An Agda module was not found.
+      --   We were looking for it in one of the given include directories.
   | Ambiguous (List2 AbsolutePath)
       -- ^ Several matching files were found.
   deriving Show
@@ -121,13 +121,8 @@ data FindError
 
 findErrorToTypeError :: TopLevelModuleName -> FindError -> TypeError
 findErrorToTypeError m = \case
-  NotFound  files -> FileNotFound m files
+  NotFound  dirs  -> FileNotFound m dirs
   Ambiguous files -> AmbiguousTopLevelModuleName m files
-
--- findErrorToTypeError :: MonadFileId m => TopLevelModuleName -> FindError -> m TypeError
--- findErrorToTypeError m = \case
---   NotFound  files -> FileNotFound m <$> mapM srcFilePath files
---   Ambiguous files -> AmbiguousTopLevelModuleName m <$> mapM srcFilePath files
 
 -- | Finds the source file corresponding to a given top-level module
 -- name. The returned paths are absolute.
@@ -147,11 +142,9 @@ findFile m = do
 --   SIDE EFFECT:  Updates 'stModuleToSource'.
 findFile' :: TopLevelModuleName -> TCM (Either FindError SourceFile)
 findFile' m = do
-    dirs     <- getIncludeDirs
-    modToSrc <- useTC stModuleToSource
-    (r, modToSrc) <- liftIO $ runStateT (findFile'' dirs m) modToSrc
-    stModuleToSource `setTCLens` modToSrc
-    return r
+  dirs     <- getIncludeDirs
+  stateSessionLensM lensModuleToSource \modToSrc -> do
+    liftIO $ runStateT (findFile'' dirs m) modToSrc
 
 -- | A variant of 'findFile'' which manipulates an extra 'ModuleToSourceId'
 
@@ -160,14 +153,12 @@ findFile'_ ::
        -- ^ Include paths.
   -> TopLevelModuleName
   -> StateT ModuleToSourceId TCM (Either FindError SourceFile)
-findFile'_ incs m = do
-  dict <- useTC stFileDict
-  m2s  <- get
+findFile'_ incs m = stateSessionLensM lensFileDict \dict -> do
+  m2s <- get
   (r, ModuleToSource dict' m2s') <- liftIO $
     runStateT (findFile'' incs m) $ ModuleToSource dict m2s
-  setTCLens stFileDict dict'
   put m2s'
-  return r
+  return (r, dict')
 
 -- | A variant of 'findFile'' which does not require 'TCM'.
 
@@ -190,8 +181,7 @@ findFile'' dirs m = do
           put $ ModuleToSource dict' $ Map.insert m src modToSrc
           return (Right src)
         []       -> do
-          filesShortList <- liftIO $ fileList $ List2.toList parseFileExtsShortList
-          return (Left (NotFound filesShortList))
+          return (Left (NotFound dirs))
         f0:f1:fs -> return (Left (Ambiguous $ List2 f0 f1 fs))
   where
     fileList exts = mapM absolute
@@ -238,10 +228,10 @@ checkModuleName name src0 mexpected = do
   file <- srcFilePath src0
   findFile' name >>= \case
 
-    Left (NotFound files)  -> typeError $
+    Left (NotFound dirs) -> typeError $
       case mexpected of
-        Nothing -> ModuleNameDoesntMatchFileName name files
-        Just expected -> ModuleNameUnexpected name expected
+        Nothing -> ModuleNameDoesntMatchFileName name dirs
+        Just expected -> ModuleNameUnexpected (TopLevelModuleNameWithSourceFile name src0) expected
 
     Left (Ambiguous files) -> typeError $
       AmbiguousTopLevelModuleName name files
@@ -262,10 +252,6 @@ checkModuleName name src0 mexpected = do
       -- OverlappingProjects is the correct error for
       -- test/Fail/customized/NestedProjectRoots
       -- -- typeError $ ModuleNameUnexpected name expected
-
-
-parseFileExtsShortList :: List2 String
-parseFileExtsShortList = List2.cons ".agda" literateExtsShortList
 
 -- | Remove an Agda file extension from a filepath, if possible.
 stripAgdaExtension :: FilePath -> Maybe FilePath

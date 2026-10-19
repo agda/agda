@@ -138,7 +138,7 @@ sizeType_ size = El sizeSort $ Def size []
 
 {-# SPECIALIZE sizeType :: TCM Type #-}
 -- | The built-in type @SIZE@.
-sizeType :: (HasBuiltins m, MonadTCEnv m, ReadTCState m) => m Type
+sizeType :: (HasBuiltins m) => m Type
 sizeType = El sizeSort . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSize
 
 -- | The name of @SIZESUC@.
@@ -178,7 +178,7 @@ sizeMax vs = case vs of
 data SizeView = SizeInf | SizeSuc Term | OtherSize Term
 
 -- | Expects argument to be 'reduce'd.
-sizeView :: (HasBuiltins m, MonadTCEnv m, ReadTCState m)
+sizeView :: (HasBuiltins m)
          => Term -> m SizeView
 sizeView v = do
   inf <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSizeInf

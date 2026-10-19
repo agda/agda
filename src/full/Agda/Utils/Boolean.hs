@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Boolean algebras and types isomorphic to 'Bool'.
@@ -19,7 +20,7 @@
 module Agda.Utils.Boolean where
 
 import Prelude ( Bool(True,False), Eq, ($), (.), const, id )
-import qualified Prelude as P
+import Prelude qualified as P
 
 infixr 3 &&
 infixr 2 ||

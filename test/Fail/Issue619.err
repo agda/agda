@@ -1,4 +1,8 @@
 Issue619.agda:16.12-16: error: [UnequalTerms]
-quote Bool.true != quote false of type Common.Reflection.QName
+The terms
+  quote Bool.true
+and
+  quote false
+are not equal at type Common.Reflection.QName
 when checking that the expression refl has type
 quote Bool.true ≡ quote false

@@ -1,0 +1,6 @@
+Issue8699.agda:26.1-28.49: error: [TerminationIssue]
+Termination checking failed for the following function:
+  f
+Problematic call:
+  f (sq m) (fsuc m x)
+    (at Issue8699.agda:28.30-31)

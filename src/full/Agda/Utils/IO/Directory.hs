@@ -16,7 +16,7 @@ import Data.Monoid          ( Endo(Endo, appEndo) )
 
 import System.Directory
 import System.FilePath
-import qualified System.FilePath.Find as Find
+import System.FilePath.Find qualified as Find
 
 
 -- | Search a directory recursively, with recursion controlled by a

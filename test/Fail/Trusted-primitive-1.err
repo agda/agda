@@ -1,0 +1,4 @@
+Trusted-primitive-1.agda:6.3-13: error: [NoBindingForBuiltin]
+No binding for builtin thing QUOTIENTCONSTRUCTOR, use {-# BUILTIN
+QUOTIENTCONSTRUCTOR name #-} to bind it to 'name'
+when checking that the type of the primitive function qrec is Set

@@ -3,7 +3,7 @@ module Issue274 where
 -- data ⊥ : Set where
 
 record U : Set where
-  inductive
+  inductive; no-eta-equality
   constructor roll
   field ap : U → U
 

@@ -29,10 +29,11 @@ import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract (PatternSynDefn, PatternSynDefns)
 import Agda.Syntax.Abstract.PatternSynonyms
+import Agda.Syntax.TopLevelModuleName
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
-import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Warnings
@@ -42,15 +43,19 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.CompiledClause
 
 import qualified Agda.Utils.BiMap as BiMap
-import Agda.Utils.FileId ( File, getIdFile, registerFileId' )
-import Agda.Utils.Lens
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.FileId ( File, getIdFile, registerFileId' )
+import Agda.Utils.Atomic
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Syntax.Common.Pretty
 import Agda.Utils.Tuple
+import Agda.Utils.Lens
+import Agda.Utils.Tuple.Strict (Pair(..))
+import Agda.Utils.Tuple.Strict qualified as Strict
+import Agda.Utils.Maybe.Strict qualified as Strict
 
 import Agda.Utils.Impossible
+import qualified Control.Monad.Catch as Catch
 
 -- | Resets the non-persistent part of the type checking state.
 
@@ -62,26 +67,24 @@ resetState = modifyTC \ s -> initStateFromPersistentState (s ^. lensPersistentSt
 --   Keep only the session state (backend information, 'Benchmark', file ids).
 
 resetAllState :: TCM ()
-resetAllState = modifyTC \ s -> initStateFromSessionState (s ^. lensSessionState)
+resetAllState = modifyTC \ s -> initStateFromSessionState (stPersistentSession (stPersistentState s))
 
--- | Overwrite the 'TCState', but not the 'SessionTCState' part.
-putTCPreservingSession :: TCState -> TCM ()
-putTCPreservingSession = bracket_ get put . putTC where
-  get = (,) <$> useTC lensSessionState <*> useTC stStatistics
-
-  put (sess, stat) = do
-    setTCLens lensSessionState sess
-    setTCLens stStatistics stat
+-- | Set the 'TCState', preserving any parts of the state which should
+-- persist through speculation (e.g., statistics).
+putTCPreservingStats :: TCState -> TCM ()
+putTCPreservingStats = bracket_ get put . putTC where
+  get = useTC stStatistics
+  put = setTCLens stStatistics
 
 -- | Restore 'TCState' after performing subcomputation.
 --
---   In contrast to 'Agda.Utils.Monad.localState', the
---   'SessionTCState' from the subcomputation is saved.
+-- Parts of the state which should not be reset on speculation (e.g.,
+-- statistics) will not be reset.
 localTCState :: TCM a -> TCM a
-localTCState = bracket_ getTC putTCPreservingSession
+localTCState = bracket_ getTC putTCPreservingStats
 
--- | Same as 'localTCState' but also returns the state in which we were just
---   before reverting it.
+-- | Same as 'localTCState', but also returns the state in which we were
+-- just before reverting it.
 localTCStateSaving :: TCM a -> TCM (a, TCState)
 localTCStateSaving compute = localTCState $ liftA2 (,) compute getTC
 
@@ -155,15 +158,15 @@ getScope = useR stScope
 setScope :: ScopeInfo -> TCM ()
 setScope scope = modifyScope (const scope)
 
-{-# INLINE modifyScope_ #-}
--- | Modify the current scope without updating the inverse maps.
-modifyScope_ :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
-modifyScope_ f = stScope `modifyTCLens` f
-
 {-# INLINE modifyScope #-}
--- | Modify the current scope.
+-- | Modify the current scope without updating the inverse maps.
 modifyScope :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
-modifyScope f = modifyScope_ (recomputeInverseScopeMaps . f)
+modifyScope f = stScope `modifyTCLens` f
+
+{-# INLINE recomputeInverseScope #-}
+-- | Recompute inverse names, inverse modules and InScopeSet-s.
+recomputeInverseScope :: MonadTCState m => m ()
+recomputeInverseScope = modifyScope recomputeInverseScope'
 
 {-# INLINE useScope #-}
 -- | Get a part of the current scope.
@@ -178,12 +181,12 @@ locallyScope l = locallyTCState $ stScope . l
 {-# INLINE withScope #-}
 -- | Run a computation in a local scope.
 withScope :: ReadTCState m => ScopeInfo -> m a -> m (a, ScopeInfo)
-withScope s m = locallyTCState stScope (recomputeInverseScopeMaps . const s) $ (,) <$> m <*> getScope
+withScope s m = locallyTCState stScope (const s) $ (,) <$> m <*> getScope
 
-{-# INLINE withScope_ #-}
+{-# INLINE evalWithScope #-}
 -- | Same as 'withScope', but discard the scope from the computation.
-withScope_ :: ReadTCState m => ScopeInfo -> m a -> m a
-withScope_ s m = fst <$> withScope s m
+evalWithScope :: ReadTCState m => ScopeInfo -> m a -> m a
+evalWithScope s m = fst <$> withScope s m
 
 -- | Discard any changes to the scope by a computation.
 localScope :: TCM a -> TCM a
@@ -228,6 +231,18 @@ modifyImportedSignature f = stImports `modifyTCLens` f
 getSignature :: ReadTCState m => m Signature
 getSignature = useR stSignature
 
+{-# INLINE modifyGlobalSignature #-}
+-- | The same caveats as with |modifyGlobalDefinition|, applied changes will not
+-- persist outside the current module!
+modifyGlobalSignature ::
+  MonadTCState m
+  => (Signature -> Signature)
+       -- ^ Function to map over the signatures
+  -> m ()
+modifyGlobalSignature f = do
+  modifySignature f
+  modifyImportedSignature f
+
 {-# SPECIALIZE modifyGlobalDefinition :: QName -> (Definition -> Definition) -> TCM () #-}
 -- | Update a possibly imported definition. Warning: changes made to imported
 --   definitions (during type checking) will not persist outside the current
@@ -253,23 +268,62 @@ withSignature sig m = do
   return r
 
 -- ** Modifiers for rewrite rules
-addRewriteRulesFor :: QName -> RewriteRules -> [QName] -> Signature -> Signature
-addRewriteRulesFor f rews matchables =
-    over sigRewriteRules (HMap.insertWith mappend f rews)
-  . updateDefinition f (updateTheDef setNotInjective . setCopatternLHS)
-  . (setMatchableSymbols f matchables)
+addRewriteRulesFor ::
+     QName
+       -- ^ Head symbol of rewrite rules
+  -> GlobalRewriteRules
+       -- ^ Rewrite rules
+  -> [QName]
+       -- ^ Matchable symbols
+  -> TCM ()
+addRewriteRulesFor f rews matchables = do
+  modifySignature $ over sigRewriteRules $ HMap.insertWith mappend f rews
+  modifyGlobalSignature $ updateDefinitions $ updateDefsForRewrites f rews matchables
+
+updateDefsForRewrites ::
+     QName
+        -- ^ Head symbol of rewrite rules
+  -> GlobalRewriteRules
+        -- ^ Rewrites
+  -> [QName]
+        -- ^ Matchable symbols
+  -> Definitions
+        -- ^ Definitions we need to update
+  -> Definitions
+        -- ^ Updated definitions
+updateDefsForRewrites f rews matchables
+  = HMap.adjust (updateTheDef setNotInjective . setCopatternLHS) f
+  . setMatchableSymbols' f matchables
     where
       setNotInjective def@Function{} = def { funInv = NotInjective }
       setNotInjective def            = def
 
       setCopatternLHS =
-        updateDefCopatternLHS (|| any hasProjectionPattern rews)
+        updateDefCopatternLHS (|| any grHasProjectionPattern rews)
 
-      hasProjectionPattern rew = any (isJust . isProjElim) $ rewPats rew
+setMatchableSymbols ::
+     QName
+       -- ^ Head symbol
+  -> [QName]
+       -- ^ Matchable symbols
+  -> Signature
+       -- ^ Current signature
+  -> Signature
+       -- ^ Updated signature
+setMatchableSymbols f matchables
+  = updateDefinitions $ setMatchableSymbols' f matchables
 
-setMatchableSymbols :: QName -> [QName] -> Signature -> Signature
-setMatchableSymbols f matchables =
-  foldr ((.) . (\g -> updateDefinition g setMatchable)) id matchables
+setMatchableSymbols' ::
+     QName
+       -- ^ Head symbol
+  -> [QName]
+       -- ^ Matchable symbols
+  -> Definitions
+       -- ^ Current definitions
+  -> Definitions
+       -- ^ Updated definitions
+setMatchableSymbols' f matchables =
+  foldr ((.) . (\g -> HMap.adjust setMatchable g)) id matchables
     where
       setMatchable def = def { defMatchable = Set.insert f $ defMatchable def }
 
@@ -321,7 +375,7 @@ updateCompiledClauses f def@Function{ funCompiled = cc} = def { funCompiled = f 
 updateCompiledClauses f _                              = __IMPOSSIBLE__
 
 updateDefCopatternLHS :: (Bool -> Bool) -> Definition -> Definition
-updateDefCopatternLHS f def@Defn{ defCopatternLHS = b } = def { defCopatternLHS = f b }
+updateDefCopatternLHS f def@Defn{ defCopatternLHS' = b } = def { defCopatternLHS' = f b }
 
 updateDefBlocked :: (Blocked_ -> Blocked_) -> Definition -> Definition
 updateDefBlocked f def@Defn{ defBlocked = b } = def { defBlocked = f b }
@@ -343,14 +397,20 @@ registerFileIdWithBuiltin f (FileDictWithBuiltins d b primLibDir) =
       Nothing -> b
       Just c  -> EnumMap.insert fi c b
 
-instance MonadIO m => MonadFileId (TCMT m) where
-  fileFromId fi = useTC stFileDict <&> (`getIdFile` fi)
-  idFromFile = stateTCLens stFileDict . registerFileIdWithBuiltin
+instance (MonadIO m, Catch.MonadMask m) => MonadFileId (TCMT m) where
+  fileFromId fi = useSession lensFileDict <&> (`getIdFile` fi)
+  idFromFile = stateSessionLens lensFileDict . registerFileIdWithBuiltin
+
+instance MonadFileId ReduceM where
+  fileFromId fi = useSession lensFileDict <&> (`getIdFile` fi)
+  idFromFile = __IMPOSSIBLE__
+    -- we cannot write to the state here, so we cannot do sth like
+    -- stateTCLens stFileDict . registerFileIdWithBuiltin
 
 -- | Does the given 'FileId' belong to one of Agda's builtin modules?
 
 isBuiltinModule :: ReadTCState m => FileId -> m (Maybe IsBuiltinModule)
-isBuiltinModule fi = EnumMap.lookup fi <$> useTC stBuiltinModuleIds
+isBuiltinModule fi = EnumMap.lookup fi <$> useSession lensBuiltinModuleIds
 
 -- | Does the given 'FileId' belong to one of Agda's builtin modules that only uses safe postulates?
 --
@@ -362,19 +422,19 @@ isBuiltinModuleWithSafePostulates fi = do
     Nothing                                -> False
     Just IsBuiltinModule                   -> False
     Just IsBuiltinModuleWithSafePostulates -> True
-    Just IsPrimitiveModule                 -> True
+    Just IsAgdaPrimitive                   -> True
+    Just IsAgdaPrimitiveCubical            -> True
 
--- | Does the given 'FileId' belong to one of Agda's magical primitive modules?
---
--- Implies 'isBuiltinModuleWithSafePostulates'.
+-- | Is the current module, if any, a builtin module that only uses
+-- safe postulates?
 
-isPrimitiveModule :: ReadTCState m => FileId -> m Bool
-isPrimitiveModule  fi = do
-  isBuiltinModule fi <&> \case
-    Nothing                                -> False
-    Just IsBuiltinModule                   -> False
-    Just IsBuiltinModuleWithSafePostulates -> False
-    Just IsPrimitiveModule                 -> True
+currentModuleIsBuiltinModuleWithSafePostulates ::
+  ReadTCState m => m Bool
+currentModuleIsBuiltinModuleWithSafePostulates = do
+  f <- useTC stFileId
+  case f of
+    Strict.Nothing -> return False
+    Strict.Just f  -> isBuiltinModuleWithSafePostulates f
 
 ---------------------------------------------------------------------------
 -- * Top level module
@@ -385,15 +445,13 @@ isPrimitiveModule  fi = do
 
 topLevelModuleName :: RawTopLevelModuleName -> TCM TopLevelModuleName
 topLevelModuleName raw = do
-  hash <- BiMap.lookup raw <$> useR stTopLevelModuleNames
-  case hash of
+  (BiMap.lookup raw <$> useR stTopLevelModuleNames) >>= \case
     Just hash -> return (unsafeTopLevelModuleName raw hash)
     Nothing   -> do
       let hash = hashRawTopLevelModuleName raw
       when (hash == noModuleNameHash) $ typeError $ ModuleNameHashCollision raw Nothing
-      raw' <- BiMap.invLookup hash <$> useR stTopLevelModuleNames
-      case raw' of
-        Just raw' -> typeError $ ModuleNameHashCollision raw (Just raw')
+      (BiMap.invLookup hash <$> useR stTopLevelModuleNames) >>= \case
+        raw'@Just{} -> typeError $ ModuleNameHashCollision raw raw'
         Nothing -> do
           stTopLevelModuleNames `modifyTCLens'`
             BiMap.insert (killRange raw) hash
@@ -421,8 +479,8 @@ currentTopLevelModule ::
   (MonadTCEnv m, ReadTCState m) => m (Maybe TopLevelModuleName)
 currentTopLevelModule = do
   useR stCurrentModule >>= \case
-    Just (_, top) -> return (Just top)
-    Nothing       -> listToMaybe <$> asksTC envImportPath
+    Strict.Just (_ :!: top) -> return (Just top)
+    Strict.Nothing          -> listToMaybe <$> viewTC eImportStack
 
 -- | Use a different top-level module for a computation. Used when generating
 --   names for imported modules.
@@ -444,6 +502,14 @@ currentModuleNameHash = do
   NameId _ h <- useTC stFreshNameId
   return h
 
+-- | Get a function that completes 'TopLevelModuleName's
+--   with their 'SourceFile' to 'TopLevelModuleNameWithSourceFile's.
+topLevelModuleNameWithSourceFileCompleter :: ReadTCState m
+  => m (TopLevelModuleName -> TopLevelModuleNameWithSourceFile)
+topLevelModuleNameWithSourceFileCompleter = do
+  ModuleToSource _dict m2s <- useSession lensModuleToSource
+  return \ m -> TopLevelModuleNameWithSourceFile m $ Map.findWithDefault __IMPOSSIBLE__ m m2s
+
 ---------------------------------------------------------------------------
 -- * Backends and foreign code
 ---------------------------------------------------------------------------
@@ -451,14 +517,14 @@ currentModuleNameHash = do
 -- | Look for a backend of the given name.
 
 lookupBackend :: ReadTCState m => BackendName -> m (Maybe Backend)
-lookupBackend name = useTC stBackends <&> \ backends ->
+lookupBackend name = useSession lensBackends <&> \ backends ->
   listToMaybe [ b | b@(Backend b') <- backends, backendName b' == name ]
 
 -- | Get the currently active backend (if any).
 
 activeBackend :: TCM (Maybe Backend)
 activeBackend = runMaybeT $ do
-  bname <- MaybeT $ asksTC envActiveBackendName
+  bname <- MaybeT $ viewTC eActiveBackendName
   lift $ fromMaybe __IMPOSSIBLE__ <$> lookupBackend bname
 
 -- | Ask the active backend whether a type may be erased.
@@ -471,7 +537,7 @@ activeBackendMayEraseType q = do
 
 addForeignCode :: BackendName -> String -> TCM ()
 addForeignCode backend code = do
-  r <- asksTC envRange  -- can't use TypeChecking.Monad.Trace.getCurrentRange without cycle
+  r <- viewTC eRange -- can't use TypeChecking.Monad.Trace.getCurrentRange without cycle
   modifyTCLens (stForeignCode . key backend) $
     Just . ForeignCodeStack . (ForeignCode r code :) . maybe [] getForeignCodeStack
 
@@ -481,16 +547,13 @@ addForeignCode backend code = do
 
 {-# INLINE getInteractionOutputCallback #-}
 getInteractionOutputCallback :: ReadTCState m => m InteractionOutputCallback
-getInteractionOutputCallback
-  = useTC stInteractionOutputCallback
+getInteractionOutputCallback = useSession lensInteractionOutputCallback
 
 appInteractionOutputCallback :: Response -> TCM ()
-appInteractionOutputCallback r
-  = getInteractionOutputCallback >>= \ cb -> cb r
+appInteractionOutputCallback r = getInteractionOutputCallback >>= \ cb -> cb r
 
 setInteractionOutputCallback :: InteractionOutputCallback -> TCM ()
-setInteractionOutputCallback
-  = setTCLens' stInteractionOutputCallback
+setInteractionOutputCallback = setSession lensInteractionOutputCallback
 
 ---------------------------------------------------------------------------
 -- * Pattern synonyms
@@ -514,7 +577,8 @@ getAllPatternSyns :: ReadTCState m => m PatternSynDefns
 getAllPatternSyns = Map.union <$> getPatternSyns <*> getPatternSynImports
 
 lookupPatternSyn :: AmbiguousQName -> TCM PatternSynDefn
-lookupPatternSyn (AmbQ xs) = do
+lookupPatternSyn ambX = do
+  let xs = getAmbiguous ambX
   defs <- traverse lookupSinglePatternSyn xs
   case mergePatternSynDefs defs of
     Just def   -> return def
@@ -555,7 +619,7 @@ getAnonInstanceDefs = snd <$> getAllInstanceDefs
 
 -- | Remove an instance from the set of unresolved instances.
 clearUnknownInstance :: QName -> TCM ()
-clearUnknownInstance q = modifyInstanceDefs $ mapSnd $ Set.delete q
+clearUnknownInstance q = modifyInstanceDefs $ second $ Set.delete q
 
 -- | Add an instance whose type is still unresolved.
 addUnknownInstance :: QName -> TCM ()
@@ -563,4 +627,4 @@ addUnknownInstance x = do
   reportSLn "tc.decl.instance" 10 $
     "adding definition " ++ prettyShow x ++
     " to the instance table (the type is not yet known)"
-  modifyInstanceDefs $ mapSnd $ Set.insert x
+  modifyInstanceDefs $ second $ Set.insert x

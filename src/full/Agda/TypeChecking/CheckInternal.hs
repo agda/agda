@@ -9,8 +9,7 @@
 --   have to be reduced since they break bidirectionality.
 
 module Agda.TypeChecking.CheckInternal
-  ( MonadCheckInternal
-  , checkType, infer, inferSpine
+  ( checkType, infer, inferSpine
   , CheckInternal(..)
   , Action(..), defaultAction, eraseUnusedAction
   ) where
@@ -26,7 +25,7 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.ProjectionLike (elimView, ProjEliminator(..))
+import Agda.TypeChecking.ProjectionLike (elimView, LoneProjectionLikeToLambda(..))
 import Agda.TypeChecking.Records (shouldBeProjectible)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Sort
@@ -36,46 +35,44 @@ import Agda.Utils.Function (applyWhen, applyWhenM)
 import Agda.Utils.Functor (($>))
 import Agda.Utils.Maybe
 import Agda.Utils.Size
+import Agda.Utils.Tuple (fst3, snd3)
 
 import Agda.Utils.Impossible
 
 import Agda.Interaction.Options
+import Agda.TypeChecking.Reduce (instantiate)
 
 -- * Bidirectional rechecker
 
-type MonadCheckInternal m = MonadConversion m
-
-{-# SPECIALIZE checkType :: Type -> TCM () #-}
 -- | Entry point for e.g. checking WithFunctionType.
-checkType :: (MonadCheckInternal m) => Type -> m ()
+checkType :: Type -> TCM ()
 checkType t = catchConstraint (CheckType t) $ inferInternal t
 
 -- | 'checkInternal' traverses the whole 'Term', and we can use this
 --   traversal to modify the term.
-data Action m = Action
-  { preAction  :: Type -> Term -> m Term
+data Action = Action
+  { preAction  :: Type -> Term -> TCM Term
     -- ^ Called on each subterm before the checker runs.
-  , postAction :: Type -> Term -> m Term
+  , postAction :: Type -> Term -> TCM Term
     -- ^ Called on each subterm after the type checking.
   , modalityAction :: Modality -> Modality -> Modality
     -- ^ Called for each @ArgInfo@.
     --   The first 'Modality' is from the type,
     --   the second from the term.
-  , elimViewAction :: Term -> m Term
+  , elimViewAction :: Term -> TCM Term
     -- ^ Called for bringing projection-like funs in post-fix form
   }
 
 -- | The default action is to not change the 'Term' at all.
-defaultAction :: PureTCM m => Action m
---(MonadReduce m, MonadTCEnv m, HasConstInfo m) => Action m
+defaultAction :: Action
 defaultAction = Action
   { preAction       = \ _ -> return
   , postAction      = \ _ -> return
   , modalityAction  = \ _ -> id
-  , elimViewAction  = elimView EvenLone
+  , elimViewAction  = elimView LoneProjectionLikeToLambda
   }
 
-eraseUnusedAction :: Action TCM
+eraseUnusedAction :: Action
 eraseUnusedAction = defaultAction { postAction = eraseUnused }
   where
     eraseUnused :: Type -> Term -> TCM Term
@@ -92,32 +89,36 @@ eraseUnusedAction = defaultAction { postAction = eraseUnused }
     eraseIfNonvariant (_          : pols) (e : es) = e : eraseIfNonvariant pols es
 
 class CheckInternal a where
-  checkInternal' :: (MonadCheckInternal m) => Action m -> a -> Comparison -> TypeOf a -> m a
+  checkInternal' :: Action -> a -> Comparison -> TypeOf a -> TCM a
 
-  checkInternal :: (MonadCheckInternal m) => a -> Comparison -> TypeOf a -> m ()
+  checkInternal :: a -> Comparison -> TypeOf a -> TCM ()
   checkInternal v cmp t = void $ checkInternal' defaultAction v cmp t
 
-  inferInternal' :: (MonadCheckInternal m, TypeOf a ~ ()) => Action m -> a -> m a
+  inferInternal' :: (TypeOf a ~ ()) => Action -> a -> TCM a
   inferInternal' act v = checkInternal' act v CmpEq ()
 
-  inferInternal :: (MonadCheckInternal m, TypeOf a ~ ()) => a -> m ()
+  inferInternal :: (TypeOf a ~ ()) => a -> TCM ()
   inferInternal v = checkInternal v CmpEq ()
 
-{-# SPECIALIZE checkInternal' :: Action TCM -> Term  -> Comparison -> TypeOf Term -> TCM Term #-}
-{-# SPECIALIZE checkInternal' :: Action TCM -> Type  -> Comparison -> TypeOf Type -> TCM Type #-}
-{-# SPECIALIZE checkInternal' :: Action TCM -> Elims -> Comparison -> TypeOf Type -> TCM Elims #-}
-{-# SPECIALIZE checkInternal  :: Term -> Comparison -> TypeOf Term -> TCM () #-}
-{-# SPECIALIZE checkInternal  :: Type -> Comparison -> TypeOf Type -> TCM () #-}
 
 instance CheckInternal Type where
   checkInternal' action (El s t) cmp _ = do
+    reportSDoc "tc.check.internal" 20 $ sep
+      [ "checking internal type "
+      , nest 2 $ sep [ prettyTCM t <+> ":"
+                     , nest 2 $ prettyTCM s ]
+      ]
     t' <- checkInternal' action t cmp (sort s)
     s' <- sortOf t'
+    reportSDoc "tc.check.internal" 30 $
+      "checking if sort" <+> prettyTCM s' <+>
+      "of" <+> prettyTCM t' <+>
+      "fits in given sort" <+> prettyTCM s
     compareSort cmp s' s
     return (El s t')
 
 instance CheckInternal Term where
-  checkInternal' :: (MonadCheckInternal m) => Action m -> Term -> Comparison -> Type -> m Term
+  checkInternal' :: Action -> Term -> Comparison -> Type -> TCM Term
   checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
 
     -- Debug print
@@ -149,15 +150,17 @@ instance CheckInternal Term where
         -- (commented below)
         -- but this will break stuff that is allowed right now
 
+        reportSDoc "tc.check.internal" 30 $ fsep
+          [ "variable" , prettyTCM (var i) , "has type" , prettyTCM (unDom d)
+          , "and modality", pretty (getModality d)
+          ]
+
         unless (usableCohesion d) $
           typeError $ VariableIsOfUnusableCohesion n (getCohesion d)
 
         unless (usablePolarity d) $
           typeError $ VariableIsOfUnusablePolarity n (getModalPolarity d)
 
-        reportSDoc "tc.check.internal" 30 $ fsep
-          [ "variable" , prettyTCM (var i) , "has type" , prettyTCM (unDom d)
-          , "and modality", pretty (getModality d) ]
         checkSpine action (unDom d) (Var i) es cmp t
       Def f es   -> do  -- f is not projection(-like)!
         -- There is no "implicitely applied module telescope" at this stage, so no
@@ -207,6 +210,10 @@ instance CheckInternal Term where
                mkDom <$> checkInternal' action (unEl $ unDom a) CmpLeq (sort sa)
         v' <- goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) CmpLeq (sort sb)
         s' <- sortOf v -- Issue #6205: do not use v' since it might not be valid syntax
+        reportSDoc "tc.check.internal" 30 $
+          "checking if sort" <+> prettyTCM s' <+>
+          "of pi type" <+> prettyTCM v <+>
+          "fits in given sort" <+> prettyTCM s
         compareSort cmp s' s
         return v'
       Sort s     -> do
@@ -214,6 +221,10 @@ instance CheckInternal Term where
         s <- inferInternal' action s
         s' <- inferUnivSort s
         s'' <- shouldBeSort t
+        reportSDoc "tc.check.internal" 30 $
+          "checking if sort" <+> prettyTCM s' <+>
+          "of universe type" <+> prettyTCM v <+>
+          "fits in" <+> prettyTCM t
         compareSort cmp s' s''
         return $ Sort s
       Level l    -> do
@@ -231,19 +242,19 @@ instance CheckInternal Term where
 --   The @expected@ 'ArgInfo' comes from the type.
 --   The @actual@ 'ArgInfo' comes from the term and can be updated
 --   by an action.
-checkArgInfo :: (MonadCheckInternal m) => Action m -> ArgInfo -> ArgInfo -> m ArgInfo
+checkArgInfo :: Action -> ArgInfo -> ArgInfo -> TCM ArgInfo
 checkArgInfo action ai ai' = do
   checkHiding    (getHiding ai)     (getHiding ai')
   mod <- checkModality action (getModality ai)  (getModality ai')
   return $ setModality mod ai
 
-checkHiding :: (MonadCheckInternal m) => Hiding -> Hiding -> m ()
+checkHiding :: Hiding -> Hiding -> TCM ()
 checkHiding h h' = unless (sameHiding h h') $ typeError $ HidingMismatch h h'
 
 -- | @checkRelevance action term type@.
 --
 --   The @term@ 'Relevance' can be updated by the @action@.
-checkModality :: (MonadCheckInternal m) => Action m -> Modality -> Modality -> m Modality
+checkModality :: Action -> Modality -> Modality -> TCM Modality
 checkModality action mod mod' = do
   let (r,r') = (getRelevance mod, getRelevance mod')
       (q,q') = (getQuantity  mod, getQuantity  mod')
@@ -253,22 +264,21 @@ checkModality action mod mod' = do
     | otherwise -> __IMPOSSIBLE__ -- add more cases when adding new modalities
   return $ modalityAction action mod' mod  -- Argument order for actions: @type@ @term@
 
-{-# SPECIALIZE infer :: Term -> TCM Type #-}
 -- | Infer type of a neutral term.
-infer :: (MonadCheckInternal m) => Term -> m Type
+infer :: Term -> TCM Type
 infer u = do
   reportSDoc "tc.check.internal" 20 $ "CheckInternal.infer" <+> prettyTCM u
   case u of
     Var i es -> do
       a <- typeOfBV i
-      fst <$> inferSpine defaultAction a (Var i) es
+      fst3 <$> inferSpine defaultAction a (Var i) es
     Def f es -> do
       whenJustM (isRelevantProjection f) $ \_ -> nonInferable
       a <- defType <$> getConstInfo f
-      fst <$> inferSpine defaultAction a (Def f) es
+      fst3 <$> inferSpine defaultAction a (Def f) es
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
-      fst <$> inferSpine defaultAction a (MetaV x) es
+      fst3 <$> inferSpine defaultAction a (MetaV x) es
     _ -> nonInferable
   where
     nonInferable :: MonadDebug m => m a
@@ -278,17 +288,24 @@ infer u = do
       ]
 
 instance CheckInternal Elims where
-  checkInternal' action es cmp (t , hd) = snd <$> inferSpine action t hd es
+  checkInternal' action es cmp (t , hd) = snd3 <$> inferSpine action t hd es
 
-{-# SPECIALIZE inferSpine :: Action TCM -> Type -> (Elims -> Term) -> Elims -> TCM (Type, Elims) #-}
 -- | @inferSpine action t hd es@ checks that spine @es@ eliminates
 --   value @hd []@ of type @t@ and returns the remaining type
---   (target of elimination) and the transformed eliminations.
-inferSpine :: (MonadCheckInternal m) => Action m -> Type -> (Elims -> Term) -> Elims -> m (Type, Elims)
-inferSpine action t hd es = loop t hd id es
+--   (target of elimination), the transformed eliminations, and the
+--   transformed term.
+--
+--   The transformed term is /not/ simply @hd@ applied to the transformed
+--   eliminations: 'elimViewAction' brings prefix applications of
+--   projection-like functions into post-fix form, and that has to be undone
+--   when rebuilding the term, or we hand back a term in a representation
+--   the conversion checker cannot relate to the original one
+--   (issues #8336 and #8771).
+inferSpine :: Action -> Type -> (Elims -> Term) -> Elims -> TCM (Type, Elims, Term)
+inferSpine action t hd es = loop t hd id hd es
   where
-  loop t hd acc = \case
-    [] -> return (t , acc [])
+  loop t hd accEs accTm = \case
+    [] -> return (t , accEs [] , accTm [])
     (e : es) -> do
       let self = hd []
       reportSDoc "tc.check.internal" 30 $ sep
@@ -306,28 +323,34 @@ inferSpine action t hd es = loop t hd id es
           x' <- checkInternal' action x CmpLeq (b `absApp` izero)
           y' <- checkInternal' action y CmpLeq (b `absApp` ione)
           let e' = IApply x' y' r'
-          loop (b `absApp` r) (hd . (e:)) (acc . (e':)) es
+          loop (b `absApp` r) (hd . (e:)) (accEs . (e':)) (accTm . (e':)) es
         Apply (Arg ai v) -> do
           (a, b) <- shouldBePi t
           ai <- checkArgInfo action ai $ domInfo a
-          v' <- applyModalityToContext (getModality a) $ checkInternal' action v CmpLeq $ unDom a
+          v' <- applyDomToContext a $ checkInternal' action v CmpLeq $ unDom a
           let e' = Apply (Arg ai v')
-          loop (b `absApp` v) (hd . (e:)) (acc . (e':)) es
+          loop (b `absApp` v) (hd . (e:)) (accEs . (e':)) (accTm . (e':)) es
         -- case: projection or projection-like
         Proj o f -> do
           t' <- shouldBeProjectible self t o f
-          loop t' (hd . (e:)) (acc . (e:)) es
+          -- Jesper, issue #8336: turn projection-like functions back into Defs.
+          -- Andreas, issue #8771: this has to happen for the transformed term
+          -- as well, not just for @hd@, or the two get out of sync.
+          proj <- fromMaybe __IMPOSSIBLE__ <$> isProjection f
+          let applyProj :: (Elims -> Term) -> (Elims -> Term)
+              applyProj h
+                | isProperProjection_ proj = h . (e:)
+                | otherwise = Def f . (Apply (projFromType proj $> h []) :)
+          loop t' (applyProj hd) (accEs . (e:)) (applyProj accTm) es
 
-{-# SPECIALIZE checkSpine :: Action TCM -> Type -> (Elims -> Term) -> Elims -> Comparison -> Type -> TCM Term #-}
-checkSpine
-  :: (MonadCheckInternal m)
-  => Action m
+checkSpine ::
+     Action
   -> Type       -- ^ Type of the head @self@.
   -> (Elims -> Term) -- ^ The head @hd@.
   -> Elims      -- ^ The eliminations @es@.
   -> Comparison -- ^ Check (@CmpLeq@) or infer (@CmpEq@) the final type.
   -> Type       -- ^ Expected type of the application @self es@.
-  -> m Term     -- ^ The application after modification by the @Action@.
+  -> TCM Term   -- ^ The application after modification by the @Action@.
 checkSpine action a hd es cmp t = do
   reportSDoc "tc.check.internal" 20 $ sep
     [ "checking spine "
@@ -335,9 +358,21 @@ checkSpine action a hd es cmp t = do
                                  , nest 2 $ prettyTCM a ])
                    , nest 4 $ prettyTCM es <+> ":"
                    , nest 2 $ prettyTCM t ] ]
-  (t' , es') <- inferSpine action a hd es
-  coerceSize (compareType cmp) (hd es) t' t
-  return $ hd es'
+  (t' , _es' , v') <- inferSpine action a hd es
+  reportSDoc "tc.check.internal" 30 $ sep
+    [ "checking if "
+    , prettyTCM t'
+    , "is a subtype of"
+    , prettyTCM t
+    ]
+  reportSDoc "tc.check.internal" 70 $ sep
+    [ "checking if (raw)"
+    , pretty =<< instantiate t'
+    , "is a subtype of (raw)"
+    , pretty =<< instantiate t
+    ]
+  coerceSize cmp (hd es) t' t
+  return v'
 
 instance CheckInternal Sort where
   checkInternal' action s cmp _ = case s of

@@ -1,0 +1,4 @@
+NoIrrelevance4.agda:3.9-15: error: [NeedOptionIrrelevance]
+Irrelevance modality is disabled (use options --irrelevance and
+--no-irrelevance to enable/disable irrelevance)
+when checking the let binding . x = _

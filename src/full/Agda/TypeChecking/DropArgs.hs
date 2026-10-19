@@ -2,8 +2,6 @@
 
 module Agda.TypeChecking.DropArgs where
 
-import Control.Arrow (second)
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -13,8 +11,9 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 
-import Agda.Utils.Functor
+import Agda.Utils.List
 import Agda.Utils.Permutation
+import Agda.Utils.Tuple (second)
 
 import Agda.Utils.Impossible
 
@@ -35,7 +34,7 @@ instance DropArgs Telescope where
   dropArgs n tel = telFromList $ drop n $ telToList tel
 
 instance DropArgs Permutation where
-  dropArgs n (Perm m p) = Perm (m - n) $ map (subtract n) $ drop n p
+  dropArgs n (Perm m p) = Perm (m - n) $! map' (subtract n) $ drop n p
 
 -- | NOTE: does not work for recursive functions.
 instance DropArgs Clause where
@@ -80,4 +79,4 @@ instance DropArgs CompiledClauses where
 
 instance DropArgs SplitTree where
   dropArgs n (SplittingDone m) = SplittingDone (m - n)
-  dropArgs n (SplitAt i lz ts) = SplitAt (subtract n <$> i) lz $ map (second $ dropArgs n) ts
+  dropArgs n (SplitAt i lz ts) = SplitAt (subtract n <$> i) lz $ map' (second $ dropArgs n) ts

@@ -106,6 +106,8 @@ fdebugTestFilter =
 -- This list was crafted using
 --    grep -RP '(?<!-- ){-# OPTIONS.* -v' | grep Fail/
 --  and screening the results (e.g. for comments)
+-- Andreas, 2026-04-02: added Issue641*
+-- The recipe above is incomplete because -v OPTIONS can also be passsed via the .flags file.
   [ disable "Fail/Issue3590-2"
   , disable "Fail/IndexInference"
   , disable "Fail/DebugWith"
@@ -117,8 +119,19 @@ fdebugTestFilter =
   , disable "Fail/Issue2018debug"
   , disable "Fail/Issue1963DisplayWithPostfixCopattern"
   , disable "Fail/Optimised-open"
-  , disable "Fail/Optimised-open"
   , disable "Fail/Issue4175"
+  , disable "Fail/Issue641"
+  , disable "Fail/Issue641-all-interfaces"
+  , disable "Fail/Issue6492"
+  ]
+  where disable = RFInclude
+
+-- | Filting out tests that shell out to other processes. This includes all
+-- tests that use @--ghc@ (without @--ghc-dont-call-ghc@) or @--allow-exec@.
+execTestFilter :: [RegexFilter]
+execTestFilter =
+  [ disable "Fail/Issue2248_COMPILED_TYPE"
+  , disable "Fail/DuplicateExecutable"
   ]
   where disable = RFInclude
 

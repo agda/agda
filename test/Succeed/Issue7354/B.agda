@@ -1,5 +1,5 @@
-
 {-# OPTIONS --safe #-}
+
 module Issue7354.B where
 
 open import Issue7354.A

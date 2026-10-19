@@ -4,4 +4,13 @@ principal argument has type A₁ while it should be of record type
   candidates in scope:
 - f : {B : Set} → R B → B
 - f : {B : Set} → S B → B
+Issue1944-UnappliedOverloadedProjectionNotRecord.R.f is in scope as
+  * a record field Issue1944-UnappliedOverloadedProjectionNotRecord.R.f
+    brought into scope by
+    - the opening of R at Issue1944-UnappliedOverloadedProjectionNotRecord.agda:8.6-7
+    - its definition at Issue1944-UnappliedOverloadedProjectionNotRecord.agda:7.9-10
+  * a record field Issue1944-UnappliedOverloadedProjectionNotRecord.S.f
+    brought into scope by
+    - the opening of S at Issue1944-UnappliedOverloadedProjectionNotRecord.agda:12.6-7
+    - its definition at Issue1944-UnappliedOverloadedProjectionNotRecord.agda:11.9-10
 when checking that the expression f has type A₁ → A₁

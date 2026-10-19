@@ -24,7 +24,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , neighbours, neighboursMap
   , edgesFrom
   , edgesTo
-  , diagonal
+  , diagonal, loops
   , nodes, sourceNodes, targetNodes, isolatedNodes
   , Nodes(..), computeNodes
   , discrete
@@ -40,6 +40,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , unions, unionsWith
     -- * Transformation
   , mapWithEdge
+  , mapLoops
   , transposeEdge, transpose
   , clean
   , removeNode, removeNodes
@@ -75,28 +76,28 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
 
 import Prelude hiding ( lookup, null, unzip )
 
-import qualified Data.Array.IArray as Array
+import Data.Array.IArray qualified as Array
 import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
-import qualified Data.Graph as Graph
+import Data.Sequence qualified as Seq
+import Data.Graph qualified as Graph
 import Data.IntMap.Strict (IntMap)
-import qualified Data.IntMap.Strict as IntMap
-import qualified Data.IntSet as IntSet
-import qualified Data.List as List
-import qualified Data.Map.Strict as Map
+import Data.IntMap.Strict qualified as IntMap
+import Data.IntSet qualified as IntSet
+import Data.List qualified as List
+import Data.Map.Strict qualified as Map
 import Data.Map.Strict (Map)
 import Data.Foldable (toList)
 
 import Data.Maybe (maybeToList, fromMaybe)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 import Data.Set (Set)
-import qualified Data.Tree as Tree
+import Data.Tree qualified as Tree
 
 import Agda.Utils.Function
 import Agda.Utils.List1 (List1)
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1 qualified as List1
 import Agda.Utils.Null (Null(null))
-import qualified Agda.Utils.Null as Null
+import Agda.Utils.Null qualified as Null
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.SemiRing
 import Agda.Utils.Tuple
@@ -230,8 +231,13 @@ edgesTo (Graph g) ts =
 -- | All self-loops. /O(n log n)/.
 
 diagonal :: Ord n => Graph n e -> [Edge n e]
-diagonal (Graph g) =
-  [ Edge s s e
+diagonal = map (\ (s, e) -> Edge s s e) . loops
+
+-- | All self-loops. /O(n log n)/.
+
+loops ::  Ord n => Graph n e -> [(n, e)]
+loops (Graph g) =
+  [ (s, e)
   | (s, m) <- Map.assocs g
   , e      <- maybeToList $ Map.lookup s m
   ]
@@ -308,7 +314,7 @@ fromNodes ns = Graph $ Map.fromList $ map (, Map.empty) ns
 -- | Constructs a completely disconnected graph containing the given
 --   nodes. /O(n)/.
 
-fromNodeSet :: Ord n => Set n -> Graph n e
+fromNodeSet :: Set n -> Graph n e
 fromNodeSet ns = Graph $ Map.fromSet (\_ -> Map.empty) ns
 
 -- | @fromEdges es@ is a graph containing the edges in @es@, with the
@@ -414,6 +420,10 @@ mapWithEdge :: (Edge n e -> e') -> Graph n e -> Graph n e'
 mapWithEdge f (Graph g) = Graph $ flip Map.mapWithKey g $ \ s m ->
   flip Map.mapWithKey m $ \ t e -> f (Edge s t e)
 
+-- | Only transform the self-loops.
+mapLoops :: Ord n => (e -> e) -> Graph n e -> Graph n e
+mapLoops f (Graph g) = Graph $ flip Map.mapWithKey g $ Map.adjust f
+
 -- | Reverses an edge. /O(1)/.
 
 transposeEdge :: Edge n e -> Edge n e
@@ -436,7 +446,7 @@ clean = Graph . Map.map (Map.filter (not . null)) . graph
 -- that satisfy the predicate @p@. Edges to or from nodes that are
 -- removed are also removed. /O(n + e)/.
 
-filterNodes :: Ord n => (n -> Bool) -> Graph n e -> Graph n e
+filterNodes :: (n -> Bool) -> Graph n e -> Graph n e
 filterNodes p (Graph g) = Graph (Map.mapMaybeWithKey remSrc g)
   where
   remSrc s m
@@ -545,7 +555,7 @@ renameNodes ren =
 -- Time complexity: /O(n + e)/.
 
 renameNodesMonotonic ::
-  (Ord n1, Ord n2) => (n1 -> n2) -> Graph n1 e -> Graph n2 e
+  (n1 -> n2) -> Graph n1 e -> Graph n2 e
 renameNodesMonotonic ren =
   Graph .
   fmap (Map.mapKeysMonotonic ren) .
@@ -607,20 +617,23 @@ unzip :: Graph n (e, e') -> (Graph n e, Graph n e')
 unzip g = (fst <$> g, snd <$> g)
 
 -- | @composeWith times plus g g'@ finds all edges
---   @s --c_i--> t_i --d_i--> u@ and constructs the
---   result graph from @edge(s,u) = sum_i (c_i times d_i)@.
+--   @s --c_i--> t_i --d_i--> u@
+--   with @s --c_i--> t_i@ in @g@ and @t_i --d_i--> u@ in @g'@
+--   and constructs the result graph from
+--   @edge(s,u) = sum_i (c_i times d_i)@.
 --
 --   Complexity:  For each edge @s --> t@ in @g@ we look up
 --   all edges starting with @t@ in @g'@.
 --
 --   Precondition: The two graphs must have exactly the same nodes.
 
-composeWith ::
+composeWith :: forall c d e n.
   Ord n =>
   (c -> d -> e) -> (e -> e -> e) ->
   Graph n c -> Graph n d -> Graph n e
 composeWith times plus (Graph g) (Graph g') = Graph (Map.map comp g)
   where
+  comp :: Map n c -> Map n e
   comp m = Map.fromListWith plus
     [ (u, c `times` d)
     | (t, c) <- Map.assocs m
@@ -775,7 +788,7 @@ sccDAG' g sccs = DAG theDAG componentMap secondNodeMap
   convertInt i = fromMaybe __IMPOSSIBLE__ (toVertex i)
 
   componentMap :: IntMap (Graph.SCC n)
-  componentMap = IntMap.fromList (map (mapFst convertInt) components)
+  componentMap = IntMap.fromList (map (first convertInt) components)
 
   secondNodeMap :: Map n Int
   secondNodeMap = Map.map convertInt firstNodeMap
@@ -889,7 +902,7 @@ longestPaths ::
   forall n e. Ord n => Graph n e -> Graph n (Int, [[Edge n e]])
 longestPaths g =
   Graph $
-  fmap (fmap (mapSnd toList)) $
+  fmap (fmap (second toList)) $
   List.foldl' (flip addLongestFrom) Map.empty $
   sccs' g
   where
@@ -919,7 +932,7 @@ longestPaths g =
             }
       in case Map.lookup n' pss of
         Nothing -> Map.empty
-        Just ps -> fmap (succ -*- fmap (edge :)) ps
+        Just ps -> fmap (succ *** fmap (edge :)) ps
 
 ------------------------------------------------------------------------
 -- Transitive closure
@@ -929,7 +942,7 @@ longestPaths g =
 --   Relatively efficient, see Issue 1560.
 
 complete :: (Eq e, Null e, SemiRing e, Ord n) => Graph n e -> Graph n e
-complete g = repeatWhile (mapFst (not . discrete) . combineNewOld' g) g
+complete g = repeatWhile (first (not . discrete) . combineNewOld' g) g
   where
     combineNewOld' new old = unzip $ unionWith comb new' old'
       where

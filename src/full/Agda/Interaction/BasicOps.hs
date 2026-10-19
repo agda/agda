@@ -5,7 +5,6 @@ module Agda.Interaction.BasicOps where
 
 import Prelude hiding (null)
 
-import Control.Arrow          ( first )
 import Control.Monad.Except   ( MonadError(..) )
 import Control.Monad.State    ( MonadState(..), evalState )
 import Control.Monad.Identity ( runIdentity )
@@ -16,6 +15,7 @@ import qualified Data.IntMap as IntMap
 import qualified Data.Map.Strict as MapS
 import qualified Data.Set as Set
 import qualified Data.List as List
+import Data.Bifunctor (first, second)
 import Data.Maybe
 import Data.Monoid
 import Data.Function (on)
@@ -33,6 +33,7 @@ import Agda.Syntax.Abstract as A hiding (Open, Apply, Assign)
 import Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete.Operators (parseApplication)
 import Agda.Syntax.Info (MetaInfo(..),emptyMetaInfo,exprNoRange,defaultAppInfo_,defaultAppInfo)
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal as I
@@ -46,6 +47,7 @@ import Agda.Syntax.Fixity(Precedence(..), argumentCtx_)
 import Agda.Syntax.Parser
 
 import Agda.TheTypeChecker
+import Agda.TypeChecking.Conversion.Errors
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors ( getAllWarnings, Verbalize(..) )
@@ -58,7 +60,7 @@ import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.With
 import Agda.TypeChecking.Coverage
-import Agda.TypeChecking.Coverage.Match ( SplitPattern )
+import Agda.TypeChecking.Coverage.SplitPattern ( SplitPattern )
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty ( PrettyTCM, prettyTCM )
 import Agda.TypeChecking.Pretty.Constraint (prettyRangeConstraint)
@@ -90,6 +92,9 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.String
 import Agda.Utils.WithDefault ( WithDefault'(Value) )
+import Agda.Utils.Tuple.Strict (Pair(..))
+import Agda.Utils.Tuple.Strict qualified as Strict
+import Agda.Utils.Maybe.Strict qualified as Strict
 
 import Agda.Utils.Impossible
 
@@ -98,25 +103,20 @@ import Agda.Utils.Impossible
 parseExpr :: Range -> String -> TCM C.Expr
 parseExpr rng s = do
   (C.ExprWhere e wh, attrs) <-
-    runPM $ parsePosString exprWhereParser pos s
+    runPM $ parseRangeString exprWhereParser rng s
   checkAttributes attrs
   unless (null wh) $ interactionError UnexpectedWhere
   return e
-  where pos = fromMaybe (startPos Nothing) $ rStart rng
 
 parseExprIn :: InteractionId -> Range -> String -> TCM Expr
 parseExprIn ii rng s = do
-    mId <- lookupInteractionId ii
-    updateMetaVarRange mId rng
-    mi  <- getMetaInfo <$> lookupLocalMeta mId
-    e   <- parseExpr rng s
+    e <- parseExpr rng s
     -- Andreas, 2019-08-19, issue #4007
     -- We need to be in the TCEnv of the meta variable
     -- such that the scope checker can label the clause
     -- of a parsed extended lambda as IsAbstract if the
     -- interaction point was created in AbstractMode.
-    withMetaInfo mi $
-      concreteToAbstract (clScope mi) e
+    withInteractionId ii $ concreteToAbstract_ e
 
 -- Type check the given expression and assign its value to the meta
 -- Precondition: we are in the context where the given meta was created.
@@ -134,7 +134,7 @@ giveExpr force mii mi e = do
     t' <- t `piApplyM` permute (takeP (length ctx) $ mvPermutation mv) ctx
     traceCall (CheckExprCall CmpLeq e t') $ do
       reportSDoc "interaction.give" 20 $ do
-        a <- asksTC envAbstractMode
+        a <- viewTC eAbstractMode
         TP.hsep
           [ TP.text ("give(" ++ show a ++ "): instantiated meta type =")
           , prettyTCM t'
@@ -186,7 +186,7 @@ redoChecks (Just ii) = do
     IPNoClause -> return ()
     IPClause{ipcQName = f} -> do
       mb <- defMutual <$> getConstInfo f
-      terErrs <- localTC (\ e -> e { envMutualBlock = Just mb }) $ termMutual []
+      terErrs <- localTC (set eMutualBlock (Just mb)) $ termMutual []
       List1.unlessNull terErrs $ warning . TerminationIssue
   -- TODO redo positivity check!
 
@@ -195,13 +195,10 @@ give_ ::
      Bool           -- ^ Elaborating?
   -> UseForce       -- ^ Skip safety checks?
   -> InteractionId  -- ^ Hole.
-  -> Maybe Range
   -> Expr           -- ^ The expression to give.
   -> TCM Term       -- ^ Value of the expression
-give_ elaborating force ii mr e = do
-  -- if Range is given, update the range of the interaction meta
+give_ elaborating force ii e = do
   mi  <- lookupInteractionId ii
-  whenJust mr $ updateMetaVarRange mi
   reportSDoc "interaction.give" 10 $ "giving expression" TP.<+> prettyTCM e
   reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnscope e
   -- Try to give mi := e
@@ -220,11 +217,10 @@ give_ elaborating force ii mr e = do
 give ::
      UseForce       -- ^ Skip safety checks?
   -> InteractionId  -- ^ Hole.
-  -> Maybe Range
   -> Expr           -- ^ The expression to give.
   -> TCM Expr       -- ^ If successful, the very expression is returned unchanged.
-give force ii mr e = do
-  _ <- give_ False force ii mr e
+give force ii e = do
+  _ <- give_ False force ii e
   removeInteractionPoint ii
   return e
 
@@ -233,11 +229,10 @@ elaborate_give
   :: Rewrite        -- ^ Normalise result?
   -> UseForce       -- ^ Skip safety checks?
   -> InteractionId  -- ^ Hole.
-  -> Maybe Range
   -> Expr           -- ^ The expression to give.
   -> TCM Expr       -- ^ If successful, return the elaborated expression.
-elaborate_give norm force ii mr e = withInteractionId ii $ do
-  v <- give_ True force ii mr e
+elaborate_give norm force ii e = withInteractionId ii $ do
+  v <- give_ True force ii e
   reportSDoc "interaction.give" 40 $ "v = " TP.<+> pure (pretty v)
   -- Reduce projection-likes before quoting, otherwise instance
   -- selection may fail on reload (see #6203).
@@ -251,35 +246,50 @@ elaborate_give norm force ii mr e = withInteractionId ii $ do
 refine
   :: UseForce       -- ^ Skip safety checks when giving?
   -> InteractionId  -- ^ Hole.
-  -> Maybe Range
   -> Expr           -- ^ The expression to refine the hole with.
+                    --   Precondition: it was parsed in the context of the hole
+                    --   so its ranges are correct.
   -> TCM Expr       -- ^ The successfully given expression.
-refine force ii mr e = do
-  mi <- lookupInteractionId ii
-  mv <- lookupLocalMeta mi
-  let range = fromMaybe (getRange mv) mr
-      scope = M.getMetaScope mv
+refine force ii e = do
   reportSDoc "interaction.refine" 10 $
     "refining with expression" TP.<+> prettyTCM e
   reportSDoc "interaction.refine" 50 $
     TP.text $ show $ deepUnscope e
+  -- Andreas, 2025-11-12, issue #8197
+  -- We use the range of @e@ which might contain questionmarks
+  -- so that the new questionmarks appended to @e@
+  -- can receive a 'Range' relatively correct to the ranges
+  -- of the questionmarks withing @e@.
+  -- If @e@ has no range information, fall back to the current interaction
+  -- point range so appended metas still get a real file range.
+  holeRange <- getInteractionRange ii
+  let exprRange = getRange e
+      range     = if null exprRange then holeRange else exprRange
+  scope <- getInteractionScope ii
   -- We try to append up to 10 meta variables
   tryRefine 10 range scope e
   where
-    tryRefine :: Int -> Range -> ScopeInfo -> Expr -> TCM Expr
-    tryRefine nrOfMetas r scope = try nrOfMetas Nothing
+    -- This wrapper around 'try' makes 'range' and 'scope' available there.
+    tryRefine :: Int -> Range -> ScopeInfo  -> Expr -> TCM Expr
+    tryRefine nrOfMetas range scope = try nrOfMetas Nothing
       where
         try :: Int -> Maybe TCErr -> Expr -> TCM Expr
-        try 0 err e = interactionError $ CannotRefine $ case err of
-           Just (TypeError _ _ cl) | UnequalTerms _ I.Pi{} _ _ <- clValue cl ->
-             "functions with 10 or more arguments"
-           _ -> ""
-        try n _ e = give force ii (Just r) e `catchError` \err -> try (n - 1) (Just err) =<< appMeta e
+        try 0 err e = do
+          reportSDoc "interaction.refine" 30 $ "final error:" TP.$$ prettyTCM err
+          interactionError $ CannotRefine $ case err of
+            Just (TypeError _ _ cl) | ConversionError_ (ConversionError _ _ I.Pi{} _ _) <- clValue cl ->
+              "functions with 10 or more arguments"
+            _ -> ""
+        try n _ e = give force ii e `catchError` \err -> do
+          reportSDoc "interaction.refine" 30 $ "retrying because of error:" TP.$$ prettyTCM err
+          try (n - 1) (Just err) =<< appMeta e
 
         -- Apply A.Expr to a new meta
         appMeta :: Expr -> TCM Expr
         appMeta e = do
-          let rng = rightMargin r -- Andreas, 2013-05-01 conflate range to its right margin to ensure that appended metas are last in numbering.  This fixes issue 841.
+          -- Andreas, 2013-05-01 conflate range to its right margin to ensure that appended metas are last in numbering.
+          -- This fixes issue 841.
+          let rng = rightMargin range
           -- Make new interaction point
           ii <- registerInteractionPoint False rng Nothing
           let info = Info.MetaInfo
@@ -311,7 +321,7 @@ refine force ii mr e = do
                     where subX (A.Var y) | x == y = namedArg arg
                           subX e = e
                   _ -> App i e arg
-          return $ smartApp (defaultAppInfo r) e $ defaultNamedArg metaVar
+          return $ smartApp (defaultAppInfo range) e $ defaultNamedArg metaVar
 
 {-| Evaluate the given expression in the current environment -}
 evalInCurrent :: ComputeMode -> Expr -> TCM Expr
@@ -341,9 +351,19 @@ normalForm = \case
   Simplified   -> simplify
   Normalised   -> normalise
 
--- | Modifier for the interactive computation command,
---   specifying the mode of computation and result display.
---
+-- | Evaluate the given expression in the current environment
+--   with allowed reductions modified according to 'ComputeMode'.
+computeInCurrent :: ComputeMode -> Expr -> TCM Expr
+computeInCurrent cmode e =
+  withComputeIgnoreAbstract cmode $ evalInCurrent cmode e
+
+-- | Modify the allowed reductions according to 'ComputeMode'.
+{-# SPECIALIZE withComputeIgnoreAbstract :: ComputeMode -> TCM a -> TCM a #-}
+withComputeIgnoreAbstract :: MonadTCEnv m => ComputeMode -> m a -> m a
+withComputeIgnoreAbstract cmode =
+  applyWhen (computeIgnoreAbstract cmode) $
+    allowNonTerminatingReductions . ignoreAbstractMode
+
 computeIgnoreAbstract :: ComputeMode -> Bool
 computeIgnoreAbstract DefaultCompute  = False
 computeIgnoreAbstract HeadCompute     = False
@@ -465,8 +485,8 @@ instance Reify Constraint where
     <*> (reify =<< getMetaType m)
     <*> forM (fromMaybe [] mcands) (\ (Candidate q tm ty _) -> do
           (,,) <$> reify tm <*> reify tm <*> reify ty)
-  reify (ResolveInstanceHead q) = return $ ResolveInstanceOF q
-  reify (IsEmpty r a) = IsEmptyType <$> reify a
+  reify (ResolveInstanceHead kwr q) = return $ ResolveInstanceOF q
+  reify (IsEmpty r a) = IsEmptyType <$> reify (unDom a)
   reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
   reify (CheckFunDef i q cs err) = do
     a <- reify =<< defType <$> getConstInfo q
@@ -482,6 +502,14 @@ instance Reify Constraint where
     OfType <$> reify (MetaV m []) <*> reify t
   reify (CheckType t) = JustType <$> reify t
   reify (UsableAtModality _ _ mod t) = UsableAtMod mod <$> reify t
+  reify (RewConstraint (LocalEquation g t u a)) = do
+    -- I think reifying rewrite constraints to 'CmpInType' should be fine
+    -- (ultimately 'RewConstraint' is basically just 'ValueCmp' with a nicer
+    -- error message)
+    t' <- addContext g $ reify t
+    u' <- addContext g $ reify u
+    a' <- addContext g $ reify a
+    return $ CmpInType CmpEq t' u' a'
   {-# SPECIALIZE reify :: Constraint -> TCM (ReifiesTo Constraint) #-}
 
 instance (Pretty a, Pretty b) => PrettyTCM (OutputForm a b) where
@@ -617,9 +645,6 @@ prettyConstraints cs = do
             cl <- reify (PConstr Set.empty alwaysUnblock c)
             enterClosure cl abstractToConcrete_
 
-getConstraints :: TCM [OutputForm C.Expr C.Expr]
-getConstraints = getConstraints' return $ const True
-
 namedMetaOf :: OutputConstraint A.Expr a -> a
 namedMetaOf (OfType i _) = i
 namedMetaOf (JustType i) = i
@@ -653,7 +678,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         UnBlock{}                  -> Nothing
         FindInstance{}             -> Nothing
         ResolveInstanceHead{}      -> Nothing
-        IsEmpty r t                -> isMeta (unEl t)
+        IsEmpty r t                -> isMeta (unEl (unDom t))
         CheckSizeLtSat t           -> isMeta t
         CheckFunDef{}              -> Nothing
         HasBiggerSort a            -> Nothing
@@ -664,6 +689,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         CheckType t                -> isMeta (unEl t)
         CheckLockedVars t _ _ _    -> isMeta t
         UsableAtModality _ ms _ t  -> caseMaybe ms (isMeta t) $ \ s -> isMetaS s `mplus` isMeta t
+        RewConstraint (LocalEquation g t u a) -> isMeta t `mplus` isMeta u
 
     isMeta :: Term -> Maybe Elims
     isMeta (MetaV m' es_m) | m == m' = pure es_m
@@ -720,13 +746,14 @@ interactionIdToMetaId i = do
     , metaModule = h
     }
 
-getConstraints' :: (ProblemConstraint -> TCM ProblemConstraint) -> (ProblemConstraint -> Bool) -> TCM [OutputForm C.Expr C.Expr]
-getConstraints' g f = liftTCM $ do
-    cs <- stripConstraintPids . filter f <$> (mapM g =<< M.getAllConstraints)
-    cs <- forM cs $ \c -> do
-            cl <- reify c
+-- | Get meta solutions and constraints.
+getConstraints :: Rewrite -> TCM [OutputForm C.Expr C.Expr]
+getConstraints norm = do
+    cs <- stripConstraintPids <$> M.getAllConstraints
+    cs <- forM cs \ (c :: ProblemConstraint) -> do
+            cl <- reify =<< normalForm norm c
             enterClosure cl abstractToConcrete_
-    ss <- mapM toOutputForm =<< getSolvedInteractionPoints True AsIs -- get all
+    ss <- mapM toOutputForm =<< getSolvedInteractionPoints True norm -- get all
     return $ ss ++ cs
   where
     toOutputForm (ii, mi, e) = do
@@ -734,7 +761,8 @@ getConstraints' g f = liftTCM $ do
       withMetaInfo mv $ do
         mi <- interactionIdToMetaId ii
         let m = QuestionMark emptyMetaInfo{ metaNumber = Just mi } ii
-        let oform = OutputForm noRange [] alwaysUnblock $ Assign m e :: OutputForm Expr Expr
+        let oform :: OutputForm Expr Expr
+            oform = OutputForm noRange [] alwaysUnblock $ Assign m e
         abstractToConcrete_ oform
 
 -- | Reify the boundary of an interaction point as something that can be
@@ -912,7 +940,7 @@ typeOfMetaMI norm mi =
           , "x    =" TP.<+> TP.pretty x
           ]
         ]
-      reportSDoc "interactive.meta.scope" 20 $ TP.text $ show $ getMetaScope mv
+      reportSDoc "interactive.meta.scope" 90 $ TP.text $ show $ getMetaScope mv
       -- Andreas, 2016-01-19, issue #1783: need piApplyM instead of just piApply
       OfType x <$> reifyUnblocked t
     rewriteJudg mv (IsSort i t) = do
@@ -945,45 +973,61 @@ typesOfHiddenMetas norm = liftTCM $ do
       M.PostponedTypeCheckingProblem{} -> False
 
 -- | Create type of application of new helper function that would solve the goal.
-metaHelperType :: Rewrite -> InteractionId -> Range -> String -> TCM (OutputConstraint' Expr Expr)
-metaHelperType norm ii rng s = case words s of
-  []    -> failure
-  f : _ -> withInteractionId ii $ do
-    ensureName f
-    A.Application h args <- A.appView . getBody . deepUnscope <$> parseExprIn ii rng ("let " ++ f ++ " = _ in " ++ s)
-    inCxt   <- hasElem <$> getContextNames
+metaHelperType :: Rewrite -> InteractionId -> Range -> String -> TCM (OutputConstraint' Expr C.Name)
+metaHelperType norm ii rng s = withInteractionId ii do
+    -- Parse the raw application.
+    ce <- parseExpr rng s
+    -- Operator-parse into simple application of @h@ to @cargs@.
+    (h, cargs) <- applicationView [] ce
+    -- Scope check arguments
+    args <- mapM (fmap deepUnscope . concreteToAbstract_) cargs
+      -- Andreas, 2025-09-14:
+      -- The 'deepUnscope' has been taken from the previous version of the implementation.
+      -- Removing it changes the way the type of the helper function is printed,
+      -- sometimes for the better, sometimes for the worse.
+      -- TODO: investigate why and how this 'deepUnscope' affects the printing,
+      -- and whether we should remove it here.
+
+    cxtNames <- getContextNames
+    reportSDoc "interaction.helper" 30 $ TP.vcat $
+      [ "args =" TP.<+> prettyTCM args
+      , "cxt  =" TP.<+> prettyTCM cxtNames
+      ]
     cxtArgs <- getContextArgs
-    enclosingFunctionName <- ipcQName . envClause <$> getEnv
+    enclosingFunctionName <- ipcQName . view eClause <$> getEnv
     a0      <- (`piApply` cxtArgs) <$> (getMetaType =<< lookupInteractionId ii)
 
     -- Konstantin, 2022-10-23: We don't want to print section parameters in helper type.
     freeVars <- getCurrentModuleFreeVars
     ctx <- getContext
-    let contextForAbstracting = take (size ctx - freeVars) ctx
+    let contextForAbstracting = cxTake (size ctx - freeVars) ctx
 
     -- Andreas, 2019-10-11: I actually prefer pi-types over ->.
-    let runInPrintingEnvironment = localTC (\e -> e { envPrintDomainFreePi = True, envPrintMetasBare = True })
+    let runInPrintingEnvironment = localTC (set ePrintDomainFreePi True . set ePrintMetasBare True)
                                  . escapeContext impossible (length contextForAbstracting)
                                  . withoutPrintingGeneralization
                                  . dontFoldLetBindings
 
-    case mapM (isVar . namedArg) args >>= \ xs -> xs <$ guard (all inCxt xs) of
+    case mapM (isVar . namedArg) args of
 
      -- Andreas, 2019-10-11
      -- If all arguments are variables, there is no need to abstract.
      -- We simply make exactly the given arguments visible and all other hidden.
-     Just xs -> do
+     -- Andreas, 2025-10-22, issue #8150:
+     -- Also, the arguments need to be in the same order as in the context.
+     Just xs | xs `List.isSubsequenceOf` cxtNames -> do
       let inXs = hasElem xs
       let hideButXs ce = setHiding (if inXs (ctxEntryName ce) then NotHidden else Hidden) ce
-      let tel = contextToTel . map hideButXs $ contextForAbstracting
+      let tel = contextToTel . Context . map hideButXs $ contextForAbstracting
       OfType' h <$> do
         runInPrintingEnvironment $ reify $ telePiVisible tel a0
 
-     -- If some arguments are not variables (in this case, @args@ is not empty).
-     Nothing -> do
+     -- If some arguments are not variables or not in the right order (in this case, @args@ is not empty).
+     _ -> do
       -- cleanupType relies on with arguments being named 'w',
       -- so we'd better rename any actual 'w's to avoid confusion.
-      let tel = runIdentity . onNamesTel unW . contextToTel $ contextForAbstracting
+      let tel = runIdentity . onNamesTel unW . contextToTel . Context $
+                contextForAbstracting
       let a = runIdentity . onNames unW $ a0
       vtys <- mapM (\ a -> fmap (Arg (getArgInfo a) . fmap OtherType) $ inferExpr $ namedArg a) $
         List1.fromListSafe __IMPOSSIBLE__ args
@@ -1012,11 +1056,20 @@ metaHelperType norm ii rng s = case words s of
       return $ OfType' h a
   where
     failure = interactionError ExpectedApplication
-    ensureName f = do
-      ce <- parseExpr rng f
-      flip (caseMaybe $ isName ce) (\ _ -> return ()) $ do
-         reportSLn "interaction.helper" 10 $ "ce = " ++ show ce
-         failure
+
+    -- An application view for concrete expressions that rejects operator applications.
+    -- Takes a suffix of the arguments in left-to-right order (e.g. the empty list)
+    -- and returns the head and the arguments in left-to-right order.
+    applicationView :: [NamedArg C.Expr] -> C.Expr -> TCM (C.Name, [NamedArg C.Expr])
+    applicationView args = \case
+      C.Ident (C.QName x) -> return (x, args)
+      C.App _ e e1        -> applicationView (e1 : args) e
+      C.RawApp _ es       -> applicationView args =<< parseApplication es
+      C.Paren _ e         -> applicationView args e
+      -- Allowing operator applications would not make sense.
+      -- C.OpApp _ x _ args -> failure
+      _ -> failure
+
     isVar :: A.Expr -> Maybe A.Name
     isVar = \case
       A.Var x -> Just x
@@ -1102,16 +1155,17 @@ contextOfMeta ii norm = withInteractionId ii $ do
   withMetaInfo info $ do
     -- List of local variables.
     cxt <- getContext
-    let localVars = zipWith raise [1..] cxt
+    let localVars = flattenContext cxt
     -- List of let-bindings.
-    letVars <- Map.toAscList <$> asksTC envLetBindings
+    letVars <- Map.toAscList <$> viewTC eLetBindings
     -- Reify the types and filter out bindings without a name.
-    (++) <$> forMaybeM (reverse localVars) mkVar
+    (++) <$> forMaybeM localVars mkVar
          <*> forMaybeM letVars mkLet
 
   where
     mkVar :: ContextEntry -> TCM (Maybe ResponseContextEntry)
-    mkVar (CtxVar name Dom{ domInfo = ai, unDom = t }) = do
+    mkVar (CtxVar name dom@(unDom -> t)) = do
+      let ai = dom ^. dInfo
       if shouldHide ai name then return Nothing else Just <$> do
         let n = nameConcrete name
         x  <- abstractToConcrete_ name
@@ -1121,7 +1175,7 @@ contextOfMeta ii norm = withInteractionId ii $ do
 
     mkLet :: (Name, Open M.LetBinding) -> TCM (Maybe ResponseContextEntry)
     mkLet (name, lb) = do
-      LetBinding _ tm !dom <- getOpen lb
+      LetBinding isAxiom _ tm !dom <- getOpen lb
       if shouldHide (domInfo dom) name then return Nothing else Just <$> do
         let n = nameConcrete name
         x  <- abstractToConcrete_ name
@@ -1129,8 +1183,11 @@ contextOfMeta ii norm = withInteractionId ii $ do
         ty <- reifyUnblocked =<< normalForm norm dom
               -- Remove let bindings from x and later, to avoid folding to x = x, or using bindings
               -- not introduced when x was defined.
-        v  <- removeLetBindingsFrom name $ reifyUnblocked =<< normalForm norm tm
-        return $ ResponseContextEntry n x ty (Just v) s
+        mv <- case isAxiom of
+          -- Andreas, 2026-01-29, issue #8344: do not print bindings for 'LetAxiom's.
+          YesAxiom -> pure Nothing
+          NoAxiom  -> Just <$> do removeLetBindingsFrom name $ reifyUnblocked =<< normalForm norm tm
+        return $ ResponseContextEntry n x ty mv s
 
     shouldHide :: ArgInfo -> A.Name -> Bool
     shouldHide ai n = not (isInstance ai) && (isNoName n || nameIsRecordName n)
@@ -1247,7 +1304,7 @@ introTactic pmLambda ii = do
       let tel  = telFromList [defaultDom ("_", t)]
           pat  = [defaultArg $ unnamed $ deBruijnNamedVar "c" 0]
       -- Gallais, 2023-08-24: #6787 we need to locally ignore the
-      -- --without-K or --cubical-compatible options to figure out
+      -- --without-K or --cubical=compatible options to figure out
       -- that refl is a valid constructor for refl ≡ refl.
 
       cubical <- isJust <$> cubicalOption
@@ -1295,7 +1352,7 @@ atTopLevel m = inConcreteMode $ do
   let err = __IMPOSSIBLE__
     -- Andreas, 2024-08-03: cannot trigger this error:
     -- let err = genericError "The file has not been loaded yet."
-  caseMaybeM (useTC stCurrentModule) err $ \(current, topCurrent) -> do
+  Strict.caseMaybeM (useTC stCurrentModule) err $ \(current :!: topCurrent) -> do
     caseMaybeM (getVisitedModule topCurrent) __IMPOSSIBLE__ $ \ mi -> do
       let scope = iInsideScope $ miInterface mi
       tel <- lookupSection current
@@ -1326,14 +1383,16 @@ atTopLevel m = inConcreteMode $ do
           types = map (snd <$>) $ telToList tel
           gamma :: ListTel' A.Name
           gamma = fromMaybe __IMPOSSIBLE__ $
-                    zipWith' (\ x dom -> (x,) <$> dom) names types
+                    zipWithSameLen (\ x dom -> (x,) <$> dom) names types
       reportSDoc "interaction.top" 20 $ TP.vcat
         [ "BasicOps.atTopLevel"
         , "  names = " TP.<+> TP.sep (map prettyA   names)
         , "  types = " TP.<+> TP.sep (map prettyTCM types)
         ]
       M.withCurrentModule current $
-        withScope_ scope $
+        evalWithScope scope $ do
+          -- András, 2025-08-30: building fresh scope from interface
+          recomputeInverseScope
           addContext gamma $ do
             -- We're going inside the top-level module, so we have to set the
             -- checkpoints for it and all its submodules to the new checkpoint.

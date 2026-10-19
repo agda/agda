@@ -115,6 +115,166 @@ Additional examples of how to use rewrite rules can be found in `a
 blog post by Jesper Cockx
 <https://jesper.sikanda.be/posts/hack-your-type-theory.html>`__.
 
+
+Controlling rewrite rule matching with ``primRewriteNoMatch``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Rewrite rule matching does not reduce pattern-matching definitions. This can
+cause seemingly harmless rewrite rules to be non-confluent.
+For example, consider the rewrite rule for associativity of vector
+concatenation (which itself depends on associativity of addition).
+
+..
+  ::
+
+  data Vec (A : Set) : Nat → Set where
+    []  : Vec A zero
+    _∷_ : A → Vec A n → Vec A (suc n)
+
+  variable
+    xs ys zs : Vec _ _
+
+  +-assoc : (n + m) + l ≡ n + (m + l)
+  +-assoc {n = zero} = refl
+  +-assoc {n = suc n} {m = m} {l = l}
+    = cong suc (+-assoc {n = n} {m = m} {l = l})
+
+  {-# REWRITE +-assoc #-}
+
+::
+
+  _++_ : Vec A n → Vec A m → Vec A (n + m)
+  []       ++ ys = ys
+  (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
+
+  ++-assoc : {xs : Vec A n} {ys : Vec A m} {zs : Vec A l}
+           → (xs ++ ys) ++ zs ≡ xs ++ (ys ++ zs)
+  ++-assoc {xs = []}     = refl
+  ++-assoc {xs = x ∷ xs} = cong (x ∷_) (++-assoc {xs = xs})
+
+
+Unfortunately, if we specialise the length of the first vector to ``zero``,
+the ``++-assoc`` rewrite rule does not apply correctly.
+
+.. code-block:: agda
+
+  {-# REWRITE ++-assoc #-}
+
+  ++-assoc-fail : {xs : Vec A zero} {ys : Vec A m} {zs : Vec A l}
+                → (xs ++ ys) ++ zs ≡ xs ++ (ys ++ zs)
+  ++-assoc-fail = refl -- error: [UnequalTerms]
+                       -- The terms
+                       --   _++_ {n = m} (xs ++ ys) zs
+                       -- and
+                       --   _++_ {n = zero} xs (ys ++ zs)
+                       -- are not equal at type Vec A (m + l)
+
+The problem is that the outer ``_++_`` on ``++-assoc``'s left-hand side takes
+an implicit length argument ``{n = n + m}`` but in our special-case,
+``n`` is ``zero``
+and so the implicit argument reduces to just ``{n = m}``. Agda does not reduce
+pattern-matching definitions during rewrite rule matching, so it fails to match
+``m`` against ``n + m`` and the rewrite does not apply.
+
+The ``primRewriteNoMatch`` primitive (exported by
+``Agda.Builtin.Equality.Rewrite``) enables manually working around this
+limitation. Wrapping subterms of rewrite rule left-hand sides with the
+primitive tells Agda to not strictly match against those subterms (only
+check conversion after matching the rest of the rewrite rule LHS has
+succeeded).
+All variables which freely occur in ``primRewriteNoMatch``-wrapped
+subterms must be bound
+somewhere else on the left-hand side.
+
+If we wrap the implicit length argument to the outer ``_++_`` on the
+left-hand side of the associativity of vector concatenation rewrite rule
+with ``primRewriteNoMatch``, then we find the rewrite rule works correctly.
+
+::
+
+  ++-assoc' : {xs : Vec A n} {ys : Vec A m} {zs : Vec A l}
+            → _++_ {n = primRewriteNoMatch (n + m)} (xs ++ ys) zs
+            ≡ xs ++ (ys ++ zs)
+  ++-assoc' {xs = xs} = ++-assoc {xs = xs}
+
+  {-# REWRITE ++-assoc' #-}
+
+  ++-assoc-succeed : {xs : Vec A zero} {ys : Vec A m} {zs : Vec A l}
+                   → (xs ++ ys) ++ zs ≡ xs ++ (ys ++ zs)
+  ++-assoc-succeed = refl
+
+Definitional singletons and subject reduction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Some useful rewrite rules break subject reduction in the presence
+of definitional singletons (such as the unit type, ``⊤``).
+
+For example, consider the following axiomatisation of the circle as a higher
+inductive type:
+
+::
+
+  IdOver : (P : A → Set) → x ≡ y → P x → P y → Set
+  IdOver P refl x y = x ≡ y
+
+  syntax IdOver P p x y = x ≡[ P ↓ p ]≡ y
+
+  dcong : ∀ {B : A → Set} (f : (x : A) → B x) (p : x ≡ y) → f x ≡[ B ↓ p ]≡ f y
+  dcong f refl = refl
+
+  postulate
+    Circle : Set
+    base   : Circle
+    loop   : base ≡ base
+
+    circle-elim : ∀ (P : Circle → Set) (baseP : P base)
+                → baseP ≡[ P ↓ loop ]≡ baseP
+                → ∀ x → P x
+
+    circle-elim-base : ∀ (P : Circle → Set) (baseP : P base)
+                         (loopP : baseP ≡[ P ↓ loop ]≡ baseP)
+                     → circle-elim P baseP loopP base ≡ baseP
+    {-# REWRITE circle-elim-base #-}
+
+    circle-elim-loop : ∀ (P : Circle → Set) (baseP : P base)
+                         (loopP : baseP ≡[ P ↓ loop ]≡ baseP)
+                     → dcong (circle-elim P baseP loopP) loop ≡ loopP
+
+Ideally, we would also turn the computation rule for ``circle-elim`` applied to
+the path constructor ``loop`` (``circle-elim-loop``) into a rewrite rule:
+
+.. code-block:: agda
+
+  {-# REWRITE circle-elim-loop #-}
+
+Unfortunately, this causes subject reduction issues when eliminating into ``⊤``.
+Note that, by η-equality, we have
+``circle-elim (λ _ → ⊤) tt p = circle-elim (λ _ → ⊤) tt q``
+definitionally for any two identity proofs ``p`` and ``q``.
+
+::
+
+  open import Agda.Builtin.Unit
+
+  circle-elim-pq : ∀ {p q}
+                 → circle-elim (λ _ → ⊤) tt p
+                 ≡ circle-elim (λ _ → ⊤) tt q
+  circle-elim-pq = refl
+
+The computation rule ``circle-elim-loop`` should therefore also
+imply ``p ≡ q`` definitionally, but the inductive identity type does not satisfy
+such an η rule.
+
+Agda tries to detect such problematic rewrite rules and will throw a
+``RewriteVariablesBoundInSingleton`` warning if it is not certain that the
+rewrite is safe. If you are confident your
+rewrite rule is actually safe or you know you are not using
+definitional singletons, or you are simply not worried about weirdly behaving
+definitional equality,
+you can silence the warning with
+``-WnoRewriteVariablesBoundInSingleton`` and continue to rely on the rewrite
+rule.
+
 General shape of rewrite rules
 ------------------------------
 

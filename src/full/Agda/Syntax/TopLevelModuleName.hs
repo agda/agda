@@ -122,19 +122,10 @@ rawTopLevelModuleNameForModuleName x@(A.MName ms) =
     , rawModuleNameInferred = isNoName x
     }
 
--- | Computes the top-level module name.
---
--- Precondition: The 'C.Module' has to be well-formed.
--- This means that there are only allowed declarations before the
--- first module declaration, typically import declarations.
--- See 'spanAllowedBeforeModule'.
+-- | Retrieves the top-level module name.
 
 rawTopLevelModuleNameForModule :: C.Module -> RawTopLevelModuleName
-rawTopLevelModuleNameForModule (C.Mod _ []) = __IMPOSSIBLE__
-rawTopLevelModuleNameForModule (C.Mod _ ds) =
-  case C.spanAllowedBeforeModule ds of
-    (_, C.Module _ _ n _ _ : _) -> rawTopLevelModuleNameForQName n
-    _                           -> __IMPOSSIBLE__
+rawTopLevelModuleNameForModule (C.Mod n _pragmas _decls) = rawTopLevelModuleNameForQName n
 
 ------------------------------------------------------------------------
 -- Top-level module names

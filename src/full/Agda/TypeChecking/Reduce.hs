@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+-- {-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file -dno-typeable-binds #-}
 
 module Agda.TypeChecking.Reduce
  -- Meta instantiation
@@ -9,13 +10,13 @@ module Agda.TypeChecking.Reduce
  , IsMeta, isMeta
  -- Reduction and blocking
  , Reduce, reduce', reduceB', reduce, reduceB, reduceWithBlocker, reduceIApply'
- , reduceDefCopy, reduceDefCopyTCM
+ , reduceDefCopy, reduceDefCopyTCM, reduceDefCopies
  , reduceHead
  , slowReduceTerm
  , unfoldCorecursion, unfoldCorecursionE
  , unfoldDefinitionE, unfoldDefinitionStep
  , unfoldInlined
- , appDefE_, appDef', appDefE'
+ , appDefE_, appDefE0, appDef', appDefE'
  , abortIfBlocked, ifBlocked, isBlocked, fromBlocked, blockOnError
  -- Simplification
  , Simplify, simplify, simplifyBlocked'
@@ -46,12 +47,12 @@ import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
 import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (isPropM)
-import Agda.TypeChecking.Monad hiding ( enterClosure, constructorForm )
+import Agda.TypeChecking.Free.Base
+import {-# SOURCE #-} Agda.TypeChecking.Free.Reduce (forceNoAbsSort)
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.EtaContract
-
-import Agda.TypeChecking.Reduce.Monad
 
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Match
 import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
@@ -63,12 +64,14 @@ import {-# SOURCE #-} Agda.TypeChecking.Opacity
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.List1 (List1)
+import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.ExpandCase
 import qualified Agda.Utils.SmallSet as SmallSet
+import Agda.Utils.ExpandCase
 
 import Agda.Utils.Impossible
 
@@ -145,17 +148,21 @@ blockAny bs = blockedOn block $ fmap ignoreBlocking bs
         blocker NotBlocked{}  = []
         blocker (Blocked b _) = [b]
 
-{-# SPECIALIZE blockOnError :: Blocker -> TCM a -> TCM a #-}
+{-# NOINLINE blockOnError' #-}
+blockOnError' :: Blocker -> TCErr -> TCM a
+blockOnError' blocker = \case
+  TypeError{}         -> throwError $ PatternErr blocker
+  PatternErr blocker' -> throwError $ PatternErr $ unblockOnEither blocker blocker'
+  GenericException{}  -> __IMPOSSIBLE__
+  err@IOException{}   -> throwError err
+  ParserError{}       -> __IMPOSSIBLE__
+
+{-# INLINE blockOnError #-}
 -- | Run the given computation but turn any errors into blocked computations with the given blocker
-blockOnError :: MonadError TCErr m => Blocker -> m a -> m a
-blockOnError blocker f
-  | blocker == neverUnblock = f
-  | otherwise               = f `catchError` \case
-    TypeError{}         -> throwError $ PatternErr blocker
-    PatternErr blocker' -> throwError $ PatternErr $ unblockOnEither blocker blocker'
-    GenericException{}  -> __IMPOSSIBLE__
-    err@IOException{}   -> throwError err
-    ParserError{}       -> __IMPOSSIBLE__
+blockOnError :: Blocker -> TCM a -> TCM a
+blockOnError !blocker !f = expand \ret ->
+  if blocker == neverUnblock then ret f
+                             else ret $ f `catchError` blockOnError' blocker
 
 -- | Instantiate something.
 --   Results in an open meta variable or a non meta.
@@ -224,29 +231,25 @@ instance Instantiate Term where
          PostponedTypeCheckingProblem _ -> return t
 
       Nothing -> __IMPOSSIBLE_VERBOSE__
-                   ("Meta-variable not found: " ++ prettyShow x)
+                   ("Meta-variable not found: " ++! prettyShow x)
     where
-    cont i = instantiate' inst
+    cont i = instantiate' $ go (raiseS arity) tel es
       where
       -- A slight complication here is that the meta might be underapplied,
       -- in which case we have to build the lambda abstraction before
       -- applying the substitution, or overapplied in which case we need to
       -- fall back to applyE.
-      (es1, es2) = splitAt (length (instTel i)) es
-      vs1 = reverse $ map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es1
-      rho = vs1 ++# wkS (length vs1) idS
-            -- really should be .. ++# emptyS but using wkS makes it reduce to idS
-            -- when applicable
-      -- specification:
-      -- inst == foldr mkLam (instBody i) (instTel i) `applyE` es
-      inst =
-        applySubst rho
-          (foldr mkLam (instBody i) $ drop (length es1) (instTel i))
-          `applyE` es2
+      !tel = instTel i
+      !arity = length tel
+
+      go :: Substitution -> [Arg ArgName] -> Elims -> Term
+      go !rho args es = case (args, es) of
+        (arg:args, (mustApplyElim -> Arg _ e):es) -> go (consS e rho) args es
+        (args, es) -> applySubst rho (foldr' mkLam (instBody i) args) `applyE` es
 
   instantiate' (Level l) = levelTm <$> instantiate' l
-  instantiate' (Sort s) = Sort <$> instantiate' s
-  instantiate' t = return t
+  instantiate' (Sort s)  = Sort <$> instantiate' s
+  instantiate' t         = return t
 
 instance Instantiate t => Instantiate (Type' t) where
   instantiate' (El s t) = El <$> instantiate' s <*> instantiate' t
@@ -281,13 +284,16 @@ instance Instantiate Sort where
       _            -> __IMPOSSIBLE__
     s -> return s
 
-instance (Instantiate t, Instantiate e) => Instantiate (Dom' t e) where
-    instantiate' (Dom i n b tac x) = Dom i n b <$> instantiate' tac <*> instantiate' x
+instance Instantiate e => Instantiate (Dom e) where
+    instantiate' (Dom i n b tac rew x) = Dom i n b <$> instantiate' tac <*> instantiate' rew <*> instantiate' x
 
 instance Instantiate a => Instantiate (Closure a) where
     instantiate' cl = do
         x <- enterClosure cl instantiate'
         return $ cl { clValue = x }
+
+instance Instantiate ProblemConstraint where
+  instantiate' (PConstr p u c) = PConstr p u <$> instantiate' c
 
 instance Instantiate Constraint where
   instantiate' (ValueCmp cmp t u v) = do
@@ -302,7 +308,7 @@ instance Instantiate Constraint where
   instantiate' (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate' (a,b)
   instantiate' (UnBlock m)          = return $ UnBlock m
   instantiate' (FindInstance r m cs)   = FindInstance r m <$> mapM instantiate' cs
-  instantiate' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
+  instantiate' (ResolveInstanceHead kwr q) = return $ ResolveInstanceHead kwr q
   instantiate' (IsEmpty r t)        = IsEmpty r <$> instantiate' t
   instantiate' (CheckSizeLtSat t)   = CheckSizeLtSat <$> instantiate' t
   instantiate' c@CheckFunDef{}      = return c
@@ -315,6 +321,7 @@ instance Instantiate Constraint where
   instantiate' c@CheckMetaInst{}    = return c
   instantiate' (CheckType t)        = CheckType <$> instantiate' t
   instantiate' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> instantiate' ms <*> instantiate' t
+  instantiate' (RewConstraint e)    = RewConstraint <$> instantiate' e
 
 instance Instantiate CompareAs where
   instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
@@ -337,6 +344,29 @@ instance Instantiate EqualityView where
     <*> instantiate' a
     <*> instantiate' b
 
+instance Instantiate LocalEquation where
+  instantiate' (LocalEquation a b c d) =
+    LocalEquation
+      <$> instantiate' a
+      <*> instantiate' b
+      <*> instantiate' c
+      <*> instantiate' d
+
+instance Instantiate RewriteRule where
+  instantiate' (RewriteRule a b c d e) =
+    RewriteRule
+      <$> instantiate' a
+      <*> pure b
+      <*> pure c
+      <*> instantiate' d
+      <*> instantiate' e
+
+instance Instantiate RewDom where
+  instantiate' (RewDom a b) =
+    RewDom
+      <$> instantiate' a
+      <*> instantiate' b
+
 ---------------------------------------------------------------------------
 -- * Reduction to weak head normal form.
 ---------------------------------------------------------------------------
@@ -351,7 +381,7 @@ instance IsMeta Term where
   isMeta (MetaV m _) = Just m
   isMeta _           = Nothing
 
-instance IsMeta a => IsMeta (Sort' a) where
+instance IsMeta (Sort' a) where
   isMeta (MetaS m _) = Just m
   isMeta _           = Nothing
 
@@ -379,6 +409,7 @@ instance IsMeta CompareAs where
   isMeta AsSizes       = Nothing
   isMeta AsTypes       = Nothing
 
+{-# INLINE ifBlocked #-}
 -- | Case on whether a term is blocked on a meta (or is a meta).
 --   That means it can change its shape when the meta is instantiated.
 ifBlocked
@@ -427,23 +458,36 @@ instance Reduce Sort where
       let done | MetaS x _ <- s = return $ blocked x s
                | otherwise      = return $ notBlocked s
       case s of
-        PiSort a s1 s2 -> reduceB' (s1 , s2) >>= \case
-          Blocked b (s1',s2') -> return $ Blocked b $ PiSort a s1' s2'
-          NotBlocked _ (s1',s2') -> do
-            -- Jesper, 2022-10-12: do instantiateFull here because
-            -- `piSort'` does checking of free variables, and if we
-            -- don't instantiate we might end up blocking on a solved
-            -- metavariable.
-            s2' <- instantiateFull s2'
-            case piSort' a s1' s2' of
-              Left b -> return $ Blocked b $ PiSort a s1' s2'
-              Right s -> reduceB' s
+        PiSort a s1 s2Abs -> reduceB' (s1 , s2Abs) >>= \case
+          -- If either the domain or codomain sort is blocked, there is no point
+          -- in doing the free variable check since even if we manage to reduce
+          -- to a FunSort, it would still be blocked. And normalizing anyway in
+          -- this case leads to exponential behavior (see #8423).
+          Blocked b (s1 , s2Abs) -> return $! blockedOn b $ PiSort a s1 s2Abs
+          NotBlocked _ (s1 , s2Abs) -> do
+            -- In theory we should just call piSort' here. However, we also want
+            -- to reduce the codomain sort to make it non-dependent when
+            -- possible. So we use forceNoAbs and in case we are dealing with a
+            -- proper Abs we call piSortAbs directly.
+            let dom = El s1 <$> a
+            forceNoAbsSort dom s2Abs >>= \case
+              -- If the codomain sort is non-dependent, we reduce to a FunSort
+              Right s2 -> reduceB' $ FunSort s1 s2
+              -- For a (possibly) properly dependent PiSort, we call piSortAbs.
+              Left (s2Abs, flexRig) -> do
+                let blockOcc = flexRigToBlocker flexRig
+                case piSortAbs a s1 s2Abs flexRig CodomainNormalised of
+                  -- We already know the sorts themselves are not blocked,
+                  -- so the only possible blocker comes from the free variable check
+                  Left _ -> return $! blockedOn blockOcc $ PiSort a s1 s2Abs
+                  -- The only sort that piSortAbs can reduce is Inf,
+                  -- so there is no need to try reducing it further.
+                  Right s -> return $! notBlocked s
         FunSort s1 s2 -> reduceB' (s1 , s2) >>= \case
           Blocked b (s1',s2') -> return $ Blocked b $ FunSort s1' s2'
-          NotBlocked _ (s1',s2') -> do
-            case funSort' s1' s2' of
-              Left b -> return $ Blocked b $ FunSort s1' s2'
-              Right s -> reduceB' s
+          NotBlocked _ (s1',s2') -> funSortM' s1' s2' >>= \case
+            Left b -> return $ Blocked b $ FunSort s1' s2'
+            Right s -> reduceB' s
         UnivSort s1 -> reduceB' s1 >>= \case
           Blocked b s1' -> return $ Blocked b $ UnivSort s1'
           NotBlocked _ s1' -> case univSort' s1' of
@@ -453,11 +497,8 @@ instance Reduce Sort where
         Inf _ _    -> done
         SizeUniv   -> done
         LockUniv   -> done
-        LevelUniv  -> do
-          levelUniverseEnabled <- isLevelUniverseEnabled
-          if levelUniverseEnabled
-          then done
-          else return $ notBlocked (mkType 0)
+        LevelUniv  -> ifM isLevelUniverseEnabled done $
+          return $ notBlocked (mkType 0)
         IntervalUniv -> done
         MetaS x es -> done
         DefS d es  -> done -- postulated sorts do not reduce
@@ -518,12 +559,14 @@ instance (Reduce a, Reduce b,Reduce c) => Reduce (a,b,c) where
           xyz = (ignoreBlocking x , ignoreBlocking y , ignoreBlocking z)
       return $ blk $> xyz
 
+{-# INLINE reduceIApply #-}
 reduceIApply :: ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
 reduceIApply = reduceIApply' reduceB'
 
+{-# INLINE reduceIApply' #-}
 reduceIApply' :: (Term -> ReduceM (Blocked Term)) -> ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
 reduceIApply' red d (IApply x y r : es) = do
-  view <- intervalView'
+  view <- intervalView' -- András: TODO opt
   r <- reduceB' r
   -- We need to propagate the blocking information so that e.g.
   -- we postpone "someNeutralPath ?0 = a" rather than fail.
@@ -546,31 +589,38 @@ shouldTryFastReduce = optFastReduce <$> pragmaOptions
 
 maybeFastReduceTerm :: Term -> ReduceM (Blocked Term)
 maybeFastReduceTerm v = do
-  let tryFast = case v of
-                  Def{}   -> True
-                  Con{}   -> True
-                  MetaV{} -> True
-                  _       -> False
-  if not tryFast then slowReduceTerm v
-                 else
-    case v of
-      MetaV x _ -> ifM (isOpen x) (return $ blocked x v) (maybeFast v)
-      _         -> maybeFast v
-  where
-    isOpen x = isOpenMeta <$> lookupMetaInstantiation x
-    maybeFast v = ifM shouldTryFastReduce (fastReduce v) (slowReduceTerm v)
+  let maybeFast v = ifM shouldTryFastReduce (fastReduce v) (slowReduceTerm v)
+  case v of
+    v@Def{}       -> maybeFast v
+    v@Con{}       -> maybeFast v
+    v@(MetaV x _) -> ifM (isOpenMeta <$> lookupMetaInstantiation x)
+                         (return $! blocked x v)
+                         (maybeFast v)
+    v             -> slowReduceTerm v
+
+  -- let tryFast = case v of
+  --                 Def{}   -> True
+  --                 Con{}   -> True
+  --                 MetaV{} -> True
+  --                 _       -> False
+  -- if not tryFast then slowReduceTerm v
+  --                else
+  --   case v of
+  --     MetaV x _ -> ifM (isOpen x) (return $ blocked x v) (maybeFast v)
+  --     _         -> maybeFast v
+  -- where
+  --   isOpen x = isOpenMeta <$> lookupMetaInstantiation x
+  --   maybeFast v = ifM shouldTryFastReduce (fastReduce v) (slowReduceTerm v)
 
 slowReduceTerm :: Term -> ReduceM (Blocked Term)
 slowReduceTerm v = do
     v <- instantiate' v
-    let done | MetaV x _ <- v = return $ blocked x v
-             | otherwise      = return $ notBlocked v
-        iapp = reduceIApply done
+    let done = return $ notBlocked v
     case v of
 --    Andreas, 2012-11-05 not reducing meta args does not destroy anything
 --    and seems to save 2% sec on the standard library
 --      MetaV x args -> notBlocked . MetaV x <$> reduce' args
-      MetaV x es -> iapp es
+      MetaV x es -> reduceIApply (return $! blocked x v) es
       Def f es   -> flip reduceIApply es $ unfoldDefinitionE reduceB' (Def f []) f es
       Con c ci es -> do
           -- Constructors can reduce' when they come from an
@@ -580,13 +630,15 @@ slowReduceTerm v = do
                  $ unfoldDefinitionE reduceB' (Con c ci []) (conName c) es
           traverse reduceNat v
       Sort s   -> done
-      Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
+      Level l  -> ifM (SmallSet.member LevelReductions <$> viewTC eAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
                     {- else -} done
-      Pi _ _   -> done
-      Lit _    -> done
-      Var _ es  -> iapp es
-      Lam _ _  -> done
+      Pi _ _     -> done
+      Lit _      -> done
+      Var x es   -> localRewritingOption >>= \case
+                      True  -> reduceIApply (rewriteVarApp x es) es
+                      False -> reduceIApply done es
+      Lam _ _    -> done
       DontCare _ -> done
       Dummy{}    -> done
     where
@@ -599,15 +651,31 @@ slowReduceTerm v = do
       reduceNat v@(Con c ci [Apply a]) | visible a && isRelevant a = do
         ms  <- getBuiltin' builtinSuc
         case v of
-          _ | Just (Con c ci []) == ms -> inc <$> reduce' (unArg a)
-          _                         -> return v
+          _ | Just (Con c ci []) == ms -> inc <$!> reduce' (unArg a)
+          _                            -> return v
           where
             inc = \case
               Lit (LitNat n) -> Lit $ LitNat $ n + 1
-              w              -> Con c ci [Apply $ defaultArg w]
+              w              -> let !arg = Apply $! defaultArg w in Con c ci [arg]
       reduceNat v = return v
 
--- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
+rewriteVarApp :: Nat -> Elims -> ReduceM (Blocked Term)
+rewriteVarApp x es = do
+  r <- rewriteVarAppStep x es
+  case r of
+    NoReduction v    -> return v
+    YesReduction _ v -> reduceB' v
+
+rewriteVarAppStep :: Nat -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+rewriteVarAppStep x es = do
+  rewr <- getAllRewriteRulesForVarHead x
+  when (not $ null rewr) $
+    reportSDoc "rewriting" 30 $
+      "Trying to rewrite variable application" <+> prettyTCM (Var x es)
+  rewrite (NotBlocked ReallyNotBlocked ())
+          (Var x) rewr es
+
+-- Andreas, 2013-03-20 recursive invocations of unfoldCorecursion
 -- need also to instantiate metas, see Issue 826.
 unfoldCorecursionE :: Elim -> ReduceM (Blocked Elim)
 unfoldCorecursionE (Proj o p)           = notBlocked . Proj o <$> getOriginalProjection p
@@ -632,6 +700,7 @@ unfoldDefinition ::
 unfoldDefinition keepGoing v f args =
   unfoldDefinitionE keepGoing v f (map Apply args)
 
+{-# INLINE unfoldDefinitionE #-}
 unfoldDefinitionE ::
   (Term -> ReduceM (Blocked Term)) ->
   Term -> QName -> Elims -> ReduceM (Blocked Term)
@@ -654,25 +723,27 @@ unfoldDefinitionStep :: Term -> QName -> Elims -> ReduceM (Reduced (Blocked Term
 unfoldDefinitionStep v0 f es =
   {-# SCC "reduceDef" #-} do
   traceSDoc "tc.reduce" 90 ("unfoldDefinitionStep v0" <+> pretty v0) $ do
-  info <- getConstInfo f
-  rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
-  allowed <- asksTC envAllowedReductions
-  prp <- runBlocked $ isPropM $ defType info
-  defOk <- shouldReduceDef f
+  info    <- getConstInfo f
+  rewr    <- getAllRewriteRulesForDefHead f
+  allowed <- viewTC eAllowedReductions
+  prp     <- runBlocked $ isPropM $ defType info
+  defOk   <- shouldReduceDef f
   let def = theDef info
       v   = v0 `applyE` es
       -- Non-terminating functions
       -- (i.e., those that failed the termination check)
       -- and delayed definitions
       -- are not unfolded unless explicitly permitted.
-      dontUnfold = or
-        [ defNonterminating info && SmallSet.notMember NonTerminatingReductions allowed
-        -- , defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed
-        , prp == Right True
-        , isIrrelevant info
-        , not defOk
-        ]
-      copatterns = defCopatternLHS info
+
+      dontUnfold =
+          (defNonterminating info && SmallSet.notMember NonTerminatingReductions allowed)
+        -- defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed
+        || (prp == Right True)
+        || (isIrrelevant info)
+        || (not defOk)
+
+  copatterns <- defCopatternLHS f info
+
   case def of
     Constructor{conSrcCon = c} -> do
       let hd = Con (c `withRangeOf` f) ConOSystem
@@ -686,21 +757,19 @@ unfoldDefinitionStep v0 f es =
     PrimitiveSort{ primSortSort = s } -> yesReduction NoSimplification $ Sort s `applyE` es
 
     _  -> do
-      if or
-          [ RecursiveReductions `SmallSet.member` allowed
-          , isJust (isProjection_ def) && ProjectionReductions `SmallSet.member` allowed
+      if
+             (RecursiveReductions `SmallSet.member` allowed)
+          || (isJust (isProjection_ def) && ProjectionReductions `SmallSet.member` allowed)
               -- Includes projection-like and irrelevant projections.
               -- Note: irrelevant projections lead to @dontUnfold@ and
               -- so are not actually unfolded.
-          , isInlineFun def && InlineReductions `SmallSet.member` allowed
-          , definitelyNonRecursive_ def && or
-            [ copatterns && CopatternReductions `SmallSet.member` allowed
-            , FunctionReductions `SmallSet.member` allowed
-            ]
-          ]
+          || (isInlineFun def && InlineReductions `SmallSet.member` allowed)
+          || (definitelyNonRecursive_ def && or
+               [ copatterns && CopatternReductions `SmallSet.member` allowed
+               , FunctionReductions `SmallSet.member` allowed
+               ])
         then
-          reduceNormalE v0 f (map notReduced es) dontUnfold
-                       (defClauses info) (defCompiled info) rewr
+          reduceNormalE v0 f (map' notReduced es) dontUnfold (defCopyOrClauses info) rewr
         else noReduction $ notBlocked v  -- Andrea(s), 2014-12-05 OK?
 
   where
@@ -710,49 +779,61 @@ unfoldDefinitionStep v0 f es =
       | length es < ar
                   = noReduction $ NotBlocked Underapplied $ v0 `applyE` es -- not fully applied
       | otherwise = {-# SCC "reducePrimitive" #-} do
-          let (es1,es2) = splitAt ar es
+          let (es1,es2) = splitAt' ar es
               args1     = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es1
           r <- primFunImplementation pf args1 (length es2)
           case r of
             NoReduction args1' -> do
-              let es1' = map (fmap Apply) args1'
+              let es1' = map' (fmap Apply) args1'
               if null cls && null rewr then do
                 noReduction $ applyE (Def f []) <$> do
-                  blockAll $ map mredToBlocked es1' ++ map notBlocked es2
+                  blockAll $ map' mredToBlocked es1' ++! map' notBlocked es2
                else
-                reduceNormalE v0 f (es1' ++ map notReduced es2) dontUnfold cls mcc rewr
+                -- Note: a primitive is never a data/record type copy.
+                reduceNormalE v0 f (es1' ++! map' notReduced es2) dontUnfold (Right (cls, mcc)) rewr
             YesReduction simpl v -> yesReduction simpl $ v `applyE` es2
       where
           ar  = primFunArity pf
 
-          mredToBlocked :: IsMeta t => MaybeReduced t -> Blocked t
+          mredToBlocked :: MaybeReduced t -> Blocked t
           mredToBlocked (MaybeRed NotReduced  e) = notBlocked e
           mredToBlocked (MaybeRed (Reduced b) e) = e <$ b
 
-    reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> ReduceM (Reduced (Blocked Term) Term)
-    reduceNormalE v0 f es dontUnfold def mcc rewr = {-# SCC "reduceNormal" #-} do
+    reduceNormalE ::
+         Term -> QName -> [MaybeReduced Elim] -> Bool
+      -> Either Term ([Clause], Maybe CompiledClauses) -> RewriteRules
+      -> ReduceM (Reduced (Blocked Term) Term)
+    reduceNormalE v0 f es dontUnfold def rewr = {-# SCC "reduceNormal" #-} do
       traceSDoc "tc.reduce" 90 ("reduceNormalE v0 =" <+> pretty v0) $ do
-      case (def,rewr) of
-        _ | dontUnfold -> traceSLn "tc.reduce" 90 "reduceNormalE: don't unfold (non-terminating or delayed)" $
-                          defaultResult -- non-terminating or delayed
-        ([],[])        -> traceSLn "tc.reduce" 90 "reduceNormalE: no clauses or rewrite rules" $ do
-          -- no definition for head
-          (defBlocked <$> getConstInfo f) >>= \case
-            Blocked{}    -> noReduction $ Blocked (UnblockOnDef f) vfull
-            NotBlocked{} -> defaultResult
-        (cls,rewr)     -> do
-          ev <- appDefE_ f v0 cls mcc rewr es
-          debugReduce ev
-          return ev
+      if dontUnfold then
+        traceSLn "tc.reduce" 90 "reduceNormalE: don't unfold (non-terminating or delayed)" $
+          defaultResult -- non-terminating or delayed
+      else case def of
+        -- Andreas, 2026-09-23, issue #8545:
+        -- A data or record type copy is defined by a term rather than by clauses.
+        -- Applying a term never gets stuck, so unlike clause matching this also
+        -- unfolds underapplied occurrences of the copy.
+        Left w -> traceSLn "tc.reduce" 90 "reduceNormalE: unfolding copy" $
+          return $ YesReduction NoSimplification $ w `applyE` map' ignoreReduced es
+        Right (cls, mcc) -> case (cls, rewr) of
+          ([], []) -> traceSLn "tc.reduce" 90 "reduceNormalE: no clauses or rewrite rules" $ do
+            -- no definition for head
+            (defBlocked <$> getConstInfo f) >>= \case
+              Blocked{}    -> noReduction $ Blocked (UnblockOnDef f) vfull
+              NotBlocked{} -> defaultResult
+          _ -> do
+            ev <- appDefE_ f v0 cls mcc rewr es
+            debugReduce ev
+            return ev
       where
       defaultResult = noReduction $ NotBlocked ReallyNotBlocked vfull
-      vfull         = v0 `applyE` map ignoreReduced es
+      vfull         = v0 `applyE` map' ignoreReduced es
       debugReduce ev = verboseS "tc.reduce" 90 $ do
         case ev of
           NoReduction v -> do
             reportSDoc "tc.reduce" 90 $ vcat
               [ "*** tried to reduce " <+> pretty f
-              , "    es =  " <+> sep (map (pretty . ignoreReduced) es)
+              , "    es =  " <+> sep (map' (pretty . ignoreReduced) es)
               -- , "*** tried to reduce " <+> pretty vfull
               , "    stuck on" <+> pretty (ignoreBlocking v)
               ]
@@ -774,6 +855,12 @@ reduceDefCopy f es = do
     _                          -> reduceDef_ info f es
   where
     reduceDef_ :: Definition -> QName -> Elims -> m (Reduced () Term)
+    -- A data or record type copy is defined by a term, which applies to any
+    -- number of arguments, so there is nothing to eta-expand here (issue #8545).
+    reduceDef_ info f es | Just w <- defCopyClause info =
+      if defNonterminating info
+      then return $ NoReduction ()
+      else return $ YesReduction NoSimplification $ w `applyE` es
     reduceDef_ info f es = case defClauses info of
       [cl] -> do  -- proper copies always have a single clause
         let v0 = Def f [] -- TODO: could be Con
@@ -791,16 +878,28 @@ reduceDefCopy f es = do
                 etaArgs (_ : ps) (_ : es) = etaArgs ps es
                 xs  = etaArgs ps es
                 n   = length xs
-                newes = raise n es ++ [ Apply $ var i <$ x | (i, x) <- zip (downFrom n) xs ]
+                newes = raise n es ++! [ Apply $ var i <$ x | (i, x) <- zip (downFrom n) xs ]
         if defNonterminating info
          then return $ NoReduction ()
          else do
-            ev <- liftReduce $ appDefE_ f v0 [cl] Nothing mempty $ map notReduced es'
+            ev <- liftReduce $ appDefE_ f v0 [cl] Nothing mempty $ map' notReduced es'
             case ev of
               YesReduction simpl t -> return $ YesReduction simpl (lam t)
               NoReduction{}        -> return $ NoReduction ()
       []    -> return $ NoReduction ()  -- copies of generalizable variables have no clauses (and don't need unfolding)
       _:_:_ -> __IMPOSSIBLE__
+
+-- | Recursively apply 'reduceDefCopy' so remove all copy-indirections
+-- but otherwise do not reduce the term.
+reduceDefCopies :: Term -> TCM Term
+reduceDefCopies v = do
+  r <- case v of
+    Def f es -> reduceDefCopy f es
+    Con c _info es -> reduceDefCopy (conName c) es
+    _ -> pure $ NoReduction __IMPOSSIBLE__
+  case r of
+    NoReduction{} -> return v
+    YesReduction _ v' -> reduceDefCopies v'
 
 -- | Reduce simple (single clause) definitions.
 reduceHead :: PureTCM m => Term -> m (Blocked Term)
@@ -813,12 +912,11 @@ reduceHead v = do -- ignoreAbstractMode $ do
   traceSDoc "tc.inj.reduce" 30 (ignoreAbstractMode $ "reduceHead" <+> prettyTCM v) $ do
   case v of
     Def f es -> do
-
-      abstractMode <- envAbstractMode <$> askTC
+      abstractMode <- viewTC eAbstractMode
       isAbstract <- not <$> hasAccessibleDef f
       traceSLn "tc.inj.reduce" 50 (
-        "reduceHead: we are in " ++ show abstractMode ++ "; " ++ prettyShow f ++
-        " is treated " ++ if isAbstract then "abstractly" else "concretely"
+        "reduceHead: we are in " ++! show abstractMode ++! "; " ++! prettyShow f ++!
+        " is treated " ++! if isAbstract then "abstractly" else "concretely"
         ) $ do
       let v0  = Def f []
           red = liftReduce $ unfoldDefinitionE reduceHead v0 f es
@@ -830,11 +928,11 @@ reduceHead v = do -- ignoreAbstractMode $ do
         -- type checker loop here on non-terminating functions.
         -- see test/fail/TerminationInfiniteRecord
         Function{ funClauses = [ _ ], funTerminates = Just True } -> do
-          traceSLn "tc.inj.reduce" 50 ("reduceHead: head " ++ prettyShow f ++ " is Function") $ do
+          traceSLn "tc.inj.reduce" 50 ("reduceHead: head " ++! prettyShow f ++! " is Function") $ do
           red
         Datatype{ dataClause = Just _ } -> red
         Record{ recClause = Just _ }    -> red
-        _                               -> return $ notBlocked v
+        _ -> return $ notBlocked v
     _ -> return $ notBlocked v
 
 -- | Unfold as many copies as possible, and then potentially a single
@@ -858,17 +956,17 @@ unfoldInlined v = do
         Function{} ->
           reportSLn "tc.inline" 90 $
             intercalate "\n"
-            [ "considering to inline " ++ prettyShow f
-            , "irr         = " ++ prettyShow irr
-            , "funInline   = " ++ prettyShow (def ^. funInline)
-            , "funCompiled = " ++ prettyShow (funCompiled def)
+            [ "considering to inline " ++! prettyShow f
+            , "irr         = " ++! prettyShow irr
+            , "funInline   = " ++! prettyShow (def ^. funInline)
+            , "funCompiled = " ++! prettyShow (funCompiled def)
             ]
         _ -> pure ()
 
       case def of -- Only for simple definitions with no pattern matching (TODO: maybe copatterns?)
         Function{ funCompiled = Just Done{} }
           | (defCopy info || def ^. funInline), not irr -> do
-            reportSLn "tc.inline" 70 $ "asking to inline " ++ prettyShow f
+            reportSLn "tc.inline" 70 $ "asking to inline " ++! prettyShow f
             liftReduce $
               ignoreBlocking <$> unfoldDefinitionE continue (Def f []) f es
         _ -> return v
@@ -876,22 +974,37 @@ unfoldInlined v = do
 
 -- | Apply a definition using the compiled clauses, or fall back to
 --   ordinary clauses if no compiled clauses exist.
-appDef_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
-appDef_ f v0 cls mcc rewr args = appDefE_ f v0 cls mcc rewr $ map (fmap Apply) args
+appDef_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses
+        -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
+appDef_ f v0 cls mcc rewr args = appDefE_ f v0 cls mcc rewr $ map' (fmap Apply) args
 
-appDefE_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE_ ::
+     QName -> Term -> [Clause] -> Maybe CompiledClauses -> RewriteRules
+  -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE_ f v0 cls mcc rewr args =
-  localTC (\ e -> e { envAppDef = Just f }) $
+  localTC (set eAppDef (Just f)) $
   maybe (appDefE'' v0 cls rewr args)
         (\cc -> appDefE v0 cc rewr args) mcc
 
+-- | Like 'appDefE_', but takes the whole 'Definition' and thus also handles
+--   data and record type copies, which are defined by a term rather than by
+--   clauses (see 'defCopyClause').  Applying that term never gets stuck, so this
+--   also unfolds underapplied occurrences of the copy (issue #8545).
+appDefE0 ::
+     QName -> Definition -> Term -> RewriteRules
+  -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE0 f def v0 rewr args = case defCopyOrClauses def of
+  Left w           -> return $ YesReduction NoSimplification $ w `applyE` map' ignoreReduced args
+  Right (cls, mcc) -> appDefE_ f v0 cls mcc rewr args
 
 -- | Apply a defined function to it's arguments, using the compiled clauses.
 --   The original term is the first argument applied to the third.
 appDef :: Term -> CompiledClauses -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
-appDef v cc rewr args = appDefE v cc rewr $ map (fmap Apply) args
+appDef v cc rewr args = appDefE v cc rewr $ map' (fmap Apply) args
 
-appDefE :: Term -> CompiledClauses -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE ::
+     Term -> CompiledClauses -> RewriteRules -> MaybeReducedElims
+  -> ReduceM (Reduced (Blocked Term) Term)
 appDefE v cc rewr es = do
   traceSDoc "tc.reduce" 90 ("appDefE v = " <+> pretty v) $ do
   r <- matchCompiledE cc es
@@ -901,20 +1014,25 @@ appDefE v cc rewr es = do
 
 -- | Apply a defined function to it's arguments, using the original clauses.
 appDef' :: QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
-appDef' f v cls rewr args = appDefE' f v cls rewr $ map (fmap Apply) args
+appDef' f v cls rewr args = appDefE' f v cls rewr $ map' (fmap Apply) args
 
-appDefE' :: QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE' ::
+     QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedElims
+  -> ReduceM (Reduced (Blocked Term) Term)
 appDefE' f v cls rewr es =
-  localTC (\ e -> e { envAppDef = Just f }) $
+  localTC (set eAppDef (Just f)) $
   appDefE'' v cls rewr es
 
 -- | Expects @'envAppDef' = Just f@ in 'TCEnv' to be able to report @'MissingClauses' f@.
-appDefE'' :: Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE'' ::
+     Term -> [Clause] -> RewriteRules -> MaybeReducedElims
+  -> ReduceM (Reduced (Blocked Term) Term)
 appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v) $ do
-  goCls cls $ map ignoreReduced es
+  goCls cls $ map' ignoreReduced es
   where
     goCls :: [Clause] -> [Elim] -> ReduceM (Reduced (Blocked Term) Term)
     goCls cl es = do
+      let done b es = rewrite (NotBlocked b ()) (applyE v) rewr es
       case cl of
         -- Andreas, 2013-10-26  In case of an incomplete match,
         -- we just do not reduce.  This allows adding single function
@@ -923,40 +1041,35 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
         -- Andrea(s), 2014-12-05:  We return 'MissingClauses' here, since this
         -- is the most conservative reason.
         [] -> do
-          f <- fromMaybe __IMPOSSIBLE__ <$> asksTC envAppDef
-          rewrite (NotBlocked (MissingClauses f) ()) (applyE v) rewr es
+          f <- fromMaybe __IMPOSSIBLE__ <$> viewTC eAppDef
+          done (MissingClauses f) es
         cl : cls -> do
           let pats = namedClausePats cl
               body = clauseBody cl
               npats = length pats
               nvars = size $ clauseTel cl
-          -- if clause is underapplied, skip to next clause
-          if length es < npats then goCls cls es else do
-            allowedReductions <- asksTC envAllowedReductions
-            let (es0, es1) = splitAt npats es
-            (m, es0) <- matchCopatterns pats es0
-            let es = es0 ++ es1
-            case m of
-              No               -> goCls cls es
-              -- Szumi, 2024-03-29, issue #7181:
-              -- If a lazy match is stuck and all non-lazy matches are conclusive,
-              -- then reduction should not be stuck on the current clause and it
-              -- should be fine to continue matching on the next clause.
-              -- This assumes it's impossible for a lazy match to be stuck if
-              -- all non-lazy matches succeed.
-              DontKnow OnlyLazy _ -> goCls cls es
-              DontKnow NonLazy  b -> rewrite b (applyE v) rewr es
-              Yes simpl vs -- vs is the subst. for the variables bound in body
-                | couldBeRecursive (clauseRecursive cl)
-                , RecursiveReductions `SmallSet.notMember` allowedReductions ->
-                    return $ NoReduction __IMPOSSIBLE__
-                | Just w <- body -> do -- clause has body?
-                    -- TODO: let matchPatterns also return the reduced forms
-                    -- of the original arguments!
-                    -- Andreas, 2013-05-19 isn't this done now?
-                    let sigma = buildSubstitution impossible nvars vs
-                    return $ YesReduction simpl $ applySubst sigma w `applyE` es1
-                | otherwise     -> rewrite (NotBlocked AbsurdMatch ()) (applyE v) rewr es
+          allowedReductions <- viewTC eAllowedReductions
+          let (es0, es1) = splitAt' npats es
+              -- If ps1 /= [] then the function is underapplied
+              (ps0, ps1) = splitAt' (length es) pats
+          (m, es0) <- matchCopatterns ps0 es0
+          let es = es0 ++! es1
+          case m of
+            No _ -> goCls cls es
+            DontKnow _ _ b -> rewrite b (applyE v) rewr es
+            Yes simpl vs -- vs is the subst. for the variables bound in body
+              -- Jesper, issue #8703: underapplied functions are stuck
+              | not (null ps1) -> done Underapplied es
+              | couldBeRecursive (clauseRecursive cl)
+              , RecursiveReductions `SmallSet.notMember` allowedReductions ->
+                  return $ NoReduction __IMPOSSIBLE__
+              | Just w <- body -> do -- clause has body?
+                  -- TODO: let matchPatterns also return the reduced forms
+                  -- of the original arguments!
+                  -- Andreas, 2013-05-19 isn't this done now?
+                  let sigma = buildSubstitution impossible nvars vs
+                  return $ YesReduction simpl $ applySubst sigma w `applyE` es1
+              | otherwise -> done AbsurdMatch es
 
 instance Reduce a => Reduce (Closure a) where
     reduce' cl = do
@@ -967,6 +1080,15 @@ instance Reduce a => Reduce (Closure a) where
 instance Reduce Telescope where
   reduce' EmptyTel          = return EmptyTel
   reduce' (ExtendTel a tel) = ExtendTel <$> reduce' a <*> reduce' tel
+
+instance Reduce ProblemConstraint where
+  reduce' (PConstr p u c) = PConstr p u <$> reduce' c
+
+instance Reduce LocalEquation where
+  reduce' (LocalEquation g t u a) = do
+    g' <- reduce' g
+    (t', u', a') <- addContext g' $ reduce' (t, u, a)
+    return $ LocalEquation g' t' u' a'
 
 instance Reduce Constraint where
   reduce' (ValueCmp cmp t u v) = do
@@ -981,7 +1103,7 @@ instance Reduce Constraint where
   reduce' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> reduce' (a,b)
   reduce' (UnBlock m)           = return $ UnBlock m
   reduce' (FindInstance r m cs)   = FindInstance r m <$> mapM reduce' cs
-  reduce' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
+  reduce' (ResolveInstanceHead kwr q) = return $ ResolveInstanceHead kwr q
   reduce' (IsEmpty r t)         = IsEmpty r <$> reduce' t
   reduce' (CheckSizeLtSat t)    = CheckSizeLtSat <$> reduce' t
   reduce' c@CheckFunDef{}       = return c
@@ -994,6 +1116,7 @@ instance Reduce Constraint where
   reduce' c@CheckMetaInst{}     = return c
   reduce' (CheckType t)         = CheckType <$> reduce' t
   reduce' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> reduce' ms <*> reduce' t
+  reduce' (RewConstraint e)     = RewConstraint <$> reduce' e
 
 instance Reduce CompareAs where
   reduce' (AsTermsOf a) = AsTermsOf <$> reduce' a
@@ -1072,7 +1195,7 @@ instance Simplify Term where
         (simpl, v) <- unfoldDefinition' keepGoing (Def f []) f vs
         when (simpl == YesSimplification) $
           reportSDoc "tc.simplify'" 90 $
-            pretty f <+> text ("simplify': unfolding definition returns " ++ show simpl) <+> pretty (ignoreBlocking v)
+            pretty f <+> text ("simplify': unfolding definition returns " ++! show simpl) <+> pretty (ignoreBlocking v)
         case simpl of
           YesSimplification -> simplifyBlocked' v -- Dangerous, but if @simpl@ then @v /= Def f vs@
           NoSimplification  -> Def f <$> simplify' vs
@@ -1097,8 +1220,8 @@ instance Simplify t => Simplify (Type' t) where
 instance Simplify Sort where
     simplify' s = do
       case s of
-        PiSort a s1 s2 -> piSort <$> simplify' a <*> simplify' s1 <*> simplify' s2
-        FunSort s1 s2 -> funSort <$> simplify' s1 <*> simplify' s2
+        PiSort a s1 s2 -> uncurry3 piSortM =<< simplify' (a, s1, s2)
+        FunSort s1 s2 -> uncurry funSortM =<< simplify' (s1, s2)
         UnivSort s -> univSort <$> simplify' s
         Univ u s   -> Univ u <$> simplify' s
         Inf _ _    -> return s
@@ -1135,6 +1258,12 @@ instance (Subst a, Simplify a) => Simplify (Tele a) where
 instance Simplify ProblemConstraint where
   simplify' (PConstr pid unblock c) = PConstr pid unblock <$> simplify' c
 
+instance Simplify LocalEquation where
+  simplify' (LocalEquation g t u a) = do
+    g' <- simplify' g
+    (t', u', a') <- addContext g' $ simplify (t, u, a)
+    return $ LocalEquation g' t' u' a'
+
 instance Simplify Constraint where
   simplify' (ValueCmp cmp t u v) = do
     (t,u,v) <- simplify' (t,u,v)
@@ -1148,7 +1277,7 @@ instance Simplify Constraint where
   simplify' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> simplify' (a,b)
   simplify' (UnBlock m)           = return $ UnBlock m
   simplify' (FindInstance r m cs)   = FindInstance r m <$> mapM simplify' cs
-  simplify' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
+  simplify' (ResolveInstanceHead kwr q) = return $ ResolveInstanceHead kwr q
   simplify' (IsEmpty r t)         = IsEmpty r <$> simplify' t
   simplify' (CheckSizeLtSat t)    = CheckSizeLtSat <$> simplify' t
   simplify' c@CheckFunDef{}       = return c
@@ -1161,6 +1290,7 @@ instance Simplify Constraint where
   simplify' c@CheckMetaInst{}     = return c
   simplify' (CheckType t)         = CheckType <$> simplify' t
   simplify' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> simplify' ms <*> simplify' t
+  simplify' (RewConstraint e)     = RewConstraint <$> simplify' e
 
 instance Simplify CompareAs where
   simplify' (AsTermsOf a) = AsTermsOf <$> simplify' a
@@ -1252,8 +1382,8 @@ instance Normalise Sort where
     normalise' s = do
       s <- reduce' s
       case s of
-        PiSort a s1 s2 -> piSort <$> normalise' a <*> normalise' s1 <*> normalise' s2
-        FunSort s1 s2 -> funSort <$> normalise' s1 <*> normalise' s2
+        PiSort a s1 s2 -> uncurry3 piSortM =<< normalise' (a, s1, s2)
+        FunSort s1 s2 -> uncurry funSortM =<< normalise' (s1, s2)
         UnivSort s -> univSort <$> normalise' s
         Univ u s   -> Univ u <$> normalise' s
         Inf _ _    -> return s
@@ -1315,11 +1445,18 @@ instance Normalise a => Normalise (Closure a) where
         return $ cl { clValue = x }
 
 instance (Subst a, Normalise a) => Normalise (Tele a) where
-  normalise' EmptyTel        = return EmptyTel
-  normalise' (ExtendTel a b) = uncurry ExtendTel <$> normalise' (a, b)
+  normalise' tel = expand \ret -> case tel of
+    EmptyTel      -> ret $ return EmptyTel
+    ExtendTel a b -> ret $ uncurry ExtendTel <$> normalise' (a, b)
 
 instance Normalise ProblemConstraint where
   normalise' (PConstr pid unblock c) = PConstr pid unblock <$> normalise' c
+
+instance Normalise LocalEquation where
+  normalise' (LocalEquation g t u a) = do
+    g' <- normalise g
+    (t', u', a') <- addContext g' $ normalise (t, u, a)
+    return $ LocalEquation g' t' u' a'
 
 instance Normalise Constraint where
   normalise' (ValueCmp cmp t u v) = do
@@ -1334,7 +1471,7 @@ instance Normalise Constraint where
   normalise' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> normalise' (a,b)
   normalise' (UnBlock m)           = return $ UnBlock m
   normalise' (FindInstance r m cs)   = FindInstance r m <$> mapM normalise' cs
-  normalise' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
+  normalise' (ResolveInstanceHead kwr q) = return $ ResolveInstanceHead kwr q
   normalise' (IsEmpty r t)         = IsEmpty r <$> normalise' t
   normalise' (CheckSizeLtSat t)    = CheckSizeLtSat <$> normalise' t
   normalise' c@CheckFunDef{}       = return c
@@ -1347,6 +1484,7 @@ instance Normalise Constraint where
   normalise' c@CheckMetaInst{}     = return c
   normalise' (CheckType t)         = CheckType <$> normalise' t
   normalise' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> normalise' ms <*> normalise' t
+  normalise' (RewConstraint e)     = RewConstraint <$> normalise' e
 
 instance Normalise CompareAs where
   normalise' (AsTermsOf a) = AsTermsOf <$> normalise' a
@@ -1397,38 +1535,65 @@ class InstantiateFull t where
   default instantiateFull' :: (t ~ f a, Traversable f, InstantiateFull a) => t -> ReduceM t
   instantiateFull' = traverse instantiateFull'
 
--- Traversables (doesn't include binders like Abs, Tele):
+instance InstantiateFull a => InstantiateFull [a] where
+  instantiateFull' = \case
+    []   -> pure []
+    a:as -> (:) <$!> instantiateFull' a <*!> instantiateFull' as
 
-instance InstantiateFull t => InstantiateFull [t]
-instance InstantiateFull t => InstantiateFull (List1 t)
+instance InstantiateFull t => InstantiateFull (List1 t) where
+  instantiateFull' (a :| as) =
+    (:|) <$!> instantiateFull' a <*!> instantiateFull' as
+
+-- Traversables (doesn't include binders like Abs, Tele):
 instance InstantiateFull t => InstantiateFull (HashMap k t)
 instance InstantiateFull t => InstantiateFull (Map k t)
-instance InstantiateFull t => InstantiateFull (Maybe t)
-instance InstantiateFull t => InstantiateFull (Strict.Maybe t)
 
-instance InstantiateFull t => InstantiateFull (Arg t)
-instance InstantiateFull t => InstantiateFull (Elim' t)
-instance InstantiateFull t => InstantiateFull (Named name t)
+instance InstantiateFull t => InstantiateFull (Maybe t) where
+  instantiateFull' = \case
+    Nothing -> pure Nothing
+    Just t  -> Just <$!> instantiateFull' t
+
+instance InstantiateFull t => InstantiateFull (Strict.Maybe t) where
+  instantiateFull' = \case
+    Strict.Nothing -> pure Strict.Nothing
+    Strict.Just t  -> Strict.Just <$!> instantiateFull' t
+
+instance InstantiateFull t => InstantiateFull (Arg t) where
+  instantiateFull' (Arg x y) = Arg x <$!> instantiateFull' y
+
+instance InstantiateFull t => InstantiateFull (Elim' t) where
+  instantiateFull' = \case
+    Apply a      -> Apply <$!> instantiateFull' a
+    Proj o x     -> pure (Proj o x)
+    IApply l r t -> IApply <$!> instantiateFull' l
+                           <*!> instantiateFull' r
+                           <*!> instantiateFull' t
+
+instance InstantiateFull t => InstantiateFull (Named name t) where
+  instantiateFull' (Named x y) = Named x <$!> instantiateFull' y
+
 instance InstantiateFull t => InstantiateFull (WithArity t)
 instance InstantiateFull t => InstantiateFull (IPBoundary' t)
 
 -- Tuples:
-
 instance (InstantiateFull a, InstantiateFull b) => InstantiateFull (a,b) where
-    instantiateFull' (x,y) = (,) <$> instantiateFull' x <*> instantiateFull' y
+    {-# INLINE instantiateFull' #-}
+    instantiateFull' (x,y) = (,) <$!> instantiateFull' x <*!> instantiateFull' y
 
 instance (InstantiateFull a, InstantiateFull b, InstantiateFull c) => InstantiateFull (a,b,c) where
+    {-# INLINE instantiateFull' #-}
     instantiateFull' (x,y,z) =
-        do  (x,(y,z)) <- instantiateFull' (x,(y,z))
-            return (x,y,z)
+        do (x,(y,z)) <- instantiateFull' (x,(y,z))
+           return (x,y,z)
 
-instance (InstantiateFull a, InstantiateFull b, InstantiateFull c, InstantiateFull d) => InstantiateFull (a,b,c,d) where
+instance (InstantiateFull a, InstantiateFull b, InstantiateFull c, InstantiateFull d)
+    => InstantiateFull (a,b,c,d) where
+    {-# INLINE instantiateFull' #-}
     instantiateFull' (x,y,z,w) =
-        do  (x,(y,z,w)) <- instantiateFull' (x,(y,z,w))
-            return (x,y,z,w)
+        do (x,(y,z,w)) <- instantiateFull' (x,(y,z,w))
+           return (x,y,z,w)
 
 -- Base types:
-
 instance InstantiateFull Bool where
     instantiateFull' = return
 
@@ -1460,27 +1625,26 @@ instance InstantiateFull PrimitiveId where
   instantiateFull' = return
 
 -- Rest:
-
 instance InstantiateFull Sort where
     instantiateFull' s = do
         s <- instantiate' s
         case s of
-            Univ u n   -> Univ u <$> instantiateFull' n
-            PiSort a s1 s2 -> piSort <$> instantiateFull' a <*> instantiateFull' s1 <*> instantiateFull' s2
-            FunSort s1 s2 -> funSort <$> instantiateFull' s1 <*> instantiateFull' s2
-            UnivSort s -> univSort <$> instantiateFull' s
+            Univ u n   -> Univ u <$!> instantiateFull' n
+            PiSort a s1 s2 -> uncurry3 piSortM =<< instantiateFull' (a, s1, s2)
+            FunSort s1 s2 -> uncurry funSortM =<< instantiateFull' (s1, s2)
+            UnivSort s -> univSort <$!> instantiateFull' s
             Inf _ _    -> return s
             SizeUniv   -> return s
             LockUniv   -> return s
             LevelUniv  -> return s
             IntervalUniv -> return s
-            MetaS x es -> MetaS x <$> instantiateFull' es
-            DefS d es  -> DefS d <$> instantiateFull' es
+            MetaS x es -> MetaS x <$!> instantiateFull' es
+            DefS d es  -> DefS d <$!> instantiateFull' es
             DummyS{}   -> return s
 
 instance InstantiateFull t => InstantiateFull (Type' t) where
     instantiateFull' (El s t) =
-      El <$> instantiateFull' s <*> instantiateFull' t
+      El <$!> instantiateFull' s <*!> instantiateFull' t
 
 instance InstantiateFull Term where
     instantiateFull' = instantiate' >=> recurse >=> etaOnce
@@ -1488,82 +1652,87 @@ instance InstantiateFull Term where
       -- but removing etaOnce now breaks everything
       where
         recurse = \case
-          Var n vs    -> Var n <$> instantiateFull' vs
-          Con c ci vs -> Con c ci <$> instantiateFull' vs
-          Def f vs    -> Def f <$> instantiateFull' vs
-          MetaV x vs  -> MetaV x <$> instantiateFull' vs
+          Var n vs    -> Var n <$!> instantiateFull' vs
+          Con c ci vs -> Con c ci <$!> instantiateFull' vs
+          Def f vs    -> Def f <$!> instantiateFull' vs
+          MetaV x vs  -> MetaV x <$!> instantiateFull' vs
           v@Lit{}     -> return v
-          Level l     -> levelTm <$> instantiateFull' l
-          Lam h b     -> Lam h <$> instantiateFull' b
-          Sort s      -> Sort <$> instantiateFull' s
-          Pi a b      -> uncurry Pi <$> instantiateFull' (a,b)
-          DontCare v  -> dontCare <$> instantiateFull' v
+          Level l     -> levelTm <$!> instantiateFull' l
+          Lam h b     -> Lam h <$!> instantiateFull' b
+          Sort s      -> Sort <$!> instantiateFull' s
+          Pi a b      -> uncurry Pi <$!> instantiateFull' (a,b)
+          DontCare v  -> dontCare <$!> instantiateFull' v
           v@Dummy{}   -> return v
 
 instance InstantiateFull Level where
-  instantiateFull' (Max m as) = levelMax m <$> instantiateFull' as
+  instantiateFull' (Max m as) = levelMax m <$!> instantiateFull' as
 
 instance InstantiateFull PlusLevel where
-  instantiateFull' (Plus n l) = Plus n <$> instantiateFull' l
+  instantiateFull' (Plus n l) = Plus n <$!> instantiateFull' l
 
 instance InstantiateFull Substitution where
   instantiateFull' sigma =
     case sigma of
       IdS                    -> return IdS
       EmptyS err             -> return $ EmptyS err
-      Wk   n sigma           -> Wk   n           <$> instantiateFull' sigma
-      Lift n sigma           -> Lift n           <$> instantiateFull' sigma
-      Strengthen bot n sigma -> Strengthen bot n <$> instantiateFull' sigma
-      t :# sigma             -> consS <$> instantiateFull' t
-                                      <*> instantiateFull' sigma
+      Wk   n sigma           -> Wk   n           <$!> instantiateFull' sigma
+      Lift n sigma           -> Lift n           <$!> instantiateFull' sigma
+      Strengthen bot n sigma -> Strengthen bot n <$!> instantiateFull' sigma
+      t :# sigma             -> consS <$!> instantiateFull' t
+                                      <*!> instantiateFull' sigma
 
 instance InstantiateFull ConPatternInfo where
     instantiateFull' i = instantiateFull' (conPType i) <&> \ t -> i { conPType = t }
 
 instance InstantiateFull a => InstantiateFull (Pattern' a) where
-    instantiateFull' (VarP o x)     = VarP o <$> instantiateFull' x
-    instantiateFull' (DotP o t)     = DotP o <$> instantiateFull' t
-    instantiateFull' (ConP n mt ps) = ConP n <$> instantiateFull' mt <*> instantiateFull' ps
-    instantiateFull' (DefP o q ps) = DefP o q <$> instantiateFull' ps
+    instantiateFull' (VarP o x)     = VarP o <$!> instantiateFull' x
+    instantiateFull' (DotP o t)     = DotP o <$!> instantiateFull' t
+    instantiateFull' (ConP n mt ps) = ConP n <$!> instantiateFull' mt <*!> instantiateFull' ps
+    instantiateFull' (DefP o q ps) = DefP o q <$!> instantiateFull' ps
     instantiateFull' l@LitP{}       = return l
     instantiateFull' p@ProjP{}      = return p
-    instantiateFull' (IApplyP o t u x) = IApplyP o <$> instantiateFull' t <*> instantiateFull' u <*> instantiateFull' x
+    instantiateFull' (IApplyP o t u x) = IApplyP o <$!> instantiateFull' t <*!> instantiateFull' u <*!> instantiateFull' x
 
 instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
-    instantiateFull' a@(Abs x _) = Abs x <$> underAbstraction_ a instantiateFull'
-    instantiateFull' (NoAbs x a) = NoAbs x <$> instantiateFull' a
+    instantiateFull' a@(Abs x _) = Abs x <$!> underAbstraction_ a instantiateFull'
+    instantiateFull' (NoAbs x a) = NoAbs x <$!> instantiateFull' a
 
-instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
-    instantiateFull' (Dom i n b tac x) = Dom i n b <$> instantiateFull' tac <*> instantiateFull' x
+
+instance InstantiateFull e => InstantiateFull (Dom e) where
+    instantiateFull' (Dom i n b tac rew x) =
+      Dom i n b <$!> instantiateFull' tac <*!> instantiateFull' rew <*!> instantiateFull' x
+
+instance InstantiateFull Context where
+  instantiateFull' (Context es) = Context <$!> instantiateFull' es
 
 instance InstantiateFull ContextEntry where
-  instantiateFull' (CtxVar x a) = CtxVar x <$> instantiateFull' a
+  instantiateFull' (CtxVar x a) = CtxVar x <$!> instantiateFull' a
 
 instance InstantiateFull LetBinding where
-  instantiateFull' (LetBinding o v t) = LetBinding o <$> instantiateFull' v <*> instantiateFull' t
+  instantiateFull' (LetBinding isAxiom o v t) = LetBinding isAxiom o <$!> instantiateFull' v <*!> instantiateFull' t
 
 -- Andreas, 2021-09-13, issue #5544, need to traverse @checkpoints@ map
 instance InstantiateFull t => InstantiateFull (Open t) where
   instantiateFull' (OpenThing checkpoint checkpoints modl t) =
     OpenThing checkpoint
-    <$> (instantiateFull' =<< prune checkpoints)
-    <*> pure modl
-    <*> instantiateFull' t
+    <$!> (instantiateFull' =<< prune checkpoints)
+    <*!> pure modl
+    <*!> instantiateFull' t
     where
       -- Ulf, 2021-11-17, #5544
       --  Remove checkpoints that are no longer in scope, since they can
       --  mention functions that deadcode elimination will get rid of.
       prune cps = do
         inscope <- viewTC eCheckpoints
-        return $ cps `Map.intersection` inscope
+        return $! cps `Map.intersection` inscope
 
 instance InstantiateFull a => InstantiateFull (Closure a) where
     instantiateFull' cl = do
         x <- enterClosure cl instantiateFull'
-        return $ cl { clValue = x }
+        return $! cl { clValue = x }
 
 instance InstantiateFull ProblemConstraint where
-  instantiateFull' (PConstr p u c) = PConstr p u <$> instantiateFull' c
+  instantiateFull' (PConstr p u c) = PConstr p u <$!> instantiateFull' c
 
 instance InstantiateFull Constraint where
   instantiateFull' = \case
@@ -1574,114 +1743,141 @@ instance InstantiateFull Constraint where
       ((p,t),u,v) <- instantiateFull' ((p,t),u,v)
       return $ ValueCmpOnFace cmp p t u v
     ElimCmp cmp fs t v as bs ->
-      ElimCmp cmp fs <$> instantiateFull' t <*> instantiateFull' v <*> instantiateFull' as <*> instantiateFull' bs
-    LevelCmp cmp u v    -> uncurry (LevelCmp cmp) <$> instantiateFull' (u,v)
-    SortCmp cmp a b     -> uncurry (SortCmp cmp) <$> instantiateFull' (a,b)
+      ElimCmp cmp fs <$!> instantiateFull' t <*!> instantiateFull' v <*!> instantiateFull' as <*!> instantiateFull' bs
+    LevelCmp cmp u v    -> uncurry (LevelCmp cmp) <$!> instantiateFull' (u,v)
+    SortCmp cmp a b     -> uncurry (SortCmp cmp) <$!> instantiateFull' (a,b)
     UnBlock m           -> return $ UnBlock m
-    FindInstance r m cs -> FindInstance r m <$> mapM instantiateFull' cs
-    ResolveInstanceHead q -> return $ ResolveInstanceHead q
-    IsEmpty r t         -> IsEmpty r <$> instantiateFull' t
-    CheckSizeLtSat t    -> CheckSizeLtSat <$> instantiateFull' t
+    FindInstance r m cs -> FindInstance r m <$!> mapM instantiateFull' cs
+    ResolveInstanceHead kwr q -> return $ ResolveInstanceHead kwr q
+    IsEmpty r t         -> IsEmpty r <$!> instantiateFull' t
+    CheckSizeLtSat t    -> CheckSizeLtSat <$!> instantiateFull' t
     c@CheckFunDef{}     -> return c
-    HasBiggerSort a     -> HasBiggerSort <$> instantiateFull' a
-    HasPTSRule a b      -> uncurry HasPTSRule <$> instantiateFull' (a,b)
-    UnquoteTactic t g h -> UnquoteTactic <$> instantiateFull' t <*> instantiateFull' g <*> instantiateFull' h
+    HasBiggerSort a     -> HasBiggerSort <$!> instantiateFull' a
+    HasPTSRule a b      -> uncurry HasPTSRule <$!> instantiateFull' (a,b)
+    UnquoteTactic t g h -> UnquoteTactic <$!> instantiateFull' t <*!> instantiateFull' g <*!> instantiateFull' h
     CheckLockedVars a b c d ->
-      CheckLockedVars <$> instantiateFull' a <*> instantiateFull' b <*> instantiateFull' c <*> instantiateFull' d
-    CheckDataSort q s   -> CheckDataSort q <$> instantiateFull' s
+      CheckLockedVars <$!> instantiateFull' a <*!> instantiateFull' b <*!> instantiateFull' c <*!> instantiateFull' d
+    CheckDataSort q s   -> CheckDataSort q <$!> instantiateFull' s
     c@CheckMetaInst{}   -> return c
-    CheckType t         -> CheckType <$> instantiateFull' t
-    UsableAtModality cc ms mod t -> flip (UsableAtModality cc) mod <$> instantiateFull' ms <*> instantiateFull' t
+    CheckType t         -> CheckType <$!> instantiateFull' t
+    UsableAtModality cc ms mod t -> flip (UsableAtModality cc) mod <$!> instantiateFull' ms <*!> instantiateFull' t
+    RewConstraint e     -> RewConstraint <$!> instantiateFull' e
 
 instance InstantiateFull CompareAs where
-  instantiateFull' (AsTermsOf a) = AsTermsOf <$> instantiateFull' a
+  instantiateFull' (AsTermsOf a) = AsTermsOf <$!> instantiateFull' a
   instantiateFull' AsSizes       = return AsSizes
   instantiateFull' AsTypes       = return AsTypes
 
 instance InstantiateFull Signature where
   instantiateFull' (Sig a b c d) = Sig
-    <$> instantiateFull' a
-    <*> instantiateFull' b
-    <*> instantiateFull' c
-    <*> pure d             -- The instance table only stores names
+    <$!> instantiateFull' a
+    <*!> instantiateFull' b
+    <*!> instantiateFull' c
+    <*!> pure d             -- The instance table only stores names
 
 instance InstantiateFull Section where
-  instantiateFull' (Section tel) = Section <$> instantiateFull' tel
+  instantiateFull' (Section tel) = Section <$!> instantiateFull' tel
 
 instance (Subst a, InstantiateFull a) => InstantiateFull (Tele a) where
   instantiateFull' EmptyTel = return EmptyTel
-  instantiateFull' (ExtendTel a b) = uncurry ExtendTel <$> instantiateFull' (a, b)
+  instantiateFull' (ExtendTel a b) = uncurry ExtendTel <$!> instantiateFull' (a, b)
 
 instance InstantiateFull Definition where
-    instantiateFull' def@Defn{ defType = t ,defDisplay = df, theDef = d } = do
+  instantiateFull' def@Defn{ defType = t ,defDisplay = df, theDef = d } =
+    if defMightContainMetas def then do
       (t, df, d) <- instantiateFull' (t, df, d)
-      return $ def{ defType = t, defDisplay = df, theDef = d }
+      return $! def{ defType = t, defDisplay = df, theDef = d }
+    else do
+      return def
 
 instance InstantiateFull NLPat where
-  instantiateFull' (PVar x y) = return $ PVar x y
-  instantiateFull' (PDef x y) = PDef <$> instantiateFull' x <*> instantiateFull' y
-  instantiateFull' (PLam x y) = PLam x <$> instantiateFull' y
-  instantiateFull' (PPi x y)  = PPi <$> instantiateFull' x <*> instantiateFull' y
-  instantiateFull' (PSort x)  = PSort <$> instantiateFull' x
-  instantiateFull' (PBoundVar x y) = PBoundVar x <$> instantiateFull' y
-  instantiateFull' (PTerm x)  = PTerm <$> instantiateFull' x
+  instantiateFull' (PVar s x y)    = return $ PVar s x y
+  instantiateFull' (PDef x y)      = PDef <$!> instantiateFull' x <*!> instantiateFull' y
+  instantiateFull' (PLam x y)      = PLam x <$!> instantiateFull' y
+  instantiateFull' (PPi x y)       = PPi <$!> instantiateFull' x <*!> instantiateFull' y
+  instantiateFull' (PSort x)       = PSort <$!> instantiateFull' x
+  instantiateFull' (PBoundVar x y) = PBoundVar x <$!> instantiateFull' y
+  instantiateFull' (PTerm x)       = PTerm <$!> instantiateFull' x
 
 instance InstantiateFull NLPType where
   instantiateFull' (NLPType s a) = NLPType
-    <$> instantiateFull' s
-    <*> instantiateFull' a
+    <$!> instantiateFull' s
+    <*!> instantiateFull' a
 
 instance InstantiateFull NLPSort where
-  instantiateFull' (PUniv u x) = PUniv u <$> instantiateFull' x
+  instantiateFull' (PUniv u x) = PUniv u <$!> instantiateFull' x
   instantiateFull' (PInf f n) = return $ PInf f n
   instantiateFull' PSizeUniv = return PSizeUniv
   instantiateFull' PLockUniv = return PLockUniv
   instantiateFull' PLevelUniv = return PLevelUniv
   instantiateFull' PIntervalUniv = return PIntervalUniv
 
+instance InstantiateFull GlobalRewriteRule where
+  instantiateFull' (GlobalRewriteRule q gamma f ps rhs t c top) =
+    GlobalRewriteRule q
+      <$!> instantiateFull' gamma
+      <*!> pure f
+      <*!> instantiateFull' ps
+      <*!> instantiateFull' rhs
+      <*!> instantiateFull' t
+      <*!> pure c
+      <*!> pure top
+
+instance InstantiateFull LocalEquation where
+  instantiateFull' (LocalEquation a b c d) =
+    LocalEquation
+      <$!> instantiateFull' a
+      <*!> instantiateFull' b
+      <*!> instantiateFull' c
+      <*!> instantiateFull' d
+
 instance InstantiateFull RewriteRule where
-  instantiateFull' (RewriteRule q gamma f ps rhs t c top) =
-    RewriteRule q
-      <$> instantiateFull' gamma
-      <*> pure f
-      <*> instantiateFull' ps
-      <*> instantiateFull' rhs
-      <*> instantiateFull' t
-      <*> pure c
-      <*> pure top
+  instantiateFull' (RewriteRule a b c d e) =
+    RewriteRule
+      <$!> instantiateFull' a
+      <*!> pure b
+      <*!> instantiateFull' c
+      <*!> instantiateFull' d
+      <*!> instantiateFull' e
+
+instance InstantiateFull RewDom where
+  instantiateFull' (RewDom a b) =
+    RewDom
+      <$!> instantiateFull' a
+      <*!> instantiateFull' b
 
 instance InstantiateFull DisplayForm where
-  instantiateFull' (Display n ps v) = uncurry (Display n) <$> instantiateFull' (ps, v)
+  instantiateFull' (Display n ps v) = uncurry (Display n) <$!> instantiateFull' (ps, v)
 
 instance InstantiateFull DisplayTerm where
-  instantiateFull' (DTerm' v es)   = DTerm' <$> instantiateFull' v <*> instantiateFull' es
-  instantiateFull' (DDot' v es)    = DDot'  <$> instantiateFull' v <*> instantiateFull' es
-  instantiateFull' (DCon c ci vs)  = DCon c ci <$> instantiateFull' vs
-  instantiateFull' (DDef c es)     = DDef c <$> instantiateFull' es
-  instantiateFull' (DWithApp v vs ws) = uncurry3 DWithApp <$> instantiateFull' (v, vs, ws)
+  instantiateFull' (DTerm' v es)   = DTerm' <$!> instantiateFull' v <*!> instantiateFull' es
+  instantiateFull' (DDot' v es)    = DDot'  <$!> instantiateFull' v <*!> instantiateFull' es
+  instantiateFull' (DCon c ci vs)  = DCon c ci <$!> instantiateFull' vs
+  instantiateFull' (DDef c es)     = DDef c <$!> instantiateFull' es
+  instantiateFull' (DWithApp v vs ws) = uncurry3 DWithApp <$!> instantiateFull' (v, vs, ws)
 
 instance InstantiateFull Defn where
     instantiateFull' d = case d of
       Axiom{} -> return d
       DataOrRecSig{} -> return d
       GeneralizableVar{} -> return d
-      AbstractDefn d -> AbstractDefn <$> instantiateFull' d
+      AbstractDefn d -> AbstractDefn <$!> instantiateFull' d
       Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv, funExtLam = extLam } -> do
         (cs, cc, cov, inv) <- instantiateFull' (cs, cc, cov, inv)
         extLam <- instantiateFull' extLam
-        return $ d { funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv, funExtLam = extLam }
-      Datatype{ dataSort = s, dataClause = cl } -> do
-        s  <- instantiateFull' s
-        cl <- instantiateFull' cl
-        return $ d { dataSort = s, dataClause = cl }
-      Record{ recClause = cl, recTel = tel } -> do
-        cl  <- instantiateFull' cl
+        return $! d { funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv, funExtLam = extLam }
+      Datatype{ dataSort = s, dataClause = v } -> do
+        s <- instantiateFull' s
+        v <- instantiateFull' v
+        return $! d { dataSort = s, dataClause = v }
+      Record{ recClause = v, recTel = tel } -> do
+        v   <- instantiateFull' v
         tel <- instantiateFull' tel
-        return $ d { recClause = cl, recTel = tel }
+        return $! d { recClause = v, recTel = tel }
       Constructor{} -> return d
       Primitive{ primClauses = cs } -> do
         cs <- instantiateFull' cs
-        return $ d { primClauses = cs }
+        return $! d { primClauses = cs }
       PrimitiveSort{} -> return d
 
 instance InstantiateFull ExtLamInfo where
@@ -1690,55 +1886,55 @@ instance InstantiateFull ExtLamInfo where
     return $ e { extLamSys = sys}
 
 instance InstantiateFull System where
-  instantiateFull' (System tel sys) = System <$> instantiateFull' tel <*> instantiateFull' sys
+  instantiateFull' (System tel sys) = System <$!> instantiateFull' tel <*!> instantiateFull' sys
 
 instance InstantiateFull FunctionInverse where
   instantiateFull' NotInjective = return NotInjective
-  instantiateFull' (Inverse inv) = Inverse <$> instantiateFull' inv
+  instantiateFull' (Inverse inv) = Inverse <$!> instantiateFull' inv
 
 instance InstantiateFull a => InstantiateFull (Case a) where
   instantiateFull' (Branches cop cs eta ls m b lz) =
     Branches cop
-      <$> instantiateFull' cs
-      <*> instantiateFull' eta
-      <*> instantiateFull' ls
-      <*> instantiateFull' m
-      <*> pure b
-      <*> pure lz
+      <$!> instantiateFull' cs
+      <*!> instantiateFull' eta
+      <*!> instantiateFull' ls
+      <*!> instantiateFull' m
+      <*!> pure b
+      <*!> pure lz
 
 instance InstantiateFull CompiledClauses where
   instantiateFull' = \case
     Fail xs        -> return $ Fail xs
-    Done no mr m t -> Done no mr m <$> instantiateFull' t
-    Case n bs      -> Case n <$> instantiateFull' bs
+    Done no mr m t -> Done no mr m <$!> instantiateFull' t
+    Case n bs      -> Case n <$!> instantiateFull' bs
 
 instance InstantiateFull Clause where
     instantiateFull' (Clause rl rf tel ps b t catchall recursive unreachable ell wm) =
-       Clause rl rf <$> instantiateFull' tel
-       <*> instantiateFull' ps
-       <*> instantiateFull' b
-       <*> instantiateFull' t
-       <*> return catchall
-       <*> return recursive
-       <*> return unreachable
-       <*> return ell
-       <*> return wm
+       Clause rl rf <$!> instantiateFull' tel
+       <*!> instantiateFull' ps
+       <*!> instantiateFull' b
+       <*!> instantiateFull' t
+       <*!> return catchall
+       <*!> return recursive
+       <*!> return unreachable
+       <*!> return ell
+       <*!> return wm
 
 instance InstantiateFull Instantiation where
   instantiateFull' (Instantiation a b) =
-    Instantiation a <$> instantiateFull' b
+    Instantiation a <$!> instantiateFull' b
 
 instance InstantiateFull (Judgement MetaId) where
   instantiateFull' (HasType a b c) =
-    HasType a b <$> instantiateFull' c
+    HasType a b <$!> instantiateFull' c
   instantiateFull' (IsSort a b) =
-    IsSort a <$> instantiateFull' b
+    IsSort a <$!> instantiateFull' b
 
 instance InstantiateFull RemoteMetaVariable where
   instantiateFull' (RemoteMetaVariable a b c) = RemoteMetaVariable
-    <$> instantiateFull' a
-    <*> return b
-    <*> instantiateFull' c
+    <$!> instantiateFull' a
+    <*!> return b
+    <*!> instantiateFull' c
 
 instance InstantiateFull Interface where
   instantiateFull'
@@ -1764,23 +1960,23 @@ instance InstantiateFull Interface where
       <*!> return onames
 
 instance InstantiateFull a => InstantiateFull (Builtin a) where
-    instantiateFull' (Builtin t) = Builtin <$> instantiateFull' t
-    instantiateFull' (Prim x)   = Prim <$> instantiateFull' x
+    instantiateFull' (Builtin t) = Builtin <$!> instantiateFull' t
+    instantiateFull' (Prim x)   = Prim <$!> instantiateFull' x
     instantiateFull' b@(BuiltinRewriteRelations xs) = pure b
 
 instance InstantiateFull Candidate where
   instantiateFull' (Candidate q u t ov) =
-    Candidate q <$> instantiateFull' u <*> instantiateFull' t <*> pure ov
+    Candidate q <$!> instantiateFull' u <*!> instantiateFull' t <*!> pure ov
 
 instance InstantiateFull EqualityView where
   instantiateFull' (OtherType t)            = OtherType
-    <$> instantiateFull' t
+    <$!> instantiateFull' t
   instantiateFull' (IdiomType t)            = IdiomType
-    <$> instantiateFull' t
+    <$!> instantiateFull' t
   instantiateFull' (EqualityType r s eq l t a b) = EqualityType r
-    <$> instantiateFull' s
-    <*> return eq
-    <*> mapM instantiateFull' l
-    <*> instantiateFull' t
-    <*> instantiateFull' a
-    <*> instantiateFull' b
+    <$!> instantiateFull' s
+    <*!> return eq
+    <*!> mapM instantiateFull' l
+    <*!> instantiateFull' t
+    <*!> instantiateFull' a
+    <*!> instantiateFull' b

@@ -33,12 +33,20 @@ instance Subst TTerm where
       TVar i         -> lookupS rho i
       TApp f ts      -> tApp (applySubst rho f) (applySubst rho ts)
       TLam b         -> TLam (applySubst (liftS 1 rho) b)
-      TLet e b       -> TLet (applySubst rho e) (applySubst (liftS 1 rho) b)
+      TLet s e b     -> TLet s (applySubst rho e)
+                          (applySubst (liftS 1 rho) b)
       TCase i t d bs ->
         case applySubst rho (TVar i) of
           TVar j  -> TCase j t (applySubst rho d) (applySubst rho bs)
-          e       -> TLet e $ TCase 0 t (applySubst rho' d) (applySubst rho' bs)
-            where rho' = wkS 1 rho
+          e       -> TLet s e $
+                     TCase 0 t (applySubst rho' d) (applySubst rho' bs)
+          where
+          rho' = wkS 1 rho
+          -- If the match is lazy, use a non-strict let, otherwise a
+          -- strict let. Note that, if the backend is strict, then
+          -- 'Agda.Compiler.ToTreeless.casetree' makes all matches
+          -- strict.
+          s = if caseLazy t then NonStrict else Strict
       TCoerce e -> TCoerce (applySubst rho e)
     where
       tApp (TPrim PSeq) [TErased, b] = b
@@ -79,6 +87,7 @@ instance Monoid Occurs where
 -- Andreas, 2019-07-10: this free variable computation should be rewritten
 -- in the style of TypeChecking.Free.Lazy.
 -- https://github.com/agda/agda/commit/03eb3945114a4ccdb449f22d69db8d6eaa4699b8#commitcomment-34249120
+-- András, 2026-02-13: now called TypeChecking.Free.Generic
 
 class HasFree a where
   freeVars :: a -> IntMap Occurs
@@ -126,7 +135,7 @@ instance HasFree TTerm where
     TApp (TPrim PSeq) [TVar x, b] -> freeVars (InSeq x, b)
     TApp f ts      -> freeVars (f, ts)
     TLam b         -> underLambda <$> freeVars (Binder 1 b)
-    TLet e b       -> freeVars (e, Binder 1 b)
+    TLet _ e b     -> freeVars (e, Binder 1 b)
     TCase i _ d bs -> freeVars (i, (d, bs))
     TCoerce t      -> freeVars t
 

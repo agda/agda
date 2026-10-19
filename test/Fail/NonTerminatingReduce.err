@@ -1,3 +1,7 @@
 NonTerminatingReduce.agda:16.9-13: error: [UnequalTerms]
-loop n != 42 of type Nat
+The terms
+  loop n
+and
+  42
+are not equal at type Nat
 when checking that the expression refl has type loop n ≡ 42

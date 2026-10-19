@@ -44,6 +44,8 @@ defaultOptions = Options
   , optOnlyScopeChecking     = False
   , optTransliterate         = False
   , optDiagnosticsColour     = AutoColour
+  , optMdOnlyAgdaBlocks      = False
+  , optParallelChecking      = Sequential
   }
 
 defaultPragmaOptions :: PragmaOptions
@@ -54,6 +56,7 @@ defaultPragmaOptions = PragmaOptions
   , _optUseUnicode                 = Default -- UnicodeOk
   , _optVerbose                    = empty
   , _optProfiling                  = empty
+  , _optIrrelevance                = Default
   , _optProp                       = Default
   , _optLevelUniverse              = Default
   , _optTwoLevel                   = Default
@@ -81,9 +84,10 @@ defaultPragmaOptions = PragmaOptions
   , _optForcing                    = Default
   , _optProjectionLike             = Default
   , _optErasure                    = Default
-  , _optErasedMatches              = Default
+  , _optErasedMatches              = mempty
   , _optEraseRecordParameters      = Default
   , _optRewriting                  = Default
+  , _optLocalRewriting             = Default
   , _optCubical                    = Nothing
   , _optGuarded                    = Default
   , _optFirstOrder                 = Default
@@ -110,6 +114,10 @@ defaultPragmaOptions = PragmaOptions
   , _optCohesion                   = Default
   , _optFlatSplit                  = Default
   , _optPolarity                   = Default
+  , _optOccurrence                 = Default
+  , _optFunext                     = Default
+  , _optPropext                    = Default
+  , _optQuotients                  = Default
   , _optImportSorts                = Default
   , _optLoadPrimitives             = Default
   , _optAllowExec                  = Default
@@ -119,6 +127,7 @@ defaultPragmaOptions = PragmaOptions
   , _optForcedArgumentRecursion    = Default
   , _optLargeIndices               = Default
   , _optExperimentalLazyInstances  = Default
+  , _optQuoteMetas                 = Default
   }
 
 -- Null instances

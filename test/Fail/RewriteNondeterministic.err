@@ -1,3 +1,7 @@
 RewriteNondeterministic.agda:19.9-13: error: [UnequalTerms]
-c != b of type A
+The terms
+  c
+and
+  b
+are not equal at type A
 when checking that the expression refl has type f a ≡ b

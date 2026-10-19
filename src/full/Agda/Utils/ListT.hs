@@ -119,15 +119,15 @@ instance Monad m => Semigroup (ListT m a) where
 instance Monad m => Monoid (ListT m a) where
   mempty = nilListT
 
-instance (Functor m, Applicative m, Monad m) => Alternative (ListT m) where
+instance (Monad m) => Alternative (ListT m) where
   empty = mempty
   (<|>) = mappend
 
-instance (Functor m, Applicative m, Monad m) => MonadPlus (ListT m) where
+instance (Monad m) => MonadPlus (ListT m) where
   mzero = mempty
   mplus = mappend
 
-instance (Functor m, Applicative m, Monad m) => Applicative (ListT m) where
+instance (Monad m) => Applicative (ListT m) where
   pure  = sgListT
   (<*>) = ap
 
@@ -137,21 +137,21 @@ instance (Functor m, Applicative m, Monad m) => Applicative (ListT m) where
   --   loop (Just (f, l1')) (Just (a, l2')) = Just (f a, l1' <*> l2')
   --   loop _ _ = Nothing
 
-instance (Functor m, Applicative m, Monad m) => Monad (ListT m) where
+instance (Monad m) => Monad (ListT m) where
   return  = pure
   l >>= k = concatListT $ k <$> l
 
 instance MonadTrans ListT where
   lift = sgMListT
 
-instance (Applicative m, MonadIO m) => MonadIO (ListT m) where
+instance (MonadIO m) => MonadIO (ListT m) where
   liftIO = lift . liftIO
 
-instance (Applicative m, MonadReader r m) => MonadReader r (ListT m) where
+instance (MonadReader r m) => MonadReader r (ListT m) where
   ask     = lift ask
   local   = mapListT . local
 
-instance (Applicative m, MonadState s m) => MonadState s (ListT m) where
+instance (MonadState s m) => MonadState s (ListT m) where
   get = lift get
   put = lift . put
 

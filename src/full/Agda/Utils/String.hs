@@ -9,7 +9,7 @@ import Control.Monad.Trans.Maybe
 import Control.Monad.Writer
 
 import Data.Char
-import qualified Data.List as List
+import Data.List qualified as List
 import Data.String
 
 import Agda.Utils.Function (applyUnless)

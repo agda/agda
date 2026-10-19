@@ -4,12 +4,11 @@ module Agda.TypeChecking.Rules.LHS.Unify.Types where
 
 import Prelude hiding (null)
 
+import Control.Applicative ((<|>))
 import Control.Monad
-import Control.Monad.Writer (WriterT(..), MonadWriter(..))
 
 import Data.Foldable (toList)
 import Data.DList (DList)
-import qualified Data.List as List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -24,8 +23,6 @@ import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
-import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Null
@@ -33,7 +30,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
-
+import Agda.Utils.StrictWriter
 import Agda.Utils.Impossible
 
 ----------------------------------------------------
@@ -56,7 +53,7 @@ data Equality = Equal
 eqConstructorForm :: HasBuiltins m => Equality -> m Equality
 eqConstructorForm (Equal a u v) = Equal a <$> constructorForm u <*> constructorForm v
 
-eqUnLevel :: (HasBuiltins m, HasOptions m) => Equality -> m Equality
+eqUnLevel :: (HasBuiltins m) => Equality -> m Equality
 eqUnLevel (Equal a u v) = Equal a <$> unLevel u <*> unLevel v
   where
     unLevel (Level l) = reallyUnLevelView l
@@ -221,14 +218,16 @@ getReducedEqualityUnraised k s = do
 
 
 
--- | Instantiate the k'th variable with the given value.
+-- | Instantiate the k'th variable (from the left) with the given value.
 --   Returns Nothing if there is a cycle.
-solveVar :: Int             -- ^ Index @k@
+solveVar :: Int             -- ^ De Bruijn _level_ @k@
          -> DeBruijnPattern -- ^ Solution @u@
-         -> UnifyState -> Maybe (UnifyState, PatternSubstitution)
+         -> UnifyState -> Maybe (UnifyState, PatternSubstitution, Permutation)
 solveVar k u s = case instantiateTelescope (varTel s) k u of
   Nothing -> Nothing
-  Just (tel' , sigma , rho) -> Just $ (,sigma) $ UState
+  Just (tel' , sigma , perm) ->
+    let rho = deleteP k perm
+    in Just $ (, sigma , perm) $ UState
       { varTel   = tel'
       , flexVars = permuteFlex (reverseP rho) $ flexVars s
       , eqTel    = applyPatSubst sigma $ eqTel s
@@ -237,9 +236,7 @@ solveVar k u s = case instantiateTelescope (varTel s) k u of
       }
   where
     permuteFlex :: Permutation -> FlexibleVars -> FlexibleVars
-    permuteFlex perm =
-      mapMaybe $ \(FlexibleVar ai fc k p x) ->
-        FlexibleVar ai fc k p <$> List.elemIndex x (permPicks perm)
+    permuteFlex perm = mapMaybe (traverse (lookupRP perm))
 
 applyUnder :: Int -> Telescope -> Term -> Telescope
 applyUnder k tel u
@@ -448,18 +445,20 @@ data UnifyOutput = UnifyOutput
   { unifySubst :: PatternSubstitution -- varΓ' ⊢ σ : varΓ
   , unifyProof :: PatternSubstitution -- varΓ',eqΓ' ⊢ ps : eqΓ[σ]
                                       -- varΓ', us' =_eqΓ' vs' ⊢ ap(ps) : us[σ] =_{eqΓ[σ]} vs[σ]
---  , unifyLog   :: UnifyLog
+    -- For solution steps, the dependency-preserving reordering of varΓ generated
+    -- by instantiateTelescope (used by LeftInverse). Works on de Bruijn levels.
+  , unifySolutionPerm :: Maybe Permutation
   }
 
 instance Semigroup UnifyOutput where
   x <> y = UnifyOutput
     { unifySubst = unifySubst y `composeS` unifySubst x
     , unifyProof = unifyProof y `composeS` unifyProof x
---    , unifyLog   = unifyLog x ++ unifyLog y
+    , unifySolutionPerm = unifySolutionPerm x <|> unifySolutionPerm y
     }
 
 instance Monoid UnifyOutput where
-  mempty  = UnifyOutput IdS IdS -- []
+  mempty  = UnifyOutput IdS IdS Nothing
   mappend = (<>)
 
 type UnifyLogT m a = WriterT UnifyLog' m a
@@ -467,14 +466,17 @@ type UnifyLogT m a = WriterT UnifyLog' m a
 type UnifyStepT m a = WriterT UnifyOutput m a
 
 tellUnifySubst :: MonadWriter UnifyOutput m => PatternSubstitution -> m ()
-tellUnifySubst sub = tell $ UnifyOutput sub IdS
+tellUnifySubst sub = tell $ mempty { unifySubst = sub }
 
 tellUnifyProof :: MonadWriter UnifyOutput m => PatternSubstitution -> m ()
-tellUnifyProof sub = tell $ UnifyOutput IdS sub
+tellUnifyProof sub = tell $ mempty { unifyProof = sub }
+
+tellUnifySolutionPerm :: MonadWriter UnifyOutput m => Permutation -> m ()
+tellUnifySolutionPerm perm = tell $ mempty { unifySolutionPerm = Just perm }
 
 writeUnifyLog ::
   MonadWriter UnifyLog' m => (UnifyLogEntry, UnifyState) -> m ()
 writeUnifyLog x = tell (singleton x) -- UnifyOutput IdS IdS [x]
 
-runUnifyLogT :: Functor m => UnifyLogT m a -> m (a, UnifyLog)
-runUnifyLogT m = mapSnd toList <$> runWriterT m
+runUnifyLogT :: Monad m => UnifyLogT m a -> m (a, UnifyLog)
+runUnifyLogT m = second toList <$> runWriterT m

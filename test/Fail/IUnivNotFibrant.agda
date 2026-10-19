@@ -1,3 +1,5 @@
+{-# OPTIONS --cubical #-}
+
 open import Agda.Primitive
 open import Agda.Primitive.Cubical
 

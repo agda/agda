@@ -1,4 +1,3 @@
-{-# ETA                     Set1 #-}
 {-# INJECTIVE               Set1 #-}
 {-# INJECTIVE_FOR_INFERENCE Set1 #-}
 {-# STATIC                  Set1 #-}
@@ -9,7 +8,6 @@
 postulate
   foo : Set → Set
 
-{-# ETA                     foo #-}
 {-# INJECTIVE               foo #-}  -- ok
 {-# INJECTIVE_FOR_INFERENCE foo #-}
 {-# STATIC                  foo #-}
@@ -23,7 +21,6 @@ record S : Set1 where field f : Set
 open R
 open S
 
-{-# ETA                     f #-}
 {-# INJECTIVE               f #-}
 {-# INJECTIVE_FOR_INFERENCE f #-}
 {-# STATIC                  f #-}
@@ -31,7 +28,6 @@ open S
 {-# INLINE                  f #-}
 {-# NOINLINE                f #-}
 
-{-# ETA                     not-in-scope #-}
 {-# INJECTIVE               not-in-scope #-}
 {-# INJECTIVE_FOR_INFERENCE not-in-scope #-}
 {-# STATIC                  not-in-scope #-}

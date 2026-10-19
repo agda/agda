@@ -1,0 +1,15 @@
+BracketsMismatch.agda:3.15-17: error: [MismatchedBrackets]
+Idiom brackets opened with '⦇' must be closed with '⦈'.
+
+BracketsMismatch.agda:4.16-17: error: [MismatchedBrackets]
+Idiom brackets opened with '(|' must be closed with '|)'.
+
+BracketsMismatch.agda:5.11-13: error: [MismatchedBrackets]
+Double braces opened with '⦃' must be closed with '⦄'.
+
+BracketsMismatch.agda:6.12-13: error: [MismatchedBrackets]
+Double braces opened with '{{' must be closed with '}}'.
+
+BracketsMismatch.agda:3.5-17: error: [IdiomBracketError]
+pure needs to be in scope to use idiom brackets ⦇ ... ⦈
+when scope checking ⦇ f x y z ⦈

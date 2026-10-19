@@ -26,8 +26,10 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Rules.LHS (buildLHSSubstitutions)
 import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Conversion.Errors
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 
@@ -43,10 +45,10 @@ import Agda.Utils.Functor
 checkIApplyConfluence_ :: QName -> TCM ()
 checkIApplyConfluence_ f = whenM (isJust <$> cubicalOption) $ do
   -- Andreas, 2019-03-27, iapply confluence should only be checked
-  -- when --cubical or --erased-cubical is active. See
+  -- when --cubical[={full,erased}] is active. See
   -- test/Succeed/CheckIApplyConfluence.agda.
   -- We cannot reach the following crash point unless
-  -- --cubical/--erased-cubical is active.
+  -- --cubical[={full,erased}] is active.
   __CRASH_WHEN__ "tc.cover.iapply.confluence.crash" 666
   reportSDoc "tc.cover.iapply" 10 $ text "Checking IApply confluence of" <+> pretty f
   inConcreteOrAbstractMode f $ \ d -> do
@@ -79,10 +81,13 @@ checkIApplyConfluence f cl = case cl of
                 } -> setCurrentRange (clauseLHSRange cl) $ do
           let
             trhs = unArg t
-          oldCall <- asksTC envCall
+          oldCall <- viewTC eCall
           reportSDoc "tc.cover.iapply" 40 $ "tel =" <+> prettyTCM clTel
           reportSDoc "tc.cover.iapply" 40 $ "ps =" <+> pretty ps
-          ps <- normaliseProjP ps
+          ps    <- normaliseProjP ps
+          cxt   <- getContext
+          clCxt <- inTopContext $ addContext clTel $ getContext
+          let (_, clSub) = buildLHSSubstitutions cxt ps NoWithFunction
           forM_ (iApplyVars ps) $ \ i -> do
             unview <- intervalUnview'
             let phi = unview $ IMax (argN $ unview (INeg $ argN $ var i)) $ argN $ var i
@@ -120,7 +125,7 @@ checkIApplyConfluence f cl = case cl of
                   -- But if the conversion checking failed really early, we drop the extra
                   -- information. In that case, it's just noise.
                   maybeDropCall e@(TypeError loc s err)
-                    | UnequalTerms _ u' v' _ <- clValue err =
+                    | ConversionError_ (ConversionError _ _ u' v' _) <- clValue err =
                       -- Issue #6725: restore the TC state from the
                       -- error before dealing with the stored terms.
                       withTCState (const s) $ enterClosure err $ \e' -> do
@@ -132,7 +137,7 @@ checkIApplyConfluence f cl = case cl of
                         -- “failure case” here is *at worst* accidentally reminding the user of how
                         -- IApplyConfluence works.
                         if (u_p == u' && v_p == v')
-                          then localTC (\e -> e { envCall = oldCall }) $ typeError e'
+                          then localTC (set eCall oldCall) $ typeError e'
                           else throwError e
                   maybeDropCall x = throwError x
 
@@ -142,7 +147,8 @@ checkIApplyConfluence f cl = case cl of
                 -- instead of presenting a mysterious error.
                 traceCall why (compareTerm cmp ty u v `catchError` maybeDropCall)
 
-            addContext clTel $ compareTermOnFace' k CmpEq phi trhs lhs body
+            updateContext clSub (const clCxt) $
+              compareTermOnFace' k CmpEq phi trhs lhs body
 
 -- | current context is of the form Γ.Δ
 unifyElims :: Args
@@ -193,11 +199,11 @@ unifyElims vs ts k = do
     :: Substitution
     -> IntSet  -- Support.
     -> Context -> Context
-  codomain s vs =
+  codomain s vs = Context .
     mapMaybe (\(i, c) -> if i `IntSet.member` vs
                          then Nothing
                          else Just c) .
-    zipWith (\i c -> (i, dropS (i + 1) s `applySubst` c)) [0..]
+    cxWithIndex (\i c -> (i, dropS (i + 1) s `applySubst` c))
 
 -- | Like @unifyElims@ but @Γ@ is from the meta's @MetaInfo@ and
 -- the context extension @Δ@ is taken from the @Closure@.

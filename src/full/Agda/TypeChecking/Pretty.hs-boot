@@ -30,7 +30,8 @@ braces, dbraces, brackets, parens, parensNonEmpty , doubleQuotes, quotes ::
 -- Agda.Syntax.Translation.AbstractToConcrete does not need to be
 -- imported.
 type MonadPretty m =
-  ( MonadFresh NameId m
+  ( MonadFileId m
+  , MonadFresh NameId m
   , MonadInteractionPoints m
   , MonadStConcreteNames m
   , HasOptions m

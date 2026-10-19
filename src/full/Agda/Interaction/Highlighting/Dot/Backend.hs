@@ -217,7 +217,7 @@ postModuleDot cenv DotModuleEnv _main m _defs = do
     }
 
 postCompileDot
-  :: (MonadIO m, ReadTCState m)
+  :: (MonadIO m)
   => DotCompileEnv
   -> IsMain
   -> Map TopLevelModuleName DotModule

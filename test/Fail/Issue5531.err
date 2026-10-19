@@ -1,4 +1,28 @@
-Issue5531.agda:50.23-31: error: [UnequalTerms]
-ap (λ z → Σ (_A_208 z) (B z)) _239 (ab _δ₀_236) (ab _δ₁_237) !=<
-Σ _A_232 _B_233
+Issue5531.agda:28.15-26: warning: -W[no]RewriteVariablesBoundInSingleton
+I am not certain that the rewrite rule   idTel-sigma   is safe
+because it appears that the following variables are only bound in
+contexts which might become definitionally singular:
+  a₁ a₀ δ₁ δ₀
+This warning can be silenced with
+  -WnoRewriteVariablesBoundInSingleton
+but be aware that this rewrite might behave strangely in the
+presence of e.g. eta records with no fields
+when checking the pragma REWRITE idTel-sigma
+
+Issue5531.agda:43.15-23: warning: -W[no]RewriteVariablesBoundInSingleton
+I am not certain that the rewrite rule   ap-sigma   is safe because
+it appears that the following variables are only bound in contexts
+which might become definitionally singular:
+  b₁ b₀ B a₁ a₀ A
+This warning can be silenced with
+  -WnoRewriteVariablesBoundInSingleton
+but be aware that this rewrite might behave strangely in the
+presence of e.g. eta records with no fields
+when checking the pragma REWRITE ap-sigma
+
+Issue5531.agda:50.23-31: error: [UnequalTypes]
+The type
+  ap (λ z → Σ (_A_208 z) (B z)) _239 (ab _δ₀_236) (ab _δ₁_237)
+is not a subtype of
+  Σ _A_232 _B_233
 when checking that the expression ap ab δ₂ has type Σ _A_232 _B_233

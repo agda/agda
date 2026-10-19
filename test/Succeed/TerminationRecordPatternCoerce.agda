@@ -23,7 +23,7 @@ subst refl x = x
 -- Thorsten suggests on the Agda list  thread "Coinductive families"
 -- to encode lists as records
 record List (A : Set) : Set where
-  inductive; pattern
+  inductive; no-eta-equality; pattern
   constructor list
   field
     isCons : Bool

@@ -23,3 +23,17 @@ p = true , _
 
 loop : ⊥
 loop = snd p
+
+-- Andreas, 2025-10-25, issue #8139
+-- WAS:  error: [SplitError.CosplitCatchall]
+-- Cannot split into projections because not all clauses have a
+-- projection copattern
+--
+-- NOW:  error: [CoverageIssue]
+-- Incomplete pattern matching for p. Missing cases:
+--   p .snd
+-- when checking the definition of p
+-- ———— Warnings ——————————————————————————————————————————————
+-- warning: -W[no]UnreachableClauses
+-- Unreachable clause
+-- when checking the definition of p

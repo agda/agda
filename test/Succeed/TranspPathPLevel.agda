@@ -6,8 +6,13 @@ module TranspPathPLevel where
 open import Agda.Primitive renaming (Set to Type)
 open import Agda.Builtin.Cubical.Path
 open import Agda.Primitive.Cubical
-  renaming (primIMax to _∨_ ; primIMin to _∧_ ; primINeg to ~_ ; primComp to comp ; primHComp to hcomp ; primTransp to transp)
-
+  renaming ( primIMin       to infixr 20 _∧_  -- I → I → I
+           ; primIMax       to infixr 20 _∨_  -- I → I → I
+           ; primINeg       to infix  30 ~_   -- I → I
+           ; primComp       to comp
+           ; primHComp      to hcomp
+           ; primTransp     to transp
+           )
 open import Agda.Builtin.Reflection hiding (Type)
 open import Agda.Builtin.Unit
 open import Agda.Builtin.List

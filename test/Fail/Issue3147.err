@@ -1,4 +1,8 @@
 Issue3147.agda:12.10-11: error: [UnequalTerms]
-x != suc x of type Nat
+The terms
+  x
+and
+  suc x
+are not equal at type Nat
 when checking that all occurrences of pattern variable x have the
 same value

@@ -10,7 +10,7 @@ import Control.DeepSeq
 import Control.Monad.Trans
 
 import Data.Char     ( isSpace )
-import Data.Foldable ( forM_ )
+import Data.Foldable ( forM_, foldrM )
 import Data.Functor  ( (<&>) )
 import Data.List     ( dropWhileEnd, elemIndex, intercalate, partition )
 import Data.Maybe    ( listToMaybe )
@@ -46,9 +46,7 @@ import qualified Agda.Syntax.Treeless as T
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce ( instantiateFull )
-import Agda.TypeChecking.Substitute as TC ( TelV(..), raise, subst )
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Telescope ( telViewPath )
 import Agda.TypeChecking.Warnings  ( warning )
 
 import Agda.Utils.FileName ( isNewerThan )
@@ -67,22 +65,22 @@ import Agda.Utils.Singleton ( singleton )
 import Agda.Utils.Size (size)
 
 import Agda.Compiler.Common as CC
-import Agda.Compiler.ToTreeless
-import Agda.Compiler.Treeless.EliminateDefaults
-import Agda.Compiler.Treeless.EliminateLiteralPatterns
-import Agda.Compiler.Treeless.GuardsToPrims
-import Agda.Compiler.Treeless.Erase ( computeErasedConstructorArgs, isErasable )
-import Agda.Compiler.Treeless.Subst ()
 import Agda.Compiler.Backend (Backend,Backend_boot(..), Backend',Backend'_boot(..), Recompile(..))
 
+import qualified Agda.Compiler.ToTreeless as T
+import qualified Agda.Compiler.Treeless.EliminateDefaults as T
+import qualified Agda.Compiler.Treeless.EliminateLiteralPatterns as T
+import qualified Agda.Compiler.Treeless.GuardsToPrims as T
+import qualified Agda.Compiler.Treeless.Erase as T
+import qualified Agda.Compiler.Treeless.Subst as T
+
 import Agda.Compiler.JS.Syntax
-  ( Exp(Self,Local,Global,Undefined,Null,String,Char,Integer,Double,Lambda,Object,Array,Apply,Lookup,If,BinOp,PlainJS),
-    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Export(Export), Module(Module, modName, callMain), Comment(Comment),
-    modName, expName, uses
-  , JSQName
+  ( Exp(Self,Local,Global,Undefined,Null,String,Char,Integer,Double,Lambda,Object,Array,Apply,Lookup,If,BinOp,PlainJS, MemberIdInString, Ternary),
+    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId, MemberIndex), Export(Export), Module(Module, modName, callMain),
+    modName, expName, uses, JSQName
   )
 import Agda.Compiler.JS.Substitution
-  ( curriedLambda, curriedApply, emp, apply, substShift )
+  ( curriedLambda, curriedApply, emp, apply, substShift, subst', subst, shiftFrom)
 import qualified Agda.Compiler.JS.Pretty as JSPretty
 import Agda.Compiler.JS.Pretty (JSModuleStyle(..))
 
@@ -151,9 +149,9 @@ jsCommandLineFlags =
     -- Minification is described at https://en.wikipedia.org/wiki/Minification_(programming)
     , Option [] ["js-minify"] (NoArg enableMin) "minify generated JS code"
     , Option [] ["js-verify"] (NoArg enableVerify) "except for main module, run generated JS modules through `node` (needs to be in PATH)"
-    , Option [] ["js-es6"] (NoArg setES6) "use ES6 module style for JS"
-    , Option [] ["js-cjs"] (NoArg setCJS) "use CommonJS module style (default)"
-    , Option [] ["js-amd"] (NoArg setAMD) "use AMD module style for JS"
+    , Option [] ["js-es6"] (NoArg setES6) "use ES6 module style for JS (recommended)"
+    , Option [] ["js-cjs"] (NoArg setCJS) "use CommonJS module style (default) (deprecated)"
+    , Option [] ["js-amd"] (NoArg setAMD) "use AMD module style for JS (deprecated)"
     ]
   where
     enable       o = pure o{ optJSCompile  = True }
@@ -169,6 +167,10 @@ jsCommandLineFlags =
 jsPreCompile :: JSOptions -> TCM JSOptions
 jsPreCompile opts = opts <$ do
   mapM_ (typeError . CubicalCompilationNotSupported) =<< cubicalOption
+  case optJSModuleStyle opts of
+    JSCJS -> warning $ DeprecationWarning "JavaScript CommonJS module style" (Just "ES6 module style (via --js-es6)") "Agda version 2.10.0"
+    JSAMD -> warning $ DeprecationWarning "JavaScript AMD module style" (Just "ES6 module style (via --js-es6)") "Agda version 2.10.0"
+    JSES6 -> return ()
 
 -- | After all modules have been compiled, copy RTE modules and verify compiled modules.
 
@@ -227,9 +229,10 @@ jsPreModule opts _ m mifile = do
   cubical <- cubicalOption
   let compile = case cubical of
         -- Code that uses --cubical is not compiled.
-        Just CFull   -> False
-        Just CErased -> True
-        Nothing      -> True
+        Just CFull        -> False
+        Just CErased      -> True
+        Just CWithoutGlue -> True
+        Nothing           -> True
   ifM uptodate noComp (yesComp compile)
   where
     outFile_ = do
@@ -279,7 +282,8 @@ jsPostModule opts _ isMain _ defs = do
 
 
 jsCompileDef :: JSOptions -> JSModuleEnv -> IsMain -> Definition -> TCM (Maybe Export)
-jsCompileDef opts kit _isMain def = definition (opts, kit) (defName def, def)
+jsCompileDef opts kit _isMain def = do
+    definition (opts, kit) (defName def, def)
 
 --------------------------------------------------
 -- Naming
@@ -324,6 +328,7 @@ global q = do
   case d of
     Defn { theDef = Constructor { conData = p } } -> do
       getConstInfo p >>= \case
+        -- Lawrence 2026-08-14: TODO: switch to "constructor" now the encoding is changing anyway?
         -- Andreas, 2020-10-27, comment quotes outdated fact.
         -- anon. constructors are now M.R.constructor.
         -- We could simplify/remove the workaround by switching "record"
@@ -403,7 +408,7 @@ checkCompilerPragmas q =
   setCurrentRange r do
     -- Issue #3545: Warn user about ignored COMPILE pragma for defined functions.
     getConstInfo q <&> theDef >>= \case
-      FunctionDefn{} -> whenM (isErasable q) $ warning $ PragmaCompileErased jsBackendName q
+      FunctionDefn{} -> whenM (T.isErasable q) $ warning $ PragmaCompileErased jsBackendName q
       _ -> return()
     -- If the pragma is not of the form "q = bla", complain.
     when (listToMaybe (words s) /= Just "=") do
@@ -444,12 +449,9 @@ definition' kit q d t ls =
     Function{} | otherwise -> do
 
       reportSDoc "compile.js" 5 $ "compiling fun:" <+> prettyTCM q
-      let mTreeless = toTreeless T.EagerEvaluation q
-      caseMaybeM mTreeless (pure Nothing) $ \ treeless -> do
+      let mTreeless = T.toTreeless T.EagerEvaluation q
+      caseMaybeM mTreeless (pure Nothing) $ \ funBody -> do
         used <- fromMaybe [] <$> getCompiledArgUse q
-        funBody <- eliminateCaseDefaults =<<
-          eliminateLiteralPatterns
-          (convertGuards treeless)
         reportSDoc "compile.js" 30 $ " compiled treeless fun:" <+> pretty funBody
         reportSDoc "compile.js" 40 $ " argument usage:" <+> (text . show) used
 
@@ -471,32 +473,30 @@ definition' kit q d t ls =
         plainJS $ "agdaRTS." ++ getBuiltinId p
       | Just e <- defJSDef d ->
         plainJS e
-      | otherwise ->
+      | p `Set.member` undefinedPrimitives ->
+        ret Undefined
+      | otherwise -> do
+        warning $ UnknownJSPrimitive $ getBuiltinId p
         ret Undefined
     PrimitiveSort{} -> return Nothing
 
     Datatype{} -> do
-        computeErasedConstructorArgs q
+        T.computeErasedConstructorArgs q
         ret emp
     Record{} -> do
-        computeErasedConstructorArgs q
+        T.computeErasedConstructorArgs q
         return Nothing
 
     Constructor{} | Just e <- defJSDef d -> plainJS e
-    -- Implements Scott-Encoding of constructor definitions
+    -- Encode constructor definitions to JS functions that construct Tagged Arrays
     -- (see the note "Implementing data types")
-    Constructor{conData = p, conPars = nc} -> do
-      TelV tel _ <- telViewPath t
-      let nargs = length (telToList tel) - nc
-          args = [ Local $ LocalId $ nargs - i | i <- [0 .. nargs-1] ]
-      d <- getConstInfo p
+    Constructor
+      { conArity = conArity     -- Number of fields stored in the constructor
+      } -> do
       let l = List1.last ls
       ret
-        $ curriedLambda nargs
-        $ (case theDef d of
-              Record {} -> Object . Map.singleton l
-              dt -> id)
-        $  Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args
+        $ curriedLambda conArity
+        $ Array $ MemberIdInString l : [Local (LocalId i) | i <- reverse [0..conArity-1]]
 
     AbstractDefn{} -> __IMPOSSIBLE__
   where
@@ -506,52 +506,64 @@ definition' kit q d t ls =
 -- Implementing data types
 --------------------------
 
--- Data types are implemented using a variant of Scott Encoding,
--- which uses JavaScript dicts instead of some lambda-expressions
-
+-- Data constructors are compiled to arrays where the 0th element is a string tag.
+-- Such arrays are called 'Tagged Arrays'
+--
 -- For example, given the data type
 --
---      data Foo : Set where
---        c1 : Foo
---        c2 : X -> Y -> Foo
---        c3 : Foo -> Foo
+--      data Foo (A : Set) : Set where
+--        c1 : Foo A
+--        c2 : X -> Y -> Foo A
+--        c3 : Foo A -> Foo A
 --
 -- here is how "Foo" is compiled:
 --
 --  * A constructor definition, e.g.
 --
---        c2 : X -> Y -> Foo
+--        c2 : X -> Y -> Foo A
 --
 --    compiles to
 --
---        exports["Foo"]["c2"] = x => y => k => k["c2"](x,y)
+--        exports["Foo"]["c2"] = x => y => ["c2", x, y]
+--
+--    notice how the data-type parameter A does not become a parameter of the constructor c2.
+--    Nor do any module parameters.
 --
 --  * A constructor application, e.g.
 --
---        c2 x y
+--        c2 E1 E2
 --
 --    compiles to
 --
---        exports["Foo"]["c2"](x)(y)
+--        exports["Foo"]["c2"](E1)(E2)
 --
 --  * A case split, e.g.
 --
 --        case p of
 --          (c1    ) -> E1
---          (c2 x y) -> E2
---          (c3 f  ) -> E3
+--          (c2 x y) -> E2          (where E2 = ...x ... y ...)
+--          (c3 f  ) -> E3          (where E3 = ... f ...     )
 --
 --    compiles to
 --
---        p(
---          { "c1": ()    => E1
---          , "c2": (x,y) => E2
---          , "c3": f     => E3
---          })
-
+--          (p[0] == "c1") ? E1
+--        : (p[0] == "c2") ? E2     (where E2 = ... p[1] ... p[2] ...)
+--        : (p[0] == "c3") ? E3     (where E3 = ... p[1] ...         )
+--        : undefined
+--
+--    unless a there is a {-# COMPILE JS Foo = <split> #-} pragma,
+--    in which case this case split compiles to
+--
+--        <split>
+--            { "c1": () => E1
+--            , "c2": (x,y) => E2           (where E2 = ... x ... y ... )
+--            , "c3": (f) => E3             (where E3 = ... f ...)
+--            }
+--
+--  Record types are compiled like single-argument data types
 
 compileTerm :: EnvWithOpts -> T.TTerm -> TCM Exp
-compileTerm kit t = go t
+compileTerm kit = go
   where
     go :: T.TTerm -> TCM Exp
     go = \case
@@ -579,35 +591,35 @@ compileTerm kit t = go t
           [(flatName, PlainJS evalThunk)
           ,(MemberId "__flat_helper", Lambda 0 x)]
       T.TApp t xs -> do
+            -- Lawrence 2026-08: evaluating version hangs on Issue7595:
+            -- curriedApply' <$> go t <*> mapM go xs
             curriedApply <$> go t <*> mapM go xs
       T.TLam t -> Lambda 1 <$> go t
+      T.TLet T.Strict t e -> do
+        t' <- go t
+        e' <- go e
+        return $ Apply (Lambda 1 e') [t']
       -- `let x = t in e` is compiled to `(x => e[x()/x])(() => t)` so that `t`
       -- is only evaluated inside the body
-      T.TLet t e -> do
+      T.TLet T.NonStrict t e -> do
         t' <- Lambda 0 <$> go t
         e' <- substShift 1 1 [Apply (Local (LocalId 0)) []] <$> go e
         return $ Apply (Lambda 1 e') [t']
       T.TLit l -> return $ literal l
-      -- Implements Scott-Encoding of constructor applications
+      -- Encode constructor applications to Tagged Arrays
       -- (see the note "Implementing data types")
       T.TCon q -> qname q
-    -- Implements Scott-Encoding of case splits
-    -- (see the note "Implementing data types")
-      T.TCase sc ct def alts | T.CTData dt <- T.caseType ct -> do
-        dt <- getConstInfo dt
-        alts' <- traverse (compileAlt kit) alts
-        let obj = Object $ Map.fromListWith __IMPOSSIBLE__ alts'
-        case (theDef dt, defJSDef dt) of
-          (_, Just e) -> do
-            return $ apply (PlainJS e) [Local (LocalId sc), obj]
-          (Record{}, _) -> do
-            memId <- visitorName $ recCon $ theDef dt
-            return $ apply (Lookup (Local $ LocalId sc) memId) [obj]
-          (Datatype{}, _) -> do
-            return $ curriedApply (Local (LocalId sc)) [obj]
-          _ -> __IMPOSSIBLE__
-      T.TCase _ _ _ _ -> __IMPOSSIBLE__
-
+      t@(T.TCase sc ci@(T.CaseInfo{caseType = T.CTData dt}) def alts) -> do
+        pragma <- defJSDef <$> getConstInfo dt
+        let isReachable = not (T.isUnreachable def)
+        case (pragma, isReachable) of
+          -- Recursive case (COMPILE JS pragma present, inexhaustive match): make exhautive & try again
+          (Just _, True) -> go =<< T.eliminateCaseDefaultAtTopLevelIfPresent t
+          -- Base case (COMPILE JS pragma present, all cases handled): emit call to pragma
+          (Just e, False) -> compileCaseWithPragma e kit sc alts
+          -- Base case (no COMPILE JS pragma): compile as usual
+          (Nothing, _) -> compileCaseNoPragma kit sc def alts
+      T.TCase sc ci def alts -> compileCaseNoPragma kit sc def alts
       T.TPrim p -> return $ compilePrim p
       T.TUnit -> unit
       T.TSort -> unit
@@ -618,6 +630,57 @@ compileTerm kit t = go t
 
     unit = return Null
 
+-- Compiles a case split, without consulting any COMPILE JS pragmas
+-- Returns a chain of ternary expressions
+-- (see the note "Implementing data types")
+compileCaseNoPragma :: EnvWithOpts -> Int -> T.TTerm -> [T.TAlt] -> TCM Exp
+compileCaseNoPragma kit sc def alts = do
+  def' <- compileTerm kit def
+  foldrM (compileAlt kit sc) def' alts
+
+-- Compile a case split, using a COMPILE JS pragma on the data type.
+-- Precondition: cases present for all constructors of data type
+-- Returns a call to the pragma
+-- (see the note "Implementing data types")
+compileCaseWithPragma :: String -> EnvWithOpts -> Int -> [T.TAlt] -> TCM Exp
+compileCaseWithPragma pragmaContents kit sc alts = do
+  let scrutinee = Local (LocalId sc)
+  alts' <- alts & traverse \case
+    T.TACon con nargs body -> do
+      mid <- visitorName con
+      body <- Lambda nargs <$> compileTerm kit body
+      return (mid, body)
+    _ -> __IMPOSSIBLE__
+  return $ apply (PlainJS pragmaContents) [scrutinee, Object $ Map.fromListWith __IMPOSSIBLE__ alts']
+
+-- Compiles a single treeless alternative (+ default case),
+-- to a Ternary expression (see the note "Implementing data types")
+compileAlt :: EnvWithOpts -> Int -> T.TAlt -> Exp -> TCM Exp
+compileAlt kit sc (T.TACon {aCon = aCon, aArity = aArity, aBody = aBody}) def = do
+  let scrutinee = Local (LocalId sc)
+  body <- compileTerm kit aBody
+  -- Lawrence 2026-08: evaluating versions hang on Issue7595:
+  --    let body' = shiftFrom aArity 0 $ subst' aArity [Lookup scrutinee (MemberIndex i) | i <- [1 .. aArity]] body
+  --    let body' = curriedApply' (curriedLambda aArity body) [Lookup scrutinee (MemberIndex i) | i <- [1 .. aArity]]
+  --  but non-evalauting versions OK:
+  -- let body' = curriedApply (curriedLambda aArity body) [Lookup scrutinee (MemberIndex i) | i <- [1 .. aArity]]
+  let body' = shiftFrom aArity 0 $ subst aArity [Lookup scrutinee (MemberIndex i) | i <- [1 .. aArity]] body
+  mid <- visitorName aCon
+  pure $ Ternary (BinOp (Lookup scrutinee (MemberIndex 0)) "==" (MemberIdInString mid)) body' def
+compileAlt kit _ (T.TAGuard {aGuard = aGuard, aBody = aBody}) def = do
+  guard <- compileTerm kit aGuard
+  body <- compileTerm kit aBody
+  pure $ Ternary guard body def
+compileAlt kit sc (T.TALit {aLit = LitQName q, aBody = aBody}) def = do
+  let scrutinee = Local (LocalId sc)
+  body <- compileTerm kit aBody
+  pure $ Ternary (BinOp (Lookup scrutinee (MemberId "name")) "==" (String $ T.pack $ prettyShow q)) body def
+-- Lawrence 2026-08: I suspect the lack of special case for LitMeta is buggy,
+-- but it does not break the existing tests
+compileAlt kit sc (T.TALit {aLit = aLit, aBody = aBody}) def = do
+  let scrutinee = Local (LocalId sc)
+  body <- compileTerm kit aBody
+  pure $ Ternary (BinOp scrutinee "==" (literal aLit)) body def
 
 compilePrim :: T.TPrim -> Exp
 compilePrim p =
@@ -648,16 +711,6 @@ compilePrim p =
   where binOp js = curriedLambda 2 $ apply (PlainJS js) [local 1, local 0]
         unOp js  = curriedLambda 1 $ apply (PlainJS js) [local 0]
         primEq   = curriedLambda 2 $ BinOp (local 1) "===" (local 0)
-
--- Implements Scott-Encoding of case split cases
--- (see the note "Implementing data types")
-compileAlt :: EnvWithOpts -> T.TAlt -> TCM (MemberId, Exp)
-compileAlt kit = \case
-  T.TACon con nargs body -> do
-    memId <- visitorName con
-    body <- Lambda nargs <$> compileTerm kit body
-    return (memId, body)
-  _ -> __IMPOSSIBLE__
 
 visitorName :: QName -> TCM MemberId
 visitorName q = List1.last . snd <$> global q
@@ -692,7 +745,7 @@ litqname q =
     , (mem "fixity", litfixity fx)]
   where
     mem = MemberId
-    NameId n (ModuleNameHash m) = nameId $ qnameName q
+    NameId n (ModuleNameHash m) = nameId q
     fx = theFixity $ nameFixity $ qnameName q
 
     litfixity :: Fixity -> Exp
@@ -734,11 +787,6 @@ outFile ms m = do
   return fp
 
 -- | Primitives implemented in the JS Agda RTS.
---
--- TODO: Primitives that are not part of this set, and for which
--- 'defJSDef' does not return anything, are silently compiled to
--- 'Undefined'. A better approach might be to list exactly those
--- primitives which should be compiled to 'Undefined'.
 primitives :: Set PrimitiveId
 primitives = Set.fromList
   [ PrimShowInteger
@@ -807,20 +855,20 @@ primitives = Set.fromList
   , PrimFloatPow
 
   -- Character functions
-  -- , PrimCharEquality            -- missing
-  -- , PrimIsLower                 -- missing
-  -- , PrimIsDigit                 -- missing
-  -- , PrimIsAlpha                 -- missing
-  -- , PrimIsSpace                 -- missing
-  -- , PrimIsAscii                 -- missing
-  -- , PrimIsLatin1                -- missing
-  -- , PrimIsPrint                 -- missing
-  -- , PrimIsHexDigit              -- missing
-  -- , PrimToUpper                 -- missing
-  -- , PrimToLower                 -- missing
-  -- , PrimCharToNat               -- missing
+  -- , PrimCharEquality            -- in Agda.Builtin.Char
+  -- , PrimIsLower                 -- in Agda.Builtin.Char
+  -- , PrimIsDigit                 -- in Agda.Builtin.Char
+  -- , PrimIsAlpha                 -- in Agda.Builtin.Char
+  -- , PrimIsSpace                 -- in Agda.Builtin.Char
+  -- , PrimIsAscii                 -- in Agda.Builtin.Char
+  -- , PrimIsLatin1                -- in Agda.Builtin.Char
+  -- , PrimIsPrint                 -- in Agda.Builtin.Char
+  -- , PrimIsHexDigit              -- in Agda.Builtin.Char
+  -- , PrimToUpper                 -- in Agda.Builtin.Char
+  -- , PrimToLower                 -- in Agda.Builtin.Char
+  -- , PrimCharToNat               -- in Agda.Builtin.Char
   -- , PrimCharToNatInjective      -- missing
-  -- , PrimNatToChar               -- missing
+  -- , PrimNatToChar               -- in Agda.Builtin.Char
   -- , PrimShowChar                -- in Agda.Builtin.String
 
   -- String functions
@@ -848,6 +896,7 @@ primitives = Set.fromList
   , PrimShowMeta
   , PrimMetaToNat
   -- , PrimMetaToNatInjective      -- missing
+  , PrimQrec
   , builtinIMin
   , builtinIMax
   , builtinINeg
@@ -864,4 +913,78 @@ primitives = Set.fromList
   -- , builtinGlue                   -- missing
   -- , builtin_glue                  -- missing
   -- , builtin_unglue                -- missing
+  ]
+
+-- | Primitives that are intentionally compiled to @Undefined@ by the
+-- JS backend (e.g. because they are erased, they are type-level only,
+-- or they are implemented in Agda). Any primitive not in 'primitives',
+-- 'undefinedPrimitives', or handled via 'defJSDef' will trigger an
+-- 'UnknownJSPrimitive' warning.
+undefinedPrimitives :: Set PrimitiveId
+undefinedPrimitives = Set.fromList
+  [ -- Natural number functions
+    PrimNatPlus
+  , PrimNatTimes
+  , PrimNatDivSucAux
+  , PrimNatModSucAux
+  , PrimNatEquality
+  , PrimNatLess
+  , PrimShowNat
+
+  -- Machine words
+  , PrimWord64ToNatInjective
+
+  -- Level functions
+  , PrimLevelZero
+  , PrimLevelSuc
+  , PrimLevelMax
+
+  -- Floating point functions (implemented in Agda.Builtin.Float)
+  , PrimFloatRound
+  , PrimFloatFloor
+  , PrimFloatCeiling
+  , PrimFloatToRatio
+  , PrimFloatDecode
+  , PrimFloatEncode
+  , PrimFloatToWord64Injective
+
+  -- Character functions (implemented in Agda.Builtin.Char)
+  , PrimCharEquality
+  , PrimIsLower
+  , PrimIsDigit
+  , PrimIsAlpha
+  , PrimIsSpace
+  , PrimIsAscii
+  , PrimIsLatin1
+  , PrimIsPrint
+  , PrimIsHexDigit
+  , PrimToUpper
+  , PrimToLower
+  , PrimCharToNat
+  , PrimCharToNatInjective
+  , PrimNatToChar
+  , PrimShowChar
+
+  -- String functions (implemented in Agda.Builtin.String)
+  , PrimStringToList
+  , PrimStringToListInjective
+  , PrimStringFromList
+  , PrimStringFromListInjective
+  , PrimStringAppend
+  , PrimStringEquality
+  , PrimShowString
+  , PrimStringUncons
+
+  -- Other
+  , PrimEraseEquality
+  , PrimForce
+  , PrimForceLemma
+  , PrimQNameToWord64s
+  , PrimQNameToWord64sInjective
+  , PrimMetaToNatInjective
+
+  -- Cubical (missing)
+  , builtinGlue
+  , builtin_glue
+  , builtin_unglue
   ]

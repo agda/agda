@@ -1,0 +1,7 @@
+Issue8834Polarity.agda:25.7-11: error: [InvalidModalTelescopeUse]
+Telescope variable A
+is indirectly being used in the strictly positive modality
+but only available in the unused modality
+when inserting into the telescope of definition
+Issue8834Polarity.M.Wrap : ((@++ A₁ : Set) → Set)
+when checking that the expression Wrap has type _7

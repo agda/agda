@@ -1,3 +1,5 @@
+{-# OPTIONS --cubical #-}
+
 -- Andreas, Ulf, 2022-05-06, AIM XXXV
 -- Make sure you cannot trick Agda into admitting data types in IUniv.
 -- The previous check let this exploit through.

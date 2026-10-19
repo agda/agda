@@ -4,5 +4,7 @@ Don't know how to parse bad (f x). Could mean any one of:
   bad (f_ x)
 Operators used in the grammar:
   f (prefix operator, level 20) [f_ (Issue147b.agda:6.3-5)]
+Identifiers used in the grammar that overlap with the operators:
+  f
 when scope checking the left-hand side bad (f x) in the definition
 of bad

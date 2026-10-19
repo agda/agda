@@ -1,6 +1,6 @@
 Issue2941.agda:17.1-18.39: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   concat
-Problematic calls:
+Problematic call:
   concat (force xss)
     (at Issue2941.agda:18.21-27)

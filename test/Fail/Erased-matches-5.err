@@ -1,0 +1,4 @@
+Erased-matches-5.agda:15.1-13: error: [SplitError.ErasedDatatype.ErasedMatchesDisabledDependent]
+Cannot branch on erased argument of datatype x ≡ y because the
+option --erased-matches=unrestricted is not active
+when checking the definition of []-cong

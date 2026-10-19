@@ -1,4 +1,8 @@
 RewritingRuleInWhereBlock.agda:15.13-17: error: [UnequalTerms]
-f (suc n) != g (suc n) of type Nat
+The terms
+  f (suc n)
+and
+  g (suc n)
+are not equal at type Nat
 when checking that the expression refl has type
 f (suc n) ≡ g (suc n)

@@ -159,70 +159,86 @@ uncheckedWordOnes# n = not# 0## `uncheckedShiftRL#` (WORD_SIZE_IN_BITS# -# n)
 -- this pattern comes up quite often when folding over 'ByteArray#' and the like. This can
 -- save some allocations when compared to @wordFoldrBits# (\i acc -> f (i + offset) acc) a@.
 
+{-# INLINE wordFoldrBits# #-}
 -- | @wordFoldrBits# f a w@ performs a lazy right fold over the bits of @w@.
 wordFoldrBits# :: (Int -> a -> a) -> a -> Word# -> a
-wordFoldrBits# f a w
-  | isTrue# (w `eqWord#` 0##) = a
-  | otherwise =
-    let i = word2Int# (lowestBitWord# w)
-    in f (I# i) (wordFoldrBits# f a (uncheckedClearBitWord# w i))
+wordFoldrBits# f = go where
+  go a w
+    | isTrue# (w `eqWord#` 0##) = a
+    | otherwise =
+      let i = word2Int# (lowestBitWord# w)
+      in f (I# i) (go a (uncheckedClearBitWord# w i))
 
+{-# INLINE wordFoldrBitsOffset# #-}
 -- | @wordFoldrBitsOffset# offset f a w@ performs a right fold over the bits of @w@,
 -- with every bit index passed to @f@ offset by @offset@.
 wordFoldrBitsOffset# :: Int# -> (Int -> a -> a) -> a -> Word# -> a
-wordFoldrBitsOffset# offset f a w
-  | isTrue# (w `eqWord#` 0##) = a
-  | otherwise =
-    let i = word2Int# (lowestBitWord# w)
-    in f (I# (i +# offset)) (wordFoldrBitsOffset# offset f a (uncheckedClearBitWord# w i))
+wordFoldrBitsOffset# offset f = go where
+  go a w
+    | isTrue# (w `eqWord#` 0##) = a
+    | otherwise =
+      let i = word2Int# (lowestBitWord# w)
+      in f (I# (i +# offset)) (go a (uncheckedClearBitWord# w i))
 
+{-# INLINE wordFoldlBits# #-}
 -- | @wordFoldlBits# f a w@ performs a lazy left fold over the bits of @w@.
 wordFoldlBits# :: (a -> Int -> a) -> a -> Word# -> a
-wordFoldlBits# f a w
-  | isTrue# (w `eqWord#` 0##) = a
-  | otherwise =
-      let i = word2Int# (highestBitWord# w)
-      in f (wordFoldlBits# f a (uncheckedClearBitWord# w i)) (I# i)
+wordFoldlBits# f = go where
+  go a w
+    | isTrue# (w `eqWord#` 0##) = a
+    | otherwise =
+        let i = word2Int# (highestBitWord# w)
+        in f (go a (uncheckedClearBitWord# w i)) (I# i)
 
+{-# INLINE wordFoldlBitsOffset# #-}
 -- | @wordFoldlBitsOffset# offset f a w@ performs a lazy left fold over the bits of @w@,
 -- with every bit index passed to @f@ offset by @offset@.
 wordFoldlBitsOffset# :: Int# -> (a -> Int -> a) -> a -> Word# -> a
-wordFoldlBitsOffset# offset f a w
-  | isTrue# (w `eqWord#` 0##) = a
-  | otherwise =
+wordFoldlBitsOffset# offset f = go where
+  go a w
+    | isTrue# (w `eqWord#` 0##) = a
+    | otherwise =
       let i = word2Int# (highestBitWord# w)
-      in f (wordFoldlBitsOffset# offset f a (uncheckedClearBitWord# w i)) (I# (i +# offset))
+      in f (go a (uncheckedClearBitWord# w i)) (I# (i +# offset))
 
+{-# INLINE wordFoldrBitsStrict# #-}
 -- | @wordFoldrBitsStrict# f a w@ performs a strict right fold over the bits of @w@.
 wordFoldrBitsStrict# :: (Int -> a -> a) -> a -> Word# -> a
-wordFoldrBitsStrict# f !a w
-  | isTrue# (w `eqWord#` 0##) = a
-  | otherwise =
-    let i = word2Int# (highestBitWord# w)
-    in wordFoldrBitsStrict# f (f (I# i) a) (uncheckedClearBitWord# w i)
+wordFoldrBitsStrict# f = go where
+  go !a w
+    | isTrue# (w `eqWord#` 0##) = a
+    | otherwise =
+      let i = word2Int# (highestBitWord# w)
+      in go (f (I# i) a) (uncheckedClearBitWord# w i)
 
+{-# INLINE wordFoldrBitsOffsetStrict# #-}
 -- | @wordFoldrBitsOffsetStrict# offset f a w@ performs a strict right fold over the bits of @w@,
 -- with every bit index passed to @f@ offset by @offset@.
 wordFoldrBitsOffsetStrict# :: Int# -> (Int -> a -> a) -> a -> Word# -> a
-wordFoldrBitsOffsetStrict# offset f !a w
-  | isTrue# (w `eqWord#` 0##) = a
-  | otherwise =
-    let i = word2Int# (highestBitWord# w)
-    in wordFoldrBitsOffsetStrict# offset f (f (I# (i +# offset)) a) (uncheckedClearBitWord# w i)
+wordFoldrBitsOffsetStrict# offset f = go where
+  go !a w
+    | isTrue# (w `eqWord#` 0##) = a
+    | otherwise =
+      let i = word2Int# (highestBitWord# w)
+      in go (f (I# (i +# offset)) a) (uncheckedClearBitWord# w i)
 
+{-# INLINE wordFoldlBitsStrict# #-}
 -- | @wordFoldlBitsStrict# f a w@ performs a strict left fold over the bits of @w@.
 wordFoldlBitsStrict# :: (a -> Int -> a) -> a -> Word# -> a
-wordFoldlBitsStrict# f !a w
-  | isTrue# (w `eqWord#` 0##) = a
-  | otherwise =
-    let i = word2Int# (lowestBitWord# w)
-    in wordFoldlBitsStrict# f (f a (I# i)) (uncheckedClearBitWord# w i)
+wordFoldlBitsStrict# f = go where
+  go !a w
+    | isTrue# (w `eqWord#` 0##) = a
+    | otherwise =
+      let i = word2Int# (lowestBitWord# w)
+      in go (f a (I# i)) (uncheckedClearBitWord# w i)
 
+{-# INLINE wordFoldlBitsOffsetStrict# #-}
 -- | @wordFoldrBitsOffsetStrict# offset f a w@ performs a strict right fold over the bits of @w@,
 -- with every bit index passed to @f@ offset by @offset@.
 wordFoldlBitsOffsetStrict# :: Int# -> (a -> Int -> a) -> a -> Word# -> a
-wordFoldlBitsOffsetStrict# offset f !a w
-  | isTrue# (w `eqWord#` 0##) = a
-  | otherwise =
-    let i = word2Int# (lowestBitWord# w)
-    in wordFoldlBitsOffsetStrict# offset f (f a (I# (i +# offset))) (uncheckedClearBitWord# w i)
+wordFoldlBitsOffsetStrict# offset f = go where
+  go !a w
+    | isTrue# (w `eqWord#` 0##) = a
+    | otherwise =
+      let i = word2Int# (lowestBitWord# w)
+      in go (f a (I# (i +# offset))) (uncheckedClearBitWord# w i)

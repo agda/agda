@@ -1,3 +1,6 @@
-Issue4163.agda:23.21-25: error: [UnequalTerms]
-⊤ !=< ⊥
+Issue4163.agda:23.21-25: error: [UnequalTypes]
+The type
+  ⊤
+is not a subtype of
+  ⊥
 when checking that the expression unit has type ⊥

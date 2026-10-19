@@ -1,0 +1,5 @@
+Issue8092.agda:6.1-58: error: [CustomBackendError]
+GHC:
+  Conflicting GHC pragmas for x at
+    - Issue8092.agda:4.1-59
+    - Issue8092.agda:6.1-58

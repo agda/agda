@@ -4,6 +4,7 @@ record R : Set₁ where
   field
     F : Set
     F : Set  -- duplicate field, should be rejected
+    G G : Set
 
 -- Otherwise, this gives an internal error:
 

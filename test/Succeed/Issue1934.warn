@@ -1,4 +1,5 @@
-Issue1934.agda:48.27-42: warning: -W[no]RewritesNothing
+
+Issue1934.agda:48.27-43: warning: -W[no]RewritesNothing
 'rewrite' did not apply
 when checking that the clause
 id-lem-left {a} rewrite id-lem-right {a} = ? has type
@@ -6,7 +7,7 @@ id-lem-left {a} rewrite id-lem-right {a} = ? has type
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue1934.agda:48.27-42: warning: -W[no]RewritesNothing
+Issue1934.agda:48.27-43: warning: -W[no]RewritesNothing
 'rewrite' did not apply
 when checking that the clause
 id-lem-left {a} rewrite id-lem-right {a} = ? has type

@@ -348,6 +348,9 @@ exports.prim_glueU = _ => _ => _ => _ => _ => x => x;
 exports.prim_unglueU = _ => _ => _ => _ => x => x;
 exports.primFaceForall = f => f(true) == true && f(false) == false;
 
+// Quotients.
+exports.qrec = _ => _ => _ => _ => _ => _ => f => _ => _ => x => f(x);
+
 // Other stuff
 
 // primSeq : (X, Y) -> Y

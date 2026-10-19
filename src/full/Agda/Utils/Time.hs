@@ -16,10 +16,10 @@ module Agda.Utils.Time
 
 import Control.DeepSeq
 import Control.Monad.Trans
-import qualified System.CPUTime as CPU
+import System.CPUTime qualified as CPU
 
 
-import qualified Data.Time
+import Data.Time qualified
 
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.String

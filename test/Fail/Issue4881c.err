@@ -1,2 +1,3 @@
 Issue4881c.agda:3.3-4: error: [Syntax.DuplicateAnonDeclaration]
-Duplicate declaration of _
+Duplicate declaration of _. Previous definition at
+Issue4881c.agda:2.3-4

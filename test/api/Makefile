@@ -7,7 +7,7 @@ AGDA = $(AGDA_BIN) -v0 --no-libraries
 .PHONY: all
 all : Issue1168.api PrettyInterface.api PrintImports.run ScopeFromInterface.api
 
-%.agdai : %.agda $(which $(AGDA_BIN))
+%.agdai : %.agda $(command -v $(AGDA_BIN))
 	$(AGDA) $<
 
 .PHONY: %.api

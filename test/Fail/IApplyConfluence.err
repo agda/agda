@@ -1,3 +1,7 @@
 IApplyConfluence.agda:18.1-20: error: [UnequalTerms]
-true != false of type Bool
+The terms
+  true
+and
+  false
+are not equal at type Bool
 when checking the definition of decideEq

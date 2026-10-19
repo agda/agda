@@ -1,0 +1,5 @@
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  0 = ?0 : Nat (blocked on _1)
+when checking that the clause test3 p = test 0 p has type
+0 ≡ nat → Nat

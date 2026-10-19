@@ -135,7 +135,11 @@ interactionLoop = do
     where
         reload :: ReplM () = do
             checked <- checkCurrentFile
-            liftTCM $ setScope $ maybe emptyScopeInfo (iInsideScope . crInterface) checked
+            liftTCM $ do
+              case checked of
+                Nothing    -> setScope emptyScopeInfo
+                Just scope -> do setScope (iInsideScope $ crInterface scope)
+                                 recomputeInverseScope
             -- Andreas, 2021-01-27, issue #5132, make Set and Prop available from Agda.Primitive
             -- if no module is loaded.
             when (isNothing checked) $ do
@@ -174,7 +178,7 @@ withCurrentFile :: ReplM a -> ReplM a
 withCurrentFile cont = do
   mpath <- gets currentFile
   i <- traverse idFromFile mpath
-  localTC (\ e -> e { envCurrentPath = i }) cont
+  localTC (set eCurrentPath i) cont
 
 loadFile :: ReplM () -> [String] -> ReplM ()
 loadFile reload [file] = do
@@ -185,7 +189,7 @@ loadFile _ _ = liftIO $ putStrLn ":load file"
 
 showConstraints :: [String] -> TCM ()
 showConstraints [] =
-    do  cs <- BasicOps.getConstraints
+    do  cs <- BasicOps.getConstraints AsIs
         liftIO $ putStrLn $ unlines (List.map prettyShow cs)
 showConstraints _ = liftIO $ putStrLn ":constraints [cid]"
 
@@ -252,7 +256,7 @@ actOnMeta _ _ = __IMPOSSIBLE__
 
 giveMeta :: [String] -> TCM ()
 giveMeta s | length s >= 2 = do
-  _ <- actOnMeta s $ \ ii e -> give WithoutForce ii Nothing e
+  _ <- actOnMeta s $ \ ii e -> give WithoutForce ii e
   return ()
 giveMeta _ = liftIO $ putStrLn $ ": give" ++ " metaid expr"
 
@@ -260,7 +264,7 @@ giveMeta _ = liftIO $ putStrLn $ ": give" ++ " metaid expr"
 
 refineMeta :: [String] -> TCM ()
 refineMeta s | length s >= 2 = do
-  _ <- actOnMeta s $ \ ii e -> refine WithoutForce ii Nothing e
+  _ <- actOnMeta s $ \ ii e -> refine WithoutForce ii e
   return ()
 refineMeta _ = liftIO $ putStrLn $ ": refine" ++ " metaid expr"
 

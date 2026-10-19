@@ -1,5 +1,5 @@
 Issue2985-1.agda:20.1-22.43: error: [TerminationIssue]
-Termination checking failed for the following functions:
+Termination checking failed for the following function:
   u
 Problematic calls:
   λ { .force → u cons }

@@ -1,5 +1,9 @@
 Issue295.agda:17.21-34: error: [UnequalTerms]
-(a ⟶ b) ﹔ (c ⟶ d) | b != e ⟶ f of type Arr
+The terms
+  (a ⟶ b) ﹔ (c ⟶ d) | b
+and
+  e ⟶ f
+are not equal at type Arr
 when checking that the inferred type of an application
   Fun ((a ⟶ b) ﹔ (c ⟶ d))
 matches the expected type

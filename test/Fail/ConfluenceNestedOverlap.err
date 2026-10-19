@@ -6,5 +6,9 @@ resolve the ambiguity.
 when checking confluence of the rewrite rule rew₂ with rew₃
 
 ConfluenceNestedOverlap.agda:26.9-13: error: [UnequalTerms]
-b != c of type A
+The terms
+  b
+and
+  c
+are not equal at type A
 when checking that the expression refl has type f (g a) ≡ c

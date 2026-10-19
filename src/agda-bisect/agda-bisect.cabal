@@ -5,9 +5,11 @@ cabal-version: >= 1.10
 author: Nils Anders Danielsson
 build-type: Simple
 tested-with:
-  GHC == 9.10.1
+  GHC == 9.14.0
+  GHC == 9.12.2
+  GHC == 9.10.2
   GHC == 9.8.4
-  GHC == 9.6.6
+  GHC == 9.6.7
   GHC == 9.4.8
   GHC == 9.2.8
   GHC == 9.0.2
@@ -21,13 +23,13 @@ tested-with:
 executable agda-bisect
   main-is:          Bisect.hs
   build-depends:
-      base                 >= 4.9.0.0 && < 4.21
+      base                 >= 4.9.0.0 && < 5
     , ansi-wl-pprint       >= 0.6.7.3 && < 1.1
     , directory            >= 1.2.6.2 && < 1.4
     , filepath             >= 1.4.1.0 && < 1.6
-    , optparse-applicative >= 0.13    && < 0.19
+    , optparse-applicative >= 0.13    && < 1
     , process              >= 1.4.2.0 && < 1.7
-    , time                 >= 1.6.0.1 && < 1.13
+    , time                 >= 1.6.0.1 && < 2
     , unix                 >= 2.7.2.0 && < 2.9
   default-language: Haskell2010
   other-extensions: NamedFieldPuns

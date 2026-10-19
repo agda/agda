@@ -1,2 +1,0 @@
-top_command (cmd_load currentFile [])
-top_command cmd_constraints

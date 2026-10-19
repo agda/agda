@@ -1,0 +1,6 @@
+CubicalWithoutGlueCannotPrimGlue.agda:9.3-11.22: error: [NeedOptionCubical]
+Option --cubical[=full] required
+when checking that the type of the primitive function primGlue is
+∀ {ℓ} {ℓ'} (A : Set ℓ) {φ : I} →
+(T : Partial φ (Set ℓ')) →
+(e : PartialP φ (λ o → T o ≃ A)) → Set ℓ'

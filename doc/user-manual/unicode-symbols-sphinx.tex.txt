@@ -34,8 +34,8 @@
 \DeclareUnicodeCharacter{02B3}{\ensuremath{^r}}                       % Symbol ʳ
 \DeclareUnicodeCharacter{02E2}{\ensuremath{^s}}                       % Symbol ˢ
 \DeclareUnicodeCharacter{0302}{\ensuremath{\hat{\phantom{x}}}}        % Symbol ̂
-\DeclareUnicodeCharacter{0332}{\ensuremath{\underline{\phantom{x}}}}  % Symbol ̲
 \DeclareUnicodeCharacter{0308}{\ensuremath{\ddot{\phantom{x}}}}       % Symbol ̈
+\DeclareUnicodeCharacter{0332}{\ensuremath{\underline{\phantom{x}}}}  % Symbol ̲
 \DeclareUnicodeCharacter{0393}{\ensuremath{\Gamma}}                   % Symbol Γ
 \DeclareUnicodeCharacter{0394}{\ensuremath{\Delta}}                   % Symbol Δ
 \DeclareUnicodeCharacter{0398}{\ensuremath{\Theta}}                   % Symbol Θ
@@ -78,13 +78,13 @@
 \DeclareUnicodeCharacter{03C9}{\ensuremath{\omega}}     % Symbol ω
 \DeclareUnicodeCharacter{03D1}{\ensuremath{\vartheta}}  % Symbol ϑ
 
+\DeclareUnicodeCharacter{041F}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol П
 \DeclareUnicodeCharacter{0432}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol в
 \DeclareUnicodeCharacter{0435}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol е
 \DeclareUnicodeCharacter{0438}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol и
 \DeclareUnicodeCharacter{043C}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol м
 \DeclareUnicodeCharacter{0440}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol р
 \DeclareUnicodeCharacter{0442}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol т
-\DeclareUnicodeCharacter{041F}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol П
 \DeclareUnicodeCharacter{0BA8}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol ந
 \DeclareUnicodeCharacter{0BBF}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol  ி
 \DeclareUnicodeCharacter{1100}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol ᄀ
@@ -164,7 +164,7 @@
 
 \DeclareUnicodeCharacter{2200}{\ensuremath{\forall}}      % Symbol ∀
 \DeclareUnicodeCharacter{2203}{\ensuremath{\exists}}      % Symbol ∃
-\DeclareUnicodeCharacter{2204}{\ensuremath{\not\exists}}  % Symbol ∃
+\DeclareUnicodeCharacter{2204}{\ensuremath{\not\exists}}  % Symbol ∄
 \DeclareUnicodeCharacter{2205}{\ensuremath{\emptyset}}    % Symbol ∅
 \DeclareUnicodeCharacter{2208}{\ensuremath{\in}}          % Symbol ∈
 \DeclareUnicodeCharacter{2209}{\ensuremath{\not\in}}      % Symbol ∉
@@ -276,7 +276,7 @@
 
 \DeclareUnicodeCharacter{27E8}{\ensuremath{\langle}}          % Symbol ⟨
 \DeclareUnicodeCharacter{27E9}{\ensuremath{\rangle}}          % Symbol 〉
-\DeclareUnicodeCharacter{27F6}{\ensuremath{\longrightarrow}}  % Symbol % ⟶
+\DeclareUnicodeCharacter{27F6}{\ensuremath{\longrightarrow}}  % Symbol ⟶
 
 \DeclareUnicodeCharacter{2983}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol ⦃
 \DeclareUnicodeCharacter{2984}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol ⦄
@@ -290,7 +290,7 @@
 
 \DeclareUnicodeCharacter{29F5}{\ensuremath{\setminus}}   % Symbol ⧵
 
-\DeclareUnicodeCharacter{2A06}{\ensuremath{\bigcup}}  % Symbol ⋃
+\DeclareUnicodeCharacter{2A06}{\ensuremath{\bigsqcup}} % Symbol ⨆
 \DeclareUnicodeCharacter{2C7C}{\ensuremath{_j}}       % Symbol ⱼ
 
 \DeclareUnicodeCharacter{D7B0}{\ensuremath{\mathrm{PDF\;TODO}}} % Symbol ힰ

@@ -51,7 +51,7 @@ recover t =
       tApp f vs
     TLam b -> TLam <$> underBinds 1 (recover b)
     TCon{} -> tApp t []   -- need to recover nullary constructors as well (to make deep @-patterns work)
-    TLet v b -> TLet <$> recover v <*> underBinds 1 (recover b)
+    TLet s v b -> TLet s <$> recover v <*> underBinds 1 (recover b)
     TCase x ct d bs -> TCase x ct <$> recover d <*> mapM (recoverAlt x) bs
     TCoerce t -> TCoerce <$> recover t
     TLit{}    -> pure t

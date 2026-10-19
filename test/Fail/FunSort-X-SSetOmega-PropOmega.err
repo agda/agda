@@ -1,3 +1,7 @@
-FunSort-X-SSetOmega-PropOmega.agda:6.13-18: error: [UnequalSorts]
-Propω != funSort _3 SSetω
+FunSort-X-SSetOmega-PropOmega.agda:6.13-18: error: [UnequalTypes]
+The types
+  Propω
+and
+  funSort _3 SSetω
+are not equal
 when checking that the expression A → B has type Propω

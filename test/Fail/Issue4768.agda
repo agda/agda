@@ -1,3 +1,5 @@
+{-# OPTIONS --cubical #-}
+
 -- Andreas, 2020-06-21, issue #4768
 -- Problem was: @0 appearing in "Not a finite domain" message.
 

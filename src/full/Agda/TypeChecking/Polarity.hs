@@ -1,3 +1,5 @@
+{-# LANGUAGE MagicHash #-}
+
 -- | Computing the polarity (variance) of function arguments,
 --   for the sake of subtyping.
 
@@ -22,6 +24,8 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Benchmark (MonadBench)
+import Agda.TypeChecking.Monad.Benchmark qualified as Bench
 import Agda.TypeChecking.Datatypes (getNumberOfParameters)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.SizedTypes
@@ -33,14 +37,20 @@ import Agda.TypeChecking.Positivity.Occurrence
 
 import Agda.Utils.List
 import Agda.Utils.ListInf qualified as ListInf
-import Agda.Utils.Maybe ( whenNothingM )
+import Agda.Utils.Maybe ( whenNothingM, whenJust )
 import Agda.Utils.Monad
 import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Zip
+import Agda.Utils.VarSet (VarSet)
+import Agda.Utils.VarSet qualified as VarSet
+import Agda.Utils.StrictState
 
 import Agda.Utils.Impossible
+
+import Agda.Syntax.Position
+import Debug.Trace
 
 ------------------------------------------------------------------------
 -- * Polarity lattice.
@@ -96,7 +106,7 @@ purgeNonvariant = map (\ p -> if p == Nonvariant then Covariant else p)
 
 -- | A quick transliterations of occurrences to polarities.
 polarityFromPositivity
-  :: (HasConstInfo m, MonadTCEnv m, MonadTCState m, MonadDebug m)
+  :: (HasConstInfo m, MonadTCState m)
   => QName -> m ()
 polarityFromPositivity x = inConcreteOrAbstractMode x $ \ def -> do
 
@@ -114,12 +124,9 @@ polarityFromPositivity x = inConcreteOrAbstractMode x $ \ def -> do
 ------------------------------------------------------------------------
 
 -- | Main function of this module.
-computePolarity
-  :: ( HasOptions m, HasConstInfo m, HasBuiltins m
-     , MonadTCEnv m, MonadTCState m, MonadReduce m, MonadAddContext m, MonadTCError m
-     , MonadDebug m, MonadPretty m )
-  => [QName] -> m ()
-computePolarity xs = do
+computePolarity :: [QName] -> TCM ()
+computePolarity xs = Bench.billTo [Bench.Polarity] $ do
+ reportSDoc "tc.polarity.set" 40 $ "computePolarity" <+> prettyTCM xs
 
  -- Andreas, 2017-04-26, issue #2554
  -- First, for mutual definitions, obtain a crude polarity from positivity.
@@ -158,10 +165,10 @@ computePolarity xs = do
   --                        -- variable occurrence test in  dependentPolarity.
   reportSDoc "tc.polarity.set" 15 $
     "Refining polarity with type " <+> prettyTCM t
-  reportSDoc "tc.polarity.set" 60 $
+  reportSDoc "tc.polarity.set" 90 $
     "Refining polarity with type (raw): " <+> (text .show) t
 
-  pol <- dependentPolarity t (enablePhantomTypes (theDef def) pol1) pol1
+  pol <- liftReduce $ dependentPolarity t (enablePhantomTypes (theDef def) pol1) pol1
   reportSLn "tc.polarity.set" 10 $ "Polarity of " ++ prettyShow x ++ ": " ++ prettyShow pol
 
   -- set the polarity in the signature
@@ -200,48 +207,71 @@ usagePolarity def = case def of
     usagePat LitP{} = Invariant
 -}
 
+
 -- | Make arguments 'Invariant' if the type of a not-'Nonvariant'
 --   later argument depends on it.
 --   Also, enable phantom types by turning 'Nonvariant' into something
 --   else if it is a data/record parameter but not a size argument. [See issue 1596]
 --
 --   Precondition: the "phantom" polarity list has the same length as the polarity list.
-dependentPolarity
-  :: (HasOptions m, HasBuiltins m, MonadReduce m, MonadAddContext m, MonadDebug m)
-  => Type -> [Polarity] -> [Polarity] -> m [Polarity]
-dependentPolarity t _      []          = return []  -- all remaining are 'Invariant'
-dependentPolarity t []     (_ : _)     = __IMPOSSIBLE__
-dependentPolarity t (q:qs) pols@(p:ps) = do
-  t <- reduce $ unEl t
-  reportSDoc "tc.polarity.dep" 20 $ "dependentPolarity t = " <+> prettyTCM t
-  reportSDoc "tc.polarity.dep" 70 $ "dependentPolarity t = " <+> (text . show) t
-  case t of
-    Pi dom b -> do
-      ps <- underAbstraction dom b $ \ c -> dependentPolarity c qs ps
-      let fallback = ifM (isJust <$> isSizeType (unDom dom)) (return p) (return q)
-      p <- case b of
-        Abs{} | p /= Invariant  ->
-          -- Andreas, 2014-04-11 see Issue 1099
-          -- Free variable analysis is not in the monad,
-          -- hence metas must have been instantiated before!
-          ifM (relevantInIgnoringNonvariant 0 (absBody b) ps)
-            {- then -} (return Invariant)
-            {- else -} fallback
-        _ -> fallback
-      return $ p : ps
-    _ -> return pols
+dependentPolarity :: Type -> [Polarity] -> [Polarity] -> ReduceM [Polarity]
+dependentPolarity t qs ps
+  | all (== Invariant) qs && all (== Invariant) ps = pure ps -- Nothing can be possibly adjusted
+  | otherwise = evalStateT (go t qs ps) mempty where
 
--- | Check whether a variable is relevant in a type expression,
---   ignoring domains of non-variant arguments.
-relevantInIgnoringNonvariant :: MonadReduce m => Nat -> Type -> [Polarity] -> m Bool
-relevantInIgnoringNonvariant i t []     = return $ i `relevantInIgnoringSortAnn` t
-relevantInIgnoringNonvariant i t (p:ps) =
-  ifNotPiType t
-    {-then-} (\ t -> return $ i `relevantInIgnoringSortAnn` t) $
-    {-else-} \ a b ->
-      if p /= Nonvariant && i `relevantInIgnoringSortAnn` a
-        then return True
-        else relevantInIgnoringNonvariant (i + 1) (absBody b) ps
+  -- 2026-02-26 András: this should exist more generically!
+  {-# INLINE extendEnv #-}
+  extendEnv :: String -> Dom Type -> StateT VarSet ReduceM a -> StateT VarSet ReduceM a
+  extendEnv x a act = StateT \s -> ReduceM \e ->
+    unReduceM (runStateT# act s) $! extendReduceEnv x a e
+
+  -- Andreas, 2014-04-11 see Issue 1099
+  -- Free variable analysis is not in the monad,
+  -- hence metas must have been instantiated before!
+  go :: Type -> [Polarity] -> [Polarity] -> StateT VarSet ReduceM [Polarity]
+  go t qs ps = case (qs, ps) of
+    (_, []) -> do
+      modify (`setRelInIgnoring` t)
+      pure []
+    ([], _:_) ->
+      __IMPOSSIBLE__
+    (q:qs, pols@(p:ps)) -> do
+      lift $ reportSDoc "tc.polarity.dep" 20 $ "dependentPolarity t = " <+> prettyTCM t
+      lift $ reportSDoc "tc.polarity.dep" 70 $ "dependentPolarity t = " <+> (text . show) t
+      lift (reduce (unEl t)) >>= \case
+        Pi dom b -> do
+          let phantom | p /= q = ifM (lift (isJust <$> isSizeType (unDom dom)))
+                                     (pure p) (pure q)
+                      | otherwise = pure p
+              finish p ps = do
+                when (p /= Nonvariant) (modify (`setRelInIgnoring` dom))
+                pure (p:ps)
+          case b of
+            Abs x t -> extendEnv x dom do
+              modify (VarSet.weaken 1)
+              case p of
+                Invariant -> do
+                  !ps <- go t qs ps
+                  !p  <- phantom
+                  modify (VarSet.strengthen 1)
+                  finish p ps
+                _ -> do
+                  modify (VarSet.insert 0)
+                  !ps <- go t qs ps
+                  !p <- gets (VarSet.member 0) >>= \case
+                    -- binder doesn't occur in the rest
+                    True -> phantom
+                    -- binder occurs in the rest
+                    False -> pure Invariant
+                  modify (VarSet.strengthen 1)
+                  finish p ps
+            NoAbs _ t -> do
+              !ps <- go t qs ps
+              !p  <- phantom
+              finish p ps
+        t -> do
+          modify (`setRelInIgnoring` t)
+          pure pols
 
 ------------------------------------------------------------------------
 -- * Sized types
@@ -250,12 +280,7 @@ relevantInIgnoringNonvariant i t (p:ps) =
 -- | Hack for polarity of size indices.
 --   As a side effect, this sets the positivity of the size index.
 --   See test/succeed/PolaritySizeSucData.agda for a case where this is needed.
-sizePolarity
-  :: forall m .
-     ( HasOptions m, HasConstInfo m, HasBuiltins m, ReadTCState m
-     , MonadTCEnv m, MonadTCState m, MonadReduce m, MonadAddContext m, MonadTCError m
-     , MonadDebug m, MonadPretty m )
-  => QName -> [Polarity] -> m [Polarity]
+sizePolarity :: QName -> [Polarity] -> TCM [Polarity]
 sizePolarity d pol0 = do
   let exit = return pol0
   ifNotM sizedTypesOption exit $ {- else -} do
@@ -266,14 +291,14 @@ sizePolarity d pol0 = do
             (parTel, ixTel) = splitAt np $ telToList tel
         case ixTel of
           []                 -> exit  -- No size index
-          Dom{unDom = (_,a)} : _ -> ifM ((/= Just BoundedNo) <$> isSizeType a) exit $ do
+          (unDom -> (_,a)) : _ -> ifM ((/= Just BoundedNo) <$> isSizeType a) exit $ do
             -- we assume the size index to be 'Covariant' ...
             let pol   = take np pol0
                 polCo = pol ++ [Covariant]
                 polIn = pol ++ [Invariant]
             setPolarity d $ polCo
             -- and seek confirm it by looking at the constructor types
-            let check :: QName -> m Bool
+            let check :: QName -> TCM Bool
                 check c = do
                   t <- defType <$> getConstInfo c
                   addContext (telFromList parTel) $ do
@@ -281,7 +306,7 @@ sizePolarity d pol0 = do
                     TelV conTel target <- telView =<< (t `piApplyM` pars)
                     loop target conTel
                   where
-                  loop :: Type -> Telescope -> m Bool
+                  loop :: Type -> Telescope -> TCM Bool
                   -- no suitable size argument
                   loop _ EmptyTel = do
                     reportSDoc "tc.polarity.size" 15 $
@@ -326,9 +351,7 @@ sizePolarity d pol0 = do
 --   has form @d ps (↑ⁿ i) idxs@ where @|ps| = np(d)@.
 --
 --   Precondition: @a@ is reduced and of form @d ps idxs0@.
-checkSizeIndex
-  :: (HasConstInfo m, ReadTCState m, MonadDebug m, MonadPretty m, MonadTCError m)
-  => QName -> Nat -> Type -> m Bool
+checkSizeIndex :: QName -> Nat -> Type -> TCM Bool
 checkSizeIndex d i a = do
   reportSDoc "tc.polarity.size" 15 $ withShowAllArguments $ vcat
     [ "checking that constructor target type " <+> prettyTCM a

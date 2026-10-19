@@ -1,2 +1,0 @@
-Issue2579.agda:4.1: error: [ParseError]
-An import statement with module instantiation is useless without either an 'open' keyword or an 'as' binding giving a name to the instantiated module.

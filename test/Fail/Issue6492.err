@@ -1,0 +1,5 @@
+eta expanding:  _14@9809346921789678543  --> 
+  (_x.fst_15 (x = x) , _x.snd_16 (x = x))
+Issue6492.agda:17.11-12: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  Issue6492.agda:17.11-12

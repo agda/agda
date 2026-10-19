@@ -7,21 +7,18 @@ module Agda.Syntax.Concrete.Definitions.Types where
 import Control.DeepSeq
 
 import Data.Map (Map)
-import Data.Semigroup ( sconcat )
 
 import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (TerminationCheck())
 import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Name   ()
 import Agda.Syntax.Concrete.Pretty ()
 
-import Agda.Syntax.Common.Pretty
-import Agda.Utils.Impossible
 import Agda.Utils.List1 (List1)
-import qualified Agda.Utils.List1 as List1
 
 {--------------------------------------------------------------------------
     Types
@@ -56,18 +53,18 @@ data NiceDeclaration
       --   ('Hiding' should be 'NotHidden'.)
   | NiceField Range Access IsAbstract IsInstance TacticAttribute Name (Arg Expr)
   | PrimitiveFunction Range Access IsAbstract Name (Arg Expr)
-  | NiceMutual KwRange TerminationCheck CoverageCheck PositivityCheck [NiceDeclaration]
+  | NiceMutual KwRange TerminationCheck CoverageCheck PositivityCheck (List1 NiceDeclaration)
   | NiceModule Range Access IsAbstract Erased QName Telescope
       [Declaration]
   | NiceModuleMacro Range Access Erased Name ModuleApplication
       OpenShortHand ImportDirective
-  | NiceOpen Range QName ImportDirective
-  | NiceImport Range QName (Maybe AsName) OpenShortHand ImportDirective
+  | NiceOpen KwRange QName ImportDirective
+  | NiceImport OpenShortHand KwRange QName (Either AsName RawOpenArgs) ImportDirective
   | NicePragma Range Pragma
   | NiceRecSig Range Erased Access IsAbstract PositivityCheck
-      UniverseCheck Name [LamBinding] Expr
+      UniverseCheck ForceRecordEta Name Parameters Expr
   | NiceDataSig Range Erased Access IsAbstract PositivityCheck
-      UniverseCheck Name [LamBinding] Expr
+      UniverseCheck Name Parameters Expr
   | NiceFunClause Range Access IsAbstract TerminationCheck CoverageCheck Catchall Declaration
     -- ^ An uncategorized function clause, could be a function clause
     --   without type signature or a pattern lhs (e.g. for irrefutable let).
@@ -79,9 +76,9 @@ data NiceDeclaration
       --   into this 'FunDef' and are only used in 'notSoNiceDeclaration'.
       --   Andreas, 2017-01-01: Because of issue #2372, we add 'IsInstance' here.
       --   An alias should know that it is an instance.
-  | NiceDataDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [LamBinding] [NiceConstructor]
+  | NiceDataDef Range Origin IsAbstract PositivityCheck UniverseCheck Name DefParameters [NiceConstructor]
   | NiceLoneConstructor KwRange [NiceConstructor]
-  | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [RecordDirective] [LamBinding] [Declaration]
+  | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck ForceRecordEta Name [RecordDirective] DefParameters [Declaration]
       -- ^ @(Maybe Range)@ gives range of the 'pattern' declaration.
   | NicePatternSyn Range Access Name [WithHiding Name] Pattern
   | NiceGeneralize Range Access ArgInfo TacticAttribute Name Expr
@@ -159,7 +156,7 @@ data InterleavedDecl
         -- ^ Internal number of the data signature.
     , interleavedDeclSig  :: NiceDeclaration
         -- ^ The data signature.
-    , interleavedDataCons :: Maybe (DeclNum, List1 [NiceConstructor])
+    , interleavedDataCons :: Maybe (DeclNum, List1 (DefParameters, [NiceConstructor]))
         -- ^ Constructors associated to the data signature.
     }
   | InterleavedFun
@@ -181,6 +178,11 @@ data InterleavedState = ISt
 -- | Numbering declarations in an @interleaved mutual@ block.
 type DeclNum = Int
 
+instance HasRange InterleavedDecl where
+  getRange :: InterleavedDecl -> Range
+  getRange (InterleavedFun _ d _)  = getRange d
+  getRange (InterleavedData _ d _) = getRange d
+
 isInterleavedFun :: InterleavedDecl -> Maybe ()
 isInterleavedFun InterleavedFun{} = Just ()
 isInterleavedFun _ = Nothing
@@ -188,20 +190,6 @@ isInterleavedFun _ = Nothing
 isInterleavedData :: InterleavedDecl -> Maybe ()
 isInterleavedData InterleavedData{} = Just ()
 isInterleavedData _ = Nothing
-
-interleavedDecl :: Name -> InterleavedDecl -> [(DeclNum, NiceDeclaration)]
-interleavedDecl k = \case
-  InterleavedData i d@(NiceDataSig _ _ _acc abs pc uc _ pars _) ds ->
-    let fpars   = concatMap dropTypeAndModality pars
-        r       = getRange (k, fpars)
-        ddef cs = NiceDataDef (getRange (r, cs)) UserWritten
-                    abs pc uc k fpars cs
-    in (i,d) : maybe [] (\ (j, dss) -> [(j, ddef (sconcat (List1.reverse dss)))]) ds
-  InterleavedFun i d@(FunSig r _acc abs inst _mac _info tc cc n _e) dcs ->
-    let fdef dcss = let (dss, css) = List1.unzip dcss in
-                    FunDef r (sconcat dss) abs inst tc cc n (sconcat css)
-    in (i,d) : maybe [] (\ (j, dcss) -> [(j, fdef (List1.reverse dcss))]) dcs
-  _ -> __IMPOSSIBLE__ -- someone messed up and broke the invariant
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
 data KindOfBlock
@@ -220,16 +208,16 @@ instance HasRange NiceDeclaration where
   getRange (NiceMutual kwr _ _ _ ds)       = fuseRange kwr ds
   getRange (NiceModule r _ _ _ _ _ _ )     = r
   getRange (NiceModuleMacro r _ _ _ _ _ _) = r
-  getRange (NiceOpen r _ _)                = r
-  getRange (NiceImport r _ _ _ _)          = r
+  getRange (NiceOpen kwr x dir)            = getRange (kwr, x, dir)
+  getRange (NiceImport o r x as dir)       = getRange (o, r, x, as, dir)
   getRange (NicePragma r _)                = r
   getRange (PrimitiveFunction r _ _ _ _)   = r
   getRange (FunSig r _ _ _ _ _ _ _ _ _)    = r
   getRange (FunDef r _ _ _ _ _ _ _)        = r
   getRange (NiceDataDef r _ _ _ _ _ _ _)   = r
   getRange (NiceLoneConstructor kwr ds)    = fuseRange kwr ds
-  getRange (NiceRecDef r _ _ _ _ _ _ _ _)  = r
-  getRange (NiceRecSig r _ _ _ _ _ _ _ _)  = r
+  getRange (NiceRecDef r _ _ _ _ _ _ _ _ _)= r
+  getRange (NiceRecSig r _ _ _ _ _ _ _ _ _)= r
   getRange (NiceDataSig r _ _ _ _ _ _ _ _) = r
   getRange (NicePatternSyn r _ _ _ _)      = r
   getRange (NiceGeneralize r _ _ _ _ _)    = r
@@ -251,14 +239,14 @@ instance Pretty NiceDeclaration where
     NiceOpen _ x _                 -> text "open" <+> pretty x
     NiceImport _ x _ _ _           -> text "import" <+> pretty x
     NicePragma{}                   -> text "{-# ... #-}"
-    NiceRecSig _ _ _ _ _ _ x _ _   -> text "record" <+> pretty x
+    NiceRecSig _ _ _ _ _ _ _ x _ _ -> text "record" <+> pretty x
     NiceDataSig _ _ _ _ _ _ x _ _  -> text "data" <+> pretty x
     NiceFunClause{}                -> text "<function clause>"
     FunSig _ _ _ _ _ _ _ _ x _     -> pretty x <+> colon <+> text "_"
     FunDef _ _ _ _ _ _ x _         -> pretty x <+> text "= _"
     NiceDataDef _ _ _ _ _ x _ _    -> text "data" <+> pretty x <+> text "where"
     NiceLoneConstructor _ _        -> text "data _ where"
-    NiceRecDef _ _ _ _ _ x  _ _ _  -> text "record" <+> pretty x <+> text "where"
+    NiceRecDef _ _ _ _ _ _ x  _ _ _ -> text "record" <+> pretty x <+> text "where"
     NicePatternSyn _ _ x _ _       -> text "pattern" <+> pretty x
     NiceGeneralize _ _ _ _ x _     -> text "variable" <+> pretty x
     NiceUnquoteDecl _ _ _ _ _ _ _xs _  -> text "<unquote declarations>"
@@ -307,6 +295,7 @@ data DataRecOrFun
   | RecName
     { _kindPosCheck :: PositivityCheck
     , _kindUniCheck :: UniverseCheck
+    , _kindForceEta :: ForceRecordEta
     }
     -- ^ Name of a record type
   | FunName ArgInfo TerminationCheck CoverageCheck
@@ -317,10 +306,23 @@ instance NFData DataRecOrFun
 
 -- Ignore pragmas when checking equality
 instance Eq DataRecOrFun where
-  DataName{} == DataName{} = True
-  RecName{}  == RecName{}  = True
-  FunName{}  == FunName{}  = True
-  _          == _          = False
+  (==) = sameKind
+
+sameKind :: DataRecOrFun -> DataRecOrFun -> Bool
+sameKind = curry \case
+  (DataName{} , DataName{}) -> True
+  (RecName{}  , RecName{} ) -> True
+  (FunName{}  , FunName{} ) -> True
+  _ -> False
+
+-- | Monoidal for 'DataName' and 'RecName'.
+--   Returns just first 'FunName' discarding the second one.
+mergeDataRecOrFun :: DataRecOrFun -> DataRecOrFun -> Maybe DataRecOrFun
+mergeDataRecOrFun = curry \case
+  (DataName pc uc , DataName pc' uc') -> Just $ DataName (pc <> pc') (uc <> uc')
+  (RecName  pc uc eta, RecName  pc' uc' eta') -> Just $ RecName  (pc <> pc') (uc <> uc') (eta <> eta')
+  (f@FunName{}    , FunName{}       ) -> Just f
+  _ -> Nothing
 
 instance Pretty DataRecOrFun where
   pretty DataName{} = "data type"
@@ -330,9 +332,6 @@ instance Pretty DataRecOrFun where
 isFunName :: DataRecOrFun -> Bool
 isFunName (FunName{}) = True
 isFunName _           = False
-
-sameKind :: DataRecOrFun -> DataRecOrFun -> Bool
-sameKind = (==)
 
 terminationCheck :: DataRecOrFun -> TerminationCheck
 terminationCheck (FunName _ tc _) = tc
@@ -344,7 +343,7 @@ coverageCheck _ = YesCoverageCheck
 
 positivityCheck :: DataRecOrFun -> PositivityCheck
 positivityCheck (DataName pc _) = pc
-positivityCheck (RecName pc _)  = pc
+positivityCheck (RecName pc _ _)= pc
 positivityCheck (FunName _ _ _) = YesPositivityCheck
 
 mutualChecks :: DataRecOrFun -> MutualChecks
@@ -352,5 +351,10 @@ mutualChecks k = MutualChecks [terminationCheck k] [coverageCheck k] [positivity
 
 universeCheck :: DataRecOrFun -> UniverseCheck
 universeCheck (DataName _ uc) = uc
-universeCheck (RecName _ uc)  = uc
+universeCheck (RecName _ uc _)= uc
 universeCheck (FunName _ _ _) = YesUniverseCheck
+
+forceRecordEta :: DataRecOrFun -> ForceRecordEta
+forceRecordEta (DataName _ _)    = mempty
+forceRecordEta (RecName _ _ eta) = eta
+forceRecordEta (FunName _ _ _)   = mempty

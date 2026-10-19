@@ -1,0 +1,8 @@
+Issue8683Let.agda:17.64-69: error: [UnequalTerms]
+The terms
+  1
+and
+  0
+are not equal at type Nat
+when inferring the type of
+hcomp {A = P} {φ = j} (λ i _ → 0 , 0) (1 , 1)

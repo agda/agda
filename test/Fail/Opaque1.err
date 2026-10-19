@@ -1,3 +1,6 @@
-Opaque1.agda:11.9-12: error: [UnequalTerms]
-Set !=< foo
+Opaque1.agda:11.9-12: error: [UnequalTypes]
+The type
+  Set
+is not a subtype of
+  foo
 when checking that the expression Nat has type foo

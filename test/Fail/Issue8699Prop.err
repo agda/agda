@@ -1,0 +1,6 @@
+Issue8699Prop.agda:22.1-23.48: error: [TerminationIssue]
+Termination checking failed for the following function:
+  f
+Problematic call:
+  f (sq m) (fzero m)
+    (at Issue8699Prop.agda:23.30-31)

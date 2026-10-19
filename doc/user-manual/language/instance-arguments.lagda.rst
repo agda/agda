@@ -671,17 +671,25 @@ Find candidates
 
   Local variables, i.e. variables bound in lambdas, function types,
   left-hand sides, or module parameters, are candidates if they are
-  bound as instance arguments, using ``{{ }}``.
+  bound as instance arguments, using ``{{ }}``. This includes any
+  instance arguments to constructors of inductive or record types that
+  have been matched on.
 
-  If a local variable has an :ref:`eta record <eta-expansion>` type,
-  then any of its :ref:`instance fields <instance-fields>` are also
-  considered as locals. Beware that if Agda can not tell whether or not
-  a local variable is eta-expandable (e.g., its type is a metavariable),
-  instance search will not run.
+  If local variables in the context have :ref:`superclass fields
+  <superclass-fields>`, superclass expansion will apply. Note that
+  determining whether any local instance variables are subject to
+  expansion requires head-normalising their types.
 
   Only candidates of type ``{Δ} → C us``, where ``C`` is the target type
   computed in the previous stage, and ``{Δ}`` only contains implicit or
   instance arguments, are considered.
+
+  If it is not possible to determine whether a candidate's type is of
+  the correct shape, or whether its type is an eta record, instance
+  search will not run. This can happen in contexts where a local
+  *instance* variable has a metavariable as its (return) type, or if its
+  type is blocked on another metavariable, even if this metavariable
+  would be solved by choosing one of the unblocked candidates.
 
 Check the type of the candidates
   The list of initial candidates is an overapproximation to the set of
