@@ -20,8 +20,7 @@ Code of conduct
 
   Excluded are simple bug fixes with a milestone on github and without
   the tag `not-in-changelog`.  These are added upon release by the
-  release manager via the tool `src/release-tools/closed-issues-for-milestone`.
-  See [Closing issues](#closing-issues).
+  release manager via the tool [`closed-issues-for-milestone`](https://github.com/agda/closed-issues-for-milestone).
 
 * Changes should go through a pull request.
 
