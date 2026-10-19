@@ -856,6 +856,7 @@ library
       Agda.TypeChecking.Rewriting
       Agda.TypeChecking.Rewriting.Clause
       Agda.TypeChecking.Rewriting.Confluence
+      Agda.TypeChecking.Rewriting.Errors
       Agda.TypeChecking.Rewriting.NonLinMatch
       Agda.TypeChecking.Rewriting.NonLinPattern
       Agda.TypeChecking.Rules.Application

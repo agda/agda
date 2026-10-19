@@ -97,6 +97,7 @@ import Agda.Utils.String    ( rtrim )
 
 import Agda.Utils.Impossible
 import Agda.TypeChecking.Conversion.Errors
+import Agda.TypeChecking.Rewriting.Errors (prettyIllegal)
 
 ---------------------------------------------------------------------------
 -- * Top level function
@@ -1672,8 +1673,13 @@ instance PrettyTCM TypeError where
           <+> do inTopContext $ addContext tel $ prettyTCM core
         ]
 
-    InvalidatedLocalRewriteRule ->
-      "Local rewrite rule invalidated after a pattern-match"
+    InvalidatedLocalRewriteRule q r -> vcat
+      [ fsep $ pwords "Local rewrite rule invalidated after a pattern match:"
+      -- 'nest 2' apparently absorbs one empty line
+      , "" , ""
+      , nest 2 $ prettyIllegal q r
+      , ""
+      ]
 
     UnexpectedParameter par -> do
       text "Unexpected parameter" <+> prettyA par

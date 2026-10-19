@@ -160,7 +160,7 @@ data PragmaOptions = PragmaOptions
       -- ^ Allows matching on variables which occur in local rewrite rules
   , _optSmartWith                 :: WithDefault 'False
       -- ^ Change elaboration of with-abstraction, using local rewrite rules
-      --   to support dependent elimination as opposed to generalisation
+      --   instead of generalisation
   , _optCubical                   :: Maybe Cubical
   , _optGuarded                   :: WithDefault 'False
   , _optFirstOrder                :: WithDefault 'False

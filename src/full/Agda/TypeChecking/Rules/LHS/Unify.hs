@@ -356,8 +356,8 @@ recheckRewDom :: LocalRewriteInfo -> RewDom -> TCM RewDom
 recheckRewDom i d = do
   rew <- checkLocalRewriteRule i $ rewDomEq d
   case rew of
-    Just rew' -> pure $ d { rewDomRew = pure rew' }
-    Nothing   -> invalidatedRule
+    Right rew' -> pure $ d { rewDomRew = pure rew' }
+    Left  r    -> invalidatedRule (LocalRewrite i) r
 
 type UnifyStrategy = UnifyState -> ListT TCM UnifyStep
 

@@ -5890,7 +5890,7 @@ data TypeError
             --   an error occurred, possibly due to non-confluence of rewrite rules.
             --   This was a @GenericDocError@ before.
         | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
-        | InvalidatedLocalRewriteRule
+        | InvalidatedLocalRewriteRule SerialisableRewriteOrigin IllegalRewriteRuleReason
         -- ^ TODO: Error messages
     -- Cubical errors
         | CannotGenerateHCompClause Type

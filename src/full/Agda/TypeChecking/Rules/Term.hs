@@ -58,7 +58,7 @@ import Agda.TypeChecking.Quote
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Rewriting ( checkEquationValid, checkLocalRewriteRule )
+import Agda.TypeChecking.Rewriting ( checkEquationValid, checkLocalRewriteRule, warnIllegal )
 import Agda.TypeChecking.Rules.LHS
 import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.SizedTypes
@@ -89,6 +89,7 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
+import Agda.Utils.Applicative (forA)
 import Agda.Utils.Impossible
 import Agda.Utils.Boolean (implies)
 
@@ -353,7 +354,7 @@ checkDomain lamOrPi n xs e = do
     r <- case lamOrPi of
       -- TODO: Disabling this check on 'rewMatches' is a hack
       PiNotLam | isRewrite r && not rewMatches -> IsNotRewrite <$
-        runMaybeT (illegalRule (LocalRewrite i) LocalRewriteOutsideTelescope)
+        illegalRuleWarn (LocalRewrite i) LocalRewriteOutsideTelescope
       _                                        -> pure r
 
     rDom <- checkRewDom i r
@@ -371,7 +372,8 @@ checkDomain lamOrPi n xs e = do
 checkRewDom :: LocalRewriteInfo -> RewriteAnn -> TCM (Maybe RewDom)
 checkRewDom i@(LocalRewriteInfo o _ _ t) r = do
   eq  <- checkEquationValid (LocalRewrite i) r t
-  rew <- traverse (checkLocalRewriteRule i) eq
+  rew <- forA eq \ eq' ->
+    warnIllegal (LocalRewrite i) =<< checkLocalRewriteRule i eq'
   let rDom = RewDom o <$> eq <*> fmap pure (join rew)
   whenJust rDom \rDom' -> reportSDoc "rewriting" 30 $
       "Successfully elaborated: " <+> prettyTCM (rewDomEq rDom') <+>

@@ -10,6 +10,7 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
+import Control.Monad.Trans.Except ( throwE )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer         ( WriterT )
@@ -659,22 +660,19 @@ defaultAddLetBinding' isAxiom o x v t ret = do
     vt <- makeOpen $ LetBinding isAxiom o v t
     localTC (over eLetBindings (Map.insert x vt)) ret
 
-unsafeRule ::
-     (MonadWarning m)
-  => RewriteOrigin -> IllegalRewriteRuleReason -> MaybeT m ()
-unsafeRule s reason = lift $ warning $ IllegalRewriteRule (defName <$> s) reason
+type ExceptIllegalTCM a =
+  ExceptT IllegalRewriteRuleReason TCM a
 
-illegalRule ::
-     (MonadWarning m)
-  => RewriteOrigin -> IllegalRewriteRuleReason -> MaybeT m a
-illegalRule s reason = do
-  unsafeRule s reason
-  mzero
+-- | Warn about an illegal rewrite rule
+illegalRuleWarn ::
+  MonadWarning m => RewriteOrigin -> IllegalRewriteRuleReason -> m ()
+illegalRuleWarn s r = warning $ IllegalRewriteRule (defName <$> s) r
 
 -- | We hard error on local rewrite rules invalidated by pattern matching to
 --   avoid continuing in ill-typed contexts
-invalidatedRule :: MonadTCError m => m a
-invalidatedRule = typeError InvalidatedLocalRewriteRule
+invalidatedRule :: MonadTCError m =>
+  RewriteOrigin -> IllegalRewriteRuleReason -> m a
+invalidatedRule s r = typeError $ InvalidatedLocalRewriteRule (defName <$> s) r
 
 -- | Add a let bound variable.
 {-# INLINE addLetBinding #-}

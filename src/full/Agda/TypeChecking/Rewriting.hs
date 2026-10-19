@@ -45,6 +45,8 @@ module Agda.TypeChecking.Rewriting where
 
 import Prelude hiding (null)
 
+import Control.Monad.Except (ExceptT)
+import Control.Monad.Trans.Except (runExceptT, throwE)
 import Control.Monad.Trans.Maybe ( MaybeT(..), runMaybeT )
 
 import Data.Either (partitionEithers)
@@ -179,14 +181,20 @@ rewriteRelationDom rel = do
         addContext delta $ prettyTCM a
   return (delta, a)
 
+warnIllegal ::
+  RewriteOrigin -> Either IllegalRewriteRuleReason a -> TCM (Maybe a)
+warnIllegal s (Left r)    = illegalRuleWarn s r $> Nothing
+warnIllegal s (Right rew) = pure $ Just rew
+
 checkEquationValid ::
   RewriteOrigin -> RewriteAnn -> Type -> TCM (Maybe LocalEquation)
 checkEquationValid s rewAnn t
-  | isRewrite rewAnn = runMaybeT $ checkIsRewriteRelation s t
+  | isRewrite rewAnn = warnIllegal s =<< do
+    runExceptT $ checkIsRewriteRelation s t
   | otherwise        = pure Nothing
 
 checkIsRewriteRelation ::
-  RewriteOrigin -> Type -> MaybeT TCM LocalEquation
+  RewriteOrigin -> Type -> ExceptIllegalTCM LocalEquation
 checkIsRewriteRelation q t = do
   rels <- lift getBuiltinRewriteRelations
   reportSDoc "rewriting.relations" 40 $ vcat
@@ -213,7 +221,7 @@ checkIsRewriteRelation q t = do
         b   <- instantiateFull $ applySubst (parallelS $ reverse us) a
         gamma1 <- instantiateFull gamma1
         pure $ LocalEquation gamma1  lhs rhs (unDom b)
-    _ -> illegalRule q DoesNotTargetRewriteRelation
+    _ -> throwE DoesNotTargetRewriteRelation
 
 -- | Check the validity of @q : Γ → rel us lhs rhs@ as rewrite rule
 --   @
@@ -224,32 +232,35 @@ checkIsRewriteRelation q t = do
 --   @rel us : (lhs rhs : A[us/Δ]) → Set i@.
 --   Returns the checked rewrite rule to be added to the signature.
 checkGlobalRewriteRule :: QName -> TCM (Maybe GlobalRewriteRule)
-checkGlobalRewriteRule q = runMaybeT $ setCurrentRange q do
+checkGlobalRewriteRule q = do
+  def <- instantiateDef =<< getConstInfo q
+  warnIllegal (GlobalRewrite def) =<< do
+  runExceptT $ setCurrentRange q $ do
+
   lift requireOptionRewriting
   rels <- lift getBuiltinRewriteRelations
   reportSDoc "rewriting.relations" 40 $ vcat
     [ "Rewrite relations:"
     , prettyList $ map prettyTCM $ toList rels
     ]
-  def <- instantiateDef =<< getConstInfo q
 
   -- Issue 1651: Check that we are not adding a rewrite rule
   -- for a type signature whose body has not been type-checked yet.
   when (isEmptyFunction $ theDef def) $
-    illegalRule (GlobalRewrite def) BeforeFunctionDefinition
+    throwE BeforeFunctionDefinition
   -- Issue 6643: Also check that there are no mutual definitions
   -- that are not yet defined.
   whenJustM (viewTC eMutualBlock) \ mb -> do
     qs <- mutualNames <$> lookupMutualBlock mb
     when (Set.member q qs) $ forM_ qs $ \r -> do
       whenM (isEmptyFunction . theDef <$> getConstInfo r) $
-        illegalRule (GlobalRewrite def) $ BeforeMutualFunctionDefinition r
+        throwE $ BeforeMutualFunctionDefinition r
 
   eq <- checkIsRewriteRelation (GlobalRewrite def) (defType def)
   RewriteRule g h ps rhs b <- checkRewriteRule eq $ GlobalRewrite def
   f <- case h of
     RewDefHead f -> pure f
-    RewVarHead x -> illegalRule (GlobalRewrite def) LHSNotDefinitionOrConstructor
+    RewVarHead x -> throwE LHSNotDefinitionOrConstructor
 
   top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
 
@@ -293,8 +304,8 @@ occursCheckSmartWithRewrite r = do
     pure $ 0 `VarSet.member` fvs
 
 checkLocalRewriteRule :: LocalRewriteInfo -> LocalEquation
-  -> TCM (Maybe RewriteRule)
-checkLocalRewriteRule i eq = runMaybeT $ do
+  -> TCM (Either IllegalRewriteRuleReason RewriteRule)
+checkLocalRewriteRule i eq = runExceptT $ do
   cxt <- getContext
   let o = LocalRewrite i
   -- For now, we fail if the local rewrite rule contains metas ANYWHERE
@@ -307,7 +318,7 @@ checkLocalRewriteRule i eq = runMaybeT $ do
       checkSmartWithRewrite o (lEqLHS eq) rew
 
     pure rew)
-  {- else -} (illegalRule o . ContainsUnsolvedMetaVariables)
+  {- else -} (throwE . ContainsUnsolvedMetaVariables)
 
 -- | Run extra smart with rewrite rule checks:
 --   * RHS may not contain closures
@@ -315,10 +326,10 @@ checkLocalRewriteRule i eq = runMaybeT $ do
 --
 --   The LHS should have already been checked for neutrality
 checkSmartWithRewrite ::
-     RewriteOrigin  -- ^ Origin of the rewrite rule
-  -> Term           -- ^ LHS of the rewrite rule as a term
-  -> RewriteRule    -- ^ The rewrite rule
-  -> MaybeT TCM ()  -- ^ Returns 'Just' on success, otherwise 'Nothing'
+     RewriteOrigin        -- ^ Origin of the rewrite rule
+  -> Term                 -- ^ LHS of the rewrite rule as a term
+  -> RewriteRule          -- ^ The rewrite rule
+  -> ExceptIllegalTCM ()  -- ^ Returns 'Just' on success, otherwise 'Nothing'
 checkSmartWithRewrite o lhs rew = do
   -- The normalisation proof requires the RHS to not contain any closures
   -- even after eta-expanding. In practice, this is quite restrictive, so
@@ -329,11 +340,11 @@ checkSmartWithRewrite o lhs rew = do
   -- I conjecture this is enough to retain normalisation.
   let rhs' = raise 1 $ rewRHS rew
   whenM (lift $ addLocalRewriteToFresh rew $ containsClosures rhs') $
-    illegalRule o RHSContainsClosures
+    throwE RHSContainsClosures
 
   -- Occurs checks
   unlessM (lift $ occursCheckSmartWithRewrite rew) $
-    illegalRule o SmartWithOccursFail
+    throwE SmartWithOccursFail
 
 -- | Decide whether a term contains closures (lambdas or underapplied
 --   functions, unguarded by a stuck computation)
@@ -376,7 +387,7 @@ isUnderapplied t = do
     Blocked    _  _ -> pure False
 
 checkRewriteRuleLHS :: RewriteOrigin -> Telescope -> Term -> Type
-  -> MaybeT TCM (RewriteHead, Elims -> Term, Type, [Int], Elims)
+  -> ExceptIllegalTCM (RewriteHead, Elims -> Term, Type, [Int], Elims)
 checkRewriteRuleLHS s gamma1 lhs b = do
   case lhs of
     Def f es -> do
@@ -387,7 +398,7 @@ checkRewriteRuleLHS s gamma1 lhs b = do
     Con c ci vs -> do
       -- Constructor applications are never neutral
       when (isSmartWithRewrite s) $
-        illegalRule s $ LHSNotNeutral LHSConstructorHeaded
+        throwE $ LHSNotNeutral LHSConstructorHeaded
       let hd = Con c ci
       ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c b
       pars <- addContext gamma1 $ checkParametersAreGeneral c pars
@@ -401,19 +412,20 @@ checkRewriteRuleLHS s gamma1 lhs b = do
     _ -> do
       reportSDoc "rewriting.rule.check" 30 $ hsep
         [ "LHSNotDefinitionOrConstructor: ", prettyTCM lhs ]
-      illegalRule s LHSNotDefinitionOrConstructor
+      throwE LHSNotDefinitionOrConstructor
   where
     -- '--smart-with' rewrite rule LHSs must be neutral
-    checkNeutral :: Term -> MaybeT TCM ()
-    checkNeutral t = whenM (lift $ isUnderapplied t) $ illegalRule s $
+    checkNeutral :: Term -> ExceptIllegalTCM ()
+    checkNeutral t = whenM (lift $ isUnderapplied t) $ throwE $
       LHSNotNeutral LHSUnderapplied
 
-    checkAxFunOrCon :: QName -> Definition -> MaybeT TCM ()
+    checkAxFunOrCon :: QName -> Definition
+      -> ExceptIllegalTCM ()
     checkAxFunOrCon f def = case theDef def of
       Axiom{}        -> return ()
       def@Function{} -> do
         whenJust (maybeRight (funProjection def)) $ \proj -> case projProper proj of
-          Nothing -> illegalRule s $ HeadSymbolIsProjectionLikeFunction f
+          Nothing -> throwE $ HeadSymbolIsProjectionLikeFunction f
           Just{} -> __IMPOSSIBLE__
             -- Andreas, 2024-08-20
             -- A projection ought to be impossible in the head, since they are represented
@@ -423,7 +435,7 @@ checkRewriteRuleLHS s gamma1 lhs b = do
         whenM (isJust . optConfluenceCheck <$> pragmaOptions) $ do
           let simpleClause cl = (patternsToElims (namedClausePats cl) , clauseBody cl)
           cls <- instantiateFull $ map simpleClause $ funClauses def
-          unless (noMetas cls) $ illegalRule s $ HeadSymbolContainsMetas f
+          unless (noMetas cls) $ throwE $ HeadSymbolContainsMetas f
 
       Constructor{}  -> return ()
       AbstractDefn{} -> return ()
@@ -437,9 +449,10 @@ checkRewriteRuleLHS s gamma1 lhs b = do
       GeneralizableVar{} -> __IMPOSSIBLE__
 
       where
-        illegalHead = illegalRule s $ HeadSymbolIsTypeConstructor f
+        illegalHead = throwE $ HeadSymbolIsTypeConstructor f
 
-    checkParametersAreGeneral :: ConHead -> Args -> MaybeT TCM [Int]
+    checkParametersAreGeneral ::
+      ConHead -> Args -> ExceptIllegalTCM [Int]
     checkParametersAreGeneral c vs = do
         is <- loop vs
         unless (fastDistinct is) $ errorNotGeneral
@@ -450,29 +463,31 @@ checkRewriteRuleLHS s gamma1 lhs b = do
           Var i [] -> (i :) <$> loop vs
           _        -> errorNotGeneral
 
-        errorNotGeneral :: MaybeT TCM a
-        errorNotGeneral = illegalRule s $ ConstructorParametersNotGeneral c $
+        errorNotGeneral :: ExceptIllegalTCM a
+        errorNotGeneral = throwE $ ConstructorParametersNotGeneral c $
           fromMaybe __IMPOSSIBLE__ $ nonEmpty vs
 
-checkRewriteRule :: LocalEquation -> RewriteOrigin -> MaybeT TCM RewriteRule
+checkRewriteRule ::
+     LocalEquation -> RewriteOrigin -> ExceptIllegalTCM RewriteRule
 checkRewriteRule eq@(LocalEquation gamma1 lhs rhs b) s = do
   reportSDoc "rewriting" 30 $
     "Checking rewrite rule: " <+> prettyTCM eq
 
-  let failureBlocked :: Blocker -> MaybeT TCM a
+  let failureBlocked :: Blocker -> ExceptIllegalTCM a
       failureBlocked b
-        | Set1.IsNonEmpty ms <- allBlockingMetas    b = illegalRule s $ ContainsUnsolvedMetaVariables ms
-        | Set1.IsNonEmpty ps <- allBlockingProblems b = illegalRule s $ BlockedOnProblems ps
-        | Set1.IsNonEmpty qs <- allBlockingDefs     b = illegalRule s $ RequiresDefinitions qs
+        | Set1.IsNonEmpty ms <- allBlockingMetas    b = throwE $ ContainsUnsolvedMetaVariables ms
+        | Set1.IsNonEmpty ps <- allBlockingProblems b = throwE $ BlockedOnProblems ps
+        | Set1.IsNonEmpty qs <- allBlockingDefs     b = throwE $ RequiresDefinitions qs
         | otherwise = __IMPOSSIBLE__
-  let failureFreeVars :: VarSet -> MaybeT TCM a
-      failureFreeVars xs = illegalRule s $ VariablesNotBoundByLHS xs
-  let warnUnsafeVars :: VarSet -> MaybeT TCM ()
-      warnUnsafeVars xs = unsafeRule s $ VariablesBoundInSingleton xs
-  let failureNonLinearPars :: VarSet -> MaybeT TCM a
-      failureNonLinearPars xs = illegalRule s $ VariablesBoundMoreThanOnce xs
-  let failureIntervalVars :: VarSet -> MaybeT TCM a
-      failureIntervalVars xs = illegalRule s $ IntervalVariablesPresent xs
+  let failureFreeVars :: VarSet -> ExceptIllegalTCM a
+      failureFreeVars xs = throwE $ VariablesNotBoundByLHS xs
+  let warnUnsafeVars :: VarSet -> ExceptIllegalTCM ()
+      warnUnsafeVars xs =
+        lift $ illegalRuleWarn s $ VariablesBoundInSingleton xs
+  let failureNonLinearPars :: VarSet -> ExceptIllegalTCM a
+      failureNonLinearPars xs = throwE $ VariablesBoundMoreThanOnce xs
+  let failureIntervalVars :: VarSet -> ExceptIllegalTCM a
+      failureIntervalVars xs = throwE $ IntervalVariablesPresent xs
 
   gamma0 <- getContextTelescope
   let gamma = gamma0 `abstract` gamma1
@@ -588,31 +603,31 @@ checkRewriteRule eq@(LocalEquation gamma1 lhs rhs b) s = do
     return rew
   where
     ifNotAlreadyAdded ::
-         RewriteOrigin -> RewriteHead -> MaybeT TCM RewriteRule
-      -> MaybeT TCM RewriteRule
+         RewriteOrigin -> RewriteHead -> ExceptIllegalTCM RewriteRule
+      -> ExceptIllegalTCM RewriteRule
     ifNotAlreadyAdded (GlobalRewrite def) (RewDefHead f) cont = do
       rews <- getGlobalRewriteRulesFor f
       -- check if q is already an added rewrite rule
       case List.find ((defName def ==) . grName) rews of
-        Just rew -> illegalRule (GlobalRewrite def) DuplicateRewriteRule
+        Just rew -> throwE DuplicateRewriteRule
         Nothing -> cont
     ifNotAlreadyAdded (GlobalRewrite def) (RewVarHead x) cont = __IMPOSSIBLE__
     ifNotAlreadyAdded (LocalRewrite _) f cont = cont
 
     checkNoLhsReduction ::
          Nat -> RewriteHead -> (Elims -> Term) -> Elims
-      -> MaybeT TCM ()
+      -> ExceptIllegalTCM ()
     checkNoLhsReduction telStart f hd es = do
       -- Skip this check when global confluence check is enabled, as
       -- redundant rewrite rules may be required to prove confluence.
       unlessM ((== Just GlobalConfluenceCheck) . optConfluenceCheck <$> pragmaOptions) $ do
       let v = hd es
       v' <- reduce v
-      let fail :: MaybeT TCM a
+      let fail :: ExceptIllegalTCM a
           fail = do
             reportSDoc "rewriting" 20 $ "v  = " <+> prettyTCM v
             reportSDoc "rewriting" 20 $ "v' = " <+> prettyTCM v'
-            illegalRule s $ LHSReduces v v'
+            throwE $ LHSReduces v v'
       es' <- case (f, v') of
         (RewDefHead f, Def f' es')   | f == f'            -> return es'
         (RewDefHead f, Con c' _ es') | f == conName c'    -> return es'
@@ -636,10 +651,10 @@ checkRewriteRule eq@(LocalEquation gamma1 lhs rhs b) s = do
         used Pos.Unused = False
         used _          = True
 
-    isIntervalVar :: Nat -> MaybeT TCM Bool
+    isIntervalVar :: Nat -> ExceptIllegalTCM Bool
     isIntervalVar i = do
       dom      <- domOfBV i
-      interval <- primInterval
+      interval <- lift $ primInterval
       -- TODO: This seems quite brittle. Is there a better way to detect
       -- interval variables?
       pure $ unEl (unDom dom) == interval

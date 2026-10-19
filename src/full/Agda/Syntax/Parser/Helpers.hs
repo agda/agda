@@ -560,7 +560,7 @@ patternSynArgs = mapM \ x -> do
           ArgInfo _ _ _ _ (Annotation (IsLock _) _) ->
             abort $ noAnn "Lock"
 
-          ArgInfo _ _ _ _ (Annotation _ (IsRewrite{})) ->
+          ArgInfo _ _ _ _ (Annotation _ IsRewrite{}) ->
             abort $ noAnn "Rewrite"
 
           ArgInfo _ (Modality r q c p) _ _ _
