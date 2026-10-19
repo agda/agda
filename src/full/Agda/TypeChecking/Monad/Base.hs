@@ -5677,7 +5677,8 @@ data UnquoteError
   | EscapingVariable (Closure Term)
       -- ^ Given meta-program produces unbound variable under @extendContext@.
   | MissingDeclaration QName
-  | MissingDefinition QName
+  | MissingDefinition (List1 QName)
+      -- ^ These names should have been defined by the meta-program, but were not.
   | NakedUnquote
   | NonCanonical String I.Term
   | PatLamWithoutClauses I.Term

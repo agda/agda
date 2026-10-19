@@ -2019,8 +2019,8 @@ instance PrettyTCM UnquoteError where
     MissingDeclaration x -> fsep $
       pwords "Missing declaration for" ++ [ prettyTCM x ]
 
-    MissingDefinition x -> fsep $
-      pwords "Missing definition for" ++ [ prettyTCM x ]
+    MissingDefinition xs -> fsep $
+      pwords "Missing definition for" ++ punctuate comma (fmap prettyTCM xs)
 
     NakedUnquote -> fwords "`unquote' must be applied to a term"
 
