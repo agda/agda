@@ -3,13 +3,11 @@
 --
 -- Just a data signature can be produced with reflection.
 -- This used to trigger an internal error during serialization.
+--
+-- Andreas, 2026-10-19, issue #8851:
+-- A data signature without definition is now rejected.
 
 open import Common.Reflection
 
 unquoteDecl data D =
   declareData D 0 (quoteTerm Set)
-
--- This data type without a definition can be used like a postulate.
-
-id : D → D
-id x = x

@@ -1,5 +1,5 @@
 -- Andreas, 2026-10-19, issue #8851
--- Undeclared constructor.
+-- Declared but undefined data type and undeclared constructor.
 
 module Issue8851-data where
 open import Agda.Builtin.Reflection

@@ -151,11 +151,11 @@ runUnquoteM xs m = do
       Right def -> return case theDef def of
         -- Functions need at least one clause to be defined.
         FunctionDefn FunctionData{ _funClauses = cl } -> null cl
+        -- A data or record type that has only been declared but not defined.
+        DataOrRecSigDefn  {} -> True
         -- Andreas, 2024-10-11:
         -- some of the following cases might be __IMPOSSIBLE__
         AxiomDefn         {} -> False
-        -- A data signature without definition is allowed (issue #7576).
-        DataOrRecSigDefn  {} -> False
         GeneralizableVar  {} -> False
         AbstractDefn      {} -> False
         DatatypeDefn      {} -> False
