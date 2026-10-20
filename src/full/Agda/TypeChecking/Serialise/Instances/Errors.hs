@@ -153,6 +153,7 @@ instance EmbPrj Warning where
     InferredLocalRewrite a b                    -> icodeN 78 InferredLocalRewrite a b
     ShouldBeEtaRecordPattern                    -> icodeN 79 ShouldBeEtaRecordPattern
     UnguardedEtaRecordW a                       -> icodeN 80 UnguardedEtaRecordW a
+    RewriteRelationNotDataOrPostulate a         -> icodeN 81 RewriteRelationNotDataOrPostulate a
 
   value = vcase $ \ case
     N3 0 a b      -> valuN UnreachableClauses a b
@@ -237,6 +238,7 @@ instance EmbPrj Warning where
     N3 78 a b     -> valuN InferredLocalRewrite a b
     N1 79         -> valuN ShouldBeEtaRecordPattern
     N2 80 a       -> valuN UnguardedEtaRecordW a
+    N2 81 a       -> valuN RewriteRelationNotDataOrPostulate a
     _ -> malformed
 
 instance EmbPrj UselessPublicReason

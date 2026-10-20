@@ -199,6 +199,7 @@ errorWarnings = Set.fromList
   , RewriteMaybeNonConfluent_
   , RewriteAmbiguousRules_
   , RewriteMissingRule_
+  , RewriteRelationNotDataOrPostulate_
   , LocalRewriteOutsideTelescope_
   , InferredLocalRewrite_
   , TopLevelPolarity_
@@ -377,6 +378,7 @@ data WarningName
   | RewriteNonConfluent_
   | RewriteAmbiguousRules_
   | RewriteMissingRule_
+  | RewriteRelationNotDataOrPostulate_
   | DuplicateRewriteRule_
   | LocalRewriteOutsideTelescope_
   | InferredLocalRewrite_
@@ -638,6 +640,7 @@ warningNameDescription = \case
   RewriteNonConfluent_             -> "Failed local confluence checks while joining critical pairs."
   RewriteAmbiguousRules_           -> "Failed global confluence checks because of overlapping rules."
   RewriteMissingRule_              -> "Failed global confluence checks because of missing rule."
+  RewriteRelationNotDataOrPostulate_ -> "Rewrite relation is not a postulate or data/record type."
   DuplicateRewriteRule_            -> "Duplicate rewrite rules."
   LocalRewriteOutsideTelescope_    -> "'@rewrite' arguments are (currently) only allowed in module telescopes."
   InferredLocalRewrite_            -> "Tried to solve a meta with an '@rewrite' function."

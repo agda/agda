@@ -5291,6 +5291,8 @@ data Warning
   | RewriteMissingRule Term Term Term
     -- ^ The global confluence checker found a term @u@ that reduces
     --   to @v@, but @v@ does not reduce to @rho(u)@.
+  | RewriteRelationNotDataOrPostulate Term
+    -- ^ The rewrite relation is not a data/record type or a postulate.
   | InferredLocalRewrite MetaId Term
     -- ^ Inferred that some meta should be solved with an @rewrite function
     --   (We never infer local rewrite rules)
@@ -5477,6 +5479,7 @@ warningName = \case
   RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
   RewriteAmbiguousRules{}      -> RewriteAmbiguousRules_
   RewriteMissingRule{}         -> RewriteMissingRule_
+  RewriteRelationNotDataOrPostulate{} -> RewriteRelationNotDataOrPostulate_
   InferredLocalRewrite{}       -> InferredLocalRewrite_
   PragmaCompileErased{}        -> PragmaCompileErased_
   PragmaCompileList{}          -> PragmaCompileList_
@@ -6234,7 +6237,6 @@ data IncorrectTypeForRewriteRelationReason
   = ShouldAcceptAtLeastTwoArguments
   | FinalTwoArgumentsNotVisible
   | TypeDoesNotEndInSort Type Telescope
-  | RelationNotDataOrPostulate
     deriving (Show, Generic)
 
 -- | Extra information for error 'CannotQuote'.

@@ -596,6 +596,11 @@ prettyWarning = \case
         ]
       ]
 
+    RewriteRelationNotDataOrPostulate q -> sep
+        [ prettyTCM q <+> " is not a valid name for a rewriting relation"
+        , "because it is not a postulate or a data/record type."
+        ]
+
     InferredLocalRewrite m v -> vcat
       [ fsep $ pwords "Tried to solve"
       , nest 2 $ prettyTCM m

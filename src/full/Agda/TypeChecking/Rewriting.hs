@@ -120,10 +120,10 @@ verifyBuiltinRewrite v t = do
         Datatype{}         -> return ()
         Record{}           -> return ()
         DataOrRecSigDefn{} -> return ()
-        _                  -> typeError $ IncorrectTypeForRewriteRelation v $ RelationNotDataOrPostulate
+        _                  -> warning $ RewriteRelationNotDataOrPostulate v
       -- Relation might have been eta-expanded
       Lam _ b -> checkRelationIsDataOrPostulate $ unAbs b
-      _ -> typeError $ IncorrectTypeForRewriteRelation v $ RelationNotDataOrPostulate
+      _ -> warning $ RewriteRelationNotDataOrPostulate v
 
 
 -- | Deconstructing a type into @Δ → t → t' → core@.

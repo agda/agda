@@ -513,6 +513,7 @@ warningHighlighting' b w = case tcWarning w of
   RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting w
   RewriteAmbiguousRules{}    -> confluenceErrorHighlighting w
   RewriteMissingRule{}       -> confluenceErrorHighlighting w
+  RewriteRelationNotDataOrPostulate{} -> errorWarningHighlighting w
   IllegalRewriteRule (GlobalRewrite x)    _ -> deadcodeHighlighting x
   IllegalRewriteRule (LocalRewrite _ x _) _ -> deadcodeHighlighting x
   NotARewriteRule x _        -> deadcodeHighlighting x

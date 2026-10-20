@@ -1,4 +1,8 @@
-Issue2451.agda:14.1-28: error: [IncorrectTypeForRewriteRelation]
+
+Issue2451.agda:23.13-19: warning: -W[no]RewriteDoesNotTargetRewriteRelation
+plus0p  does not target rewrite relation
+when checking the pragma REWRITE plus0p
+Issue2451.agda:14.1-28: error: [RewriteRelationNotDataOrPostulate]
 λ {t} ⦃ r ⦄ →
   Eq._≡_ r  is not a valid name for a rewriting relation
 because it is not a postulate or a data/record type.
