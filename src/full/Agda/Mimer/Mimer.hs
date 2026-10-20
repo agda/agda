@@ -449,17 +449,20 @@ refine branch = withBranchState branch $ do
     reportSDoc "mimer.refine" 30 $ "Goal type:" <+> pretty goalType1
     reportSDoc "mimer.refine" 30 $ "Goal context:" <+> (pretty =<< getContextTelescope)
 
-    -- Lambda-abstract as far as possible
-    tryLamAbs goal1 goalType1 branch1 >>= \case
+    -- Lambda-abstract as far as possible.
+    -- Assigning the goal can wake up postponed constraints, which may fail;
+    -- then the branch is dead (rather than the whole search).
+    tryLamAbs' goal1 goalType1 branch1 >>= \case
+      Nothing -> return []
       -- Absurd lambda
-      Left branch2 -> do
+      Just (Left branch2) -> do
         mimerTrace 1 10 $ sep
               [ "Absurd lambda refinement", nest 2 $ prettyGoalInst goal1 ]
         args <- map Apply <$> getContextArgs
         e <- blankNotInScope =<< reify (MetaV (goalMeta goal1) args)
         return [ResultExpr e]
       -- Normal abstraction
-      Right (goal2, goalType2, branch2) -> withBranchAndGoal branch2 goal2 $ do
+      Just (Right (goal2, goalType2, branch2)) -> withBranchAndGoal branch2 goal2 $ do
         (branch3, components) <- prepareComponents goal2 branch2
         withBranchAndGoal branch3 goal2 $ do
 
@@ -492,6 +495,16 @@ tryComponents goal goalType branch comps = withBranchAndGoal branch goal $ do
         return $ map (\br -> br{sbCache = Map.insert checkpoint newCache (sbCache branch)}) newBranches
   newBranches <- concatMapM tryFor comps
   mapM checkSolved newBranches
+
+-- | Like 'tryLamAbs', but returns @Nothing@ if lambda abstraction fails,
+--   e.g. because the assignment woke up a postponed constraint that turned out to be unsolvable.
+tryLamAbs' :: Goal -> Type -> SearchBranch -> SM (Maybe (Either SearchBranch (Goal, Type, SearchBranch)))
+tryLamAbs' goal goalType branch =
+  (Just <$> tryLamAbs goal goalType branch) `catchError` \ err -> do
+    mimerTrace 1 10 $ vcat
+      [ "Failed lambda abstraction for goal" <+> prettyTCM (goalMeta goal)
+      , nest 2 $ prettyTCM err ]
+    return Nothing
 
 -- | Returns @Right@ for normal lambda abstraction and @Left@ for absurd lambda.
 tryLamAbs :: Goal -> Type -> SearchBranch -> SM (Either SearchBranch (Goal, Type, SearchBranch))
