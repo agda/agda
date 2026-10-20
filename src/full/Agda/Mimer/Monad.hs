@@ -23,6 +23,7 @@ import Agda.Syntax.Concrete.Name qualified as C
 import Agda.Syntax.Abstract (Expr)
 import Agda.Syntax.Abstract qualified as A
 import Agda.Syntax.Abstract.Views qualified as A
+import Agda.Syntax.Info (metaNumber)
 import Agda.Syntax.Internal.MetaVars (AllMetas(..))
 import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcrete_)
 import Agda.Syntax.Translation.InternalToAbstract (reify, blankNotInScope)
@@ -34,7 +35,7 @@ import Agda.TypeChecking.Datatypes (isDataOrRecord)
 import Agda.TypeChecking.Reduce (reduce, instantiateFull, instantiate)
 import Agda.TypeChecking.Records (isRecord)
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Conversion (equalType)
+import Agda.TypeChecking.Conversion (equalType, equalTerm)
 import Agda.TypeChecking.Telescope (flattenTel, piApplyM)
 import Agda.TypeChecking.Substitute (pattern TelV, telView', piApply, apply, applyE)
 import Agda.Interaction.BasicOps (normalForm)
@@ -92,7 +93,16 @@ assignMeta metaId term metaType = bench [Bench.CheckRHS] $ do
         , [ nest 2 $ "in context" <+> pretty tel | not $ null tel ]
         ]
 
-    assignV DirLeq metaId metaArgs term (AsTermsOf metaType)
+    -- The meta might have been instantiated in the meantime by constraint solving,
+    -- e.g. pruning might have replaced it by a fresh meta.
+    -- Then we must not overwrite its solution, but compare it with the given term.
+    if isOpenMeta (mvInstantiation metaVar)
+    then assignV DirLeq metaId metaArgs term (AsTermsOf metaType)
+    else do
+      reportSMDoc "mimer.assignMeta" 40 $
+        "Meta" <+> prettyTCM metaId <+> "already instantiated, comparing with" <+> prettyTCM term
+      pid <- asks searchProblem
+      lift $ solvingProblem pid $ equalTerm metaType (MetaV metaId $ map Apply metaArgs) term
 
 getLocalVarTerms :: Int -> TCM [(Term, Dom Type)]
 getLocalVarTerms localCxt = do
@@ -594,13 +604,29 @@ checkSolved branch = do
     goals <- filterM (isNothing <.> getMetaInstantiation . goalMeta) $ sbGoals branch
     case goals of
       -- Postponed constraints must be solved by the complete solution.
-      [] -> ifM (not <$> searchConstraintsSolved) (return NoSolution) $
-      -- Issue #378: Blank out variables that are not in scope.
-      -- This might leave unsolved metas but is probably better
-      -- than generating out-of-scope variables.
-        ResultExpr <$> (blankNotInScope =<< reify inst)
+      [] -> ifM (not <$> searchConstraintsSolved) (return NoSolution) $ do
+        -- Solving the constraints might have instantiated more metas.
+        inst' <- normaliseSolution inst
+        -- Issue #378: Blank out variables that are not in scope.
+        e <- blankNotInScope =<< reify inst'
+        -- A solution showing unsolved metas cannot be given (#7402, #8609),
+        -- e.g. metas created by unification that are not goals of the search.
+        -- Note: we check the reified expression rather than the term,
+        -- since the term may contain unsolved metas of let-bound variables (#7639).
+        case A.foldExpr exprMetas e of
+          []    -> return $ ResultExpr e
+          metas -> do
+            mimerTrace 1 20 $ "Rejecting solution with unsolved metas" <+> prettyTCM metas
+            return NoSolution
       _ -> do
         return $ OpenBranch branch { sbGoals = goals }
+
+-- | Metas displayed in an expression (in contrast to blanks @_@ we introduced ourselves).
+exprMetas :: A.Expr -> [MetaId]
+exprMetas = \case
+  A.Underscore   mi   -> maybeToList $ metaNumber mi
+  A.QuestionMark mi _ -> maybeToList $ metaNumber mi
+  _ -> []
 
 normaliseSolution :: Term -> SM Term
 normaliseSolution t = do
