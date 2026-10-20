@@ -361,17 +361,17 @@ instance PrettyTCM TypeError where
     NegativeLiteralInPattern -> fsep $
       pwords "Negative literals are not supported in patterns"
 
-    CannotEliminateWithPattern b p a -> do
-      let isProj = isJust (isProjP p)
+    CannotEliminateWithPattern _b p a -> do
       fsep $
         pwords "Cannot eliminate type" ++ prettyTCM a : if
-         | isProj -> pwords "with projection pattern" ++ [prettyA p]
+         | Just _ <- isProjP p -> __IMPOSSIBLE__
+         -- Case: "hidden project pattern", something like @{ .x }@ or @{{ .x }}@.
          | A.ProjP _ _ f <- namedArg p -> pwords "with pattern" ++ [prettyA p] ++
              pwords "(suggestion: write" ++ [".(" <> prettyA (A.Proj ProjPrefix f) <> ")"] ++ pwords "for a dot pattern," ++
              pwords "or remove the braces for a postfix projection)"
          | otherwise ->
              "with" : text (kindOfPattern (namedArg p)) : "pattern" : prettyA p :
-             pwords "(did you supply too many arguments?)"
+             pwords "(it is not a function type; did you supply too many arguments?)"
       where
       kindOfPattern = \case
         A.VarP{}    -> "variable"

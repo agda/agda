@@ -1107,7 +1107,7 @@ checkLHS mf = updateModality checkLHS_ where
         ]
 
       -- @p@ should be a projection pattern projection from @target@
-      (orig, ambProjName) <- ifJust (A.isProjP p) return $ addContext tel $ do
+      (orig, ambProjName) <- fromJustM (A.isProjP p) {-fallback-} $ addContext tel do
         block <- isBlocked target
         softTypeError $ CannotEliminateWithPattern block p (unArg target)
 

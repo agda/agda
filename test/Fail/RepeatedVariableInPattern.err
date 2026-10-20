@@ -1,5 +1,5 @@
 RepeatedVariableInPattern.agda:5.5-6: error: [CannotEliminateWithPattern]
-Cannot eliminate type Set with variable pattern A (did you supply
-too many arguments?)
+Cannot eliminate type Set with variable pattern A (it is not a
+function type; did you supply too many arguments?)
 when checking the clause left hand side
 K A A

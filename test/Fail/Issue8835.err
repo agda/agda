@@ -1,0 +1,5 @@
+Issue8835.agda:25.4-9: error: [CannotEliminateWithPattern]
+Cannot eliminate type (A ∨ ¬ A) with constructor pattern (inl a)
+(it is not a function type; did you supply too many arguments?)
+when checking the clause left hand side
+.extendedlambda0 (inl a)

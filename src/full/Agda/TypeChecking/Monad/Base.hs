@@ -5768,7 +5768,10 @@ data TypeError
         | ForcedConstructorNotInstantiated A.Pattern
         | IllformedProjectionPatternAbstract A.Pattern
         | IllformedProjectionPatternConcrete C.Pattern
-        | CannotEliminateWithPattern (Maybe Blocker) (NamedArg A.Pattern) Type
+        | CannotEliminateWithPattern
+            (Maybe Blocker)        -- ^ Blocker of the type.
+            (NamedArg A.Pattern)   -- ^ 'isProjP' fails for this, but it could be a hidden 'ProjP'.
+            Type                   -- ^ Type to be eliminated.
         | CannotEliminateWithProjection (Maybe Blocker) (Arg Type) Bool QName
         | WrongNumberOfConstructorArguments QName Nat Nat
         | ShouldBeEmpty Type [DeBruijnPattern]
