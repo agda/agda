@@ -133,7 +133,15 @@ reconstruct ty v = do
       let fTm = f []
       fe <- dropParameters fTm
       loop (absApp b fe) (Def p . (map Apply pars ++) . (Apply (defaultArg fTm) :)) es
-    loop ty _ (IApply {}:vs) = __IMPOSSIBLE__
+    -- Issue #8853: path application.
+    loop ty f (e@(IApply _ _ r) : es) = do
+      reportSDoc "tc.reconstruct" 50 $ "The type before path app is:" <+> pretty ty
+      reportSDoc "tc.reconstruct" 50 $ "The term before path app is:" <+> prettyTCM (f [])
+      pathViewAsPi ty >>= \case
+        Left (_, b) -> do
+          r' <- dropParameters r
+          loop (absApp b r') (f . (e :)) es
+        Right _ -> __IMPOSSIBLE__
 
 -- Extract the parameters from the type of a constructor
 -- application or the type of the principal argument of a
