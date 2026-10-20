@@ -188,13 +188,6 @@ rules are not allowed. This is to avoid typechecking under invalid rewrite rules
 Furthermore, matches on variables in local rewrite rules breaks the
 inlining-based semantic justification.
 
-In spite of these downsides, there are plans to relax this restriction in the
-future under an additional flag. Refining local rewrite
-rules with pattern matches enables a restricted form of
-"local equality reflection", which has many interesting applications, including
-a (hopefully) better-behaved :doc:`with-abstraction <with-abstraction>`
-mechanism.
-
 Parameterising datatypes over local rewrite rules with :option:`--cubical`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

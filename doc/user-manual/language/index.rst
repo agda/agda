@@ -49,6 +49,7 @@ Language Reference
    runtime-irrelevance
    safe-agda
    sized-types
+   smart-with
    sort-system
    syntactic-sugar
    syntax-declarations
