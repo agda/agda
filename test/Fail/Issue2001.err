@@ -1,5 +1,5 @@
 Issue2001.agda:20.10-15: error: [CannotEliminateWithPattern]
-Cannot eliminate type P x with constructor pattern {nat n} (did you
-supply too many arguments?)
+Cannot eliminate type P x with constructor pattern {nat n} (it is
+not a function type; did you supply too many arguments?)
 when checking the clause left hand side
 .extendedlambda0 {nat n}

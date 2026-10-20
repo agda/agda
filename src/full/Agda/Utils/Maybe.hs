@@ -92,6 +92,11 @@ ifJust = \m f d -> maybe d f m
 maybeM :: Monad m => m b -> (a -> m b) -> m (Maybe a) -> m b
 maybeM = \n j mm -> maybe n j =<< mm
 
+{-# INLINE fromJustM #-}
+-- | Monadic 'fromJust' with monadic fallback for 'Nothing'
+fromJustM :: Applicative m => Maybe a -> m a -> m a
+fromJustM = \ m fallback -> caseMaybe m fallback pure
+
 {-# INLINE fromMaybeM #-}
 -- | Monadic version of 'fromMaybe'.
 fromMaybeM :: Monad m => m a -> m (Maybe a) -> m a
