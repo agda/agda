@@ -1,5 +1,6 @@
 {-# OPTIONS --local-rewriting --cubical #-}
 
+open import Agda.Builtin.Equality renaming (_≡_ to _≡ᴵ_; refl to reflᴵ)
 open import Agda.Builtin.Cubical.Path
 open import Agda.Primitive.Cubical
 open import Agda.Builtin.Nat renaming (zero to ze; suc to su) hiding (_-_)
@@ -7,7 +8,7 @@ open import Agda.Builtin.Nat renaming (zero to ze; suc to su) hiding (_-_)
 -- Based on 7.4: Quotients from https://hal.science/hal-05160846/document
 module LocalRewriteQuotient where
 
-{-# BUILTIN REWRITE _≡_ #-}
+{-# BUILTIN REWRITE _≡ᴵ_ #-}
 
 module Utils where
   infixr 5 _∙_
@@ -46,7 +47,7 @@ record Quotients : Set₁ where
   -- The β-law for quotients we want to make strict
   lift-mk≡ : Set₁
   lift-mk≡ = ∀ {A _≈_ B} {f : A → B} {p : ∀ {x y} → x ≈ y → f x ≡ f y} {x}
-           → lift f p (mk _≈_ x) ≡ f x
+           → lift f p (mk _≈_ x) ≡ᴵ f x
 
 open Quotients using (lift-mk≡)
 
@@ -103,7 +104,7 @@ fakeQuotients .lift  f p x = f x
 fakeQuotients .sound       = cheat
   where postulate cheat : _
 
-module F = UsingQuotients fakeQuotients refl
+module F = UsingQuotients fakeQuotients reflᴵ
 
 test₂ : ∀ {n k} → F.negate (n - k) ≡ k - n
 test₂ = refl
@@ -123,7 +124,7 @@ hitQuotients .lift  f p (mkHIT x)      = f x
 hitQuotients .lift  f p (soundHIT q i) = p q i
 hitQuotients .sound = soundHIT
 
-module H = UsingQuotients hitQuotients refl
+module H = UsingQuotients hitQuotients reflᴵ
 
 test₃ : ∀ {n k} → H.negate (mkHIT (n - k)) ≡ mkHIT (k - n)
 test₃ = refl

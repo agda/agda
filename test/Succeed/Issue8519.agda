@@ -4,7 +4,7 @@ open import Agda.Builtin.Equality renaming (_≡_ to _≡ᴵ_)
 open import Agda.Builtin.Cubical.Path
 open import Agda.Builtin.Nat
 
-{-# BUILTIN REWRITE _≡_ #-}
+{-# BUILTIN REWRITE _≡ᴵ_ #-}
 
 postulate
   f : Nat → Nat
@@ -12,7 +12,7 @@ postulate
 module M (x : Nat) where
 
   postulate
-    f-β : f x ≡ 4
+    f-β : f x ≡ᴵ 4
   {-# REWRITE f-β #-}
 
   -- Succeeds

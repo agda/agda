@@ -116,10 +116,11 @@ verifyBuiltinRewrite v t = do
   where
     checkRelationIsDataOrPostulate = \case
       Def d _ -> theDef <$> getConstInfo d >>= \case
-        Axiom{}    -> return ()
-        Datatype{} -> return ()
-        Record{}   -> return ()
-        _          -> typeError $ IncorrectTypeForRewriteRelation v $ RelationNotDataOrPostulate
+        Axiom{}            -> return ()
+        Datatype{}         -> return ()
+        Record{}           -> return ()
+        DataOrRecSigDefn{} -> return ()
+        _                  -> typeError $ IncorrectTypeForRewriteRelation v $ RelationNotDataOrPostulate
       -- Relation might have been eta-expanded
       Lam _ b -> checkRelationIsDataOrPostulate $ unAbs b
       _ -> typeError $ IncorrectTypeForRewriteRelation v $ RelationNotDataOrPostulate
