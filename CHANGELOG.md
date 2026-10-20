@@ -692,6 +692,10 @@ Reflection
 
 * Tactic arguments (`@tactic`) are now supported in module telescopes.
 
+* `unquoteDecl` and `unquoteDef` now check that the meta-program
+  actually defines all the given identifiers
+  (issue [#8851](https://github.com/agda/agda/issues/8851)).
+
 Library management
 ------------------
 
