@@ -31,6 +31,10 @@ Changes to type checker and other components defining the Agda language.
 Builtins
 --------
 
+* Binding the `BUILTIN REWRITE` relation will now reduce the name before binding it.
+  This means you can now use an alias to another type as the rewrite relation
+  (see https://github.com/agda/agda/issues/6697).
+
 Reflection
 ----------
 
