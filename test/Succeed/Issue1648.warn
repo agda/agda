@@ -1,0 +1,14 @@
+
+Issue1648.agda:25.17-46: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: b
+when scope checking
+∀ {a} {b} {A : Set a} {B : Set b} (b : B) {x y : A} (p : x == y) →
+ap (λ _ → b) p == idp
+
+———— All done; warnings encountered ————————————————————————
+
+Issue1648.agda:25.17-46: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: b
+when scope checking
+∀ {a} {b} {A : Set a} {B : Set b} (b : B) {x y : A} (p : x == y) →
+ap (λ _ → b) p == idp

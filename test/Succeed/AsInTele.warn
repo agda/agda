@@ -1,0 +1,24 @@
+
+AsInTele.agda:50.14-25: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: m p
+when scope checking
+(p @ ((m , p)) m @ ((r , s)) : Σ Nat (λ _ → Nat)) →
+Σ (Σ Nat (p ≡_)) (λ _ → Σ _ (m ≡_))
+
+AsInTele.agda:54.22-26: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: p
+when scope checking
+(x @ ((m , p)) p @ ((r , s)) : Σ Nat (λ _ → Nat)) → x ≡ p → m ≡ r
+
+———— All done; warnings encountered ————————————————————————
+
+AsInTele.agda:50.14-25: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: m p
+when scope checking
+(p @ ((m , p)) m @ ((r , s)) : Σ Nat (λ _ → Nat)) →
+Σ (Σ Nat (p ≡_)) (λ _ → Σ _ (m ≡_))
+
+AsInTele.agda:54.22-26: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: p
+when scope checking
+(x @ ((m , p)) p @ ((r , s)) : Σ Nat (λ _ → Nat)) → x ≡ p → m ≡ r

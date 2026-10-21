@@ -1,7 +1,11 @@
-postulate P : Set -> Set
+-- Issue #572, shadowed identifiers in context.
 
-test : (B : Set) -> P B -> P B
-test = λ p p -> {!!}
+{-# OPTIONS -WnoShadowingInTelescope #-}
+
+postulate P : Set → Set
+
+test : (B : Set) → P B → P B
+test = λ p p → {!!}
 
 postulate A : Set
 

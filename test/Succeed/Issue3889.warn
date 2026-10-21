@@ -1,0 +1,46 @@
+
+Issue3889.agda:39.17-40.14: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: p
+when scope checking
+∀ {a} {p} {A : Set a} {P : A → Set p} {xs} (p : Any P xs) →
+let p′ = find p
+in {f : ∀ {x} → proj₁ p′ ≡ x → P x} →
+   f refl ≡ proj₂ (proj₂ p′) → map f (proj₁ (proj₂ p′)) ≡ p
+
+Issue3889.agda:47.17-48.28: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: p
+when scope checking
+∀ {a} {p} {q} {A : Set a} {P : A → Set p} {Q : A → Set q}
+  {xs : List A} (p : Any P xs) (f : ∀ {x} → P x → Q x) →
+find (map f p) ≡ map₂ (map₂ f) (find p)
+
+Issue3889.agda:53.18-54.15: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: p
+when scope checking
+∀ {a} {p} {A : Set a} {P : A → Set p} {xs : List A}
+  (p : Any P xs) →
+(let (y , z) = proj₂ (find p)) → lose y z ≡ p
+
+———— All done; warnings encountered ————————————————————————
+
+Issue3889.agda:39.17-40.14: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: p
+when scope checking
+∀ {a} {p} {A : Set a} {P : A → Set p} {xs} (p : Any P xs) →
+let p′ = find p
+in {f : ∀ {x} → proj₁ p′ ≡ x → P x} →
+   f refl ≡ proj₂ (proj₂ p′) → map f (proj₁ (proj₂ p′)) ≡ p
+
+Issue3889.agda:47.17-48.28: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: p
+when scope checking
+∀ {a} {p} {q} {A : Set a} {P : A → Set p} {Q : A → Set q}
+  {xs : List A} (p : Any P xs) (f : ∀ {x} → P x → Q x) →
+find (map f p) ≡ map₂ (map₂ f) (find p)
+
+Issue3889.agda:53.18-54.15: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: p
+when scope checking
+∀ {a} {p} {A : Set a} {P : A → Set p} {xs : List A}
+  (p : Any P xs) →
+(let (y , z) = proj₂ (find p)) → lose y z ≡ p

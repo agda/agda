@@ -18,6 +18,8 @@ Errors
 Warnings
 --------
 
+* Warning `ShadowingInTelescope` is now on by default.
+
 Syntax
 ------
 

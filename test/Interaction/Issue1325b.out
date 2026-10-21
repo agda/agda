@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : Set" nil)
+(agda2-info-action "*All Goals, Warnings*" "?0 : Set ———— Warnings —————————————————————————————————————————————— Issue1325b.agda:8.6-9: warning: -W[no]ShadowingInTelescope Shadowing in telescope, repeated variable names: m when scope checking {m m : ℕ} → Set₁ Issue1325b.agda:11.8-11: warning: -W[no]ShadowingInTelescope Shadowing in telescope, repeated variable names: n when scope checking {n n : ℕ} → Set → Set" nil)
 ((last . 1) . (agda2-goals-action '(0)))
 ((last . 2) . (agda2-make-case-action '("g {n = n} _ = ?")))
 ((last . 1) . (agda2-goals-action '(0)))

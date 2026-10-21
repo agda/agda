@@ -5,7 +5,7 @@
 -- Andreas, 2023-06-26, issue #6706.
 -- Shape-irrelevant hypotheses should be printed as such.
 
-{-# OPTIONS --erasure #-}
+{-# OPTIONS --erasure -WnoShadowingInTelescope #-}
 
 Goal :
   (        A : Set)

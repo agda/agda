@@ -1,0 +1,10 @@
+
+Issue1681.agda:16.7-14: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: _*_
+when scope checking λ _*_ _*_ → id _*_
+
+———— All done; warnings encountered ————————————————————————
+
+Issue1681.agda:16.7-14: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: _*_
+when scope checking λ _*_ _*_ → id _*_
