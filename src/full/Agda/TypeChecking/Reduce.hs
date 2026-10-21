@@ -458,7 +458,17 @@ instance Reduce Sort where
       let done | MetaS x _ <- s = return $ blocked x s
                | otherwise      = return $ notBlocked s
       case s of
-        PiSort a s1 s2Abs -> reduceB' (s1 , s2Abs) >>= \case
+        PiSort a s1 s2Abs -> do
+          case piSort'' a s1 s2Abs CodomainNotNormalised of
+            Left r -> do
+              s2Abs' <- instantiateFull' s2Abs
+              case piSort'' a s1 s2Abs' CodomainNormalised  of
+                Left  b ->return $! blockedOn b $ PiSort a s1 s2Abs'
+                Right s' -> return $! notBlocked s'
+            Right s' -> return $! notBlocked s'
+
+          {-
+          reduceB' (s1 , s2Abs) >>= \case
           -- If either the domain or codomain sort is blocked, there is no point
           -- in doing the free variable check since even if we manage to reduce
           -- to a FunSort, it would still be blocked. And normalizing anyway in
@@ -483,6 +493,8 @@ instance Reduce Sort where
                   -- The only sort that piSortAbs can reduce is Inf,
                   -- so there is no need to try reducing it further.
                   Right s -> return $! notBlocked s
+
+          -}
         FunSort s1 s2 -> reduceB' (s1 , s2) >>= \case
           Blocked b (s1',s2') -> return $ Blocked b $ FunSort s1' s2'
           NotBlocked _ (s1',s2') -> funSortM' s1' s2' >>= \case

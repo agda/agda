@@ -1910,10 +1910,14 @@ funSortM a b = do
 -- * `instance Reduce Sort` in Agda.TypeChecking.Substitute (this file)
 -- * `inferPiSort` in Agda.TypeChecking.Sort
 piSort' :: Dom Term -> Sort -> Abs Sort -> Either Blocker Sort
-piSort' a s1       (NoAbs _ s2) = Right $ FunSort s1 s2
-piSort' a s1 s2Abs@(Abs   _ s2) = case varOccurrenceIn 0 s2 of
+piSort' a s1 s2 = piSort'' a s1 s2 CodomainNotNormalised
+
+piSort'' ::
+  Dom Term -> Sort -> Abs Sort -> IsCodomainNormalised -> Either Blocker Sort
+piSort'' a s1       (NoAbs _ s2) cn = Right $ FunSort s1 s2
+piSort'' a s1 s2Abs@(Abs   _ s2) cn = case varOccurrenceIn 0 s2 of
   Nothing -> Right $ FunSort s1 $ noabsApp __IMPOSSIBLE__ s2Abs
-  Just o  -> piSortAbs a s1 s2Abs (varFlexRig o) CodomainNotNormalised
+  Just o  -> piSortAbs a s1 s2Abs (varFlexRig o) cn
 
 data IsCodomainNormalised = CodomainNormalised | CodomainNotNormalised
 
