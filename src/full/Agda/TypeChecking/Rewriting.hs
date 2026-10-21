@@ -89,6 +89,7 @@ import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.Impossible
 import Agda.Utils.Either
 import Agda.Utils.List1 (nonEmpty)
+import Agda.TypeChecking.Primitive.Base (getQNameFromTerm)
 
 -- | Require '--rewriting' for global REWRITE rules
 requireOptionRewriting :: TCM ()
@@ -99,19 +100,23 @@ requireOptionRewriting =
 --   a relation symbol.
 --   I.e., its type should be of the form @Δ → (lhs : A) (rhs : B) → Set ℓ@.
 --   Note: we do not care about hiding/non-hiding of lhs and rhs.
-verifyBuiltinRewrite :: Term -> Type -> TCM ()
-verifyBuiltinRewrite v t = do
+verifyBuiltinRewrite :: QName -> TCM ()
+verifyBuiltinRewrite d = do
+  t <- defType <$> getConstInfo d
+  reportSDoc "rewriting.builtin" 10 $
+    "binding builtin REWRITE relation" <+> prettyTCM d <+>
+    "of type" <+> prettyTCM t
   caseMaybeM (relView t)
-    (typeError $ IncorrectTypeForRewriteRelation v ShouldAcceptAtLeastTwoArguments) $
+    (typeError $ IncorrectTypeForRewriteRelation d ShouldAcceptAtLeastTwoArguments) $
     \ (RelView tel delta a b core) -> do
-    unless (visible a && visible b) $ typeError $ IncorrectTypeForRewriteRelation v FinalTwoArgumentsNotVisible
+    unless (visible a && visible b) $ typeError $ IncorrectTypeForRewriteRelation d FinalTwoArgumentsNotVisible
     case unEl core of
       Sort{}   -> return ()
       Con{}    -> __IMPOSSIBLE__
       Level{}  -> __IMPOSSIBLE__
       Lam{}    -> __IMPOSSIBLE__
       Pi{}     -> __IMPOSSIBLE__
-      _ -> typeError $ IncorrectTypeForRewriteRelation v (TypeDoesNotEndInSort core tel)
+      _ -> typeError $ IncorrectTypeForRewriteRelation d (TypeDoesNotEndInSort core tel)
 
 -- | Deconstructing a type into @Δ → t → t' → core@.
 data RelView = RelView
