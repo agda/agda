@@ -1657,17 +1657,17 @@ instance PrettyTCM TypeError where
 
     IlltypedRewriteRule d -> return d
 
-    IncorrectTypeForRewriteRelation v reason -> case reason of
+    IncorrectTypeForRewriteRelation d reason -> case reason of
       ShouldAcceptAtLeastTwoArguments -> sep
-        [ prettyTCM v <+> " does not have the right type for a rewriting relation"
+        [ prettyTCM d <+> " does not have the right type for a rewriting relation"
         , "because it should accept at least two arguments"
         ]
       FinalTwoArgumentsNotVisible -> sep
-        [ prettyTCM v <+> " does not have the right type for a rewriting relation"
+        [ prettyTCM d <+> " does not have the right type for a rewriting relation"
         , "because its two final arguments are not both visible."
         ]
       TypeDoesNotEndInSort core tel -> sep
-        [ prettyTCM v <+> " does not have the right type for a rewriting relation"
+        [ prettyTCM d <+> " does not have the right type for a rewriting relation"
         , "because its type does not end in a sort, but in "
           <+> do inTopContext $ addContext tel $ prettyTCM core
         ]

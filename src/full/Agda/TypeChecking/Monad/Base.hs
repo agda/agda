@@ -4219,6 +4219,7 @@ data BuiltinDescriptor
   | BuiltinPrim PrimitiveId (Term -> TCM ())
   | BuiltinSort BuiltinSort
   | BuiltinPostulate Relevance (TCM Type)
+  | BuiltinRewriteRelation
   | BuiltinUnknown (Maybe (TCM Type)) (Term -> Type -> TCM ())
     -- ^ Builtin of any kind.
     --   Type can be checked (@Just t@) or inferred (@Nothing@).
@@ -5885,7 +5886,7 @@ data TypeError
             -- ^ When constructing a rewrite rule from a type,
             --   an error occurred, possibly due to non-confluence of rewrite rules.
             --   This was a @GenericDocError@ before.
-        | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
+        | IncorrectTypeForRewriteRelation QName IncorrectTypeForRewriteRelationReason
     -- Cubical errors
         | CannotGenerateHCompClause Type
             -- ^ Cannot generate @hcomp@ clause because type is not fibrant.
