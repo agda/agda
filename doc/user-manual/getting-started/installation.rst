@@ -46,7 +46,18 @@ latest version of Agda, then you can compile it from source from the `Github rep
 
 Both ``cabal install``-based and ``nix build``-based developer builds are maintained.
 
+Building Agda requires a :ref:`supported version of GHC <ghc-versions>`.
+
 Miscellaneous developer information is available in the repository's ``HACKING.md``.
+
+.. _installation-flags:
+
+Cabal build flags
+^^^^^^^^^^^^^^^^^
+
+Agda's build can be configured using Cabal flags. See the
+`Cabal flag reference in HACKING.md <https://github.com/agda/agda/blob/master/HACKING.md#cabal-flag-reference>`_
+for the available flags, their defaults, and how to set them with Cabal, Stack, or Nix.
 
 .. _install-agda-prebuilt:
 
@@ -109,6 +120,17 @@ Step 4: Install ``ghc`` (optional)
 ==================================
 
 To compile your Agda code to an executable, ``agda`` calls the Haskell compiler ``ghc``, which is not bundled with most Agda distributions.
-You can install ``ghc`` spearately with e.g. `GHCUp <https://www.haskell.org/ghcup/>`_.
+You can install ``ghc`` separately with e.g. `GHCUp <https://www.haskell.org/ghcup/>`_.
 
 No separate programs are called by Agda's :ref:`JavaScript backend <javascript-backend>`.
+
+.. _ghc-versions:
+
+Tested GHC versions
+-------------------
+
+Agda has been tested with GHC 9.2.8, 9.4.8, 9.6.7, 9.8.4, 9.10.3, 9.12.4,
+and 9.14.1. These versions are supported both for building Agda from source
+and for compiling Agda programs with the :ref:`GHC backend <ghc-backend>`.
+The list is also recorded in the ``tested-with`` field of
+`Agda.cabal <https://github.com/agda/agda/blob/master/Agda.cabal>`_.
