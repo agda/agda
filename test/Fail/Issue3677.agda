@@ -1,7 +1,7 @@
 -- Andreas, 2025-12-17, issue #3677
 -- The example is shrunk from a real-world case of Oskar (oskeri).
 -- He said he stared 20 minutes at the error before finding the cause.
-
+{-# OPTIONS -WnoShadowingInTelescope #-}
 postulate
   ▸_        : (A       : Set) → Set
   _,_       : (A B     : Set) → Set

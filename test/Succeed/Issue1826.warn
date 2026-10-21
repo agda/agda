@@ -1,0 +1,14 @@
+
+Issue1826.agda:30.24-61: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: p
+when scope checking
+∀ {a} {p} {A : Set a} (P : A → Set p) {x} (p : P x) →
+subst P (refl x) p ≡ p
+
+———— All done; warnings encountered ————————————————————————
+
+Issue1826.agda:30.24-61: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: p
+when scope checking
+∀ {a} {p} {A : Set a} (P : A → Set p) {x} (p : P x) →
+subst P (refl x) p ≡ p

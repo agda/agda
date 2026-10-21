@@ -25,7 +25,7 @@ id A x = x
 
 eqTriple : {{_ : ∀ {x} {y : B x} → Eq (C x y)}}
            (a : A) (b : B a) (c : C a b)
-           (a₁ : A) (b₁ : B a₁) (c : C a₁ b₁) → Nat
+           (a₁ : A) (b₁ : B a₁) (c₁ : C a₁ b₁) → Nat
 eqTriple a b c a₁ b₁ c₁ =
   subst (λ a₂ → ∀ (b₂ : B a₂) (c₂ : _) → Nat) (mkEq a a₁)
         (λ b₂ c₂ → subst (λ b₃ → ∀ c₃ → Nat) (mkEq b b₂)

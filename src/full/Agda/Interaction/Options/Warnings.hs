@@ -223,7 +223,6 @@ usualWarnings :: Set WarningName
 usualWarnings =
   allWarnings Set.\\ exactSplitWarnings Set.\\ Set.fromList
     [ UnknownFixityInMixfixDecl_
-    , ShadowingInTelescope_
     , UnusedImports_
     , UnusedImportsAll_
     ]

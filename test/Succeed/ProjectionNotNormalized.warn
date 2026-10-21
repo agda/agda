@@ -1,0 +1,16 @@
+
+ProjectionNotNormalized.agda:94.17-95.28: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: p
+when scope checking
+∀ {a} {p} {q} {A : Set a} {P : A → Set p} {Q : A → Set q}
+  {xs : List A} (p : Any P xs) (f : ∀ {x} → P x → Q x) →
+find (map f p) ≡ pmap (λ x → x) (pmap (λ x → x) f) (find p)
+
+———— All done; warnings encountered ————————————————————————
+
+ProjectionNotNormalized.agda:94.17-95.28: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: p
+when scope checking
+∀ {a} {p} {q} {A : Set a} {P : A → Set p} {Q : A → Set q}
+  {xs : List A} (p : Any P xs) (f : ∀ {x} → P x → Q x) →
+find (map f p) ≡ pmap (λ x → x) (pmap (λ x → x) f) (find p)
