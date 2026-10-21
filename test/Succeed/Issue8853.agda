@@ -14,9 +14,9 @@ macro
   checkBody : Term → TC ⊤
   checkBody hole =
     bindTC (withReconstructed true (getDefinition (quote f))) λ where
-      (function (clause _ _ (var _ (_ ∷ [])) ∷ [])) →
+      (function (clause _ _ (var 1 (arg _ (var 0 []) ∷ [])) ∷ [])) →
         unify hole (con (quote tt) [])
       _ → typeError (strErr "Unexpected reconstructed body" ∷ [])
 
-testBody : ⊤
-testBody = checkBody
+test : ⊤
+test = checkBody
