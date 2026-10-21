@@ -133,7 +133,10 @@ reconstruct ty v = do
       let fTm = f []
       fe <- dropParameters fTm
       loop (absApp b fe) (Def p . (map Apply pars ++) . (Apply (defaultArg fTm) :)) es
-    loop ty _ (IApply {}:vs) = __IMPOSSIBLE__
+    loop ty f (IApply x y r : es) = do
+      rr <- dropParameters r
+      ty' <- piApplyM ty rr
+      loop ty' (f . (IApply x y r :)) es
 
 -- Extract the parameters from the type of a constructor
 -- application or the type of the principal argument of a
