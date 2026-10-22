@@ -37,6 +37,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion.Pure (pureCompareAs, runPureConversion)
 import Agda.TypeChecking.Forcing (isForced, nextIsForced)
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free.Reduce (forceNonDepSort, IsFree (..))
 import Agda.TypeChecking.Datatypes (getConType, getFullyAppliedConType)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
@@ -2037,7 +2038,7 @@ equalSort s1 s2 = do
            Bool -> Sort -> BlockedDepCheck Sort -> Dom Term -> Sort -> Abs Sort
         -> Blocker -> TCM ()
       piSortEquals propEnabled s c a s1 NoAbs{} blocker = __IMPOSSIBLE__
-      piSortEquals propEnabled s c a s1 s2Abs@(Abs x s2) blocker = do
+      piSortEquals propEnabled s (BlockedDepCheck s2') a s1 s2Abs@(Abs x s2) blocker = do
         let adom = El s1 <$> a
         reportSDoc "tc.conv.sort" 35 $ vcat
           [ "piSortEquals"
@@ -2045,6 +2046,7 @@ equalSort s1 s2 = do
           , "  a  =" <+> prettyTCM adom
           , "  s1 =" <+> prettyTCM s1
           , "  s2 =" <+> addContext (x,adom) (prettyTCM s2)
+          , "  s2' =" <+> pretty s2'
           ]
         let postpone = patternViolation blocker
            -- If @s2@ is dependent, then @piSort a s1 s2@ computes to
@@ -2053,9 +2055,15 @@ equalSort s1 s2 = do
         if | isSmallSort s -> do
                -- We force @s2@ to be non-dependent by unifying it with
                -- a fresh meta that does not depend on @x : a@
-               s2' <- newSortMeta
-               addContext (x , adom) $ equalSort s2 (raise 1 s2')
-               funSortEquals propEnabled s s1 s2' blocker
+               s2M <- newSortMeta
+               addContext (x , adom) $ equalSort s2 (raise 1 s2M)
+               -- This forces @s2@ to be non-dependent, but @s2'@ might still be
+               -- dependent!
+               -- We therefore need to double check @s2'@ for dependency,
+               -- and otherwise postpone
+               liftReduce (forceNonDepSort s2') >>= \case
+                 (NotFree, _) -> funSortEquals propEnabled s s1 s2' blocker
+                 (MaybeFree _, _) -> postpone
            -- Otherwise: postpone
            | otherwise -> postpone
 

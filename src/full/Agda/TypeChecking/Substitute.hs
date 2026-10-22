@@ -1931,7 +1931,7 @@ data IsCodomainNormalised = CodomainNormalised | CodomainNotNormalised
 --   Compared to piSort' we take two additional arguments:
 --   4. The occurrence of the variable in the codomain.
 --   5. Whether we have already tried to remove the dependency by
---      normalising the codomain sort (e.g. with forceNoAbs)
+--      normalising the codomain sort (e.g. with forceNonDep)
 piSortAbs
   :: Dom Term
   -> Sort

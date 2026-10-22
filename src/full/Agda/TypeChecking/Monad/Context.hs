@@ -801,6 +801,8 @@ getVarInfo x =
                       -- TODO: It would be worthwhile investigating who wants to access
                       -- an out-of-scope variable.
 
+-- | Create a dummy context large enough for the given thing to be well-scoped
+--   (Very hacky, should only be used if there is no alternative)
 inLargeEnoughContext :: (ReadTCState m, MonadAddContext m)
   => Free a => a -> m b -> m b
 inLargeEnoughContext t c = do

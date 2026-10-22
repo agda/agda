@@ -49,7 +49,7 @@ import Agda.Syntax.Literal
 import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (isPropM)
 import Agda.TypeChecking.Free (Free)
 import Agda.TypeChecking.Free.Base
-import {-# SOURCE #-} Agda.TypeChecking.Free.Reduce (forceNoAbsSort)
+import {-# SOURCE #-} Agda.TypeChecking.Free.Reduce (forceNonDepSort, IsFree (..))
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause
@@ -468,20 +468,21 @@ instance Reduce Sort where
           NotBlocked _ (BlockedDepCheck s2', s1 , s2Abs) -> do
             -- In theory we should just call piSort' here. However, we also want
             -- to reduce the codomain sort to make it non-dependent when
-            -- possible. So we use forceNoAbs and in case we are dealing with a
+            -- possible. So we use forceNonDep and in case we are dealing with a
             -- proper Abs we call piSortAbs directly.
             let dom = El s1 <$> a
-            forceNoAbsSort dom (Abs (absName s2Abs) s2') >>= \case
+            forceNonDepSort s2' >>= \case
               -- If the codomain sort is non-dependent, we reduce to a FunSort
-              Right s2' -> reduceB' $ FunSort s1 (noabsApp __IMPOSSIBLE__ s2Abs)
+              (NotFree, s2') -> reduceB' $
+                FunSort s1 (noabsApp __IMPOSSIBLE__ s2Abs)
               -- For a (possibly) properly dependent PiSort, we call piSortAbs.
-              Left (s2Abs', flexRig) -> do
+              (MaybeFree flexRig, s2') -> do
                 let blockOcc = flexRigToBlocker flexRig
                 case piSortAbs a s1 s2Abs flexRig CodomainNormalised of
                   -- We already know the sorts themselves are not blocked,
                   -- so the only possible blocker comes from the free variable check
                   Left _ -> return $! blockedOn blockOcc $
-                    PiSort (BlockedDepCheck (unAbs s2Abs')) a s1 s2Abs
+                    PiSort (BlockedDepCheck s2') a s1 s2Abs
                   -- The only sort that piSortAbs can reduce is Inf,
                   -- so there is no need to try reducing it further.
                   Right s -> return $! notBlocked s
