@@ -27,6 +27,7 @@ import qualified Internal.TypeChecking.Free
 import qualified Internal.TypeChecking.Generators
 import qualified Internal.TypeChecking.Irrelevance
 import qualified Internal.TypeChecking.Monad.Base
+import qualified Internal.TypeChecking.Monad.State
 import qualified Internal.TypeChecking.Positivity
 import qualified Internal.TypeChecking.Positivity.Occurrence
 import qualified Internal.TypeChecking.Rules.LHS.Problem
@@ -81,6 +82,7 @@ tests = testGroup "Internal" $
   Internal.TypeChecking.Generators.tests :
   Internal.TypeChecking.Irrelevance.tests :
   Internal.TypeChecking.Monad.Base.tests :
+  Internal.TypeChecking.Monad.State.tests :
   Internal.TypeChecking.Positivity.tests :
   Internal.TypeChecking.Positivity.Occurrence.tests :
   Internal.TypeChecking.Rules.LHS.Problem.tests :

@@ -1141,6 +1141,7 @@ executable agda-tests
       Internal.TypeChecking.Generators
       Internal.TypeChecking.Irrelevance
       Internal.TypeChecking.Monad.Base
+      Internal.TypeChecking.Monad.State
       Internal.TypeChecking.Positivity
       Internal.TypeChecking.Positivity.Occurrence
       Internal.TypeChecking.Rules.LHS.Problem
