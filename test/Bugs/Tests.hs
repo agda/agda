@@ -11,6 +11,7 @@ import Test.Tasty
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced
        (readFileMaybe, GDiff(..), GShow(..), goldenTest1)
+import Test.Tasty.Silver.Filter (RegexFilter (RFInclude))
 
 import System.Directory
 import System.Exit
@@ -25,6 +26,10 @@ tests :: IO TestTree
 tests = do
   inpFiles <- getAgdaFilesInDir NonRec testDir
   return $ testGroup "Bugs" $ map mkTest inpFiles
+
+-- | Filtering out bug tests that require Agda built with -fdebug.
+fdebugTestFilter :: [RegexFilter]
+fdebugTestFilter = [ RFInclude "Bugs/Issue8182" ]
 
 data TestResult
   = TestFailure T.Text
