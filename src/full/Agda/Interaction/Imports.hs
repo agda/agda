@@ -37,7 +37,7 @@ module Agda.Interaction.Imports
 import Prelude hiding (null)
 
 import Control.Exception qualified as E
-import Control.Monad.Except        ( MonadError(..), ExceptT, runExceptT, withExceptT )
+import Control.Monad.Except        ( MonadError(..), ExceptT(..), runExceptT, withExceptT )
 import Control.Monad.IO.Class      ( MonadIO(..) )
 import Control.Monad.State         ( MonadState(..), execStateT )
 import Control.Monad.Trans.Maybe
@@ -61,7 +61,7 @@ import Data.Text.Lazy qualified as TL
 
 import GHC.Conc
 
-import System.Directory (doesFileExist, removeFile)
+import System.Directory (doesFileExist, removeFile, getModificationTime)
 import System.FilePath  ( (</>) )
 import System.IO
 import System.IO.Error (isUserError, isFullError)
@@ -118,12 +118,13 @@ import Agda.Interaction.Options.Warnings (unsolvedWarnings)
 import Agda.Interaction.Response
   (RemoveTokenBasedHighlighting(KeepHighlighting))
 
+import Agda.Utils.BiMap qualified as BiMap
 import Agda.Utils.CallStack (HasCallStack)
 import Agda.Utils.FileName
 import Agda.Utils.Hash
 import Agda.Utils.IO.Binary
 import Agda.Utils.Lens
-import Agda.Utils.List ( nubOn )
+import Agda.Utils.List ( nubOn, map' )
 import Agda.Utils.Maybe
 import Agda.Utils.Maybe.Strict qualified as Strict
 import Agda.Utils.Monad
@@ -136,6 +137,8 @@ import Agda.Utils.Impossible
 import Agda.Utils.IORef.Strict
 import Agda.Utils.Tuple.Strict (Pair(..))
 import Agda.Utils.Tuple.Strict qualified as Strict
+import Agda.Utils.Time
+import Agda.Utils.StrictState qualified as Strict
 
 
 -- | Whether to ignore interfaces (@.agdai@) other than built-in modules
@@ -676,6 +679,59 @@ chaseModule workers mod main msrc = do
           atomicModifyIORef (workerModules workers) \v -> (Map.insert mod mi v, ())
           putMVar var Nothing
 
+-- | Walk DecodedModules, check if any transitive import of the given 'Source'
+--   changed (either the source file or the interface file), by the modification time.
+haveDepsChanged :: Source -> TCM Bool
+haveDepsChanged !src = do
+
+  -- get a list of imported modules, fail if some QName is not in
+  -- stPersistentTopLevelModuleNames
+  let getImports :: C.Module -> ExceptT () TCM [TopLevelModuleName]
+      getImports !mod = do
+        let getQNames :: C.Module -> Endo [C.QName]
+            getQNames mod = flip foldDecl mod \case
+              C.Import _ _ x _ _ -> Endo \ !xs -> (x:xs)
+              _                  -> Endo \ !xs -> xs
+
+        forM (appEndo (getQNames mod) []) \x -> do
+          x <- pure $ rawTopLevelModuleNameForQName x
+          topMods <- useR stTopLevelModuleNames
+          case BiMap.lookup x topMods of
+            Nothing   -> throwError ()
+            Just hash -> pure $! unsafeTopLevelModuleName x hash
+
+      chaseMod :: TopLevelModuleName -> Strict.StateT (Set TopLevelModuleName) (ExceptT () TCM) ()
+      chaseMod mod = do
+        visited <- get
+        unless (Set.member mod visited) do
+          !mi       <- lift $ maybeToExceptT () (MaybeT (getDecodedModule mod))
+          !file     <- lift $ withExceptT (\_ -> ()) $ ExceptT (findFile' mod)
+          !path     <- filePath <$> srcFilePath file
+          !iPath    <- filePath . intFilePath <$> lift (maybeToExceptT () (MaybeT (findInterfaceFile' file)))
+          !modTime  <- lift $ lift $ lift $ getModificationTime path
+          !iModTime <- lift $ lift $ lift $ getModificationTime iPath
+          let !hasntChanged =
+                modTime == miModificationTime mi && iModTime == miInterfaceModificationTime mi
+          unless hasntChanged $ throwError ()
+          let !children = map' fst $ iImportedModules $ miInterface mi
+          alwaysReportSLn "import" 0 ("chaseMod " ++ prettyShow (mod, children))
+          Strict.modify $ Set.insert mod
+          chaseMods children
+
+      chaseMods :: [TopLevelModuleName] -> Strict.StateT (Set TopLevelModuleName) (ExceptT () TCM) ()
+      chaseMods = mapM_ chaseMod
+
+      top :: Strict.StateT (Set TopLevelModuleName) (ExceptT () TCM) ()
+      top = do
+        !children <- lift $ getImports (srcModule src)
+        alwaysReportSLn "import" 0 ("haveDepsChanged " ++ prettyShow children)
+        chaseMods children
+
+  runExceptT (Strict.runStateT top mempty) >>= \case
+    Left _  -> pure True
+    Right _ -> pure False
+
+
 -- | Type checks the main file of the interaction.
 --   This could be the file loaded in the interacting editor (emacs),
 --   or the file passed on the command line.
@@ -709,9 +765,17 @@ typeCheckMain mode src = do
   -- Now do the type checking via getInterface.
   checkModuleName' (srcModuleName src) (srcOrigin src)
 
+  -- Has any transitively imported source file or interface file changed since
+  -- we wrote into DecodedModules?
+  (changedDeps, t) <- measureTime $ haveDepsChanged src
+  alwaysReportSLn "import" 0 $ "haveDepsChanged " ++ prettyShow (changedDeps, t)
+  ignoreIFaces <- ignoreInterfaces
+
   mi <- wantsParallelChecking >>= \case
-    Just workers -> join $ chaseModule workers (srcModuleName src) (MainInterface mode) (Just src)
-    Nothing      -> getInterface (srcModuleName src) (MainInterface mode) (Just src)
+    Just workers | changedDeps || ignoreIFaces ->
+      join $ chaseModule workers (srcModuleName src) (MainInterface mode) (Just src)
+    _ ->
+      getInterface (srcModuleName src) (MainInterface mode) (Just src)
 
   stCurrentModule `setTCLens'`
     Strict.Just (iModuleName (miInterface mi) :!: iTopLevelModuleName (miInterface mi))
@@ -1048,8 +1112,8 @@ getStoredInterface x file@(SourceFile fi) msrc = do
 
         -- Ensure that the given module name matches the one in the file.
         let topLevelName = iTopLevelModuleName i
+        path <- srcFilePath file
         unless (topLevelName == x) do
-          path <- srcFilePath file
           lift $ typeError $ OverlappingProjects path topLevelName x
 
         isBuiltinMod <- isBuiltinModule fi
@@ -1058,12 +1122,17 @@ getStoredInterface x file@(SourceFile fi) msrc = do
         -- print imported warnings
         reportWarningsForModule x $ iWarnings i
 
+        modTime  <- lift $ lift $ getModificationTime (filePath path)
+        iModTime <- lift $ lift $ getModificationTime ifp
+
         loadDecodedModule file $ ModuleInfo
           { miInterface = i
           , miWarnings = empty
           , miIsBuiltin = isBuiltinMod
           , miMode = ModuleTypeChecked
           , miSourceFile = file
+          , miModificationTime = modTime
+          , miInterfaceModificationTime = iModTime
           }
 
   -- Check if we have cached the module.
@@ -1604,12 +1673,18 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
 
     isBuiltinMod <- isBuiltinModule sfi
 
+    modTime  <- lift $ getModificationTime (filePath srcPath)
+    ifile    <- toIFile sf
+    iModTime <- lift $ getModificationTime (filePath ifile)
+
     return ModuleInfo
       { miInterface = finalIface
       , miWarnings = mallWarnings
       , miIsBuiltin = isBuiltinMod
       , miMode = moduleCheckMode isMain
       , miSourceFile = sf
+      , miModificationTime = modTime
+      , miInterfaceModificationTime = iModTime
       }
 
 -- | Expert version of 'getAllWarnings'; if 'isMain' is a
