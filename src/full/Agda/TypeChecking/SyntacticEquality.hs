@@ -196,8 +196,8 @@ instance SynEq Sort where
     s' <- lift $ instantiate' s'
     expand \ret -> case (s, s') of
       (Univ u l, Univ u' l') | u == u' -> ret $ Univ u <$$> synEq l l'
-      (PiSort () b c d, PiSort () b' c' d') -> ret $ PiSort () <$$>
-        synEq b b' <**> synEq' c c' <**> synEq' d d'
+      (PiSort a b c d, PiSort a' b' c' d') -> ret $ PiSort <$$>
+        synEq a a' <**> synEq b b' <**> synEq' c c' <**> synEq' d d'
       (FunSort a b, FunSort a' b') -> ret $ FunSort <$$> synEq a a' <**> synEq' b b'
       (UnivSort a, UnivSort a') -> ret $ UnivSort <$$> synEq a a'
       (SizeUniv, SizeUniv  ) -> ret $ pure2 s
@@ -209,6 +209,10 @@ instance SynEq Sort where
       (DefS  d es , DefS  d' es') | d == d' -> ret $ DefS d  <$$> synEq es es'
       (DummyS{}, DummyS{}) -> ret $ pure (s, s')
       _ -> ret $ inequal (s, s')
+
+instance SynEq a => SynEq (BlockedDepCheck a) where
+  synEq (BlockedDepCheck s) (BlockedDepCheck s') =
+    BlockedDepCheck <$$> synEq s s'
 
 -- | Syntactic equality ignores sorts.
 instance SynEq Type where

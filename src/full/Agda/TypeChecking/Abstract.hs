@@ -343,8 +343,8 @@ instance EqualSy Sort where
     (Inf u m   , Inf u' n    ) -> u == u' && m == n
     (SizeUniv  , SizeUniv    ) -> True
     (LevelUniv , LevelUniv   ) -> True
-    (PiSort () b c d, PiSort () b' c' d') ->
-      equalSy b b' && equalSy c c' && equalSy d d'
+    (PiSort a b c d, PiSort a' b' c' d') ->
+      equalSy a a' && equalSy b b' && equalSy c c' && equalSy d d'
     (FunSort a b, FunSort a' b') -> equalSy a a' && equalSy b b'
     (UnivSort a, UnivSort a' ) -> equalSy a a'
     (MetaS x es, MetaS x' es') -> x == x' && equalSy es es'
@@ -352,6 +352,12 @@ instance EqualSy Sort where
     (DummyS{}  , _           ) -> __IMPOSSIBLE__
     (_         , DummyS{}    ) -> __IMPOSSIBLE__
     _ -> False
+
+instance EqualSy a => EqualSy (BlockedDepCheck a) where
+  -- This is a bit dodgy. The comparison might take place in the wrong
+  -- context...
+  equalSy (BlockedDepCheck s) (BlockedDepCheck s') =
+    equalSy s s'
 
 -- | Ignores sorts.
 instance EqualSy Type where

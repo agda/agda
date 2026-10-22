@@ -973,7 +973,8 @@ instance Subst a => Subst (Sort' a) where
     LockUniv       -> LockUniv
     LevelUniv      -> LevelUniv
     IntervalUniv   -> IntervalUniv
-    PiSort () a s1 s2 -> ((PiSort () $! applySubst rho a) (applySubst rho s1)) $! applySubst rho s2
+    -- TODO: Fix substitution
+    PiSort c a s1 s2 -> ((PiSort (applySubst rho c) $! applySubst rho a) (applySubst rho s1)) $! applySubst rho s2
     FunSort s1 s2  -> FunSort (applySubst rho s1) (applySubst rho s2)
     UnivSort s     -> UnivSort $ applySubst rho s
     MetaS x es     -> MetaS x $! subE rho es
@@ -990,6 +991,12 @@ instance Subst a => Subst (Sort' a) where
         p@Proj{}        -> (p :) $! subE rho as
         IApply l r t    -> (IApply (applySubst rho l) (applySubst rho r) (applySubst rho t):)
                            $! subE rho as
+
+instance Subst a => Subst (BlockedDepCheck a) where
+  type SubstArg (BlockedDepCheck a) = SubstArg a
+  -- Substitution on blocked dependency checks is a no-op
+  -- (The dependency problem lives in its own context)
+  applySubst rho c = c
 
 instance Subst a => Subst (Level' a) where
   type SubstArg (Level' a) = SubstArg a
@@ -1584,6 +1591,8 @@ deriving instance Ord Substitution
 
 deriving instance Eq Sort
 deriving instance Ord Sort
+deriving instance Eq a => Eq (BlockedDepCheck a)
+deriving instance Ord a => Ord (BlockedDepCheck a)
 deriving instance Eq Level
 deriving instance Ord Level
 deriving instance Eq PlusLevel
@@ -1974,12 +1983,14 @@ piSortAbs a s1 (Abs x s2) occ norm = case (sizeOfSort s1 , sizeOfSort s2) of
 --     Flexible _    -> Nothing
 
 piSort :: Dom Term -> Sort -> Abs Sort -> Sort
-piSort a s1 s2 = fromRight (const $ PiSort () a s1 s2) $ piSort' a s1 s2
+piSort a s1 s2 =
+  fromRight (const $ PiSort (BlockedDepCheck $ unAbs s2) a s1 s2) $
+  piSort' a s1 s2
 
 {-# SPECIALISE piSortM :: Dom Term -> Sort -> Abs Sort -> TCM Sort #-}
 piSortM :: HasOptions m => Dom Term -> Sort -> Abs Sort -> m Sort
 piSortM va s1 s2 = case piSort' va s1 s2 of
-  Left _ -> return $ PiSort () va s1 s2
+  Left _ -> return $ PiSort (BlockedDepCheck $ unAbs s2) va s1 s2
   -- Jesper, 2025-09-15: if a PiSort reduces to a FunSort, piSort'
   -- just returns the FunSort without trying to simplify it further.
   -- So if we get a FunSort here we call funSortM in the hopes

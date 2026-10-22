@@ -162,7 +162,7 @@ instance EmbPrj I.Sort where
     Univ a b        -> icodeN 0  Univ a b
     SizeUniv        -> icodeN 2  SizeUniv
     Inf a b         -> icodeN 3  Inf a b
-    PiSort () b c d -> icodeN 4  PiSort () b c d
+    PiSort a b c d  -> icodeN 4  PiSort a b c d
     FunSort a b     -> icodeN 5  FunSort a b
     UnivSort a      -> icodeN 6  UnivSort a
     DefS a b        -> icodeN 7  DefS a b
@@ -186,6 +186,11 @@ instance EmbPrj I.Sort where
     valu (N2 12 s)      = valuN DummyS s
     valu (N1 13)        = valuN LevelUniv
     valu _              = malformed
+
+instance EmbPrj a => EmbPrj (BlockedDepCheck a) where
+  icod_ (BlockedDepCheck a) = icodeN' BlockedDepCheck a
+
+  value = valueN BlockedDepCheck
 
 instance EmbPrj DisplayForm where
   icod_ (Display a b c) = icodeN' Display a b c

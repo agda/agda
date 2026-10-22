@@ -2034,9 +2034,10 @@ equalSort s1 s2 = do
       -- Equate a sort @s@ to @piSort a s1 s2@
       -- Precondition: @s@ and @piSort a s1 s2@ are already reduced.
       piSortEquals ::
-        Bool -> Sort -> () -> Dom Term -> Sort -> Abs Sort -> Blocker -> TCM ()
-      piSortEquals propEnabled s () a s1 NoAbs{} blocker = __IMPOSSIBLE__
-      piSortEquals propEnabled s () a s1 s2Abs@(Abs x s2) blocker = do
+           Bool -> Sort -> BlockedDepCheck Sort -> Dom Term -> Sort -> Abs Sort
+        -> Blocker -> TCM ()
+      piSortEquals propEnabled s c a s1 NoAbs{} blocker = __IMPOSSIBLE__
+      piSortEquals propEnabled s c a s1 s2Abs@(Abs x s2) blocker = do
         let adom = El s1 <$> a
         reportSDoc "tc.conv.sort" 35 $ vcat
           [ "piSortEquals"

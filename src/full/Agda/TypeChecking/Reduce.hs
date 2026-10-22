@@ -458,12 +458,12 @@ instance Reduce Sort where
       let done | MetaS x _ <- s = return $ blocked x s
                | otherwise      = return $ notBlocked s
       case s of
-        PiSort () a s1 s2Abs -> reduceB' (s1 , s2Abs) >>= \case
+        PiSort c a s1 s2Abs -> reduceB' (s1 , s2Abs) >>= \case
           -- If either the domain or codomain sort is blocked, there is no point
           -- in doing the free variable check since even if we manage to reduce
           -- to a FunSort, it would still be blocked. And normalizing anyway in
           -- this case leads to exponential behavior (see #8423).
-          Blocked b (s1 , s2Abs) -> return $! blockedOn b $ PiSort () a s1 s2Abs
+          Blocked b (s1 , s2Abs) -> return $! blockedOn b $ PiSort c a s1 s2Abs
           NotBlocked _ (s1 , s2Abs) -> do
             -- In theory we should just call piSort' here. However, we also want
             -- to reduce the codomain sort to make it non-dependent when
@@ -479,7 +479,7 @@ instance Reduce Sort where
                 case piSortAbs a s1 s2Abs flexRig CodomainNormalised of
                   -- We already know the sorts themselves are not blocked,
                   -- so the only possible blocker comes from the free variable check
-                  Left _ -> return $! blockedOn blockOcc $ PiSort () a s1 s2Abs
+                  Left _ -> return $! blockedOn blockOcc $ PiSort c a s1 s2Abs
                   -- The only sort that piSortAbs can reduce is Inf,
                   -- so there is no need to try reducing it further.
                   Right s -> return $! notBlocked s
@@ -1220,7 +1220,7 @@ instance Simplify t => Simplify (Type' t) where
 instance Simplify Sort where
     simplify' s = do
       case s of
-        PiSort () a s1 s2 -> uncurry3 piSortM =<< simplify' (a, s1, s2)
+        PiSort c a s1 s2 -> uncurry3 piSortM =<< simplify' (a, s1, s2)
         FunSort s1 s2 -> uncurry funSortM =<< simplify' (s1, s2)
         UnivSort s -> univSort <$> simplify' s
         Univ u s   -> Univ u <$> simplify' s
@@ -1382,7 +1382,7 @@ instance Normalise Sort where
     normalise' s = do
       s <- reduce' s
       case s of
-        PiSort () a s1 s2 -> uncurry3 piSortM =<< normalise' (a, s1, s2)
+        PiSort c a s1 s2 -> uncurry3 piSortM =<< normalise' (a, s1, s2)
         FunSort s1 s2 -> uncurry funSortM =<< normalise' (s1, s2)
         UnivSort s -> univSort <$> normalise' s
         Univ u s   -> Univ u <$> normalise' s
@@ -1626,21 +1626,21 @@ instance InstantiateFull PrimitiveId where
 
 -- Rest:
 instance InstantiateFull Sort where
-    instantiateFull' s = do
-        s <- instantiate' s
-        case s of
-            Univ u n   -> Univ u <$!> instantiateFull' n
-            PiSort () a s1 s2 -> uncurry3 piSortM =<< instantiateFull' (a, s1, s2)
-            FunSort s1 s2 -> uncurry funSortM =<< instantiateFull' (s1, s2)
-            UnivSort s -> univSort <$!> instantiateFull' s
-            Inf _ _    -> return s
-            SizeUniv   -> return s
-            LockUniv   -> return s
-            LevelUniv  -> return s
-            IntervalUniv -> return s
-            MetaS x es -> MetaS x <$!> instantiateFull' es
-            DefS d es  -> DefS d <$!> instantiateFull' es
-            DummyS{}   -> return s
+  instantiateFull' s = do
+    s <- instantiate' s
+    case s of
+        Univ u n   -> Univ u <$!> instantiateFull' n
+        PiSort c a s1 s2 -> uncurry3 piSortM =<< instantiateFull' (a, s1, s2)
+        FunSort s1 s2 -> uncurry funSortM =<< instantiateFull' (s1, s2)
+        UnivSort s -> univSort <$!> instantiateFull' s
+        Inf _ _    -> return s
+        SizeUniv   -> return s
+        LockUniv   -> return s
+        LevelUniv  -> return s
+        IntervalUniv -> return s
+        MetaS x es -> MetaS x <$!> instantiateFull' es
+        DefS d es  -> DefS d <$!> instantiateFull' es
+        DummyS{}   -> return s
 
 instance InstantiateFull t => InstantiateFull (Type' t) where
     instantiateFull' (El s t) =

@@ -87,7 +87,7 @@ instance PrecomputeFreeVars Sort where
       LockUniv   -> pure s
       LevelUniv  -> pure s
       IntervalUniv -> pure s
-      PiSort () a s1 s2 -> PiSort () <$>
+      PiSort c a s1 s2 -> PiSort c <$>
         precomputeFreeVars a <*>
         precomputeFreeVars s1 <*> precomputeFreeVars s2
       FunSort s1 s2 -> uncurry FunSort <$> precomputeFreeVars (s1, s2)

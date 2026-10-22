@@ -938,7 +938,7 @@ instance MetasToVars Sort where
     LockUniv   -> pure LockUniv
     LevelUniv  -> pure LevelUniv
     IntervalUniv -> pure IntervalUniv
-    PiSort () s t u -> PiSort () <$>
+    PiSort c s t u -> PiSort c <$>
       metasToVars s <*> metasToVars t <*> metasToVars u
     FunSort s t -> FunSort <$> metasToVars s <*> metasToVars t
     UnivSort s -> UnivSort <$> metasToVars s

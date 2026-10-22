@@ -482,6 +482,12 @@ data UnivSize
   | ULarge  -- ^ @(Prop/Set/SSet)ωᵢ@.
   deriving stock (Eq, Show)
 
+-- | Blocked dependency (i.e. free zero variable) check
+--
+--   Used in 'PiSort'
+data BlockedDepCheck t = BlockedDepCheck t
+  deriving (Show, Functor, Foldable, Traversable, Generic)
+
 -- | Sorts.
 --
 data Sort' t
@@ -498,8 +504,7 @@ data Sort' t
       --   When --level-universe isn't on, this universe reduces to @Set 0@
   | IntervalUniv
       -- ^ @IntervalUniv@, a sort inhabited by the cubical interval.
-  -- | PiSort (BlockedDepCheck (Sort' t)) (Dom' t t) (Sort' t) (Abs (Sort' t))
-  | PiSort () (Dom' t t) (Sort' t) (Abs (Sort' t))
+  | PiSort (BlockedDepCheck (Sort' t)) (Dom' t t) (Sort' t) (Abs (Sort' t))
       -- ^ Sort of the pi type @(x : A) → B@.
       --   The components are the blocked dependency problem @c@, the domain @A@
       --   (as a bare term), the sort @s1@ of @A@, and the sort @s2@ of @B@ in
@@ -1613,7 +1618,7 @@ instance TermSize Sort where
     LockUniv  -> 1
     LevelUniv -> 1
     IntervalUniv -> 1
-    PiSort () a s1 s2 -> 1 + tsize a + tsize s1 + tsize s2
+    PiSort _ a s1 s2 -> 1 + tsize a + tsize s1 + tsize s2
     FunSort s1 s2 -> 1 + tsize s1 + tsize s2
     UnivSort s -> 1 + tsize s
     MetaS _ es -> 1 + tsize es
@@ -1672,7 +1677,7 @@ instance KillRange a => KillRange (Sort' a) where
     LevelUniv  -> LevelUniv
     IntervalUniv -> IntervalUniv
     Univ u a   -> killRangeN (Univ u) a
-    PiSort () a s1 s2 -> killRangeN (PiSort ()) a s1 s2
+    PiSort c a s1 s2 -> killRangeN PiSort c a s1 s2
     FunSort s1 s2 -> killRangeN FunSort s1 s2
     UnivSort s -> killRangeN UnivSort s
     MetaS x es -> killRangeN (MetaS x) es
@@ -1770,6 +1775,8 @@ instance KillRange a => KillRange (Blocked a) where
 
 instance KillRange a => KillRange (Abs a) where
   killRange = fmap killRange
+
+instance KillRange a => KillRange (BlockedDepCheck a) where
 
 -----------------------------------------------------------------------------
 -- * Simple pretty printing
@@ -1967,7 +1974,7 @@ instance NFData Sort where
     LockUniv -> ()
     LevelUniv -> ()
     IntervalUniv -> ()
-    PiSort () b c d -> rnf (b, c, unAbs d)
+    PiSort a b c d -> rnf (a, b, c, unAbs d)
     FunSort a b -> rnf (a, b)
     UnivSort a -> rnf a
     MetaS _ es -> rnf es
@@ -2005,3 +2012,4 @@ instance NFData RewriteHead
 instance NFData LocalEquation
 instance NFData RewriteRule
 instance NFData RewDom
+instance NFData a => NFData (BlockedDepCheck a)
