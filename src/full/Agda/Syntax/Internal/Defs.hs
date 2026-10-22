@@ -81,8 +81,9 @@ instance GetDefs Sort where
     DummyS{}       -> ret $ mempty
 
 instance GetDefs a => GetDefs (BlockedDepCheck a) where
-  getDefs ms ds c = expand \ret ->
-    case c of BlockedDepCheck s -> ret $ getDefs ms ds s
+  getDefs ms ds c = expand \ret -> case c of
+    CodomainSortOld s -> ret $ getDefs ms ds s
+    CodomainSortSame  -> ret $ mempty
 
 instance GetDefs Level where
   getDefs ms ds l = expand \ret -> case l of Max _ ls -> ret $ getDefs ms ds ls

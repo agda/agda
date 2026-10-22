@@ -188,9 +188,14 @@ instance EmbPrj I.Sort where
     valu _              = malformed
 
 instance EmbPrj a => EmbPrj (BlockedDepCheck a) where
-  icod_ (BlockedDepCheck a) = icodeN' BlockedDepCheck a
+  icod_ = \case
+    CodomainSortOld a -> icodeN 0 CodomainSortOld a
+    CodomainSortSame  -> icodeN 1 CodomainSortSame
 
-  value = valueN BlockedDepCheck
+  value = vcase valu where
+    valu (N2 0 a) = valuN CodomainSortOld a
+    valu (N1 1)   = valuN CodomainSortSame
+    valu _        = malformed
 
 instance EmbPrj DisplayForm where
   icod_ (Display a b c) = icodeN' Display a b c

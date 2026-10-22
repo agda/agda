@@ -62,7 +62,6 @@ import Agda.Utils.Tuple
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Zip
-import Agda.Utils.CallStack (HasCallStack)
 
 
 {-# INLINE applyTermE #-}
@@ -974,7 +973,10 @@ instance Subst a => Subst (Sort' a) where
     LockUniv       -> LockUniv
     LevelUniv      -> LevelUniv
     IntervalUniv   -> IntervalUniv
-    PiSort c a s1 s2 -> ((PiSort (applySubst rho c) $! applySubst rho a) (applySubst rho s1)) $! applySubst rho s2
+    PiSort c a s1 s2 -> ((PiSort (CodomainSortOld s2Old) $! applySubst rho a) (applySubst rho s1)) $! applySubst rho s2
+      where s2Old = case c of
+              CodomainSortSame       -> absBody s2
+              CodomainSortOld s2Old' -> s2Old'
     FunSort s1 s2  -> FunSort (applySubst rho s1) (applySubst rho s2)
     UnivSort s     -> UnivSort $ applySubst rho s
     MetaS x es     -> MetaS x $! subE rho es
@@ -991,12 +993,6 @@ instance Subst a => Subst (Sort' a) where
         p@Proj{}        -> (p :) $! subE rho as
         IApply l r t    -> (IApply (applySubst rho l) (applySubst rho r) (applySubst rho t):)
                            $! subE rho as
-
-instance Subst a => Subst (BlockedDepCheck a) where
-  type SubstArg (BlockedDepCheck a) = SubstArg a
-  -- Substitution on blocked dependency checks is a no-op
-  -- (The dependency problem lives in its own context)
-  applySubst rho c = c
 
 instance Subst a => Subst (Level' a) where
   type SubstArg (Level' a) = SubstArg a
@@ -1916,14 +1912,15 @@ funSortM a b = do
 -- * `inferPiSort` in Agda.TypeChecking.Sort
 piSort' :: Dom Term -> Sort -> Abs Sort -> Either Blocker Sort
 piSort' a s1       (NoAbs _ s2) = Right $ FunSort s1 s2
-piSort' a s1 s2Abs@(Abs   _ s2) = piSort'' (BlockedDepCheck s2) a s1 s2Abs
+piSort' a s1 s2Abs@(Abs   _ s2) = piSort'' CodomainSortSame a s1 s2Abs
 
-piSort'' :: HasCallStack =>
+piSort'' ::
      BlockedDepCheck Sort -> Dom Term -> Sort -> Abs Sort
   -> Either Blocker Sort
-piSort'' (BlockedDepCheck s2') a s1 s2Abs = case varOccurrenceIn 0 s2' of
-  Nothing -> Right $! FunSort s1 $! noabsApp __IMPOSSIBLE__ s2Abs
-  Just o  -> piSortAbs a s1 s2Abs (varFlexRig o) CodomainNotNormalised
+piSort'' c a s1 s2Abs =
+  case varOccurrenceIn 0 $! codomainSortOld (unAbs s2Abs) c of
+    Nothing -> Right $! FunSort s1 $! noabsApp __IMPOSSIBLE__ s2Abs
+    Just o  -> piSortAbs a s1 s2Abs (varFlexRig o) CodomainNotNormalised
 
 data IsCodomainNormalised = CodomainNormalised | CodomainNotNormalised
 
@@ -1989,14 +1986,14 @@ piSortAbs a s1 (Abs x s2) occ norm = case (sizeOfSort s1 , sizeOfSort s2) of
 
 piSort :: Dom Term -> Sort -> Abs Sort -> Sort
 piSort a s1 s2 =
-  fromRight (const $ PiSort (BlockedDepCheck $! unAbs s2) a s1 s2) $!
+  fromRight (const $ PiSort CodomainSortSame a s1 s2) $!
   piSort' a s1 s2
 
 {-# SPECIALISE piSortM :: Dom Term -> Sort -> Abs Sort -> TCM Sort #-}
 piSortM :: HasOptions m =>
   Dom Term -> Sort -> Abs Sort -> m Sort
 piSortM va s1 s2 = case piSort' va s1 s2 of
-  Left _ -> return $ PiSort (BlockedDepCheck $! unAbs s2) va s1 s2
+  Left _ -> return $ PiSort CodomainSortSame va s1 s2
   -- Jesper, 2025-09-15: if a PiSort reduces to a FunSort, piSort'
   -- just returns the FunSort without trying to simplify it further.
   -- So if we get a FunSort here we call funSortM in the hopes
@@ -2006,7 +2003,7 @@ piSortM va s1 s2 = case piSort' va s1 s2 of
   Right s' -> return s'
 
 {-# SPECIALISE piSortM' :: BlockedDepCheck Sort -> Dom Term -> Sort -> Abs Sort -> TCM Sort #-}
-piSortM' :: (HasOptions m, HasCallStack) =>
+piSortM' :: HasOptions m =>
   BlockedDepCheck Sort -> Dom Term -> Sort -> Abs Sort -> m Sort
 piSortM' c va s1 s2 = case piSort'' c va s1 s2 of
   Left _ -> return $ PiSort c va s1 s2

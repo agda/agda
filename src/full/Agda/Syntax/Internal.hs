@@ -485,8 +485,12 @@ data UnivSize
 -- | Blocked dependency (i.e. free zero variable) check
 --
 --   Used in 'PiSort'
-data BlockedDepCheck t = BlockedDepCheck t
+data BlockedDepCheck t = CodomainSortOld t | CodomainSortSame
   deriving (Show, Functor, Foldable, Traversable, Generic)
+
+codomainSortOld :: t -> BlockedDepCheck t -> t
+codomainSortOld s (CodomainSortOld s') = s'
+codomainSortOld s CodomainSortSame     = s
 
 -- | Sorts.
 --
@@ -1831,7 +1835,8 @@ instance Pretty t => Pretty (Abs t) where
   pretty (NoAbs x t) = "NoAbs" <+> (text x <> ".") <+> pretty t
 
 instance Pretty t => Pretty (BlockedDepCheck t) where
-  pretty (BlockedDepCheck s) = "BlockedDepCheck" <+> pretty s
+  pretty (CodomainSortOld s) = "CodomainSortOld" <+> pretty s
+  pretty CodomainSortSame = "CodomainSortSame"
 
 instance (Pretty t, Pretty e) => Pretty (Dom' t e) where
   pretty dom = pLock <+> pTac <+> pDom dom (pretty (getModality dom) <+> pretty (unDom dom))

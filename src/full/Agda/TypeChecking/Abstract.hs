@@ -356,8 +356,10 @@ instance EqualSy Sort where
 instance EqualSy a => EqualSy (BlockedDepCheck a) where
   -- This is a bit dodgy. The comparison might take place in the wrong
   -- context...
-  equalSy (BlockedDepCheck s) (BlockedDepCheck s') =
-    equalSy s s'
+  equalSy = curry \case
+    (CodomainSortOld s, CodomainSortOld s') -> equalSy s s'
+    (CodomainSortSame, CodomainSortSame) -> True
+    _ -> False
 
 -- | Ignores sorts.
 instance EqualSy Type where

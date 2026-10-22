@@ -211,8 +211,12 @@ instance SynEq Sort where
       _ -> ret $ inequal (s, s')
 
 instance SynEq a => SynEq (BlockedDepCheck a) where
-  synEq (BlockedDepCheck s) (BlockedDepCheck s') =
-    BlockedDepCheck <$$> synEq s s'
+  synEq s s' = expand \ret -> case (s, s') of
+    (CodomainSortOld s, CodomainSortOld s') ->
+      ret $ CodomainSortOld <$$> synEq s s'
+    (CodomainSortSame, CodomainSortSame) ->
+      ret $ pure (CodomainSortSame, CodomainSortSame)
+    _ -> ret $ inequal (s, s')
 
 -- | Syntactic equality ignores sorts.
 instance SynEq Type where

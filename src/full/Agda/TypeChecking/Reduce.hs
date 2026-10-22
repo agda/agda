@@ -75,6 +75,8 @@ import qualified Agda.Utils.SmallSet as SmallSet
 import Agda.Utils.ExpandCase
 
 import Agda.Utils.Impossible
+import Agda.Utils.Unsafe (unsafeComparePointers)
+import Agda.Utils.Applicative (forA)
 
 instantiate :: (Instantiate a, MonadReduce m) => a -> m a
 instantiate = liftReduce . instantiate'
@@ -464,25 +466,27 @@ instance Reduce Sort where
           -- in doing the free variable check since even if we manage to reduce
           -- to a FunSort, it would still be blocked. And normalizing anyway in
           -- this case leads to exponential behavior (see #8423).
-          Blocked b (c, s1 , s2Abs) -> return $! blockedOn b $ PiSort c a s1 s2Abs
-          NotBlocked _ (BlockedDepCheck s2', s1 , s2Abs) -> do
+          Blocked b (c, s1 , s2Abs) -> return $!
+            blockedOn b $ PiSort c a s1 s2Abs
+          NotBlocked _ (c, s1 , s2Abs) -> do
+            let s2Old = codomainSortOld (unAbs s2Abs) c
             -- In theory we should just call piSort' here. However, we also want
             -- to reduce the codomain sort to make it non-dependent when
             -- possible. So we use forceNonDep and in case we are dealing with a
             -- proper Abs we call piSortAbs directly.
             let dom = El s1 <$> a
-            forceNonDepSort s2' >>= \case
+            forceNonDepSort s2Old >>= \case
               -- If the codomain sort is non-dependent, we reduce to a FunSort
-              (NotFree, s2') -> reduceB' $
+              (NotFree, s2Old) -> reduceB' $
                 FunSort s1 (noabsApp __IMPOSSIBLE__ s2Abs)
               -- For a (possibly) properly dependent PiSort, we call piSortAbs.
-              (MaybeFree flexRig, s2') -> do
+              (MaybeFree flexRig, s2Old) -> do
                 let blockOcc = flexRigToBlocker flexRig
                 case piSortAbs a s1 s2Abs flexRig CodomainNormalised of
                   -- We already know the sorts themselves are not blocked,
                   -- so the only possible blocker comes from the free variable check
                   Left _ -> return $! blockedOn blockOcc $
-                    PiSort (BlockedDepCheck s2') a s1 s2Abs
+                    PiSort c a s1 s2Abs
                   -- The only sort that piSortAbs can reduce is Inf,
                   -- so there is no need to try reducing it further.
                   Right s -> return $! notBlocked s
@@ -508,10 +512,8 @@ instance Reduce Sort where
         DummyS{}   -> done
 
 instance (Reduce a, Free a) => Reduce (BlockedDepCheck a) where
-  reduce' (BlockedDepCheck s) = inLargeEnoughContext s $
-    BlockedDepCheck <$> reduce' s
-  reduceB' (BlockedDepCheck s) = inLargeEnoughContext s $
-    fmap BlockedDepCheck <$> reduceB' s
+  reduce' c = forA c \s -> inLargeEnoughContext s $ reduce' s
+  reduceB' c = sequenceA <$> forA c \s -> inLargeEnoughContext s $ reduceB' s
 
 instance Reduce Elim where
   reduce' (Apply v) = Apply <$> reduce' v
@@ -1249,8 +1251,7 @@ instance Simplify Sort where
         DummyS{}   -> return s
 
 instance (Free a, Simplify a) => Simplify (BlockedDepCheck a) where
-  simplify' (BlockedDepCheck s) = inLargeEnoughContext s $
-    BlockedDepCheck <$> simplify' s
+  simplify' c = forA c \s -> inLargeEnoughContext s $ simplify' s
 
 instance Simplify Level where
   simplify' (Max m as) = levelMax m <$> simplify' as
@@ -1421,8 +1422,7 @@ instance Normalise Sort where
         DummyS{}   -> return s
 
 instance (Free a, Normalise a) => Normalise (BlockedDepCheck a) where
-  normalise' (BlockedDepCheck s) = inLargeEnoughContext s $
-    BlockedDepCheck <$> normalise' s
+  normalise' c = forA c \s -> inLargeEnoughContext s $ normalise' s
 
 instance Normalise t => Normalise (Type' t) where
     normalise' (El s t) = El <$> normalise' s <*> normalise' t
@@ -1673,8 +1673,7 @@ instance InstantiateFull Sort where
 
 instance (Free a, InstantiateFull a)
       => InstantiateFull (BlockedDepCheck a) where
-  instantiateFull' (BlockedDepCheck s) = inLargeEnoughContext s $
-    BlockedDepCheck <$> instantiateFull' s
+  instantiateFull' c = forA c \s -> inLargeEnoughContext s $ instantiateFull' s
 
 instance InstantiateFull t => InstantiateFull (Type' t) where
     instantiateFull' (El s t) =

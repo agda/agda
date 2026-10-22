@@ -65,8 +65,10 @@ instance MentionsMeta Sort where
     DummyS{}   -> False
 
 instance MentionsMeta t => MentionsMeta (BlockedDepCheck t) where
-  mentionsMetas xs (BlockedDepCheck s) =
+  mentionsMetas xs (CodomainSortOld s) =
     mentionsMetas xs s
+  mentionsMetas xs CodomainSortSame
+    = False
 
 instance MentionsMeta t => MentionsMeta (Abs t) where
   mentionsMetas xs = mentionsMetas xs . unAbs

@@ -803,8 +803,8 @@ getVarInfo x =
 
 -- | Create a dummy context large enough for the given thing to be well-scoped
 --   (Very hacky, should only be used if there is no alternative)
-inLargeEnoughContext :: (ReadTCState m, MonadAddContext m)
-  => Free a => a -> m b -> m b
+inLargeEnoughContext :: (ReadTCState m, MonadAddContext m, Free a)
+  => a -> m b -> m b
 inLargeEnoughContext t c = do
   let l = 1 + foldl' max 0 (freeVarList t)
   let dummies = replicate l __DUMMY_DOM__
