@@ -105,8 +105,8 @@ reallyFree xs v = do
 forceNonDep :: (Reduce a, ForceNotFree a, Free a)
   => a -> ReduceM (IsFree, a)
 forceNonDep x = do
-  (fvm, x) <- inLargeEnoughContext x $! forceNotFree (singleton 0) x
-  pure (fromMaybe __IMPOSSIBLE__ (IntMap.lookup 0 fvm), x)
+  (fvm, x) <- inLargeEnoughContext x $ forceNotFree (singleton 0) x
+  pure (fromMaybe __IMPOSSIBLE__ $! IntMap.lookup 0 fvm, x)
 
 -- | András 2026-02-24: we specialize this, because TypeChecking.Reduce imports it via the hs-boot
 --   file, and if it's not specialized there, it is __impossible__ to specialzie by GHC.

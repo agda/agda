@@ -1989,7 +1989,7 @@ piSortAbs a s1 (Abs x s2) occ norm = case (sizeOfSort s1 , sizeOfSort s2) of
 
 piSort :: Dom Term -> Sort -> Abs Sort -> Sort
 piSort a s1 s2 =
-  fromRight (const $ PiSort (BlockedDepCheck $ unAbs s2) a s1 s2) $!
+  fromRight (const $ PiSort (BlockedDepCheck $! unAbs s2) a s1 s2) $!
   piSort' a s1 s2
 
 {-# SPECIALISE piSortM :: Dom Term -> Sort -> Abs Sort -> TCM Sort #-}

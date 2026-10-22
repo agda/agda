@@ -2062,7 +2062,7 @@ equalSort s1 s2 = do
                -- We therefore need to double check @s2'@ for dependency,
                -- and otherwise postpone
                liftReduce (forceNonDepSort s2') >>= \case
-                 (NotFree, _) -> funSortEquals propEnabled s s1 s2' blocker
+                 (NotFree, _) -> funSortEquals propEnabled s s1 s2M blocker
                  (MaybeFree _, _) -> postpone
            -- Otherwise: postpone
            | otherwise -> postpone
