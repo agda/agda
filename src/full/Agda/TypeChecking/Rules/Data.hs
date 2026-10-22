@@ -237,7 +237,7 @@ checkDataSort name s = setCurrentRange name $ do
       LevelUniv    -> no
       IntervalUniv -> no
       -- Blocked sorts.
-      PiSort _ _ _ -> __IMPOSSIBLE__
+      PiSort{}     -> __IMPOSSIBLE__
       FunSort _ _  -> __IMPOSSIBLE__
       UnivSort _   -> __IMPOSSIBLE__
       MetaS _ _    -> __IMPOSSIBLE__

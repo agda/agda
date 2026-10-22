@@ -382,13 +382,13 @@ instance CheckInternal Sort where
     LockUniv -> return LockUniv
     LevelUniv -> return LevelUniv
     IntervalUniv -> return IntervalUniv
-    PiSort dom s1 s2 -> do
+    PiSort c dom s1 s2 -> do
       let a = unDom dom
       s1' <- inferInternal' action s1
       a' <- checkInternal' action a CmpLeq $ sort s1'
       let dom' = dom $> a'
       s2' <- mapAbstraction (El s1' <$> dom') (inferInternal' action) s2
-      return $ PiSort dom' s1' s2'
+      return $ PiSort c dom' s1' s2'
     FunSort s1 s2 -> do
       s1' <- inferInternal' action s1
       s2' <- inferInternal' action s2

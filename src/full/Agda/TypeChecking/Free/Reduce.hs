@@ -244,9 +244,11 @@ instance ForceNotFree Sort where
   -- away without forceNotFreeR here.
   forceNotFree' s = expand \ret -> case s of
     Univ u l       -> ret $ Univ u <$> forceNotFree' l
-    PiSort a b c   -> ret do a        <- underFlexRig (Flexible mempty) (forceNotFree' a)
-                             (!b, !c) <- underFlexRig WeaklyRigid ((,) <$> forceNotFree' b <*> forceNotFree' c)
-                             pure $ PiSort a b c
+    PiSort () b c d   -> ret do
+      b        <- underFlexRig (Flexible mempty) (forceNotFree' b)
+      (!c, !d) <- underFlexRig WeaklyRigid
+        ((,) <$> forceNotFree' c <*> forceNotFree' d)
+      pure $ PiSort () b c d
     FunSort a b    -> ret $ FunSort <$> forceNotFree' a <*> forceNotFree' b
     UnivSort s     -> ret $ UnivSort <$> underFlexRig WeaklyRigid (forceNotFree' s)
     MetaS x es     -> ret $ MetaS x <$> underFlexRig (Flexible (singleton x)) (forceNotFree' es)

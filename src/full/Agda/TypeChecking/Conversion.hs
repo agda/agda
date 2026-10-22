@@ -1915,8 +1915,8 @@ equalSort s1 s2 = do
             (Inf  u _   , Univ u' _  ) -> answer $ u == u' && typeInTypeEnabled
 
             -- equating @PiSort a b@ to another sort
-            (s1 , PiSort a b c) -> piSortEquals propEnabled s1 a b c blocker
-            (PiSort a b c , s2) -> piSortEquals propEnabled s2 a b c blocker
+            (s1 , PiSort a b c d) -> piSortEquals propEnabled s1 a b c d blocker
+            (PiSort a b c d , s2) -> piSortEquals propEnabled s2 a b c d blocker
 
             -- equating @FunSort a b@ to another sort
             (s1 , FunSort a b) -> funSortEquals propEnabled s1 a b blocker
@@ -2033,9 +2033,10 @@ equalSort s1 s2 = do
 
       -- Equate a sort @s@ to @piSort a s1 s2@
       -- Precondition: @s@ and @piSort a s1 s2@ are already reduced.
-      piSortEquals :: Bool -> Sort -> Dom Term -> Sort -> Abs Sort -> Blocker -> TCM ()
-      piSortEquals propEnabled s a s1 NoAbs{} blocker = __IMPOSSIBLE__
-      piSortEquals propEnabled s a s1 s2Abs@(Abs x s2) blocker = do
+      piSortEquals ::
+        Bool -> Sort -> () -> Dom Term -> Sort -> Abs Sort -> Blocker -> TCM ()
+      piSortEquals propEnabled s () a s1 NoAbs{} blocker = __IMPOSSIBLE__
+      piSortEquals propEnabled s () a s1 s2Abs@(Abs x s2) blocker = do
         let adom = El s1 <$> a
         reportSDoc "tc.conv.sort" 35 $ vcat
           [ "piSortEquals"

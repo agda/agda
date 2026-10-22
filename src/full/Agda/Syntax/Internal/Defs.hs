@@ -72,7 +72,7 @@ instance GetDefs Sort where
     LockUniv       -> ret $ mempty
     LevelUniv      -> ret $ mempty
     IntervalUniv   -> ret $ mempty
-    PiSort a s1 s2 -> ret $ getDefs ms ds a <> getDefs ms ds s1 <> getDefs ms ds s2
+    PiSort () a s1 s2 -> ret $ getDefs ms ds a <> getDefs ms ds s1 <> getDefs ms ds s2
     FunSort s1 s2  -> ret $ getDefs ms ds s1 <> getDefs ms ds s2
     UnivSort s     -> ret $ getDefs ms ds s
     MetaS x es     -> ret $ getDefs ms ds x <> getDefs ms ds es

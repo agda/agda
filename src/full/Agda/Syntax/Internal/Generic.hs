@@ -129,7 +129,7 @@ instance TermLike Sort where
     s@LockUniv -> pure s
     s@LevelUniv -> pure s
     s@IntervalUniv -> pure s
-    PiSort a b c -> PiSort   <$> traverseTermM f a <*> traverseTermM f b <*> traverseTermM f c
+    PiSort () b c d -> PiSort () <$> traverseTermM f b <*> traverseTermM f c <*> traverseTermM f d
     FunSort a b -> FunSort   <$> traverseTermM f a <*> traverseTermM f b
     UnivSort a -> UnivSort <$> traverseTermM f a
     MetaS x es -> MetaS x  <$> traverseTermM f es
@@ -143,7 +143,7 @@ instance TermLike Sort where
     LockUniv   -> mempty
     LevelUniv  -> mempty
     IntervalUniv -> mempty
-    PiSort a b c -> foldTerm f a <> foldTerm f b <> foldTerm f c
+    PiSort () b c d -> foldTerm f b <> foldTerm f c <> foldTerm f d
     FunSort a b -> foldTerm f a <> foldTerm f b
     UnivSort a -> foldTerm f a
     MetaS _ es -> foldTerm f es

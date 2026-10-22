@@ -57,7 +57,7 @@ instance MentionsMeta Sort where
     LockUniv   -> False
     LevelUniv  -> False
     IntervalUniv -> False
-    PiSort a s1 s2 -> mentionsMetas xs (a, s1, s2)
+    PiSort () a s1 s2 -> mentionsMetas xs (a, s1, s2)
     FunSort s1 s2 -> mentionsMetas xs (s1, s2)
     UnivSort s -> mentionsMetas xs s
     MetaS m es -> HashSet.member m xs || mentionsMetas xs es

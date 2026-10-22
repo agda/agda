@@ -229,7 +229,7 @@ instance NamesIn a => NamesIn (Sort' a) where
     LockUniv    -> mempty
     LevelUniv   -> mempty
     IntervalUniv -> mempty
-    PiSort a b c  -> namesAndMetasIn' sg (a, b, c)
+    PiSort () b c d -> namesAndMetasIn' sg (b, c, d)
     FunSort a b -> namesAndMetasIn' sg (a, b)
     UnivSort a  -> namesAndMetasIn' sg a
     MetaS x es  -> namesAndMetasIn' sg (x, es)

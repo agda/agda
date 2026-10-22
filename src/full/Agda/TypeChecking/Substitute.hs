@@ -973,7 +973,7 @@ instance Subst a => Subst (Sort' a) where
     LockUniv       -> LockUniv
     LevelUniv      -> LevelUniv
     IntervalUniv   -> IntervalUniv
-    PiSort a s1 s2 -> ((PiSort $! applySubst rho a) (applySubst rho s1)) $! applySubst rho s2
+    PiSort () a s1 s2 -> ((PiSort () $! applySubst rho a) (applySubst rho s1)) $! applySubst rho s2
     FunSort s1 s2  -> FunSort (applySubst rho s1) (applySubst rho s2)
     UnivSort s     -> UnivSort $ applySubst rho s
     MetaS x es     -> MetaS x $! subE rho es
@@ -1974,12 +1974,12 @@ piSortAbs a s1 (Abs x s2) occ norm = case (sizeOfSort s1 , sizeOfSort s2) of
 --     Flexible _    -> Nothing
 
 piSort :: Dom Term -> Sort -> Abs Sort -> Sort
-piSort a s1 s2 = fromRight (const $ PiSort a s1 s2) $ piSort' a s1 s2
+piSort a s1 s2 = fromRight (const $ PiSort () a s1 s2) $ piSort' a s1 s2
 
 {-# SPECIALISE piSortM :: Dom Term -> Sort -> Abs Sort -> TCM Sort #-}
 piSortM :: HasOptions m => Dom Term -> Sort -> Abs Sort -> m Sort
 piSortM va s1 s2 = case piSort' va s1 s2 of
-  Left _ -> return $ PiSort va s1 s2
+  Left _ -> return $ PiSort () va s1 s2
   -- Jesper, 2025-09-15: if a PiSort reduces to a FunSort, piSort'
   -- just returns the FunSort without trying to simplify it further.
   -- So if we get a FunSort here we call funSortM in the hopes

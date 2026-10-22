@@ -498,15 +498,24 @@ data Sort' t
       --   When --level-universe isn't on, this universe reduces to @Set 0@
   | IntervalUniv
       -- ^ @IntervalUniv@, a sort inhabited by the cubical interval.
-  | PiSort (Dom' t t) (Sort' t) (Abs (Sort' t))
+  -- | PiSort (BlockedDepCheck (Sort' t)) (Dom' t t) (Sort' t) (Abs (Sort' t))
+  | PiSort () (Dom' t t) (Sort' t) (Abs (Sort' t))
       -- ^ Sort of the pi type @(x : A) → B@.
-      --   The components are the domain @A@ (as a bare term), the sort @s1@ of @A@,
-      --   and the sort @s2@ of @B@ in the context extended by @x : A@.
+      --   The components are the blocked dependency problem @c@, the domain @A@
+      --   (as a bare term), the sort @s1@ of @A@, and the sort @s2@ of @B@ in
+      --   the context extended by @x : A@.
       --
-      --   The sort denoted by @'PiSort' A s1 s2@ only depends on @s1@ and @s2@.
-      --   The domain @A@ is kept around so that we can rebuild the type @'El' s1 A@
-      --   needed to extend the context when we have to work under the binder of @s2@;
-      --   see e.g. 'reduceB'' for sorts or 'piSortEquals'.
+      --   @s2@ is always @Abs@
+      --
+      --   @c@ stores the original codomain sort to ensure we make coherent
+      --   choices w.r.t. whether pi types are level-dependent or not
+      --   (see #5810)
+      --
+      --   The sort denoted by @'PiSort' c A s1 s2@ only depends on @c@, @s1@
+      --   and @s2@. The domain @A@ is kept around so that we can rebuild the
+      --   type @'El' s1 A@ needed to extend the context when we have to work
+      --   under the binder of @s2@; see e.g. 'reduceB'' for sorts or
+      --   'piSortEquals'.
   | FunSort (Sort' t) (Sort' t)
       -- ^ Sort of a (non-dependent) function type.
   | UnivSort (Sort' t)
@@ -1604,7 +1613,7 @@ instance TermSize Sort where
     LockUniv  -> 1
     LevelUniv -> 1
     IntervalUniv -> 1
-    PiSort a s1 s2 -> 1 + tsize a + tsize s1 + tsize s2
+    PiSort () a s1 s2 -> 1 + tsize a + tsize s1 + tsize s2
     FunSort s1 s2 -> 1 + tsize s1 + tsize s2
     UnivSort s -> 1 + tsize s
     MetaS _ es -> 1 + tsize es
@@ -1663,7 +1672,7 @@ instance KillRange a => KillRange (Sort' a) where
     LevelUniv  -> LevelUniv
     IntervalUniv -> IntervalUniv
     Univ u a   -> killRangeN (Univ u) a
-    PiSort a s1 s2 -> killRangeN PiSort a s1 s2
+    PiSort () a s1 s2 -> killRangeN (PiSort ()) a s1 s2
     FunSort s1 s2 -> killRangeN FunSort s1 s2
     UnivSort s -> killRangeN UnivSort s
     MetaS x es -> killRangeN (MetaS x) es
@@ -1878,7 +1887,7 @@ instance Pretty Sort where
       LockUniv -> "LockUniv"
       LevelUniv -> "LevelUniv"
       IntervalUniv -> "IntervalUniv"
-      PiSort a s1 s2 -> mparens (p > 9) $
+      PiSort c a s1 s2 -> mparens (p > 9) $
         "piSort" <+> pDom (domInfo a) (text (absName s2) <+> ":" <+> pretty (unDom a) <+> ":" <+> pretty s1)
                       <+> parens (pretty (unAbs s2))
       FunSort a b -> mparens (p > 9) $
@@ -1958,7 +1967,7 @@ instance NFData Sort where
     LockUniv -> ()
     LevelUniv -> ()
     IntervalUniv -> ()
-    PiSort a b c -> rnf (a, b, unAbs c)
+    PiSort () b c d -> rnf (b, c, unAbs d)
     FunSort a b -> rnf (a, b)
     UnivSort a -> rnf a
     MetaS _ es -> rnf es

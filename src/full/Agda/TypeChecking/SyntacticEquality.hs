@@ -196,7 +196,8 @@ instance SynEq Sort where
     s' <- lift $ instantiate' s'
     expand \ret -> case (s, s') of
       (Univ u l, Univ u' l') | u == u' -> ret $ Univ u <$$> synEq l l'
-      (PiSort a b c, PiSort a' b' c') -> ret $ PiSort <$$> synEq a a' <**> synEq' b b' <**> synEq' c c'
+      (PiSort () b c d, PiSort () b' c' d') -> ret $ PiSort () <$$>
+        synEq b b' <**> synEq' c c' <**> synEq' d d'
       (FunSort a b, FunSort a' b') -> ret $ FunSort <$$> synEq a a' <**> synEq' b b'
       (UnivSort a, UnivSort a') -> ret $ UnivSort <$$> synEq a a'
       (SizeUniv, SizeUniv  ) -> ret $ pure2 s
