@@ -35,7 +35,7 @@ import Data.Functor ((<&>))
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Maybe (maybeToList)
+import Data.Maybe (isJust, maybeToList)
 import Data.PQueue.Min (MinQueue)
 import qualified Data.PQueue.Min as Q
 
@@ -462,7 +462,12 @@ refine branch = withBranchState branch $ do
         e <- blankNotInScope =<< reify (MetaV (goalMeta goal1) args)
         return [ResultExpr e]
       -- Normal abstraction
-      Just (Right (goal2, goalType2, branch2)) -> withBranchAndGoal branch2 goal2 $ do
+      Just (Right (goal2, goalType2, branch2)) ->
+       -- The new goal might have been solved by constraint solving during lambda abstraction,
+       -- e.g. by pruning.  Then we continue with the remaining metas of its solution.
+       ifM (isJust <$> metaInstantiation (goalMeta goal2))
+       {-then-} ((:[]) <$> checkSolved branch2{ sbGoals = goal2 : sbGoals branch2 }) $
+       {-else-} withBranchAndGoal branch2 goal2 $ do
         (branch3, components) <- prepareComponents goal2 branch2
         withBranchAndGoal branch3 goal2 $ do
 
