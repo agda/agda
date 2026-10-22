@@ -1830,6 +1830,9 @@ instance Pretty t => Pretty (Abs t) where
   pretty (Abs   x t) = "Abs"   <+> (text x <> ".") <+> pretty t
   pretty (NoAbs x t) = "NoAbs" <+> (text x <> ".") <+> pretty t
 
+instance Pretty t => Pretty (BlockedDepCheck t) where
+  pretty (BlockedDepCheck s) = "BlockedDepCheck" <+> pretty s
+
 instance (Pretty t, Pretty e) => Pretty (Dom' t e) where
   pretty dom = pLock <+> pTac <+> pDom dom (pretty (getModality dom) <+> pretty (unDom dom))
     where

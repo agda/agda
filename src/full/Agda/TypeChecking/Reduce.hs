@@ -47,6 +47,7 @@ import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
 import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (isPropM)
+import Agda.TypeChecking.Free (Free)
 import Agda.TypeChecking.Free.Base
 import {-# SOURCE #-} Agda.TypeChecking.Free.Reduce (forceNoAbsSort)
 import Agda.TypeChecking.Monad
@@ -1180,6 +1181,12 @@ instance (Simplify a, Simplify b, Simplify c) => Simplify (a,b,c) where
         do  (x,(y,z)) <- simplify' (x,(y,z))
             return (x,y,z)
 
+instance (Simplify a, Simplify b, Simplify c, Simplify d)
+      => Simplify (a,b,c,d) where
+  simplify' (x,y,z,w) = do
+    (x,(y,z,w)) <- simplify' (x,(y,z,w))
+    return (x,y,z,w)
+
 instance Simplify Bool where
   simplify' = return
 
@@ -1220,7 +1227,7 @@ instance Simplify t => Simplify (Type' t) where
 instance Simplify Sort where
     simplify' s = do
       case s of
-        PiSort c a s1 s2 -> uncurry3 piSortM =<< simplify' (a, s1, s2)
+        PiSort c a s1 s2 -> uncurry4 piSortM' =<< simplify' (c, a, s1, s2)
         FunSort s1 s2 -> uncurry funSortM =<< simplify' (s1, s2)
         UnivSort s -> univSort <$> simplify' s
         Univ u s   -> Univ u <$> simplify' s
@@ -1232,6 +1239,10 @@ instance Simplify Sort where
         MetaS x es -> MetaS x <$> simplify' es
         DefS d es  -> DefS d <$> simplify' es
         DummyS{}   -> return s
+
+instance (Free a, Simplify a) => Simplify (BlockedDepCheck a) where
+  simplify' (BlockedDepCheck s) = inLargeEnoughContext s $
+    BlockedDepCheck <$> simplify' s
 
 instance Simplify Level where
   simplify' (Max m as) = levelMax m <$> simplify' as
@@ -1364,6 +1375,12 @@ instance (Normalise a, Normalise b, Normalise c) => Normalise (a,b,c) where
         do  (x,(y,z)) <- normalise' (x,(y,z))
             return (x,y,z)
 
+instance (Normalise a, Normalise b, Normalise c, Normalise d)
+      => Normalise (a,b,c,d) where
+    normalise' (x,y,z,w) =
+        do  (x,(y,z,w)) <- normalise' (x,(y,z,w))
+            return (x,y,z,w)
+
 instance Normalise Bool where
   normalise' = return
 
@@ -1382,7 +1399,7 @@ instance Normalise Sort where
     normalise' s = do
       s <- reduce' s
       case s of
-        PiSort c a s1 s2 -> uncurry3 piSortM =<< normalise' (a, s1, s2)
+        PiSort c a s1 s2 -> uncurry4 piSortM' =<< normalise' (c, a, s1, s2)
         FunSort s1 s2 -> uncurry funSortM =<< normalise' (s1, s2)
         UnivSort s -> univSort <$> normalise' s
         Univ u s   -> Univ u <$> normalise' s
@@ -1394,6 +1411,10 @@ instance Normalise Sort where
         MetaS x es -> return s
         DefS d es  -> return s
         DummyS{}   -> return s
+
+instance (Free a, Normalise a) => Normalise (BlockedDepCheck a) where
+  normalise' (BlockedDepCheck s) = inLargeEnoughContext s $
+    BlockedDepCheck <$> normalise' s
 
 instance Normalise t => Normalise (Type' t) where
     normalise' (El s t) = El <$> normalise' s <*> normalise' t
@@ -1629,18 +1650,23 @@ instance InstantiateFull Sort where
   instantiateFull' s = do
     s <- instantiate' s
     case s of
-        Univ u n   -> Univ u <$!> instantiateFull' n
-        PiSort c a s1 s2 -> uncurry3 piSortM =<< instantiateFull' (a, s1, s2)
-        FunSort s1 s2 -> uncurry funSortM =<< instantiateFull' (s1, s2)
-        UnivSort s -> univSort <$!> instantiateFull' s
-        Inf _ _    -> return s
-        SizeUniv   -> return s
-        LockUniv   -> return s
-        LevelUniv  -> return s
-        IntervalUniv -> return s
-        MetaS x es -> MetaS x <$!> instantiateFull' es
-        DefS d es  -> DefS d <$!> instantiateFull' es
-        DummyS{}   -> return s
+      Univ u n   -> Univ u <$!> instantiateFull' n
+      PiSort c a s1 s2 -> uncurry4 piSortM' =<< instantiateFull' (c, a, s1, s2)
+      FunSort s1 s2 -> uncurry funSortM =<< instantiateFull' (s1, s2)
+      UnivSort s -> univSort <$!> instantiateFull' s
+      Inf _ _    -> return s
+      SizeUniv   -> return s
+      LockUniv   -> return s
+      LevelUniv  -> return s
+      IntervalUniv -> return s
+      MetaS x es -> MetaS x <$!> instantiateFull' es
+      DefS d es  -> DefS d <$!> instantiateFull' es
+      DummyS{}   -> return s
+
+instance (Free a, InstantiateFull a)
+      => InstantiateFull (BlockedDepCheck a) where
+  instantiateFull' (BlockedDepCheck s) = inLargeEnoughContext s $
+    BlockedDepCheck <$> instantiateFull' s
 
 instance InstantiateFull t => InstantiateFull (Type' t) where
     instantiateFull' (El s t) =

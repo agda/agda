@@ -804,6 +804,6 @@ getVarInfo x =
 inLargeEnoughContext :: (ReadTCState m, MonadAddContext m)
   => Free a => a -> m b -> m b
 inLargeEnoughContext t c = do
-  let l = 1 + maximum (freeVarList t)
+  let l = 1 + foldl' max 0 (freeVarList t)
   let dummies = replicate l __DUMMY_DOM__
   inTopContext $ addContext dummies c

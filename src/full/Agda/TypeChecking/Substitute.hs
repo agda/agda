@@ -62,6 +62,7 @@ import Agda.Utils.Tuple
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Zip
+import Agda.Utils.CallStack (HasCallStack)
 
 
 {-# INLINE applyTermE #-}
@@ -1917,11 +1918,10 @@ piSort' :: Dom Term -> Sort -> Abs Sort -> Either Blocker Sort
 piSort' a s1       (NoAbs _ s2) = Right $ FunSort s1 s2
 piSort' a s1 s2Abs@(Abs   _ s2) = piSort'' (BlockedDepCheck s2) a s1 s2Abs
 
-piSort'' ::
+piSort'' :: HasCallStack =>
      BlockedDepCheck Sort -> Dom Term -> Sort -> Abs Sort
   -> Either Blocker Sort
--- TODO: For subject reduction, we should check var occurrence in s2'!
-piSort'' (BlockedDepCheck s2') a s1 s2Abs = case varOccurrenceIn 0 (unAbs s2Abs) of
+piSort'' (BlockedDepCheck s2') a s1 s2Abs = case varOccurrenceIn 0 s2' of
   Nothing -> Right $! FunSort s1 $! noabsApp __IMPOSSIBLE__ s2Abs
   Just o  -> piSortAbs a s1 s2Abs (varFlexRig o) CodomainNotNormalised
 
@@ -2006,7 +2006,7 @@ piSortM va s1 s2 = case piSort' va s1 s2 of
   Right s' -> return s'
 
 {-# SPECIALISE piSortM' :: BlockedDepCheck Sort -> Dom Term -> Sort -> Abs Sort -> TCM Sort #-}
-piSortM' :: HasOptions m =>
+piSortM' :: (HasOptions m, HasCallStack) =>
   BlockedDepCheck Sort -> Dom Term -> Sort -> Abs Sort -> m Sort
 piSortM' c va s1 s2 = case piSort'' c va s1 s2 of
   Left _ -> return $ PiSort c va s1 s2
