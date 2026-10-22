@@ -1,0 +1,130 @@
+diff --git a/Meta/Prelude.agda b/Meta/Prelude.agda
+index c568259..b9be5df 100644
+--- a/Meta/Prelude.agda
++++ b/Meta/Prelude.agda
+@@ -10,20 +10,20 @@ variable
+   A B C D : Set ℓ
+ 
+ open import Data.Bool public
+-  hiding (_≟_; _≤_; _≤?_; _<_; _<?_)
++  hiding (_≟_; _≡?_; _≤_; _≤?_; _<_; _<?_)
+ open import Data.Empty public
+ open import Data.List public
+   hiding (align; alignWith; fromMaybe; map; zip; zipWith)
+ open import Data.Maybe public
+   hiding (_>>=_; ap; align; alignWith; fromMaybe; map; zip; zipWith)
+ open import Data.Unit public
+-  hiding (_≟_)
++  hiding (_≡?_)
+ open import Data.Sum public
+   hiding (assocʳ; assocˡ; map; map₁; map₂; reduce; swap)
+ open import Data.Product public
+   hiding (assocʳ; assocˡ; map; map₁; map₂; swap; zip; zipWith; _<*>_)
+ open import Data.Nat public
+-  hiding (_≟_; _≤_; _≤?_; _<_; _<?_; _≤ᵇ_; _≡ᵇ_)
++  hiding (_≟_; _≡?_; _≤_; _≤?_; _<_; _<?_; _≤ᵇ_; _≡ᵇ_)
+ open import Data.String public
+   using (String; _<+>_)
+ 
+diff --git a/Tactic/Derive/DecEq.agda b/Tactic/Derive/DecEq.agda
+index cbed810..4e29247 100644
+--- a/Tactic/Derive/DecEq.agda
++++ b/Tactic/Derive/DecEq.agda
+@@ -21,7 +21,7 @@ open import Relation.Nullary
+ open import Reflection.Tactic
+ open import Reflection.QuotedDefinitions
+ open import Reflection.AST.DeBruijn
+-open import Reflection.AST.Pattern using () renaming (_≟_ to _≟-Pattern_)
++open import Reflection.AST.Pattern using () renaming (_≡?_ to _≟-Pattern_)
+ 
+ open import Class.DecEq.Core
+ open import Class.Functor
+diff --git a/Tactic/Derive/DecEqFast.agda b/Tactic/Derive/DecEqFast.agda
+index d957388..40799d4 100644
+--- a/Tactic/Derive/DecEqFast.agda
++++ b/Tactic/Derive/DecEqFast.agda
+@@ -32,7 +32,7 @@ open import Reflection.QuotedDefinitions
+ open import Reflection.Utils
+ open import Reflection.Utils.Debug
+ open Debug ("DecEqFast" , 100)
+-open import Reflection hiding (_>>=_; _>>_; _≟_)
++open import Reflection hiding (_>>=_; _>>_)
+ open import Reflection.Utils.TCM
+ 
+ --
+diff --git a/Tactic/Derive/HsType.agda b/Tactic/Derive/HsType.agda
+index 48c258a..91499ae 100644
+--- a/Tactic/Derive/HsType.agda
++++ b/Tactic/Derive/HsType.agda
+@@ -6,7 +6,7 @@ open import Meta.Prelude hiding (lookup)
+ 
+ open import Agda.Builtin.Reflection using
+   (declareData; defineData; pragmaForeign; pragmaCompile; solveInstanceConstraints)
+-open import Reflection as R hiding (showName; _>>=_; _>>_; _≟_)
++open import Reflection as R hiding (showName; _>>=_; _>>_)
+ open import Reflection.AST.DeBruijn
+ 
+ open import Data.Maybe using (fromMaybe; maybe′; _<∣>_)
+diff --git a/Tactic/Existentials.agda b/Tactic/Existentials.agda
+index 4740a17..41706a1 100644
+--- a/Tactic/Existentials.agda
++++ b/Tactic/Existentials.agda
+@@ -3,7 +3,7 @@ module Tactic.Existentials where
+ 
+ open import Meta.Prelude
+ 
+-open import Reflection hiding (_>>=_; _>>_; _≟_)
++open import Reflection hiding (_>>=_; _>>_)
+ open import Reflection.Syntax
+ open import Reflection.Tactic
+ open import Reflection.Utils
+diff --git a/Tactic/Extra.agda b/Tactic/Extra.agda
+index 1c689d3..1774685 100644
+--- a/Tactic/Extra.agda
++++ b/Tactic/Extra.agda
+@@ -9,7 +9,7 @@ open import Data.List using (List; drop; map; [_]; [])
+ open import Data.Nat as Nat using (ℕ)
+ open import Data.Vec using (Vec; []; _∷_)
+ 
+-open import Reflection hiding (_>>=_; _>>_; _≟_)
++open import Reflection hiding (_>>=_; _>>_)
+ open import Reflection.Syntax
+ open import Reflection.Tactic
+ open import Reflection.Utils
+diff --git a/Tactic/Rewrite.agda b/Tactic/Rewrite.agda
+index 4651470..876ef9b 100644
+--- a/Tactic/Rewrite.agda
++++ b/Tactic/Rewrite.agda
+@@ -8,7 +8,7 @@ open import Data.List.Membership.DecPropositional using (_∈?_)
+ open import Data.Product using (map₂)
+ open import Relation.Nullary.Decidable using (⌊_⌋)
+ 
+-open import Reflection hiding (_>>=_; _>>_; _≟_)
++open import Reflection hiding (_>>=_; _>>_)
+ open import Reflection.QuotedDefinitions
+ open import Reflection.Syntax
+ open import Reflection.Tactic
+diff --git a/Tactic/Try.agda b/Tactic/Try.agda
+index 6617b98..246098b 100644
+--- a/Tactic/Try.agda
++++ b/Tactic/Try.agda
+@@ -6,7 +6,7 @@ open import Meta.Prelude
+ 
+ open import Data.List
+ 
+-open import Reflection hiding (_>>=_; _>>_; _≟_)
++open import Reflection hiding (_>>=_; _>>_)
+ open import Reflection.Syntax
+ open import Reflection.Utils
+ open import Reflection.Utils.Debug
+diff --git a/agda-stdlib-meta.agda-lib b/agda-stdlib-meta.agda-lib
+index 2196b29..c7e2392 100644
+--- a/agda-stdlib-meta.agda-lib
++++ b/agda-stdlib-meta.agda-lib
+@@ -1,5 +1,5 @@
+ name: standard-library-meta
+ depend:
+-  standard-library-2.3
++  standard-library
+   standard-library-classes
+ include: .
