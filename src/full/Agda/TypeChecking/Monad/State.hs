@@ -80,8 +80,12 @@ putTCPreservingStats = bracket_ get put . putTC where
 --
 -- Parts of the state which should not be reset on speculation (e.g.,
 -- statistics) will not be reset.
+-- The state is also restored when the computation throws a 'TCErr',
+-- including a pattern violation caught by an enclosing handler.
 localTCState :: TCM a -> TCM a
-localTCState = bracket_ getTC putTCPreservingStats
+localTCState m = do
+  s <- getTC
+  m `finally_` putTCPreservingStats s
 
 -- | Same as 'localTCState', but also returns the state in which we were
 -- just before reverting it.
