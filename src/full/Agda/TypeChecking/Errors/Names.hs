@@ -262,6 +262,7 @@ typeErrorName = \case
   WrongHidingInProjection                                    {} -> WrongHidingInProjection_
   WrongIrrelevanceInLambda                                   {} -> WrongIrrelevanceInLambda_
   WrongNamedArgument                                         {} -> WrongNamedArgument_
+  WrongNamedArgumentInLHS                                    {} -> WrongNamedArgumentInLHS_
   WrongNumberOfConstructorArguments                          {} -> WrongNumberOfConstructorArguments_
   WrongQuantityInLambda                                      {} -> WrongQuantityInLambda_
   WrongSharpArity                                            {} -> WrongSharpArity_

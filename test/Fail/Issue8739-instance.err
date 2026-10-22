@@ -1,0 +1,4 @@
+Issue8739-instance.agda:7.9-10: error: [WrongNamedArgumentInLHS]
+Unexpected instance argument named W (possible arguments: Y Z)
+when checking the clause left hand side
+f ⦃ W = W ⦄ B
