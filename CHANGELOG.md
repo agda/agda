@@ -323,6 +323,12 @@ Errors
   * `GeneralizationPrepruneErrorCyclicDependencies`, reproduced by Nils Anders Danielsson
     (see Issue [#3672](https://github.com/agda/agda/issues/3672#issuecomment-482715807)).
 
+* New error `WrongNamedArgumentInLHS` for a named hidden argument on a left hand side
+  that does not exist, replacing `WrongHidingInLHS` in this case.
+  Like `WrongNamedArgument` on the right hand side, it lists the possible argument names
+  (see [#8739](https://github.com/agda/agda/issues/8739)).
+  Likewise, error `NoParameterOfName` now lists the possible parameter names.
+
 Warnings
 --------
 

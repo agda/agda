@@ -99,8 +99,8 @@ insertImplicitPatternsT exh            ps a = do
 
     insImp p EmptyTel = return []
     insImp p tel = case insertImplicit p $ telToList tel of
-      BadImplicits   -> typeError WrongHidingInLHS
-      NoSuchName x   -> typeError WrongHidingInLHS
-      ImpInsert n    -> return $ map implicitArg n
+      BadImplicits    -> typeError WrongHidingInLHS
+      NoSuchName x xs -> typeError $ WrongNamedArgumentInLHS (getHiding p) x xs
+      ImpInsert n     -> return $ map implicitArg n
 
     implicitArg d = implicitP $ getArgInfo d

@@ -4,5 +4,9 @@
 data D {A : Set} : Set
 data D {B = B} where
 
--- Expected error:
--- No parameter of name B
+-- Andreas, 2026-10-22, issue #8739
+-- Report also the names of available parameters.
+--
+-- Expected error: [NoParameterOfName]
+-- No parameter of name B (possible parameters: A)
+-- when checking the definition of D
