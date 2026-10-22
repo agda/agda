@@ -31,6 +31,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
+import Agda.TypeChecking.Free (Free, freeVarList)
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
@@ -799,3 +800,10 @@ getVarInfo x =
                       -- it is apparently caught during a "refine".
                       -- TODO: It would be worthwhile investigating who wants to access
                       -- an out-of-scope variable.
+
+inLargeEnoughContext :: (ReadTCState m, MonadAddContext m)
+  => Free a => a -> m b -> m b
+inLargeEnoughContext t c = do
+  let l = 1 + maximum (freeVarList t)
+  let dummies = replicate l __DUMMY_DOM__
+  inTopContext $ addContext dummies c
