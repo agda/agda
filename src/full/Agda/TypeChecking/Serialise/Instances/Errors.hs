@@ -110,6 +110,7 @@ instance EmbPrj Warning where
     BuiltinDeclaresIdentifier a                 -> icodeN 51 BuiltinDeclaresIdentifier a
     ConfluenceForCubicalNotSupported            -> icodeN 52 ConfluenceForCubicalNotSupported
     -- We do not need to serialize compiler warnings:
+    PragmaCompileDefined _                      -> __IMPOSSIBLE__
     PragmaCompileList                           -> __IMPOSSIBLE__
     PragmaCompileMaybe                          -> __IMPOSSIBLE__
     NoMain _                                    -> __IMPOSSIBLE__

@@ -613,6 +613,10 @@ prettyWarning = \case
       , pwords "is not known to the JS backend and will be compiled to undefined."
       ]
 
+    PragmaCompileDefined qn -> fsep $ concat
+      [ pwords "TODO"
+      ]
+
     PragmaCompileErased bn qn -> fsep $ concat
       [ pwords "The backend"
       , [ prettyTCM bn
