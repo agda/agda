@@ -136,8 +136,8 @@
             hpkgs.fix-whitespace
 
             # Alex and happy
-            pkgs.happy
-            pkgs.alex
+            hpkgs.happy
+            hpkgs.alex
 
             # Tools for building/testing WASM
             ghc-wasm.packages.wasm32-wasi-ghc-9_10
