@@ -315,6 +315,7 @@ data ErrorName
   | WrongHidingInProjection_
   | WrongIrrelevanceInLambda_
   | WrongNamedArgument_
+  | WrongNamedArgumentInLHS_
   | WrongNumberOfConstructorArguments_
   | WrongQuantityInLambda_
   | WrongSharpArity_
