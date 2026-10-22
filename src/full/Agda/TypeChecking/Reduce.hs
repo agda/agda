@@ -459,28 +459,29 @@ instance Reduce Sort where
       let done | MetaS x _ <- s = return $ blocked x s
                | otherwise      = return $ notBlocked s
       case s of
-        PiSort c a s1 s2Abs -> reduceB' (s1 , s2Abs) >>= \case
+        PiSort c a s1 s2Abs -> reduceB' (c, s1 , s2Abs) >>= \case
           -- If either the domain or codomain sort is blocked, there is no point
           -- in doing the free variable check since even if we manage to reduce
           -- to a FunSort, it would still be blocked. And normalizing anyway in
           -- this case leads to exponential behavior (see #8423).
-          Blocked b (s1 , s2Abs) -> return $! blockedOn b $ PiSort c a s1 s2Abs
-          NotBlocked _ (s1 , s2Abs) -> do
+          Blocked b (c, s1 , s2Abs) -> return $! blockedOn b $ PiSort c a s1 s2Abs
+          NotBlocked _ (BlockedDepCheck s2', s1 , s2Abs) -> do
             -- In theory we should just call piSort' here. However, we also want
             -- to reduce the codomain sort to make it non-dependent when
             -- possible. So we use forceNoAbs and in case we are dealing with a
             -- proper Abs we call piSortAbs directly.
             let dom = El s1 <$> a
-            forceNoAbsSort dom s2Abs >>= \case
+            forceNoAbsSort dom (Abs (absName s2Abs) s2') >>= \case
               -- If the codomain sort is non-dependent, we reduce to a FunSort
-              Right s2 -> reduceB' $ FunSort s1 s2
+              Right s2' -> reduceB' $ FunSort s1 (noabsApp __IMPOSSIBLE__ s2Abs)
               -- For a (possibly) properly dependent PiSort, we call piSortAbs.
-              Left (s2Abs, flexRig) -> do
+              Left (s2Abs', flexRig) -> do
                 let blockOcc = flexRigToBlocker flexRig
                 case piSortAbs a s1 s2Abs flexRig CodomainNormalised of
                   -- We already know the sorts themselves are not blocked,
                   -- so the only possible blocker comes from the free variable check
-                  Left _ -> return $! blockedOn blockOcc $ PiSort c a s1 s2Abs
+                  Left _ -> return $! blockedOn blockOcc $
+                    PiSort (BlockedDepCheck (unAbs s2Abs')) a s1 s2Abs
                   -- The only sort that piSortAbs can reduce is Inf,
                   -- so there is no need to try reducing it further.
                   Right s -> return $! notBlocked s
@@ -504,6 +505,12 @@ instance Reduce Sort where
         MetaS x es -> done
         DefS d es  -> done -- postulated sorts do not reduce
         DummyS{}   -> done
+
+instance (Reduce a, Free a) => Reduce (BlockedDepCheck a) where
+  reduce' (BlockedDepCheck s) = inLargeEnoughContext s $
+    BlockedDepCheck <$> reduce' s
+  reduceB' (BlockedDepCheck s) = inLargeEnoughContext s $
+    fmap BlockedDepCheck <$> reduceB' s
 
 instance Reduce Elim where
   reduce' (Apply v) = Apply <$> reduce' v
