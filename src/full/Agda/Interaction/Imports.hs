@@ -58,6 +58,7 @@ import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Lazy qualified as TL
+import Data.Time.Clock (UTCTime)
 
 import GHC.Conc
 
@@ -167,6 +168,7 @@ data Source = Source
   , srcProjectLibs :: [AgdaLibFile]         -- ^ The .agda-lib file(s) of the project this file belongs to.
   , srcAttributes  :: !Attributes
     -- ^ Every encountered attribute.
+  , srcSourceModificationTime :: !UTCTime
   }
 
 -- | Parses a source file and prepares the 'Source' record.
@@ -193,7 +195,7 @@ parseSource sourceFile = Bench.billTo [Bench.Parsing] $ do
   let rf0 = mkRangeFile f Nothing
   setCurrentRange (beginningOfFile rf0) do
 
-  source <- runPM $ readFilePM rf0
+  (!source, !modTime) <- runPM $ readFilePMWithTime rf0
   let txt = TL.unpack source
 
   -- Get the literate markdown option.
@@ -212,15 +214,15 @@ parseSource sourceFile = Bench.billTo [Bench.Parsing] $ do
 
   libs <- getAgdaLibFiles f parsedModName
   return Source
-    { srcText        = source
-    , srcFileType    = fileType
-    , srcOrigin      = sourceFile
-    , srcModule      = parsedMod
-    , srcModuleName  = parsedModName
-    , srcProjectLibs = libs
-    , srcAttributes  = attrs
+    { srcText                   = source
+    , srcFileType               = fileType
+    , srcOrigin                 = sourceFile
+    , srcModule                 = parsedMod
+    , srcModuleName             = parsedModName
+    , srcProjectLibs            = libs
+    , srcAttributes             = attrs
+    , srcSourceModificationTime = modTime
     }
-
 
 -- | Computes the module name of the top-level module in the given file.
 --
@@ -707,14 +709,14 @@ haveDepsChanged !src = do
           !mi       <- lift $ maybeToExceptT () (MaybeT (getDecodedModule mod))
           !file     <- lift $ withExceptT (\_ -> ()) $ ExceptT (findFile' mod)
           !path     <- filePath <$> srcFilePath file
-          !iPath    <- filePath . intFilePath <$> lift (maybeToExceptT () (MaybeT (findInterfaceFile' file)))
+          !iPath    <- filePath . intFilePath <$>
+                          lift (maybeToExceptT () (MaybeT (findInterfaceFile' file)))
           !modTime  <- lift $ lift $ lift $ getModificationTime path
           !iModTime <- lift $ lift $ lift $ getModificationTime iPath
-          let !hasntChanged =
-                modTime == miModificationTime mi && iModTime == miInterfaceModificationTime mi
+          let !hasntChanged = modTime == miSourceModificationTime mi
           unless hasntChanged $ throwError ()
           let !children = map' fst $ iImportedModules $ miInterface mi
-          alwaysReportSLn "import" 0 ("chaseMod " ++ prettyShow (mod, children))
+          -- alwaysReportSLn "import" 0 ("chaseMod " ++ prettyShow (mod, children))
           Strict.modify $ Set.insert mod
           chaseMods children
 
@@ -724,7 +726,7 @@ haveDepsChanged !src = do
       top :: Strict.StateT (Set TopLevelModuleName) (ExceptT () TCM) ()
       top = do
         !children <- lift $ getImports (srcModule src)
-        alwaysReportSLn "import" 0 ("haveDepsChanged " ++ prettyShow children)
+        -- alwaysReportSLn "import" 0 ("haveDepsChanged " ++ prettyShow children)
         chaseMods children
 
   runExceptT (Strict.runStateT top mempty) >>= \case
@@ -767,8 +769,7 @@ typeCheckMain mode src = do
 
   -- Has any transitively imported source file or interface file changed since
   -- we wrote into DecodedModules?
-  (changedDeps, t) <- measureTime $ haveDepsChanged src
-  alwaysReportSLn "import" 0 $ "haveDepsChanged " ++ prettyShow (changedDeps, t)
+  changedDeps <- haveDepsChanged src
   ignoreIFaces <- ignoreInterfaces
 
   mi <- wantsParallelChecking >>= \case
@@ -1122,8 +1123,12 @@ getStoredInterface x file@(SourceFile fi) msrc = do
         -- print imported warnings
         reportWarningsForModule x $ iWarnings i
 
-        modTime  <- lift $ lift $ getModificationTime (filePath path)
-        iModTime <- lift $ lift $ getModificationTime ifp
+        modTime <- case msrc of
+          Nothing -> do
+            path <- filePath <$> srcFilePath file
+            lift $ lift $ getModificationTime path
+          Just src ->
+            pure $! srcSourceModificationTime src
 
         loadDecodedModule file $ ModuleInfo
           { miInterface = i
@@ -1131,8 +1136,7 @@ getStoredInterface x file@(SourceFile fi) msrc = do
           , miIsBuiltin = isBuiltinMod
           , miMode = ModuleTypeChecked
           , miSourceFile = file
-          , miModificationTime = modTime
-          , miInterfaceModificationTime = iModTime
+          , miSourceModificationTime = modTime
           }
 
   -- Check if we have cached the module.
@@ -1673,18 +1677,13 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
 
     isBuiltinMod <- isBuiltinModule sfi
 
-    modTime  <- lift $ getModificationTime (filePath srcPath)
-    ifile    <- toIFile sf
-    iModTime <- lift $ getModificationTime (filePath ifile)
-
     return ModuleInfo
       { miInterface = finalIface
       , miWarnings = mallWarnings
       , miIsBuiltin = isBuiltinMod
       , miMode = moduleCheckMode isMain
       , miSourceFile = sf
-      , miModificationTime = modTime
-      , miInterfaceModificationTime = iModTime
+      , miSourceModificationTime = srcSourceModificationTime src
       }
 
 -- | Expert version of 'getAllWarnings'; if 'isMain' is a

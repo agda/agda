@@ -1504,8 +1504,9 @@ data ModuleInfo = ModuleInfo
     -- ^ The `ModuleCheckMode` used to create the `Interface`
   , miSourceFile :: SourceFile
     -- ^ The file belonging to the module.
-  , miModificationTime :: !UTCTime
-  , miInterfaceModificationTime :: !UTCTime
+  , miSourceModificationTime :: !UTCTime
+    -- ^ The modification time of the source file when we parsed
+    --   it.
   }
   deriving Generic
 
