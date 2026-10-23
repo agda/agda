@@ -21,7 +21,7 @@ run action = do
 
 tests :: TestTree
 tests = testGroup "Internal.TypeChecking.Monad.State"
-  [ testProperty "successful speculation restores state and returns its result" $
+  [ testProperty "restores state on success" $
       \(outer :: Int) (inner :: Int) -> ioProperty $ run do
         setTCLens stFreshInt outer
         result <- localTCState do
@@ -30,7 +30,7 @@ tests = testGroup "Internal.TypeChecking.Monad.State"
         restored <- useTC stFreshInt
         pure (result == inner && restored == outer)
 
-  , testCase "pattern violations restore speculative state before the handler" do
+  , testCase "restores state on pattern violation" do
       result <- run do
         setTCLens stFreshInt 7
         catchPatternErr (\_ -> (,) <$> useTC stFreshInt <*> useTC stPostponeInstanceSearch) $
@@ -40,7 +40,7 @@ tests = testGroup "Internal.TypeChecking.Monad.State"
             patternViolation alwaysUnblock
       result @?= (7, False)
 
-  , testCase "ordinary errors restore state with a state-preserving handler" do
+  , testCase "restores state on error" do
       result <- run do
         setTCLens stFreshInt 7
         catchError_ (localTCState do
@@ -50,7 +50,7 @@ tests = testGroup "Internal.TypeChecking.Monad.State"
             err -> throwError err
       result @?= 7
 
-  , testCase "failed speculation restores state but preserves statistics" do
+  , testCase "keeps statistics on failure" do
       result <- run do
         setTCLens stFreshInt 7
         catchPatternErr (const $ pure ()) $ localTCState do
@@ -63,7 +63,7 @@ tests = testGroup "Internal.TypeChecking.Monad.State"
         pure (fresh, ticks)
       result @?= (7, Just (Sum 1))
 
-  , testCase "nested speculation restores the enclosing state" do
+  , testCase "restores nested state" do
       result <- run do
         setTCLens stFreshInt 7
         inside <- localTCState do
@@ -75,7 +75,7 @@ tests = testGroup "Internal.TypeChecking.Monad.State"
         pure (inside, outside)
       result @?= (11, 7)
 
-  , testCase "saving speculation returns the inner state and restores the outer state" do
+  , testCase "returns the saved state" do
       result <- run do
         setTCLens stFreshInt 7
         (value, saved) <- localTCStateSaving do
