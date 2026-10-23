@@ -78,10 +78,7 @@ putTCPreservingStats = bracket_ get put . putTC where
 
 -- | Restore 'TCState' after performing subcomputation.
 --
--- Parts of the state which should not be reset on speculation (e.g.,
--- statistics) will not be reset.
--- The state is also restored when the computation throws a 'TCErr',
--- including a pattern violation caught by an enclosing handler.
+-- State is restored on success or 'TCErr', preserving statistics.
 localTCState :: TCM a -> TCM a
 localTCState m = do
   s <- getTC
