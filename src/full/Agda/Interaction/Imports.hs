@@ -682,7 +682,7 @@ chaseModule workers mod main msrc = do
           putMVar var Nothing
 
 -- | Walk DecodedModules, check if any transitive import of the given 'Source'
---   changed (either the source file or the interface file), by the modification time.
+--   changed, by the modification time.
 haveDepsChanged :: Source -> TCM Bool
 haveDepsChanged !src = do
 
@@ -715,19 +715,16 @@ haveDepsChanged !src = do
           !iModTime <- lift $ lift $ lift $ getModificationTime iPath
           let !hasntChanged = modTime == miSourceModificationTime mi
           unless hasntChanged $ throwError ()
-          let !children = map' fst $ iImportedModules $ miInterface mi
+          let !children = iImportedModules $ miInterface mi
           -- alwaysReportSLn "import" 0 ("chaseMod " ++ prettyShow (mod, children))
           Strict.modify $ Set.insert mod
-          chaseMods children
-
-      chaseMods :: [TopLevelModuleName] -> Strict.StateT (Set TopLevelModuleName) (ExceptT () TCM) ()
-      chaseMods = mapM_ chaseMod
+          mapM_ (chaseMod . fst) children
 
       top :: Strict.StateT (Set TopLevelModuleName) (ExceptT () TCM) ()
       top = do
         !children <- lift $ getImports (srcModule src)
         -- alwaysReportSLn "import" 0 ("haveDepsChanged " ++ prettyShow children)
-        chaseMods children
+        mapM_ chaseMod children
 
   runExceptT (Strict.runStateT top mempty) >>= \case
     Left _  -> pure True
@@ -1074,11 +1071,14 @@ getStoredInterface x file@(SourceFile fi) msrc = do
   -- This is a lazy action which may be skipped if the cached or on-disk interface
   -- is invalid, missing, or skipped for some other reason.
   let checkSourceHashET ifaceH = do
-        sourceH <- case msrc of
-                    Nothing -> do
-                      path <- srcFilePath file
-                      liftIO $ hashTextFile path
-                    Just src -> return $ hashText (srcText src)
+        (sourceH, modTime) <- case msrc of
+          Nothing -> do
+            path <- srcFilePath file
+            liftIO $ hashTextFileWithTime path
+          Just src -> do
+            let !modTime = srcSourceModificationTime src
+            let !h = hashText (srcText src)
+            pure (h, modTime)
 
         unless (sourceH == ifaceH) $
           throwError $ concat
@@ -1087,6 +1087,7 @@ getStoredInterface x file@(SourceFile fi) msrc = do
             ]
 
         reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is up-to-date."]
+        pure modTime
 
   let
     -- Load or reload the interface file, if possible.
@@ -1104,7 +1105,7 @@ getStoredInterface x file@(SourceFile fi) msrc = do
       let ifp = filePath $ intFilePath $ ifile
 
       Bench.billTo [Bench.Deserialization] $ do
-        checkSourceHashET (fst hashes)
+        modTime <- checkSourceHashET (fst hashes)
 
         reportSLn "import.iface" 5 $ "  no stored version, reading " ++ ifp
 
@@ -1122,13 +1123,6 @@ getStoredInterface x file@(SourceFile fi) msrc = do
         lift $ chaseMsg "Loading " x $ Just ifp
         -- print imported warnings
         reportWarningsForModule x $ iWarnings i
-
-        modTime <- case msrc of
-          Nothing -> do
-            path <- filePath <$> srcFilePath file
-            lift $ lift $ getModificationTime path
-          Just src ->
-            pure $! srcSourceModificationTime src
 
         loadDecodedModule file $ ModuleInfo
           { miInterface = i
@@ -1167,7 +1161,7 @@ getStoredInterface x file@(SourceFile fi) msrc = do
           , " does not match interface file (", show fileIfaceHash, ")"
           ]
        else Bench.billTo [Bench.Deserialization] $ do
-        checkSourceHashET (iSourceHash i)
+        _ <- checkSourceHashET (iSourceHash i)
 
         reportSLn "import.iface" 5 $ "  using stored version of " ++ filePath (intFilePath ifile)
         loadDecodedModule file mi
