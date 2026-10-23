@@ -3,6 +3,7 @@ module Internal.TypeChecking.Monad.State ( tests ) where
 import Control.Monad.Except (throwError)
 import Data.HashMap.Strict qualified as HMap
 import Data.Monoid (Sum(..))
+import System.Directory (getCurrentDirectory)
 
 import Agda.Syntax.Internal (alwaysUnblock)
 import Agda.TypeChecking.Monad.Base
@@ -16,7 +17,7 @@ import Test.Tasty.QuickCheck
 
 run :: TCM a -> IO a
 run action = do
-  state <- initState (mkAbsolute "/")
+  state <- initState (mkAbsolute getCurrentDirectory)
   fst <$> runTCM initEnv state action
 
 tests :: TestTree
