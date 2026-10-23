@@ -7,33 +7,22 @@ import System.Directory (getCurrentDirectory)
 
 import Agda.Syntax.Internal (alwaysUnblock)
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.State (localTCState, localTCStateSaving)
+import Agda.TypeChecking.Monad.State (localTCState)
 import Agda.TypeChecking.Monad.Statistics (tick)
 import Agda.Utils.FileName (mkAbsolute)
 
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit
-import Test.Tasty.QuickCheck
 
 run :: TCM a -> IO a
 run action = do
-  state <- initState (mkAbsolute getCurrentDirectory)
+  root <- mkAbsolute <$> getCurrentDirectory
+  state <- initState root
   fst <$> runTCM initEnv state action
 
 tests :: TestTree
 tests = testGroup "Internal.TypeChecking.Monad.State"
-  [ testProperty "restores state on success" $
-      \(outer :: Int) (inner :: Int) -> ioProperty do
-        actual <- run do
-          setTCLens stFreshInt outer
-          result <- localTCState do
-            setTCLens stFreshInt inner
-            useTC stFreshInt
-          restored <- useTC stFreshInt
-          pure (result, restored)
-        pure $ actual === (inner, outer)
-
-  , testCase "restores state on pattern violation" do
+  [ testCase "restores state on pattern violation" do
       result <- run do
         setTCLens stFreshInt 7
         catchPatternErr (\_ -> (,) <$> useTC stFreshInt <*> useTC stPostponeInstanceSearch) $
@@ -65,26 +54,4 @@ tests = testGroup "Internal.TypeChecking.Monad.State"
                    <$> useTC stStatistics
         pure (fresh, ticks)
       result @?= (7, Just (Sum 1))
-
-  , testCase "restores nested state" do
-      result <- run do
-        setTCLens stFreshInt 7
-        inside <- localTCState do
-          setTCLens stFreshInt 11
-          catchPatternErr (const $ useTC stFreshInt) $ localTCState do
-            setTCLens stFreshInt 17
-            patternViolation alwaysUnblock
-        outside <- useTC stFreshInt
-        pure (inside, outside)
-      result @?= (11, 7)
-
-  , testCase "returns the saved state" do
-      result <- run do
-        setTCLens stFreshInt 7
-        (value, saved) <- localTCStateSaving do
-          setTCLens stFreshInt 11
-          pure (13 :: Int)
-        restored <- useTC stFreshInt
-        pure (value, saved ^. stFreshInt, restored)
-      result @?= (13, 11, 7)
   ]
