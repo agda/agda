@@ -492,7 +492,7 @@ instance Reduce Sort where
               -- For a (possibly) properly dependent PiSort, we call piSortAbs.
               (MaybeFree flexRig, _) -> do
                 let blockOcc = flexRigToBlocker flexRig
-                case piSortAbs a s1 s2Abs flexRig CodomainNormalised of
+                case piSortB'' a s1 s2Abs flexRig CodomainNormalised of
                   -- We already know the sorts themselves are not blocked,
                   -- so the only possible blocker comes from the free variable check
                   Left _ -> return $! blockedOn blockOcc $
