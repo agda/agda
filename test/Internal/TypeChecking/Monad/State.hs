@@ -22,13 +22,15 @@ run action = do
 tests :: TestTree
 tests = testGroup "Internal.TypeChecking.Monad.State"
   [ testProperty "restores state on success" $
-      \(outer :: Int) (inner :: Int) -> ioProperty $ run do
-        setTCLens stFreshInt outer
-        result <- localTCState do
-          setTCLens stFreshInt inner
-          useTC stFreshInt
-        restored <- useTC stFreshInt
-        pure (result == inner && restored == outer)
+      \(outer :: Int) (inner :: Int) -> ioProperty do
+        actual <- run do
+          setTCLens stFreshInt outer
+          result <- localTCState do
+            setTCLens stFreshInt inner
+            useTC stFreshInt
+          restored <- useTC stFreshInt
+          pure (result, restored)
+        pure $ actual === (inner, outer)
 
   , testCase "restores state on pattern violation" do
       result <- run do
