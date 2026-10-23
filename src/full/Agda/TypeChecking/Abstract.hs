@@ -354,8 +354,6 @@ instance EqualSy Sort where
     _ -> False
 
 instance EqualSy a => EqualSy (BlockedDepCheck a) where
-  -- This is a bit dodgy. The comparison might take place in the wrong
-  -- context...
   equalSy = curry \case
     (CodomainSortOld s, CodomainSortOld s') -> equalSy s s'
     (CodomainSortSame, CodomainSortSame) -> True

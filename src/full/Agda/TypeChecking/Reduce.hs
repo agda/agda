@@ -477,10 +477,16 @@ instance Reduce Sort where
             let dom = El s1 <$> a
             forceNonDepSort s2Old >>= \case
               -- If the codomain sort is non-dependent, we reduce to a FunSort
-              (NotFree, s2Old) -> reduceB' $
-                FunSort s1 (noabsApp __IMPOSSIBLE__ s2Abs)
+              (NotFree, _) -> do
+                forceNonDepSort (unAbs s2Abs) >>= \case
+                  (NotFree, s2) -> do
+                    let s2' = strengthen __IMPOSSIBLE__ s2
+                    reduceB' $ FunSort s1 s2'
+                  -- If 's2Old' is non dependent, then 's2' must also be
+                  -- non-dependent
+                  (MaybeFree _, _) -> __IMPOSSIBLE__
               -- For a (possibly) properly dependent PiSort, we call piSortAbs.
-              (MaybeFree flexRig, s2Old) -> do
+              (MaybeFree flexRig, _) -> do
                 let blockOcc = flexRigToBlocker flexRig
                 case piSortAbs a s1 s2Abs flexRig CodomainNormalised of
                   -- We already know the sorts themselves are not blocked,

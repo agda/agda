@@ -508,7 +508,7 @@ data Sort' t
       --   When --level-universe isn't on, this universe reduces to @Set 0@
   | IntervalUniv
       -- ^ @IntervalUniv@, a sort inhabited by the cubical interval.
-  | PiSort (BlockedDepCheck (Sort' t)) (Dom' t t) (Sort' t) (Abs (Sort' t))
+  | PiSort' (BlockedDepCheck (Sort' t)) (Dom' t t) (Sort' t) (Abs (Sort' t))
       -- ^ Sort of the pi type @(x : A) → B@.
       --   The components are the blocked dependency problem @c@, the domain @A@
       --   (as a bare term), the sort @s1@ of @A@, and the sort @s2@ of @B@ in
@@ -539,6 +539,23 @@ data Sort' t
       --   The @String@ typically describes the location where we create this dummy,
       --   but can contain other information as well.
   deriving Show
+
+mustBeAbs :: Impossible -> Abs t -> Abs t
+mustBeAbs err (Abs x t) = Abs x t
+mustBeAbs err NoAbs{}   = throwImpossible err
+
+-- | The codomain sort of a 'PiSort' should always be 'Abs'. This pattern
+--   synonym defensively checks this.
+pattern PiSort ::
+     BlockedDepCheck (Sort' t) -> Dom' t t -> Sort' t -> Abs (Sort' t)
+  -> Sort' t
+pattern PiSort c a s1 s2Abs <- PiSort' c a s1 s2Abs where
+  PiSort c a s1 s2Abs = PiSort' c a s1 (mustBeAbs __IMPOSSIBLE__ s2Abs)
+
+{-# COMPLETE
+  Univ, Inf,
+  SizeUniv, LockUniv, LevelUniv, IntervalUniv,
+  PiSort, FunSort, UnivSort, MetaS, DefS, DummyS #-}
 
 pattern Prop, Type, SSet :: Level' t -> Sort' t
 pattern Prop l = Univ UProp l
