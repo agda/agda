@@ -2063,8 +2063,8 @@ equalSort s1 s2 = do
               -- and otherwise postpone
               case c of
                 CodomainSortSame -> funSortEquals propEnabled s s1 s2M blocker
-                CodomainSortOld s2Old ->
-                  liftReduce (forceNonDepSort s2Old) >>= \case
+                CodomainSortOld s2Old -> liftReduce
+                  (inLargeEnoughContext s2Old $ forceNonDepSort s2Old) >>= \case
                    (NotFree, _) -> funSortEquals propEnabled s s1 s2M blocker
                    (MaybeFree _, _) -> postpone
            -- Otherwise: postpone

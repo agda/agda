@@ -102,10 +102,10 @@ reallyFree xs v = do
 -- | Try to force a thing to no longer depend on the zero variable
 --   Returns a possibly reduced version of the thing and whether the dependency
 --   was successfully removed (zero variable is free)
-forceNonDep :: (Reduce a, ForceNotFree a, Free a)
+forceNonDep :: (Reduce a, ForceNotFree a)
   => a -> ReduceM (IsFree, a)
 forceNonDep x = do
-  (fvm, x) <- inLargeEnoughContext x $ forceNotFree (singleton 0) x
+  (fvm, x) <- forceNotFree (singleton 0) x
   pure (fromMaybe __IMPOSSIBLE__ $! IntMap.lookup 0 fvm, x)
 
 -- | András 2026-02-24: we specialize this, because TypeChecking.Reduce imports it via the hs-boot

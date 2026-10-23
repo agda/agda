@@ -475,10 +475,10 @@ instance Reduce Sort where
             -- possible. So we use forceNonDep and in case we are dealing with a
             -- proper Abs we call piSortAbs directly.
             let dom = El s1 <$> a
-            forceNonDepSort s2Old >>= \case
+            inLargeEnoughContext s2Old (forceNonDepSort s2Old) >>= \case
               -- If the codomain sort is non-dependent, we reduce to a FunSort
-              (NotFree, _) -> do
-                forceNonDepSort (unAbs s2Abs) >>= \case
+              (NotFree, _) ->
+                addContext dom (forceNonDepSort $! unAbs s2Abs) >>= \case
                   (NotFree, s2) -> do
                     let s2' = strengthen __IMPOSSIBLE__ s2
                     reduceB' $ FunSort s1 s2'
