@@ -212,8 +212,7 @@ instance Free Sort where
         LevelUniv      -> ret $ mempty
         IntervalUniv   -> ret $ mempty
         PiSort c a s1 s2 -> ret $
-          -- We explicitly don't consider variables in the blocked dependency
-          -- check
+          -- We ignore variables in the blocked dependency check
           underFlexRig (Flexible mempty) (freeVars $ unDom a) <>
           underFlexRig WeaklyRigid (freeVars (s1, s2))
         FunSort s1 s2  -> ret $ freeVars s1 <> freeVars s2

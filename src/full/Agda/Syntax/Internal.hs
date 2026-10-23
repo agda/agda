@@ -482,9 +482,9 @@ data UnivSize
   | ULarge  -- ^ @(Prop/Set/SSet)ωᵢ@.
   deriving stock (Eq, Show)
 
--- | Blocked dependency (i.e. free zero variable) check
---
---   Used in 'PiSort'
+-- | Blocked dependency (i.e. free zero variable) check, used in 'PiSort'
+--   For efficiency, we track whether the codomain sort has actually changed.
+--   If it hasn't, we can avoid duplicating work.
 data BlockedDepCheck t = CodomainSortOld t | CodomainSortSame
   deriving (Show, Functor, Foldable, Traversable, Generic)
 

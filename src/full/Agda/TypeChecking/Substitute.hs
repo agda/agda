@@ -973,10 +973,22 @@ instance Subst a => Subst (Sort' a) where
     LockUniv       -> LockUniv
     LevelUniv      -> LevelUniv
     IntervalUniv   -> IntervalUniv
-    PiSort c a s1 s2 -> ((PiSort (CodomainSortOld s2Old) $! applySubst rho a) (applySubst rho s1)) $! applySubst rho s2
-      where s2Old = case c of
-              CodomainSortSame       -> absBody s2
-              CodomainSortOld s2Old' -> s2Old'
+    PiSort c a s1 s2 -> ((PiSort c' $! applySubst rho a) (applySubst rho s1)) $! applySubst rho s2
+      where
+        -- Is the substitution a thinning?
+        -- (Approximation of injectivity, just for optimisation)
+        isThin IdS          = True
+        isThin (Wk _ rho)   = isThin rho
+        isThin (Lift _ rho) = isThin rho
+        isThin _            = False
+        c' = case c of
+          CodomainSortSame  -> if isThin rho
+            -- If the substitution is a thinning, we can keep using the current
+            -- codomain sort because thinnings are injective and dependency
+            -- is stable under injective substitutions
+            then CodomainSortSame
+            else CodomainSortOld $! unAbs s2
+          CodomainSortOld _ -> c
     FunSort s1 s2  -> FunSort (applySubst rho s1) (applySubst rho s2)
     UnivSort s     -> UnivSort $ applySubst rho s
     MetaS x es     -> MetaS x $! subE rho es

@@ -101,7 +101,7 @@ reallyFree xs v = do
 
 -- | Try to force a thing to no longer depend on the zero variable
 --   Returns a possibly reduced version of the thing and whether the dependency
---   was successfully removed (zero variable is free)
+--   was successfully removed (i.e. the zero variable is still free)
 forceNonDep :: (Reduce a, ForceNotFree a)
   => a -> ReduceM (IsFree, a)
 forceNonDep x = do
@@ -241,7 +241,7 @@ instance ForceNotFree Sort where
   forceNotFree' s = expand \ret -> case s of
     Univ u l       -> ret $ Univ u <$> forceNotFree' l
     PiSort a b c d   -> ret do
-      -- We do not consider occurrences in the blocked dependency check
+      -- We ignore variables in the blocked dependency check
       b        <- underFlexRig (Flexible mempty) (forceNotFree' b)
       (!c, !d) <- underFlexRig WeaklyRigid
         ((,) <$> forceNotFree' c <*> forceNotFree' d)

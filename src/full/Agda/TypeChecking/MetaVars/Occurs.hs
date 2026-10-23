@@ -739,8 +739,8 @@ instance Occurs Sort where
   occurs !s = do
     unfold s >>= \case
       PiSort c a s1 s2 -> do
-        -- Occurrences only in the blocked dependency check are not counted
-        -- (these will always vanish after the 'PiSort' reduces)
+        -- We ignore occurrences in the blocked dependency check (these will
+        -- vanish after 'PiSort' reduces)
         s1' <- flexibly $ occurs_ s1
         a'  <- flexibly $ occurs a
         s2' <- mapAbstraction (El s1' <$> a') (flexibly . underPiBinder (getModality a) . occurs_) s2
@@ -771,8 +771,8 @@ instance Occurs Sort where
     s <- instantiate s
     case s of
       PiSort _ a s1 s2 -> do
-        -- Occurrences only in the blocked dependency check are not counted
-        -- (these will always vanish after the 'PiSort' reduces)
+        -- We ignore occurrences in the blocked dependency check (these will
+        -- vanish after 'PiSort' reduces)
         metaOccurs m a
         metaOccurs m s1
         metaOccurs m (absBody s2)
