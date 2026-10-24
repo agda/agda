@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-to-file #-}
 
 {-| This module deals with finding imported modules and loading their
     interface files.
@@ -716,14 +717,12 @@ haveDepsChanged !src = do
           let !hasntChanged = modTime == miSourceModificationTime mi
           unless hasntChanged $ throwError ()
           let !children = iImportedModules $ miInterface mi
-          -- alwaysReportSLn "import" 0 ("chaseMod " ++ prettyShow (mod, children))
           Strict.modify $ Set.insert mod
           mapM_ (chaseMod . fst) children
 
       top :: Strict.StateT (Set TopLevelModuleName) (ExceptT () TCM) ()
       top = do
         !children <- lift $ getImports (srcModule src)
-        -- alwaysReportSLn "import" 0 ("haveDepsChanged " ++ prettyShow children)
         mapM_ chaseMod children
 
   runExceptT (Strict.runStateT top mempty) >>= \case
@@ -767,6 +766,15 @@ typeCheckMain mode src = do
   -- Has any transitively imported source file or interface file changed since
   -- we wrote into DecodedModules?
   changedDeps <- haveDepsChanged src
+  reportSLn "import.main" 10 $
+    if changedDeps then
+         "typeCheckMain " ++ prettyShow (srcModuleName src)
+      ++ ": transitive imports have been modified"
+    else
+         "typeCheckMain " ++ prettyShow (srcModuleName src)
+      ++ ": transitive imports are unchanged"
+  setTCLens' stChangedDependencies changedDeps
+
   ignoreIFaces <- ignoreInterfaces
 
   mi <- wantsParallelChecking >>= \case
@@ -910,7 +918,7 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
       reportSLn "import.iface" 15 $ "  Check for cycle"
       checkForImportCycle
 
-      mi <- Bench.billTo [Bench.Import] (getStoredInterface x file msrc)
+      mi <- Bench.billTo [Bench.Import] (getStoredInterface x file isMain msrc)
         `catchExceptT` \ reason -> do
 
             reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
@@ -1044,9 +1052,10 @@ getStoredInterface :: HasCallStack
      -- ^ Module name of file we process.
   -> SourceFile
      -- ^ File we process.
+  -> MainInterface
   -> Maybe Source
   -> ExceptT String TCM ModuleInfo
-getStoredInterface x file@(SourceFile fi) msrc = do
+getStoredInterface x file@(SourceFile fi) isMain msrc = do
 
   -- Check whether interface file exists and is in cache
   --  in the correct version (as testified by the interface file hash).
@@ -1124,7 +1133,7 @@ getStoredInterface x file@(SourceFile fi) msrc = do
         -- print imported warnings
         reportWarningsForModule x $ iWarnings i
 
-        loadDecodedModule file $ ModuleInfo
+        loadDecodedModule file isMain $! ModuleInfo
           { miInterface = i
           , miWarnings = empty
           , miIsBuiltin = isBuiltinMod
@@ -1164,7 +1173,7 @@ getStoredInterface x file@(SourceFile fi) msrc = do
         _ <- checkSourceHashET (iSourceHash i)
 
         reportSLn "import.iface" 5 $ "  using stored version of " ++ filePath (intFilePath ifile)
-        loadDecodedModule file mi
+        loadDecodedModule file isMain mi
 
 -- | Report those given warnings that come from the given module.
 
@@ -1186,10 +1195,12 @@ reportWarningsForModule x warns = do
 loadDecodedModule
   :: SourceFile
      -- ^ File we process.
+  -> MainInterface
+     -- ^ Is it the main file.
   -> ModuleInfo
      -- ^ The interface we loaded or created.
   -> ExceptT String TCM ModuleInfo
-loadDecodedModule sf@(SourceFile fi) mi = do
+loadDecodedModule sf@(SourceFile fi) isMain mi = do
   file <- srcFilePath sf
   let fp      = filePath file
   let i       = miInterface mi
@@ -1220,15 +1231,23 @@ loadDecodedModule sf@(SourceFile fi) mi = do
       throwError "options changed"
 
   -- If any of the imports are newer we need to re-typecheck.
-  badHashMessages <- fmap lefts $ forM imports \ (impName, impHash) -> runExceptT do
-    reportSLn "import.iface" 30 $ concat ["Checking that module hash of import ", prettyShow impName, " matches ", prettyShow impHash ]
-    latestImpHash <- lift $ lift $ setCurrentRange impName $ moduleHash impName
-    reportSLn "import.iface" 30 $ concat ["Done checking module hash of import ", prettyShow impName]
-    when (impHash /= latestImpHash) $
-      throwError $ concat
-        [ "module hash for imported module ", prettyShow impName, " is out of date"
-        , " (import cached=", prettyShow impHash, ", latest=", prettyShow latestImpHash, ")"
-        ]
+  badHashMessages <- do
+    changedDeps <- view stChangedDependencies <$> getTC
+    case (changedDeps, isMain) of
+      -- We already checked that no transitive imports have changed
+      (False, MainInterface{}) -> do
+        alwaysReportSLn "import" 0 $ "imports are unchanged, skipping loading: " ++ prettyShow name
+        pure []
+      _ -> fmap lefts $ forM imports \ (impName, impHash) -> runExceptT do
+        reportSLn "import.iface" 30 $
+          concat ["Checking that module hash of import ", prettyShow impName, " matches ", prettyShow impHash ]
+        latestImpHash <- lift $ lift $ setCurrentRange impName $ moduleHash impName
+        reportSLn "import.iface" 30 $ concat ["Done checking module hash of import ", prettyShow impName]
+        when (impHash /= latestImpHash) $
+          throwError $ concat
+            [ "module hash for imported module ", prettyShow impName, " is out of date"
+            , " (import cached=", prettyShow impHash, ", latest=", prettyShow latestImpHash, ")"
+            ]
 
   unlessNull badHashMessages (throwError . unlines)
 
@@ -1312,7 +1331,7 @@ createInterfaceIsolated x file msrc = do
       -- file, only the cached interface. (This comment is not
       -- correct, see
       -- test/Fail/customised/NestedProjectRoots.err.)
-      validated <- runExceptT $ loadDecodedModule file mi
+      validated <- runExceptT $ loadDecodedModule file NotMainInterface mi
 
       -- NOTE: This attempts to type-check FOREVER if for some
       -- reason it continually fails to validate interface.
