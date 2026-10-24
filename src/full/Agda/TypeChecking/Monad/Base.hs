@@ -5295,6 +5295,8 @@ data Warning
   | InferredLocalRewrite MetaId Term
     -- ^ Inferred that some meta should be solved with an @rewrite function
     --   (We never infer local rewrite rules)
+  | PragmaCompileDefined QName
+    -- ^ @COMPILE@ pragma for a defined symbol.
   | PragmaCompileErased BackendName QName
     -- ^ COMPILE directive for an erased symbol.
   | PragmaCompileList
@@ -5485,6 +5487,7 @@ warningName = \case
   PragmaCompileUnparsable{}    -> PragmaCompileUnparsable_
   PragmaCompileWrong{}         -> PragmaCompileWrong_
   PragmaCompileWrongName{}     -> PragmaCompileWrongName_
+  PragmaCompileDefined{}       -> PragmaCompileDefined_
   PragmaExpectsDefinedSymbol{} -> PragmaExpectsDefinedSymbol_
   PragmaExpectsUnambiguousConstructorOrFunction{} ->
     PragmaExpectsUnambiguousConstructorOrFunction_

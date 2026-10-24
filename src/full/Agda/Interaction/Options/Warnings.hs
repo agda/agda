@@ -349,6 +349,7 @@ data WarningName
   | PragmaCompileUnparsable_
   | PragmaCompileWrong_
   | PragmaCompileWrongName_
+  | PragmaCompileDefined_
   | PragmaExpectsDefinedSymbol_
   | PragmaExpectsUnambiguousConstructorOrFunction_
   | PragmaExpectsUnambiguousProjectionOrFunction_
@@ -604,6 +605,7 @@ warningNameDescription = \case
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   BuiltinDeclaresIdentifier_       -> "`BUILTIN' pragmas that declare a new identifier but have been given an existing one."
   PlentyInHardCompileTimeMode_     -> "Uses of @ω or @plenty in hard compile-time mode."
+  PragmaCompileDefined_            -> "`COMPILE' pragmas for defined symbols."
   PragmaCompileErased_             -> "`COMPILE' pragmas targeting an erased symbol."
   PragmaCompileList_               -> "`COMPILE GHC' pragmas for lists."
   PragmaCompileMaybe_              -> "`COMPILE GHC' pragmas for `MAYBE'."
