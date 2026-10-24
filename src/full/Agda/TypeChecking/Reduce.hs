@@ -47,8 +47,9 @@ import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
 import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (isPropM)
+import Agda.TypeChecking.Free (Free)
 import Agda.TypeChecking.Free.Base
-import {-# SOURCE #-} Agda.TypeChecking.Free.Reduce (forceNoAbsSort)
+import {-# SOURCE #-} Agda.TypeChecking.Free.Reduce (forceNonDepSort, IsFree (..))
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause
@@ -74,6 +75,8 @@ import qualified Agda.Utils.SmallSet as SmallSet
 import Agda.Utils.ExpandCase
 
 import Agda.Utils.Impossible
+import Agda.Utils.Unsafe (unsafeComparePointers)
+import Agda.Utils.Applicative (forA)
 
 instantiate :: (Instantiate a, MonadReduce m) => a -> m a
 instantiate = liftReduce . instantiate'
@@ -458,28 +461,41 @@ instance Reduce Sort where
       let done | MetaS x _ <- s = return $ blocked x s
                | otherwise      = return $ notBlocked s
       case s of
-        PiSort a s1 s2Abs -> reduceB' (s1 , s2Abs) >>= \case
+        PiSort c a s1 s2Abs -> reduceB' (c, s1 , s2Abs) >>= \case
           -- If either the domain or codomain sort is blocked, there is no point
           -- in doing the free variable check since even if we manage to reduce
           -- to a FunSort, it would still be blocked. And normalizing anyway in
           -- this case leads to exponential behavior (see #8423).
-          Blocked b (s1 , s2Abs) -> return $! blockedOn b $ PiSort a s1 s2Abs
-          NotBlocked _ (s1 , s2Abs) -> do
+          Blocked b (c, s1 , s2Abs) -> return $!
+            blockedOn b $ PiSort c a s1 s2Abs
+          NotBlocked _ (c, s1 , s2Abs) -> do
+            let dom = El s1 <$> a
             -- In theory we should just call piSort' here. However, we also want
             -- to reduce the codomain sort to make it non-dependent when
-            -- possible. So we use forceNoAbs and in case we are dealing with a
+            -- possible. So we use forceNonDep and in case we are dealing with a
             -- proper Abs we call piSortAbs directly.
-            let dom = El s1 <$> a
-            forceNoAbsSort dom s2Abs >>= \case
+            codomainSortOldM dom (unAbs s2Abs) c forceNonDepSort >>= \case
               -- If the codomain sort is non-dependent, we reduce to a FunSort
-              Right s2 -> reduceB' $ FunSort s1 s2
+              (NotFree, s2Old) -> do
+                -- We need to obtain a strengthened version of the codomain sort
+                s2 <- case c of
+                  CodomainSortSame -> pure s2Old
+                  CodomainSortOld{} ->
+                    addContext dom (forceNonDepSort $! unAbs s2Abs) >>= \case
+                      (NotFree, s2) -> pure s2
+                      -- If 's2Old' is non dependent, then 's2' must also be
+                      -- non-dependent
+                      (MaybeFree _, _) -> __IMPOSSIBLE__
+                let s2' = strengthen __IMPOSSIBLE__ s2
+                reduceB' $ FunSort s1 s2'
               -- For a (possibly) properly dependent PiSort, we call piSortAbs.
-              Left (s2Abs, flexRig) -> do
+              (MaybeFree flexRig, _) -> do
                 let blockOcc = flexRigToBlocker flexRig
-                case piSortAbs a s1 s2Abs flexRig CodomainNormalised of
+                case piSortB'' a s1 s2Abs flexRig CodomainNormalised of
                   -- We already know the sorts themselves are not blocked,
                   -- so the only possible blocker comes from the free variable check
-                  Left _ -> return $! blockedOn blockOcc $ PiSort a s1 s2Abs
+                  Left _ -> return $! blockedOn blockOcc $
+                    PiSort c a s1 s2Abs
                   -- The only sort that piSortAbs can reduce is Inf,
                   -- so there is no need to try reducing it further.
                   Right s -> return $! notBlocked s
@@ -503,6 +519,10 @@ instance Reduce Sort where
         MetaS x es -> done
         DefS d es  -> done -- postulated sorts do not reduce
         DummyS{}   -> done
+
+instance (Reduce a, Free a) => Reduce (BlockedDepCheck a) where
+  reduce' c = forA c \s -> inLargeEnoughContext s $ reduce' s
+  reduceB' c = sequenceA <$> forA c \s -> inLargeEnoughContext s $ reduceB' s
 
 instance Reduce Elim where
   reduce' (Apply v) = Apply <$> reduce' v
@@ -1180,6 +1200,12 @@ instance (Simplify a, Simplify b, Simplify c) => Simplify (a,b,c) where
         do  (x,(y,z)) <- simplify' (x,(y,z))
             return (x,y,z)
 
+instance (Simplify a, Simplify b, Simplify c, Simplify d)
+      => Simplify (a,b,c,d) where
+  simplify' (x,y,z,w) = do
+    (x,(y,z,w)) <- simplify' (x,(y,z,w))
+    return (x,y,z,w)
+
 instance Simplify Bool where
   simplify' = return
 
@@ -1220,7 +1246,7 @@ instance Simplify t => Simplify (Type' t) where
 instance Simplify Sort where
     simplify' s = do
       case s of
-        PiSort a s1 s2 -> uncurry3 piSortM =<< simplify' (a, s1, s2)
+        PiSort c a s1 s2 -> uncurry4 piSortM' =<< simplify' (c, a, s1, s2)
         FunSort s1 s2 -> uncurry funSortM =<< simplify' (s1, s2)
         UnivSort s -> univSort <$> simplify' s
         Univ u s   -> Univ u <$> simplify' s
@@ -1232,6 +1258,9 @@ instance Simplify Sort where
         MetaS x es -> MetaS x <$> simplify' es
         DefS d es  -> DefS d <$> simplify' es
         DummyS{}   -> return s
+
+instance (Free a, Simplify a) => Simplify (BlockedDepCheck a) where
+  simplify' c = forA c \s -> inLargeEnoughContext s $ simplify' s
 
 instance Simplify Level where
   simplify' (Max m as) = levelMax m <$> simplify' as
@@ -1364,6 +1393,12 @@ instance (Normalise a, Normalise b, Normalise c) => Normalise (a,b,c) where
         do  (x,(y,z)) <- normalise' (x,(y,z))
             return (x,y,z)
 
+instance (Normalise a, Normalise b, Normalise c, Normalise d)
+      => Normalise (a,b,c,d) where
+    normalise' (x,y,z,w) =
+        do  (x,(y,z,w)) <- normalise' (x,(y,z,w))
+            return (x,y,z,w)
+
 instance Normalise Bool where
   normalise' = return
 
@@ -1382,7 +1417,7 @@ instance Normalise Sort where
     normalise' s = do
       s <- reduce' s
       case s of
-        PiSort a s1 s2 -> uncurry3 piSortM =<< normalise' (a, s1, s2)
+        PiSort c a s1 s2 -> uncurry4 piSortM' =<< normalise' (c, a, s1, s2)
         FunSort s1 s2 -> uncurry funSortM =<< normalise' (s1, s2)
         UnivSort s -> univSort <$> normalise' s
         Univ u s   -> Univ u <$> normalise' s
@@ -1394,6 +1429,9 @@ instance Normalise Sort where
         MetaS x es -> return s
         DefS d es  -> return s
         DummyS{}   -> return s
+
+instance (Free a, Normalise a) => Normalise (BlockedDepCheck a) where
+  normalise' c = forA c \s -> inLargeEnoughContext s $ normalise' s
 
 instance Normalise t => Normalise (Type' t) where
     normalise' (El s t) = El <$> normalise' s <*> normalise' t
@@ -1626,21 +1664,25 @@ instance InstantiateFull PrimitiveId where
 
 -- Rest:
 instance InstantiateFull Sort where
-    instantiateFull' s = do
-        s <- instantiate' s
-        case s of
-            Univ u n   -> Univ u <$!> instantiateFull' n
-            PiSort a s1 s2 -> uncurry3 piSortM =<< instantiateFull' (a, s1, s2)
-            FunSort s1 s2 -> uncurry funSortM =<< instantiateFull' (s1, s2)
-            UnivSort s -> univSort <$!> instantiateFull' s
-            Inf _ _    -> return s
-            SizeUniv   -> return s
-            LockUniv   -> return s
-            LevelUniv  -> return s
-            IntervalUniv -> return s
-            MetaS x es -> MetaS x <$!> instantiateFull' es
-            DefS d es  -> DefS d <$!> instantiateFull' es
-            DummyS{}   -> return s
+  instantiateFull' s = do
+    s <- instantiate' s
+    case s of
+      Univ u n         -> Univ u <$!> instantiateFull' n
+      PiSort c a s1 s2 -> uncurry4 piSortM' =<< instantiateFull' (c, a, s1, s2)
+      FunSort s1 s2    -> uncurry funSortM =<< instantiateFull' (s1, s2)
+      UnivSort s       -> univSort <$!> instantiateFull' s
+      Inf _ _          -> return s
+      SizeUniv         -> return s
+      LockUniv         -> return s
+      LevelUniv        -> return s
+      IntervalUniv     -> return s
+      MetaS x es       -> MetaS x <$!> instantiateFull' es
+      DefS d es        -> DefS d <$!> instantiateFull' es
+      DummyS{}         -> return s
+
+instance (Free a, InstantiateFull a)
+      => InstantiateFull (BlockedDepCheck a) where
+  instantiateFull' c = forA c \s -> inLargeEnoughContext s $ instantiateFull' s
 
 instance InstantiateFull t => InstantiateFull (Type' t) where
     instantiateFull' (El s t) =

@@ -31,6 +31,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
+import Agda.TypeChecking.Free (Free, freeVarList)
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
@@ -799,3 +800,22 @@ getVarInfo x =
                       -- it is apparently caught during a "refine".
                       -- TODO: It would be worthwhile investigating who wants to access
                       -- an out-of-scope variable.
+
+-- | Change to a dummy context large enough for the given thing to be
+--   well-scoped
+--   (Very hacky, should only be used if there is no alternative)
+inLargeEnoughContext :: (ReadTCState m, MonadAddContext m, Free a)
+  => a -> m b -> m b
+inLargeEnoughContext t c = do
+  let len = 1 + foldl' max 0 (freeVarList t)
+  let dummies = replicate len __DUMMY_DOM__
+  inTopContext $ addContext dummies c
+
+-- | Run the continuation on the old codomain sort, in an appropriate context
+codomainSortOldM :: (ReadTCState m, MonadAddContext m) =>
+  Dom Type -> Sort -> BlockedDepCheck Sort -> (Sort -> m a) -> m a
+codomainSortOldM dom s2 CodomainSortSame c = do
+  addContext dom $ c s2
+codomainSortOldM dom s2 (CodomainSortOld s2Old) c = do
+  inLargeEnoughContext s2Old $ c s2Old
+

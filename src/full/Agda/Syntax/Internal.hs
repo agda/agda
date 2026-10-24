@@ -482,6 +482,33 @@ data UnivSize
   | ULarge  -- ^ @(Prop/Set/SSet)ωᵢ@.
   deriving stock (Eq, Show)
 
+-- | Blocked dependency (i.e. free zero variable) check, used in 'PiSort'.
+--
+--   For efficiency, we track whether the codomain sort has actually changed.
+--   If it hasn't, we can avoid duplicating work.
+data BlockedDepCheck t
+  = CodomainSortSame
+  -- ^ The codomain sort has not changed, so we can just do the dependency
+  --   check on the current codomain sort.
+  | CodomainSortOld t
+  -- ^ The codomain sort has changed, so we really need to do the dependency
+  --   check on the original codomain sort.
+  --
+  --   E.g. see #5810: @∀ t → Set (ℓ t)@ has codomain sort @Set (lsuc (ℓ t))@
+  --   but then after the substitution @ℓ ↦ λ _ → lzero@, the codomain sort
+  --   becomes @Set (lsuc lzero)@, which is no longer dependent on @t@.
+  --   To avoid a subject reduction problem, we have to remember that the
+  --   codomain sort before the substitution was @Set (lsuc (ℓ t))@.
+  --
+  --   The old codomain sort lives in its original context. In an ideal world,
+  --   we would store this context, but this does not appear very feasible
+  --   (without a significant refactor).
+  deriving (Show, Functor, Foldable, Traversable, Generic)
+
+codomainSortOld :: t -> BlockedDepCheck t -> t
+codomainSortOld s (CodomainSortOld s') = s'
+codomainSortOld s CodomainSortSame     = s
+
 -- | Sorts.
 --
 data Sort' t
@@ -498,15 +525,23 @@ data Sort' t
       --   When --level-universe isn't on, this universe reduces to @Set 0@
   | IntervalUniv
       -- ^ @IntervalUniv@, a sort inhabited by the cubical interval.
-  | PiSort (Dom' t t) (Sort' t) (Abs (Sort' t))
+  | PiSort' (BlockedDepCheck (Sort' t)) (Dom' t t) (Sort' t) (Abs (Sort' t))
       -- ^ Sort of the pi type @(x : A) → B@.
-      --   The components are the domain @A@ (as a bare term), the sort @s1@ of @A@,
-      --   and the sort @s2@ of @B@ in the context extended by @x : A@.
+      --   The components are the blocked dependency problem @c@, the domain @A@
+      --   (as a bare term), the sort @s1@ of @A@, and the sort @s2@ of @B@ in
+      --   the context extended by @x : A@.
       --
-      --   The sort denoted by @'PiSort' A s1 s2@ only depends on @s1@ and @s2@.
-      --   The domain @A@ is kept around so that we can rebuild the type @'El' s1 A@
-      --   needed to extend the context when we have to work under the binder of @s2@;
-      --   see e.g. 'reduceB'' for sorts or 'piSortEquals'.
+      --   @s2@ is always @Abs@
+      --
+      --   @c@ stores the original codomain sort to ensure we make coherent
+      --   choices w.r.t. whether pi types are level-dependent or not
+      --   (see #5810)
+      --
+      --   The sort denoted by @'PiSort' c A s1 s2@ only depends on @c@, @s1@
+      --   and @s2@. The domain @A@ is kept around so that we can rebuild the
+      --   type @'El' s1 A@ needed to extend the context when we have to work
+      --   under the binder of @s2@; see e.g. 'reduceB'' for sorts or
+      --   'piSortEquals'.
   | FunSort (Sort' t) (Sort' t)
       -- ^ Sort of a (non-dependent) function type.
   | UnivSort (Sort' t)
@@ -521,6 +556,23 @@ data Sort' t
       --   The @String@ typically describes the location where we create this dummy,
       --   but can contain other information as well.
   deriving Show
+
+mustBeAbs :: Impossible -> Abs t -> Abs t
+mustBeAbs err (Abs x t) = Abs x t
+mustBeAbs err NoAbs{}   = throwImpossible err
+
+-- | The codomain sort of a 'PiSort' should always be 'Abs'. This pattern
+--   synonym defensively checks this.
+pattern PiSort ::
+     BlockedDepCheck (Sort' t) -> Dom' t t -> Sort' t -> Abs (Sort' t)
+  -> Sort' t
+pattern PiSort c a s1 s2Abs <- PiSort' c a s1 s2Abs where
+  PiSort c a s1 s2Abs = PiSort' c a s1 (mustBeAbs __IMPOSSIBLE__ s2Abs)
+
+{-# COMPLETE
+  Univ, Inf,
+  SizeUniv, LockUniv, LevelUniv, IntervalUniv,
+  PiSort, FunSort, UnivSort, MetaS, DefS, DummyS #-}
 
 pattern Prop, Type, SSet :: Level' t -> Sort' t
 pattern Prop l = Univ UProp l
@@ -1604,7 +1656,7 @@ instance TermSize Sort where
     LockUniv  -> 1
     LevelUniv -> 1
     IntervalUniv -> 1
-    PiSort a s1 s2 -> 1 + tsize a + tsize s1 + tsize s2
+    PiSort _c a s1 s2 -> 1 + tsize a + tsize s1 + tsize s2
     FunSort s1 s2 -> 1 + tsize s1 + tsize s2
     UnivSort s -> 1 + tsize s
     MetaS _ es -> 1 + tsize es
@@ -1663,7 +1715,7 @@ instance KillRange a => KillRange (Sort' a) where
     LevelUniv  -> LevelUniv
     IntervalUniv -> IntervalUniv
     Univ u a   -> killRangeN (Univ u) a
-    PiSort a s1 s2 -> killRangeN PiSort a s1 s2
+    PiSort c a s1 s2 -> killRangeN PiSort c a s1 s2
     FunSort s1 s2 -> killRangeN FunSort s1 s2
     UnivSort s -> killRangeN UnivSort s
     MetaS x es -> killRangeN (MetaS x) es
@@ -1762,6 +1814,8 @@ instance KillRange a => KillRange (Blocked a) where
 instance KillRange a => KillRange (Abs a) where
   killRange = fmap killRange
 
+instance KillRange a => KillRange (BlockedDepCheck a) where
+
 -----------------------------------------------------------------------------
 -- * Simple pretty printing
 -----------------------------------------------------------------------------
@@ -1813,6 +1867,10 @@ instance Pretty Term where
 instance Pretty t => Pretty (Abs t) where
   pretty (Abs   x t) = "Abs"   <+> (text x <> ".") <+> pretty t
   pretty (NoAbs x t) = "NoAbs" <+> (text x <> ".") <+> pretty t
+
+instance Pretty t => Pretty (BlockedDepCheck t) where
+  pretty (CodomainSortOld s) = "CodomainSortOld" <+> pretty s
+  pretty CodomainSortSame    = "CodomainSortSame"
 
 instance (Pretty t, Pretty e) => Pretty (Dom' t e) where
   pretty dom = pLock <+> pTac <+> pDom dom (pretty (getModality dom) <+> pretty (unDom dom))
@@ -1878,7 +1936,7 @@ instance Pretty Sort where
       LockUniv -> "LockUniv"
       LevelUniv -> "LevelUniv"
       IntervalUniv -> "IntervalUniv"
-      PiSort a s1 s2 -> mparens (p > 9) $
+      PiSort c a s1 s2 -> mparens (p > 9) $
         "piSort" <+> pDom (domInfo a) (text (absName s2) <+> ":" <+> pretty (unDom a) <+> ":" <+> pretty s1)
                       <+> parens (pretty (unAbs s2))
       FunSort a b -> mparens (p > 9) $
@@ -1958,7 +2016,7 @@ instance NFData Sort where
     LockUniv -> ()
     LevelUniv -> ()
     IntervalUniv -> ()
-    PiSort a b c -> rnf (a, b, unAbs c)
+    PiSort a b c d -> rnf (a, b, c, unAbs d)
     FunSort a b -> rnf (a, b)
     UnivSort a -> rnf a
     MetaS _ es -> rnf es
@@ -1996,3 +2054,4 @@ instance NFData RewriteHead
 instance NFData LocalEquation
 instance NFData RewriteRule
 instance NFData RewDom
+instance NFData a => NFData (BlockedDepCheck a)

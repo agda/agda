@@ -256,7 +256,7 @@ instance AbsTerm Sort where
     LockUniv   -> LockUniv
     LevelUniv  -> LevelUniv
     IntervalUniv -> IntervalUniv
-    PiSort a s1 s2 -> PiSort (absS a) (absS s1) (absS s2)
+    PiSort c a s1 s2 -> PiSort c (absS a) (absS s1) (absS s2)
     FunSort s1 s2 -> FunSort (absS s1) (absS s2)
     UnivSort s -> UnivSort $ absS s
     MetaS x es -> MetaS x $! absS es
@@ -343,13 +343,20 @@ instance EqualSy Sort where
     (Inf u m   , Inf u' n    ) -> u == u' && m == n
     (SizeUniv  , SizeUniv    ) -> True
     (LevelUniv , LevelUniv   ) -> True
-    (PiSort a b c, PiSort a' b' c') -> equalSy a a' && equalSy b b' && equalSy c c'
+    (PiSort a b c d, PiSort a' b' c' d') ->
+      equalSy a a' && equalSy b b' && equalSy c c' && equalSy d d'
     (FunSort a b, FunSort a' b') -> equalSy a a' && equalSy b b'
     (UnivSort a, UnivSort a' ) -> equalSy a a'
     (MetaS x es, MetaS x' es') -> x == x' && equalSy es es'
     (DefS  d es, DefS  d' es') -> d == d' && equalSy es es'
     (DummyS{}  , _           ) -> __IMPOSSIBLE__
     (_         , DummyS{}    ) -> __IMPOSSIBLE__
+    _ -> False
+
+instance EqualSy a => EqualSy (BlockedDepCheck a) where
+  equalSy = curry \case
+    (CodomainSortOld s, CodomainSortOld s') -> equalSy s s'
+    (CodomainSortSame, CodomainSortSame) -> True
     _ -> False
 
 -- | Ignores sorts.

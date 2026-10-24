@@ -481,7 +481,7 @@ instance ShrinkC Sort where
     LockUniv   -> []
     LevelUniv   -> []
     IntervalUniv -> []
-    PiSort a s1 s2 -> __IMPOSSIBLE__
+    PiSort{} -> __IMPOSSIBLE__
     FunSort s1 s2 -> __IMPOSSIBLE__
     UnivSort s -> __IMPOSSIBLE__
     MetaS x es -> __IMPOSSIBLE__

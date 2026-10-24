@@ -72,7 +72,9 @@ allMetas' singl = foldTerm metas
   sortMetas LockUniv{}    = mempty
   sortMetas LevelUniv     = mempty
   sortMetas IntervalUniv{} = mempty
-  sortMetas (PiSort _ s1 s2)  = sortMetas s1 <> sortMetas (unAbs s2)  -- the domain is a term so is covered by the fold
+  sortMetas (PiSort c _ s1 s2) =
+    -- the domain is a term so is covered by the fold
+    foldMap sortMetas c <> sortMetas s1 <> sortMetas (unAbs s2)
   sortMetas (FunSort a b) = sortMetas a <> sortMetas b
   sortMetas (UnivSort s)  = sortMetas s
   sortMetas (MetaS x _)   = singl x

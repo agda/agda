@@ -973,7 +973,22 @@ instance Subst a => Subst (Sort' a) where
     LockUniv       -> LockUniv
     LevelUniv      -> LevelUniv
     IntervalUniv   -> IntervalUniv
-    PiSort a s1 s2 -> ((PiSort $! applySubst rho a) (applySubst rho s1)) $! applySubst rho s2
+    PiSort c a s1 s2 -> ((PiSort c' $! applySubst rho a) (applySubst rho s1)) $! applySubst rho s2
+      where
+        -- Is the substitution a thinning?
+        -- (Approximation of injectivity, just for optimisation)
+        isThin IdS          = True
+        isThin (Wk _ rho)   = isThin rho
+        isThin (Lift _ rho) = isThin rho
+        isThin _            = False
+        c' = case c of
+          CodomainSortSame  -> if isThin rho
+            -- If the substitution is a thinning, we can keep using the current
+            -- codomain sort because thinnings are injective and dependency
+            -- is stable under injective substitutions
+            then CodomainSortSame
+            else CodomainSortOld $! unAbs s2
+          CodomainSortOld{} -> c
     FunSort s1 s2  -> FunSort (applySubst rho s1) (applySubst rho s2)
     UnivSort s     -> UnivSort $ applySubst rho s
     MetaS x es     -> MetaS x $! subE rho es
@@ -1584,6 +1599,8 @@ deriving instance Ord Substitution
 
 deriving instance Eq Sort
 deriving instance Ord Sort
+deriving instance Eq a => Eq (BlockedDepCheck a)
+deriving instance Ord a => Ord (BlockedDepCheck a)
 deriving instance Eq Level
 deriving instance Ord Level
 deriving instance Eq PlusLevel
@@ -1905,28 +1922,38 @@ funSortM a b = do
 -- assume it will be simplified in the next step. See also:
 -- * `instance Reduce Sort` in Agda.TypeChecking.Substitute (this file)
 -- * `inferPiSort` in Agda.TypeChecking.Sort
-piSort' :: Dom Term -> Sort -> Abs Sort -> Either Blocker Sort
-piSort' a s1       (NoAbs _ s2) = Right $ FunSort s1 s2
-piSort' a s1 s2Abs@(Abs   _ s2) = case varOccurrenceIn 0 s2 of
-  Nothing -> Right $ FunSort s1 $ noabsApp __IMPOSSIBLE__ s2Abs
-  Just o  -> piSortAbs a s1 s2Abs (varFlexRig o) CodomainNotNormalised
+piSortB :: Dom Term -> Sort -> Abs Sort -> Either Blocker Sort
+piSortB a s1       (NoAbs _ s2) = Right $ FunSort s1 s2
+piSortB a s1 s2Abs@(Abs   _ s2) = piSortB' CodomainSortSame a s1 s2Abs
+
+-- | Compute the sort of a pi type where the codomain sort is a proper Abs.
+--   Compared to piSortB we an additional argument:
+--   1. The original codomain sort of the pi type (for determing whether the pi
+--      is level-dependent)
+piSortB' ::
+     BlockedDepCheck Sort -> Dom Term -> Sort -> Abs Sort
+  -> Either Blocker Sort
+piSortB' c a s1 s2Abs =
+  case varOccurrenceIn 0 $! codomainSortOld (unAbs s2Abs) c of
+    Nothing -> Right $! FunSort s1 $! noabsApp __IMPOSSIBLE__ s2Abs
+    Just o  -> piSortB'' a s1 s2Abs (varFlexRig o) CodomainNotNormalised
 
 data IsCodomainNormalised = CodomainNormalised | CodomainNotNormalised
 
 -- | Compute the sort of a pi type where the codomain sort is a proper Abs.
---   Compared to piSort' we take two additional arguments:
---   4. The occurrence of the variable in the codomain.
+--   Compared to piSortB we take two additional arguments:
+--   4. The occurrence of the variable in the (original) codomain sort.
 --   5. Whether we have already tried to remove the dependency by
---      normalising the codomain sort (e.g. with forceNoAbs)
-piSortAbs
+--      normalising the codomain sort (e.g. with forceNonDep)
+piSortB''
   :: Dom Term
   -> Sort
   -> Abs Sort
   -> FlexRig
   -> IsCodomainNormalised
   -> Either Blocker Sort
-piSortAbs a s1 NoAbs{} _ _ = __IMPOSSIBLE__
-piSortAbs a s1 (Abs x s2) occ norm = case (sizeOfSort s1 , sizeOfSort s2) of
+piSortB'' a s1 NoAbs{} _ _ = __IMPOSSIBLE__
+piSortB'' a s1 (Abs x s2) occ norm = case (sizeOfSort s1 , sizeOfSort s2) of
   (Right (SmallSort u1) , Right (SmallSort u2)) -> case occ of
     StronglyRigid -> let !u = funUniv u1 u2 in Right (Inf u 0)
     Unguarded     -> let !u = funUniv u1 u2 in Right (Inf u 0)
@@ -1974,12 +2001,25 @@ piSortAbs a s1 (Abs x s2) occ norm = case (sizeOfSort s1 , sizeOfSort s2) of
 --     Flexible _    -> Nothing
 
 piSort :: Dom Term -> Sort -> Abs Sort -> Sort
-piSort a s1 s2 = fromRight (const $ PiSort a s1 s2) $ piSort' a s1 s2
+piSort a s1 s2 = fromRight (const $ PiSort CodomainSortSame a s1 s2) $!
+  piSortB a s1 s2
 
 {-# SPECIALISE piSortM :: Dom Term -> Sort -> Abs Sort -> TCM Sort #-}
-piSortM :: HasOptions m => Dom Term -> Sort -> Abs Sort -> m Sort
-piSortM va s1 s2 = case piSort' va s1 s2 of
-  Left _ -> return $ PiSort va s1 s2
+piSortM :: HasOptions m =>
+  Dom Term -> Sort -> Abs Sort -> m Sort
+piSortM va s1 s2 = piSortM'' CodomainSortSame va s1 s2 $! piSortB va s1 s2
+
+{-# SPECIALISE piSortM' :: BlockedDepCheck Sort -> Dom Term -> Sort -> Abs Sort -> TCM Sort #-}
+piSortM' :: HasOptions m =>
+  BlockedDepCheck Sort -> Dom Term -> Sort -> Abs Sort -> m Sort
+piSortM' c va s1 s2 = piSortM'' c va s1 s2 $! piSortB' c va s1 s2
+
+{-# SPECIALISE piSortM'' :: BlockedDepCheck Sort -> Dom Term -> Sort -> Abs Sort -> Either Blocker Sort -> TCM Sort #-}
+piSortM'' :: HasOptions m
+  => BlockedDepCheck Sort -> Dom Term -> Sort -> Abs Sort
+  -> Either Blocker Sort -> m Sort
+piSortM'' c va s1 s2 = \case
+  Left _ -> return $ PiSort c va s1 s2
   -- Jesper, 2025-09-15: if a PiSort reduces to a FunSort, piSort'
   -- just returns the FunSort without trying to simplify it further.
   -- So if we get a FunSort here we call funSortM in the hopes
@@ -1987,7 +2027,6 @@ piSortM va s1 s2 = case piSort' va s1 s2 of
   -- can lead to quadratic behavior, see #8096.
   Right (FunSort s1' s2') -> funSortM s1' s2'
   Right s' -> return s'
-
 
 
 ---------------------------------------------------------------------------

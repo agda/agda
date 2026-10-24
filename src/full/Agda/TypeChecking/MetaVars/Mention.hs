@@ -57,12 +57,18 @@ instance MentionsMeta Sort where
     LockUniv   -> False
     LevelUniv  -> False
     IntervalUniv -> False
-    PiSort a s1 s2 -> mentionsMetas xs (a, s1, s2)
+    PiSort c a s1 s2 -> mentionsMetas xs (c, a, s1, s2)
     FunSort s1 s2 -> mentionsMetas xs (s1, s2)
     UnivSort s -> mentionsMetas xs s
     MetaS m es -> HashSet.member m xs || mentionsMetas xs es
     DefS d es  -> mentionsMetas xs es
     DummyS{}   -> False
+
+instance MentionsMeta t => MentionsMeta (BlockedDepCheck t) where
+  mentionsMetas xs (CodomainSortOld s) =
+    mentionsMetas xs s
+  mentionsMetas xs CodomainSortSame
+    = False
 
 instance MentionsMeta t => MentionsMeta (Abs t) where
   mentionsMetas xs = mentionsMetas xs . unAbs
