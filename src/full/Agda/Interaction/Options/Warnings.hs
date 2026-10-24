@@ -259,6 +259,7 @@ data WarningName
   | MismatchedBrackets_
   -- Library Warnings
   | LibUnknownField_
+  | LibraryVersionConflict_
   -- Nicifer Warnings
   | DefinitionBeforeDeclaration_
   | DivergentModalityInClause_
@@ -518,6 +519,7 @@ warningNameDescription = \case
   MismatchedBrackets_              -> "Mismatched brackets."
   -- Library Warnings
   LibUnknownField_                 -> "Unknown fields in library files."
+  LibraryVersionConflict_          -> "Libraries depended on in different versions."
   -- Nicifer Warnings
   DivergentModalityInClause_       -> "Divergent modalities in function clauses."
   EmptyAbstract_                   -> "Empty `abstract' blocks."

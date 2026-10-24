@@ -18,6 +18,7 @@ import Data.Function               ( (&), on )
 import Data.Hashable               ( Hashable )
 import qualified Data.List         as List
 import Data.Map                    ( Map )
+import Data.Maybe                  ( maybeToList )
 import qualified Data.Map          as Map
 import Data.Text                   ( Text, unpack )
 import qualified Data.Text         as T
@@ -29,6 +30,7 @@ import System.Directory
 import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Common.Pretty
+import Agda.Syntax.Concrete.Glyph  ( treeBranch, treeLastBranch, treeContinue, treeEmpty )
 import Agda.Syntax.Position
 
 import Agda.Utils.IO               ( showIOException )
@@ -236,10 +238,42 @@ data LibWarning = LibWarning (Maybe LibPositionInfo) LibWarning'
 -- | Library Warnings.
 data LibWarning'
   = UnknownField String
+  | LibraryVersionConflict
+      -- ^ A library is depended on in different versions.
+      Text
+        -- ^ The library name without version.
+      LibDepTree
+        -- ^ The dependency tree, pruned to the paths leading to the conflicting versions.
+      [(Text, FilePath)]
+        -- ^ The @.agda-lib@ files of the libraries mentioned in the tree,
+        --   keyed by their 'depLabel'.
   deriving (Show, Generic)
 
+-- | A dependency tree of libraries, used to report the provenance
+--   of a 'LibraryVersionConflict'.
+data LibDepTree = LibDepTree LibDepNode [LibDepTree]
+  deriving (Show, Generic)
+
+-- | A node in a 'LibDepTree'.
+data LibDepNode = LibDepNode
+  { depLabel      :: Text
+      -- ^ The library name as written in the @depend@ field
+      --   (or the name of the project at the root).
+  , depResolvedAs :: Maybe Text
+      -- ^ The name of the library the label resolved to, if different from the label.
+  , depSeenAbove  :: Bool
+      -- ^ Has this node been expanded already earlier in the tree?
+  }
+  deriving (Show, Generic)
+
+-- | Label of the root of a 'LibDepTree' if the project has no name.
+libDepRootLabel :: Text
+libDepRootLabel = "<root>"
+
 libraryWarningName :: LibWarning -> WarningName
-libraryWarningName (LibWarning c (UnknownField{})) = LibUnknownField_
+libraryWarningName (LibWarning c w) = case w of
+  UnknownField{}           -> LibUnknownField_
+  LibraryVersionConflict{} -> LibraryVersionConflict_
 
 -- * Errors
 
@@ -531,7 +565,33 @@ instance Pretty LibWarning where
       Just (LibPositionInfo _ _ file) -> hcat [ text file, ":"] <+> pretty w
 
 instance Pretty LibWarning' where
-  pretty (UnknownField s) = text $ "Unknown field '" ++ s ++ "'"
+  pretty = \case
+    UnknownField s -> text $ "Unknown field '" ++ s ++ "'"
+    LibraryVersionConflict lib tree files -> vcat $ concat
+      [ [ hcat [ "Different versions of the library '", pretty lib, "' depended on:" ] ]
+      , prettyLibDepTree tree
+      , [ "", "Library files:" ]
+        -- Andreas, 2026-10-24, issue #8875
+        -- The Emacs mode makes the file paths clickable in lines of the form "[label]: path".
+      , [ hcat [ brackets (pretty l), ":" ] <+> text f | (l, f) <- files ]
+      ]
+
+-- | Render a 'LibDepTree', one line per node.
+prettyLibDepTree :: LibDepTree -> [Doc]
+prettyLibDepTree (LibDepTree n ts) = pretty n : children "  " ts
+  where
+    children :: Doc -> [LibDepTree] -> [Doc]
+    children pre ts = concat $ zipWith (child pre) (map (const False) (drop 1 ts) ++ [True]) ts
+    child pre lastChild (LibDepTree n ts) =
+      (pre <> (if lastChild then treeLastBranch else treeBranch) <> pretty n) :
+      children (pre <> if lastChild then treeEmpty else treeContinue) ts
+
+instance Pretty LibDepNode where
+  pretty (LibDepNode l mr seen) = hsep $ concat
+    [ [ pretty r <+> "as" | r <- maybeToList mr ]
+    , [ brackets $ pretty l ]
+    , [ "(see above)" | seen ]
+    ]
 
 ------------------------------------------------------------------------
 -- Hashable instances
@@ -564,6 +624,8 @@ instance NFData LibCache
 instance NFData LibPositionInfo
 instance NFData LibWarning
 instance NFData LibWarning'
+instance NFData LibDepTree
+instance NFData LibDepNode
 instance NFData LibError
 instance NFData LibError'
 instance NFData LibErrors

@@ -1834,6 +1834,12 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Unknown fields in library files.
 
+.. option:: LibraryVersionConflict
+
+     .. versionadded:: 2.10.0
+
+     Libraries depended on in different versions.
+
 .. option:: LocalRewritingConfluenceCheck
 
      .. versionadded:: 2.9.0

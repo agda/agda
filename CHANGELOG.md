@@ -26,6 +26,26 @@ Warnings
 
 * Warning `ShadowingInTelescope` is now on by default.
 
+* New warning `LibraryVersionConflict` when a library is depended on in different versions,
+  e.g. `standard-library-2.0` and `standard-library-2.4`
+  (see [#8875](https://github.com/agda/agda/issues/8875)).
+  This is typically the cause of `AmbiguousTopLevelModuleName` errors.
+  The warning shows the dependency tree leading to the conflicting versions
+  and the involved `.agda-lib` files:
+  ```
+  Different versions of the library 'standard-library' depended on:
+  [cover]
+    ├─ [standard-library-2.4]
+    ├─ [frames]
+    │   └─ [standard-library-2.0]
+    └─ [agda-categories]
+        └─ standard-library-3.0 as [standard-library]
+
+  Library files:
+  [cover]: /home/user/cover/cover.agda-lib
+  ...
+  ```
+
 Syntax
 ------
 
