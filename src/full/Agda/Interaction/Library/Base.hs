@@ -587,12 +587,12 @@ instance Pretty LibWarning' where
     LibraryVersionConflict lib tree files -> vcat $ concat
       [ [ hcat [ "Different versions of the library '", pretty lib, "' depended on:" ] ]
       , prettyLibDepTree tree
-      , [ "", "Library files:" ]
+      , [ "Library files:" ]
         -- Andreas, 2026-10-24, issue #8875
         -- We print positions as "file:line.col-endcol:" at the beginning of the line
         -- so that the Emacs mode makes them clickable.
         -- Without a dependency position, we point to the beginning of the file.
-      , [ hcat [ brackets (pretty l), ":" ] <+> hcat [ text f, ":", maybe "1.1" pretty mpos, ":" ]
+      , [ hcat [ brackets (pretty l), ":" ] <+> hcat [ text f, ":", maybe "1.1" pretty mpos ]
         | (l, f, mpos) <- files
         ]
       ]
