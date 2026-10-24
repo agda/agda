@@ -78,8 +78,8 @@ data GenericEntry = GenericEntry
 -- | A (part of a) line of field content.
 data ContentLine = ContentLine
   { clLine   :: LineNumber
-  , clColumn :: Int     -- ^ Column (1-based) where 'clText' starts.
-  , clText   :: String  -- ^ @trim@med.
+  , clColumn :: ColumnNumber    -- ^ Column (1-based) where 'clText' starts.
+  , clText   :: String          -- ^ @trim@med.
   }
   deriving (Show)
 
@@ -306,7 +306,7 @@ splitCommas = map snd . splitCommasPos 1
 
 -- | Break a comma-separated string starting at the given column.
 --   Result strings are @trim@med and come with their starting column.
-splitCommasPos :: Int -> String -> [(Int, String)]
+splitCommasPos :: ColumnNumber -> String -> [(ColumnNumber, String)]
 splitCommasPos c0 = go . zip [c0..]
   where
     go ps = case dropWhile (isSep . snd) ps of

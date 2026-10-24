@@ -223,12 +223,13 @@ libPragmas f a = f (_libPragmas a) <&> \ x -> a { _libPragmas = x }
 -- ** Position information
 
 type LineNumber = Int
+type ColumnNumber = Int
 
 -- | A stretch of a line in a file.
 data LibFilePos = LibFilePos
   { lfpLine     :: !LineNumber
-  , lfpStartCol :: !Int  -- ^ Starting column (1-based).
-  , lfpEndCol   :: !Int  -- ^ Ending column (exclusive).
+  , lfpStartCol :: !ColumnNumber  -- ^ Starting column (1-based).
+  , lfpEndCol   :: !ColumnNumber  -- ^ Ending column (exclusive).
   }
   deriving (Show, Generic)
 
@@ -589,7 +590,7 @@ instance Pretty LibWarning' where
       , prettyLibDepTree tree
       , [ "Library files:" ]
         -- Andreas, 2026-10-24, issue #8875
-        -- We print positions as "file:line.col-endcol:" at the beginning of the line
+        -- We print positions as "file:line.col-endcol"
         -- so that the Emacs mode makes them clickable.
         -- Without a dependency position, we point to the beginning of the file.
       , [ hcat [ brackets (pretty l), ":" ] <+> hcat [ text f, ":", maybe "1.1" pretty mpos ]

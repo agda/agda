@@ -1838,7 +1838,7 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      .. versionadded:: 2.10.0
 
-     Libraries depended on in different versions.
+     Depending on different versions of the same library.
 
 .. option:: LocalRewritingConfluenceCheck
 
