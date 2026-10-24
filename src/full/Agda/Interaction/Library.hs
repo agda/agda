@@ -661,17 +661,29 @@ libraryVersionConflicts' root roots resolved =
     node :: LibName -> Bool -> LibDepNode
     node x = LibDepNode (label x) (resolvedAs x)
 
-    -- The files of the libraries mentioned in the tree, in order of first occurrence.
-    files :: [(T.Text, FilePath)]
-    files = nubOn id $
-      [ (rootLabel, _libFile l) | l <- maybeToList root ] ++
-      [ (l, f) | let LibDepTree _ ts = tree, l <- concatMap labels ts, f <- maybeToList $ Map.lookup l fileOf ]
+    -- The files of the libraries mentioned in the tree, in order of first occurrence,
+    -- with the position of the first dependency shown in the tree.
+    files :: [(T.Text, FilePath, Maybe LibFilePos)]
+    files = nubOn (\ (l, f, _) -> (l, f)) $
+      [ (rootLabel, _libFile l, firstDepPos l ts) | l <- maybeToList root ] ++
+      concatMap entries ts
+      where LibDepTree _ ts = tree
 
-    labels :: LibDepTree -> [T.Text]
-    labels (LibDepTree n ts) = [ depLabel n | not $ depSeenAbove n ] ++ concatMap labels ts
+    entries :: LibDepTree -> [(T.Text, FilePath, Maybe LibFilePos)]
+    entries (LibDepTree n ts)
+      | depSeenAbove n = []
+      | otherwise      =
+          [ (depLabel n, _libFile l, firstDepPos l ts) | l <- maybeToList $ Map.lookup (depLabel n) libOf ] ++
+          concatMap entries ts
 
-    fileOf :: Map T.Text FilePath
-    fileOf = Map.fromList [ (label x, _libFile l) | (x, l) <- Map.toList resolved ]
+    -- Where the first of the given dependencies is mentioned in the given library file.
+    firstDepPos :: AgdaLibFile -> [LibDepTree] -> Maybe LibFilePos
+    firstDepPos l = \case
+      LibDepTree n _ : _ -> Map.lookup (depLabel n) $ Map.mapKeys label $ _libDependsPos l
+      [] -> Nothing
+
+    libOf :: Map T.Text AgdaLibFile
+    libOf = Map.fromList [ (label x, l) | (x, l) <- Map.toList resolved ]
 
 -- | @findLib x libs@ retrieves the matches for @x@ from list @libs@.
 --

@@ -6,9 +6,9 @@ Different versions of the library 'lib' depended on:
       └─ [lib-1.0]
 
 Library files:
-[lib-2.0]: Issue8875/lib-2.agda-lib
-[mid]: Issue8875/mid.agda-lib
-[lib-1.0]: Issue8875/lib-1.agda-lib
+Issue8875/lib-2.agda-lib:1.1: [lib-2.0]
+Issue8875/mid.agda-lib:2.9-16: [mid]
+Issue8875/lib-1.agda-lib:1.1: [lib-1.0]
 
 Issue8875.agda:10.1-9: error: [AmbiguousTopLevelModuleName]
 Ambiguous module name. The module name M could refer to any of the

@@ -31,7 +31,7 @@ Warnings
   (see [#8875](https://github.com/agda/agda/issues/8875)).
   This is typically the cause of `AmbiguousTopLevelModuleName` errors.
   The warning shows the dependency tree leading to the conflicting versions
-  and the involved `.agda-lib` files:
+  and the involved `.agda-lib` files, pointing to where the dependencies are declared:
   ```
   Different versions of the library 'standard-library' depended on:
   [cover]
@@ -42,7 +42,9 @@ Warnings
         └─ standard-library-3.0 as [standard-library]
 
   Library files:
-  [cover]: /home/user/cover/cover.agda-lib
+  /home/user/cover/cover.agda-lib:4.3-23: [cover]
+  /home/user/.agda/agda-stdlib-2.4/standard-library.agda-lib:1.1: [standard-library-2.4]
+  /home/user/frames/frames.agda-lib:4.3-23: [frames]
   ...
   ```
 

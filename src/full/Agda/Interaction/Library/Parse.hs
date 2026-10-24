@@ -34,6 +34,8 @@ import Control.Monad.Except
 import Control.Monad.Writer
 import Data.Char
 import qualified Data.List as List
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as T
 import System.FilePath
@@ -69,9 +71,17 @@ warningP = tell . pure
 type GenericFile = [GenericEntry]
 
 data GenericEntry = GenericEntry
-  { geHeader   :: String   -- ^ E.g. field name.    @trim@med.
-  , _geContent :: [String] -- ^ E.g. field content. @trim@med.
+  { geHeader   :: String        -- ^ E.g. field name.    @trim@med.
+  , _geContent :: [ContentLine] -- ^ E.g. field content. @trim@med.
   }
+
+-- | A (part of a) line of field content.
+data ContentLine = ContentLine
+  { clLine   :: LineNumber
+  , clColumn :: Int     -- ^ Column (1-based) where 'clText' starts.
+  , clText   :: String  -- ^ @trim@med.
+  }
+  deriving (Show)
 
 -- | Library file field format format [sic!].
 data Field = forall a. Field
@@ -79,7 +89,7 @@ data Field = forall a. Field
       -- ^ Name of the field.
   , fOptional :: Bool
       -- ^ Is it optional?
-  , fParse    :: Range -> [String] -> P a
+  , fParse    :: Range -> [ContentLine] -> P a
       -- ^ Content parser for this field.
       --
       -- The range points to the start of the file.
@@ -88,19 +98,29 @@ data Field = forall a. Field
   }
 
 optionalField ::
-  String -> (Range -> [String] -> P a) -> Lens' AgdaLibFile a -> Field
+  String -> (Range -> [ContentLine] -> P a) -> Lens' AgdaLibFile a -> Field
 optionalField str p l = Field str True p (set l)
 
 -- | @.agda-lib@ file format with parsers and setters.
 agdaLibFields :: [Field]
 agdaLibFields =
   -- Andreas, 2017-08-23, issue #2708, field "name" is optional.
-  [ optionalField "name"    (\_ -> parseName)                     libName
-  , optionalField "include" (\_ -> pure . concatMap parsePaths)   libIncludes
-  , optionalField "depend"  (\_ -> pure . map parseLibName . concatMap splitCommas)  libDepends
-  , optionalField "flags"   (\r -> pure . foldMap (parseFlags r)) libPragmas
+  [ optionalField "name"    (\_ -> parseName . map clText)                     libName
+  , optionalField "include" (\_ -> pure . concatMap (parsePaths . clText))   libIncludes
+  , Field "depend" True     (\_ -> pure . parseDepends)
+      (\ (ds, pos) l -> l{ _libDepends = ds, _libDependsPos = pos })
+  , optionalField "flags"   (\r -> pure . foldMap (parseFlags r . clText)) libPragmas
   ]
   where
+    -- Remember where the dependencies are mentioned (issue #8875).
+    parseDepends :: [ContentLine] -> ([LibName], Map LibName LibFilePos)
+    parseDepends cls = (map fst ds, Map.fromListWith (\ _new old -> old) ds)
+      where
+        ds = [ (parseLibName w, LibFilePos l c (c + length w))
+             | ContentLine l c0 s <- cls
+             , (c, w) <- splitCommasPos c0 s
+             ]
+
     parseName :: [String] -> P LibName
     parseName [s] | [name] <- words s = pure $ parseLibName name
     parseName ls = throwError $ BadLibraryName $ unwords ls
@@ -213,9 +233,8 @@ data GenericLine
   = Header  LineNumber String
       -- ^ Header line, like a field name, e.g. "include :".  Cannot be indented.
       --   @String@ is 'trim'med.
-  | Content LineNumber String
+  | Content ContentLine
       -- ^ Other line.  Must be indented.
-      --   @String@ is 'trim'med.
   deriving (Show)
 
 -- | Parse line into 'Header' and 'Content' components.
@@ -236,19 +255,19 @@ data GenericLine
 --
 --   @
 --     [ Header  1 "name"
---     , Content 1 "Main"
+--     , Content (ContentLine 1 7 "Main")
 --     , Header  2 "depend"
---     , Content 3 "standard-library"
+--     , Content (ContentLine 3 3 "standard-library")
 --     , Header  4 "include"
---     , Content 4 "."
---     , Content 5 "src more-src"
+--     , Content (ContentLine 4 10 ".")
+--     , Content (ContentLine 5 3 "src more-src")
 --     ]
 --   @
 parseLine :: LineNumber -> String -> P [GenericLine]
 parseLine _ "" = pure []
 parseLine l s@(c:_)
     -- Indented lines are 'Content'.
-  | isSpace c   = pure [Content l $ ltrim s]
+  | isSpace c   = pure [content $ ltrim s]
     -- Non-indented lines are 'Header'.
   | otherwise   =
     case break (== ':') s of
@@ -256,10 +275,13 @@ parseLine l s@(c:_)
       -- Anything after the colon that is not whitespace is 'Content'.
       (h, ':' : r) ->
         case words h of
-          [h] -> pure $ Header l h : [Content l r' | let r' = ltrim r, not (null r')]
+          [h] -> pure $ Header l h : [content r' | let r' = ltrim r, not (null r')]
           []  -> throwError $ MissingFieldName l
           hs  -> throwError $ BadFieldName l h
       _ -> throwError $ MissingColonForField l (ltrim s)
+  where
+    -- @r@ is a suffix of @s@.
+    content r = Content $ ContentLine l (length s - length r + 1) r
 
 -- | Collect 'Header' and subsequent 'Content's into 'GenericEntry'.
 --
@@ -267,8 +289,8 @@ parseLine l s@(c:_)
 --
 groupLines :: [GenericLine] -> P GenericFile
 groupLines [] = pure []
-groupLines (Content l c : _) = throwError $ ContentWithoutField l
-groupLines (Header _ h : ls) = (GenericEntry h [ c | Content _ c <- cs ] :) <$> groupLines ls1
+groupLines (Content c : _) = throwError $ ContentWithoutField $ clLine c
+groupLines (Header _ h : ls) = (GenericEntry h [ c | Content c <- cs ] :) <$> groupLines ls1
   where
     (cs, ls1) = span isContent ls
     isContent Content{} = True
@@ -280,7 +302,17 @@ trimLineComment = stripComments . ltrim
 
 -- | Break a comma-separated string.  Result strings are @trim@med.
 splitCommas :: String -> [String]
-splitCommas = words . map (\c -> if c == ',' then ' ' else c)
+splitCommas = map snd . splitCommasPos 1
+
+-- | Break a comma-separated string starting at the given column.
+--   Result strings are @trim@med and come with their starting column.
+splitCommasPos :: Int -> String -> [(Int, String)]
+splitCommasPos c0 = go . zip [c0..]
+  where
+    go ps = case dropWhile (isSep . snd) ps of
+      [] -> []
+      ps'@((c, _) : _) -> let (w, rest) = break (isSep . snd) ps' in (c, map snd w) : go rest
+    isSep c = c == ',' || isSpace c
 
 -- | ...and trailing, but not leading, whitespace.
 stripComments :: String -> String

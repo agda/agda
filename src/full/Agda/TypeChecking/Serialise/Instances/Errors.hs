@@ -500,6 +500,11 @@ instance EmbPrj LibDepTree where
 
   value = valueN LibDepTree
 
+instance EmbPrj LibFilePos where
+  icod_ (LibFilePos a b c) = icodeN' LibFilePos a b c
+
+  value = valueN LibFilePos
+
 instance EmbPrj LibDepNode where
   icod_ (LibDepNode a b c) = icodeN' LibDepNode a b c
 

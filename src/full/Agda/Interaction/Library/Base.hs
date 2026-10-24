@@ -165,6 +165,9 @@ data AgdaLibFile = AgdaLibFile
                                 --   located?
   , _libIncludes :: [FilePath]  -- ^ Roots where to look for the modules of the library.
   , _libDepends  :: [LibName]   -- ^ Dependencies.
+  , _libDependsPos :: Map LibName LibFilePos
+                                -- ^ Where the dependencies are mentioned
+                                --   in the @.agda-lib@ file (first mention).
   , _libPragmas  :: OptionsPragma
                                 -- ^ Default pragma options for all files in the library.
   }
@@ -177,6 +180,7 @@ emptyLibFile = AgdaLibFile
   , _libAbove    = 0
   , _libIncludes = []
   , _libDepends  = []
+  , _libDependsPos = Map.empty
   , _libPragmas  = mempty
   }
 
@@ -220,6 +224,18 @@ libPragmas f a = f (_libPragmas a) <&> \ x -> a { _libPragmas = x }
 
 type LineNumber = Int
 
+-- | A stretch of a line in a file.
+data LibFilePos = LibFilePos
+  { lfpLine     :: !LineNumber
+  , lfpStartCol :: !Int  -- ^ Starting column (1-based).
+  , lfpEndCol   :: !Int  -- ^ Ending column (exclusive).
+  }
+  deriving (Show, Generic)
+
+-- | Print as @line.col-endcol@, the format used for ranges in Agda files.
+instance Pretty LibFilePos where
+  pretty (LibFilePos l c e) = hcat [ pretty l, ".", pretty c, "-", pretty e ]
+
 -- | Information about which @.agda-lib@ file we are reading
 --   and from where in the @libraries@ file it came from.
 
@@ -244,9 +260,10 @@ data LibWarning'
         -- ^ The library name without version.
       LibDepTree
         -- ^ The dependency tree, pruned to the paths leading to the conflicting versions.
-      [(Text, FilePath)]
+      [(Text, FilePath, Maybe LibFilePos)]
         -- ^ The @.agda-lib@ files of the libraries mentioned in the tree,
-        --   keyed by their 'depLabel'.
+        --   keyed by their 'depLabel',
+        --   with the position of the first dependency shown in the tree (if any).
   deriving (Show, Generic)
 
 -- | A dependency tree of libraries, used to report the provenance
@@ -572,8 +589,12 @@ instance Pretty LibWarning' where
       , prettyLibDepTree tree
       , [ "", "Library files:" ]
         -- Andreas, 2026-10-24, issue #8875
-        -- The Emacs mode makes the file paths clickable in lines of the form "[label]: path".
-      , [ hcat [ brackets (pretty l), ":" ] <+> text f | (l, f) <- files ]
+        -- We print positions as "file:line.col-endcol:" at the beginning of the line
+        -- so that the Emacs mode makes them clickable.
+        -- Without a dependency position, we point to the beginning of the file.
+      , [ hcat [ text f, ":", maybe "1.1" pretty mpos, ":" ] <+> brackets (pretty l)
+        | (l, f, mpos) <- files
+        ]
       ]
 
 -- | Render a 'LibDepTree', one line per node.
@@ -622,6 +643,7 @@ instance NFData AgdaLibFile
 instance NFData LibName
 instance NFData LibCache
 instance NFData LibPositionInfo
+instance NFData LibFilePos
 instance NFData LibWarning
 instance NFData LibWarning'
 instance NFData LibDepTree
