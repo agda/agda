@@ -2,12 +2,11 @@
 
 module Agda.Interaction.BuildLibrary (buildLibrary, printAccumulatedWarnings) where
 
-import           Control.Monad.Except             (catchError, throwError)
+import           Control.Monad.Except             (throwError)
 import           Control.Monad.IO.Class           (liftIO)
 
 import           Data.Functor                     (void)
 import           Data.List                        (sort)
-import           Data.Maybe                       (maybeToList)
 import qualified Data.Set as Set
 
 import           System.Directory                 (getCurrentDirectory)
@@ -23,7 +22,7 @@ import           Agda.Syntax.Abstract.Name        (noModuleName)
 import           Agda.Syntax.Position             (beginningOfFile)
 
 import           Agda.TypeChecking.Monad
-import           Agda.TypeChecking.Pretty         (Doc, prettyTCM, text, vsep)
+import           Agda.TypeChecking.Pretty         (prettyTCM, text, vsep)
 import           Agda.TypeChecking.Pretty.Warning (getAllWarnings, tcWarningsToError)
 import           Agda.TypeChecking.Warnings       (pattern AllWarnings, classifyWarnings)
 
@@ -67,53 +66,41 @@ buildLibrary = do
   opts <- commandLineOptions
   par <- Imp.wantsParallelChecking
 
-  -- Andreas, 2026-10-24, issue #8875:
-  -- If checking a module fails, the error only carries the warnings of that module.
-  -- Thus, we print the warnings accumulated before checking the modules
-  -- (e.g. from resolving the library dependencies), as they may explain the error.
-  flip catchError (\ err -> printWarningsSoFar >> throwError err) do
-    checks <- forM files \ inputFile -> do
+  checks <- forM files \ inputFile -> do
 
-        path :: AbsolutePath
-          <- liftIO (absolute inputFile)
-        sf :: SourceFile
-          <- srcFromPath path
+      path :: AbsolutePath
+        <- liftIO (absolute inputFile)
+      sf :: SourceFile
+        <- srcFromPath path
 
-        -- András, 2026-08-19: issue 8627: for some reason, checking
-        -- primitive modules in the following throws coinfectivity error,
-        -- but since they're already checked by importPrimitiveModules,
-        -- there's no point checking them anyway.
-        isBuiltinModule (srcFileId sf) >>= \case
-          Just b | isPrimitiveModule b ->
-            pure $ pure ()
-          _ -> do
-            src :: Source
-              <- Imp.parseSource sf
-            let
-              m :: TopLevelModuleName
-              m = Imp.srcModuleName src
-            setCurrentRange (beginningOfFile path) do
-              checkModuleName m (Imp.srcOrigin src) Nothing
-              withCurrentModule noModuleName
-                   $ withTopLevelModule m
-                   $ checkModule par m src
+      -- András, 2026-08-19: issue 8627: for some reason, checking
+      -- primitive modules in the following throws coinfectivity error,
+      -- but since they're already checked by importPrimitiveModules,
+      -- there's no point checking them anyway.
+      isBuiltinModule (srcFileId sf) >>= \case
+        Just b | isPrimitiveModule b ->
+          pure $ pure ()
+        _ -> do
+          src :: Source
+            <- Imp.parseSource sf
+          let
+            m :: TopLevelModuleName
+            m = Imp.srcModuleName src
+          setCurrentRange (beginningOfFile path) do
+            checkModuleName m (Imp.srcOrigin src) Nothing
+            withCurrentModule noModuleName
+                 $ withTopLevelModule m
+                 $ checkModule par m src
 
-    sequence_ checks
+  sequence_ checks
   printAccumulatedWarnings
 
 printAccumulatedWarnings :: TCM ()
-printAccumulatedWarnings =
-  printWarnings' $ Just $ text $ "\n" ++ delimiter "All done; warnings encountered"
-
--- | Print the accumulated warnings without a banner.
-printWarningsSoFar :: TCM ()
-printWarningsSoFar = printWarnings' Nothing
-
-printWarnings' :: Maybe (TCM Doc) -> TCM ()
-printWarnings' banner = do
+printAccumulatedWarnings = do
   unlessNullM (tcWarnings . classifyWarnings . Set.toAscList <$> getAllWarnings AllWarnings) $ \ ws -> do
+    let banner = text $ "\n" ++ delimiter "All done; warnings encountered"
     alwaysReportSDoc "warning" 1 $
-      vsep $ (maybeToList banner ++) $ map prettyTCM $ Set.toAscList ws
+      vsep $ (banner :) $ map prettyTCM $ Set.toAscList ws
 
 postCheckModule :: TopLevelModuleName -> Source -> ModuleInfo -> TCM ()
 postCheckModule m src mi = do

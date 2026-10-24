@@ -11,6 +11,7 @@ Library files:
 [lib-2.0]: ../BuildFail/Issue8875/libs/lib-2.agda-lib:1.1:
 [mid]: ../BuildFail/Issue8875/libs/mid.agda-lib:2.9-16:
 [lib-1.0]: ../BuildFail/Issue8875/libs/lib-1.agda-lib:1.1:
+
 ../BuildFail/Issue8875/src/Issue8875.agda:3.1-9: error: [AmbiguousTopLevelModuleName]
 Ambiguous module name. The module name M could refer to any of the
 following files:
