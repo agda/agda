@@ -988,7 +988,7 @@ instance Subst a => Subst (Sort' a) where
             -- is stable under injective substitutions
             then CodomainSortSame
             else CodomainSortOld $! unAbs s2
-          CodomainSortOld _ -> c
+          CodomainSortOld{} -> c
     FunSort s1 s2  -> FunSort (applySubst rho s1) (applySubst rho s2)
     UnivSort s     -> UnivSort $ applySubst rho s
     MetaS x es     -> MetaS x $! subE rho es

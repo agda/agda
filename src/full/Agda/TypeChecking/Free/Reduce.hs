@@ -240,12 +240,12 @@ instance ForceNotFree Sort where
   -- away without forceNotFreeR here.
   forceNotFree' s = expand \ret -> case s of
     Univ u l       -> ret $ Univ u <$> forceNotFree' l
-    PiSort a b c d   -> ret do
+    PiSort c a s1 s2 -> ret do
       -- We ignore variables in the blocked dependency check
-      b        <- underFlexRig (Flexible mempty) (forceNotFree' b)
-      (!c, !d) <- underFlexRig WeaklyRigid
-        ((,) <$> forceNotFree' c <*> forceNotFree' d)
-      pure $ PiSort a b c d
+      a        <- underFlexRig (Flexible mempty) (forceNotFree' a)
+      (!s1, !s2) <- underFlexRig WeaklyRigid
+        ((,) <$> forceNotFree' s1 <*> forceNotFree' s2)
+      pure $ PiSort c a s1 s2
     FunSort a b    -> ret $ FunSort <$> forceNotFree' a <*> forceNotFree' b
     UnivSort s     -> ret $ UnivSort <$> underFlexRig WeaklyRigid (forceNotFree' s)
     MetaS x es     -> ret $ MetaS x <$> underFlexRig (Flexible (singleton x)) (forceNotFree' es)

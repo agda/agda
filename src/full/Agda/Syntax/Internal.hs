@@ -482,10 +482,27 @@ data UnivSize
   | ULarge  -- ^ @(Prop/Set/SSet)ωᵢ@.
   deriving stock (Eq, Show)
 
--- | Blocked dependency (i.e. free zero variable) check, used in 'PiSort'
+-- | Blocked dependency (i.e. free zero variable) check, used in 'PiSort'.
+--
 --   For efficiency, we track whether the codomain sort has actually changed.
 --   If it hasn't, we can avoid duplicating work.
-data BlockedDepCheck t = CodomainSortOld t | CodomainSortSame
+data BlockedDepCheck t
+  = CodomainSortSame
+  -- ^ The codomain sort has not changed, so we can just do the dependency
+  --   check on the current codomain sort.
+  | CodomainSortOld t
+  -- ^ The codomain sort has changed, so we really need to do the dependency
+  --   check on the original codomain sort.
+  --
+  --   E.g. see #5810: @∀ t → Set (ℓ t)@ has codomain sort @Set (lsuc (ℓ t))@
+  --   but then after the substitution @ℓ ↦ λ _ → lzero@, the codomain sort
+  --   becomes @Set (lsuc lzero)@, which is no longer dependent on @t@.
+  --   To avoid a subject reduction problem, we have to remember that the
+  --   codomain sort before the substitution was @Set (lsuc (ℓ t))@.
+  --
+  --   The old codomain sort lives in its original context. In an ideal world,
+  --   we would store this context, but this does not appear very feasible
+  --   (without a significant refactor).
   deriving (Show, Functor, Foldable, Traversable, Generic)
 
 codomainSortOld :: t -> BlockedDepCheck t -> t
@@ -1639,7 +1656,7 @@ instance TermSize Sort where
     LockUniv  -> 1
     LevelUniv -> 1
     IntervalUniv -> 1
-    PiSort _ a s1 s2 -> 1 + tsize a + tsize s1 + tsize s2
+    PiSort _c a s1 s2 -> 1 + tsize a + tsize s1 + tsize s2
     FunSort s1 s2 -> 1 + tsize s1 + tsize s2
     UnivSort s -> 1 + tsize s
     MetaS _ es -> 1 + tsize es
@@ -1853,7 +1870,7 @@ instance Pretty t => Pretty (Abs t) where
 
 instance Pretty t => Pretty (BlockedDepCheck t) where
   pretty (CodomainSortOld s) = "CodomainSortOld" <+> pretty s
-  pretty CodomainSortSame = "CodomainSortSame"
+  pretty CodomainSortSame    = "CodomainSortSame"
 
 instance (Pretty t, Pretty e) => Pretty (Dom' t e) where
   pretty dom = pLock <+> pTac <+> pDom dom (pretty (getModality dom) <+> pretty (unDom dom))

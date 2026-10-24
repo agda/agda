@@ -830,7 +830,7 @@ instance ExtractCalls Sort where
       Univ _ t       -> terUnguarded $ extract t  -- no guarded levels
       -- We ignore calls in the blocked dependency check (these will vanish
       -- after the 'PiSort' reduces)
-      PiSort _ a s1 s2 -> extract (a, s1, s2)
+      PiSort _c a s1 s2 -> extract (a, s1, s2)
       FunSort s1 s2 -> extract (s1, s2)
       UnivSort s -> extract s
       MetaS x es -> return empty

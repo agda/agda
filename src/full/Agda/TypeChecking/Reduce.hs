@@ -469,19 +469,18 @@ instance Reduce Sort where
           Blocked b (c, s1 , s2Abs) -> return $!
             blockedOn b $ PiSort c a s1 s2Abs
           NotBlocked _ (c, s1 , s2Abs) -> do
-            let s2Old = codomainSortOld (unAbs s2Abs) c
+            let dom = El s1 <$> a
             -- In theory we should just call piSort' here. However, we also want
             -- to reduce the codomain sort to make it non-dependent when
             -- possible. So we use forceNonDep and in case we are dealing with a
             -- proper Abs we call piSortAbs directly.
-            let dom = El s1 <$> a
-            inLargeEnoughContext s2Old (forceNonDepSort s2Old) >>= \case
+            codomainSortOldM dom (unAbs s2Abs) c forceNonDepSort >>= \case
               -- If the codomain sort is non-dependent, we reduce to a FunSort
               (NotFree, s2Old) -> do
                 -- We need to obtain a strengthened version of the codomain sort
                 s2 <- case c of
                   CodomainSortSame -> pure s2Old
-                  CodomainSortOld _ ->
+                  CodomainSortOld{} ->
                     addContext dom (forceNonDepSort $! unAbs s2Abs) >>= \case
                       (NotFree, s2) -> pure s2
                       -- If 's2Old' is non dependent, then 's2' must also be
@@ -1668,18 +1667,18 @@ instance InstantiateFull Sort where
   instantiateFull' s = do
     s <- instantiate' s
     case s of
-      Univ u n   -> Univ u <$!> instantiateFull' n
+      Univ u n         -> Univ u <$!> instantiateFull' n
       PiSort c a s1 s2 -> uncurry4 piSortM' =<< instantiateFull' (c, a, s1, s2)
-      FunSort s1 s2 -> uncurry funSortM =<< instantiateFull' (s1, s2)
-      UnivSort s -> univSort <$!> instantiateFull' s
-      Inf _ _    -> return s
-      SizeUniv   -> return s
-      LockUniv   -> return s
-      LevelUniv  -> return s
-      IntervalUniv -> return s
-      MetaS x es -> MetaS x <$!> instantiateFull' es
-      DefS d es  -> DefS d <$!> instantiateFull' es
-      DummyS{}   -> return s
+      FunSort s1 s2    -> uncurry funSortM =<< instantiateFull' (s1, s2)
+      UnivSort s       -> univSort <$!> instantiateFull' s
+      Inf _ _          -> return s
+      SizeUniv         -> return s
+      LockUniv         -> return s
+      LevelUniv        -> return s
+      IntervalUniv     -> return s
+      MetaS x es       -> MetaS x <$!> instantiateFull' es
+      DefS d es        -> DefS d <$!> instantiateFull' es
+      DummyS{}         -> return s
 
 instance (Free a, InstantiateFull a)
       => InstantiateFull (BlockedDepCheck a) where

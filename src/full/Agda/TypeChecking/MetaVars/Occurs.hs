@@ -770,7 +770,7 @@ instance Occurs Sort where
   metaOccurs !m !s = do
     s <- instantiate s
     case s of
-      PiSort _ a s1 s2 -> do
+      PiSort _c a s1 s2 -> do
         -- We ignore occurrences in the blocked dependency check (these will
         -- vanish after 'PiSort' reduces)
         metaOccurs m a
