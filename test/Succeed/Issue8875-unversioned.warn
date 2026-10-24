@@ -9,6 +9,6 @@ Different versions of the library 'lib' depended on:
   └─ lib-2.0 as [lib]
 
 Library files:
-Issue8875/mid.agda-lib:2.9-16: [mid]
-Issue8875/lib-1.agda-lib:1.1: [lib-1.0]
-Issue8875/lib-2.agda-lib:1.1: [lib]
+[mid]: Issue8875/mid.agda-lib:2.9-16:
+[lib-1.0]: Issue8875/lib-1.agda-lib:1.1:
+[lib]: Issue8875/lib-2.agda-lib:1.1:

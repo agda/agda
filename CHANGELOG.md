@@ -42,9 +42,9 @@ Warnings
         └─ standard-library-3.0 as [standard-library]
 
   Library files:
-  /home/user/cover/cover.agda-lib:4.3-23: [cover]
-  /home/user/.agda/agda-stdlib-2.4/standard-library.agda-lib:1.1: [standard-library-2.4]
-  /home/user/frames/frames.agda-lib:4.3-23: [frames]
+  [cover]: /home/user/cover/cover.agda-lib:4.3-23:
+  [standard-library-2.4]: /home/user/.agda/agda-stdlib-2.4/standard-library.agda-lib:1.1:
+  [frames]: /home/user/frames/frames.agda-lib:4.3-23:
   ...
   ```
 

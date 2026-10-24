@@ -592,7 +592,7 @@ instance Pretty LibWarning' where
         -- We print positions as "file:line.col-endcol:" at the beginning of the line
         -- so that the Emacs mode makes them clickable.
         -- Without a dependency position, we point to the beginning of the file.
-      , [ hcat [ text f, ":", maybe "1.1" pretty mpos, ":" ] <+> brackets (pretty l)
+      , [ hcat [ brackets (pretty l), ":" ] <+> hcat [ text f, ":", maybe "1.1" pretty mpos, ":" ]
         | (l, f, mpos) <- files
         ]
       ]
