@@ -470,10 +470,10 @@ instance Reduce Sort where
             blockedOn b $ PiSort c a s1 s2Abs
           NotBlocked _ (c, s1 , s2Abs) -> do
             let dom = El s1 <$> a
-            -- In theory we should just call piSort' here. However, we also want
-            -- to reduce the codomain sort to make it non-dependent when
+            -- In theory we should just call piSortB' here. However, we also
+            -- want to reduce the codomain sort to make it non-dependent when
             -- possible. So we use forceNonDep and in case we are dealing with a
-            -- proper Abs we call piSortAbs directly.
+            -- proper Abs we call piSortB'' directly
             codomainSortOldM dom (unAbs s2Abs) c forceNonDepSort >>= \case
               -- If the codomain sort is non-dependent, we reduce to a FunSort
               (NotFree, s2Old) -> do
@@ -488,7 +488,7 @@ instance Reduce Sort where
                       (MaybeFree _, _) -> __IMPOSSIBLE__
                 let s2' = strengthen __IMPOSSIBLE__ s2
                 reduceB' $ FunSort s1 s2'
-              -- For a (possibly) properly dependent PiSort, we call piSortAbs.
+              -- For a (possibly) properly dependent PiSort, we call piSortB''.
               (MaybeFree flexRig, _) -> do
                 let blockOcc = flexRigToBlocker flexRig
                 case piSortB'' a s1 s2Abs flexRig CodomainNormalised of
@@ -496,7 +496,7 @@ instance Reduce Sort where
                   -- so the only possible blocker comes from the free variable check
                   Left _ -> return $! blockedOn blockOcc $
                     PiSort c a s1 s2Abs
-                  -- The only sort that piSortAbs can reduce is Inf,
+                  -- The only sort that piSortB'' can reduce is Inf,
                   -- so there is no need to try reducing it further.
                   Right s -> return $! notBlocked s
         FunSort s1 s2 -> reduceB' (s1 , s2) >>= \case

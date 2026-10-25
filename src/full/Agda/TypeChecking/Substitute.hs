@@ -1926,7 +1926,7 @@ piSortB :: Dom Term -> Sort -> Abs Sort -> Either Blocker Sort
 piSortB a s1       (NoAbs _ s2) = Right $ FunSort s1 s2
 piSortB a s1 s2Abs@(Abs   _ s2) = piSortB' CodomainSortSame a s1 s2Abs
 
--- | Compute the sort of a pi type where the codomain sort is a proper Abs.
+-- | Compute the sort of a pi type where the codomain sort is an Abs.
 --   Compared to piSortB we an additional argument:
 --   1. The original codomain sort of the pi type (for determing whether the pi
 --      is level-dependent)
