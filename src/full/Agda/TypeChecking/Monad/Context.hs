@@ -809,7 +809,14 @@ inLargeEnoughContext :: (ReadTCState m, MonadAddContext m, Free a)
 inLargeEnoughContext t c = do
   let len = 1 + foldl' max 0 (freeVarList t)
   let dummies = replicate len __DUMMY_DOM__
-  inTopContext $ addContext dummies c
+  -- We disable rewrite rules to avoid erroneously applying rewrite rules
+  -- which refer to module parameters (see "RewriteRulePiSort.agda")
+  -- This is conservative, but conservativity is reasonable here: worst-case
+  -- scenario, we treat a pi type as level-dependent (and put it in Setω),
+  -- when we technically could have pruned the dependency by applying a
+  -- rewrite rule.
+  locallyTCState stRewriteRules (const $ empty) $ inTopContext $
+    addContext dummies c
 
 -- | Run the continuation on the old codomain sort, in an appropriate context
 codomainSortOldM :: (ReadTCState m, MonadAddContext m) =>
