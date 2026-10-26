@@ -109,12 +109,16 @@ instance CheckInternal Type where
                      , nest 2 $ prettyTCM s ]
       ]
     t' <- checkInternal' action t cmp (sort s)
-    s' <- sortOf t'
-    reportSDoc "tc.check.internal" 30 $
-      "checking if sort" <+> prettyTCM s' <+>
-      "of" <+> prettyTCM t' <+>
-      "fits in given sort" <+> prettyTCM s
-    compareSort cmp s' s
+    -- Nathaniel, 2026-10-25: We used to reinfer the sort and check against it
+    -- here, but @checkInternal'@ for @Term@ should already check the sort, so
+    -- this was redundant
+    --
+    -- s' <- sortOf t'
+    -- reportSDoc "tc.check.internal" 30 $
+    --   "checking if sort" <+> prettyTCM s' <+>
+    --   "of" <+> prettyTCM t' <+>
+    --   "fits in given sort" <+> prettyTCM s
+    -- compareSort cmp s' s
     return (El s t')
 
 instance CheckInternal Term where
@@ -214,7 +218,15 @@ instance CheckInternal Term where
           "checking if sort" <+> prettyTCM s' <+>
           "of pi type" <+> prettyTCM v <+>
           "fits in given sort" <+> prettyTCM s
-        compareSort cmp s' s
+        -- Pi types do not contain enough information to reconstruct their
+        -- sort uniquely. Specifically, the pi might have originally been
+        -- level-dependent and so ended up in Setω, but now that level
+        -- dependency has vanished (in an ideal world we would track the
+        -- fact the pi is level dependent in the pi type itself, but
+        -- we do not live in an ideal world).
+        -- Therefore, the double checker needs to check pi sorts in a relaxed.
+        -- way. For simplicity, we over-approximate this by using 'CmpLeq'.
+        compareSort CmpLeq s' s
         return v'
       Sort s     -> do
         reportSDoc "tc.check.internal" 30 $ "checking sort" <+> prettyTCM s
@@ -382,13 +394,13 @@ instance CheckInternal Sort where
     LockUniv -> return LockUniv
     LevelUniv -> return LevelUniv
     IntervalUniv -> return IntervalUniv
-    PiSort dom s1 s2 -> do
+    PiSort c dom s1 s2 -> do
       let a = unDom dom
       s1' <- inferInternal' action s1
       a' <- checkInternal' action a CmpLeq $ sort s1'
       let dom' = dom $> a'
       s2' <- mapAbstraction (El s1' <$> dom') (inferInternal' action) s2
-      return $ PiSort dom' s1' s2'
+      return $ PiSort c dom' s1' s2'
     FunSort s1 s2 -> do
       s1' <- inferInternal' action s1
       s2' <- inferInternal' action s2

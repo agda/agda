@@ -641,7 +641,10 @@ instance ComputeOccurrences Sort where
     LevelUniv      -> ret $ pure ()
     IntervalUniv   -> ret $ pure ()
     -- NB: we skip the domain type stored in the 'PiSort', see the note above.
-    PiSort _ s1 s2 -> ret $ underPath LeftOfArrow (occurrences s1) >> occurrences s2
+    -- We also skip the blocked dependency check (occurrences there will
+    -- vanish after 'PiSort' reduces)
+    PiSort _ _ s1 s2 -> ret $
+      underPath LeftOfArrow (occurrences s1) >> occurrences s2
     FunSort s1 s2  -> ret $ underPath LeftOfArrow (occurrences s1) >> occurrences s2
     UnivSort s     -> ret $ occurrences s
     -- @MetaS x es@ and @DefS q es@ are just the applications @x es@ and @q es@

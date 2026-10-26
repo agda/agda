@@ -155,7 +155,7 @@ instance UsableRelevance Sort where
     LockUniv -> return True
     LevelUniv -> return True
     IntervalUniv -> return True
-    PiSort a s1 s2 -> usableRel rel (a,s1,s2)
+    PiSort _c a s1 s2 -> usableRel rel (a,s1,s2)
     FunSort s1 s2 -> usableRel rel (s1,s2)
     UnivSort s -> usableRel rel s
     MetaS x es -> usableRel rel es

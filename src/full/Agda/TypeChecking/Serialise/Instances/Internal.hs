@@ -159,33 +159,43 @@ instance EmbPrj Univ where
 
 instance EmbPrj I.Sort where
   icod_ = \case
-    Univ a b     -> icodeN 0  Univ a b
-    SizeUniv     -> icodeN 2  SizeUniv
-    Inf a b      -> icodeN 3  Inf a b
-    PiSort a b c -> icodeN 4  PiSort a b c
-    FunSort a b  -> icodeN 5  FunSort a b
-    UnivSort a   -> icodeN 6  UnivSort a
-    DefS a b     -> icodeN 7  DefS a b
-    LockUniv     -> icodeN 9  LockUniv
-    IntervalUniv -> icodeN 10 IntervalUniv
-    MetaS a b    -> icodeN 11 MetaS a b
-    DummyS s     -> icodeN 12 DummyS s
-    LevelUniv    -> icodeN 13 LevelUniv
+    Univ a b        -> icodeN 0  Univ a b
+    SizeUniv        -> icodeN 2  SizeUniv
+    Inf a b         -> icodeN 3  Inf a b
+    PiSort a b c d  -> icodeN 4  PiSort a b c d
+    FunSort a b     -> icodeN 5  FunSort a b
+    UnivSort a      -> icodeN 6  UnivSort a
+    DefS a b        -> icodeN 7  DefS a b
+    LockUniv        -> icodeN 9  LockUniv
+    IntervalUniv    -> icodeN 10 IntervalUniv
+    MetaS a b       -> icodeN 11 MetaS a b
+    DummyS s        -> icodeN 12 DummyS s
+    LevelUniv       -> icodeN 13 LevelUniv
 
   value = vcase valu where
-    valu (N3 0 a b)   = valuN Univ a b
-    valu (N1 2)       = valuN SizeUniv
-    valu (N3 3 a b)   = valuN Inf a b
-    valu (N4 4 a b c) = valuN PiSort a b c
-    valu (N3 5 a b)   = valuN FunSort a b
-    valu (N2 6 a)     = valuN UnivSort a
-    valu (N3 7 a b)   = valuN DefS a b
-    valu (N1 9)       = valuN LockUniv
-    valu (N1 10)      = valuN IntervalUniv
-    valu (N3 11 a b)  = valuN MetaS a b
-    valu (N2 12 s)    = valuN DummyS s
-    valu (N1 13)      = valuN LevelUniv
-    valu _            = malformed
+    valu (N3 0 a b)     = valuN Univ a b
+    valu (N1 2)         = valuN SizeUniv
+    valu (N3 3 a b)     = valuN Inf a b
+    valu (N5 4 a b c d) = valuN PiSort a b c d
+    valu (N3 5 a b)     = valuN FunSort a b
+    valu (N2 6 a)       = valuN UnivSort a
+    valu (N3 7 a b)     = valuN DefS a b
+    valu (N1 9)         = valuN LockUniv
+    valu (N1 10)        = valuN IntervalUniv
+    valu (N3 11 a b)    = valuN MetaS a b
+    valu (N2 12 s)      = valuN DummyS s
+    valu (N1 13)        = valuN LevelUniv
+    valu _              = malformed
+
+instance EmbPrj a => EmbPrj (BlockedDepCheck a) where
+  icod_ = \case
+    CodomainSortOld a -> icodeN 0 CodomainSortOld a
+    CodomainSortSame  -> icodeN 1 CodomainSortSame
+
+  value = vcase valu where
+    valu (N2 0 a) = valuN CodomainSortOld a
+    valu (N1 1)   = valuN CodomainSortSame
+    valu _        = malformed
 
 instance EmbPrj DisplayForm where
   icod_ (Display a b c) = icodeN' Display a b c
