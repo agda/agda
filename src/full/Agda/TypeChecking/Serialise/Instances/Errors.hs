@@ -495,18 +495,13 @@ instance EmbPrj LibWarning' where
     N4 1 a b c -> valuN LibraryVersionConflict a b c
     _ -> malformed
 
-instance EmbPrj LibDepTree where
-  icod_ (LibDepTree a b) = icodeN' LibDepTree a b
-
-  value = valueN LibDepTree
-
 instance EmbPrj LibFilePos where
   icod_ (LibFilePos a b c) = icodeN' LibFilePos a b c
 
   value = valueN LibFilePos
 
 instance EmbPrj LibDepNode where
-  icod_ (LibDepNode a b c) = icodeN' LibDepNode a b c
+  icod_ (LibDepNode a b) = icodeN' LibDepNode a b
 
   value = valueN LibDepNode
 

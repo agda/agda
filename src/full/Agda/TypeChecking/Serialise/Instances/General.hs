@@ -28,6 +28,8 @@ import qualified Data.Set as Set
 import Data.Strict.Tuple (Pair(..))
 import qualified Data.Text      as T
 import qualified Data.Text.Lazy as TL
+import Data.Tree (Tree)
+import qualified Data.Tree as Tree
 import Data.Typeable
 import Data.Void
 import Data.Word (Word32, Word64)
@@ -247,6 +249,11 @@ instance EmbPrj a => EmbPrj (List2 a) where
 instance EmbPrj a => EmbPrj (Seq a) where
   icod_ s = icode (Fold.foldr' (:) [] s)
   value s = Seq.fromList <$!> value s
+
+instance EmbPrj a => EmbPrj (Tree a) where
+  icod_ (Tree.Node a b) = icodeN' Tree.Node a b
+
+  value = valueN Tree.Node
 
 data KVS a b = Cons a b !(KVS a b) | Nil
 

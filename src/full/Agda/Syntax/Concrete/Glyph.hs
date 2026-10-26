@@ -12,7 +12,7 @@ module Agda.Syntax.Concrete.Glyph
   , forallQ
   , leftIdiomBrkt, rightIdiomBrkt, emptyIdiomBrkt
   , arrow, lambda, fromArrow
-  , treeBranch, treeLastBranch, treeContinue, treeEmpty
+  , treeGlyphs
   , SpecialCharacters(..)
   ) where
 
@@ -144,16 +144,11 @@ arrow     = _arrow specialCharacters
 lambda    = _lambda specialCharacters
 fromArrow = _fromArrow specialCharacters
 
--- | Glyphs for drawing trees, e.g.
---
--- @
--- root
---   ├─ child
---   │   └─ grandchild
---   └─ last child
--- @
-treeBranch, treeLastBranch, treeContinue, treeEmpty :: Doc
-treeBranch     = _treeBranch     specialCharacters
-treeLastBranch = _treeLastBranch specialCharacters
-treeContinue   = _treeContinue   specialCharacters
-treeEmpty      = "    "
+-- | Glyphs for drawing trees with 'prettyTree'.
+treeGlyphs :: TreeGlyphs
+treeGlyphs = TreeGlyphs
+  { treeBranch     = _treeBranch     specialCharacters
+  , treeLastBranch = _treeLastBranch specialCharacters
+  , treeContinue   = _treeContinue   specialCharacters
+  , treeEmpty      = "    "
+  }

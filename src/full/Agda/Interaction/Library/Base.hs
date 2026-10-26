@@ -18,10 +18,10 @@ import Data.Function               ( (&), on )
 import Data.Hashable               ( Hashable )
 import qualified Data.List         as List
 import Data.Map                    ( Map )
-import Data.Maybe                  ( maybeToList )
 import qualified Data.Map          as Map
 import Data.Text                   ( Text, unpack )
 import qualified Data.Text         as T
+import Data.Tree                   ( Tree )
 
 import GHC.Generics                ( Generic )
 
@@ -30,7 +30,7 @@ import System.Directory
 import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Common.Pretty
-import Agda.Syntax.Concrete.Glyph  ( treeBranch, treeLastBranch, treeContinue, treeEmpty )
+import Agda.Syntax.Concrete.Glyph  ( treeGlyphs )
 import Agda.Syntax.Position
 
 import Agda.Utils.IO               ( showIOException )
@@ -269,8 +269,7 @@ data LibWarning'
 
 -- | A dependency tree of libraries, used to report the provenance
 --   of a 'LibraryVersionConflict'.
-data LibDepTree = LibDepTree LibDepNode [LibDepTree]
-  deriving (Show, Generic)
+type LibDepTree = Tree LibDepNode
 
 -- | A node in a 'LibDepTree'.
 data LibDepNode = LibDepNode
@@ -279,8 +278,6 @@ data LibDepNode = LibDepNode
       --   (or the name of the project at the root).
   , depResolvedAs :: Maybe Text
       -- ^ The name of the library the label resolved to, if different from the label.
-  , depSeenAbove  :: Bool
-      -- ^ Has this node been expanded already earlier in the tree?
   }
   deriving (Show, Generic)
 
@@ -587,7 +584,7 @@ instance Pretty LibWarning' where
     UnknownField s -> text $ "Unknown field '" ++ s ++ "'"
     LibraryVersionConflict lib tree files -> vcat $ concat
       [ [ hcat [ "Different versions of the library '", pretty lib, "' depended on:" ] ]
-      , prettyLibDepTree tree
+      , [ prettyLibDepTree tree ]
       , [ "Library files:" ]
         -- Andreas, 2026-10-24, issue #8875
         -- We print positions as "file:line.col-endcol"
@@ -599,21 +596,13 @@ instance Pretty LibWarning' where
       ]
 
 -- | Render a 'LibDepTree', one line per node.
-prettyLibDepTree :: LibDepTree -> [Doc]
-prettyLibDepTree (LibDepTree n ts) = pretty n : children "  " ts
-  where
-    children :: Doc -> [LibDepTree] -> [Doc]
-    children pre ts = concat $ zipWith (child pre) (map (const False) (drop 1 ts) ++ [True]) ts
-    child pre lastChild (LibDepTree n ts) =
-      (pre <> (if lastChild then treeLastBranch else treeBranch) <> pretty n) :
-      children (pre <> if lastChild then treeEmpty else treeContinue) ts
+prettyLibDepTree :: LibDepTree -> Doc
+prettyLibDepTree = prettyTree treeGlyphs
 
 instance Pretty LibDepNode where
-  pretty (LibDepNode l mr seen) = hsep $ concat
-    [ [ pretty r <+> "as" | r <- maybeToList mr ]
-    , [ brackets $ pretty l ]
-    , [ "(see above)" | seen ]
-    ]
+  pretty (LibDepNode l mr) = case mr of
+    Nothing -> brackets (pretty l)
+    Just r  -> pretty r <+> "as" <+> brackets (pretty l)
 
 ------------------------------------------------------------------------
 -- Hashable instances
@@ -647,7 +636,6 @@ instance NFData LibPositionInfo
 instance NFData LibFilePos
 instance NFData LibWarning
 instance NFData LibWarning'
-instance NFData LibDepTree
 instance NFData LibDepNode
 instance NFData LibError
 instance NFData LibError'

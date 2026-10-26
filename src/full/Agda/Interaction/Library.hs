@@ -61,6 +61,7 @@ import qualified Data.Map as Map
 import Data.Set ( Set )
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import Data.Tree ( Tree(Node) )
 
 import System.Directory
 import System.FilePath
@@ -647,19 +648,28 @@ libraryVersionConflicts' root roots resolved =
     relevantOnly :: [LibName] -> [LibName]
     relevantOnly = filter (`Set.member` relevant)
 
+    -- A library resolving to one of the conflicting versions.
+    conflicting :: LibName -> Bool
+    conflicting x = maybe False ((`Set.member` fs) . _libFile) $ Map.lookup x resolved
+
     tree :: LibDepTree
-    tree = LibDepTree (LibDepNode rootLabel Nothing False) $ snd $
+    tree = Node (LibDepNode rootLabel Nothing) $ snd $
       expand Set.empty $ relevantOnly $ nubOn id roots
 
     -- Expand the given siblings from left to right.
-    -- Nodes that have been expanded before are not expanded again.
     expand :: Set LibName -> [LibName] -> (Set LibName, [LibDepTree])
-    expand = List.mapAccumL \ seen x ->
-      if x `Set.member` seen then (seen, LibDepTree (node x True) []) else
-        second (LibDepTree $ node x False) $ expand (Set.insert x seen) $ relevantOnly $ deps x
+    expand seen = second catMaybes . List.mapAccumL visit seen
 
-    node :: LibName -> Bool -> LibDepNode
-    node x = LibDepNode (label x) (resolvedAs x)
+    -- A library that has been visited before is omitted.
+    -- So is a library which does not lead to a conflicting version not shown before.
+    visit :: Set LibName -> LibName -> (Set LibName, Maybe LibDepTree)
+    visit seen x
+      | x `Set.member` seen = (seen, Nothing)
+      | otherwise           = second prune $ expand (Set.insert x seen) $ relevantOnly $ deps x
+      where
+        prune ts
+          | null ts && not (conflicting x) = Nothing
+          | otherwise                      = Just $ Node (LibDepNode (label x) (resolvedAs x)) ts
 
     -- The files of the libraries mentioned in the tree, in order of first occurrence,
     -- with the position of the first dependency shown in the tree.
@@ -667,19 +677,17 @@ libraryVersionConflicts' root roots resolved =
     files = nubOn (\ (l, f, _) -> (l, f)) $
       [ (rootLabel, _libFile l, firstDepPos l ts) | l <- maybeToList root ] ++
       concatMap entries ts
-      where LibDepTree _ ts = tree
+      where Node _ ts = tree
 
     entries :: LibDepTree -> [(T.Text, FilePath, Maybe LibFilePos)]
-    entries (LibDepTree n ts)
-      | depSeenAbove n = []
-      | otherwise      =
-          [ (depLabel n, _libFile l, firstDepPos l ts) | l <- maybeToList $ Map.lookup (depLabel n) libOf ] ++
-          concatMap entries ts
+    entries (Node n ts) =
+      [ (depLabel n, _libFile l, firstDepPos l ts) | l <- maybeToList $ Map.lookup (depLabel n) libOf ] ++
+      concatMap entries ts
 
     -- Where the first of the given dependencies is mentioned in the given library file.
     firstDepPos :: AgdaLibFile -> [LibDepTree] -> Maybe LibFilePos
     firstDepPos l = \case
-      LibDepTree n _ : _ -> Map.lookup (depLabel n) $ Map.mapKeys label $ _libDependsPos l
+      Node n _ : _ -> Map.lookup (depLabel n) $ Map.mapKeys label $ _libDependsPos l
       [] -> Nothing
 
     libOf :: Map T.Text AgdaLibFile
