@@ -1,5 +1,9 @@
 
-CompileDefined.agda:12.1-35: warning: -W[no]PragmaCompileDefined
+CompileDefined.agda:11.1-35: warning: -W[no]PragmaCompileDefined
 The GHC backend will use the COMPILE pragma instead of the
 definition of foo, so its compiled behaviour may differ from its
 behaviour during type checking.
+
+CompileDefined.agda:25.1-35: warning: -W[no]UselessInline
+It is pointless for INLINE'd function baz to have a separate
+Haskell definition
