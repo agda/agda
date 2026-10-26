@@ -1,0 +1,20 @@
+Checking Issue8875 (../BuildFail/Issue8875/src/Issue8875.agda).
+warning: -W[no]LibraryVersionConflict
+Different versions of the library 'lib' depended on:
+[issue8875]
+  ├─ [lib-2.0]
+  └─ [mid]
+      └─ [lib-1.0]
+Library files:
+[issue8875]: ../BuildFail/Issue8875/Issue8875.agda-lib:2.9-16
+[lib-2.0]: ../BuildFail/Issue8875/libs/lib-2.agda-lib:1.1
+[mid]: ../BuildFail/Issue8875/libs/mid.agda-lib:2.9-16
+[lib-1.0]: ../BuildFail/Issue8875/libs/lib-1.agda-lib:1.1
+
+../BuildFail/Issue8875/src/Issue8875.agda:3.1-9: error: [AmbiguousTopLevelModuleName]
+Ambiguous module name. The module name M could refer to any of the
+following files:
+  ../BuildFail/Issue8875/libs/lib-2/M.agda
+  ../BuildFail/Issue8875/libs/lib-1/M.agda
+when scope checking the declaration
+  import M

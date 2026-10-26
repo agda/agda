@@ -12,6 +12,7 @@ module Agda.Syntax.Concrete.Glyph
   , forallQ
   , leftIdiomBrkt, rightIdiomBrkt, emptyIdiomBrkt
   , arrow, lambda, fromArrow
+  , treeGlyphs
   , SpecialCharacters(..)
   ) where
 
@@ -70,6 +71,9 @@ data SpecialCharacters = SpecialCharacters
   , _rightIdiomBrkt :: Doc
   , _emptyIdiomBrkt :: Doc
   , _fromArrow      :: Doc
+  , _treeBranch     :: Doc  -- ^ Connector to a child that has siblings below.
+  , _treeLastBranch :: Doc  -- ^ Connector to the last child.
+  , _treeContinue   :: Doc  -- ^ Indentation under a child that has siblings below.
   }
 
 specialCharactersUnicode :: SpecialCharacters
@@ -82,6 +86,9 @@ specialCharactersUnicode = SpecialCharacters
   , _rightIdiomBrkt = hlSymbol "\x2988"
   , _emptyIdiomBrkt = hlSymbol "\x2987\x2988"
   , _fromArrow      = hlSymbol "←"
+  , _treeBranch     = "├─ "
+  , _treeLastBranch = "└─ "
+  , _treeContinue   = "│   "
   }
 
 specialCharactersAscii :: SpecialCharacters
@@ -94,6 +101,9 @@ specialCharactersAscii = SpecialCharacters
   , _rightIdiomBrkt = hlSymbol "|)"
   , _emptyIdiomBrkt = hlSymbol "(|)"
   , _fromArrow      = hlSymbol "<-"
+  , _treeBranch     = "|- "
+  , _treeLastBranch = "`- "
+  , _treeContinue   = "|   "
   }
 
 -- | Return the glyph set based on a given (unicode or ascii) glyph mode
@@ -133,3 +143,12 @@ arrow, lambda, fromArrow :: Doc
 arrow     = _arrow specialCharacters
 lambda    = _lambda specialCharacters
 fromArrow = _fromArrow specialCharacters
+
+-- | Glyphs for drawing trees with 'prettyTree'.
+treeGlyphs :: TreeGlyphs
+treeGlyphs = TreeGlyphs
+  { treeBranch     = _treeBranch     specialCharacters
+  , treeLastBranch = _treeLastBranch specialCharacters
+  , treeContinue   = _treeContinue   specialCharacters
+  , treeEmpty      = "    "
+  }
