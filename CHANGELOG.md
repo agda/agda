@@ -26,24 +26,21 @@ Warnings
 
 * Warning `ShadowingInTelescope` is now on by default.
 
-* New warning `LibraryVersionConflict` when a library is depended on in different versions,
-  e.g. `standard-library-2.0` and `standard-library-2.4`
+* New warning `LibraryVersionConflict` when a project uses different versions of one library
   (see [#8875](https://github.com/agda/agda/issues/8875)).
   The warning shows the dependency tree leading to the conflicting versions
-  and the involved `.agda-lib` files, pointing to where the dependencies are declared:
+  and the involved `.agda-lib` files:
   ```
   Different versions of the library 'standard-library' depended on:
-  [cover]
-    ├─ [standard-library-2.4]
-    ├─ [frames]
-    │   └─ [standard-library-2.0]
-    └─ [agda-categories]
-        └─ standard-library-3.0 as [standard-library]
+  [my-project]
+    ├─ [standard-library-2.3]
+    └─ [my-lib]
+        └─ standard-library-2.4 as [standard-library]
   Library files:
-  [cover]: /home/user/cover/cover.agda-lib:4.3-23
-  [standard-library-2.4]: /home/user/.agda/agda-stdlib-2.4/standard-library.agda-lib:1.1
-  [frames]: /home/user/frames/frames.agda-lib:4.3-23
-  ...
+  [my-project]: /path/to/my-project/my-project.agda-lib:<line>.<col>-<col>
+  [my-lib]: /path/to/my-lib/my-lib.agda-lib:<line>.<col>-<col>
+  [standard-library-2.3]: /path/to/agda-stdlib-2.3/standard-library.agda-lib:1:1
+  [standard-library]: /path/to/agda-stdlib-2.4/standard-library.agda-lib:1:1
   ```
 
 Syntax
