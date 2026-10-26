@@ -568,9 +568,14 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
             mapM_ (`xqual` HS.Ident "_") (namesIn ty :: Set QName)
 
           -- Check that the function isn't INLINE (since that will make this
-          -- definition pointless).
+          -- definition pointless). Otherwise, if the function is defined
+          -- (not postulated) and not abstract, warn that the Agda definition
+          -- will be replaced by the code in the COMPILE pragma.
             inline <- (^. funInline) . theDef <$> getConstInfo q
-            when inline $ warning $ UselessInline q
+            if | inline -> warning $ UselessInline q
+               | Function{} <- d
+               , defAbstract def == ConcreteDef -> warning $ PragmaCompileDefined q
+               | otherwise -> return ()
 
             retDecls $ fbWithType hsty (fakeExp hs)
 

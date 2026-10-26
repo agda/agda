@@ -614,7 +614,9 @@ prettyWarning = \case
       ]
 
     PragmaCompileDefined qn -> fsep $ concat
-      [ pwords "TODO"
+      [ pwords "The GHC backend will use the COMPILE pragma instead of the definition of"
+      , [prettyTCM qn <> ","]
+      , pwords "so its compiled behaviour may differ from its behaviour during type checking."
       ]
 
     PragmaCompileErased bn qn -> fsep $ concat
