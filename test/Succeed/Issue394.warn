@@ -1,0 +1,18 @@
+
+Issue394.agda:30.6-9: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: x
+when scope checking K ⦃ λ x x → x ⦄ {λ x x → x}
+
+Issue394.agda:30.14-17: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: x
+when scope checking K ⦃ λ x x → x ⦄ {λ x x → x}
+
+———— All done; warnings encountered ————————————————————————
+
+Issue394.agda:30.6-9: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: x
+when scope checking K ⦃ λ x x → x ⦄ {λ x x → x}
+
+Issue394.agda:30.14-17: warning: -W[no]ShadowingInTelescope
+Shadowing in telescope, repeated variable names: x
+when scope checking K ⦃ λ x x → x ⦄ {λ x x → x}

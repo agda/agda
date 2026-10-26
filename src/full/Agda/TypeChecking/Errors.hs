@@ -327,6 +327,15 @@ instance PrettyTCM TypeError where
       where
       xs = List1.filter (not . isNoName) xs0
 
+    WrongNamedArgumentInLHS h x xs -> fsep $
+      pwords "Unexpected" ++ [ hid h ] ++ pwords "argument named" ++ [ text x ]
+      ++ [ parens $ fsep $ text "possible arguments:" : map text xs | not (null xs) ]
+      where
+      hid = \case
+        Hidden     -> "hidden"
+        Instance{} -> "instance"
+        NotHidden  -> "visible"
+
     WrongHidingInApplication t ->
       fwords "Found an implicit application where an explicit application was expected"
 
@@ -1657,17 +1666,17 @@ instance PrettyTCM TypeError where
 
     IlltypedRewriteRule d -> return d
 
-    IncorrectTypeForRewriteRelation v reason -> case reason of
+    IncorrectTypeForRewriteRelation d reason -> case reason of
       ShouldAcceptAtLeastTwoArguments -> sep
-        [ prettyTCM v <+> " does not have the right type for a rewriting relation"
+        [ prettyTCM d <+> " does not have the right type for a rewriting relation"
         , "because it should accept at least two arguments"
         ]
       FinalTwoArgumentsNotVisible -> sep
-        [ prettyTCM v <+> " does not have the right type for a rewriting relation"
+        [ prettyTCM d <+> " does not have the right type for a rewriting relation"
         , "because its two final arguments are not both visible."
         ]
       TypeDoesNotEndInSort core tel -> sep
-        [ prettyTCM v <+> " does not have the right type for a rewriting relation"
+        [ prettyTCM d <+> " does not have the right type for a rewriting relation"
         , "because its type does not end in a sort, but in "
           <+> do inTopContext $ addContext tel $ prettyTCM core
         ]
@@ -1675,8 +1684,9 @@ instance PrettyTCM TypeError where
     UnexpectedParameter par -> do
       text "Unexpected parameter" <+> prettyA par
 
-    NoParameterOfName x -> do
+    NoParameterOfName x xs -> fsep $
       text ("No parameter of name " ++ x)
+      : [ parens $ fsep $ text "possible parameters:" : map text xs | not (null xs) ]
 
     UnexpectedModalityAnnotationInParameter par -> do
       text "Unexpected modality/relevance annotation in" <+> prettyA par

@@ -11,13 +11,18 @@
     systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
     perSystem = { system, pkgs, lib, inputs', ... }: let
       hlib = pkgs.haskell.lib.compose;
-      hpkgs = pkgs.haskell.packages.ghc910; # pqueue fails with ghc912
+      hpkgs = pkgs.haskell.packages.ghc912; # HLS for ghc910 crashes with an RTS error on Agda modules
       fs = pkgs.lib.fileset;  # need fs.empty. Provided by nixpkgs 25.11
       ghc-wasm = inputs'.ghc-wasm;
 
       # An overlay for the Haskell package set that adds various builds of Agda
       # and replaces `Agda` with a default one.
       agdaOverrides = hpkgs: hprev: {
+        # pqueue-1.5.0.0 has an overly strict upper bound on base (< 4.21)
+        pqueue = hlib.doJailbreak hprev.pqueue;
+        # text-icu's t_blockCode test fails with newer ICU (random property test)
+        text-icu = hlib.dontCheck hprev.text-icu;
+
         # Minimal nix code for building the `agda` executable.
         # GHC & Haskell libraries are taken from the nixpkgs snapshot.
         Agda-minimal = hpkgs.developPackage {
@@ -131,8 +136,8 @@
             hpkgs.fix-whitespace
 
             # Alex and happy
-            pkgs.happy
-            pkgs.alex
+            hpkgs.happy
+            hpkgs.alex
 
             # Tools for building/testing WASM
             ghc-wasm.packages.wasm32-wasi-ghc-9_10

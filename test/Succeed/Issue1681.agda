@@ -1,3 +1,5 @@
+-- Issue #1681: shadowed operators were not handled correctly in operator parser.
+
 id : Set → Set
 id A = A
 
@@ -11,4 +13,6 @@ G : Set → Set → Set
 G _*_ = λ _*_ → id _*_
 
 H : Set → Set → Set
-H = λ _*_ _*_ → id _*_
+H = λ _*_ _*_ → id _*_  -- ShadowingInTelescope warning, but parses.
+
+-- Should succeed.

@@ -100,6 +100,7 @@ fdebugTestFilter = concat
   [ Succeed.Tests.fdebugTestFilter
   , Fail.Tests.fdebugTestFilter
   , Compiler.Tests.fdebugTestFilter
+  , Bugs.Tests.fdebugTestFilter
   ]
 
 -- | Tests which shell out to subprocesses

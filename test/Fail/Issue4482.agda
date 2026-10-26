@@ -4,7 +4,9 @@
 _ : Set → {A : Set} → {B : Set} → {C : Set} → Set
 _ = λ { _ {B = B} {A = A} → {!!} }
 
--- Unexpected implicit argument
+-- Andreas, 2026-10-22, issue #8739: also mention possible arguments.
+-- Expected error: [WrongNamedArgumentInLHS]
+-- Unexpected implicit argument named A (possible arguments: C)
 -- when checking the clause left hand side
 -- .extendedlambda0 _ {B = B} {A = A}
 --                                 ^ highlight this

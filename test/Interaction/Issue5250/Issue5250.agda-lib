@@ -1,2 +1,2 @@
-flags:
+flags: -WnoShadowingInTelescope
 include: .

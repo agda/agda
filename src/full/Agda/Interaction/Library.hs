@@ -12,10 +12,10 @@
 --
 --     -- Get the libraries (and immediate paths) relevant for @projectRoot@.
 --     -- This involves locating and processing the @.agda-lib@ file for the project.
---     (libNames, includePaths) <-  getDefaultLibraries projectRoot True
+--     (project, libNames, includePaths) <-  getDefaultLibraries projectRoot True
 --
 --     -- Get include paths of depended-on libraries.
---     resolvedPaths <- libraryIncludePaths Nothing libs libNames
+--     resolvedPaths <- libraryIncludePaths Nothing project libs libNames
 --
 --     let allPaths = includePaths ++ resolvedPaths
 --   @
@@ -52,7 +52,7 @@ import Control.Monad.Except   ( runExceptT, MonadError, throwError )
 import Control.Monad.Writer   ( Writer, runWriterT, tell )
 import Control.Monad.IO.Class ( MonadIO(..) )
 
-import Data.Bifunctor ( second )
+import Data.Bifunctor ( first, second )
 import Data.Either
 import Data.Function (on)
 import qualified Data.List as List
@@ -61,6 +61,7 @@ import qualified Data.Map as Map
 import Data.Set ( Set )
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import Data.Tree ( Tree(Node) )
 
 import System.Directory
 import System.FilePath
@@ -68,6 +69,8 @@ import System.IO.Error ( isPermissionError )
 
 import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
+
+import Agda.Syntax.Common.Pretty ( prettyShow )
 
 import Agda.TypeChecking.Monad.Base.Types ( IsBuiltinModule(..) )
 
@@ -339,17 +342,21 @@ getAgdaLibFile path = findProjectConfig path >>= \case
 --   If none are found, use default dependencies (according to @defaults@ file)
 --   and current directory (project root).
 --
+--   Also returns the @.agda-lib@ file of the project, if any.
+--
 getDefaultLibraries
   :: FilePath  -- ^ Project root.
   -> Bool      -- ^ Use @defaults@ if no @.agda-lib@ file exists for this project?
-  -> LibM ([LibName], [FilePath])  -- ^ The returned @LibName@s are all non-empty strings.
+  -> LibM (Maybe AgdaLibFile, [LibName], [FilePath])
+       -- ^ The returned @LibName@s are all non-empty strings.
 getDefaultLibraries root optDefaultLibs = do
   libs <- getAgdaLibFile root
   if null libs
-    then (,[]) <$> if optDefaultLibs then mkLibM [] $ (libNameForCurrentDir :) <$> readDefaultsFile else return []
+    then (Nothing,,[]) <$> if optDefaultLibs then mkLibM [] $ (libNameForCurrentDir :) <$> readDefaultsFile else return []
     else return $ libsAndPaths libs
   where
-    libsAndPaths ls = ( concatMap _libDepends ls
+    libsAndPaths ls = ( listToMaybe ls
+                      , concatMap _libDepends ls
                       , nubOn id (concatMap _libIncludes ls)
                       )
 
@@ -522,18 +529,26 @@ parseExecutablesFile ef files = do
 ------------------------------------------------------------------------
 
 -- | Get all include pathes for a list of libraries to use.
+--
+--   Warns if a library is depended on in different versions
+--   (see 'libraryVersionConflicts').
 libraryIncludePaths
-  :: Maybe FilePath  -- ^ @libraries@ file (error reporting only).
-  -> [AgdaLibFile]   -- ^ Libraries Agda knows about.
-  -> [LibName]       -- ^ (Non-empty) library names to be resolved to (lists of) pathes.
-  -> LibM [FilePath] -- ^ Resolved pathes (no duplicates).  Contains "." if @[LibName]@ does.
-libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
+  :: Maybe FilePath     -- ^ @libraries@ file (error reporting only).
+  -> Maybe AgdaLibFile  -- ^ The project the libraries are used by, if any (warnings only).
+  -> [AgdaLibFile]      -- ^ Libraries Agda knows about.
+  -> [LibName]          -- ^ (Non-empty) library names to be resolved to (lists of) pathes.
+  -> LibM [FilePath]    -- ^ Resolved pathes (no duplicates).  Contains "." if @[LibName]@ does.
+libraryIncludePaths overrideLibFile root libs xs0 = mkLibM libs $ do
     efile <- liftIO $ runExceptT $ getLibrariesFile overrideLibFile
     case efile of
       Left theOverrideLibFile -> do
         raiseErrors' [ LibrariesFileNotFound theOverrideLibFile ]
         return []
-      Right file -> embedWriter $ (dot ++) . incs <$> find file [] xs
+      Right file -> do
+        (ls, resolved) <- embedWriter $ find file Map.empty xs
+        ws <- liftIO $ libraryVersionConflicts root xs $ Map.mapMaybe id resolved
+        List1.unlessNull ws warnings'
+        return $ dot ++ incs ls
   where
     (dots, xs) = List.partition (== libNameForCurrentDir) xs0
     incs       = nubOn id . concatMap _libIncludes
@@ -542,12 +557,13 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
     -- Due to library dependencies, the work list may grow temporarily.
     find
       :: LibrariesFile  -- Only for error reporting.
-      -> [LibName]      -- Already resolved libraries.
+      -> Map LibName (Maybe AgdaLibFile)
+                        -- Already processed libraries and what they resolved to.
       -> [LibName]      -- Work list: libraries left to be resolved.
-      -> Writer LibErrWarns [AgdaLibFile]
-    find _ _ [] = pure []
+      -> Writer LibErrWarns ([AgdaLibFile], Map LibName (Maybe AgdaLibFile))
+    find _ visited [] = pure ([], visited)
     find file visited (x : xs)
-      | x `elem` visited = find file visited xs
+      | x `Map.member` visited = find file visited xs
       | otherwise = do
           -- May or may not find the library
           ml <- case findLib x libs of
@@ -556,7 +572,126 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
             l1 : l2 : ls  -> Nothing <$ raiseErrors' [AmbiguousLib x $ List2 l1 l2 ls]
           -- If it is found, add its dependencies to work list
           let xs' = foldMap _libDepends ml ++ xs
-          mcons ml <$> find file (x : visited) xs'
+          first (mcons ml) <$> find file (Map.insert x ml visited) xs'
+
+-- | Detect libraries that are depended on in different versions (issue #8875).
+--
+--   For each such library, we return a 'LibraryVersionConflict' warning
+--   containing the dependency tree pruned to the paths leading to the conflicting versions.
+--
+libraryVersionConflicts
+  :: Maybe AgdaLibFile        -- ^ The project, if any.
+  -> [LibName]                -- ^ The libraries the project depends on.
+  -> Map LibName AgdaLibFile  -- ^ What the (transitively) depended-on libraries resolved to.
+  -> IO [LibWarning']
+libraryVersionConflicts root roots resolved = do
+  -- We identify libraries by the canonical path of their @.agda-lib@ file.
+  -- Also, the canonical paths are absolute, so the Emacs mode can make them clickable.
+  let canon l = do
+        f <- canonicalizePath (_libFile l) `catchIO` \ (_ :: E.IOException) -> pure (_libFile l)
+        pure l{ _libFile = f }
+  root     <- traverse canon root
+  resolved <- traverse canon resolved
+  pure $ libraryVersionConflicts' root roots resolved
+
+-- | Pure part of 'libraryVersionConflicts'.
+libraryVersionConflicts'
+  :: Maybe AgdaLibFile        -- ^ The project, if any.
+  -> [LibName]                -- ^ The libraries the project depends on.
+  -> Map LibName AgdaLibFile  -- ^ What the (transitively) depended-on libraries resolved to.
+  -> [LibWarning']
+libraryVersionConflicts' root roots resolved =
+  [ conflict b fs | (b, fs) <- Map.toList groups, Set.size fs >= 2 ]
+  where
+  -- The distinct library files, grouped by the base name of their library.
+  groups :: Map T.Text (Set FilePath)
+  groups = Map.fromListWith Set.union
+    [ (b, Set.singleton $ _libFile l)
+    | l <- maybeToList root ++ Map.elems resolved
+    , let b = libNameBase $ _libName l
+    , not $ T.null b
+    ]
+
+  -- The dependencies of a library.
+  deps :: LibName -> [LibName]
+  deps x = nubOn id $ foldMap _libDepends $ Map.lookup x resolved
+
+  label :: LibName -> T.Text
+  label = T.pack . prettyShow
+
+  rootLabel :: T.Text
+  rootLabel = case root of
+    Just l | not $ T.null $ libNameBase $ _libName l -> label $ _libName l
+    _ -> libDepRootLabel
+
+  -- The name a library resolved to, if different from the requested name.
+  resolvedAs :: LibName -> Maybe T.Text
+  resolvedAs x = case _libName <$> Map.lookup x resolved of
+    Just y | y /= x -> Just $ label y
+    _ -> Nothing
+
+  conflict :: T.Text -> Set FilePath -> LibWarning'
+  conflict b fs = LibraryVersionConflict b tree files
+    where
+    -- The libraries resolving to a conflicting version or depending on such.
+    relevant :: Set LibName
+    relevant = saturate $ Map.keysSet $ Map.filter ((`Set.member` fs) . _libFile) resolved
+
+    saturate :: Set LibName -> Set LibName
+    saturate s
+      | Set.size s' == Set.size s = s
+      | otherwise                 = saturate s'
+      where
+        s' = Set.union s $ Map.keysSet $
+               Map.filterWithKey (\ x _ -> any (`Set.member` s) $ deps x) resolved
+
+    relevantOnly :: [LibName] -> [LibName]
+    relevantOnly = filter (`Set.member` relevant)
+
+    -- A library resolving to one of the conflicting versions.
+    conflicting :: LibName -> Bool
+    conflicting x = maybe False ((`Set.member` fs) . _libFile) $ Map.lookup x resolved
+
+    tree :: LibDepTree
+    tree = Node (LibDepNode rootLabel Nothing) $ snd $
+      expand Set.empty $ relevantOnly $ nubOn id roots
+
+    -- Expand the given siblings from left to right.
+    expand :: Set LibName -> [LibName] -> (Set LibName, [LibDepTree])
+    expand seen = second catMaybes . List.mapAccumL visit seen
+
+    -- A library that has been visited before is omitted.
+    -- So is a library which does not lead to a conflicting version not shown before.
+    visit :: Set LibName -> LibName -> (Set LibName, Maybe LibDepTree)
+    visit seen x
+      | x `Set.member` seen = (seen, Nothing)
+      | otherwise           = second prune $ expand (Set.insert x seen) $ relevantOnly $ deps x
+      where
+        prune ts
+          | null ts && not (conflicting x) = Nothing
+          | otherwise                      = Just $ Node (LibDepNode (label x) (resolvedAs x)) ts
+
+    -- The files of the libraries mentioned in the tree, in order of first occurrence,
+    -- with the position of the first dependency shown in the tree.
+    files :: [(T.Text, FilePath, Maybe LibFilePos)]
+    files = nubOn (\ (l, f, _) -> (l, f)) $
+      [ (rootLabel, _libFile l, firstDepPos l ts) | l <- maybeToList root ] ++
+      concatMap entries ts
+      where Node _ ts = tree
+
+    entries :: LibDepTree -> [(T.Text, FilePath, Maybe LibFilePos)]
+    entries (Node n ts) =
+      [ (depLabel n, _libFile l, firstDepPos l ts) | l <- maybeToList $ Map.lookup (depLabel n) libOf ] ++
+      concatMap entries ts
+
+    -- Where the first of the given dependencies is mentioned in the given library file.
+    firstDepPos :: AgdaLibFile -> [LibDepTree] -> Maybe LibFilePos
+    firstDepPos l = \case
+      Node n _ : _ -> Map.lookup (depLabel n) $ Map.mapKeys label $ _libDependsPos l
+      [] -> Nothing
+
+    libOf :: Map T.Text AgdaLibFile
+    libOf = Map.fromList [ (label x, l) | (x, l) <- Map.toList resolved ]
 
 -- | @findLib x libs@ retrieves the matches for @x@ from list @libs@.
 --

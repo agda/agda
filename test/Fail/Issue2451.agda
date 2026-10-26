@@ -13,6 +13,12 @@ open Eq {{...}}
 
 {-# BUILTIN REWRITE _≡_ #-}
 
+-- Jesper, 2026-10-21: after fixing #6697 this is no longer allowed.
+--
+-- Error:
+-- Invalid rewrite relation
+-- when checking the pragma BUILTIN REWRITE _≡_
+
 instance
   eqN : Eq Nat
   eqN = record { _≡_ = _≡≡_ }
@@ -22,7 +28,7 @@ postulate
 
 {-# REWRITE plus0p #-}
 
--- Warning:
+-- Old warning:
 -- plus0p  does not target rewrite relation
 -- when checking the pragma REWRITE plus0p
 

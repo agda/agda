@@ -1,7 +1,7 @@
 -- Andreas, 2015-07-16
 -- For printing lambda-bound names, name _ should behave as no name.
 
--- {-# OPTIONS -v tc.term.lambda:60 #-}
+{-# OPTIONS -WnoShadowingInTelescope #-}
 
 module _ where
 

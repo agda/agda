@@ -4219,6 +4219,7 @@ data BuiltinDescriptor
   | BuiltinPrim PrimitiveId (Term -> TCM ())
   | BuiltinSort BuiltinSort
   | BuiltinPostulate Relevance (TCM Type)
+  | BuiltinRewriteRelation
   | BuiltinUnknown (Maybe (TCM Type)) (Term -> Type -> TCM ())
     -- ^ Builtin of any kind.
     --   Type can be checked (@Just t@) or inferred (@Nothing@).
@@ -5747,8 +5748,12 @@ data TypeError
         | WrongHidingInProjection QName
         | IllegalHidingInPostfixProjection (NamedArg C.Expr)
         | WrongNamedArgument (NamedArg A.Expr) (List1 NamedName)
-            -- ^ A function is applied to a hidden named argument it does not have.
-            -- The list contains names of possible hidden arguments at this point.
+            -- ^ A function is applied to a hidden\/instance named argument it does not have.
+            -- The list contains names of possible hidden\/instance arguments at this point.
+        | WrongNamedArgumentInLHS Hiding ArgName [ArgName]
+            -- ^ A left hand side (or lambda) has a hidden\/instance named argument
+            --   that the function type does not have.
+            --   The list contains names of possible hidden\/instance arguments at this point.
         | WrongAnnotationInLambda
             -- ^ Wrong user-given (lock/tick) annotation in lambda.
         | WrongIrrelevanceInLambda
@@ -5889,7 +5894,7 @@ data TypeError
             -- ^ When constructing a rewrite rule from a type,
             --   an error occurred, possibly due to non-confluence of rewrite rules.
             --   This was a @GenericDocError@ before.
-        | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
+        | IncorrectTypeForRewriteRelation QName IncorrectTypeForRewriteRelationReason
     -- Cubical errors
         | CannotGenerateHCompClause Type
             -- ^ Cannot generate @hcomp@ clause because type is not fibrant.
@@ -5912,7 +5917,7 @@ data TypeError
             --   is a local rewrite rule in the telescope.
     -- Data errors
         | UnexpectedParameter A.LamBinding
-        | NoParameterOfName ArgName
+        | NoParameterOfName ArgName [ArgName]
         | UnexpectedModalityAnnotationInParameter A.LamBinding
         | ExpectedBindingForParameter (Dom Type) (Abs Type)
         | UnexpectedTypeSignatureForParameter (List1 (NamedArg A.Binder))

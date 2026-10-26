@@ -23,3 +23,10 @@ agdaIsInconsistent = _  -- should be yellow in > 2.6.1
 
 _ : Set → {A B : Set} → Set
 _ = λ _ {C = B} {A} → A  -- should fail
+
+-- Andreas, 2026-10-22, issue #8739: also mention available arguments.
+--
+-- Expected error: [WrongNamedArgumentInLHS]
+-- Unexpected implicit argument named C (possible arguments: A B)
+-- when checking that the expression λ {C = B} {A} → A has type
+-- {A B : Set} → Set

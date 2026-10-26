@@ -1,0 +1,3 @@
+Issue2451.agda:14.1-28: error: [InvalidBuiltin]
+Invalid rewrite relation
+when checking the pragma BUILTIN REWRITE _≡_

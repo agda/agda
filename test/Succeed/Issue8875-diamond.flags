@@ -1,0 +1,4 @@
+--library-file=test/Succeed/Issue8875/libraries
+--library=a
+--library=b
+--library=lib-2.0

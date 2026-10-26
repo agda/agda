@@ -223,7 +223,6 @@ usualWarnings :: Set WarningName
 usualWarnings =
   allWarnings Set.\\ exactSplitWarnings Set.\\ Set.fromList
     [ UnknownFixityInMixfixDecl_
-    , ShadowingInTelescope_
     , UnusedImports_
     , UnusedImportsAll_
     ]
@@ -260,6 +259,7 @@ data WarningName
   | MismatchedBrackets_
   -- Library Warnings
   | LibUnknownField_
+  | LibraryVersionConflict_
   -- Nicifer Warnings
   | DefinitionBeforeDeclaration_
   | DivergentModalityInClause_
@@ -519,6 +519,7 @@ warningNameDescription = \case
   MismatchedBrackets_              -> "Mismatched brackets."
   -- Library Warnings
   LibUnknownField_                 -> "Unknown fields in library files."
+  LibraryVersionConflict_          -> "Depending on different versions of the same library."
   -- Nicifer Warnings
   DivergentModalityInClause_       -> "Divergent modalities in function clauses."
   EmptyAbstract_                   -> "Empty `abstract' blocks."

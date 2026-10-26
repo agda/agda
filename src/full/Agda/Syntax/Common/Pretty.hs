@@ -26,6 +26,7 @@ import Data.Text qualified as Text
 import Data.Int (Int32)
 import Data.Map (Map)
 import Data.Set (Set)
+import Data.Tree (Tree(Node))
 
 import qualified Text.PrettyPrint.Annotated as P
 import Text.PrettyPrint.Annotated hiding
@@ -275,6 +276,33 @@ align :: Int -> [(String, Doc)] -> Doc
 align max rows =
   vcat $ map (\(s, d) -> text s $$ nest (maxLen + 1) d) $ rows
   where maxLen = maximum $ 0 : filter (< max) (map (length . fst) rows)
+
+-- | Glyphs for drawing a tree with 'prettyTree'.
+data TreeGlyphs = TreeGlyphs
+  { treeBranch     :: Doc  -- ^ Connector to a child that has siblings below.
+  , treeLastBranch :: Doc  -- ^ Connector to the last child.
+  , treeContinue   :: Doc  -- ^ Indentation under a child that has siblings below.
+  , treeEmpty      :: Doc  -- ^ Indentation under the last child.
+  }
+
+-- | Render a tree, one line per node, e.g.
+--
+-- @
+-- root
+--   ├─ child
+--   │   └─ grandchild
+--   └─ last child
+-- @
+prettyTree :: Pretty a => TreeGlyphs -> Tree a -> Doc
+prettyTree g (Node root ts0) = vcat $ pretty root : children "  " ts0
+  where
+    children :: Pretty a => Doc -> [Tree a] -> [Doc]
+    children pre ts = concat $ zipWith (child pre) (map (const False) (drop 1 ts) ++ [True]) ts
+
+    child :: Pretty a => Doc -> Bool -> Tree a -> [Doc]
+    child pre lastChild (Node d ts) =
+      (pre <> (if lastChild then treeLastBranch g else treeBranch g) <> pretty d) :
+      children (pre <> if lastChild then treeEmpty g else treeContinue g) ts
 
 -- | Handles strings with newlines properly (preserving indentation)
 multiLineText :: String -> Doc

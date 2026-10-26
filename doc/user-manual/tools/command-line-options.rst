@@ -98,7 +98,7 @@ but in the fixed order listed in the following:
 
      - The *default data directory* is defined at build time, either
        as the standard data directory defined by Cabal, or, if the
-       ``use-xdg-data-home`` Cabal flag is enabled,
+       :option:`use-xdg-data-home` Cabal flag is enabled,
        as ``$XDG_DATA_HOME/agda/$AGDA_VERSION``.
 
      - The *data directory* can be set at runtime using the :envvar:`Agda_datadir`
@@ -535,7 +535,7 @@ Printing and debugging
 .. option:: --verbose={N}, -v {N}
 
      Set verbosity level to ``N``. This only has an effect if
-     Agda was installed with the ``debug`` Cabal flag.
+     Agda was installed with the :option:`debug` Cabal flag.
      See :ref:`debugging` for more information.
 
 .. option:: --profile={PROF}
@@ -1833,6 +1833,12 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      .. versionadded:: 2.6.0
 
      Unknown fields in library files.
+
+.. option:: LibraryVersionConflict
+
+     .. versionadded:: 2.10.0
+
+     Depending on different versions of the same library.
 
 .. option:: LocalRewritingConfluenceCheck
 

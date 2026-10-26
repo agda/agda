@@ -1,0 +1,5 @@
+test/Succeed/Issue8875/lib-1.agda-lib
+test/Succeed/Issue8875/lib-2.agda-lib
+test/Succeed/Issue8875/mid.agda-lib
+test/Succeed/Issue8875/a.agda-lib
+test/Succeed/Issue8875/b.agda-lib
