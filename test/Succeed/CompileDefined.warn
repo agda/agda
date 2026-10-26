@@ -1,0 +1,5 @@
+
+CompileDefined.agda:12.1-35: warning: -W[no]PragmaCompileDefined
+The GHC backend will use the COMPILE pragma instead of the
+definition of foo, so its compiled behaviour may differ from its
+behaviour during type checking.

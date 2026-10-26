@@ -6,3 +6,8 @@ ignored.
 Issue3545.agda:18.1-44: warning: -W[no]PragmaCompileErased
 The backend GHC erases createElem so the COMPILE pragma will be
 ignored.
+
+Issue3545.agda:27.1-51: warning: -W[no]PragmaCompileDefined
+The GHC backend will use the COMPILE pragma instead of the
+definition of map, so its compiled behaviour may differ from its
+behaviour during type checking.
