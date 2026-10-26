@@ -13,8 +13,8 @@
 module Agda.TypeChecking.Free.Reduce
   ( ForceNotFree
   , forceNotFree
-  , forceNoAbs
-  , forceNoAbsSort
+  , forceNonDep
+  , forceNonDepSort
   , reallyFree
   , IsFree(..)
   , nonFreeVars
@@ -99,23 +99,19 @@ reallyFree xs v = do
     pickFree f1 NotFree = f1
     pickFree NotFree f2 = f2
 
--- | Try to force a binder to be a NoAbs by reducing the body as needed
---   to get rid of the bound variable. Returns either the reduced abstraction
---   and the occurrence of the variable (if removing it failed) or else
---   the strengthened body.
-forceNoAbs :: (Reduce a, ForceNotFree a)
-           => Dom Type -> Abs a -> ReduceM (Either (Abs a, FlexRig) a)
-forceNoAbs dom (NoAbs _ x) = pure $ Right x
-forceNoAbs dom (Abs n x)   = underAbsReduceM dom (Abs n x) \x -> do
+-- | Try to force a thing to no longer depend on the zero variable
+--   Returns a possibly reduced version of the thing and whether the dependency
+--   was successfully removed (i.e. the zero variable is still free)
+forceNonDep :: (Reduce a, ForceNotFree a)
+  => a -> ReduceM (IsFree, a)
+forceNonDep x = do
   (fvm, x) <- forceNotFree (singleton 0) x
-  case fromMaybe __IMPOSSIBLE__ (IntMap.lookup 0 fvm) of
-    NotFree           -> pure $! Right $! noabsApp __IMPOSSIBLE__ (Abs n x)
-    MaybeFree flexRig -> pure $ Left (Abs n x , flexRig)
+  pure (fromMaybe __IMPOSSIBLE__ $! IntMap.lookup 0 fvm, x)
 
 -- | András 2026-02-24: we specialize this, because TypeChecking.Reduce imports it via the hs-boot
 --   file, and if it's not specialized there, it is __impossible__ to specialzie by GHC.
-forceNoAbsSort :: Dom Type -> Abs Sort -> ReduceM (Either (Abs Sort, FlexRig) Sort)
-forceNoAbsSort = forceNoAbs
+forceNonDepSort :: Sort -> ReduceM (IsFree, Sort)
+forceNonDepSort x = forceNonDep x
 
 -- | Get the set of 'NotFree' variables from a variable map.
 nonFreeVars :: IntMap IsFree -> VarSet
@@ -244,9 +240,12 @@ instance ForceNotFree Sort where
   -- away without forceNotFreeR here.
   forceNotFree' s = expand \ret -> case s of
     Univ u l       -> ret $ Univ u <$> forceNotFree' l
-    PiSort a b c   -> ret do a        <- underFlexRig (Flexible mempty) (forceNotFree' a)
-                             (!b, !c) <- underFlexRig WeaklyRigid ((,) <$> forceNotFree' b <*> forceNotFree' c)
-                             pure $ PiSort a b c
+    PiSort c a s1 s2 -> ret do
+      -- We ignore variables in the blocked dependency check
+      a        <- underFlexRig (Flexible mempty) (forceNotFree' a)
+      (!s1, !s2) <- underFlexRig WeaklyRigid
+        ((,) <$> forceNotFree' s1 <*> forceNotFree' s2)
+      pure $ PiSort c a s1 s2
     FunSort a b    -> ret $ FunSort <$> forceNotFree' a <*> forceNotFree' b
     UnivSort s     -> ret $ UnivSort <$> underFlexRig WeaklyRigid (forceNotFree' s)
     MetaS x es     -> ret $ MetaS x <$> underFlexRig (Flexible (singleton x)) (forceNotFree' es)

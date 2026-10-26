@@ -103,7 +103,7 @@ instance PatternFrom Sort NLPSort where
       LockUniv -> return PLockUniv
       LevelUniv -> return PLevelUniv
       IntervalUniv -> return PIntervalUniv
-      PiSort _ _ _ -> __IMPOSSIBLE__
+      PiSort{} -> __IMPOSSIBLE__
       FunSort _ _ -> __IMPOSSIBLE__
       UnivSort _ -> __IMPOSSIBLE__
       MetaS{}  -> __IMPOSSIBLE__

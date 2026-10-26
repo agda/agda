@@ -130,7 +130,7 @@ hasPTSRule a s = do
       Inf{} -> True
       Univ{} -> True
       FunSort _ s -> alwaysValidCodomain s
-      PiSort _ _ s -> alwaysValidCodomain $ unAbs s
+      PiSort _ _ _ s -> alwaysValidCodomain $ unAbs s
       _ -> False
 
     yes = do

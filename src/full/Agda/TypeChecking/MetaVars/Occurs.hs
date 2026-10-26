@@ -738,11 +738,13 @@ instance Occurs Type where
 instance Occurs Sort where
   occurs !s = do
     unfold s >>= \case
-      PiSort a s1 s2 -> do
+      PiSort c a s1 s2 -> do
+        -- We ignore occurrences in the blocked dependency check (these will
+        -- vanish after 'PiSort' reduces)
         s1' <- flexibly $ occurs_ s1
         a'  <- flexibly $ occurs a
         s2' <- mapAbstraction (El s1' <$> a') (flexibly . underPiBinder (getModality a) . occurs_) s2
-        return $ PiSort a' s1' s2'
+        return $ PiSort c a' s1' s2'
       FunSort s1 s2 -> FunSort <$> flexibly (occurs_ s1) <*> flexibly (occurs_ s2)
       Univ u a -> do
         -- If --erasure has been turned on, then the argument of
@@ -768,7 +770,9 @@ instance Occurs Sort where
   metaOccurs !m !s = do
     s <- instantiate s
     case s of
-      PiSort a s1 s2 -> do
+      PiSort _c a s1 s2 -> do
+        -- We ignore occurrences in the blocked dependency check (these will
+        -- vanish after 'PiSort' reduces)
         metaOccurs m a
         metaOccurs m s1
         metaOccurs m (absBody s2)
@@ -1010,7 +1014,7 @@ instance AnyRigid Sort where
       LockUniv   -> return False
       LevelUniv  -> return False
       IntervalUniv -> return False
-      PiSort a s1 s2 -> return False
+      PiSort c a s1 s2 -> return False
       FunSort s1 s2 -> return False
       UnivSort s -> anyRigid f s
       MetaS{}    -> return False
