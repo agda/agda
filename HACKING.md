@@ -256,12 +256,15 @@ Ecosystem libraries
 
 Several further large Agda developments are vendored as submodules under
 `/ecosystem` so that we get alerted of regressions we introduce on `master`:
-`agda-categories`, `agda-unimath`, `plfa` and `TypeTopology`.
+`agda-categories`, `agda-unimath`, `plfa`, `TypeTopology` and
+`agda-stdlib-classes` and `agda-stdlib-meta`.
 
 Unlike `/std-lib` and `/cubical` these submodules are marked `update = none` in
 `/.gitmodules` and are hence *not* populated by `git clone
 --recurse-submodules`; run `make ecosystem` (or `make <library>`) to check them
 out.  `make ecosystem-test` type-checks them all, `make <library>-test` just one.
+`agda-stdlib-meta` depends on `agda-stdlib-classes`, which is also tested
+independently.
 
 See [`ecosystem/README.md`](ecosystem/README.md) for the details.
 
