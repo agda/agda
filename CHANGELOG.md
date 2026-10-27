@@ -60,6 +60,19 @@ Builtins
   This means you can now use an alias to another type as the rewrite relation
   (see https://github.com/agda/agda/issues/6697).
 
+* Added support for matching on `Prop`-valued arguments when the pattern contains a
+  (nested) absurd clause. For example, the following is now accepted:
+  ```agda
+  data Empty : Set where
+
+  data Squash (A : Set) : Prop where
+    squash : A → Squash A
+
+  escape : Squash Empty → Empty
+  escape (squash ())
+  ```
+  (Issue [#8546](https://github.com/agda/agda/issues/8546).)
+
 Reflection
 ----------
 
