@@ -970,7 +970,11 @@ checkCandidates m t cands =
           -- Check whether this candidate is OK, and whether it is okay
           -- for the overlap check. For the candidate to be acceptable,
           -- its type must be a subtype of the goal type.
-          (cons, overlapOk) <- ifNoConstraints_ (leqType t'' t) (pure ([], True)) \pid -> do
+          -- Issue #8866: the candidate must also not solve metas of the
+          -- goal type directly (e.g. @spec : C Z@ for goal @C ?B@).
+          -- Instantiating such a meta by another meta is fine.
+          goalMetas <- allMetasList <$> instantiateFull t
+          (cons, overlapOk0) <- ifNoConstraints_ (leqType t'' t) (pure ([], True)) \pid -> do
             -- To know if this candidate is safe for overlap, we have to
             -- check that it does not constrain the type of the instance
             -- goal. We can do this by running it in a new problem and
@@ -984,6 +988,14 @@ checkCandidates m t cands =
               blocking = foldMap (allBlockingMetas . constraintUnblocker) cons
               !ok = getAll $! allMetas (All . not . flip Set.member blocking) t
             pure (cons, ok)
+          let
+            stillFlexible :: MetaId -> TCM Bool
+            stillFlexible x = lookupMetaInstantiation x >>= \case
+                InstV i -> instantiate (instBody i) <&> \case
+                  MetaV{} -> True
+                  _       -> False
+                _ -> pure True
+          overlapOk <- (overlapOk0 &&) <$> allM stillFlexible goalMetas
           debugConstraints
 
           flip catchError (return . NoBecause) $ do
