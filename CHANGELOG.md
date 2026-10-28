@@ -926,6 +926,8 @@ For 2.9.0, the following issues were
 - [Issue #8680](https://github.com/agda/agda/issues/8680): Impossible state when unused pattern argument is also a variable declaration
 - [Issue #8777](https://github.com/agda/agda/issues/8777): Crash due to unsound call to `canonicalName`
 - [Issue #8808](https://github.com/agda/agda/issues/8808): Internal error during cubical boundary recovery
+- [Issue #8851](https://github.com/agda/agda/issues/8851): `unquoteDecl` panics when the macro does not `declareDef` at all
+- [Issue #8853](https://github.com/agda/agda/issues/8853): Internal error when using `withReconstructed`
 
 ### Other regressions
 
@@ -1066,6 +1068,7 @@ For 2.9.0, the following issues were
 - [Issue #8647](https://github.com/agda/agda/issues/8647): FOREIGN GHC pragma changes lost by caching
 - [Issue #8666](https://github.com/agda/agda/issues/8666): Make `--irrelevance` infective
 - [Issue #8710](https://github.com/agda/agda/issues/8710): The second imported rewriting relation is ignored
+- [Issue #8739](https://github.com/agda/agda/issues/8739): Error "unexpected implicit argument" should print the available implicit arguments
 - [Issue #8759](https://github.com/agda/agda/issues/8759): Crashes due to missing cases in strict bindings
 - [Issue #8767](https://github.com/agda/agda/issues/8767): The strict GHC backend generates slow code
 - [Issue #8783](https://github.com/agda/agda/issues/8783): Mimer (C-c C-a) does not automatically use mutually defined functions
@@ -1073,8 +1076,9 @@ For 2.9.0, the following issues were
 - [Issue #8815](https://github.com/agda/agda/issues/8815): Mimer rejects candidate if it generates constraints it would solve in the next step
 - [Issue #8828](https://github.com/agda/agda/issues/8828): Meta solutions leak from abstract and opaque blocks
 - [Issue #8830](https://github.com/agda/agda/issues/8830): Instance resolution should not ignore available instances
-- [Issue #8839](https://github.com/agda/agda/issues/8839): Incorrect warning location detection
 - [Issue #8841](https://github.com/agda/agda/issues/8841): Support Emacs 31
+- [Issue #8847](https://github.com/agda/agda/issues/8847): Instance search does not find unquoted definitions in instance blocks
+- [Issue #8875](https://github.com/agda/agda/issues/8875): Warn if one includes several version of the same library
 
 Pull requests merged for 2.9.0
 ------------------------------
@@ -1345,6 +1349,7 @@ Pull requests merged for 2.9.0
 - [PR #8789](https://github.com/agda/agda/issues/8789): Fix issue #8788
 - [PR #8790](https://github.com/agda/agda/issues/8790): [ fix #8703 ] Treat underapplied functions as stuck
 - [PR #8791](https://github.com/agda/agda/issues/8791): Fix #8787: drop hidden fields in record pattern when introduced by case-split
+- [PR #8800](https://github.com/agda/agda/issues/8800): agda-mode: Rebind mouse-2 to 'agda2-goto-definition-mouse'
 - [PR #8802](https://github.com/agda/agda/issues/8802): Makefile: new goal `fast-forward-ecosystem`; update submodules [ecosystem]
 - [PR #8804](https://github.com/agda/agda/issues/8804): Fix #8783: Mimer: use functions from mutual block as default hints
 - [PR #8806](https://github.com/agda/agda/issues/8806): Fix #8171 by creating metas at the unitPolarity (@++)
@@ -1357,3 +1362,9 @@ Pull requests merged for 2.9.0
 - [PR #8837](https://github.com/agda/agda/issues/8837): [ fix #8828 ] Don't solve metas from outside current abstract block
 - [PR #8840](https://github.com/agda/agda/issues/8840): [ #8839 ] Improved the detection of error/warning locations
 - [PR #8843](https://github.com/agda/agda/issues/8843): Fix #8834 by checking cohesion and polarity when abstracting telescopes
+- [PR #8850](https://github.com/agda/agda/issues/8850): Fix #8847 by not propagating `instance` to `unquoteDecl`s
+- [PR #8852](https://github.com/agda/agda/issues/8852): Fix #8851: check that unquoteDecl invocation actually defines names
+- [PR #8856](https://github.com/agda/agda/issues/8856): Fix #8853 by adding a case for `IApply` to `reconstructParameters`
+- [PR #8869](https://github.com/agda/agda/issues/8869): Fix #8739: wrong implicit argument in LHS: also mention possible args
+- [PR #8870](https://github.com/agda/agda/issues/8870): Decide whether pi is large based on original codomain sort
+- [PR #8876](https://github.com/agda/agda/issues/8876): Fix #8875: warning to show dependency version conflicts
