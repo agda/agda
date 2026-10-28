@@ -1944,6 +1944,12 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Polarity pragmas for non-postulates.
 
+.. option:: PragmaCompileDefined
+
+     .. versionadded:: 2.10.0
+
+     :ref:`COMPILE<foreign-function-interface>` pragmas that override the definition of a function.
+
 .. option:: PragmaCompileErased
 
      .. versionadded:: 2.6.1

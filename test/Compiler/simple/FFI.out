@@ -1,4 +1,14 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
+out >
+out > /FFI.agda:9.1-64: warning: -W[no]PragmaCompileDefined
+out > The GHC backend will use the COMPILE pragma instead of the
+out > definition of _+'_, so its compiled behaviour may differ from its
+out > behaviour during type checking.
+out >
+out > /FFI.agda:15.1-65: warning: -W[no]PragmaCompileDefined
+out > The GHC backend will use the COMPILE pragma instead of the
+out > definition of _+''_, so its compiled behaviour may differ from its
+out > behaviour during type checking.
 out > 1523

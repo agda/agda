@@ -613,6 +613,12 @@ prettyWarning = \case
       , pwords "is not known to the JS backend and will be compiled to undefined."
       ]
 
+    PragmaCompileDefined qn -> fsep $ concat
+      [ pwords "The GHC backend will use the COMPILE pragma instead of the definition of"
+      , [prettyTCM qn <> ","]
+      , pwords "so its compiled behaviour may differ from its behaviour during type checking."
+      ]
+
     PragmaCompileErased bn qn -> fsep $ concat
       [ pwords "The backend"
       , [ prettyTCM bn

@@ -43,6 +43,9 @@ Warnings
   [standard-library]: /path/to/agda-stdlib-2.4/standard-library.agda-lib:1:1
   ```
 
+* New warning `PragmaCompileDefined` when a `COMPILE GHC` pragma overrides
+  the definition of a (non-abstract) function.
+
 Syntax
 ------
 
