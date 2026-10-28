@@ -642,10 +642,10 @@ makeSearchOptions norm options ii = do
   reportSDoc "mimer.init" 25 $ "Names in where-block" <+> pretty whereNames
 
   env <- askTC
-  costs <- ifM (hasVerbosity "mimer.cost.custom" 10)
+  costs <- ifM (hasVerbosity "mimer-custom-costs" 123456)
              {- then -} customCosts
              {- else -} (return defaultCosts)
-  reportSDoc "mimer.cost.custom" 10 $ "Using costs:" $$ nest 2 (pretty costs)
+  reportSDoc "mimer-custom-costs" 123456 $ "Using costs:" $$ nest 2 (pretty costs)
   components <- collectComponents options costs ii mTheFunctionQName whereNames metaId
   statsRef   <- liftIO $ newIORef emptyMimerStats
   checkpoint <- viewTC eCurrentCheckpoint

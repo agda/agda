@@ -8,5 +8,5 @@
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-info-action "*Error*" "SplitOnHidden.agda:6.12-21: error: [Interaction.CaseSplitError] Unbound variable x when checking that the expression ? has type Nat" nil)
 ((last . 3) . (agda2-maybe-goto '("SplitOnHidden.agda" . 103)))
-(agda2-highlight-load-and-delete-action)
+(agda2-highlight-load-and-delete-action nil)
 (agda2-status-action "")

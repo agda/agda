@@ -5,6 +5,6 @@ module Agda.TypeChecking.Rewriting where
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 
-verifyBuiltinRewrite :: Term -> Type -> TCM ()
+verifyBuiltinRewrite :: QName -> TCM ()
 rewrite :: Blocked_ -> (Elims -> Term) -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
 checkRewConstraint :: LocalEquation -> TCM ()

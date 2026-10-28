@@ -28,6 +28,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v7
+    - if: runner.os == 'macOS'
+      name: Work around https://github.com/actions/runner-images/issues/14940
+      run: sudo xcode-select -s /Library/Developer/CommandLineTools
     - if: runner.os == 'Linux' && (matrix.ghc-ver == '9.2.8' || matrix.ghc-ver ==
         '9.4.8')
       name: Install gold linker for GHC 9.2 and 9.4

@@ -116,6 +116,11 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
+    # Andreas, 2026-10-18
+    - name: Work around https://github.com/actions/runner-images/issues/14940
+      if: runner.os == 'macOS'
+      run: sudo xcode-select -s /Library/Developer/CommandLineTools
+
     # ubuntu-26.04 no longer ships the gold linker by default as it is deprecated,
     # but GHC <= 9.4 still uses it when linking C libraries.
     # The easiest work around is to install it here.

@@ -1,424 +1,46 @@
-Release notes for Agda version 2.9.0
-====================================
+Release notes for Agda version 2.10.0
+=====================================
+
+Highlights
+----------
 
 Installation
 ------------
 
-* Dropped support for GHC 8.8, 8.10, and 9.0.
-
 * Agda supports GHC versions 9.2.8 to 9.14.1.
-
-* The new Cabal flag `version-with-git-hash` controls whether version information
-  is suffixed with the Git commit hash. It is disabled by default for cabal
-  but enabled by default when using the Makefile.
 
 Pragmas and options
 -------------------
 
-* New option `--parallel` (`-j` for short, as in `make`) lets Agda
-  type-check imported modules in parallel. For large libraries, this can
-  result in a speedup of ~3x, at the cost of roughly doubling the
-  maximum memory usage.
-  This option does not yet work well with `--interaction`
-  ([issue #8477](https://github.com/agda/agda/issues/8477)).
-
-* New option `--print-options` to print a simple list of all options.
-  This list can e.g. be used to implement bash completion.
-
-* The flavor of Cubical Agda can now be chosen by an argument to the `--cubical` option:
-
-  | Old                    | New                                               |
-  | ---------------------- | ------------------------------------------------- |
-  | `--cubical`            | `--cubical`, or `--cubical=full`                  |
-  | `--erased-cubical`     | `--erased-cubical`, or `--cubical=erased`         |
-  | `--cubical-compatible` | `--cubical-compatible`, or `--cubical=compatible` |
-  | -                      | `--cubical=no-glue`                               |
-
-  For compatibility between modules using different variants of Cubical Agda, see
-  [the documentation](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#variants).
-
-* New flag `--no-write-interfaces`.
-
-* New command-line option `--literate-markdown-only-agda-blocks` (off by default).
-  When enabled, only code blocks explicitly marked with ` ```agda ` are treated as
-  Agda code in literate Markdown (`.lagda.md`) and Typst (`.lagda.typ`) files.
-  Unmarked code blocks (` ``` `) are treated as verbatim text and not type-checked.
-  This option must be set via command line since it affects parsing.
-  (See [#7971](https://github.com/agda/agda/issues/7971).)
-
-* The flag `--termination-depth=N` now means _maximum_ termination depth and
-  the termination checker now performs iterative deepening,
-  starting with depth `1` and increasing it up to the given `N`, stopping early
-  as soon as the termination check succeeds.
-  Increasing `N` can thus slow down things only for failing termination checks.
-
-  The default value of `N` has been increased from `1` to `3`, yet not higher,
-  because cases requiring a termination depth `> 1` are already very rare in practice.
-
-  There is also an internal change to the termination checker.
-  Dot patterns are now taken into account from the beginning and not only when
-  the termination check fails without taking them into account.
-  The overhead to also mine dot patterns for structural descent was already
-  negligible so it made sense to simplify the termination checking algorithm.
-
-* The new flag `--no-occurrence-analysis` can be used to turn off the
-  automated occurrence analysis for functions.
-
-  By default Agda analyses how functions use their arguments. For
-  instance, Agda can tell that `D` in the following code is strictly
-  positive, because `Vec` uses its `Set` argument in a strictly
-  positive way:
-  ```agda
-  open import Agda.Builtin.Nat
-  open import Agda.Builtin.Unit
-
-  data _×_ (A B : Set) : Set where
-    _,_ : A → B → A × B
-
-  Vec : Set → Nat → Set
-  Vec A zero    = ⊤
-  Vec A (suc n) = A × Vec A n
-
-  data D : Set where
-    c : ∀ n → Vec D n → D
-  ```
-  However, this analysis can be slow, especially for big mutual
-  blocks. Now it is possible to turn it off.
-
-  The analysis is also used to detect unused function arguments. The
-  following code is by default accepted, but it is rejected if the
-  occurrence analysis is turned off:
-  ```agda
-  open import Agda.Builtin.Bool
-  open import Agda.Builtin.Equality
-  open import Agda.Builtin.Unit
-
-  F : Bool → Set → Set
-  F true  _ = Bool
-  F false _ = ⊤
-
-  _ : {b : Bool} → F b Bool ≡ F b ⊤
-  _ = refl
-  ```
-
-  Note that an alternative to the analysis is to use polarities. The
-  following code is accepted:
-  ```agda
-  {-# OPTIONS --polarity --no-occurrence-analysis #-}
-
-  open import Agda.Builtin.Bool
-  open import Agda.Builtin.Equality
-  open import Agda.Builtin.Nat
-  open import Agda.Builtin.Unit
-
-  data _×_ (@++ A B : Set) : Set where
-    _,_ : A → B → A × B
-
-  Vec : @++ Set → Nat → Set
-  Vec A zero    = ⊤
-  Vec A (suc n) = A × Vec A n
-
-  data D : Set where
-    c : ∀ n → Vec D n → D
-
-  F : Bool → @unused Set → Set
-  F true  _ = Bool
-  F false _ = ⊤
-
-  _ : {b : Bool} → F b Bool ≡ F b ⊤
-  _ = refl
-  ```
-
-* Setting environment variable `NO_COLOR` now turns off coloring in the default `--color=auto` mode.
-  It can be overwritten by `--color=always`.
-  See also https://no-color.org/ .
-
-* New option `--quote-metas` to allow for `quoteTerm` constraints to
-  be solved even when the quoted term contains unsolved metas.
-  This allows for elaborating macro applications with quoted arguments
-  that still have interactive holes in them.
-  See the [quote metas documentation](https://agda.readthedocs.io/en/v2.9.0/language/reflection.html#quote-metas).
-
-* `{-# NO_POSITIVITY_CHECK #-}` pragmas are now recognized in `record` declarations and `where` blocks,
-  and pertain to the following `data` or `record` declaration or mutual block.
-
-* New option `--local-rewriting` which enables parameterising over computation rules by annotating module parameters with `@rewrite` attributes. See the [local rewriting documentation](https://agda.readthedocs.io/en/v2.9.0/language/local-rewriting.html) for more info.
-
-* New `primRewriteNoMatch` primitive in `Agda.Builtin.Equality.Rewrite` for controlling rewrite rule matching. See the section in the [rewriting documentation](https://agda.readthedocs.io/en/v2.9.0/language/rewriting.html#controlling-rewrite-rule-matching-with-primrewritenomatch) for more info.
-
-* The `ETA` pragma has been removed.
-
-* Eta-equality for record types is no longer inferred.
-  Previously Agda would switch off eta for a recursive record type automatically
-  if there was a risk that the type checker could loop due to infinite eta expansion.
-  Now, Agda will only flag it with an `UnguardedEtaRecord` error, so one has to add
-  a `no-eta-equality` directive manually.
-  If one wants eta enabled nevertheless, one can use the new `ETA_EQUALITY` pragma.
-  This pragma replaces the old `ETA` pragma and can also be used to turn on eta for
-  `coinductive` record types.
-  See the documentation on
-  [unguarded records](https://agda.readthedocs.io/en/v2.9.0/language/record-types.html#unguarded-records)
-  and [the `ETA_EQUALITY` pragma](https://agda.readthedocs.io/en/v2.9.0/language/coinduction.html#eta-pragma).
-
-* New options `--irrelevance` (default on) and `--no-irrelevance` to allow or
-  disallow the irrelevance modality.
-
-* (**BREAKING**.) Now `--erased-matches` takes an optional argument:
-
-  * `--erased-matches=none`: Do not enable any erased matches (this
-       can be overridden).
-
-  * `--erased-matches=empty`: Enable erased matches for empty types.
-
-  * `--erased-matches=non-dependent`: Enable erased matches for
-    non-indexed, single-constructor types.
-
-  * `--erased-matches=restricted`: Make it possible to import the
-    module `Agda.Builtin.Erased.Box-cong`, which contains an
-    implementation of `[]-cong` (the type `Erased` can be found in
-    `Agda.Builtin.Erased.Erased`):
-
-    ```agda
-    record Erased (@0 A : Set a) : Set a where
-      no-eta-equality
-      constructor [_]
-      field
-        @0 erased : A
-
-    []-cong : @0 x ≡ y → [ x ] ≡ [ y ]
-    []-cong refl = refl
-    ```
-
-    In the future `--erased-matches=restricted` might make it possible
-    to implement `[]-cong` in user code, but that is currently not
-    allowed.
-
-  * `--erased-matches=unrestricted`: Enable unrestricted erased
-    matches for single-constructor types. If `--safe` is active, then
-    this option is not allowed together with `--without-K`.
-
-  One can also use comma-separated lists of options, for instance
-  `--erased-matches=empty,restricted`. This has the same effect as
-  giving the options separately (`--erased-matches=empty
-  --erased-matches=restricted`). There is no way to turn off something
-  that has been enabled, so it does not matter in what order the
-  options are given. As an example, `--erased-matches=empty,none`
-  means the same thing as `--erased-matches=empty`.
-
-  If none of these options are given, then Agda behaves
-
-  * as if `--erased-matches=none` had been used if `--erasure` is not
-    turned on (directly or indirectly), otherwise
-
-  * as if `--erased-matches=empty` had been used if `--without-K` is
-    active, and otherwise
-
-  * as if `--erased-matches=empty,unrestricted` had been used.
-
-  Note that these defaults can be overridden by, for instance,
-  `--erased-matches=none`.
-
-  The option `--erased-matches` means almost the same thing as
-  `--erased-matches=empty,non-dependent` if `--without-K` is active,
-  and otherwise it means almost the same thing as
-  `--erased-matches=empty,unrestricted`. However, any use of
-  `--erased-matches` with explicit arguments takes precedence over
-  `--erased-matches` without arguments. For instance,
-  `--erased-matches=none --erased-matches` means the same thing as
-  `--erased-matches=none`.
-
-  The option `--no-erased-matches` is now a synonym for
-  `--erased-matches=none`.
-
-  All variants of `--erased-matches` except for
-  `--erased-matches=none` enable `--erasure`.
-
-  This change can lead to some breakage:
-
-  * Previously `--no-erased-matches --erased-matches` meant the same
-    thing as `--erased-matches`, now it means the same thing as
-    `--erased-matches=none`.
-
-  * Before `--with-K` overrode a previously given
-    `--no-erased-matches` and turned on erased matches. That is no
-    longer the case.
-
-  Note that the new optional argument to `--erased-matches` is
-  experimental: the design might change in the future.
-
-* The new (experimental and possibly unstable) options
-  `--erased-funext`, `--erased-propext` and `--erased-quotients`
-  enable use of `Agda.Builtin.Erased.Funext`,
-  `Agda.Builtin.Erased.Propext` and `Agda.Builtin.Erased.Quotient`,
-  respectively.
-
-  All options imply `--erasure`, and `--erased-quotients` implies
-  `--erased-funext`.
-
-  These modules contain erased postulates. The idea is that it should
-  be safe to use these postulates (under `--safe` and in the absence
-  of any Agda bugs):
-
-  * If `--erased-matches=X` is not used, where `X` is one of `empty`,
-    `non-dependent`, `restricted` and `unrestricted`, then canonicity
-    should hold for non-erased terms (if all opaque definitions are
-    made transparent and the context only contains erased
-    assumptions).
-
-  * If `--erased-matches=empty` is used, then canonicity should still
-    hold if the context plus the postulates are jointly consistent.
-
-  * If `--erased-matches=X` is used, where `X` is one of
-    `non-dependent`, `restricted` and `unrestricted`, then reduction
-    might get stuck, but compiled programs should still run correctly.
-
-  `Agda.Builtin.Erased.Funext` postulates function extensionality,
-  `Agda.Builtin.Erased.Propext` postulates propositional
-  extensionality, and `Agda.Builtin.Erased.Quotient` gives access to
-  an implementation of set quotients with an eliminator that computes
-  for the point constructor.
-
 Errors
 ------
 
-* Error `ClashingDefinition` now gives the lineage of the previous definition of the same name.
-  This helps when it is unclear how this name was imported.  Example:
-  ```
-    error: [ClashingDefinition]
-    Multiple definitions of A. Previous definition
-    A is in scope as
-      * a postulate Imports.A.A brought into scope by
-        - the opening of Imports.A at ...
-        - its definition at ...
-  ```
-
-* Errors `GenericError` and `GenericDocError` have been replaced by more specific errors.
-  (Issue [#7225](https://github.com/agda/agda/issues/7225).)
-
-* New error `NamedWhereModuleUnderWith` for named `where`-modules in clauses
-  using with-abstraction; see the entry under _Language_.
-  (Issue [#8698](https://github.com/agda/agda/issues/8698).)
-
-* Generalisation failures due to unresolvable dependencies between a
-  generalized variable and unsolved metavariables have new, specific
-  errors.
-  * `GeneralizationPrepruneErrorRefinedContext`, reproduced by Amélia Liao
-    (see Issue [#8161](https://github.com/agda/agda/issues/8161#issuecomment-3696949816)).
-  * `GeneralizationPrepruneErrorCyclicDependencies`, reproduced by Nils Anders Danielsson
-    (see Issue [#3672](https://github.com/agda/agda/issues/3672#issuecomment-482715807)).
+* New error `WrongNamedArgumentInLHS` for a named hidden argument on a left hand side
+  that does not exist, replacing `WrongHidingInLHS` in this case.
+  Like `WrongNamedArgument` on the right hand side, it lists the possible argument names
+  (see [#8739](https://github.com/agda/agda/issues/8739)).
+  Likewise, error `NoParameterOfName` now lists the possible parameter names.
 
 Warnings
 --------
 
-* New warning `UnusedImports` when `open` brings identifiers or modules into scope
-  that are definitely not used subsequently.
-  A module counts as used if it is referred to,
-  e.g. in a qualified name `M.x`, in `open M`, or in `module N = M`.
+* Warning `ShadowingInTelescope` is now on by default.
 
-  If `using` or `renaming` directives are given, or in flavor `-WUnusedImports=all`,
-  Agda warns about each name and module that is unused,
-  except for modules of data and record types that are not mentioned
-  explicitly in the directive.
-  If no directive or only a `hiding` directive is given,
-  and unless the flavor is `all`,
-  Agda only warns if none of the imported names are used.
-
-  Agda also warns about instances brought into scope
-  unless `--no-qualified-instances` is on
-  (which requires bringing instances into scope if they should be found by instance search).
-
-* `UselessImport` warning instead of parse error when an module is instantiated
-  but not opened during `import`, for instance:
-  ```agda
-  import Structures.IsMonoid Carrier Eq
+* New warning `LibraryVersionConflict` when a project uses different versions of one library
+  (see [#8875](https://github.com/agda/agda/issues/8875)).
+  The warning shows the dependency tree leading to the conflicting versions
+  and the involved `.agda-lib` files:
   ```
-  This does not bring module `Structures.IsMonoid` into scope and
-  neither any of its exports.
-  It either needs an `open` or an `as`-clause such as `as MyMonoid`.
-
-* `UselessPragma` warning instead of hard error `NeedOptionRewriting` when a
-  `REWRITE` or `BUILTIN REWRITE` pragma is encountered but `--rewriting` is off.
-
-* Error warning `IllegalDeclarationInDataDefinition` instead of hard error
-  when `data` definition contains declarations other than type signatures of
-  constructors.
-
-* Error `RecursiveRecordNeedsInductivity` turned into a error warning.
-
-* New warning `DivergentModalityInClause` when modality of a clause diverges
-  from that of the function.  Example:
-  ```agda
-  A : Set₁
-  @0 A = Set
-  ```
-
-* New warning `InvalidDataOrRecDefParameter` for information (e.g. type, attributes)
-  attached to parameters in a `data` or `record` definition (that is separate of its
-  data or record signature).
-  This replaces errors:
-  - `UnexpectedModalityAnnotationInParameter`
-  - `UnexpectedTypeSignatureForParameter`
-
-* New warning `InvalidTacticAttribute` for misplaced `@(tactic ...)` attributes.
-  This was silently accepted up to Agda 2.8.0 but raises now the new warning:
-  ```agda
-  postulate
-    @(tactic not-in-scope) _ : Set
-  ```
-
-* New warning `RewriteVariablesBoundInSingleton` for rewrite rules which bind
-  at least one variable exclusively in patterns which might become of singleton
-  type after a substitution. Rewrite rules of this form endanger subject
-  reduction.
-  - Unlike the other warnings about problematic rewrite rules, Agda will still
-    try its best to apply rewrites which trigger this warning.
-    This is because some very useful rewrite rules unfortunately do not preserve
-    subject reduction in the presence of definitional singletons.
-
-* `UnknownNamesInFixityDecl` and `UnknownNamesInPolarityPragmas` are now error warnings.
-
-* The new warning `DefinitionBeforeDeclaration` is emitted if in a classic
-  `mutual` block a data/record signature appears *after* the respective
-  definition.  This can happen since the nicifier bubbles signatures up.
-  (See [issue #8435](https://github.com/agda/agda/issues/8435).)
-
-* New warning `ShouldBeEtaRecordPattern`, raised for
-  matches on record constructors in _binders_ (`λ`, `let`, parameter telescopes etc.)
-  when the respective record does not have eta.
-  For example, this module parameter match triggers the warning:
-  ```agda
-    record Wrap (A : Set) : Set where
-      constructor wrap; no-eta-equality; pattern
-      field unwrap : A
-
-    module _ {A} (w@(wrap a) : Wrap A) where
-  ```
-  Reason for the warning:
-  Such a binding is interpreted here as `a = unwrap w`.
-  The user expectation that `w` is definitionally equal to `wrap a` is only met if `Wrap` admits `eta-equality`.
-
-  Pattern matching on left hand sides of function definitions does not trigger the warning.
-
-* New warning `FixityDeclarationForNonOperator` when a fixity declaration is attached to a name
-  that is neither a pre-, post-, nor infix operator and neither has a pre-, post- or infix `syntax`
-  attached to it.
-  ```agda
-  infixl 10 plus                     -- warning
-  plus : ℕ → ℕ → ℕ
-  plus = ...
-
-  infix 42 [_]                       -- warning
-  [_] : A → List A
-  [_] = ...
-
-  infix 255 abs
-  syntax abs x = | x |               -- warning
-
-  infix 314 neg                      -- no warning
-  syntax neg x = ¬ x
-
-  open import Agda.Builtin.Nat
-    renaming (_+_ to infixl 10 add)  -- warning
+  Different versions of the library 'standard-library' depended on:
+  [my-project]
+    ├─ [standard-library-2.3]
+    └─ [my-lib]
+        └─ standard-library-2.4 as [standard-library]
+  Library files:
+  [my-project]: /path/to/my-project/my-project.agda-lib:<line>.<col>-<col>
+  [my-lib]: /path/to/my-lib/my-lib.agda-lib:<line>.<col>-<col>
+  [standard-library-2.3]: /path/to/agda-stdlib-2.3/standard-library.agda-lib:1:1
+  [standard-library]: /path/to/agda-stdlib-2.4/standard-library.agda-lib:1:1
   ```
 
 Syntax
@@ -426,405 +48,53 @@ Syntax
 
 Changes to the Agda syntax.
 
-* **Breaking:** The parser will reject ASCII opening delimiters which
-  are closed by a Unicode delimiter, and vice-versa. Concretely, this
-  means the mismatched pairs `⦃ ... }}`/`{{ ...  ⦄` and
-  `⦇ … |)`/`(| … ⦈` are now parse errors.
-
-* Modality annotations in aliases and let-bindings are now supported
-  (PR [#7990](https://github.com/agda/agda/pull/7990)).
-  Example:
-  ```agda
-    split : {A B C : Set} (@0 p : A × B) (k : @0 A → @0 B → C) → C
-    split p k = let @0 (x , y) = q in k x y
-      where
-      @0 q = p
-  ```
-
-* Postfix projections cannot be surrounded by parentheses anymore.
-  E.g. these postfix projection applications are now illegal in expressions:
-  ```agda
-    r (.proj)
-    r .(proj)
-  ```
-
-* Idiom brackets and `do` notation may now appear *qualified*, as in
-  `M.do` or `M.(| f x y z |)`, in which case the functions needed for
-  desugaring these are looked up in `M` rather than in the surrounding
-  scope.
-
 Language
 --------
 
 Changes to type checker and other components defining the Agda language.
 
-* (**BREAKING**) Named `where`-modules (`module M where`) are no longer
-  allowed in clauses that use with-abstraction, i.e. clauses with `with`,
-  `rewrite`, or `with p ← e`.  Such a clause is now rejected with the new
-  error `NamedWhereModuleUnderWith`:
-  ```agda
-  f : Bool → Bool
-  f x with x
-  ... | true  = local
-    module M where   -- rejected
-    local = false
-  ... | false = true
-  ```
-  With-abstraction can change the types of the module parameters that `M`
-  inherits from its parent module, so the telescope of `M` lies about them.
-  Since `M` is visible outside of the clause, it could then be instantiated
-  with ill-typed arguments, which allowed a proof of `⊥`.
-
-  Ordinary anonymous `where`-blocks are unaffected, and so is
-  `using p ← e`, which does not with-abstract but introduces a let-binding.
-  (Issue [#8698](https://github.com/agda/agda/issues/8698).)
-
-* (**BREAKING**) The pseudo-name `R.constructor`, which refers to the
-  constructor of record `R`, is now resolved by the ordinary scope lookup:
-  `constructor` is a name bound in the record module `R`.
-  (It can never be written unqualified, since `constructor` is a keyword;
-  in particular, `open R` does not bring it into scope, and a module
-  application `module M = R` does not provide `M.constructor`.)
-
-  Consequently, the qualification `R` in `R.constructor` is now interpreted
-  as the name of the record *module* rather than the name of the record
-  *type*.  Thus, this now succeeds:
-  ```agda
-  module M where
-    record R : Set where
-
-  open M using (module R)
-
-  t = R.constructor   -- used to fail
-  ```
-  while this now fails:
-  ```agda
-  module M where
-    record R : Set where
-
-  open M using (R) hiding (module R)
-
-  t = R.constructor   -- used to succeed
-  ```
-
-  This also fixes [Issue #8625](https://github.com/agda/agda/issues/8625):
-  an internal error when referring to `R.constructor` from the interaction
-  top level.
-
-* (**BREAKING**): In the presence of `--erasure`, types of lambdas expressions
-  are not inferred unless every lambda-bound variable has been given its erasure
-  status (`@0` or `@ω`) explicitely.
-  The reason is that otherwise Agda might infer the wrong erasure status, see, e.g.,
-  [Issue #7001](https://github.com/agda/agda/issues/7001).
-
-  Now we have the following behavior:
-  ```agda
-    fails    = λ x → x + x
-    succeeds = λ (@ω x) → x + x
-    alsoOK   = λ (@ω A : Set) (@0 B : Set) → A
-  ```
-  With that change `--erasure` gets more akin to Cubical Agda that categorically
-  refuses to infer lambdas (since they could construct either functions or paths).
-
-* (**BREAKING**): Instance search will no longer eta-expand non-instance
-  (visible and hidden) variables of record type in the context to find
-  instance fields ([PR #8367](https://github.com/agda/agda/pull/8367)).
-
-  This change means that instance search can now happen even when the types of
-  non-instance arguments are yet-unsolved metavariables. Specifically, instance
-  search now works in functions with a type signature of the form `∀ x → ...`,
-  where previously it would require the type of `x` to be annotated.
-
-  It also means that instance search no longer requires head-normalising the
-  types of non-instance function arguments, which may have a positive effect on
-  type checking performance.
-
-  Due to this change, code that relied on eta-expanding visible argument (like
-  `r : R` in the example below) to find the instance field will no longer work.
-
-  ```agda
-  postulate
-    T : Set
-    use : ⦃ t : T ⦄ → Set
-
-  record R : Set where
-    field ⦃ inst ⦄ : T
-
-  fails : R → Set
-  fails r = use
-  ```
-
-  In this case the code can be repaired by explicitly eta-expanding the record
-  pattern:
-
-  ```agda
-  succeeds : R → Set
-  succeeds r@record{} = use -- or just record{}, if r is unused
-  ```
-
-  In other cases more substantial changes might be required. For example, in the
-  code below the record values `Aa` and `Bb` are parameters so they cannot be
-  eta-expanded directly:
-
-  ```agda
-  record IsPointed (A : Set) : Set where
-    field
-      point : A
-  open IsPointed {{...}}
-
-  record PointedSet : Set1 where
-    field
-      Carrier : Set
-      {{IsPointed[Carrier]}} : IsPointed Carrier
-  open PointedSet
-
-  record PointedFunction (Aa Bb : PointedSet) : Set where
-    field
-      run : Aa .Carrier -> Bb .Carrier
-      preserves-point : run point ≡ point
-  ```
-
-  Here it is possible to work around the problem by marking the projection
-  `IsPointed[Carrier]` as an `instance` and then applying the record module
-  `PointedSet` to the respective values `Aa` and `Bb`:
-
-  ```agda
-  record PointedSet : Set1 where
-    field
-      Carrier : Set
-      instance
-        {{IsPointed[Carrier]}} : IsPointed Carrier
-  open PointedSet
-
-  record PointedFunction (Aa Bb : PointedSet) : Set where
-    open PointedSet Aa renaming (Carrier to AA)
-    open PointedSet Bb renaming (Carrier to BB)
-    field
-        run : AA -> BB
-        preserves-point : run point ≡ point
-  ```
-
-  In general, instance search is intended to work well with unbundled structures
-  such as `IsPointed`, while using it with bundled structures such as
-  `PointedSet` might require some more creative workarounds such as the one
-  above.
-
-* Instance search now finds instance fields in *functions* that produce
-  eta records ([Issue #8337](github.com/agda/agda/issues/8337)), as
-  long as these functions are in the context with instance visibility.
-
-  In effect, this means that a family of instances of a "subclass" also
-  provides a family of instances for the "superclass". For example, the
-  following code is now accepted:
-
-  ```agda
-  record Eq (A : Set) : Set where
-    field
-      _==_ : A → A → Bool
-
-  record Ord (A : Set) : Set where
-    field
-      ⦃ eq ⦄ : Eq A
-      _<=_ : A → A → Bool
-
-  open Ord ⦃ ... ⦄
-  open Eq ⦃ ... ⦄
-
-  test
-    : {I : Set} {F : I → Set} ⦃ ordi : ∀ {i} → Ord (F i) ⦄
-    → (i : I) → F i → F i → Bool
-  test i x y = x == y
-  ```
-
-* Functions defined using with-abstraction equality (`with … in eq`) can now be
-  reasoned about using the same with-abstraction equality: the equality proof
-  is correctly generalised over. This should make most (if not all) uses of the
-  old-style `inspect` idioms for the built-in equality type unnecessary.
-
-* Added support for [Cubical Agda without Glue Types](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#cubical-agda-without-glue)
-  by using the flag `--cubical=no-glue`,
-  a variant of Cubical Agda which disables the Glue types.
-  For compatibility with modules using `--cubical[=full]` and `--cubical=erased`, see
-  [variants](https://agda.readthedocs.io/en/v2.9.0/language/cubical.html#variants).
-
-* Added the [Sharp modality](https://agda.readthedocs.io/en/v2.9.0/language/flat.html#the-sharp-modality),
-  which adds a right adjoint to the existing flat modality enabled via the
-  `--cohesion` flag. This also enables the use of attributes in record
-  fields for any cohesion modality which has a left adjoint (currently
-  just sharp and continuous).
-
 Builtins
 --------
 
-* (**BREAKING**): The fixity declarations for `Agda.Builtin.Int.pos` and for
-  `primINeg`, `primIMin`, and `primIMax`, in `Agda.Primitive.Cubical` have been removed.
-  Reason: they trigger the new warning `FixityDeclarationForNonOperator`.
-  If you want to use these builtins as operators, supply a fixity in the `renaming` directive, e.g.:
-  ```agda
-  open import Agda.Builtin.Int renaming (pos to infix 8 +_)
-  open import Agda.Primitive.Cubical renaming
-    ( primINeg to infix  30 ~_
-    ; primIMin to infixr 20 _∧_
-    ; primIMax to infixr 20 _∨_
-    )
-  ```
+* Binding the `BUILTIN REWRITE` relation will now reduce the name before binding it.
+  This means you can now use an alias to another type as the rewrite relation
+  (see https://github.com/agda/agda/issues/6697).
 
 Reflection
 ----------
 
-* `tcTypeError` now throws `UserError` instead of `GenericDocError`.
-
-* Tactic arguments (`@tactic`) are now supported in module telescopes.
+* `unquoteDecl` and `unquoteDef` now check that the meta-program
+  actually defines all the given identifiers
+  (issue [#8851](https://github.com/agda/agda/issues/8851)).
+  Previously, an identifier that was not declared by the meta-program
+  caused an internal error, and a data type that was only declared
+  (via `declareData`) but not defined (via `defineData`)
+  was silently accepted (see [#7576](https://github.com/agda/agda/issues/7576)).
+  Now both are reported as missing definitions.
 
 Library management
 ------------------
 
-* Suppport for version-specific `defaults` files: a file whose name is
-  of the form `defaults-X.Y.Z` will take precedence over the standard
-  `defaults` one for the `X.Y.Z` version of the compiler. This can be
-  used to have default libraries that are only compatible with a given
-  version of the compiler.
-
 Interaction and emacs mode
 --------------------------
-
-* The JSON interaction protocol (`--interaction-json`) no longer loses
-  information that the Emacs frontend displays:
-
-  - `GoalAndHave` responses now include a `boundary` field with the
-    boundary faces of the checked expression
-    ("Boundary (actual)" in the Emacs mode).
-
-  - `NormalForm` and `InferredType` responses now pretty-print the
-    expression in the command state captured when the command ran, as
-    the Emacs frontend does, instead of in the current state
-    (fixes [Issue #5665](https://github.com/agda/agda/issues/5665)).
-
-  - `Mimer` responses now include the `interactionPoint` the solution
-    refers to.
-
-* Proof search (Mimer, `C-c C-a` in Emacs) now also uses functions
-  defined in the same `mutual` block as the function being defined,
-  without having to give them as hints.
-  As for recursive calls to the function itself, they are only applied
-  to structurally smaller arguments
-  (Issue [#8783](https://github.com/agda/agda/issues/8783)).
-
-* Syntax highlighting and go-to-definition now also works in the Agda
-  information and debug buffers in Emacs where goals etc. are displayed.
-  This fixes long-standing [Issue #706](https://github.com/agda/agda/issues/706).
-
-* By temporarily turning on printing of hidden arguments
-  (`OPTION --show-implicit`, `C-c C-x C-h` in Emacs)
-  and then splitting on result in a hole
-  (`C-c C-c RET` in Emacs, the whole sequence being `C-c C-x C-h C-c C-c RET`),
-  hidden arguments can be introduced in the left hand side of a clause.
-  In the presence of generalized variables, this used to introduce unparsable names.
-  For instance:
-  ```agda
-    variable
-      l : Level
-      A : Set l
-
-    id : A → A
-    id = {!!}
-  ```
-  Here, `id {A.l} {A} x = ?` was produced, triggering an error.
-  Now, the correct `id {A = A} x = ?` is produced
-  (Issue [#8153](https://github.com/agda/agda/issue/8153)).
-
-* The implicit (hidden and instance) fields of a record pattern are
-  no longer printed by default.
-  They are only printed with option `--show-implicit`
-  (`C-c C-x C-h` in Emacs), or if the user wrote them in the first place.
-  For instance, case splitting on `x` in
-  ```agda
-    record R : Set where
-      field
-        {n} : Nat
-        rf  : n ≡ n
-
-    f : R → Set
-    f x = {!x!}  -- C-c C-c x
-  ```
-  now produces `f record { rf = rf } = ?` instead of
-  `f record { n = n ; rf = rf } = ?`.
-  This conforms the treatment of record patterns to the
-  situation where the record type has a constructor, in which case the
-  hidden arguments were already omitted
-  (Issue [#8787](https://github.com/agda/agda/issue/8787)).
-
-* Catch-all copattern clauses are now tolerated as unreachable clauses
-  rather than being outright rejected with a `CosplitCatchall` error.
-  They can be used as jumpboard for further result splitting.
-  (A scenario is a record type that got extended with new fields,
-  and definitions producing record values need to be extended as well.)
-  Example:
-  ```agda
-    test : Σ A B
-    test .fst = a
-    test = {!!}  -- C-c C-c RET
-  ```
-  This split produces the clause `test .snd = ?`.
-  (Issue [#8139](https://github.com/agda/agda/issue/8139)).
-
-
-* A normalization level can now also passed to command `Cmd_constraints`
-  ("show constraints", `C-c C-=` in Emacs).
-  In Emacs, the normalization level is given as usual by `C-u` prefixes.
-
-  This interface change is **breaking** for frontends to `agda --interaction`
-  such as the VSCode `agda-mode`, which need updating.
-
-* Fixed an internal error in `Cmd_helper_function` (`C-c C-h` in Emacs)
-  (Issue [#8103](https://github.com/agda/agda/issue/8103)).
-  Changed the type of `Goal_HelperFunction` which might be **breaking**
-  3rd-party interaction frontends.
-
-* `NON_TERMINATING` functions now only reduce in `IgnoreAbstract` mode of
-  commands `Cmd_compute(_toplevel)` (`C-u C-c C-n` in Emacs)
-  regardless of whether invoked at toplevel or in a hole
-  (Issue [#2410](https://github.com/agda/agda/issue/2410)).
-
-* _Go-to-definition_ (`M-.`) is now implemented using Emacs' built-in
-  [Xref].  Basic usage stays the same (`M-.` or using the mouse), but
-  now also includes searching for definitions by exact (`C-u M-.`) or
-  approximate names (`C-M-.`) and listing references (`M-?`) in loaded
-  files.
-
-[Xref]: https://www.gnu.org/software/emacs/manual/html_node/emacs/Xref.html
 
 Backends
 --------
 
-* `agda --html --html-highlight=code example.lagda.tree` now produces
-  `html/example.tree`, which Forester can consume directly;
-  no external tools needed.
-
-* New option `--ghc-trace` for GHC Backend to instrument code
-  such that the Agda name of the function is printed to `stderr`
-  whenever a function is entered.
-
-* The JS backend now explicitly lists all primitives that should compile
-  to `undefined`. Primitives not in this list or the RTS trigger a new
-  `UnknownJSPrimitive` warning
-  (see [#8352](https://github.com/agda/agda/issues/8352)).
-
-* The JS backend's CJS & AMD module styles are now deprecated.
-  Please use ES6 module style instead (`--js-es6`).
-
-* The JS backend now compiles constructors to string-tagged arrays.
-  This change is **breaking** for hand-written JS code relying on the previous Scott-Encoding.
-  Constructors for types with `COMPILE JS` pragmas are not affected.
-  (see [#8720](https://github.com/agda/agda/pull/8720))
-
 Issues closed
 -------------
 
-For 2.9.0, the following issues were
-[closed](https://github.com/agda/agda/issues?q=is%3Aissue+milestone%3A2.9.0+is%3Aclosed)
+For 2.10.0, the following issues were
+[closed](https://github.com/agda/agda/issues?q=is%3Aissue+milestone%3A2.10.0+is%3Aclosed)
 (see [bug tracker](https://github.com/agda/agda/issues)):
 
-### Issues closed for milestone 2.9.0
+### Consistency issues
 
-### PRs closed for milestone 2.9.0
+### Internal errors
+
+### Other regressions
+
+### Other issues
+
+Pull requests merged for 2.10.0
+-------------------------------

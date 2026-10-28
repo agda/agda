@@ -6,5 +6,5 @@
 ((last . 1) . (agda2-goals-action '(0 1)))
 (agda2-info-action "*Error*" "Issue2096.agda:57.32-37: error: [CannotSolveSizeConstraints] Cannot solve size constraints [q, A, B, Γ, r, t] r < q |- q ≤ _o_275 [q, A, B, Γ, r, t] r < q |- ↑ _j_258 ≤ _i_254 [q, A, B, Γ, r, t] r < q |- _i_254 ≤ ?1 (q = q) (A = A) (B = B) (Γ = Γ) (r = r) [q, A, B, Γ, r, t] r < q |- ↑ _l_262 ≤ _m_259 [q, A, B, Γ, r, t] r < q |- ↑ _k_263 ≤ _m_259 [q, A, B, Γ, r, t] r < q |- _m_259 ≤ _j_258 [q, A, B, Γ, r, t] r < q |- ↑ (↑ (↑ (↑ _m_264))) ≤ _k_263 [q, A, B, Γ, r, t] r < q |- ↑ _o_271 ≤ _n_268 [q, A, B, Γ, r, t] r < q |- _n_268 ≤ _l_262 [q, A, B, Γ, r, t] r < q |- ↑ _o_275 ≤ _n_272 [q, A, B, Γ, r, t] r < q |- _n_272 ≤ _o_271 Reason: inconsistent upper bound for _m_264 when checking that the inferred type of an application (Γ , A) ⊢⟨ _n_272 ⟩ A ⊃ B matches the expected type (Γ , A) ⊢⟨ _o_271 ⟩ A ⊃ B" nil)
 ((last . 3) . (agda2-maybe-goto '("Issue2096.agda" . 1752)))
-(agda2-highlight-load-and-delete-action)
+(agda2-highlight-load-and-delete-action nil)
 (agda2-status-action "")

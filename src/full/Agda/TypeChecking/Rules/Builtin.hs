@@ -14,7 +14,6 @@ module Agda.TypeChecking.Rules.Builtin
 import Prelude hiding (null)
 
 import Control.Monad.Except      ( catchError )
-import Control.Monad.Trans.Maybe
 
 import Data.List (find)
 
@@ -44,7 +43,6 @@ import Agda.TypeChecking.Warnings
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( checkExpr , inferExpr )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
-import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -56,6 +54,8 @@ import Agda.Utils.Null
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
+import Control.Monad.Trans.Maybe (MaybeT(..))
+import Agda.TypeChecking.Rewriting (verifyBuiltinRewrite)
 
 ---------------------------------------------------------------------------
 -- * Checking builtin pragmas
@@ -271,7 +271,7 @@ coreBuiltins =
   --                                                                 hPi "A" (return $ sort $ varSort 0) $
   --                                                                 hPi "x" (El (varSort 1) <$> varM 0) $
   --                                                                 El (varSort 2) <$> primEquality <#> varM 2 <#> varM 1 <@> varM 0 <@> varM 0))
-  , (builtinRewrite                          |-> BuiltinUnknown Nothing verifyBuiltinRewrite)
+  , (builtinRewrite                          |-> BuiltinRewriteRelation)
   , (builtinNil                              |-> BuiltinDataCons (hPi "A" tset (el (list v0))))
   , (builtinCons                             |-> BuiltinDataCons (hPi "A" tset (tv0 --> el (list v0) --> el (list v0))))
   , (builtinNothing                          |-> BuiltinDataCons (hPi "A" tset (el (tMaybe v0))))
@@ -858,15 +858,21 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
               _        -> err
           _ -> err
 
+      BuiltinRewriteRelation -> case e of
+        A.Def q -> do
+          d <- runMaybeT (getQNameFromTerm $ Def q []) >>= \case
+            Just d -> return d
+            Nothing -> typeError $ InvalidBuiltin "Invalid rewrite relation"
+          verifyBuiltinRewrite d
+          bindBuiltinRewriteRelation d
+        _ -> typeError $ InvalidBuiltin "Invalid rewrite relation"
+
       BuiltinUnknown mt f -> do
         (v, t) <- caseMaybe mt (inferExpr e) $ \ tcmt -> do
           t <- tcmt
           (,t) <$> checkExpr e t
         f v t
-        if | s == builtinRewrite -> runMaybeT (getQNameFromTerm v) >>= \case
-              Nothing -> typeError $ InvalidBuiltin "Invalid rewrite relation"
-              Just q  -> bindBuiltinRewriteRelation q
-           | otherwise           -> bindBuiltinName s v
+        bindBuiltinName s v
 
 setConstTranspAxiom :: QName -> TCM ()
 setConstTranspAxiom q =
@@ -1058,4 +1064,5 @@ builtinKindOfName = distinguish <.> findBuiltinInfo
     BuiltinPrim{}      -> PrimName
     BuiltinPostulate{} -> AxiomName
     BuiltinSort{}      -> PrimName
+    BuiltinRewriteRelation{} -> OtherDefName
     BuiltinUnknown{}   -> OtherDefName

@@ -1,7 +1,7 @@
 -- Andreas, 2016-12-20, issue #2348
 
 -- {-# OPTIONS -v tc.proj.like:100 #-}
-
+{-# OPTIONS -WnoShadowingInTelescope #-}
 {-# OPTIONS --show-implicit #-} -- NEEDED
 
 -- something projection-like

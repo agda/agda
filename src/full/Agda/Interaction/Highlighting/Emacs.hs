@@ -87,8 +87,9 @@ lispifyHighlightingInfo
   -> HighlightingMethod
   -> ModuleToSource
      -- ^ Must contain a mapping for every definition site's module.
+  -> Maybe FilePath
   -> IO (Lisp String)
-lispifyHighlightingInfo h remove method modFile =
+lispifyHighlightingInfo h remove method modFile target =
   case chooseHighlightingMethod h method of
     Direct   -> direct
     Indirect -> indirect
@@ -103,11 +104,12 @@ lispifyHighlightingInfo h remove method modFile =
   direct :: IO (Lisp String)
   direct = return $ L $
     A "agda2-highlight-add-annotations" :
-    map Q info
+    A (maybe "nil" quote target) : map Q info
 
   indirect :: IO (Lisp String)
   indirect = do
     filepath <- writeToTempFile (prettyShow $ L info)
     return $ L [ A "agda2-highlight-load-and-delete-action"
                , A (quote filepath)
+               , A (maybe "nil" quote target)
                ]

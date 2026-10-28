@@ -39,8 +39,8 @@ mkBuildFailTest dir =
     updGolden
   where
   testName = takeFileName dir
-  varFile  = ".." </> testName <.> "vars"
-  flagFile = ".." </> testName <.> "flags"
+  varFile  = dir <.> "vars"
+  flagFile = dir <.> "flags"
   errFile  = dir <.> "err"
 
   readGolden = readTextFileMaybe errFile

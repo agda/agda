@@ -37,6 +37,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion.Pure (pureCompareAs, runPureConversion)
 import Agda.TypeChecking.Forcing (isForced, nextIsForced)
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free.Reduce (forceNonDepSort, IsFree (..))
 import Agda.TypeChecking.Datatypes (getConType, getFullyAppliedConType)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
@@ -1915,8 +1916,8 @@ equalSort s1 s2 = do
             (Inf  u _   , Univ u' _  ) -> answer $ u == u' && typeInTypeEnabled
 
             -- equating @PiSort a b@ to another sort
-            (s1 , PiSort a b c) -> piSortEquals propEnabled s1 a b c blocker
-            (PiSort a b c , s2) -> piSortEquals propEnabled s2 a b c blocker
+            (s1 , PiSort a b c d) -> piSortEquals propEnabled s1 a b c d blocker
+            (PiSort a b c d , s2) -> piSortEquals propEnabled s2 a b c d blocker
 
             -- equating @FunSort a b@ to another sort
             (s1 , FunSort a b) -> funSortEquals propEnabled s1 a b blocker
@@ -2033,9 +2034,11 @@ equalSort s1 s2 = do
 
       -- Equate a sort @s@ to @piSort a s1 s2@
       -- Precondition: @s@ and @piSort a s1 s2@ are already reduced.
-      piSortEquals :: Bool -> Sort -> Dom Term -> Sort -> Abs Sort -> Blocker -> TCM ()
-      piSortEquals propEnabled s a s1 NoAbs{} blocker = __IMPOSSIBLE__
-      piSortEquals propEnabled s a s1 s2Abs@(Abs x s2) blocker = do
+      piSortEquals ::
+           Bool -> Sort -> BlockedDepCheck Sort -> Dom Term -> Sort -> Abs Sort
+        -> Blocker -> TCM ()
+      piSortEquals propEnabled s c a s1 NoAbs{} blocker = __IMPOSSIBLE__
+      piSortEquals propEnabled s c a s1 s2Abs@(Abs x s2) blocker = do
         let adom = El s1 <$> a
         reportSDoc "tc.conv.sort" 35 $ vcat
           [ "piSortEquals"
@@ -2043,17 +2046,27 @@ equalSort s1 s2 = do
           , "  a  =" <+> prettyTCM adom
           , "  s1 =" <+> prettyTCM s1
           , "  s2 =" <+> addContext (x,adom) (prettyTCM s2)
+          , "  c  =" <+> pretty c
           ]
         let postpone = patternViolation blocker
            -- If @s2@ is dependent, then @piSort a s1 s2@ computes to
            -- @Setωi@. Hence, if @s@ is small, then @s2@
            -- cannot be dependent.
         if | isSmallSort s -> do
-               -- We force @s2@ to be non-dependent by unifying it with
-               -- a fresh meta that does not depend on @x : a@
-               s2' <- newSortMeta
-               addContext (x , adom) $ equalSort s2 (raise 1 s2')
-               funSortEquals propEnabled s s1 s2' blocker
+              -- We force @s2@ to be non-dependent by unifying it with
+              -- a fresh meta that does not depend on @x : a@
+              s2M <- newSortMeta
+              addContext (x , adom) $ equalSort s2 (raise 1 s2M)
+              -- This forces @s2@ to be non-dependent, but @s2'@ might still be
+              -- dependent!
+              -- We therefore need to double check @s2'@ for dependency,
+              -- and otherwise postpone
+              case c of
+                CodomainSortSame -> funSortEquals propEnabled s s1 s2M blocker
+                CodomainSortOld s2Old -> liftReduce
+                  (inLargeEnoughContext s2Old $ forceNonDepSort s2Old) >>= \case
+                    (NotFree, _) -> funSortEquals propEnabled s s1 s2M blocker
+                    (MaybeFree _, _) -> postpone
            -- Otherwise: postpone
            | otherwise -> postpone
 

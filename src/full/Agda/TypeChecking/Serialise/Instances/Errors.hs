@@ -488,10 +488,22 @@ instance EmbPrj LibWarning where
 instance EmbPrj LibWarning' where
   icod_ = \case
     UnknownField     a   -> icodeN 0 UnknownField a
+    LibraryVersionConflict a b c -> icodeN 1 LibraryVersionConflict a b c
 
   value = vcase $ \case
     N2 0 a    -> valuN UnknownField a
+    N4 1 a b c -> valuN LibraryVersionConflict a b c
     _ -> malformed
+
+instance EmbPrj LibFilePos where
+  icod_ (LibFilePos a b c) = icodeN' LibFilePos a b c
+
+  value = valueN LibFilePos
+
+instance EmbPrj LibDepNode where
+  icod_ (LibDepNode a b) = icodeN' LibDepNode a b
+
+  value = valueN LibDepNode
 
 instance EmbPrj ExecutablesFile where
   icod_ = \case

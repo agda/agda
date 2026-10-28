@@ -35,8 +35,6 @@ Let's suppose the new version of GHC is X.Y.Z.
 
   `make install-agda-bisect`
 
-* Test the `closed-issues-for-milestone` program.
-
 * Update the `tested-with` field in .cabal files.
 
   If GHC X.Y.Z is a bug-fix release run

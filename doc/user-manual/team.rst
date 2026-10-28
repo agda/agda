@@ -34,7 +34,7 @@ But many have worked on these features for improvements and maintenance.
 * James Chapman
 * Liang-Ting Chen: *github workflows*
 * Lawrence Chonavel
-* Jonathan Coates: *performance*
+* Jonathan Coates: *performance, WASM*
 * Jesper Cockx: *rewriting, unification* :option:`--without-K`, *recursive instance search*, *reflection*, ``Prop``, *cumulativity*
 * Catarina Coquand: *Agda 1*
 * Jonathan Coates: *performance*
@@ -74,6 +74,7 @@ But many have worked on these features for improvements and maintenance.
 * Konstantin Nisht
 * Ulf Norell: *Agda 2*
 * Andreas Nuyts: ``--polarity``
+* Andy Pam: *WASM*
 * Josselin Poiret: ``--polarity``
 * Nicolas Pouillard: *module record expressions*
 * Jonathan Prieto: *Agda package manager*

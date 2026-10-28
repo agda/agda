@@ -3,5 +3,5 @@
 (agda2-highlight-clear)
 (agda2-info-action "*Error*" "Issue6398.agda:5.5-8: error: [UnequalTypes] The types Set₁ and Set are not equal when checking that the expression Set has type Set" nil)
 ((last . 3) . (agda2-maybe-goto '("Issue6398.agda" . 114)))
-(agda2-highlight-load-and-delete-action)
+(agda2-highlight-load-and-delete-action nil)
 (agda2-status-action "")

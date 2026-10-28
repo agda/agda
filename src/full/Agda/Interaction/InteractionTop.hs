@@ -224,11 +224,22 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         unsolved <- lift $ computeUnsolvedInfo
         err     <- lift $ errorHighlighting e
         modFile <- lift $ useSession lensModuleToSource
+        -- `theCurrentFile` may have been reset by `onFail`; use the IOTCM
+        -- path to distinguish another file from the current buffer.
+        currentPath <- gets theCurrentFilePath
+        let errorFile = case rangeFile (getRange e) of
+              Strict.Just rf
+                | Just (rangeFilePath rf) /= currentPath ->
+                    Just $ filePath $ rangeFilePath rf
+                | otherwise -> Nothing
+              Strict.Nothing -> Nothing
         method  <- case method of
           Nothing -> lift $ viewTC eHighlightingMethod
           Just m  -> return m
-        let info = convert $ err <> unsolved
-                     -- Errors take precedence over unsolved things.
+        let errorInfo = convert err
+            unsolvedInfo = convert unsolved
+            info = errorInfo <> unsolvedInfo
+              -- Errors take precedence over unsolved things.
 
         showImpl <- lift $ optShowImplicit <$> useTC stPragmaOptions
         showIrr <- lift $ optShowIrrelevant <$> useTC stPragmaOptions
@@ -236,8 +247,15 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
           mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error $ Info_GenericError e ] ++
             tellEmacsToJumpToError (getRange e) ++
-            [ Resp_HighlightingInfo info KeepHighlighting
-                                    method modFile ] ++
+            (case errorFile of
+              Just file ->
+                [ Resp_HighlightingInfo errorInfo KeepHighlighting
+                                        method modFile (Just file)
+                , Resp_HighlightingInfo unsolvedInfo KeepHighlighting
+                                        method modFile Nothing
+                ]
+              Nothing ->
+                [ Resp_HighlightingInfo info KeepHighlighting method modFile Nothing ]) ++
             [ Resp_Status $ Status { sChecked = False
                                    , sShowImplicitArguments = showImpl
                                    , sShowIrrelevantArguments = showIrr
@@ -252,9 +270,10 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
 --   loaded interfaces for example).
 
 runInteraction :: IOTCM -> CommandM ()
-runInteraction iotcm =
+runInteraction iotcm = do
+  currentAbs <- liftIO $ absolute current
+  modify $ \s -> s { theCurrentFilePath = Just currentAbs }
   handleCommand inEmacs onFail $ do
-    currentAbs <- liftIO $ absolute current
     cf  <- gets theCurrentFile
     cmd <- if independent cmd then return cmd else do
       when (Just currentAbs /= (currentFilePath <$> cf)) $ do
@@ -1229,7 +1248,7 @@ tellToUpdateHighlighting
   :: Maybe (HighlightingInfo, HighlightingMethod, ModuleToSource) -> IO [Response]
 tellToUpdateHighlighting Nothing                = return []
 tellToUpdateHighlighting (Just (info, method, modFile)) =
-  return [Resp_HighlightingInfo info KeepHighlighting method modFile]
+  return [Resp_HighlightingInfo info KeepHighlighting method modFile Nothing]
 
 -- | Tells the Emacs mode to go to the first error position (if any).
 

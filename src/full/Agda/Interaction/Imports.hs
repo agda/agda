@@ -1207,11 +1207,22 @@ createInterfaceIsolated x file msrc = do
       opaqueblk   <- useTC stOpaqueBlocks
       opaqueid    <- useTC stOpaqueIds
       ipatsyns <- getPatternSynImports
+      -- Andreas, 2026-10-24, issue #8875:
+      -- Library warnings (e.g. LibraryVersionConflict) may explain an error
+      -- in the imported module, so we add them to the state of the error.
+      let isLibraryWarning = \case
+            LibraryWarning{} -> True
+            _ -> False
+      libWarns <- Set.filter (isLibraryWarning . tcWarning) <$> useTC stTCWarnings
+      let addLibWarns = \case
+            err@TypeError{} | not (null libWarns) ->
+              err{ tcErrState = over stTCWarnings (Set.union libWarns) $ tcErrState err }
+            err -> err
       -- Every interface is treated in isolation. Note: Some changes to
       -- the persistent state may not be preserved if an error other
       -- than a type error or an IO exception is encountered in an
       -- imported module.
-      (mi, newDecodedModules) <- (either throwError pure =<<) $
+      (mi, newDecodedModules) <- (either (throwError . addLibWarns) pure =<<) $
            withoutCache $
            -- The cache should not be used for an imported module, and it
            -- should be restored after the module has been type-checked

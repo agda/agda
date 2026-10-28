@@ -240,7 +240,7 @@ instance MonadTrace TCM where
       ]
     unless (null info) $ do
       appInteractionOutputCallback $
-          Resp_HighlightingInfo info remove method modToSrc
+          Resp_HighlightingInfo info remove method modToSrc Nothing
 
 
 getCurrentRange :: MonadTCEnv m => m Range

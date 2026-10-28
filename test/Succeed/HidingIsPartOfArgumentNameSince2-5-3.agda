@@ -12,8 +12,8 @@
 --
 -- The patch makes this code legal:
 
-test : {{X : Set}} {X : Set} → Set
-test {X = X} = X
+test : {A : Set} {{x : A}} {x : A} → A
+test {x = x} = x
 
 -- Succeeds in 2.5.3.
 -- Fails in 2.5.2 with error:

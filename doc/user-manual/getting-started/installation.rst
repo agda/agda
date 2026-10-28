@@ -109,6 +109,6 @@ Step 4: Install ``ghc`` (optional)
 ==================================
 
 To compile your Agda code to an executable, ``agda`` calls the Haskell compiler ``ghc``, which is not bundled with most Agda distributions.
-You can install ``ghc`` spearately with e.g. `GHCUp <https://www.haskell.org/ghcup/>`_.
+You can install ``ghc`` separately with e.g. `GHCUp <https://www.haskell.org/ghcup/>`_.
 
 No separate programs are called by Agda's :ref:`JavaScript backend <javascript-backend>`.

@@ -86,6 +86,7 @@ instance NamesIn a => NamesIn (Abs a)
 instance NamesIn a => NamesIn (WithArity a)
 instance NamesIn a => NamesIn (Open a)
 instance NamesIn a => NamesIn (C.FieldAssignment' a)
+instance NamesIn a => NamesIn (BlockedDepCheck a)
 
 instance (NamesIn a, NamesIn b) => NamesIn (Dom' a b) where
   namesAndMetasIn' sg (Dom _ _ _ t r e) =
@@ -229,7 +230,7 @@ instance NamesIn a => NamesIn (Sort' a) where
     LockUniv    -> mempty
     LevelUniv   -> mempty
     IntervalUniv -> mempty
-    PiSort a b c  -> namesAndMetasIn' sg (a, b, c)
+    PiSort a b c d -> namesAndMetasIn' sg (a, b, c, d)
     FunSort a b -> namesAndMetasIn' sg (a, b)
     UnivSort a  -> namesAndMetasIn' sg a
     MetaS x es  -> namesAndMetasIn' sg (x, es)

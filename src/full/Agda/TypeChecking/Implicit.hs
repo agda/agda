@@ -59,9 +59,9 @@ splitImplicitBinderT narg ty = do
 
     -- Otherwise we try inserting implicit arguments.
     _ -> setCurrentRange narg case insertImplicit narg $ telToList tel of
-      BadImplicits   -> typeError WrongHidingInLHS
-      NoSuchName x   -> typeError WrongHidingInLHS
-      ImpInsert doms ->
+      BadImplicits    -> typeError WrongHidingInLHS
+      NoSuchName x xs -> typeError $ WrongNamedArgumentInLHS (getHiding narg) x xs
+      ImpInsert doms  ->
         let (here, there) = splitTelescopeAt (length doms) tel
         in pure (here, abstract there ty0)
 
@@ -202,7 +202,10 @@ newInteractionMetaArg info x cmp a = do
 data ImplicitInsertion
       = ImpInsert [Dom ()] -- ^ Success: this many implicits have to be inserted (list can be empty).
       | BadImplicits       -- ^ Error: hidden argument where there should have been a non-hidden argument.
-      | NoSuchName ArgName -- ^ Error: bad named argument.
+      | NoSuchName ArgName [ArgName]
+          -- ^ Error: bad named argument.
+          --   The list contains the names of the hidden arguments
+          --   (with the same hiding as the given argument) available at this point.
   deriving (Show)
 
 pattern NoInsertNeeded :: ImplicitInsertion
@@ -238,7 +241,7 @@ insertImplicit' a ts
 
   -- If @a@ is named, take prefix of @ts@ until the name of @a@ (with correct hiding).
   -- If the name is not found, throw exception 'NoSuchName'.
-  | Just x <- bareNameOf a = maybe (NoSuchName x) ImpInsert $
+  | Just x <- bareNameOf a = maybe (NoSuchName x candidates) ImpInsert $
       takeHiddenUntil (\ t -> x == unDom t && sameHiding a t) ts
 
   -- If @a@ is neither visible nor named, take prefix of @ts@ with different hiding than @a@.
@@ -246,6 +249,12 @@ insertImplicit' a ts
       takeHiddenUntil (sameHiding a) ts
 
     where
+    -- The names of the hidden arguments of the right hiding
+    -- before the next visible argument.
+    candidates :: [ArgName]
+    candidates =
+      [ y | t <- takeWhile notVisible ts, sameHiding a t, let y = unDom t, y /= "_" ]
+
     -- @takeHiddenUntil p ts@ returns the 'getHiding' of the prefix of @ts@
     -- until @p@ holds or a visible argument is encountered.
     -- If @p@ never holds, 'Nothing' is returned.

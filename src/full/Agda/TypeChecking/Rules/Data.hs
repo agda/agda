@@ -237,7 +237,7 @@ checkDataSort name s = setCurrentRange name $ do
       LevelUniv    -> no
       IntervalUniv -> no
       -- Blocked sorts.
-      PiSort _ _ _ -> __IMPOSSIBLE__
+      PiSort{}     -> __IMPOSSIBLE__
       FunSort _ _  -> __IMPOSSIBLE__
       UnivSort _   -> __IMPOSSIBLE__
       MetaS _ _    -> __IMPOSSIBLE__
@@ -1724,12 +1724,12 @@ bindParameters npars ps0@(par@(A.DomainFree _ arg) : ps) t ret = do
   let x          = namedArg arg
       TelV tel _ = telView' t
   case insertImplicit arg $ telToList tel of
-    NoInsertNeeded -> continue ps $ A.unBind $ A.binderName x
-    ImpInsert _    -> continue ps0 =<< freshName_ (absName b)
-    BadImplicits   -> setCurrentRange par $
+    NoInsertNeeded  -> continue ps $ A.unBind $ A.binderName x
+    ImpInsert _     -> continue ps0 =<< freshName_ (absName b)
+    BadImplicits    -> setCurrentRange par $
       typeError $ UnexpectedParameter par
-    NoSuchName x   -> setCurrentRange par $
-      typeError $ NoParameterOfName x
+    NoSuchName x xs -> setCurrentRange par $
+      typeError $ NoParameterOfName x xs
   where
     Pi dom@(unDom -> a) b = unEl t -- TODO:: Defined but not used: info', a
     info = dom ^. dInfo

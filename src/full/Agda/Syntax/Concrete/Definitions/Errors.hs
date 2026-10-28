@@ -175,6 +175,7 @@ data DeclarationWarning'
   | SafeFlagPolarity          Range -- ^ @POLARITY@            pragma is unsafe.
   | SafeFlagTerminating       Range -- ^ @TERMINATING@         pragma is unsafe.
   | ShadowingInTelescope (List1 (Name, List2 Range))
+      -- ^ For each shadowed name (at least 1), a list of occurrence ranges (at least 2).
   | UnknownFixityInMixfixDecl (Set1 Name)
       -- ^ Public mixfix identifiers without a fixity declaration.
   | UnknownNamesInFixityDecl (Set1 Name)

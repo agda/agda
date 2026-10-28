@@ -20,8 +20,7 @@ Code of conduct
 
   Excluded are simple bug fixes with a milestone on github and without
   the tag `not-in-changelog`.  These are added upon release by the
-  release manager via the tool `src/release-tools/closed-issues-for-milestone`.
-  See [Closing issues](#closing-issues).
+  release manager via the tool [`closed-issues-for-milestone`](https://github.com/agda/closed-issues-for-milestone).
 
 * Changes should go through a pull request.
 
@@ -65,81 +64,6 @@ $ nix build .#test -L
 
 See the `flake.nix` to see what build goals are available.
 
-Cabal flag reference
-====================
-
-All of Agda's build tools indirectly build Agda with the `Cabal` library.
-
-When building Agda the following Cabal flags can be used:
-
-* `debug`
-
-  Enable debug printing. This makes Agda slightly slower, and
-  building Agda slower as well. The `--verbose={N}` option
-  only has an effect when Agda was installed with this flag.
-  Default: off.
-
-* `debug-serialisation`
-
-  Enable debug mode in serialisation.
-  This makes serialisation slower.
-  Default: off.
-
-* `debug-parsing`
-
-    Enable debug mode in the parser
-    This makes parsing slower.
-    Default: off.
-
-* `dump-core`
-
-    Save GHC Core output during compilation of Agda.
-    Default: off.
-
-* `enable-cluster-counting`
-
-     Enable cluster counting (see docs).
-     This will require the [`text-icu` Haskell library](https://hackage.haskell.org/package/text-icu),
-     which in turn requires that ICU be installed.
-     Note that if `enable-cluster-counting` is `False`, then option `--count-clusters` triggers an error message when given to Agda.
-     Default: off, but on for development version.
-
-* `optimise-heavily`
-
-     Optimise Agda heavily. If this flag is on, compiling Agda uses more memory
-     but Agda runs faster.
-     Default: on.
-
-* `use-xdg-data-home`
-
-    Added in 2.8.0
-
-    Install data files under `$XDG_DATA_HOME/agda/$AGDA_VERSION` by default
-    instead of the installation location defined by Cabal,
-    see the Agda option `--print-agda-data-dir`.
-    This should *not* be enabled in declarative build environments like Nix or Guix.
-    Default: off.
-
-* `version-with-git-hash`
-
-    Suffix version information with the Git commit hash when available.
-    A `-dirty` marker is also included if tracked files have uncommitted changes.
-    Default: off, but on for builds using the Makefile.
-
-Hint: You can set these flags as follows:
-
-* Cabal-install: use the `-f` argument:
-
-      cabal install -fenable-cluster-counting
-
-* Stack: use `--flag` and an `Agda:` prefix:
-
-      stack install --flag Agda:enable-cluster-counting
-
-* Nix: code into your `.nix` scripts using `enableCabalFlag`:
-
-      hlib.enableCabalFlag "debug" hpkgs.Agda-base
-
 Troubleshooting Cabal
 =====================
 
@@ -160,7 +84,8 @@ Further information:
 Installing ICU
 --------------
 
-If cluster counting is enabled (see the ``enable-cluster-counting`` flag above, enabled by default), then you will need the [ICU](http://site.icu-project.org) library
+If cluster counting is enabled (see the `enable-cluster-counting` flag in the docs,
+enabled by default), then you will need the [ICU](http://site.icu-project.org) library
 to be installed. See the [text-icu Prerequisites documentation](https://github.com/haskell/text-icu#prerequisites) for how to install ICU on your system.
 
 `zlib` and `ncurses` Dependency

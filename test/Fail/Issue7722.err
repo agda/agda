@@ -1,6 +1,6 @@
 Issue7722.agda:19.8-10: error: [CannotEliminateWithPattern]
-Cannot eliminate type Set with variable pattern := (did you supply
-too many arguments?)
+Cannot eliminate type Set with variable pattern := (it is not a
+function type; did you supply too many arguments?)
 when checking the clause left hand side
 test x := x + x + x + x + x + x + x + x + x + x + x + x + x + x + x
   +
