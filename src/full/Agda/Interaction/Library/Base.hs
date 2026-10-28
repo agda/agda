@@ -21,6 +21,7 @@ import Data.Map                    ( Map )
 import qualified Data.Map          as Map
 import Data.Text                   ( Text, unpack )
 import qualified Data.Text         as T
+import Data.Tree                   ( Tree )
 
 import GHC.Generics                ( Generic )
 
@@ -29,6 +30,7 @@ import System.Directory
 import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Common.Pretty
+import Agda.Syntax.Concrete.Glyph  ( treeGlyphs )
 import Agda.Syntax.Position
 
 import Agda.Utils.IO               ( showIOException )
@@ -163,6 +165,9 @@ data AgdaLibFile = AgdaLibFile
                                 --   located?
   , _libIncludes :: [FilePath]  -- ^ Roots where to look for the modules of the library.
   , _libDepends  :: [LibName]   -- ^ Dependencies.
+  , _libDependsPos :: Map LibName LibFilePos
+                                -- ^ Where the dependencies are mentioned
+                                --   in the @.agda-lib@ file (first mention).
   , _libPragmas  :: OptionsPragma
                                 -- ^ Default pragma options for all files in the library.
   }
@@ -175,6 +180,7 @@ emptyLibFile = AgdaLibFile
   , _libAbove    = 0
   , _libIncludes = []
   , _libDepends  = []
+  , _libDependsPos = Map.empty
   , _libPragmas  = mempty
   }
 
@@ -217,6 +223,19 @@ libPragmas f a = f (_libPragmas a) <&> \ x -> a { _libPragmas = x }
 -- ** Position information
 
 type LineNumber = Int
+type ColumnNumber = Int
+
+-- | A stretch of a line in a file.
+data LibFilePos = LibFilePos
+  { lfpLine     :: !LineNumber
+  , lfpStartCol :: !ColumnNumber  -- ^ Starting column (1-based).
+  , lfpEndCol   :: !ColumnNumber  -- ^ Ending column (exclusive).
+  }
+  deriving (Show, Generic)
+
+-- | Print as @line.col-endcol@, the format used for ranges in Agda files.
+instance Pretty LibFilePos where
+  pretty (LibFilePos l c e) = hcat [ pretty l, ".", pretty c, "-", pretty e ]
 
 -- | Information about which @.agda-lib@ file we are reading
 --   and from where in the @libraries@ file it came from.
@@ -236,10 +255,40 @@ data LibWarning = LibWarning (Maybe LibPositionInfo) LibWarning'
 -- | Library Warnings.
 data LibWarning'
   = UnknownField String
+  | LibraryVersionConflict
+      -- ^ A library is depended on in different versions.
+      Text
+        -- ^ The library name without version.
+      LibDepTree
+        -- ^ The dependency tree, pruned to the paths leading to the conflicting versions.
+      [(Text, FilePath, Maybe LibFilePos)]
+        -- ^ The @.agda-lib@ files of the libraries mentioned in the tree,
+        --   keyed by their 'depLabel',
+        --   with the position of the first dependency shown in the tree (if any).
   deriving (Show, Generic)
 
+-- | A dependency tree of libraries, used to report the provenance
+--   of a 'LibraryVersionConflict'.
+type LibDepTree = Tree LibDepNode
+
+-- | A node in a 'LibDepTree'.
+data LibDepNode = LibDepNode
+  { depLabel      :: Text
+      -- ^ The library name as written in the @depend@ field
+      --   (or the name of the project at the root).
+  , depResolvedAs :: Maybe Text
+      -- ^ The name of the library the label resolved to, if different from the label.
+  }
+  deriving (Show, Generic)
+
+-- | Label of the root of a 'LibDepTree' if the project has no name.
+libDepRootLabel :: Text
+libDepRootLabel = "<root>"
+
 libraryWarningName :: LibWarning -> WarningName
-libraryWarningName (LibWarning c (UnknownField{})) = LibUnknownField_
+libraryWarningName (LibWarning c w) = case w of
+  UnknownField{}           -> LibUnknownField_
+  LibraryVersionConflict{} -> LibraryVersionConflict_
 
 -- * Errors
 
@@ -531,7 +580,29 @@ instance Pretty LibWarning where
       Just (LibPositionInfo _ _ file) -> hcat [ text file, ":"] <+> pretty w
 
 instance Pretty LibWarning' where
-  pretty (UnknownField s) = text $ "Unknown field '" ++ s ++ "'"
+  pretty = \case
+    UnknownField s -> text $ "Unknown field '" ++ s ++ "'"
+    LibraryVersionConflict lib tree files -> vcat $ concat
+      [ [ hcat [ "Different versions of the library '", pretty lib, "' depended on:" ] ]
+      , [ prettyLibDepTree tree ]
+      , [ "Library files:" ]
+        -- Andreas, 2026-10-24, issue #8875
+        -- We print positions as "file:line.col-endcol"
+        -- so that the Emacs mode makes them clickable.
+        -- Without a dependency position, we point to the beginning of the file.
+      , [ hcat [ brackets (pretty l), ":" ] <+> hcat [ text f, ":", maybe "1.1" pretty mpos ]
+        | (l, f, mpos) <- files
+        ]
+      ]
+
+-- | Render a 'LibDepTree', one line per node.
+prettyLibDepTree :: LibDepTree -> Doc
+prettyLibDepTree = prettyTree treeGlyphs
+
+instance Pretty LibDepNode where
+  pretty (LibDepNode l mr) = case mr of
+    Nothing -> brackets (pretty l)
+    Just r  -> pretty r <+> "as" <+> brackets (pretty l)
 
 ------------------------------------------------------------------------
 -- Hashable instances
@@ -562,8 +633,10 @@ instance NFData AgdaLibFile
 instance NFData LibName
 instance NFData LibCache
 instance NFData LibPositionInfo
+instance NFData LibFilePos
 instance NFData LibWarning
 instance NFData LibWarning'
+instance NFData LibDepNode
 instance NFData LibError
 instance NFData LibError'
 instance NFData LibErrors

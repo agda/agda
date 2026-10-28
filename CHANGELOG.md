@@ -6,7 +6,7 @@ Highlights
 
 * Option `-j` to type check modules in parallel in batch mode (experimental; Amélia Liao).
 * Substantial performance improvements (András Kovács, Amélia Liao Reed Mullanix).
-* Agda on WASM (Jonathan Coates, Andy Pam).
+* Agda on WASM (Jonathan Coates, Andy Pan).
 * Qualified `do` (Amélia Liao).
 * Local rewrite rules (experimental; Nathaniel Burke, Jesper Cockx).
 * Improved termination checker for copatterns (Nate Soares).
@@ -323,6 +323,12 @@ Errors
   * `GeneralizationPrepruneErrorCyclicDependencies`, reproduced by Nils Anders Danielsson
     (see Issue [#3672](https://github.com/agda/agda/issues/3672#issuecomment-482715807)).
 
+* New error `WrongNamedArgumentInLHS` for a named hidden argument on a left hand side
+  that does not exist, replacing `WrongHidingInLHS` in this case.
+  Like `WrongNamedArgument` on the right hand side, it lists the possible argument names
+  (see [#8739](https://github.com/agda/agda/issues/8739)).
+  Likewise, error `NoParameterOfName` now lists the possible parameter names.
+
 Warnings
 --------
 
@@ -435,6 +441,23 @@ Warnings
 
   open import Agda.Builtin.Nat
     renaming (_+_ to infixl 10 add)  -- warning
+  ```
+
+* New warning `LibraryVersionConflict` when a project uses different versions of one library
+  (see [#8875](https://github.com/agda/agda/issues/8875)).
+  The warning shows the dependency tree leading to the conflicting versions
+  and the involved `.agda-lib` files:
+  ```
+  Different versions of the library 'standard-library' depended on:
+  [my-project]
+    ├─ [standard-library-2.3]
+    └─ [my-lib]
+        └─ standard-library-2.4 as [standard-library]
+  Library files:
+  [my-project]: /path/to/my-project/my-project.agda-lib:<line>.<col>-<col>
+  [my-lib]: /path/to/my-lib/my-lib.agda-lib:<line>.<col>-<col>
+  [standard-library-2.3]: /path/to/agda-stdlib-2.3/standard-library.agda-lib:1:1
+  [standard-library]: /path/to/agda-stdlib-2.4/standard-library.agda-lib:1:1
   ```
 
 Syntax
@@ -692,6 +715,10 @@ Reflection
 
 * Tactic arguments (`@tactic`) are now supported in module telescopes.
 
+* `unquoteDecl` and `unquoteDef` now check that the meta-program
+  actually defines all the given identifiers
+  (issue [#8851](https://github.com/agda/agda/issues/8851)).
+
 Library management
 ------------------
 
@@ -899,6 +926,8 @@ For 2.9.0, the following issues were
 - [Issue #8680](https://github.com/agda/agda/issues/8680): Impossible state when unused pattern argument is also a variable declaration
 - [Issue #8777](https://github.com/agda/agda/issues/8777): Crash due to unsound call to `canonicalName`
 - [Issue #8808](https://github.com/agda/agda/issues/8808): Internal error during cubical boundary recovery
+- [Issue #8851](https://github.com/agda/agda/issues/8851): `unquoteDecl` panics when the macro does not `declareDef` at all
+- [Issue #8853](https://github.com/agda/agda/issues/8853): Internal error when using `withReconstructed`
 
 ### Other regressions
 
@@ -1039,6 +1068,7 @@ For 2.9.0, the following issues were
 - [Issue #8647](https://github.com/agda/agda/issues/8647): FOREIGN GHC pragma changes lost by caching
 - [Issue #8666](https://github.com/agda/agda/issues/8666): Make `--irrelevance` infective
 - [Issue #8710](https://github.com/agda/agda/issues/8710): The second imported rewriting relation is ignored
+- [Issue #8739](https://github.com/agda/agda/issues/8739): Error "unexpected implicit argument" should print the available implicit arguments
 - [Issue #8759](https://github.com/agda/agda/issues/8759): Crashes due to missing cases in strict bindings
 - [Issue #8767](https://github.com/agda/agda/issues/8767): The strict GHC backend generates slow code
 - [Issue #8783](https://github.com/agda/agda/issues/8783): Mimer (C-c C-a) does not automatically use mutually defined functions
@@ -1046,8 +1076,9 @@ For 2.9.0, the following issues were
 - [Issue #8815](https://github.com/agda/agda/issues/8815): Mimer rejects candidate if it generates constraints it would solve in the next step
 - [Issue #8828](https://github.com/agda/agda/issues/8828): Meta solutions leak from abstract and opaque blocks
 - [Issue #8830](https://github.com/agda/agda/issues/8830): Instance resolution should not ignore available instances
-- [Issue #8839](https://github.com/agda/agda/issues/8839): Incorrect warning location detection
 - [Issue #8841](https://github.com/agda/agda/issues/8841): Support Emacs 31
+- [Issue #8847](https://github.com/agda/agda/issues/8847): Instance search does not find unquoted definitions in instance blocks
+- [Issue #8875](https://github.com/agda/agda/issues/8875): Warn if one includes several version of the same library
 
 Pull requests merged for 2.9.0
 ------------------------------
@@ -1318,6 +1349,7 @@ Pull requests merged for 2.9.0
 - [PR #8789](https://github.com/agda/agda/issues/8789): Fix issue #8788
 - [PR #8790](https://github.com/agda/agda/issues/8790): [ fix #8703 ] Treat underapplied functions as stuck
 - [PR #8791](https://github.com/agda/agda/issues/8791): Fix #8787: drop hidden fields in record pattern when introduced by case-split
+- [PR #8800](https://github.com/agda/agda/issues/8800): agda-mode: Rebind mouse-2 to 'agda2-goto-definition-mouse'
 - [PR #8802](https://github.com/agda/agda/issues/8802): Makefile: new goal `fast-forward-ecosystem`; update submodules [ecosystem]
 - [PR #8804](https://github.com/agda/agda/issues/8804): Fix #8783: Mimer: use functions from mutual block as default hints
 - [PR #8806](https://github.com/agda/agda/issues/8806): Fix #8171 by creating metas at the unitPolarity (@++)
@@ -1330,3 +1362,9 @@ Pull requests merged for 2.9.0
 - [PR #8837](https://github.com/agda/agda/issues/8837): [ fix #8828 ] Don't solve metas from outside current abstract block
 - [PR #8840](https://github.com/agda/agda/issues/8840): [ #8839 ] Improved the detection of error/warning locations
 - [PR #8843](https://github.com/agda/agda/issues/8843): Fix #8834 by checking cohesion and polarity when abstracting telescopes
+- [PR #8850](https://github.com/agda/agda/issues/8850): Fix #8847 by not propagating `instance` to `unquoteDecl`s
+- [PR #8852](https://github.com/agda/agda/issues/8852): Fix #8851: check that unquoteDecl invocation actually defines names
+- [PR #8856](https://github.com/agda/agda/issues/8856): Fix #8853 by adding a case for `IApply` to `reconstructParameters`
+- [PR #8869](https://github.com/agda/agda/issues/8869): Fix #8739: wrong implicit argument in LHS: also mention possible args
+- [PR #8870](https://github.com/agda/agda/issues/8870): Decide whether pi is large based on original codomain sort
+- [PR #8876](https://github.com/agda/agda/issues/8876): Fix #8875: warning to show dependency version conflicts

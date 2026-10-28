@@ -72,12 +72,18 @@ instance GetDefs Sort where
     LockUniv       -> ret $ mempty
     LevelUniv      -> ret $ mempty
     IntervalUniv   -> ret $ mempty
-    PiSort a s1 s2 -> ret $ getDefs ms ds a <> getDefs ms ds s1 <> getDefs ms ds s2
+    PiSort c a s1 s2 -> ret $
+      getDefs ms ds c <> getDefs ms ds a <> getDefs ms ds s1 <> getDefs ms ds s2
     FunSort s1 s2  -> ret $ getDefs ms ds s1 <> getDefs ms ds s2
     UnivSort s     -> ret $ getDefs ms ds s
     MetaS x es     -> ret $ getDefs ms ds x <> getDefs ms ds es
     DefS d es      -> ret $ ds d <> getDefs ms ds es
     DummyS{}       -> ret $ mempty
+
+instance GetDefs a => GetDefs (BlockedDepCheck a) where
+  getDefs ms ds c = expand \ret -> case c of
+    CodomainSortOld s -> ret $ getDefs ms ds s
+    CodomainSortSame  -> ret $ mempty
 
 instance GetDefs Level where
   getDefs ms ds l = expand \ret -> case l of Max _ ls -> ret $ getDefs ms ds ls

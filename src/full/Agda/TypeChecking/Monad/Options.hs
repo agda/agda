@@ -194,27 +194,34 @@ setLibraryPaths
   -> CommandLineOptions
   -> TCM CommandLineOptions
 setLibraryPaths root o =
-  setLibraryIncludes =<< addDefaultLibraries root o
+  uncurry setLibraryIncludes =<< addDefaultLibraries root o
 
-setLibraryIncludes :: CommandLineOptions -> TCM CommandLineOptions
-setLibraryIncludes o
+setLibraryIncludes
+  :: Maybe AgdaLibFile
+     -- ^ The project whose dependencies are 'optLibraries', if any.
+  -> CommandLineOptions
+  -> TCM CommandLineOptions
+setLibraryIncludes project o
   | not (optUseLibs o) = pure o
   | otherwise = do
     let libs = optLibraries o
     installed <- libToTCM $ getInstalledLibraries (optOverrideLibrariesFile o)
-    paths     <- libToTCM $ libraryIncludePaths (optOverrideLibrariesFile o) installed libs
+    paths     <- libToTCM $ libraryIncludePaths (optOverrideLibrariesFile o) project installed libs
     return o{ optIncludePaths = paths ++ optIncludePaths o }
 
+-- | Unless libraries have been given on the command line,
+--   set them from the project's @.agda-lib@ file (returned as well)
+--   or the @defaults@ file.
 addDefaultLibraries
   :: AbsolutePath
      -- ^ The base directory of relative paths.
   -> CommandLineOptions
-  -> TCM CommandLineOptions
+  -> TCM (Maybe AgdaLibFile, CommandLineOptions)
 addDefaultLibraries root o
-  | not (null $ optLibraries o) || not (optUseLibs o) = pure o
+  | not (null $ optLibraries o) || not (optUseLibs o) = pure (Nothing, o)
   | otherwise = do
-  (libs, incs) <- libToTCM $ getDefaultLibraries (filePath root) (optDefaultLibs o)
-  return o{ optIncludePaths = incs ++ optIncludePaths o, optLibraries = libs }
+  (project, libs, incs) <- libToTCM $ getDefaultLibraries (filePath root) (optDefaultLibs o)
+  return (project, o{ optIncludePaths = incs ++ optIncludePaths o, optLibraries = libs })
 
 -- This function is only called when an interactor exists
 -- (i.e. when Agda actually does something).

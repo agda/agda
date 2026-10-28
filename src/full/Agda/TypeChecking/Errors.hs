@@ -327,6 +327,15 @@ instance PrettyTCM TypeError where
       where
       xs = List1.filter (not . isNoName) xs0
 
+    WrongNamedArgumentInLHS h x xs -> fsep $
+      pwords "Unexpected" ++ [ hid h ] ++ pwords "argument named" ++ [ text x ]
+      ++ [ parens $ fsep $ text "possible arguments:" : map text xs | not (null xs) ]
+      where
+      hid = \case
+        Hidden     -> "hidden"
+        Instance{} -> "instance"
+        NotHidden  -> "visible"
+
     WrongHidingInApplication t ->
       fwords "Found an implicit application where an explicit application was expected"
 
@@ -1675,8 +1684,9 @@ instance PrettyTCM TypeError where
     UnexpectedParameter par -> do
       text "Unexpected parameter" <+> prettyA par
 
-    NoParameterOfName x -> do
+    NoParameterOfName x xs -> fsep $
       text ("No parameter of name " ++ x)
+      : [ parens $ fsep $ text "possible parameters:" : map text xs | not (null xs) ]
 
     UnexpectedModalityAnnotationInParameter par -> do
       text "Unexpected modality/relevance annotation in" <+> prettyA par
@@ -2019,8 +2029,8 @@ instance PrettyTCM UnquoteError where
     MissingDeclaration x -> fsep $
       pwords "Missing declaration for" ++ [ prettyTCM x ]
 
-    MissingDefinition x -> fsep $
-      pwords "Missing definition for" ++ [ prettyTCM x ]
+    MissingDefinition xs -> fsep $
+      pwords "Missing definition for" ++ punctuate comma (fmap prettyTCM xs)
 
     NakedUnquote -> fwords "`unquote' must be applied to a term"
 

@@ -7,8 +7,6 @@ module Agda.TypeChecking.Rules.Decl where
 
 import Prelude hiding ( null )
 
-import Control.Monad.Writer (tell)
-
 import Data.Either (partitionEithers)
 import qualified Data.Foldable as Fold
 import qualified Data.Map.Strict as MapS
@@ -348,18 +346,20 @@ revisitRecordPatternTranslation qs = do
 type FinalChecks = Maybe (TCM ())
 
 checkUnquoteDecl :: Info.MutualInfo -> [A.DefInfo] -> [QName] -> A.Expr -> TCM FinalChecks
-checkUnquoteDecl mi is xs e = do
+checkUnquoteDecl _mi _is xs e = do
   reportSDoc "tc.unquote.decl" 20 $ "Checking unquoteDecl" <+> sep (map' prettyTCM xs)
   Nothing <$ unquoteTop xs e
 
 checkUnquoteDef :: [A.DefInfo] -> [QName] -> A.Expr -> TCM ()
 checkUnquoteDef _ xs e = do
   reportSDoc "tc.unquote.decl" 20 $ "Checking unquoteDef" <+> sep (map' prettyTCM xs)
-  () <$ unquoteTop xs e
+  unquoteTop xs e
 
 -- | Run a reflected TCM computatation expected to define a given list of
 --   names.
-unquoteTop :: [QName] -> A.Expr -> TCM [QName]
+--   Throws an error if any of these names (or any name declared by the computation)
+--   has not been defined in the end.
+unquoteTop :: [QName] -> A.Expr -> TCM ()
 unquoteTop xs e = do
   tcm   <- primAgdaTCM
   unit  <- primUnit
@@ -368,10 +368,10 @@ unquoteTop xs e = do
       hArg = setHiding Hidden . vArg
   m    <- applyQuantityToJudgement zeroQuantity $
             checkExpr e $ El (mkType 0) $ apply tcm [hArg lzero, vArg unit]
-  res  <- runUnquoteM $ tell xs >> evalTCM m
+  res  <- runUnquoteM xs $ evalTCM m
   case res of
-    Left err      -> typeError $ UnquoteFailed err
-    Right (_, xs) -> return xs
+    Left err -> typeError $ UnquoteFailed err
+    Right _  -> return ()
 
 -- | Instantiate all metas in 'Definition' associated to 'QName'.
 --   Makes sense after freezing metas. Some checks, like free variable

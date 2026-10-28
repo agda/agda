@@ -85,7 +85,8 @@ Further information:
 Installing ICU
 --------------
 
-If cluster counting is enabled (see the ``enable-cluster-counting`` flag above, enabled by default), then you will need the [ICU](http://site.icu-project.org) library
+If cluster counting is enabled (see the `enable-cluster-counting` flag in the docs,
+enabled by default), then you will need the [ICU](http://site.icu-project.org) library
 to be installed. See the [text-icu Prerequisites documentation](https://github.com/haskell/text-icu#prerequisites) for how to install ICU on your system.
 
 `zlib` and `ncurses` Dependency

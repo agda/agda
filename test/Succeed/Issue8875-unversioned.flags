@@ -1,0 +1,3 @@
+--library-file=test/Succeed/Issue8875/libraries
+--library=mid
+--library=lib

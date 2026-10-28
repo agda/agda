@@ -1409,7 +1409,9 @@ niceDeclarations fixs ds = do
     mkInstance r0 = \case
         Axiom r p a i rel x e          -> (\ i -> Axiom r p a i rel x e) <$> setInstance r0 i
         FunSig r p a i m rel tc cc x e -> (\ i -> FunSig r p a i m rel tc cc x e) <$> setInstance r0 i
-        NiceUnquoteDecl r p a i tc cc x e -> (\ i -> NiceUnquoteDecl r p a i tc cc x e) <$> setInstance r0 i
+        -- Andreas, 2026-10-19, AIM XLIII, issue 8847
+        -- The type checker ignores the IsInstanceDef for UnquoteDecl, so it does not help to propagate it here.
+        -- NiceUnquoteDecl r p a i tc cc x e -> (\ i -> NiceUnquoteDecl r p a i tc cc x e) <$> setInstance r0 i
         NiceMutual r tc cc pc ds       -> NiceMutual r tc cc pc <$> mapM (mkInstance r0) ds
         NiceLoneConstructor r ds       -> NiceLoneConstructor r <$> mapM (mkInstance r0) ds
         d@NiceFunClause{}              -> return d
@@ -1417,6 +1419,7 @@ niceDeclarations fixs ds = do
         NiceOpaque r ns i              -> (\ i -> NiceOpaque r ns i) <$> traverse (mkInstance r0) i
         d@NiceField{}                  -> return d  -- Field instance are handled by the parser
         d@PrimitiveFunction{}          -> return d
+        d@NiceUnquoteDecl{}            -> return d
         d@NiceUnquoteDef{}             -> return d
         d@NiceRecSig{}                 -> return d
         d@NiceDataSig{}                -> return d
