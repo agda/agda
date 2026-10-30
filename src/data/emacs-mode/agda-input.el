@@ -1327,6 +1327,19 @@ order for the change to take effect."
   ("MSvarsigma"   . ("𝞁"))
   ("MSvartheta"   . ("𝞋"))
 
+  ;; Mathematical sans-serif digits.
+
+  ("Ms0"   . ("𝟢"))
+  ("Ms1"   . ("𝟣"))
+  ("Ms2"   . ("𝟤"))
+  ("Ms3"   . ("𝟥"))
+  ("Ms4"   . ("𝟦"))
+  ("Ms5"   . ("𝟧"))
+  ("Ms6"   . ("𝟨"))
+  ("Ms7"   . ("𝟩"))
+  ("Ms8"   . ("𝟪"))
+  ("Ms9"   . ("𝟫"))
+
   ;; Mathematical bold italic sans-serif Greek letters.
 
   ("MIsGA"  . ("𝞐"))
