@@ -1961,7 +1961,7 @@ order for the change to take effect."
   ("o8" . ("𜳸"))
   ("o9" . ("𜳹"))
 
-  :: Segmented digits.
+  ;; Segmented digits.
 
   ("seg0" . ("🯰"))
   ("seg1" . ("🯱"))
