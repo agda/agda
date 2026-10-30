@@ -1396,6 +1396,19 @@ order for the change to take effect."
   ("MSy"   . ("𝘆"))
   ("MSz"   . ("𝘇"))
 
+  ;; Mathematical bold sans-serif digits.
+
+  ("MS0"   . ("𝟬"))
+  ("MS1"   . ("𝟭"))
+  ("MS2"   . ("𝟮"))
+  ("MS3"   . ("𝟯"))
+  ("MS4"   . ("𝟰"))
+  ("MS5"   . ("𝟱"))
+  ("MS6"   . ("𝟲"))
+  ("MS7"   . ("𝟳"))
+  ("MS8"   . ("𝟴"))
+  ("MS9"   . ("𝟵"))
+
   ;; Mathematical bold italic sans-serif Greek letters.
 
   ("MIsGA"  . ("𝞐"))
