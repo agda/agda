@@ -1909,6 +1909,15 @@ order for the change to take effect."
   ("sY" . ("ʏ"))
   ("sZ" . ("ᴢ"))
 
+  ;; Small caps Greek letters.
+
+  ("sGG"  . ("ᴦ"))
+  ("sGL"  . ("ᴧ"))
+  ("sGO"  . ("ꭥ"))
+  ("sGPi" . ("ᴨ"))
+  ("sGP"  . ("ᴪ"))
+  ("sGR"  . ("ᴩ"))
+
   ;; (Sub / Super) scripts.
   ;;
   ;; Unicode 12.1 omits several latin characters from sub/superscript.
