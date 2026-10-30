@@ -28,7 +28,15 @@ simplifyLevelConstraint
   -> List1 Constraint    -- ^ Other constraints, enable simplification.
   -> Maybe [Constraint]  -- ^ @Just@: list of constraints equal to the original @c@.
                          --   @Nothing@: no simplification possible.
-simplifyLevelConstraint c others = do
+simplifyLevelConstraint c others
+  -- Andreas, 2026-10-29, issue #8881:
+  -- @a ≤ b₁ ⊔ ... ⊔ bₙ@ and @bᵢ ≤ a@ for all @i@ give @a = b₁ ⊔ ... ⊔ bₙ@.
+  | LevelCmp CmpLeq a b <- c
+  , Just a' <- singleLevelView a
+  , all (\ b' -> any (matchLeq (b' :=< a')) leqs) (levelMaxView b)
+  = Just [ LevelCmp CmpEq a b ]
+
+  | otherwise = do
     cs <- inequalities c
     case runChange $ mapM simpl cs of
       (cs', True) -> Just cs'
