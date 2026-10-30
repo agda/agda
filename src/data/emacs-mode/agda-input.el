@@ -799,9 +799,7 @@ order for the change to take effect."
   ("bX"   . ("𝕏"))
   ("bY"   . ("𝕐"))
   ("bZ"   . ("ℤ"))
-  ("bGG"  . ("ℾ"))
-  ("bGP"  . ("ℿ"))
-  ("bGS"  . ("⅀"))
+
   ("ba"   . ("𝕒"))
   ("bb"   . ("𝕓"))
   ("bc"   . ("𝕔"))
@@ -828,6 +826,13 @@ order for the change to take effect."
   ("bx"   . ("𝕩"))
   ("by"   . ("𝕪"))
   ("bz"   . ("𝕫"))
+
+  ;; Blackboard bold Greek letters.
+
+  ("bGG"  . ("ℾ"))
+  ("bGP"  . ("ℿ"))
+  ("bGS"  . ("⅀"))
+
   ("bGg"  . ("ℽ"))
   ("bGp"  . ("ℼ"))
 
