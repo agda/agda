@@ -764,6 +764,11 @@ order for the change to take effect."
   ("digamma"    . "ϝ") ;; "digamma" is also bound for uppercase digamma
   ("varepsilon" . "ϵ")
 
+  ;; Dotless characters.
+
+  ;; \i \imath ı
+  ("j" . "ȷ")
+
   ;;;; Mathematical characters.
 
   ;; Blackboard bold letters.
@@ -1008,8 +1013,8 @@ order for the change to take effect."
   ("Mif" . ("𝑓"))
   ("Mig" . ("𝑔"))
   ("Mih" . ("ℎ"))
-  ("Mii" . ("𝑖"))
-  ("Mij" . ("𝑗"))
+  ("Mii" . ,(agda-input-to-string-list "𝑖𝚤"))
+  ("Mij" . ,(agda-input-to-string-list "𝑗𝚥"))
   ("Mik" . ("𝑘"))
   ("Mil" . ("𝑙"))
   ("Mim" . ("𝑚"))
