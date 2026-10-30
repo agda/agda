@@ -749,7 +749,7 @@ order for the change to take effect."
   ("Gm"  . ("μ"))  ("GM"  . ("Μ"))
   ("Gn"  . ("ν"))  ("GN"  . ("Ν"))
   ("Gx"  . ("ξ"))  ("GX"  . ("Ξ"))
-  ;; \omicron \Omicron
+  ;; \omicron
   ;; \pi \Pi
   ("Gr"  . ("ρ"))  ("GR"  . ("Ρ"))
   ("Gs"  . ("σ"))  ("GS"  . ("Σ"))
@@ -759,6 +759,10 @@ order for the change to take effect."
   ("Gc"  . ("χ"))  ("GC"  . ("Χ"))
   ("Gp"  . ("ψ"))  ("GP"  . ("Ψ"))
   ("Go"  . ("ω"))  ("GO"  . ("Ω"))
+
+  ("Omicron"    . "Ο")
+  ("digamma"    . "ϝ") ;; "digamma" is also bound for uppercase digamma
+  ("varepsilon" . "ϵ")
 
   ;;;; Mathematical characters.
 
