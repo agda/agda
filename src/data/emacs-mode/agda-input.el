@@ -1906,6 +1906,7 @@ order for the change to take effect."
   ("sU" . ("ᴜ"))
   ("sV" . ("ᴠ"))
   ("sW" . ("ᴡ"))
+  ;; ("sX" . ("X"))
   ("sY" . ("ʏ"))
   ("sZ" . ("ᴢ"))
 
