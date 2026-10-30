@@ -760,14 +760,14 @@ order for the change to take effect."
   ("Gp"  . ("ψ"))  ("GP"  . ("Ψ"))
   ("Go"  . ("ω"))  ("GO"  . ("Ω"))
 
-  ("Omicron"    . "Ο")
-  ("digamma"    . "ϝ") ;; "digamma" is also bound for uppercase digamma
-  ("varepsilon" . "ϵ")
+  ("Omicron"    . ("Ο"))
+  ("digamma"    . ("ϝ")) ;; "digamma" is also bound for uppercase digamma
+  ("varepsilon" . ("ϵ"))
 
   ;; Dotless characters.
 
   ;; \i \imath ı
-  ("j" . "ȷ")
+  ("j" . ("ȷ"))
 
   ;;;; Mathematical characters.
 
