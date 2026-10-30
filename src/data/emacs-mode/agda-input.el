@@ -1918,6 +1918,19 @@ order for the change to take effect."
   ("sGP"  . ("ᴪ"))
   ("sGR"  . ("ᴩ"))
 
+  :: Segmented digits.
+
+  ("seg0" . ("🯰"))
+  ("seg1" . ("🯱"))
+  ("seg2" . ("🯲"))
+  ("seg3" . ("🯳"))
+  ("seg4" . ("🯴"))
+  ("seg5" . ("🯵"))
+  ("seg6" . ("🯶"))
+  ("seg7" . ("🯷"))
+  ("seg8" . ("🯸"))
+  ("seg9" . ("🯹"))
+
   ;; (Sub / Super) scripts.
   ;;
   ;; Unicode 12.1 omits several latin characters from sub/superscript.
