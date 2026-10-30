@@ -184,10 +184,10 @@ order for the change to take effect."
 
   ;; Equality and similar symbols.
 
-  ("eq"  . ,(agda-input-to-string-list "=∼∽≈≋∻∾∿≀≃⋍≂≅ ≌≊≡≣≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟≍≎≏≬⋕＝"))
+  ("eq"  . ,(agda-input-to-string-list "=∼∽≈≋∻∾∿≀≃⋍≂≅ ≌≊≡≣≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟≍≎≏≬⋕＝⧣﹦꞊"))
   ("eqn" . ,(agda-input-to-string-list "≠≁ ≉     ≄  ≇≆  ≢                 ≭    "))
 
-                    ("=n"  . ("≠"))
+                    ("=n"  . ("≠"))  ("=nn"  . ("⧣"))
   ("~"    . ,(agda-input-to-string-list "∼～"))
                     ("~n"  . ("≁"))
   ("~~"   . ("≈"))  ("~~n" . ("≉"))
