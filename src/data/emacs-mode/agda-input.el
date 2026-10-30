@@ -917,6 +917,8 @@ order for the change to take effect."
   ("BGU"  . ("𝚼"))
   ("BGX"  . ("𝚵"))
   ("BGZ"  . ("𝚭"))
+  ("Bnabla" . ("𝛁"))
+  ("BDigamma" . ("𝟊"))
 
   ("BGa"  . ("𝛂"))
   ("BGb"  . ("𝛃"))
@@ -942,6 +944,15 @@ order for the change to take effect."
   ("BGu"  . ("𝛖"))
   ("BGx"  . ("𝛏"))
   ("BGz"  . ("𝛇"))
+  ("Bpartial"    . ("𝛛"))
+  ("Bvarepsilon" . ("𝛜"))
+  ("Bvarkappa"   . ("𝛞"))
+  ("Bvarphi"     . ("𝛟"))
+  ("Bvarpi"      . ("𝛡"))
+  ("Bvarrho"     . ("𝛠"))
+  ("Bvarsigma"   . ("𝛓"))
+  ("Bvartheta"   . ("𝛝"))
+  ("Bdigamma"    . ("𝟋"))
 
   ;; Mathematical bold digits.
 
