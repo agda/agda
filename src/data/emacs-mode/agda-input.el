@@ -1881,6 +1881,34 @@ order for the change to take effect."
   ("Mt8" . ("𝟾"))
   ("Mt9" . ("𝟿"))
 
+  ;; Small caps letters.
+
+  ("sA" . ("ᴀ"))
+  ("sB" . ("ʙ"))
+  ("sC" . ("ᴄ"))
+  ("sD" . ("ᴅ"))
+  ("sE" . ("ᴇ"))
+  ("sF" . ("ꜰ"))
+  ("sG" . ("ɢ"))
+  ("sH" . ("ʜ"))
+  ("sI" . ("ɪ"))
+  ("sJ" . ("ᴊ"))
+  ("sK" . ("ᴋ"))
+  ("sL" . ("ʟ"))
+  ("sM" . ("ᴍ"))
+  ("sN" . ("ɴ"))
+  ("sO" . ("ᴏ"))
+  ("sP" . ("ᴘ"))
+  ("sQ" . ("ꞯ"))
+  ("sR" . ("ʀ"))
+  ("sS" . ("ꜱ"))
+  ("sT" . ("ᴛ"))
+  ("sU" . ("ᴜ"))
+  ("sV" . ("ᴠ"))
+  ("sW" . ("ᴡ"))
+  ("sY" . ("ʏ"))
+  ("sZ" . ("ᴢ"))
+
   ;; (Sub / Super) scripts.
   ;;
   ;; Unicode 12.1 omits several latin characters from sub/superscript.
