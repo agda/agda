@@ -830,11 +830,11 @@ order for the change to take effect."
   ;; Blackboard bold Greek letters.
 
   ("bGG"  . ("ℾ"))
-  ("bGP"  . ("ℿ"))
+  ("bGPi" . ("ℿ"))
   ("bGS"  . ("⅀"))
 
   ("bGg"  . ("ℽ"))
-  ("bGp"  . ("ℼ"))
+  ("bGpi" . ("ℼ"))
 
   ;; Blackboard bold numbers.
 
