@@ -1863,6 +1863,19 @@ order for the change to take effect."
   ("Mty"   . ("𝚢"))
   ("Mtz"   . ("𝚣"))
 
+  ;; Mathematical monospaced digits.
+
+  ("Mt0"   . ("𝟶"))
+  ("Mt1"   . ("𝟷"))
+  ("Mt2"   . ("𝟸"))
+  ("Mt3"   . ("𝟹"))
+  ("Mt4"   . ("𝟺"))
+  ("Mt5"   . ("𝟻"))
+  ("Mt6"   . ("𝟼"))
+  ("Mt7"   . ("𝟽"))
+  ("Mt8"   . ("𝟾"))
+  ("Mt9"   . ("𝟿"))
+
   ;; (Sub / Super) scripts.
   ;;
   ;; Unicode 12.1 omits several latin characters from sub/superscript.
