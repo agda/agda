@@ -712,18 +712,15 @@ haveDepsChanged !src = do
           !iPath    <- filePath . intFilePath <$>
                           lift (maybeToExceptT () (MaybeT (findInterfaceFile' file)))
           !modTime  <- lift $ lift $ lift $ getModificationTime path
-          !iModTime <- lift $ lift $ lift $ getModificationTime iPath
           let !hasntChanged = modTime == miSourceModificationTime mi
           unless hasntChanged $ throwError ()
           let !children = iImportedModules $ miInterface mi
-          -- alwaysReportSLn "import" 0 ("chaseMod " ++ prettyShow (mod, children))
           Strict.modify $ Set.insert mod
           mapM_ (chaseMod . fst) children
 
       top :: Strict.StateT (Set TopLevelModuleName) (ExceptT () TCM) ()
       top = do
         !children <- lift $ getImports (srcModule src)
-        -- alwaysReportSLn "import" 0 ("haveDepsChanged " ++ prettyShow children)
         mapM_ chaseMod children
 
   runExceptT (Strict.runStateT top mempty) >>= \case
@@ -773,6 +770,7 @@ typeCheckMain mode src = do
     Just workers | changedDeps || ignoreIFaces ->
       join $ chaseModule workers (srcModuleName src) (MainInterface mode) (Just src)
     _ ->
+      -- load on single thread if no transitive imports changed
       getInterface (srcModuleName src) (MainInterface mode) (Just src)
 
   stCurrentModule `setTCLens'`
