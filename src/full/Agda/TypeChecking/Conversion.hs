@@ -1114,6 +1114,29 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
             else ret do
               pure False
 
+          -- Andreas, 2026-10-30, issue #2595.
+          -- With @--experimental-irrelevance@, an irrelevant variable may be
+          -- used shape-irrelevantly in the codomain, e.g. @x@ in
+          -- @.(x : Bool) → IsTrue x → Set@ where @IsTrue : ..(x : Bool) → Set@.
+          -- Then the types @IsTrue u@ and @IsTrue v@ of the remaining
+          -- arguments are not necessarily equal (only their shapes are),
+          -- so the comparison of the remaining eliminations is heterogeneous.
+          -- Here, occurrences in sorts count as well (unlike for 'dependent'),
+          -- e.g., @F : .(i : Level) → Set i → Set@ (see test/Fail/Issue2595Sort).
+          -- However, purely irrelevant occurrences do not matter,
+          -- and neither do sort annotations of types.
+          -- We record this in the environment so that meta variable assignment
+          -- can check that the solution has the type of the meta.
+          heterogeneous <- expand \ret ->
+            if isIrrelevant info then ret do
+              experimental <- optExperimentalIrrelevance <$> pragmaOptions
+              pure $! experimental && case codom of
+                Abs _ c -> 0 `relevantInIgnoringSortAnn` c
+                NoAbs{} -> False
+            else ret do
+              pure False
+          let compareRest = applyWhen heterogeneous $ locallyTC eHeterogeneous $ const True
+
           expand \ret -> if dependent then ret do
 
             -- compare arg1 and arg2
@@ -1145,7 +1168,7 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
                        return arg
                    else ret $ return arg1
             -- continue, possibly with blocked instantiation
-            () <- compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
+            () <- compareRest $ compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
 
             expand \ret -> if not solved then ret do
               -- any left over constraints of arg are associated to the comparison
@@ -1174,7 +1197,7 @@ compareElims !pols0 !fors0 !a !v !els01 !els02 =
                   compareWithPol pol (flip compareTerm b) (unArg arg1) (unArg arg2)
 
             -- continue
-            compareElims pols fors (codom `lazyAbsApp` unArg arg1) (apply v [arg1]) els1 els2
+            compareRest $ compareElims pols fors (codom `lazyAbsApp` unArg arg1) (apply v [arg1]) els1 els2
 
         a -> do
           reportSDoc "impossible" 10 $

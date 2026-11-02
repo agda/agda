@@ -1,0 +1,8 @@
+Issue2595.agda:20.10-11: error: [UnequalTerms]
+The terms
+  true
+and
+  false
+are not equal at type Bool
+when checking that the solution tt of metavariable _14 has the
+expected type IsTrue false
