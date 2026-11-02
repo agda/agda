@@ -4540,6 +4540,16 @@ envPureConversion = mkFlag 17
 envImplPrimitiveImporting :: Lens' Flags64 Bool
 envImplPrimitiveImporting = mkFlag 18
 
+-- | Are we in a heterogeneous comparison?
+--   Set by 'compareElims' when it passes an irrelevant argument that
+--   the codomain depends on under @--experimental-irrelevance@:
+--   from then on, the type at which we compare is only shape-equal
+--   to the actual types of the compared terms, so meta variable
+--   assignment has to check the type of the solution (issue #2595).
+{-# INLINE envHeterogeneous #-}
+envHeterogeneous :: Lens' Flags64 Bool
+envHeterogeneous = mkFlag 19
+
 -- | Choose between behavior in pure conversion and impure conversion.
 --   The first branch is the impure case.
 ifImpureConv :: TCM a -> TCM a -> TCM a
@@ -4571,6 +4581,7 @@ initEnvFlags = Flags64 0
   & envMakeCase              .~ False
   & envPureConversion        .~ False
   & envImplPrimitiveImporting    .~ False
+  & envHeterogeneous         .~ False
 
 initTCContext :: TCContext
 initTCContext = TCContext {
@@ -4931,6 +4942,10 @@ ePureConversion = mkEnvFlag 17
 {-# INLINE eImplPrimitiveImporting #-}
 eImplPrimitiveImporting :: Lens' TCEnv Bool
 eImplPrimitiveImporting = mkEnvFlag 18
+
+{-# INLINE eHeterogeneous #-}
+eHeterogeneous :: Lens' TCEnv Bool
+eHeterogeneous = mkEnvFlag 19
 
 
 ----------------------------------------------------------------------------------------------------

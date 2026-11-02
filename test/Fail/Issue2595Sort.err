@@ -1,0 +1,8 @@
+Issue2595Sort.agda:15.16-17: error: [UnequalTypes]
+The types
+  Set₁
+and
+  Set
+are not equal
+when checking that the solution B of metavariable _4 has the
+expected type Set lzero

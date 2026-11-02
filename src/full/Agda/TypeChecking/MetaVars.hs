@@ -45,6 +45,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.SizedTypes (boundedSizeMetaHook, isSizeProblem)
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Conversion.Errors ( cutConversionErrors )
 import Agda.TypeChecking.Warnings (warning)
 
 -- import Agda.TypeChecking.CheckInternal
@@ -1425,7 +1426,15 @@ assignMeta' m x t n ids v = do
     v' <- blockOnBoundary telv bs v'
 
     -- Andreas, 2013-10-25 double check solution before assigning
-    whenM (optDoubleCheck  <$> pragmaOptions) $ do
+    --
+    -- Andreas, 2026-10-30, issue #2595:
+    -- We also double check if we are in a heterogeneous comparison
+    -- (see 'compareElims'), since then the type at which we compare
+    -- is only shape-equal to the types of the compared terms,
+    -- so the solution might not have the type of the meta.
+    doubleCheck <- optDoubleCheck <$> pragmaOptions
+    heterogeneous <- viewTC eHeterogeneous
+    when (doubleCheck || heterogeneous) $ do
       m <- lookupLocalMeta x
       reportSDoc "tc.meta.check" 30 $ "double checking solution"
       catchConstraint (CheckMetaInst x) $
@@ -1467,8 +1476,15 @@ checkMetaInst x = do
 
 -- | Check that the instantiation of the metavariable with the given
 --   term is well-typed.
+--
+--   This is called in the context of the meta variable (its telescope),
+--   not in the context of the constraint that triggered the assignment.
+--   Thus, conversion errors raised here must not accumulate more
+--   conversion context while they propagate to the call site
+--   (otherwise their terms get printed in the wrong context),
+--   hence 'cutConversionErrors'.
 checkSolutionForMeta :: MetaId -> MetaVariable -> Term -> Type -> TCM ()
-checkSolutionForMeta x m v a = do
+checkSolutionForMeta x m v a = cutConversionErrors $ do
   reportSDoc "tc.meta.check" 30 $ "checking solution for meta" <+> prettyTCM x
   case mvJudgement m of
     HasType{ jComparison = cmp } -> do

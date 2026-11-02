@@ -1,3 +1,8 @@
-IrrelevantLevelHurkens.agda:12.31-32: error: [VariableIsIrrelevant]
-Variable i is declared irrelevant, so it cannot be used here
-when checking that the expression i has type Level
+IrrelevantLevelHurkens.agda:24.10-11: error: [UnequalTypes]
+The types
+  Set i
+and
+  Set
+are not equal
+when checking that the solution A of metavariable _27 has the
+expected type Set

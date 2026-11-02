@@ -1,4 +1,5 @@
--- {-# OPTIONS -v tc.meta.assign:15 #-}
+{-# OPTIONS --experimental-irrelevance #-}
+
 -- Ulf, 2011-10-04
 -- I still don't quite believe in irrelevant levels. In part because I just proved ⊥:
 
@@ -22,20 +23,20 @@ unirr i A irr = unit
 foo : ∀ .{i}{A : Set i}(x : Irr i A) → unirr i A x ≡ unirr zero (↓ A) _
 ↓ A    = _
 foo xs = refl
-{- Andreas, 2011-10-04 Irrelevant Levels do not harmonize with solving
 
-type of meta = .{.i : Level} (A : Set .i) → Set
-solving _39 := λ {.i} A → A
-term _38 xs := xs
-passed occursCheck
-type of meta = ..{i : Level} {A : Set i} (x : Irr .(i) A) →
-               Irr .(zero) (↓ A)
-solving _38 := λ {i} {A} x → x
+-- Andreas, 2011-10-04 Irrelevant Levels do not harmonize with solving
 
-The solutions x and A for the two holes do not type check, if entered manually.
-The solver would need to re-type-check to make sure solutions are correct.
-For now, just do not supply --experimental-irrelevance flag.
--}
+-- type of meta = .{.i : Level} (A : Set .i) → Set
+-- solving _39 := λ {.i} A → A
+-- term _38 xs := xs
+-- passed occursCheck
+-- type of meta = ..{i : Level} {A : Set i} (x : Irr .(i) A) →
+--                Irr .(zero) (↓ A)
+-- solving _38 := λ {i} {A} x → x
+
+-- The solutions x and A for the two holes do not type check, if entered manually.
+-- Andreas, 2026-11-02, issue #2595.
+-- The solver now re-type-checks to make sure solutions are correct.
 
 ⊥′ : Set
 ⊥′ = ↓ ((A : Set) → A)
@@ -80,4 +81,3 @@ data ⊥ : Set where
 
 false : ⊥
 false = loop ⊥
-
