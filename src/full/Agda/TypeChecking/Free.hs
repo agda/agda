@@ -339,6 +339,11 @@ isBinderUsed (Abs _ x) = 0 `freeIn` x
 -- ** Relevant free occurrence.
 --------------------------------------------------------------------------------
 
+-- | Environment for 'relevantInIgnoringSortAnn':
+--   the variable we are looking for (de Bruijn index at the current depth),
+--   and the 'Relevance' of the current position,
+--   which is composed from the modalities we have passed under
+--   (e.g. domains of function types and arguments of applications).
 data RelevantInIgnoringSortAnn = RelevantInIgnoringSortAnn !Int !Relevance
 
 instance LensRelevance RelevantInIgnoringSortAnn where
@@ -361,7 +366,12 @@ instance ComputeFree RelevantInIgnoringSortAnn where
 {-# SPECIALIZE relevantInIgnoringSortAnn :: Nat -> Term -> Bool #-}
 {-# SPECIALIZE relevantInIgnoringSortAnn :: Nat -> Type -> Bool #-}
 {-# SPECIALIZE relevantInIgnoringSortAnn :: Nat -> Dom' Term Type -> Bool #-}
--- | Does a variable occur relevantly and outside of sorts of types?
+-- | Does a variable occur non-irrelevantly and outside of sort annotations of types?
+--
+--   An occurrence counts if the relevance of its position is 'Relevant'
+--   or 'ShapeIrrelevant'; only 'Irrelevant' occurrences are disregarded.
+--   Sorts that are terms (like @Set i@) are searched,
+--   only the sort annotations @s@ of types @El s t@ are skipped.
 relevantInIgnoringSortAnn :: Free t => Nat -> t -> Bool
 relevantInIgnoringSortAnn x t =
   getAny (runReader (freeVars t) (RelevantInIgnoringSortAnn x unitRelevance))
