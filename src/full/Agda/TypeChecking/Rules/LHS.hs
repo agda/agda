@@ -1443,7 +1443,11 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Andreas 2010-09-07  propagate relevance info to new vars
       -- Andreas 2018-10-17  propagate modality
-      let updMod = composeModality (getModality info)
+      -- Issue #8888: this only concerns the new variables in the context.
+      -- The constructor pattern keeps the modalities of the constructor's
+      -- type, see @gamma0@ in the construction of @crho@ below.
+      let gamma0 = gamma
+          updMod = composeModality (getModality info)
       gamma <- return $ mapModality updMod <$> gamma
 
       -- Get the type of the datatype.
@@ -1555,7 +1559,7 @@ checkLHS mf = updateModality checkLHS_ where
                                    }
 
           -- compute final context and substitution
-          let crho    = ConP c cpi $ applySubst rho0 $ (telePatterns gamma boundary)
+          let crho    = ConP c cpi $ applySubst rho0 $ (telePatterns gamma0 boundary)
               rho3    = consS crho rho1
               delta2' = applyPatSubst rho3 delta2
               delta'  = delta1' `abstract` delta2'
