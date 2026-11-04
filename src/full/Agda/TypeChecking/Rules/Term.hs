@@ -21,6 +21,7 @@ import Agda.Syntax.Abstract (Binder, TypedBindingInfo (tbTacticAttr), unBind, bi
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
+import Agda.Syntax.Info ( MetaKind(InstanceMeta) )
 import Agda.Syntax.Concrete.Pretty () -- only Pretty instances
 import Agda.Syntax.Concrete (FieldAssignment'(..), nameFieldA, TacticAttribute'(..))
 import qualified Agda.Syntax.Concrete.Name as C
@@ -1340,7 +1341,8 @@ checkExpr' cmp e t =
           ]
     reportSDoc "tc.term.expr.top.detailed" 80 $
       "Checking" <+> fsep [ prettyTCM e, ":", text (show t) ]
-    tReduced <- reduce t
+    tReducedB <- reduceB t
+    let tReduced = ignoreBlocking tReducedB
     reportSDoc "tc.term.expr.top" 15 $
         "    --> " <+> prettyTCM tReduced
 
@@ -1352,7 +1354,7 @@ checkExpr' cmp e t =
         return $! fmap dontCare . applyModalityToContext mod
       _ -> return id
 
-    irrelevantIfProp $ tryInsertHiddenLambda e tReduced $ case e of
+    irrelevantIfProp $ tryInsertHiddenLambda e tReducedB $ case e of
 
         A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
 
@@ -1447,10 +1449,36 @@ checkExpr' cmp e t =
   -- else fallback.
   tryInsertHiddenLambda
     :: A.Expr
-    -> Type      -- Reduced.
+    -> Blocked Type  -- Reduced.
     -> TCM Term
     -> TCM Term
-  tryInsertHiddenLambda e tReduced fallback
+  tryInsertHiddenLambda e tReducedB fallback
+    -- Andreas & Claude, 2026-09-15, issue #8749 (a facet of #1079):
+    -- The expected type is blocked, so we cannot see whether a hidden lambda
+    -- needs to be inserted -- and the decision made here is irreversible.
+    -- If the head of the type could unfold to a hidden function type and the
+    -- only blockers are instance metas whose resolution has merely been
+    -- deferred by 'postponeInstanceConstraints', postpone the whole type
+    -- checking problem rather than guessing wrong.  It will be retried once
+    -- the instance is resolved, and then the type is in weak head normal form.
+    --
+    -- The 'couldBeHiddenPi' filter is essential for performance: types blocked
+    -- by an instance meta are pervasive in libraries that overload type
+    -- families through a class (e.g. TypeTopology's @Underlying.⟨_⟩@ and
+    -- @underlying-order@), and acting on all of them derails elaboration.
+    | Blocked blocker _ <- tReducedB
+    , not $ lambdaOrHole e
+    = do
+      let ms = allBlockingMetas blocker
+      expandHidden <- viewTC eExpandLast
+      ifNotM (pure (expandHidden /= ReallyDontExpandLast)
+                `and2M` couldBeHiddenPi tReduced
+                `and2M` allInstanceMetas ms)
+        fallback do
+          reportSDoc "tc.term.expr.impl" 15 $
+            "Postponing check against instance-blocked type" <+> prettyTCM tReduced
+          postponeTypeCheckingProblem (CheckExpr cmp e t) blocker
+
     -- Insert hidden lambda if all of the following conditions are met:
     -- type is a hidden function type, {x : A} -> B or {{x : A}} -> B
     -- expression is not a lambda with the appropriate hiding yet
@@ -1480,6 +1508,42 @@ checkExpr' cmp e t =
     | otherwise = fallback
 
     where
+    tReduced = ignoreBlocking tReducedB
+
+    lambdaOrHole = \case
+      A.AbsurdLam{}    -> True
+      A.ExtendedLam{}  -> True
+      A.Lam{}          -> True
+      A.QuestionMark{} -> True
+      A.Underscore{}   -> True
+      _                -> False
+
+    -- Cheap, purely syntactic over-approximation: can the (blocked) type
+    -- unfold to a hidden function type once its blockers are solved?
+    -- Data and record types, and record projections (whose value is whatever
+    -- the instance provides), are not worth speculating about.
+    couldBeHiddenPi = loop (4 :: Int) . unEl
+      where
+      loop n v
+        | n <= 0 = return False   -- out of budget: do not act
+        | otherwise = case v of
+            Pi dom _ -> return $ notVisible dom
+            Def f _  -> theDef <$> getConstInfo f >>= \case
+              Function{ funProjection = Right{} } -> return False
+              Function{ funClauses = cls } ->
+                orM [ loop (n - 1) b | Clause{ clauseBody = Just b } <- cls ]
+              _ -> return False
+            _ -> return False
+
+    -- Is the blocker exclusively made up of unsolved instance metas?
+    allInstanceMetas ms
+      | null ms = return False
+      | otherwise = andM $ map' isInstanceMeta $ Set.toList ms
+      where
+      isInstanceMeta m = lookupMetaInstantiation m <&> \case
+        OpenMeta InstanceMeta -> True
+        _ -> False
+
     re = getRange e
     rx = caseMaybe (rStart re) noRange $ \ pos -> posToRange pos pos
 
