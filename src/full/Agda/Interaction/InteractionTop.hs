@@ -1026,9 +1026,15 @@ give_gen
 give_gen force ii rng s0 giveRefine = do
   let s = trim s0
   reportSDoc "interaction.give" 20 $ TCP.text ("give_gen  " ++ s) TCP.<+> TCP.pretty rng
+  -- Issue #8858: the disambiguated names recorded while checking the
+  -- given expression have ranges inside the old goal.
+  -- They are only valid for the immediate highlighting below,
+  -- afterwards they are stale and would pollute later highlighting
+  -- (e.g. by @Cmd_highlight@).  Thus, we restore the old map at the end.
+  disambiguatedNames <- useTC stDisambiguatedNames
   -- Andreas, 2015-02-26 if string is empty do nothing rather
   -- than giving a parse error.
-  unless (null s) $ do
+  flip finally (setTCLens stDisambiguatedNames disambiguatedNames) $ unless (null s) $ do
     let give_ref =
           case giveRefine of
             Give               -> B.give

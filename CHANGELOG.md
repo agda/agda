@@ -928,6 +928,7 @@ For 2.9.0, the following issues were
 - [Issue #8808](https://github.com/agda/agda/issues/8808): Internal error during cubical boundary recovery
 - [Issue #8851](https://github.com/agda/agda/issues/8851): `unquoteDecl` panics when the macro does not `declareDef` at all
 - [Issue #8853](https://github.com/agda/agda/issues/8853): Internal error when using `withReconstructed`
+- [Issue #8888](https://github.com/agda/agda/issues/8888): `__IMPOSSIBLE__` reached with `--flat-split` and `--double-check`
 
 ### Other regressions
 
@@ -1078,7 +1079,9 @@ For 2.9.0, the following issues were
 - [Issue #8830](https://github.com/agda/agda/issues/8830): Instance resolution should not ignore available instances
 - [Issue #8841](https://github.com/agda/agda/issues/8841): Support Emacs 31
 - [Issue #8847](https://github.com/agda/agda/issues/8847): Instance search does not find unquoted definitions in instance blocks
-- [Issue #8875](https://github.com/agda/agda/issues/8875): Warn if one includes several version of the same library
+- [Issue #8858](https://github.com/agda/agda/issues/8858): `Cmd_highlight` after Give/Refine emits stale disambiguated names from `stDisambiguatedNames`
+- [Issue #8875](https://github.com/agda/agda/issues/8875): Warn if one includes several versions of the same library
+- [Issue #8881](https://github.com/agda/agda/issues/8881): Regression in 2.9.0-rc1 and 2.9.0-rc2: level meta left with only inequalities after instance search under a λ
 
 Pull requests merged for 2.9.0
 ------------------------------
@@ -1368,3 +1371,6 @@ Pull requests merged for 2.9.0
 - [PR #8869](https://github.com/agda/agda/issues/8869): Fix #8739: wrong implicit argument in LHS: also mention possible args
 - [PR #8870](https://github.com/agda/agda/issues/8870): Decide whether pi is large based on original codomain sort
 - [PR #8876](https://github.com/agda/agda/issues/8876): Fix #8875: warning to show dependency version conflicts
+- [PR #8880](https://github.com/agda/agda/issues/8880): Fix #8858 as suggested: don't persists DisambiguatedNames during give
+- [PR #8884](https://github.com/agda/agda/issues/8884): Fix #8881 by strengthening simplifyLevelConstraint
+- [PR #8890](https://github.com/agda/agda/issues/8890): Fix #8888: constructor patterns keep the modality of the constructor
