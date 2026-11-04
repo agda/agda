@@ -37,7 +37,7 @@ Running `cabal install`, `stack install`, or `make` from the repository root sho
 assuming you set up dependencies correctly (see "Troubleshooting Cabal").
 
 When building Agda for development or testing, run `cabal` with `-fdebug` flag
-`stack` with `Agda:debug`. This keeps debug-verbosity output available and
+`stack` with `--flag Agda:debug`. This keeps debug-verbosity output available and
 avoids misleading interaction-test golden diffs.
 
 For a faster build time but much slower run-time, you can run `cabal` with
