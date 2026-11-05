@@ -103,3 +103,61 @@ record VariableNamedLikeLaterField (A : Set) : Set₁ where
 
   field
     b : Set
+
+-- Wildcard patterns have different names in the two passes.
+
+record Wildcard (A : Set) : Set₁ where
+  field
+    a : A
+
+  foo : A → Set
+  foo _ = {!!}
+
+  baz : Set → Set₁
+  baz _ = Set → {!!}
+
+  qux : {x : A} → A → Set
+  qux _ = {!!}
+
+  hid : {x : A} → Set
+  hid {_} = {!!}
+
+  mid : A → {b : A} → A → Set
+  mid x _ = {!!}
+
+  lam : A → Set
+  lam = λ _ → {!!}
+
+  field
+    bar : Set
+
+-- The record is abstract, without and with fields before the hole.
+
+abstract
+
+  record Abstract : Set₁ where
+    foo : Set
+    foo = {!!}
+
+    field
+      bar : Set
+
+  record AbstractField : Set₁ where
+    field
+      bar : Set
+
+    foo : Set
+    foo = {!!}
+
+    field
+      baz : Set
+
+  T : Set₁
+  T = {b : Set} → Set
+
+  record AbstractHidden : Set₁ where
+    foo : T
+    foo = {!!}
+
+    field
+      bar : Set

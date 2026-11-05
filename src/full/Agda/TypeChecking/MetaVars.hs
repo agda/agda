@@ -490,7 +490,7 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
         -- Get the record type and its fields.
         let t = unDom $ ctxEntryDom $ fromMaybe __IMPOSSIBLE__ $
                 cxLookup k delta
-        allFields <- getRecordTypeFields t
+        allFields <- ignoreAbstractMode $ getRecordTypeFields t
         -- Find out the Δ₂ and Γ₁ parts.
         -- However, as they do not share common ancestry, the @nameId@s differ,
         -- so we consider only the original concrete names in gys and dys.
@@ -521,7 +521,11 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
             ]
           __IMPOSSIBLE__
         -- The Γ₁ part should match.
-        unless ( d2len >= 0 && ((==) `on` take' g1len) gys (drop d2len dys) ) $ do
+        -- A wildcard pattern gets a generated name in the telescope for the
+        -- record constructor, but a different name in the record module.
+        let isGenerated x = patternInTeleName `List.isPrefixOf` prettyShow (nameConcrete x)
+        let sameBinder x y = isGenerated x || isGenerated y || ((==) `on` nameCanonical) x y
+        unless ( d2len >= 0 && and (zipWith sameBinder (take' g1len gxs) (drop d2len dxs)) ) $ do
           reportSDoc "impossible" 10 $ vcat
             [ "expecting meta-creation context (with fields instead of record var)"
             , nest 2 $ pretty gxs
