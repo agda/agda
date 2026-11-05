@@ -1,7 +1,7 @@
 -- Andreas, 2016-10-14, issue #2257, reported by m0davis
 -- Bisected by Nisse.
 
-{-# OPTIONS --allow-unsolved-metas #-}
+{-# OPTIONS --allow-unsolved-metas --double-check #-}
 
 -- {-# OPTIONS -v tc.ip:20 #-}
 -- {-# OPTIONS -v tc:20 #-}

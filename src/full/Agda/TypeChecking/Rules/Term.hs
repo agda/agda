@@ -164,47 +164,6 @@ isType_ e = traceCall (IsType_ e) $ do
       applyRelevanceToContext shapeIrrelevant $
         sort . Univ u <$> checkLevel arg
 
-    -- Issue #707: Check an existing interaction point
-    A.QuestionMark minfo ii -> caseMaybeM (lookupInteractionMeta ii) fallback $ \ x -> do
-      -- -- | Just x <- A.metaNumber minfo -> do
-      reportSDoc "tc.ip" 20 $ fsep
-        [ "Rechecking meta "
-        , prettyTCM x
-        , text $ " for interaction point " ++! show ii
-        ]
-      mv <- lookupLocalMeta x
-      let s0 = jMetaType . mvJudgement $ mv
-      -- Andreas, 2016-10-14, issue #2257
-      -- The meta was created in a context of length @n@.
-      let n  = length . view eContext . clEnv . miClosRange . mvInfo $ mv
-      (vs, rest) <- splitAt' n <$> getContextArgs
-
-      let oldCxtNames = map' nameCanonical $ contextNames' $ view eContext
-                      $ clEnv $ miClosRange $ mvInfo $ mv
-
-      newCxtNames <- map' nameCanonical <$> getContextNames'
-
-      reportSDoc "tc.ip" 20 $ vcat
-        [ "  s0   = " <+> prettyTCM s0
-        , "  vs   = " <+> prettyTCM vs
-        , "  rest = " <+> prettyTCM rest
-        , "  oldCxtNames = " <+> prettyTCM oldCxtNames
-        , "  newCxtNames = " <+> prettyTCM newCxtNames
-        ]
-      -- We assume the meta variable use here is in an extension of the original context.
-      -- If not we revert to the old buggy behavior of #707 (see test/Succeed/Issue2257b).
-      if (not $ List.isPrefixOf oldCxtNames newCxtNames) then fallback else do
-      s1  <- reduce =<< piApplyM s0 vs
-      reportSDoc "tc.ip" 20 $ vcat
-        [ "  s1   = " <+> prettyTCM s1
-        ]
-      reportSDoc "tc.ip" 70 $ vcat
-        [ "  s1   = " <+> text (show s1)
-        ]
-      case unEl s1 of
-        Sort s -> return $! El s $! MetaV x $! map' Apply vs
-        _ -> __IMPOSSIBLE__
-
     _ -> fallback
 
 checkLevel :: NamedArg A.Expr -> TCM Level
