@@ -542,6 +542,11 @@ data Declaration
   = TypeSig ArgInfo TacticAttribute Name Expr
       -- ^ Axioms and functions can be irrelevant. ('Hiding' should be 'NotHidden')
       --   'TacticAttribute' makes only sense in 'Generalize' blocks.
+  | FunSigP ArgInfo TacticAttribute Name Parameters Expr
+      -- ^ Function type signature with definition parameters.
+      --   Kept separate from 'TypeSig' as a minimal extension:
+      --   'TypeSig' remains the generic plain-signature node reused by
+      --   axiom-like blocks, while 'FunSigP' marks the new function-only syntax.
   | FieldSig IsInstance TacticAttribute Name (Arg Expr)
   | Generalize KwRange [TypeSignature] -- ^ Variables to be generalized, can be hidden and/or irrelevant.
   | Field KwRange [FieldSignature]
@@ -616,6 +621,7 @@ isPragma = \case
     Record _ _ _ _ _ _ _    -> empty
     RecordDef _ _ _ _ _     -> empty
     TypeSig _ _ _ _         -> empty
+    FunSigP _ _ _ _ _       -> empty
     FieldSig _ _ _ _        -> empty
     Generalize _ _          -> empty
     Field _ _               -> empty
@@ -1056,6 +1062,7 @@ instance HasRange RecordDirective where
 
 instance HasRange Declaration where
   getRange (TypeSig _ _ x t)       = fuseRange x t
+  getRange (FunSigP ai _ x ps t)   = ai `fuseRange` x `fuseRange` ps `fuseRange` t
   getRange (FieldSig _ _ x t)      = fuseRange x t
   getRange (Field kwr ds)          = fuseRange kwr ds
   getRange (FunClause ai lhs rhs wh _) = ai `fuseRange` lhs `fuseRange` rhs `fuseRange` wh
@@ -1215,6 +1222,7 @@ instance KillRange RecordDirective where
 
 instance KillRange Declaration where
   killRange (TypeSig ai t n e)      = killRangeN TypeSig ai t n e
+  killRange (FunSigP ai t n ps e)   = killRangeN FunSigP ai t n ps e
   killRange (FieldSig i t n e)      = killRangeN FieldSig i t n e
   killRange (Generalize r ds )      = killRangeN (Generalize empty) ds
   killRange (Field r fs)            = killRangeN (Field empty) fs
@@ -1445,6 +1453,7 @@ instance NFData RecordDirective where
 
 instance NFData Declaration where
   rnf (TypeSig a b c d)       = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (FunSigP a b c d e)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
   rnf (FieldSig a b c d)      = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (Generalize _ a)        = rnf a
   rnf (Field _ fs)            = rnf fs

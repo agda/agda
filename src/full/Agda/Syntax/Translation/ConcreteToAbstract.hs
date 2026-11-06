@@ -190,8 +190,8 @@ recordConstructorType decls =
         -- Do some rudimentary matching here to get NotValidBeforeField instead
         -- of NotAValidLetDecl.
         C.NiceMutual _ _ _ _
-          ( C.FunSig _ _ _ _ macro _ _ _ _ _
-          :| [ C.FunDef _ _ abstract _ _ _ _
+          ( C.FunSig _ _ _ _ macro _ _ _ _ _ _
+          :| [ C.FunDef _ _ abstract _ _ _ _ _
              (C.Clause _ _ _ (C.LHS _p [] []) (C.RHS _) NoWhere [] :| [])
           ]) | abstract /= AbstractDef && macro /= MacroDef -> do
           mkLet d
@@ -846,7 +846,7 @@ scopeCheckExtendedLam r e cs = do
   -- Andreas, 2019-08-20
   -- Keep the following __IMPOSSIBLE__, which is triggered by -v scope.decl.trace:80,
   -- for testing issue #4016.
-  d <- C.FunDef r __IMPOSSIBLE__ a NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ cname <$> do
+  d <- C.FunDef r __IMPOSSIBLE__ a NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ cname [] <$> do
           forM cs $ \ (LamClause ps rhs ca) -> do
             let p   = C.rawAppP $
                         killRange (IdentP True $ C.QName cname) :| ps
@@ -856,7 +856,7 @@ scopeCheckExtendedLam r e cs = do
 
   -- Create the abstract syntax for the extended lambda.
   case scdef of
-    A.ScopedDecl si (A.FunDef di qname' cs :| []) -> do
+    A.ScopedDecl si (A.FunDef di qname' _ cs :| []) -> do
       setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
       return $
         A.ExtendedLam (ExprRange r) di e qname' cs
@@ -1530,19 +1530,43 @@ checkLetDefInfo wh access macro abstract = do
       | wh == ExprLetDef -> scopeWarning (UselessPrivate rng)
     _ -> pure ()
 
+-- Definition parameters cannot refer to generalizable variables, even when
+-- the signature occurs inside another expression being generalized. Restore
+-- the collector before checking the result so its generalization stays inside
+-- the parameter prefix.
+scopeCheckFunctionParameters :: Range -> C.Parameters -> ScopeM A.Telescope
+scopeCheckFunctionParameters r ps =
+  locallyTCState stGeneralizedVars (const Nothing) $
+    catMaybes <$> toAbstract (parametersToTelescope r ps)
+
+scopeCheckFunctionType :: Range -> C.Parameters -> C.Expr -> ScopeM A.Expr
+scopeCheckFunctionType _ [] t = toAbstractCtx TopCtx t
+scopeCheckFunctionType r ps t = localScope $ do
+  lvars0 <- getLocalVars
+  ps' <- scopeCheckFunctionParameters r ps
+  lvars1 <- getLocalVars
+  checkNoShadowing lvars0 lvars1
+  A.mkPi (ExprRange $ fuseRange ps t) ps' <$> toAbstractCtx TopCtx t
+
+abstractOverParameters :: [A.TypedBinding] -> A.Expr -> A.Expr
+abstractOverParameters bs e0 =
+  foldr (\ b e -> A.Lam (ExprRange $ fuseRange b e) (A.DomainFull b) e) e0 bs
+
 scopeCheckLetDef :: LetDefOrigin -> NiceDeclaration -> ScopeM (List1 A.LetBinding)
 scopeCheckLetDef wh d = setCurrentRange d do
   case d of
-    NiceMutual _ _ _ _ d@(C.FunSig _ access _ instanc macro info _ _ x t :| [C.FunDef _ _ abstract _ _ _ _ (cl :| [])]) -> do
+    NiceMutual _ _ _ _ d@(C.FunSig _ access _ instanc macro info _ _ x ps t :| [C.FunDef _ _ abstract _ _ _ _ _ (cl :| [])]) -> do
       checkLetDefInfo wh access macro abstract
 
-      t <- toAbstract t
-      -- We bind the name here to make sure it's in scope for the LHS (#917).
-      -- It's unbound for the RHS in letToAbstract.
+      t <- if null ps then toAbstract t else scopeCheckFunctionType (getRange d) ps t
+      -- Bind the function name for the LHS (#917); letToAbstract unbinds
+      -- it while checking the non-recursive RHS.
       fx <- getConcreteFixity x
-
-      x <- A.unBind <$> toAbstract (NewName LetBound $ mkBoundName x fx)
-      (x', e) <- letToAbstract cl
+      x  <- A.unBind <$> toAbstract (NewName LetBound $ mkBoundName x fx)
+      (x', e) <- localScope $ do
+        ps' <- scopeCheckFunctionParameters (getRange d) ps
+        (x', e) <- letToAbstract cl
+        pure (x', abstractOverParameters ps' e)
 
       -- There are sometimes two instances of the let-bound variable,
       -- one declaration and one definition (see issue #1618).
@@ -1610,8 +1634,8 @@ scopeCheckLetDef wh d = setCurrentRange d do
             Nothing -> throwError err
             Just x  -> scopeCheckLetDef wh $ NiceMutual empty tc cc YesPositivityCheck
               (C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef
-                  info tc cc x (C.Underscore (getRange x) Nothing)
-              :| [ C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
+                  info tc cc x [] (C.Underscore (getRange x) Nothing)
+              :| [ C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__ []
                 $ singleton $ C.Clause x (ca <> catchall) ai lhs (C.RHS rhs) NoWhere []
               ])
               where info = setOrigin Inserted ai
@@ -1839,15 +1863,19 @@ instance ToAbstract NiceDeclaration where
         return $ A.Mutual (MutualInfo tc cc pc (fuseRange kwr ds)) ds'
 
   -- Type signatures
-    C.FunSig r p a i m rel _ _ x t -> do
+    C.FunSig r p a i m rel _ _ x ps t -> do
         let kind = if m == MacroDef then MacroName else FunName
-        singleton . snd <$> toAbstractNiceAxiom kind (C.Axiom r p a i rel x t)
+        singleton . snd <$> toAbstractNiceAxiomWith (scopeCheckFunctionType r ps)
+          kind (C.Axiom r p a i rel x t)
 
   -- Function definitions
-    C.FunDef r ds a i _ _ x cs -> do
+    C.FunDef r ds a i _ _ x ps cs -> do
         printLocals 30 $ "checking def " ++ prettyShow x
         x' <- toAbstractOldName x
-        cs <- toAbstract cs
+        (ps', cs) <- withLocalVars $ do
+          ps' <- scopeCheckFunctionParameters r ps
+          cs  <- toAbstract cs
+          pure (ps', cs)
         -- Andreas, 2017-12-04 the name must reside in the current module
         unlessM ((A.qnameModule x' ==) <$> getCurrentModule) $
           __IMPOSSIBLE__
@@ -1855,7 +1883,7 @@ instance ToAbstract NiceDeclaration where
 
         unfoldFunction x'
         di <- updateDefInfoOpacity (mkDefInfoInstance x f PublicAccess a i NotMacroDef r)
-        return $ singleton $ A.FunDef di x' cs
+        return $ singleton $ A.FunDef di x' ps' cs
 
   -- Uncategorized function clauses
     C.NiceFunClause _ _ _ _ _ _ (C.FunClause _ lhs _ _ _) ->
@@ -2534,7 +2562,12 @@ scopeCheckImport r x as open dir =
 
 -- | Checking postulate or type sig. without checking safe flag.
 toAbstractNiceAxiom :: KindOfName -> C.NiceDeclaration -> ScopeM (A.QName, A.Declaration)
-toAbstractNiceAxiom kind (C.Axiom r p a i info x t) = do
+toAbstractNiceAxiom = toAbstractNiceAxiomWith (toAbstractCtx TopCtx)
+
+toAbstractNiceAxiomWith
+  :: (C.Expr -> ScopeM A.Expr)
+  -> KindOfName -> C.NiceDeclaration -> ScopeM (A.QName, A.Declaration)
+toAbstractNiceAxiomWith checkType kind (C.Axiom r p a i info x t) = do
   -- Amy, 2025-05-04, issue 7856: type signatures (more
   -- importantly extended lambdas within them) should not belong
   -- to opaque blocks
@@ -2542,7 +2575,7 @@ toAbstractNiceAxiom kind (C.Axiom r p a i info x t) = do
   -- Note that only scope checking the type happens outside the
   -- block since a bit below we need the proper opaque id to
   -- possibly update the info.
-  t' <- notUnderOpaque $ toAbstractCtx TopCtx t
+  t' <- notUnderOpaque $ checkType t
 
   f  <- getConcreteFixity x
   mp <- getConcretePolarity x
@@ -2552,7 +2585,7 @@ toAbstractNiceAxiom kind (C.Axiom r p a i info x t) = do
   bindName' p kind (instanceMetadata i) x y
   definfo <- updateDefInfoOpacity $ mkDefInfoInstance x f p a i isMacro r
   return (y, A.Axiom kind definfo info mp y t')
-toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
+toAbstractNiceAxiomWith _ _ _ = __IMPOSSIBLE__
 
 -- | Check that the name is allowed to be postulated: either we are in a
 -- builtin module, we are not in safe mode, or the axiom comes from a

@@ -386,6 +386,12 @@ instance Pretty Declaration where
               prettyQuantity i $ prettyPolarity i $ pretty x <+> colon
           , nest 2 $ pretty e
           ]
+    FunSigP i tac x ps e ->
+      sep [ prettyTactic' tac $
+              prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ prettyPolarity i $
+                fsep (pretty x : map pretty ps) <+> colon
+          , nest 2 $ pretty e
+          ]
     FieldSig inst tac x (Arg i e) ->
       mkInst inst $ mkOverlap i $
       -- We print relevance before hiding, need to clear it before printing the rest of the attributes with TypeSig.

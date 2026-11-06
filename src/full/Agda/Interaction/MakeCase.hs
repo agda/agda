@@ -163,7 +163,9 @@ parseVariables f cxt asb ii rng ss = do
       -- Case 1c: the variable is bound locally (e.g. a record let)
       (Nothing        , PatternBound _) -> failCaseLet s
       -- Case 1d: module parameter
-      (Just (Var i []), LambdaBound ) -> failModuleBound s
+      (Just (Var i []), LambdaBound )
+        | isParam i -> failModuleBound s
+        | otherwise -> failDefinitionBound s
       -- Case 1e: locally lambda-bound variable
       (_              , LambdaBound ) -> failLocal s
       -- Case 1f: let-bound variable
@@ -199,6 +201,8 @@ parseVariables f cxt asb ii rng ss = do
     "Cannot split on local variable " ++ s
   failHiddenLocal s = interactionError $ CaseSplitError $ P.text $
     "Cannot make hidden lambda-bound variable " ++ s ++ " visible"
+  failDefinitionBound s = interactionError $ CaseSplitError $ P.text $
+    "Cannot split on definition parameter " ++ s
   failModuleBound s = interactionError $ CaseSplitError $ P.text $
     "Cannot split on module parameter " ++ s
   failHiddenModuleBound s = interactionError $ CaseSplitError $ P.text $

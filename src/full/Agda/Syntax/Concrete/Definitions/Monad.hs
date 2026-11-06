@@ -18,7 +18,7 @@ import Data.Maybe (catMaybes)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (TerminationCheck())
-import Agda.Syntax.Concrete ( WhereClause_ )
+import Agda.Syntax.Concrete ( Parameters, WhereClause_ )
 import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Concrete.Definitions.Types
 import Agda.Syntax.Concrete.Definitions.Errors
@@ -191,12 +191,12 @@ breakImplicitMutualBlock r why = do
       -- Andreas, 2023-09-07: We discard the 'loneSigRange's because the 'Name' already has a range.
       fmap loneSigName xs
 
--- | Get names of lone function signatures, plus their unique names.
+-- | Get names of lone function signatures, plus their unique names and definition parameters.
 
-loneFuns :: LoneSigs -> [(Name, Arg Name)]
+loneFuns :: LoneSigs -> [(Name, Arg Name, Parameters)]
 loneFuns ls = catMaybes $
    Map.toList ls <&> \case
-    (x, LoneSig _ x' (FunName ai _ _)) -> Just (x, Arg ai x')
+    (x, LoneSig _ x' (FunName ai _ _ ps)) -> Just (x, Arg ai x', ps)
     _ -> Nothing
 
 -- | Create a 'LoneSigs' map from an association list.

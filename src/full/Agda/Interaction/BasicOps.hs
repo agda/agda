@@ -488,7 +488,7 @@ instance Reify Constraint where
   reify (ResolveInstanceHead kwr q) = return $ ResolveInstanceOF q
   reify (IsEmpty r a) = IsEmptyType <$> reify (unDom a)
   reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
-  reify (CheckFunDef i q cs err) = do
+  reify (CheckFunDef i q _ cs err) = do
     a <- reify =<< defType <$> getConstInfo q
     return $ PostponedCheckFunDef q a err
   reify (HasBiggerSort a) = OfType <$> reify a <*> reify (UnivSort a)
