@@ -23,6 +23,8 @@ import Data.Foldable (toList)
 import qualified Data.IntMap.Strict as IntMap
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
+import Data.IORef ( readIORef, modifyIORef' )
+import Control.Monad.IO.Class ( liftIO )
 import Data.Monoid hiding ((<>))
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -54,6 +56,7 @@ import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull, appDefE0)
 import Agda.TypeChecking.SizedTypes
+import Agda.TypeChecking.SizedTypes.SemiContinuity ( admissibleForSizeRecursion )
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
@@ -299,7 +302,8 @@ termMutual' = do
 
     TerminatesNot guardednessHelps calls -> do
       mapM_ (`setTerminates` Just False) allNames
-      return $ singleton $ terminationError names calls guardednessHelps
+      inadms <- terGetInadmissibleSizes
+      return $ singleton $ terminationError names calls guardednessHelps inadms
 
     Terminates -> do
       liftTCM $ reportSLn "term.warn.yes" 2 $
@@ -309,8 +313,8 @@ termMutual' = do
 
 -- | Smart constructor for 'TerminationError'.
 --   Removes 'termErrFunctions' that are not mentioned in 'termErrCalls'.
-terminationError :: Set QName -> CallPath -> GuardednessHelps -> TerminationError
-terminationError names calls guardednessHelps = TerminationError names' calls' guardednessHelps
+terminationError :: Set QName -> CallPath -> GuardednessHelps -> [InadmissibleSize] -> TerminationError
+terminationError names calls guardednessHelps inadms = TerminationError names' calls' guardednessHelps inadms
   where
   calls'    = callInfos calls
   mentioned = map' callInfoTarget calls'
@@ -448,7 +452,8 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
 
           -- Functions must terminate, so we report the error.
           _ -> do
-            let err = TerminationError [name | name `elem` names] calls guardednessHelps
+            inadms <- terGetInadmissibleSizes
+            let err = TerminationError [name | name `elem` names] calls guardednessHelps inadms
             return $ singleton err
 
       Terminates -> do
@@ -739,10 +744,10 @@ termClause clause = do
     , nest 2 $ "tel =" <+> prettyTCM tel
     , nest 2 $ "ps  =" <+> do addContext tel $ prettyTCMPatternList ps
     ]
+  f    <- terGetCurrent
+  path <- liftTCM $ mapM getOriginalProjection $
+            mapMaybe (fmap (headAmbQ . snd) . isProjP . namedArg) ps
   maskArgs <- do
-    f    <- terGetCurrent
-    path <- liftTCM $ mapM getOriginalProjection $
-              mapMaybe (fmap (headAmbQ . snd) . isProjP . namedArg) ps
     modeMasks <- terGetProjectedNameToMaskArgs
     case Map.lookup (f, path) modeMasks of
       Just m  -> return m
@@ -750,7 +755,10 @@ termClause clause = do
   terSetMaskArgs maskArgs $ forM' body $ \ v -> addContext tel $ do
     -- TODO: combine the following two traversals, avoid full normalisation.
     -- Parse dot patterns as patterns as far as possible.
+    let ps0 = ps
     ps <- postTraversePatternM parseDotP ps
+    -- Issue #8829: successor patterns in sizes only count if the type is admissible.
+    ps <- revertInadmissibleSizeSuc f path ps0 ps
     -- Blank out coconstructors.
     ps <- preTraversePatternM stripCoCon ps
     -- Mask non-data arguments.
@@ -780,6 +788,91 @@ termClause clause = do
             , nest 2 $ "rhs:" <+> prettyTCM v
             ]
 
+
+-- | Issue #8829: A dot pattern @.(↑ j)@ in a size argument of function @f@
+--   is turned into a constructor-like pattern by 'termToPattern',
+--   providing termination evidence for calls with argument @j@.
+--   This is only sound if the type of @f@ is admissible for recursion on this size,
+--   i.e., upper semi-continuous in the size.
+--   Otherwise, we revert these patterns to dot patterns.
+--
+--   The admissibility check is only invoked if there is such a successor pattern.
+--   It is not needed for sizes in @Size<@ style, as these do not lead to successor patterns.
+revertInadmissibleSizeSuc
+  :: QName                     -- ^ The function @f@.
+  -> [QName]                   -- ^ The projection path of the clause.
+  -> NAPs                      -- ^ Original patterns of the clause.
+  -> NAPs                      -- ^ Patterns after parsing dot patterns ('parseDotP').
+  -> TerM NAPs
+revertInadmissibleSizeSuc f path ps0 ps = do
+  suc <- terGetSizeSuc
+  let
+    isSuc p = case namedArg p of
+      ConP c _ _ -> Just (conName c) == suc
+      _ -> False
+    slots = [ k | (k, p) <- zip [0..] ps, isSuc p ]
+  if null slots then return ps else do
+    bad <- filterM (fmap not . sizeSucAdmissible f path ps0) slots
+    return $ zipWith3 (\ k p0 p -> if k `elem` bad then p0 else p) [0..] ps0 ps
+
+-- | Is a successor pattern at the given argument position (counting projection patterns)
+--   of a clause of function @f@ admissible as termination evidence?
+--   Results are cached in 'terSizeSucVerdicts'.
+sizeSucAdmissible :: QName -> [QName] -> NAPs -> Int -> TerM Bool
+sizeSucAdmissible f path ps k = do
+  cache <- fromMaybe __IMPOSSIBLE__ <$> terAsks terSizeSucVerdicts
+  let key = (f, path, k)
+  verdict <- caseMaybeM (Map.lookup key <$> liftIO (readIORef cache)) (do
+      v <- liftTCM $ inTopContext $ do
+        reportSDoc "term.size.semicont" 10 $ vcat
+          [ "checking admissibility of type of" <+> prettyTCM f
+          , "for successor patterns in argument" <+> text (show k)
+          ]
+        t <- defType <$> getConstInfo f
+        walk t ps k
+      liftIO $ modifyIORef' cache $ Map.insert key v
+      return v)
+    {-just-} return
+  return $ case verdict of
+    SizeSucAdmissible     -> True
+    SizeSucInadmissible{} -> False
+  where
+  -- Find the type at position k, following the patterns.
+  walk :: Type -> NAPs -> Int -> TCM SizeSucVerdict
+  walk t ps k = do
+    t <- reduce t
+    case (ps, unEl t) of
+      (p : ps, _) | ProjP _ q <- namedArg p ->
+        getDefType q t >>= \case
+          Just projTy -> reduce projTy >>= \case
+            El _ (Pi a b) -> underAbstractionAbs a b $ \ t -> walk t ps (k - 1)
+            _ -> giveUp
+          Nothing -> giveUp
+      (_ : _, Pi a b)
+        | k == 0 -> do
+            r <- underAbstractionAbs a b admissibleForSizeRecursion
+            reportSDoc "term.size.semicont" 10 $
+              "admissible:" <+> text (show $ isNothing r)
+            return $ maybe SizeSucAdmissible (SizeSucInadmissible . Just) r
+        | otherwise -> underAbstractionAbs a b $ \ t -> walk t (drop 1 ps) (k - 1)
+      _ -> giveUp
+  giveUp = return $ SizeSucInadmissible Nothing
+
+-- | Collect the reasons for inadmissible successor patterns.
+terGetInadmissibleSizes :: TerM [InadmissibleSize]
+terGetInadmissibleSizes = terAsks terSizeSucVerdicts >>= \case
+  Nothing -> return []
+  Just cache -> do
+    m <- liftIO $ readIORef cache
+    -- Report with-functions under the name of their parent function.
+    xs <- liftTCM $ forM [ (f, cl) | ((f, _, _), SizeSucInadmissible (Just cl)) <- Map.toList m ] $
+      \ (f, cl) -> (`InadmissibleSize` cl) <$> parentFunction f
+    return $ nubOn inadmFunction xs
+  where
+  parentFunction :: QName -> TCM QName
+  parentFunction f = theDef <$> getConstInfo f >>= \case
+    Function{ funWith = WithFunction g } -> parentFunction g
+    _ -> return f
 
 -- | Extract recursive calls from expressions.
 class ExtractCalls a where

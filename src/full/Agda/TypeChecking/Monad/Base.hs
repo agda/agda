@@ -5643,7 +5643,32 @@ data TerminationError = TerminationError
     -- ^ The problematic call sites.
   , termErrGuardednessHelps :: GuardednessHelps
     -- ^ Is the termination error resolved by activating @--guardedness@?
+  , termErrInadmissibleSizes :: [InadmissibleSize]
+    -- ^ Size arguments whose successor patterns could not be used
+    --   as termination evidence (issue #8829).
   } deriving (Show, Generic)
+
+-- | A size argument of a function whose successor patterns (@.(↑ j)@)
+--   could not be used as termination evidence because the type of the
+--   function is not admissible for recursion on this size,
+--   i.e., not upper semi-continuous in the size (issue #8829).
+data InadmissibleSize = InadmissibleSize
+  { inadmFunction :: QName
+    -- ^ The function.
+  , inadmReason   :: Closure SemiContinuityFailure
+    -- ^ Why the type of the function is not admissible.
+    --   The size variable is in the context of the closure.
+  } deriving (Show, Generic)
+
+-- | Why a type is not semi-continuous in a size variable.
+data SemiContinuityFailure
+  = NotLowerSemiContinuous Term Type
+      -- ^ The given size variable, and the argument type which is
+      --   not lower semi-continuous in it.
+  | NotUpperSemiContinuous Term Type
+      -- ^ The given size variable, and the result type which is
+      --   not upper semi-continuous in it.
+  deriving (Show, Generic)
 
 -- | Error when splitting a pattern variable into possible constructor patterns.
 data SplitError
@@ -7544,6 +7569,8 @@ instance NFData RecordFieldWarning
 instance NFData TCWarning
 instance NFData CallInfo
 instance NFData TerminationError
+instance NFData InadmissibleSize
+instance NFData SemiContinuityFailure
 instance NFData SplitError
 instance NFData NegativeUnification
 instance NFData UnificationFailure
