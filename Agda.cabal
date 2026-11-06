@@ -749,6 +749,7 @@ library
       Agda.Termination.Monad
       Agda.Termination.Order
       Agda.Termination.RecCheck
+      Agda.Termination.SizedTypes
       Agda.Termination.Semiring
       Agda.Termination.SparseMatrix
       Agda.Termination.TermCheck
