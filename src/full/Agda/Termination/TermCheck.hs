@@ -23,8 +23,6 @@ import Data.Foldable (toList)
 import qualified Data.IntMap.Strict as IntMap
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
-import Data.IORef ( readIORef, modifyIORef' )
-import Control.Monad.IO.Class ( liftIO )
 import Data.Monoid hiding ((<>))
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -220,6 +218,8 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
            }
      -- Pre-compute the copattern projection lists and assign node ids, per issue #8596.
      (projectedNameToNode, nodeToName, nameToProjections, projectedNameToMaskArgs) <- buildNodeAndProjectionMaps allNames
+     -- Pre-compute the admissibility of successor patterns in sizes, per issue #8829.
+     sizeSucVerdicts <- buildSizeSucVerdicts allNames
      let runTerm cont = runTerDefault $ do
            cutoff <- terGetCutOff
            reportSLn "term.top" 10 $ "Termination checking " ++ prettyShow namesSCC ++
@@ -228,6 +228,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
              terSetNodeToName nodeToName $
              terSetNameToProjections nameToProjections $
              terSetProjectedNameToMaskArgs projectedNameToMaskArgs $
+             terSetSizeSucVerdicts sizeSucVerdicts $
              terLocal setNames cont
 
      -- New check currently only makes a difference for copatterns and record types.
@@ -653,7 +654,7 @@ class TermToPattern a b where
 
 instance TermToPattern Term DeBruijnPattern where
   termToPattern t = do
-    t <- constructorForm =<< reduce t
+    t <- reduceDotPatternTerm t
     let
       -- Andrea: 22/04/2020.
       -- With cubical we will always have a clause where the dot
@@ -812,30 +813,75 @@ revertInadmissibleSizeSuc f path ps0 ps = do
       _ -> False
     slots = [ k | (k, p) <- zip [0..] ps, isSuc p ]
   if null slots then return ps else do
-    bad <- filterM (fmap not . sizeSucAdmissible f path ps0) slots
+    bad <- filterM (fmap not . sizeSucAdmissible f path) slots
     return $ zipWith3 (\ k p0 p -> if k `elem` bad then p0 else p) [0..] ps0 ps
 
 -- | Is a successor pattern at the given argument position (counting projection patterns)
 --   of a clause of function @f@ admissible as termination evidence?
---   Results are cached in 'terSizeSucVerdicts'.
-sizeSucAdmissible :: QName -> [QName] -> NAPs -> Int -> TerM Bool
-sizeSucAdmissible f path ps k = do
-  cache <- fromMaybe __IMPOSSIBLE__ <$> terAsks terSizeSucVerdicts
-  let key = (f, path, k)
-  verdict <- caseMaybeM (Map.lookup key <$> liftIO (readIORef cache)) (do
-      v <- liftTCM $ inTopContext $ do
-        reportSDoc "term.size.semicont" 10 $ vcat
-          [ "checking admissibility of type of" <+> prettyTCM f
-          , "for successor patterns in argument" <+> text (show k)
-          ]
-        t <- defType <$> getConstInfo f
-        walk t ps k
-      liftIO $ modifyIORef' cache $ Map.insert key v
-      return v)
-    {-just-} return
-  return $ case verdict of
-    SizeSucAdmissible     -> True
-    SizeSucInadmissible{} -> False
+--   Looks up the verdict precomputed by 'buildSizeSucVerdicts'.
+--   A missing verdict counts as inadmissible.
+sizeSucAdmissible :: QName -> [QName] -> Int -> TerM Bool
+sizeSucAdmissible f path k = do
+  Map.lookup (f, path, k) <$> terGetSizeSucVerdicts >>= \case
+    Just SizeSucAdmissible     -> return True
+    Just SizeSucInadmissible{} -> return False
+    Nothing -> do
+      reportSDoc "term.size.semicont" 10 $
+        "no precomputed verdict for successor pattern in argument" <+> text (show k) <+>
+        "of" <+> prettyTCM f <+> "(treating as inadmissible)"
+      return False
+
+-- | Issue #8829: Precompute, for the functions of a mutual block,
+--   the admissibility of successor patterns (see 'revertInadmissibleSizeSuc').
+--
+--   Only argument positions in which a clause has a dot pattern @.(↑ j)@
+--   are checked, and only if sized types are enabled.
+--   The detection of these dot patterns ('isSizeSucDotPattern') must agree
+--   with 'termToPattern', otherwise we lose precision (but not soundness).
+buildSizeSucVerdicts :: Set QName -> TCM SizeSucVerdicts
+buildSizeSucVerdicts allNames = sizeSucName >>= \case
+  Nothing  -> return Map.empty
+  Just suc -> Map.fromList . concat <$> do
+    forM (Set.toList allNames) $ \ f -> inConcreteOrAbstractMode f \ def -> do
+      -- Collect the successor slots of all clauses.
+      slots <- forM (defClauses def) $ \ cl -> do
+        let ps = namedClausePats cl
+        path <- mapM getOriginalProjection $
+          mapMaybe (fmap (headAmbQ . snd) . isProjP . namedArg) ps
+        ks <- addContext (clauseTel cl) $
+          map fst <$> filterM (isSizeSucDotPattern suc . namedArg . snd) (zip [0..] ps)
+        return [ ((path, k), ps) | k <- ks ]
+      -- Check each slot once.
+      forM (nubOn fst $ concat slots) $ \ ((path, k), ps) ->
+        ((f, path, k),) <$> inTopContext (sizeSucVerdict f ps k)
+  where
+  isSizeSucDotPattern :: QName -> DeBruijnPattern -> TCM Bool
+  isSizeSucDotPattern suc = \case
+    DotP _ t -> isSizeSucApp suc <$> reduceDotPatternTerm t
+    _ -> return False
+
+-- | Reduce the term of a dot pattern for conversion into a pattern.
+reduceDotPatternTerm :: (MonadReduce m, HasBuiltins m) => Term -> m Term
+reduceDotPatternTerm t = constructorForm =<< reduce t
+
+-- | Is the (reduced) term an application of @SIZESUC@?
+isSizeSucApp :: QName -> Term -> Bool
+isSizeSucApp suc = \case
+  Def s [Apply _] -> s == suc
+  _ -> False
+
+-- | Check the admissibility of the type of function @f@ for successor patterns
+--   at the given argument position (counting projection patterns),
+--   following the patterns of a clause to find the position.
+--   To be run in the top context.
+sizeSucVerdict :: QName -> NAPs -> Int -> TCM SizeSucVerdict
+sizeSucVerdict f ps0 k0 = do
+  reportSDoc "term.size.semicont" 10 $ vcat
+    [ "checking admissibility of type of" <+> prettyTCM f
+    , "for successor patterns in argument" <+> text (show k0)
+    ]
+  t <- defType <$> getConstInfo f
+  walk t ps0 k0
   where
   -- Find the type at position k, following the patterns.
   walk :: Type -> NAPs -> Int -> TCM SizeSucVerdict
@@ -860,14 +906,12 @@ sizeSucAdmissible f path ps k = do
 
 -- | Collect the reasons for inadmissible successor patterns.
 terGetInadmissibleSizes :: TerM [InadmissibleSize]
-terGetInadmissibleSizes = terAsks terSizeSucVerdicts >>= \case
-  Nothing -> return []
-  Just cache -> do
-    m <- liftIO $ readIORef cache
-    -- Report with-functions under the name of their parent function.
-    xs <- liftTCM $ forM [ (f, cl) | ((f, _, _), SizeSucInadmissible (Just cl)) <- Map.toList m ] $
-      \ (f, cl) -> (`InadmissibleSize` cl) <$> parentFunction f
-    return $ nubOn inadmFunction xs
+terGetInadmissibleSizes = do
+  m <- terGetSizeSucVerdicts
+  -- Report with-functions under the name of their parent function.
+  xs <- liftTCM $ forM [ (f, cl) | ((f, _, _), SizeSucInadmissible (Just cl)) <- Map.toList m ] $
+    \ (f, cl) -> (`InadmissibleSize` cl) <$> parentFunction f
+  return $ nubOn inadmFunction xs
   where
   parentFunction :: QName -> TCM QName
   parentFunction f = theDef <$> getConstInfo f >>= \case

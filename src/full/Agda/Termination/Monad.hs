@@ -13,8 +13,6 @@ import Prelude hiding (null, zip, zipWith)
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Except   ( MonadError(..) )
 
-import Data.IORef ( IORef, newIORef )
-
 import Data.IntMap.Strict ( IntMap )
 import Data.IntMap.Strict qualified as IntMap
 import Data.Map.Strict ( Map )
@@ -146,9 +144,9 @@ data TerEnv = TerEnv
     -- ^ Map from function names to the list of all available projection paths.
   , terProjectedNameToMaskArgs :: !(Map (QName, [QName]) (ListInf Bool))
     -- ^ Precomputed argument mask per @(name, [projection])@ pair, if @--without-K@.
-  , terSizeSucVerdicts :: !(Maybe (IORef SizeSucVerdicts))
-    -- ^ Cache for the admissibility of successor patterns in size arguments
-    --   (issue #8829).  Set by 'runTerDefault'.
+  , terSizeSucVerdicts :: !SizeSucVerdicts
+    -- ^ Precomputed admissibility of successor patterns in size arguments
+    --   (issue #8829).
   }
 
 -- | Can a successor pattern @.(↑ j)@ in a size argument be used
@@ -195,7 +193,7 @@ defaultTerEnv = TerEnv
   , terNodeToName               = IntMap.empty
   , terNameToProjections        = Map.empty
   , terProjectedNameToMaskArgs  = Map.empty
-  , terSizeSucVerdicts          = Nothing
+  , terSizeSucVerdicts          = Map.empty
   }
 
 -- | Termination monad service class.
@@ -263,14 +261,10 @@ runTerDefault cont = do
   -- The name of sharp (if available).
   sharp <- fmap nameOfSharp <$> coinductionKit
 
-  -- Cache for admissibility of successor patterns (only needed with sized types).
-  verdicts <- traverse (const $ liftIO $ newIORef Map.empty) suc
-
   let tenv = defaultTerEnv
         { terSizeSuc                  = suc
         , terSharp                    = sharp
         , terCutOff                   = cutoff
-        , terSizeSucVerdicts          = verdicts
         }
 
   runTer tenv cont
@@ -294,6 +288,12 @@ instance (Monoid m) => Monoid (TerM m) where
 
 terGetSizeSuc :: TerM (Maybe QName)
 terGetSizeSuc = terAsks terSizeSuc
+
+terGetSizeSucVerdicts :: TerM SizeSucVerdicts
+terGetSizeSucVerdicts = terAsks terSizeSucVerdicts
+
+terSetSizeSucVerdicts :: SizeSucVerdicts -> TerM a -> TerM a
+terSetSizeSucVerdicts vs = terLocal $ \ e -> e { terSizeSucVerdicts = vs }
 
 terGetCurrent :: TerM QName
 terGetCurrent = terAsks terCurrent
