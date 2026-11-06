@@ -2319,46 +2319,45 @@ invoked."
   "Might move point to the given error.
 FILEPOS should have the form (FILE . POSITION).
 
-If `agda2-highlight-in-progress' is nil, then nothing happens.
+If `agda2-highlight-in-progress' is `nil', or if the selected
+window does not visit (does not contain a buffer that visits)
+`agda2-file-buffer', then nothing happens.
 
-If there is a buffer already visiting FILE whose window
-is selected, then the point is updated to POSITION in the `selected-window'.
-
-If there is a buffer already visiting FILE that is currently visible
-in only non-selected windows, then the point is updated to POSITION
-in all of those windows.
-
-If there is a buffer visiting FILE that is not displayed in any windows,
-then update the point, but do not display it.
-
-If there is no buffer visiting FILE, do nothing."
+Otherwise:
+* If the selected window visits FILE, or if no visible window
+  visits FILE, then the selected window is made to visit FILE,
+  and point is set to POSITION.
+* Otherwise point is set to POSITION in every visible window that
+  visits FILE."
   (declare (agda2-command (cons)))
   (when (and agda2-highlight-in-progress
              (consp filepos)
              (stringp (car filepos))
-             (integerp (cdr filepos)))
+             (integerp (cdr filepos))
+             (eq (window-buffer) agda2-file-buffer))
     ;; We don't use `xref-show-xrefs', as we know that there is a
     ;; concrete position we want to jump to.  nevertheless, we push
     ;; the current marker onto Xref' stack to make it seem like a Xref
     ;; jump.
     (xref-push-marker-stack)
-    (if-let* ((buffer (find-buffer-visiting (car filepos))))
-        (if-let* ((windows (get-buffer-window-list buffer 'no-minibuffer 'all-frames)))
-            (if (eq buffer (window-buffer (selected-window)))
-                ;; Buffer is visible and focused, only update the point in the
-                ;; focused window.
-                ;;
-                ;; See #8505
-                (goto-char (cdr filepos))
-              ;; Buffer is visible, update points in all windows.
-              (dolist (window windows)
-                (with-selected-window window
-                  (goto-char (cdr filepos)))))
-          ;; Buffer exists, but is not visible.
-          ;; We do not display the buffer here, as can be jarring for slow loads.
-          ;; See https://github.com/agda/agda/pull/8458#issuecomment-4032442448
-          (with-current-buffer buffer
-            (goto-char (cdr filepos)))))))
+    (if-let*
+        ((buffer (find-buffer-visiting (car filepos)))
+         (windows
+          (get-buffer-window-list buffer 'no-minibuffer 'visible)))
+        ;; Some visible window visits FILE.
+        (if (eq buffer (window-buffer))
+            ;; The selected window visits FILE.
+            (goto-char (cdr filepos))
+          ;; The selected window does not visit FILE. Update point in
+          ;; all visible windows that visit FILE.
+          (dolist (window windows)
+            (with-selected-window window
+              (goto-char (cdr filepos)))))
+      ;; No visible window visits FILE. Make the current window visit
+      ;; FILE.
+      (switch-to-buffer
+       (find-file-noselect (car filepos)) nil 'force-same-window)
+      (goto-char (cdr filepos)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implicit arguments
