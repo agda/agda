@@ -1,145 +1,134 @@
-Issue8829Inadmissible.agda:58.1-60.39: error: [TerminationIssue]
+Issue8829Inadmissible.agda:50.1-52.39: error: [TerminationIssue]
 Termination checking failed for the following function:
   dom
 Problematic calls:
   dom (idNat n) (cast f)
-    (at Issue8829Inadmissible.agda:60.17-20)
+    (at Issue8829Inadmissible.agda:52.17-20)
 Note: matching a size against a successor does not provide
 termination evidence if the type of the function is not upper
 semi-continuous in the size:
   dom: argument type Nat i → Nat i is not lower semi-continuous in i
 
-Issue8829Inadmissible.agda:64.1-66.49: error: [TerminationIssue]
+Issue8829Inadmissible.agda:56.1-58.49: error: [TerminationIssue]
 Termination checking failed for the following function:
   infinite
 Problematic calls:
   infinite (idNat n) (cast f)
-    (at Issue8829Inadmissible.agda:66.22-30)
+    (at Issue8829Inadmissible.agda:58.22-30)
 Note: matching a size against a successor does not provide
 termination evidence if the type of the function is not upper
 semi-continuous in the size:
   infinite: argument type ℕ → Maybe (Nat i) is not lower
   semi-continuous in i
 
-Issue8829Inadmissible.agda:68.1-70.59: error: [TerminationIssue]
+Issue8829Inadmissible.agda:60.1-62.59: error: [TerminationIssue]
 Termination checking failed for the following function:
   maybeInfinite
 Problematic calls:
   maybeInfinite (idNat n) (cast f)
-    (at Issue8829Inadmissible.agda:70.27-40)
+    (at Issue8829Inadmissible.agda:62.27-40)
 Note: matching a size against a successor does not provide
 termination evidence if the type of the function is not upper
 semi-continuous in the size:
   maybeInfinite: argument type Maybe ℕ → Nat i is not lower
   semi-continuous in i
 
-Issue8829Inadmissible.agda:72.1-74.41: error: [TerminationIssue]
+Issue8829Inadmissible.agda:64.1-66.41: error: [TerminationIssue]
 Termination checking failed for the following function:
   size
 Problematic calls:
   size (idNat n) (cast f)
-    (at Issue8829Inadmissible.agda:74.18-22)
+    (at Issue8829Inadmissible.agda:66.18-22)
 Note: matching a size against a successor does not provide
 termination evidence if the type of the function is not upper
 semi-continuous in the size:
   size: argument type Size → Nat i is not lower semi-continuous in i
 
-Issue8829Inadmissible.agda:78.1-80.47: error: [TerminationIssue]
+Issue8829Inadmissible.agda:70.1-72.47: error: [TerminationIssue]
 Termination checking failed for the following function:
   bounded
 Problematic calls:
   bounded (idNat n) (cast x)
-    (at Issue8829Inadmissible.agda:80.21-28)
+    (at Issue8829Inadmissible.agda:72.21-28)
 Note: matching a size against a successor does not provide
 termination evidence if the type of the function is not upper
 semi-continuous in the size:
   bounded: argument type Below (↑ i) is not lower semi-continuous in
   i
 
-Issue8829Inadmissible.agda:84.1-86.41: error: [TerminationIssue]
+Issue8829Inadmissible.agda:76.1-78.41: error: [TerminationIssue]
 Termination checking failed for the following function:
   list
 Problematic calls:
   list (idNat n) (cast x)
-    (at Issue8829Inadmissible.agda:86.18-22)
+    (at Issue8829Inadmissible.agda:78.18-22)
 Note: matching a size against a successor does not provide
 termination evidence if the type of the function is not upper
 semi-continuous in the size:
   list: argument type List {Agda.Primitive.lzero} (Nat i) is not
   lower semi-continuous in i
 
-Issue8829Inadmissible.agda:90.1-92.43: error: [TerminationIssue]
+Issue8829Inadmissible.agda:82.1-84.43: error: [TerminationIssue]
 Termination checking failed for the following function:
   index
 Problematic calls:
   index (idNat n) (cast x)
-    (at Issue8829Inadmissible.agda:92.19-24)
+    (at Issue8829Inadmissible.agda:84.19-24)
 Note: matching a size against a successor does not provide
 termination evidence if the type of the function is not upper
 semi-continuous in the size:
   index: argument type Weird i is not lower semi-continuous in i
 
-Issue8829Inadmissible.agda:96.1-98.43: error: [TerminationIssue]
-Termination checking failed for the following function:
-  conat
-Problematic calls:
-  conat (idNat n) (cast x)
-    (at Issue8829Inadmissible.agda:98.19-24)
-Note: matching a size against a successor does not provide
-termination evidence if the type of the function is not upper
-semi-continuous in the size:
-  conat: argument type CoNat i is not lower semi-continuous in i
-
-Issue8829Inadmissible.agda:102.1-104.53: error: [TerminationIssue]
+Issue8829Inadmissible.agda:88.1-90.53: error: [TerminationIssue]
 Termination checking failed for the following function:
   postulated
 Problematic calls:
   postulated (idNat n) (cast x)
-    (at Issue8829Inadmissible.agda:104.24-34)
+    (at Issue8829Inadmissible.agda:90.24-34)
 Note: matching a size against a successor does not provide
 termination evidence if the type of the function is not upper
 semi-continuous in the size:
   postulated: argument type P i is not lower semi-continuous in i
 
-Issue8829Inadmissible.agda:108.1-110.55: error: [TerminationIssue]
+Issue8829Inadmissible.agda:94.1-96.55: error: [TerminationIssue]
 Termination checking failed for the following function:
   varType
 Problematic calls:
   varType (idNat n) (cast x)
-    (at Issue8829Inadmissible.agda:110.25-32)
+    (at Issue8829Inadmissible.agda:96.25-32)
 Note: matching a size against a successor does not provide
 termination evidence if the type of the function is not upper
 semi-continuous in the size:
   varType: argument type A i is not lower semi-continuous in i
 
-Issue8829Inadmissible.agda:115.1-117.51: error: [TerminationIssue]
+Issue8829Inadmissible.agda:101.1-103.51: error: [TerminationIssue]
 Termination checking failed for the following function:
   resultIndex
 Problematic calls:
   resultIndex (idNat n)
-    (at Issue8829Inadmissible.agda:117.29-40)
+    (at Issue8829Inadmissible.agda:103.29-40)
 Note: matching a size against a successor does not provide
 termination evidence if the type of the function is not upper
 semi-continuous in the size:
   resultIndex: result type Weird i is not upper semi-continuous in i
 
-Issue8829Inadmissible.agda:119.1-121.65: error: [TerminationIssue]
+Issue8829Inadmissible.agda:105.1-107.65: error: [TerminationIssue]
 Termination checking failed for the following function:
   resultVariable
 Problematic calls:
   resultVariable (idNat n)
-    (at Issue8829Inadmissible.agda:121.36-50)
+    (at Issue8829Inadmissible.agda:107.36-50)
 Note: matching a size against a successor does not provide
 termination evidence if the type of the function is not upper
 semi-continuous in the size:
   resultVariable: result type A i is not upper semi-continuous in i
 
-Issue8829Inadmissible.agda:131.1-133.45: error: [TerminationIssue]
+Issue8829Inadmissible.agda:117.1-119.45: error: [TerminationIssue]
 Termination checking failed for the following function:
   r
 Problematic calls:
   r .run (idNat n) (cast f)
-    (at Issue8829Inadmissible.agda:133.20-21)
+    (at Issue8829Inadmissible.agda:119.20-21)
 Note: matching a size against a successor does not provide
 termination evidence if the type of the function is not upper
 semi-continuous in the size:

@@ -1,5 +1,4 @@
 {-# OPTIONS --sized-types #-}
-{-# OPTIONS --guardedness #-}
 {-# OPTIONS --no-double-check #-}
 
 -- Andreas, 2026-10-12, issue #8829
@@ -10,8 +9,8 @@
 -- Each of the following functions terminates only if the size can be
 -- used for termination (the data argument is passed through the opaque `pass`),
 -- but its type is not admissible.
--- Together, they exercise all the ways the semi-continuity check can fail
--- (see -v term.size.semicont:20).
+-- Together with Issue8829Musical, they exercise all the ways
+-- the semi-continuity check can fail (see -v term.size.semicont:20).
 
 module Issue8829Inadmissible where
 
@@ -19,7 +18,6 @@ open import Agda.Builtin.Size
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Nat renaming (Nat to ℕ)
 open import Agda.Builtin.List
-open import Agda.Builtin.Coinduction renaming (∞ to Delay)
 
 data Nat : Size → Set where
   zero : ∀ {i} → Nat (↑ i)
@@ -38,12 +36,6 @@ data Below (i : Size) : Set where
 
 data Weird : Size → Set where
   weird : Weird ∞
-
--- Sized coinductive type (musical coinduction).
-
-data CoNat : Size → Set where
-  cozero : ∀ {i} → CoNat (↑ i)
-  cosuc  : ∀ {i} → Delay (CoNat i) → CoNat (↑ i)
 
 postulate
   cast  : {A B : Set} → A → B
@@ -90,12 +82,6 @@ list (suc n) x = list (idNat n) (cast x)
 index : ∀ {i} → Nat i → Weird i → Bool
 index zero    x = true
 index (suc n) x = index (idNat n) (cast x)
-
--- Coinductive sized type.
-
-conat : ∀ {i} → Nat i → CoNat i → Bool
-conat zero    x = true
-conat (suc n) x = conat (idNat n) (cast x)
 
 -- Postulated type.
 
