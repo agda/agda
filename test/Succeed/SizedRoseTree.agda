@@ -5,6 +5,7 @@
 -- But it is an acceptable property with no termination problems.
 
 {-# OPTIONS --sized-types #-}
+{-# OPTIONS --no-double-check #-}
 
 open import Agda.Builtin.Size
 open import Agda.Builtin.List hiding (module List)
