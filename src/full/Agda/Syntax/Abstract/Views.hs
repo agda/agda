@@ -9,6 +9,7 @@ import Control.Monad.Identity
 import Data.Bifunctor (second)
 import Data.Foldable (foldMap)
 import Data.DList qualified as DL
+import qualified Data.Map as Map
 import Data.Void
 
 import Agda.Syntax.Common
@@ -425,6 +426,7 @@ instance ExprLike ModuleApplication where
     case a of
       SectionApp tel m es -> SectionApp <$> rec tel <*> rec m <*> rec es
       RecordModuleInstance{} -> pure a
+      RecordStageApp{} -> pure a
     where
       rec :: RecurseExprRecFn m
       rec e = recurseExpr f e
@@ -458,6 +460,9 @@ instance ExprLike a => ExprLike (WithHiding a) where
 
 instance ExprLike SpineLHS where
   recurseExpr f (SpineLHS i x ps) = SpineLHS i x <$> recurseExpr f ps
+
+instance ExprLike RecordStage where
+  recurseExpr f (RecordStage m ds x) = RecordStage m <$> recurseExpr f ds <*> pure x
 
 instance ExprLike Declaration where
   recurseExpr :: forall m. RecurseExprFn m Declaration
@@ -543,7 +548,16 @@ instance DeclaredNames Declaration where
       DataSig _ _ q _ _            -> singleton (WithKind DataName q)
       DataDef _ q _ _ _ decls      -> singleton (WithKind DataName q) <> foldMap con decls
       RecSig _ _ q _ _             -> singleton (WithKind RecName q)
-      RecDef _ q _ _ _ dir _ _ decls -> singleton (WithKind RecName q) <> declaredNames dir <> declaredNames decls
+      RecDef _ q _ _ _ dir _ stages decls ->
+        let names = declaredNames (recordDeclarations stages decls) :: [KName]
+            copies (ScopedDecl _ ds) = concatMap copies ds
+            copies (Apply _ _ _ RecordStageApp{} ci _) =
+              [ WithKind k y | WithKind k x <- names
+                             , Just ys <- [Map.lookup x $ renNames ci]
+                             , y <- List1.toList ys ]
+            copies _ = []
+        in singleton (WithKind RecName q) <> declaredNames dir <>
+             fromList names <> fromList (concatMap copies decls)
       PatternSynDef q _ _          -> singleton (WithKind PatternSynName q)
       UnquoteDecl _ _ qs _         -> fromList $ map (WithKind OtherDefName) qs  -- could be Fun or Axiom
       UnquoteDef _ qs _            -> fromList $ map (WithKind FunName) qs       -- cannot be Axiom

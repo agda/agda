@@ -184,3 +184,4 @@ instance BoundAndUsed e => BoundAndUsed (FieldAssignment' e) where
 instance BoundAndUsed ModuleApplication where
   boundAndUsed (SectionApp tel _ es)  = noBindings $ boundAndUsed (tel, es)
   boundAndUsed RecordModuleInstance{} = mempty
+  boundAndUsed RecordStageApp{} = mempty

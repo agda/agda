@@ -483,23 +483,31 @@ inside the record declaration
     _<$_ : ∀ {A B} → A → F B → F A
     x <$ fb = fmap (λ _ → x) fb
 
-.. note::
-   In general new definitions need to appear after the field declarations, but
-   simple non-recursive function definitions without pattern matching can be
-   interleaved with the fields. The reason for this restriction is that the
-   type of the record constructor needs to be expressible using :ref:`let-expressions`.
-   In the example below ``D₁`` can only contain declarations for which the
-   generated type of ``mkR`` is well-formed.
+Function definitions can be interleaved with fields, including definitions by
+pattern matching and definitions with ``where`` clauses. Each definition can use
+the preceding fields and declarations. For example:
 
-   .. code-block:: agda
+.. code-block:: agda
 
-      record R Γ : Setᵢ where
-        constructor mkR
-        field f₁ : A₁
-        D₁
-        field f₂ : A₂
+   open import Agda.Builtin.Bool
 
-      mkR : ∀ {Γ} (f₁ : A₁) (let D₁) (f₂ : A₂) → R Γ
+   record R : Set₁ where
+     field A : Set
+
+     F : Bool → Set
+     F true  = A
+     F false = A → A
+
+     field value : (b : Bool) → F b
+
+The constructor takes ``A`` and ``value`` as arguments. The helper ``F`` becomes
+a member of the record module, just like a definition after the last field.
+Interleaved declarations are checked once with the preceding fields as module
+parameters; their record-module versions instantiate these parameters with
+projections. Declarations after the last field are checked in the completed
+record module.
+
+A mutually checked group of declarations cannot cross a field declaration.
 
 .. _eta-expansion:
 
