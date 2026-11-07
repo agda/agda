@@ -12,9 +12,10 @@ module Agda.Interaction.Highlighting.FromAbstract
 
 import Prelude hiding (null)
 
-import Control.Monad.Reader  ( MonadReader(..), asks, Reader, runReader )
+import Control.Monad.Reader  ( MonadReader(..), asks, local, Reader, runReader )
 
 import           Data.Maybe
+import qualified Data.Set as Set
 import           Data.Void            ( Void )
 
 import           Agda.Interaction.Highlighting.Precise hiding ( singleton )
@@ -57,6 +58,7 @@ runHighlighter top kinds x =
   runReader (hilite x) $
   HiliteEnv
     { hleNameKinds         = kinds
+    , hleRecordFields = Set.empty
     , hleCurrentModuleName = top
     }
 
@@ -64,6 +66,8 @@ runHighlighter top kinds x =
 data HiliteEnv = HiliteEnv
   { hleNameKinds :: NameKinds
       -- ^ Function mapping qualified names to their kind.
+  , hleRecordFields :: Set.Set A.Name
+      -- ^ Field variables used while checking a record constructor telescope.
   , hleCurrentModuleName :: TopLevelModuleName
       -- ^ The current top-level module's name. Used for consistency
       -- checking.
@@ -212,7 +216,11 @@ instance Hilite A.Declaration where
       A.DataSig _di er x tel e               -> hl er <> hl x <> hl tel <> hl e
       A.DataDef _di x _pc _uc pars cs        -> hl x <> hl pars <> hl cs
       A.RecSig _di er x tel e                -> hl er <> hl x <> hl tel <> hl e
-      A.RecDef _di x _pc _uc _eta dir bs e ds-> hl x <> hl dir <> hl bs <> hl e <> hl ds
+      A.RecDef _di x _pc _uc _eta dir bs stages ds -> do
+        let source = A.recordDeclarations stages ds
+            fields = Set.fromList [ A.qnameName q | A.Field _ q _ <- source ]
+        local (\ env -> env { hleRecordFields = fields <> hleRecordFields env }) $
+          hl x <> hl dir <> hl bs <> hl source
       A.PatternSynDef x xs p                 -> hl x <> hl xs <> hl p
       A.UnquoteDecl _mi _di xs e             -> hl xs <> hl e
       A.UnquoteDef _di xs e                  -> hl xs <> hl e
@@ -242,7 +250,11 @@ instance Hilite A.Pragma where
 
 instance Hilite A.Expr where
   hilite = \case
-      A.Var x                       -> hl $ A.BindName x        -- bound variable like binder
+      A.Var x                       -> do
+        isField <- asks $ Set.member x . hleRecordFields
+        if isField
+          then hiliteField [] (A.nameConcrete x) (Just $ A.nameBindingSite x)
+          else hl $ A.BindName x
       A.Def' q _                    -> hiliteQName Nothing q
       A.Proj _o qs                  -> hiliteAmbiguousQName Nothing qs  -- Issue #4604: not: hiliteProjection qs
                                          -- Names from @open R r@ should not be highlighted as projections
@@ -353,6 +365,7 @@ instance Hilite A.ModuleApplication where
   hilite = \case
     A.SectionApp tel x es    -> hilite tel <> hilite x <> hilite es
     A.RecordModuleInstance x -> hilite x
+    A.RecordStageApp{}       -> mempty
 
 instance Hilite A.LetBinding where
   hilite = \case
