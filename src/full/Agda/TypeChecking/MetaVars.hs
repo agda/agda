@@ -405,17 +405,10 @@ newQuestionMark :: InteractionId -> Comparison -> Type -> TCM (MetaId, Term)
 newQuestionMark ii cmp = newQuestionMark' (newValueMeta' RunMetaOccursCheck) ii cmp
 
 
--- Since we are type-checking some code twice, e.g., record declarations
--- for the sake of the record constructor type and then again for the sake
--- of the record module (issue #434), we may encounter an interaction point
--- for which we already have a meta.  In this case, we want to reuse the meta.
--- Otherwise we get two meta for one interaction point which are not connected,
--- and e.g. Agda might solve one in some way
--- and the user the other in some other way...
---
--- New reference: Andreas, 2021-07-21, issues #5478 and #5463
--- Old reference: Andreas, 2016-07-29, issue 1720-2
--- See also: issue #2257
+-- Rechecking an expression containing an existing interaction point must reuse
+-- its meta, for instance in a shared record field signature (issue #8900).
+-- Staged record declarations no longer require transporting metas between
+-- field-variable and record-variable contexts (issue #434).
 newQuestionMark'
   :: (Comparison -> Type -> TCM (MetaId, Term))
   -> InteractionId -> Comparison -> Type -> TCM (MetaId, Term)
@@ -445,8 +438,6 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
     -- with substitutions to move between parent and child.
     let gxs  = contextNames' gamma
     let dxs  = contextNames' delta
-    let glen = length gxs
-    let dlen = length dxs
     reportSDoc "tc.interaction" 20 $ vcat
       [ "reusing meta"
       , nest 2 $ "creation context:" <+> prettyTCM gamma
@@ -455,126 +446,38 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
       -- , nest 2 $ "reusage  context:" <+> pretty dxs
       ]
 
-    -- Record declarations reuse interaction metas in two situations:
-    -- (1) Checking shared field types: Γ = Γ₀,Γ₁ and Δ = Γ₀,fields,Γ₁,
-    --     where earlier fields have been inserted before the local binders Γ₁.
-    -- (2) Rechecking declarations for the record module: Γ = Γ₀,fields,Γ₁
-    --     and Δ = Γ₀,r,Γ₁,{Δ₂}, where the record variable r replaces the fields
-    --     and Δ₂ contains hidden variables bound by the rechecked left-hand side.
-    --     Example:
-    --     When checking the Σ record definition, creation context Γ
-    --     might be of the forms Γ₀,Γ₁ or Γ₀,fst,Γ₁ or Γ₀,fst,snd,Γ₁ whereas
-    --     Δ is of the form Γ₀,r,Γ₁,{Δ₂} for record variable r.
-    -- Distinguish these cases by looking for the record variable in Δ.
-    (rev_args, extraLen) <- case List.findIndex nameIsRecordName dxs of
-
-      -- Case: no record variable in the context.
-      -- Andreas, 2026-11-14, issue #8900, via Codex GPT-6.1-Sol:
-      -- Compute the order-preserving embedding of Γ into Δ.
-      -- Rechecked binders have fresh NameIds;
-      -- use their binding sites as well as their names to distinguish them
-      -- from intervening fields, which can have the same concrete names.
+    -- Andreas, 2026-11-14, issue #8900, via Codex GPT-6.1-Sol:
+    -- Compute the order-preserving embedding of Γ into Δ. Shared field
+    -- signatures insert preceding fields before the rechecked local binders:
+    -- Γ = Γ₀,Γ₁ and Δ = Γ₀,fields,Γ₁.
+    -- Rechecked binders have fresh NameIds; use their binding sites as well as
+    -- their names to distinguish them from intervening fields with the same name.
+    let sameBinder x y = x == y ||
+          (((==) `on` nameCanonical) x y && ((==) `on` nameBindingSite) x y)
+        embed [] _ = Just []
+        embed _ [] = Nothing
+        embed xs@(x : xs') ((i, y) : ys)
+          | sameBinder x y = (i :) <$> embed xs' ys
+          | otherwise     = embed xs ys
+    revArgs <- case embed gxs (zip [0..] dxs) of
+      Just indices -> return $ map' var indices
       Nothing -> do
-        let sameBinder x y = x == y ||
-              (((==) `on` nameCanonical) x y && ((==) `on` nameBindingSite) x y)
-            embed [] _ = Just []
-            embed _ [] = Nothing
-            embed xs@(x : xs') ((i, y) : ys)
-              | sameBinder x y = (i :) <$> embed xs' ys
-              | otherwise     = embed xs ys
-        case embed gxs (zip [0..] dxs) of
-          Just indices -> return (map' var indices, 0)
-          Nothing -> do
-            reportSDoc "impossible" 10 $ vcat
-              [ "expecting meta-creation context"
-              , nest 2 $ pretty gxs
-              , "to embed into the meta-reuse context"
-              , nest 2 $ pretty dxs
-              ]
-            reportSDoc "impossible" 70 $ vcat
-              [ "expecting meta-creation context"
-              , nest 2 $ (text . show) gxs
-              , "to embed into the meta-reuse context"
-              , nest 2 $ (text . show) dxs
-              ]
-            __IMPOSSIBLE__
-
-      -- Case: record variable in the context.
-      Just k -> do
-        -- Verify that the contexts relate as expected.
-        let g0len = length dxs - k - 1
-        -- Get the record type and its fields.
-        let t = unDom $ ctxEntryDom $ fromMaybe __IMPOSSIBLE__ $
-                cxLookup k delta
-        allFields <- ignoreAbstractMode $ getRecordTypeFields t
-        -- Find out the Δ₂ and Γ₁ parts.
-        -- However, as they do not share common ancestry, the @nameId@s differ,
-        -- so we consider their original concrete names.
-        -- This is a bit risky... blame goes to #434.
-        -- The concrete names can clash, e.g. a hidden variable in Δ₂ with a
-        -- field in Γ, so we recognize the fields by their binding site.
-        let isField x f = ((==) `on` nameCanonical) x n && ((==) `on` nameBindingSite) x n
-              where n = qnameName $ unDom f
-        -- We need to expand the record var into this number of fields.
-        let numFields = length $ takeWhile id $
-              zipWith isField (reverse $ take' (glen - g0len) gxs) allFields
-        let g1len = glen - g0len - numFields
-        let d2len = k - g1len
-        reportSDoc "tc.interaction" 30 $ vcat $ map' (nest 2)
-          [ "k     =" <+> pretty k
-          , "glen  =" <+> pretty glen
-          , "g0len =" <+> pretty g0len
-          , "g1len =" <+> pretty g1len
-          , "d2len =" <+> pretty d2len
+        reportSDoc "impossible" 10 $ vcat
+          [ "expecting meta-creation context"
+          , nest 2 $ pretty gxs
+          , "to embed into the meta-reuse context"
+          , nest 2 $ pretty dxs
           ]
-        -- The Γ₀ part should match.
-        unless (drop (glen - g0len) gxs == drop (k + 1) dxs) $ do
-          reportSDoc "impossible" 10 $ vcat
-            [ "expecting meta-creation context (with fields instead of record var)"
-            , nest 2 $ pretty gxs
-            , "to share ancestry (suffix) with the meta-reuse context (with record var)"
-            , nest 2 $ pretty dxs
-            ]
-          __IMPOSSIBLE__
-        -- The Γ₁ part should match.
-        -- A wildcard pattern gets a generated name in the telescope for the
-        -- record constructor, but a different name in the record module.
-        let isGenerated x = patternInTeleName `List.isPrefixOf` prettyShow (nameConcrete x)
-        let sameBinder x y = isGenerated x || isGenerated y || ((==) `on` nameCanonical) x y
-        unless ( d2len >= 0 && and (zipWith sameBinder (take' g1len gxs) (drop d2len dxs)) ) $ do
-          reportSDoc "impossible" 10 $ vcat
-            [ "expecting meta-creation context (with fields instead of record var)"
-            , nest 2 $ pretty gxs
-            , "to be an expansion of the meta-reuse context (with record var)"
-            , nest 2 $ pretty dxs
-            ]
-          __IMPOSSIBLE__
-        let (vs1, v : vs0) = splitAt' g1len $ map' var [d2len..dlen-1]
-        if numFields <= 0 then return (vs1 ++! vs0, d2len) else do
-          -- Get the record field names.
-          let fs = reverse $ take' numFields allFields
-          -- Check that the record field names match
-          -- the supposed record field names from the context of the original meta.
-          let gfs = take' numFields (drop g1len gxs)
-          reportSDoc "tc.interaction" 30 $ vcat $ map' (nest 2)
-            [ "fs    =" <+> pretty fs
-            , "gfs   =" <+> pretty gfs
-            ]
-          -- NameIds do not match, so we have to revert to the concrete name.
-          -- unless (gfs == map' (qnameName . unDom) fs) __IMPOSSIBLE__
-          unless (((==) `on` map' nameCanonical) gfs (map' (qnameName . unDom) fs)) __IMPOSSIBLE__
-          -- Field arguments to the original meta are projections from the record var.
-          let vfs = map' ((\ x -> v `applyE` [Proj ProjSystem x]) . unDom) fs
-          -- These are the final args to the original meta:
-          return (vs1 ++! vfs ++! vs0, d2len)
-
-    -- Use ArgInfo from Γ.
-    let args = zipWith' (<$) (reverse rev_args) $ contextArgs gamma
-    -- Take the permutation into account (see TC.Monad.MetaVars.getMetaContextArgs).
-    let vs0 = permute (takeP (length args) p) args
-    -- Δ₂ holds the hidden variables that the left-hand side of the rechecked
-    -- clause bound, while the meta still abstracts over them in its type.
-    let vs = vs0 ++! drop (dlen - extraLen) (contextArgs delta)
+        reportSDoc "impossible" 70 $ vcat
+          [ "expecting meta-creation context"
+          , nest 2 $ (text . show) gxs
+          , "to embed into the meta-reuse context"
+          , nest 2 $ (text . show) dxs
+          ]
+        __IMPOSSIBLE__
+    -- Use ArgInfo from Γ and take the meta's permutation/pruning into account.
+    let args = zipWith' (<$) (reverse revArgs) $ contextArgs gamma
+        vs = permute (takeP (length args) p) args
     reportSDoc "tc.interaction" 20 $ vcat
       [ "meta reuse arguments:" <+> prettyTCM vs ]
     let v = MetaV x $ map' Apply vs
