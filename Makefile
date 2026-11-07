@@ -505,6 +505,7 @@ workflows :
 
 .PHONY : test ## Run all test suites.
 test : check-whitespace \
+       check-test-runner-status \
        check-encoding \
        check-filename-case-clashes \
        check-mdo \
@@ -547,7 +548,11 @@ test-using-std-lib : std-lib-test \
                      std-lib-interaction
 
 .PHONY : test-quick ## Run successful and failing tests.
-test-quick : common succeed fail
+test-quick : check-test-runner-status common succeed fail
+
+.PHONY : check-test-runner-status ## Check that successful-test targets propagate runner failures.
+check-test-runner-status :
+	@sh test/check-test-runner-status.sh
 
 .PHONY : check-encoding ## Make sure that Parser.y is ASCII. [Issue #5465]
 check-encoding :
@@ -589,21 +594,27 @@ succeed :
 	@$(call decorate, "Suite of successful tests", \
 		echo $(shell command -v $(AGDA_BIN)) > test/helpers/exec-tc/executables && \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed ; \
-		rm test/helpers/exec-tc/executables )
+		agda_test_status=$$?; \
+		rm test/helpers/exec-tc/executables; \
+		exit $$agda_test_status )
 
 .PHONY : accept-succeed ## Run the suite of successful tests and accept new golden values. Ignores AGDA_TESTS_OPTIONS variable.
 accept-succeed :
 	@$(call decorate, "Suite of successful tests", \
 		echo $(shell command -v $(AGDA_BIN)) > test/helpers/exec-tc/executables && \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) -j$(PARALLEL_TESTS) --accept --regex-include all/Succeed ; \
-		rm test/helpers/exec-tc/executables )
+		agda_test_status=$$?; \
+		rm test/helpers/exec-tc/executables; \
+		exit $$agda_test_status )
 
 .PHONY : fast-succeed ##
 fast-succeed :
 	@$(call decorate, "Suite of successful tests (using agda-fast)", \
 		echo $(shell command -v $(AGDA_FAST_BIN)) > test/helpers/exec-tc/executables && \
 		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed ; \
-		rm test/helpers/exec-tc/executables )
+		agda_test_status=$$?; \
+		rm test/helpers/exec-tc/executables; \
+		exit $$agda_test_status )
 
 .PHONY : fail ##
 fail :
