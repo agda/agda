@@ -16,10 +16,11 @@ import Data.Digest.Murmur64
 import Data.Text.Encoding qualified as T
 import Data.Text.Lazy (Text)
 import Data.Text.Lazy qualified as T
+import Data.Time.Clock (UTCTime)
 import GHC.Exts
 
 import Agda.Utils.FileName
-import Agda.Utils.IO.UTF8 (readTextFile)
+import Agda.Utils.IO.UTF8 (readTextFile, readTextFileWithTime)
 
 #include "MachDeps.h"
 
@@ -33,6 +34,12 @@ hashByteString = H.asWord64 . B.foldl' (\h b -> H.combine h (H.hashWord8 b)) (H.
 
 hashTextFile :: AbsolutePath -> IO Hash
 hashTextFile file = hashText <$> readTextFile (filePath file)
+
+hashTextFileWithTime :: AbsolutePath -> IO (Hash, UTCTime)
+hashTextFileWithTime file = do
+  (!s, !t) <- readTextFileWithTime (filePath file)
+  let !h = hashText s
+  pure (h, t)
 
 -- | Hashes a piece of 'Text'.
 

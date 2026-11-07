@@ -61,6 +61,7 @@ import Data.String
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
 import Data.Semigroup (Sum, Max)
+import Data.Time.Clock (UTCTime)
 
 import GHC.Generics (Generic)
 import GHC.Exts (oneShot, MutVar#, RealWorld)
@@ -68,6 +69,7 @@ import GHC.IORef (IORef(..))
 import GHC.STRef (STRef(..))
 
 import System.IO (hFlush, stdout)
+import System.Directory
 
 import Agda.Benchmarking (Benchmark, Phase)
 
@@ -1502,6 +1504,9 @@ data ModuleInfo = ModuleInfo
     -- ^ The `ModuleCheckMode` used to create the `Interface`
   , miSourceFile :: SourceFile
     -- ^ The file belonging to the module.
+  , miSourceModificationTime :: !UTCTime
+    -- ^ The modification time of the source file when we parsed
+    --   it.
   }
   deriving Generic
 
