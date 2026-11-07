@@ -1,9 +1,6 @@
 -- Andreas, 2025-11-03, issue #8182 reported and test by Szumi Xie
 
-{-# OPTIONS --show-implicit #-}
-{-# OPTIONS -v tc.generalize:10 #-}
-{-# OPTIONS -v tc.rec:40 #-}
-{-# OPTIONS -v tc.interaction:30 #-}
+{-# OPTIONS --show-implicit --double-check #-}
 
 postulate
   P : (A : Set) → A → Set

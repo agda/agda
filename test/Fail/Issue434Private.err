@@ -1,0 +1,5 @@
+Issue434Private.agda:12.7-17: error: [NotInScope]
+Not in scope:
+  R.identity
+  at Issue434Private.agda:12.7-17
+when scope checking R.identity

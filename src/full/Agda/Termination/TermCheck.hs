@@ -121,7 +121,7 @@ termDecl' = \case
     A.ScopedDecl scope ds -> {- withScope_ scope $ -} foldMap termDecl' ds
         -- scope is irrelevant as we are termination checking Syntax.Internal
     A.RecSig{}            -> return mempty
-    A.RecDef _ x _ _ _ _ _ _ ds -> termMutual [x] <> foldMap termDecl' ds
+    A.RecDef _ x _ _ _ _ _ stages ds -> termMutual [x] <> foldMap termDecl' (A.recordDeclarations stages ds)
         -- Andreas, 2022-10-23, issue #5823
         -- Also check record types for termination.
         -- They are unfolded during construction of unique inhabitants of eta-records.
@@ -138,7 +138,7 @@ termDecl' = \case
     getNames :: Foldable t => t A.Declaration -> [QName]
     getNames = foldMap getName
     getName (A.FunDef i x cs)   = [x]
-    getName (A.RecDef _ x _ _ _ _ _ _ ds) = x : getNames ds
+    getName (A.RecDef _ x _ _ _ _ _ stages ds) = x : getNames (A.recordDeclarations stages ds)
     getName (A.Mutual _ ds)             = getNames ds
     getName (A.Section _ _ _ _ ds)      = getNames ds
     getName (A.ScopedDecl _ ds)         = getNames ds

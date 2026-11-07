@@ -1,3 +1,4 @@
+
 Erased-modules-2.agda:28.11-12: warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @plenty in hard compile-time mode
 
@@ -21,7 +22,7 @@ Ignored use of @ω in hard compile-time mode
 
 Erased-modules-2.agda:49.13-15: warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @plenty in hard compile-time mode
-when checking the projection C : Set
+when checking the definition of R
 
 Erased-modules-2.agda:51.14-16: warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
@@ -74,7 +75,7 @@ Ignored use of @ω in hard compile-time mode
 
 Erased-modules-2.agda:49.13-15: warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @plenty in hard compile-time mode
-when checking the projection C : Set
+when checking the definition of R
 
 Erased-modules-2.agda:51.14-16: warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
