@@ -1234,6 +1234,8 @@ instance ToConcrete A.ModuleApplication where
       let r = fuseRange y es
       return $ C.SectionApp r (catMaybes tel) y $ map unNamedArg es
 
+  toConcrete (A.RecordStageApp _) = __IMPOSSIBLE__
+
   toConcrete (A.RecordModuleInstance recm) = do
     recm <- toConcrete recm
     return $ C.RecordModuleInstance (getRange recm) recm
@@ -1314,11 +1316,11 @@ instance ToConcrete A.Declaration where
       return [ C.RecordSig (getRange i) erased x'
                  (map C.DomainFull $ catMaybes tel') t' ]
 
-  toConcrete (A.RecDef  i x _pc _uc _eta dir bs t cs) =
+  toConcrete (A.RecDef  i x _pc _uc _eta dir bs stages cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree $ dataDefParams bs) $ \ tel' -> do
       dirs <- toConcrete dir
-      (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
+      (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr $ A.recordDeclarations stages cs)
       return [ C.RecordDef (getRange i) x' dirs (catMaybes tel') cs' ]
 
   toConcrete (A.Mutual i ds) = pure . C.Mutual empty <$> declsToConcrete (List1.toList ds)

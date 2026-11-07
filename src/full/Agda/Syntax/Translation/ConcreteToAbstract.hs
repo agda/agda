@@ -134,89 +134,65 @@ notAValidLetBinding = locatedTypeError NotAValidLetBinding
     Helpers
  --------------------------------------------------------------------------}
 
-newtype RecordConstructorType = RecordConstructorType [C.Declaration]
-
-instance ToAbstract RecordConstructorType where
-  type AbsOfCon RecordConstructorType = A.Expr
-  toAbstract (RecordConstructorType ds) = recordConstructorType ds
-
--- | Compute the type of the record constructor (with bogus target type)
-recordConstructorType :: [C.Declaration] -> ScopeM A.Expr
-recordConstructorType decls =
-    -- Nicify all declarations since there might be fixity declarations after
-    -- the the last field. Use NoWarn to silence fixity warnings. We'll get
-    -- them again when scope checking the declarations to build the record
-    -- module.
-    niceDecls NoWarn decls $ buildType . takeFields
+-- | Scope check interleaved declarations in hidden modules parameterized by
+-- preceding fields. Public copies are scoped now and instantiated only after
+-- the constructor and projections have been installed.
+scopeCheckRecordBody :: A.ModuleName -> [C.Declaration] -> ScopeM ([A.RecordStage], [A.Declaration])
+scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
+  forM_ ds $ \ d -> when (containsField d && not (isField d)) $
+    setCurrentRange d $ typeError $ NotValidBeforeField d
+  let prefix = List.dropWhileEnd notField ds
+      suffix = drop (length prefix) ds
+  locals <- getLocalVars
+  (stages, body) <- withLocalVars $ stagesBeforeFields locals prefix
+  trailing <- withCurrentModule recordModule $ catMaybes <$> toAbstract suffix
+  return (stages, body ++ trailing)
   where
-    takeFields = List.dropWhileEnd notField
+    isField C.NiceField{} = True
+    isField _ = False
+    notField = not . isField
+    containsField (C.NiceMutual _ _ _ _ ds) = any containsField ds
+    containsField d = isField d
 
-    notField NiceField{} = False
-    notField _           = True
-
-    buildType :: [C.NiceDeclaration] -> ScopeM A.Expr
-      -- TODO: Telescope instead of Expr in abstract RecDef
-    buildType ds = do
-      -- The constructor target type is computed in the type checker.
-      -- For now, we put a dummy expression there.
-      -- Andreas, 2022-10-06, issue #6165:
-      -- The dummy was builtinSet, but this might not be defined yet.
-      let dummy = A.Lit empty $ LitString "TYPE"
-      tel   <- catMaybes <$> mapM makeBinding ds
-      return $ A.mkPi (ExprRange (getRange ds)) tel dummy
-
-    makeBinding :: C.NiceDeclaration -> ScopeM (Maybe A.TypedBinding)
-    makeBinding d = do
-      let failure = typeError $ NotValidBeforeField d
-          r       = getRange d
-          mkLet :: C.NiceDeclaration -> ScopeM (Maybe A.TypedBinding)
-          mkLet d = Just . A.TLet r <$> scopeCheckLetDef RecordLetDef d
-      setCurrentRange r $ case d of
-
-        C.NiceField r pr ab inst tac x (Arg ai t) -> do
-          fx  <- getConcreteFixity x
-          ai  <- checkFieldArgInfo True ai
-          let bv = Arg ai $ unnamed $ C.mkBinder $ (C.mkBoundName x fx) { bnameTactic = tac }
-          toAbstract $ C.TBind r (singleton bv) t
-
-        -- Public open is allowed and will take effect when scope checking as
-        -- proper declarations.
-        C.NiceOpen kwr m dir -> do
-          mkLet $ C.NiceOpen kwr m dir{ publicOpen = Nothing }
-        C.NiceModuleMacro r p e x modapp open dir -> do
-          mkLet $ C.NiceModuleMacro r p e x modapp open
-                    dir{ publicOpen = Nothing }
-
-        -- Do some rudimentary matching here to get NotValidBeforeField instead
-        -- of NotAValidLetDecl.
-        C.NiceMutual _ _ _ _
-          ( C.FunSig _ _ _ _ macro _ _ _ _ _
-          :| [ C.FunDef _ _ abstract _ _ _ _
-             (C.Clause _ _ _ (C.LHS _p [] []) (C.RHS _) NoWhere [] :| [])
-          ]) | abstract /= AbstractDef && macro /= MacroDef -> do
-          mkLet d
-
-        C.NiceLoneConstructor{} -> failure
-        C.NiceMutual{}        -> failure
-        -- TODO: some of these cases might be __IMPOSSIBLE__
-        C.Axiom{}             -> failure
-        C.PrimitiveFunction{} -> failure
-        C.NiceModule{}        -> failure
-        C.NiceImport{}        -> failure
-        C.NicePragma{}        -> failure
-        C.NiceRecSig{}        -> failure
-        C.NiceDataSig{}       -> failure
-        C.NiceFunClause{}     -> failure
-        C.FunSig{}            -> failure  -- Note: these are bundled with FunDef in NiceMutual
-        C.FunDef{}            -> failure
-        C.NiceDataDef{}       -> failure
-        C.NiceRecDef{}        -> failure
-        C.NicePatternSyn{}    -> failure
-        C.NiceGeneralize{}    -> failure
-        C.NiceUnquoteDecl{}   -> failure
-        C.NiceUnquoteDef{}    -> failure
-        C.NiceUnquoteData{}   -> failure
-        C.NiceOpaque{}        -> failure
+    stagesBeforeFields _ [] = return ([], [])
+    stagesBeforeFields locals ds = do
+      let (before, rest) = break (not . notField) ds
+      stage <- qnameToMName <$> freshAbstractQName noFixity' (C.simpleName "record-stage")
+      createModule Nothing stage
+      withCurrentModule stage $ do
+        checked <- catMaybes <$> toAbstract before
+        -- Copy before introducing the next stage, to avoid exporting the
+        -- implementation's nested stage modules.
+        copied <- withCurrentModule recordModule $ do
+          target <- qnameToMName <$> freshAbstractQName noFixity' (C.simpleName "record-members")
+          createModule Nothing target
+          source <- getNamedScope stage
+          (scope, copyInfo) <- copyRecordScope (C.QName $ C.simpleName "record-stage") target source
+          modifyNamedScope target $ const scope
+          modifyNamedScope recordModule $ \ old -> mergeScope old scope
+          let mi = ModuleInfo noRange noRange Nothing (DoOpen empty) Nothing
+          return $ A.Apply mi (NotErased QωInferred) target (A.RecordStageApp stage) copyInfo defaultImportDir
+        case rest of
+          C.NiceField r p a inst tac x (Arg ai t) : after -> setCurrentRange r $ do
+            unless (p == PublicAccess) $ typeError PrivateRecordField
+            ai <- checkFieldArgInfo True ai
+            tac <- traverse (toAbstractCtx TopCtx) tac
+            t <- toAbstractCtx TopCtx t
+            f <- getConcreteFixity x
+            y <- withCurrentModule recordModule $ do
+              y <- freshAbstractQName f x
+              bindName' p FldName (instanceMetadata inst) x y
+              return y
+            let info = (mkDefInfoInstance x f p a inst NotMacroDef r) { defTactic = tac }
+            scope <- withLocalVars $ do
+              setLocalVars locals
+              withCurrentModule recordModule getScope
+            bindVariable LambdaBound x $ qnameName y
+            (next, fields) <- stagesBeforeFields locals after
+            let st = A.RecordStage stage checked (A.BindName $ qnameName y)
+                field = A.ScopedDecl scope $ A.Field info y (Arg ai t) :| []
+            return (st : next, copied : field : fields)
+          _ -> __IMPOSSIBLE__
 
 checkModuleApplication
   :: C.ModuleApplication
@@ -997,7 +973,7 @@ instance ToAbstract C.Expr where
   -- Let
       e0@(C.Let _ ds (Just e)) ->
         ifM isInsideDotPattern (typeError $ NotAllowedInDotPatterns LetExpressions) {-else-} do
-        localToAbstract (LetDefs ExprLetDef ds) $ \ds' -> do
+        localToAbstract (LetDefs ds) $ \ds' -> do
           e <- toAbstractCtx TopCtx e
           let info = ExprRange (getRange e0)
           return $ A.mkLet info ds' e
@@ -1149,7 +1125,7 @@ instance ToAbstract C.TypedBinding where
     xs' <- toAbstract $ fmap (updateNamedArg (fmap $ NewName LambdaBound)) xs
 
     return $ Just $ A.TBind r (TypedBindingInfo tac fin) xs' t'
-  toAbstract (C.TLet r ds) = A.mkTLet r <$> toAbstract (LetDefs ExprLetDef ds)
+  toAbstract (C.TLet r ds) = A.mkTLet r <$> toAbstract (LetDefs ds)
 
 -- | Scope check a module (top level function).
 --
@@ -1494,47 +1470,33 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
 scopeCheckDeclarations :: [C.Declaration] -> ScopeM [A.Declaration]
 scopeCheckDeclarations ds = niceDecls DoWarn ds \ niceds -> catMaybes <$> toAbstract niceds
 
--- | Where did these 'LetDef's come from?
-data LetDefOrigin
-  = ExprLetDef
-  -- ^ A let expression or do statement
-  | RecordLetDef
-  -- ^ Definitions in a record declaration, before the last field
-  deriving (Eq, Show)
-
-data LetDefs = LetDefs LetDefOrigin (List1 C.Declaration)
+newtype LetDefs = LetDefs (List1 C.Declaration)
 
 instance ToAbstract LetDefs where
   type AbsOfCon LetDefs = [A.LetBinding]
 
   toAbstract :: LetDefs -> ScopeM (AbsOfCon LetDefs)
-  toAbstract (LetDefs wh ds) =
-    List1.concat <$> niceDecls DoWarn (List1.toList ds) \ nds -> mapM (scopeCheckLetDef wh) nds
+  toAbstract (LetDefs ds) =
+    List1.concat <$> niceDecls DoWarn (List1.toList ds) \ nds -> mapM scopeCheckLetDef nds
 
 -- | Raise appropriate (error-)warnings for if a declaration with
 -- illegal access, macro flag, or abstractness appear in a let
 -- expression.
-checkLetDefInfo :: LetDefOrigin -> Access -> IsMacro -> IsAbstract -> ScopeM ()
-checkLetDefInfo wh access macro abstract = do
+checkLetDefInfo :: Access -> IsMacro -> IsAbstract -> ScopeM ()
+checkLetDefInfo access macro abstract = do
   when (abstract == AbstractDef) $ warning AbstractInLetBindings
 
   when (macro == MacroDef) $ warning MacroInLetBindings
 
   case access of
-    -- Marking a let declaration as private should only raise a warning
-    -- in explicit, user-written expressions.
-    --
-    -- It should not raise a warning when scope-checking the type of a
-    -- record constructor (it has an effect there).
-    PrivateAccess rng _
-      | wh == ExprLetDef -> scopeWarning (UselessPrivate rng)
+    PrivateAccess rng _ -> scopeWarning (UselessPrivate rng)
     _ -> pure ()
 
-scopeCheckLetDef :: LetDefOrigin -> NiceDeclaration -> ScopeM (List1 A.LetBinding)
-scopeCheckLetDef wh d = setCurrentRange d do
+scopeCheckLetDef :: NiceDeclaration -> ScopeM (List1 A.LetBinding)
+scopeCheckLetDef d = setCurrentRange d do
   case d of
     NiceMutual _ _ _ _ d@(C.FunSig _ access _ instanc macro info _ _ x t :| [C.FunDef _ _ abstract _ _ _ _ (cl :| [])]) -> do
-      checkLetDefInfo wh access macro abstract
+      checkLetDefInfo access macro abstract
 
       t <- toAbstract t
       -- We bind the name here to make sure it's in scope for the LHS (#917).
@@ -1567,7 +1529,7 @@ scopeCheckLetDef wh d = setCurrentRange d do
 
     -- Function signature without a body
     C.Axiom _ acc abs instanc info x t -> do
-      checkLetDefInfo wh acc NotMacroDef abs
+      checkLetDefInfo acc NotMacroDef abs
 
       t <- toAbstract t
       fx <- getConcreteFixity x
@@ -1608,7 +1570,7 @@ scopeCheckLetDef wh d = setCurrentRange d do
         Left err ->
           case definedName p0 of
             Nothing -> throwError err
-            Just x  -> scopeCheckLetDef wh $ NiceMutual empty tc cc YesPositivityCheck
+            Just x  -> scopeCheckLetDef $ NiceMutual empty tc cc YesPositivityCheck
               (C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef
                   info tc cc x (C.Underscore (getRange x) Nothing)
               :| [ C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
@@ -1796,15 +1758,9 @@ instance ToAbstract NiceDeclaration where
   -- Fields
     C.NiceField r p a i tac x (Arg ai t) -> do
       unless (p == PublicAccess) $ typeError PrivateRecordField
-      ai  <- checkFieldArgInfo False ai  -- we already warned in recordConstructorType
+      ai  <- checkFieldArgInfo True ai
       tac <- traverse (toAbstractCtx TopCtx) tac
-      -- Interaction points for record fields have already been introduced
-      -- when checking the type of the record constructor.
-      -- To avoid introducing interaction points (IP) twice, we turn
-      -- all question marks to underscores.  (See issue 1138.)
-      let maskIP (C.QuestionMark r _) = C.Underscore r Nothing
-          maskIP e                     = e
-      t  <- toAbstractCtx TopCtx $ mapExpr maskIP t
+      t <- toAbstractCtx TopCtx t
       f  <- getConcreteFixity x
       y  <- freshAbstractQName f x
       -- Andreas, 2018-06-09 issue #2170
@@ -2317,21 +2273,6 @@ scopeCheckRecDef r o a pc uc forceEta x directives pars fields =
       gvars  <- bindGeneralizablesIfInserted o ax
       pars   <- catMaybes <$> toAbstract (defParametersToParameters pars)
 
-      -- We scope check the fields a first time when putting together
-      -- the type of the constructor.
-      contel <- localToAbstract (RecordConstructorType fields) return
-
-      -- Use the name @x'@ of the record type also as name of the new record module.
-      let m = qnameToMName x'
-      printScope "rec" 25 "before record"
-      createModule (Just IsRecordModule) m
-
-      -- We scope check the fields a second time, as actual fields.
-      afields <- withCurrentModule m $ do
-        afields <- scopeCheckDeclarations fields
-        printScope "rec" 25 "checked fields"
-        return afields
-
       -- Andreas, 2017-07-13 issue #2642 disallow duplicate fields
       -- Check for duplicate fields. (See "Check for duplicate constructors")
       do let fs :: [C.Name]
@@ -2345,6 +2286,10 @@ scopeCheckRecDef r o a pc uc forceEta x directives pars fields =
            let bad = filter (`elem` dups) fs
            setCurrentRange bad $
              typeError $ DuplicateFields dups
+
+      let m = qnameToMName x'
+      createModule (Just IsRecordModule) m
+      (stages, afields) <- scopeCheckRecordBody m fields
 
       bindModule p x m
 
@@ -2380,7 +2325,7 @@ scopeCheckRecDef r o a pc uc forceEta x directives pars fields =
       f <- getConcreteFixity x
       let params = DataDefParams gvars pars
       let dir' = RecordDirectives ind eta pat cm'
-      return $ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' pc uc forceEta dir' params contel afields
+      return $ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' pc uc forceEta dir' params stages afields
 
 -- | Retrieve the abstract name of a data or record type
 --   that was created by scope checking the data or record signature.

@@ -206,10 +206,9 @@ data Declaration
   | DataSig    DefInfo Erased QName GeneralizeTelescope Type -- ^ lone data signature
   | DataDef    DefInfo QName PositivityCheck UniverseCheck DataDefParams [Constructor]
   | RecSig     DefInfo Erased QName GeneralizeTelescope Type -- ^ lone record signature
-  | RecDef     DefInfo QName PositivityCheck UniverseCheck ForceRecordEta RecordDirectives DataDefParams Type [Declaration]
-      -- ^ The 'Type' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Dummy@,
-      --   and the optional name is the constructor's name.
-      --   The optional 'Range' is for the @pattern@ attribute.
+  | RecDef     DefInfo QName PositivityCheck UniverseCheck ForceRecordEta RecordDirectives DataDefParams [RecordStage] [Declaration]
+      -- ^ Canonical helper modules, followed by projections, their module copies,
+      --   and declarations checked after the last field.
   | PatternSynDef QName [WithHiding BindName] (Pattern' Void)
       -- ^ Only for highlighting purposes
   | UnquoteDecl MutualInfo [DefInfo] [QName] Expr
@@ -226,9 +225,37 @@ type ImportDirective = ImportDirective' QName ModuleName
 type Renaming        = Renaming'        QName ModuleName
 type ImportedName    = ImportedName'    QName ModuleName
 
+-- | A hidden helper module checked before the following record field.
+-- Its cumulative parameters are the ambient context, record parameters,
+-- and preceding fields. The binder names the following field locally.
+data RecordStage = RecordStage
+  { recordStageModule :: ModuleName
+  , recordStageDeclarations :: [Declaration]
+  , recordStageBinder :: BindName
+  } deriving (Show, Eq, Generic)
+
+-- | Recover source declarations, replacing generated stage applications
+-- by the corresponding canonical declarations.
+recordDeclarations :: [RecordStage] -> [Declaration] -> [Declaration]
+recordDeclarations stages = concatMap go
+  where
+    go (ScopedDecl _ ds) = recordDeclarations stages $ List1.toList ds
+    go (Apply _ _ _ (RecordStageApp m) _ _) =
+      case [ recordStageDeclarations st | st <- stages, recordStageModule st == m ] of
+        [ds] -> ds
+        _ -> __IMPOSSIBLE__
+    go d = [d]
+
+instance KillRange RecordStage where
+  killRange (RecordStage m ds x) = killRangeN RecordStage m ds x
+
+instance NFData RecordStage
+
 data ModuleApplication
     = SectionApp Telescope ModuleName [NamedArg Expr]
       -- ^ @tel. M args@:  applies @M@ to @args@ and abstracts @tel@.
+    | RecordStageApp ModuleName
+      -- ^ Internal instantiation with record parameters and preceding projections.
     | RecordModuleInstance ModuleName
       -- ^ @M {{...}}@
   deriving (Show, Eq, Generic)
@@ -867,6 +894,7 @@ instance KillRange Declaration where
 
 instance KillRange ModuleApplication where
   killRange (SectionApp a b c  ) = killRangeN SectionApp a b c
+  killRange (RecordStageApp a) = killRangeN RecordStageApp a
   killRange (RecordModuleInstance a) = killRangeN RecordModuleInstance a
 
 instance KillRange ScopeCopyInfo where

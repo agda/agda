@@ -25,7 +25,6 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Concrete (pattern NoWhere_)
-import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Benchmark (MonadBench, Phase)
@@ -442,21 +441,8 @@ highlight_ hlmod d = do
       highlight (A.Section i er x tel [])
       when (hlmod == DoHighlightModuleContents) $ mapM_ (highlight_ hlmod) (deepUnscopeDecls ds)
     A.RecSig{}               -> highlight d
-    A.RecDef i x pc uc eta dir ps tel cs ->
-      highlight (A.RecDef i x pc uc eta dir ps dummy cs)
-      -- The telescope has already been highlighted.
-      where
-      -- Andreas, 2016-01-22, issue 1790
-      -- The expression denoting the record constructor type
-      -- is replace by a dummy expression in order to /not/
-      -- generate highlighting from it.
-      -- Simply because all the highlighting info is wrong
-      -- in the record constructor type:
-      -- i) fields become bound variables,
-      -- ii) declarations become let-bound variables.
-      -- We do not need that crap.
-      dummy = A.Lit empty $ LitString $
-        "do not highlight construct(ed/or) type"
+    A.RecDef i x pc uc eta dir ps stages cs ->
+      highlight (A.RecDef i x pc uc eta dir ps stages cs)
 
 -- | Termination check a declaration.
 checkTermination_ :: A.Declaration -> TCM ()
@@ -1113,6 +1099,8 @@ checkSectionApplication'
     etaArgs <- inTopContext $ addContext aTel getContextArgs
     addContext (KeepNames aTel) $
       applySection m1 (ptel `abstract` aTel) m2 (raise n args ++! etaArgs) copyInfo
+
+checkSectionApplication' _ _ _ A.RecordStageApp{} _ = __IMPOSSIBLE__
 
 checkSectionApplication' _ Erased{} _ A.RecordModuleInstance{} _ =
   __IMPOSSIBLE__

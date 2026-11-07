@@ -1,3 +1,4 @@
+
 RefineParamsBugs.agda:157.39-43: warning: -W[no]RewritesNothing
 'rewrite' did not apply
 when checking that the clause
@@ -7,7 +8,7 @@ has type (∅ : A) → ((x : A) → (∅ ∙ x) ≡ (x ∙ ∅)) → List A → 
 RefineParamsBugs.agda:158.40-57: warning: -W[no]RewritesNothing
 'rewrite' did not apply
 when checking that the clause
-RefineParamsBugs.Folds.FoldAssoc.-rewrite370 {A = A} _∙_ = _∙_
+RefineParamsBugs.Folds.FoldAssoc.-rewrite388 {A = A} _∙_ = _∙_
   assoc = assoc
   ∅
   id
@@ -34,7 +35,7 @@ has type (∅ : A) → ((x : A) → (∅ ∙ x) ≡ (x ∙ ∅)) → List A → 
 RefineParamsBugs.agda:158.40-57: warning: -W[no]RewritesNothing
 'rewrite' did not apply
 when checking that the clause
-RefineParamsBugs.Folds.FoldAssoc.-rewrite370 {A = A} _∙_ = _∙_
+RefineParamsBugs.Folds.FoldAssoc.-rewrite388 {A = A} _∙_ = _∙_
   assoc = assoc
   ∅
   id
