@@ -422,8 +422,22 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
     checkProjs ftel1 ftel2 vs (A.ScopedDecl scope fs' : fs) =
       setScope scope >> checkProjs ftel1 ftel2 vs (List1.toList fs' ++! fs)
 
-    -- Case: projection.
-    checkProjs ftel1 (ExtendTel (dom@(unDom -> t)) ftel2) vs (A.Field info x _ : fs) =
+    -- Case: projection. Reuse the checked domain from the constructor telescope.
+    checkProjs ftel1 (ExtendTel dom ftel2) vs (A.Field info x _ : fs) = do
+      v <- checkProj ftel1 dom ftel2 vs info x
+      let prefix = abstract ftel1 $ ExtendTel dom $
+            Abs (nameToArgName $ qnameName x) EmptyTel
+      checkProjs prefix (absBody ftel2) (v : vs) fs
+
+    -- Case: definition.
+    checkProjs ftel1 ftel2 vs (d : fs) = do
+      checkDecl d
+      checkProjs ftel1 ftel2 vs fs
+
+    -- Install one projection, returning its application to the record variable.
+    -- The domain and suffix are in the context of the preceding fields.
+    checkProj :: Telescope -> Dom Type -> Abs Telescope -> [Term] -> A.DefInfo -> QName -> TCM Term
+    checkProj ftel1 dom@(unDom -> t) ftel2 vs info x =
       traceCall (CheckProjection (getRange info) x t) $ do
       let ai = dom ^. dInfo
       -- Andreas, 2012-06-07:
@@ -505,17 +519,12 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
           projname = qualify m $ qnameName x
           projcall o = Var 0 [Proj o projname]
           rel      = getRelevance ai
-          -- the recursive call
-          recurse  = checkProjs (abstract ftel1 $ ExtendTel dom
-                                 $ Abs (nameToArgName $ qnameName projname) EmptyTel)
-                                (absBody ftel2) (projcall ProjSystem : vs) fs
 
       reportSDoc "tc.rec.proj" 25 $ nest 2 $ "finalt=" <+> do
         inTopContext $ prettyTCM finalt
 
       -- -- Andreas, 2012-02-20 do not add irrelevant projections if
       -- -- disabled by --no-irrelevant-projections
-      -- ifM (return (rel == Irrelevant) `and2M` do not . optIrrelevantProjections <$> pragmaOptions) recurse $ do
       -- Andreas, 2018-06-09 issue #2170
       -- Always create irrelevant projections (because the scope checker accepts irrelevant fields).
       -- If --no-irrelevant-projections, then their use should be disallowed by the type checker for expressions.
@@ -635,9 +644,4 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
           InstanceDef kwr -> addTypedInstance kwr projname t
           NotInstanceDef  -> pure ()
 
-        recurse
-
-    -- Case: definition.
-    checkProjs ftel1 ftel2 vs (d : fs) = do
-      checkDecl d
-      checkProjs ftel1 ftel2 vs fs
+        return $ projcall ProjSystem
