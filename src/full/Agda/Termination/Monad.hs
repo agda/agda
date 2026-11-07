@@ -144,7 +144,22 @@ data TerEnv = TerEnv
     -- ^ Map from function names to the list of all available projection paths.
   , terProjectedNameToMaskArgs :: !(Map (QName, [QName]) (ListInf Bool))
     -- ^ Precomputed argument mask per @(name, [projection])@ pair, if @--without-K@.
+  , terSizeSucVerdicts :: !SizeSucVerdicts
+    -- ^ Precomputed admissibility of successor patterns in size arguments
+    --   (issue #8829).
   }
+
+-- | Can a successor pattern @.(↑ j)@ in a size argument be used
+--   as termination evidence?  (Issue #8829.)
+data SizeSucVerdict
+  = SizeSucAdmissible
+      -- ^ Yes, the type of the function is upper semi-continuous in this size.
+  | SizeSucInadmissible (Maybe (Closure SemiContinuityFailure))
+      -- ^ No, with a reason (if available).
+
+-- | Verdicts per function, projection path, and argument position
+--   (counting projection patterns as positions).
+type SizeSucVerdicts = Map (QName, [QName], Int) SizeSucVerdict
 
 -- | An empty termination environment.
 --
@@ -178,6 +193,7 @@ defaultTerEnv = TerEnv
   , terNodeToName               = IntMap.empty
   , terNameToProjections        = Map.empty
   , terProjectedNameToMaskArgs  = Map.empty
+  , terSizeSucVerdicts          = Map.empty
   }
 
 -- | Termination monad service class.
@@ -272,6 +288,12 @@ instance (Monoid m) => Monoid (TerM m) where
 
 terGetSizeSuc :: TerM (Maybe QName)
 terGetSizeSuc = terAsks terSizeSuc
+
+terGetSizeSucVerdicts :: TerM SizeSucVerdicts
+terGetSizeSucVerdicts = terAsks terSizeSucVerdicts
+
+terSetSizeSucVerdicts :: SizeSucVerdicts -> TerM a -> TerM a
+terSetSizeSucVerdicts vs = terLocal $ \ e -> e { terSizeSucVerdicts = vs }
 
 terGetCurrent :: TerM QName
 terGetCurrent = terAsks terCurrent

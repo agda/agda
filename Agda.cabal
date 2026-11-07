@@ -749,6 +749,7 @@ library
       Agda.Termination.Monad
       Agda.Termination.Order
       Agda.Termination.RecCheck
+      Agda.Termination.SizedTypes
       Agda.Termination.Semiring
       Agda.Termination.SparseMatrix
       Agda.Termination.TermCheck
@@ -888,6 +889,7 @@ library
       Agda.TypeChecking.Serialise.Node
       Agda.TypeChecking.SizedTypes
       Agda.TypeChecking.SizedTypes.Pretty
+      Agda.TypeChecking.SizedTypes.SemiContinuity
       Agda.TypeChecking.SizedTypes.Solve
       Agda.TypeChecking.SizedTypes.Syntax
       Agda.TypeChecking.SizedTypes.Utils

@@ -1,0 +1,11 @@
+Issue59b.agda:19.1-23.30: error: [TerminationIssue]
+Termination checking failed for the following function:
+  merge
+Problematic calls:
+  merge (↑ i) (↑ j) (node i j) | Set
+  merge (↑ i) j (mkH (↑ i) j)
+    (at Issue59b.agda:23.3-8)
+Note: matching a size against a successor does not provide
+termination evidence if the type of the function is not upper
+semi-continuous in the size:
+  merge: argument type Heap i j is not lower semi-continuous in j

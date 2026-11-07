@@ -56,6 +56,34 @@ Language
 
 Changes to type checker and other components defining the Agda language.
 
+* (**BREAKING**) `--sized-types`: Matching a size against a successor
+  (successor style of sized types, e.g. `suc : ∀ {i} → Nat i → Nat (↑ i)`)
+  now only provides termination evidence if the type of the recursive function
+  is _upper semi-continuous_ in that size
+  ([issue #8829](https://github.com/agda/agda/issues/8829)).
+  Previously, this check was missing, which allowed a proof of `⊥`.
+  For instance, the following is now rejected, because the argument type
+  `∀ n → IsNat i n` is not lower semi-continuous in `i`:
+  ```agda
+  data IsNat : Size → Nat → Set where
+    isZero : ∀ i     →             IsNat (↑ i) zero
+    isSuc  : ∀ i {n} → IsNat i n → IsNat (↑ i) (suc n)
+
+  shift : ∀ i → (∀ n → IsNat (↑ i) n) → ∀ n → IsNat i n
+  shift i f n with f (suc n)
+  ... | isSuc j b = b
+
+  loop : ∀ i → (∀ n → IsNat i n) → ⊥
+  loop i f with f zero
+  ... | isZero j = loop j (shift j f)  -- termination error
+  ```
+  Admissible types include those whose argument types are sized inductive
+  types, antitone, non-recursive data or record types of such,
+  or functions over finite domains (such as `Bool`) into such.
+  Recursion via `Size<` style sized types is well-founded and not affected.
+  See the [user manual](https://agda.readthedocs.io/en/latest/language/sized-types.html#successor-style-sized-types-and-semi-continuity)
+  for details.
+
 Builtins
 --------
 
