@@ -1,0 +1,2 @@
+Issue6962Qualified.agda:3.1: error: [ParseError]
+Expected an unqualified function name before definition parameters

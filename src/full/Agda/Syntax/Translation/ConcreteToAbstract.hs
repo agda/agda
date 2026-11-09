@@ -1037,6 +1037,7 @@ instance ToAbstract C.Expr where
       C.Equal{} -> syntaxError "unexpected '='" -- triggered by 'f = (x = e)'
       C.Ellipsis _ -> syntaxError "unexpected '...'"  -- triggered by 'f = ...'
       C.DoubleDot _ _ -> syntaxError "unexpected '..'" -- triggered by 'f = ..x'
+      C.BindingExpr{} -> syntaxError "unexpected definition parameter"
 
   -- Quoting
       C.Quote r -> return $ A.Quote (ExprRange r)
@@ -1654,6 +1655,7 @@ scopeCheckLetDef wh d = setCurrentRange d do
             definedName C.QuoteP{}             = Nothing
             definedName C.HiddenP{}            = Nothing -- Not impossible, see issue #2291
             definedName C.InstanceP{}          = Nothing
+            definedName C.BindingP{}           = __IMPOSSIBLE__
             definedName C.WithP{}              = Nothing
             definedName C.AppP{}               = Nothing -- Not impossible, see issue #4586
             definedName C.OpAppP{}             = __IMPOSSIBLE__
@@ -3881,6 +3883,7 @@ instance ToAbstract CPattern where
     HiddenP _ _    -> __IMPOSSIBLE__
     InstanceP _ _  -> __IMPOSSIBLE__
     RawAppP _ _    -> __IMPOSSIBLE__
+    BindingP _ _   -> __IMPOSSIBLE__
 
     C.WildP r      -> return $ A.WildP $ PatRange r
     -- Andreas, 2015-05-28 futile attempt to fix issue 819: repeated variable on lhs "_"

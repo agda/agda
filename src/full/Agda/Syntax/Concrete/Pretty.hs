@@ -173,6 +173,7 @@ instance Pretty Expr where
                     , maybe empty (\ e -> hlKeyword "in" <+> pretty e) me
                     ]
             Paren _ e -> parens $ pretty e
+            BindingExpr b -> pretty b
             IdiomBrackets _ q es -> qualifier q case es of
                 []   -> emptyIdiomBrkt
                 [e]  -> leftIdiomBrkt <+> pretty e <+> rightIdiomBrkt
@@ -621,6 +622,7 @@ instance Pretty Pattern where
             LitP _ l        -> pretty l
             QuoteP _        -> hlKeyword "quote"
             RecP _ _ fs     -> sep [ hlKeyword "record", bracesAndSemicolons (map pretty fs) ]
+            BindingP _ b    -> pretty b
             EqualP _ es     -> sep $ for es \ (e1, e2) -> parens $ sep [pretty e1, equals, pretty e2]
             EllipsisP _ _   -> "..."
             WithP _ p       -> "|" <+> pretty p

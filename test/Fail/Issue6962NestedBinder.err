@@ -1,0 +1,3 @@
+Issue6962NestedBinder.agda:3.13: error: [ParseError]
+)<ERROR>  = Set
+...

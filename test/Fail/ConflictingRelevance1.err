@@ -1,4 +1,2 @@
-ConflictingRelevance1.agda:4.42: error: [ParseError]
-)<ERROR>  → A
-
--- Should fail.  (Curren...
+ConflictingRelevance1.agda:4.21: error: [ParseError]
+Conflicting relevance information

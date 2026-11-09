@@ -1,0 +1,3 @@
+Issue6962Expression.agda:7.9-18: error: [SyntaxError]
+Syntax error: unexpected definition parameter
+when scope checking (A : Set)

@@ -16,6 +16,7 @@ module Agda.Syntax.Concrete
   , toNamedArg, unNamedArg
   , rawApp, rawAppP
   , isSingleIdentifierP, removeParenP
+  , exprToPatternWith
   , isPattern, isAbsurdP, isBinderP
   , PossiblyProjectionPattern(..)
   , observeHiding
@@ -180,6 +181,7 @@ data Expr
                                                --   The 'KwRange' is for the @record@ keyword.
   | Let Range (List1 Declaration) (Maybe Expr) -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
   | Paren Range Expr                           -- ^ ex: @(e)@
+  | BindingExpr LamBinding                   -- ^ Parser-only binder atom; only valid in definition parameter heads
   | IdiomBrackets Range (Maybe QName) [Expr]   -- ^ ex: @(| e1 | e2 | .. | en |)@ or @(|)@
   | DoBlock KwRange (Maybe QName) (List1 DoStmt)
     -- ^ ex: @do x <- m1; m2@
@@ -226,6 +228,7 @@ data Pattern
                                            -- pun is expanded.
   | QuoteP Range                           -- ^ @quote@
   | AppP Pattern (NamedArg Pattern)        -- ^ @p p'@ or @p {x = p'}@
+  | BindingP Range Expr                    -- ^ Parser-only binding syntax; interpreted when classifying a declaration.
   | RawAppP Range (List2 Pattern)          -- ^ @p1..pn@ before parsing operators
   | OpAppP Range QName (Set1 A.Name)
       (List1 (NamedArg Pattern))           -- ^ eg: @p => p'@ for operator @_=>_@
@@ -835,6 +838,7 @@ returnExpr (Pi _ e)        = returnExpr e
 returnExpr (Fun _ _  e)    = returnExpr e
 returnExpr (Let _ _ e)     = returnExpr =<< e
 returnExpr (Paren _ e)     = returnExpr e
+returnExpr BindingExpr{}   = Nothing
 returnExpr (Generalized e) = returnExpr e
 returnExpr e               = pure e
 
@@ -842,25 +846,26 @@ returnExpr e               = pure e
 --   valid pattern.
 
 isPattern :: Expr -> Maybe Pattern
-isPattern = exprToPattern (const Nothing)
+isPattern = exprToPatternWith (const Nothing)
 
 -- | Turn an expression into a pattern, turning non-pattern subexpressions into 'WildP'.
 
 exprToPatternWithHoles :: Expr -> Pattern
-exprToPatternWithHoles = runIdentity . exprToPattern (Identity . WildP . getRange)
+exprToPatternWithHoles = runIdentity . exprToPatternWith (Identity . WildP . getRange)
 
 -- | Generic expression to pattern conversion.
 
-exprToPattern :: Applicative m
+exprToPatternWith :: Applicative m
   => (Expr -> m Pattern)  -- ^ Default result for non-pattern things.
   -> Expr                 -- ^ The expression to translate.
   -> m Pattern            -- ^ The translated pattern (maybe).
-exprToPattern fallback = loop
+exprToPatternWith fallback = loop
   where
   loop = \case
     Ident       x        -> pure $ IdentP True x
     App         _ e1 e2  -> AppP <$> loop e1 <*> traverse (traverse loop) e2
     Paren       r e      -> ParenP r <$> loop e
+    e@BindingExpr{}      -> fallback e
     Underscore  r _      -> pure $ WildP r
     Absurd      r        -> pure $ AbsurdP r
     As          r x e    -> pushUnderBracesP r (AsP r x) <$> loop e
@@ -996,6 +1001,7 @@ instance HasRange Expr where
       Pi b e                 -> fuseRange b e
       Let r _ _              -> r
       Paren r _              -> r
+      BindingExpr b          -> getRange b
       IdiomBrackets r _ _    -> r
       DoBlock r q ds         -> getRange (r, q, ds)
       As r _ _               -> r
@@ -1150,6 +1156,7 @@ instance HasRange Pattern where
   getRange (IdentP _ x)       = getRange x
   getRange (AppP p q)         = fuseRange p q
   getRange (OpAppP r _ _ _)   = r
+  getRange (BindingP r _)     = r
   getRange (RawAppP r _)      = r
   getRange (ParenP r _)       = r
   getRange (WildP r)          = r
@@ -1172,6 +1179,7 @@ instance SetRange Pattern where
   setRange r (IdentP c x)       = IdentP c (setRange r x)
   setRange r (AppP p q)         = AppP (setRange r p) (setRange r q)
   setRange r (OpAppP _ x ns ps) = OpAppP r x ns ps
+  setRange r (BindingP _ b)     = BindingP r b
   setRange r (RawAppP _ ps)     = RawAppP r ps
   setRange r (ParenP _ p)       = ParenP r p
   setRange r (WildP _)          = WildP r
@@ -1280,6 +1288,7 @@ instance KillRange Expr where
   killRange (RecUpdate _ _ e ne)      = killRangeN (RecUpdate empty noRange) e ne
   killRange (Let _ d e)               = killRangeN (Let noRange) d e
   killRange (Paren _ e)               = killRangeN (Paren noRange) e
+  killRange (BindingExpr b)          = killRangeN BindingExpr b
   killRange (IdiomBrackets _ q es)    = killRangeN (IdiomBrackets noRange) q es
   killRange (DoBlock _ q ss)          = killRangeN (DoBlock empty) q ss
   killRange (Absurd _)                = Absurd noRange
@@ -1324,6 +1333,7 @@ instance KillRange e => KillRange (OpApp e) where
 instance KillRange Pattern where
   killRange (IdentP c q)      = killRangeN IdentP c q
   killRange (AppP p ps)       = killRangeN AppP p ps
+  killRange (BindingP _ b)    = killRangeN (BindingP noRange) b
   killRange (RawAppP _ p)     = killRangeN (RawAppP noRange) p
   killRange (OpAppP _ n ns p) = killRangeN (OpAppP noRange) n ns p
   killRange (HiddenP _ n)     = killRangeN (HiddenP noRange) n
@@ -1404,6 +1414,7 @@ instance NFData Expr where
   rnf (RecUpdate _ _ a b)      = rnf a `seq` rnf b
   rnf (Let _ a b)              = rnf a `seq` rnf b
   rnf (Paren _ a)              = rnf a
+  rnf (BindingExpr a)         = rnf a
   rnf (IdiomBrackets _ a b)    = rnf a `seq` rnf b
   rnf (DoBlock _ a b)          = rnf a `seq` rnf b
   rnf (Absurd _)               = ()
@@ -1428,6 +1439,7 @@ instance NFData Pattern where
   rnf (IdentP a b)     = rnf a `seq` rnf b
   rnf (QuoteP _)       = ()
   rnf (AppP a b)       = rnf a `seq` rnf b
+  rnf (BindingP _ b)   = rnf b
   rnf (RawAppP _ a)    = rnf a
   rnf (OpAppP _ a b c) = rnf a `seq` rnf b `seq` rnf c
   rnf (HiddenP _ a)    = rnf a
