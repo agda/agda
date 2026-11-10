@@ -145,7 +145,7 @@ exports._primFloatDecode = function(x) {
             mantissa *= 2.0;
             exponent -= 1;
         };
-        while (mantissa % 2.0 === 0) {
+        while (mantissa % 2.0 === 0 && mantissa !== 0) {
             mantissa /= 2.0;
             exponent += 1;
         }
