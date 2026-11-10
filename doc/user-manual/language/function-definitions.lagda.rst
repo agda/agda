@@ -87,7 +87,7 @@ ordinary arguments.
 At least one parameter needs an explicit type annotation. Other parameter types
 are inferred, as in ``{a} (A : Set a)``.
 Parameters use variable telescope binders with the usual visibility and
-annotations. 
+annotations.
 
 Special patterns
 ================
