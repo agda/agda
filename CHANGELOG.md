@@ -1082,6 +1082,7 @@ For 2.9.0, the following issues were
 - [Issue #8858](https://github.com/agda/agda/issues/8858): `Cmd_highlight` after Give/Refine emits stale disambiguated names from `stDisambiguatedNames`
 - [Issue #8875](https://github.com/agda/agda/issues/8875): Warn if one includes several versions of the same library
 - [Issue #8881](https://github.com/agda/agda/issues/8881): Regression in 2.9.0-rc1 and 2.9.0-rc2: level meta left with only inequalities after instance search under a λ
+- [Issue #8898](https://github.com/agda/agda/issues/8898): `primFloatDecode` does not terminate on `0.0` and `-0.0` (type checker, GHC and JS backends)
 
 Pull requests merged for 2.9.0
 ------------------------------
@@ -1374,3 +1375,5 @@ Pull requests merged for 2.9.0
 - [PR #8880](https://github.com/agda/agda/issues/8880): Fix #8858 as suggested: don't persists DisambiguatedNames during give
 - [PR #8884](https://github.com/agda/agda/issues/8884): Fix #8881 by strengthening simplifyLevelConstraint
 - [PR #8890](https://github.com/agda/agda/issues/8890): Fix #8888: constructor patterns keep the modality of the constructor
+- [PR #8907](https://github.com/agda/agda/issues/8907): Fix #8898 by remove termination blunder in decodeFloat
+
