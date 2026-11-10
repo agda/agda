@@ -86,10 +86,6 @@ import Agda.Utils.Impossible
 %lexer { lexer } { TokEOF{} }
 
 %expect 8
--- * shift/reduce for \ x y z -> foo = bar
---   shifting means it'll parse as \ x y z -> (foo = bar) rather than
---   (\ x y z -> foo) = bar
---
 -- * Telescope let and do-notation let.
 --      Expr2 -> 'let' Declarations . LetBody
 --      TypedBinding -> '(' 'let' Declarations . ')'
