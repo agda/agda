@@ -269,7 +269,7 @@ doubleDecode x
   where
     normalise :: Integer -> Integer -> (Integer, Integer)
     normalise mantissa exponent
-      | even mantissa = normalise (mantissa `div` 2) (exponent + 1)
+      | even mantissa, mantissa /= 0 = normalise (mantissa `div` 2) (exponent + 1)
       | otherwise = (mantissa, exponent)
 
 -- |Checks whether or not the Double is within a safe range of operation.
