@@ -432,7 +432,8 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
 
     -- Instantiate already checked helpers with the preceding projections.
     checkProjs ftel1 ftel2 vs (A.Apply _ _ target (A.RecordStageApp source) copyInfo _ : fs) = do
-      params <- init <$> getContextArgs
+      -- Drop the record value from the record module parameters.
+      params <- initWithDefault __IMPOSSIBLE__ <$> getContextArgs
       let args = zipWith' (\ v dom -> v <$ argFromDom dom) (reverse vs) (telToList ftel1)
       addSection target
       applySection target EmptyTel source (params ++ args) copyInfo
