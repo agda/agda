@@ -19,6 +19,7 @@ instance Arbitrary Name where
     Name <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
          <*> return noFixity'
          <*> return False
+         <*> return Nothing
 
 instance CoArbitrary Name where
   coarbitrary = coarbitrary . nameId

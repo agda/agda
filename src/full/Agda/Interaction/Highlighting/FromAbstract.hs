@@ -230,7 +230,9 @@ instance Hilite A.Declaration where
       A.UnfoldingDecl _r names               -> hl names
     where
     hl      a = hilite a
-    hlField x = hiliteField (concreteQualifier x) (concreteBase x) (Just $ nameBindingSite x)
+    hlField x = hiliteCNameWithSourceName (A.qnameSourceName x)
+      (concreteQualifier x) (concreteBase x) noRange
+      (Just $ nameBindingSite x) $ nameAsp Field
 
 instance Hilite A.Pragma where
   hilite = \case
@@ -562,7 +564,8 @@ hiliteField xs x bindingR = hiliteCName xs x noRange bindingR $ nameAsp Field
 hiliteModule :: (Bool, A.ModuleName) -> Hiliter
 hiliteModule (isTopLevelModule, A.MName []) = mempty
 hiliteModule (isTopLevelModule, A.MName (n:ns)) =
-  hiliteCName
+  hiliteCNameWithSourceName
+    (A.qnameSourceName $ A.qnameFromList $ n List1.:| ns)
     (map A.nameConcrete ms)
     (A.nameConcrete m)
     noRange
@@ -589,7 +592,14 @@ hiliteCName
      -- ^ Meta information to be associated with the name.
      --   The argument is 'True' iff the name is an operator.
   -> Hiliter
-hiliteCName xs x fr mR asp = do
+hiliteCName = hiliteCNameWithSourceName Nothing
+
+-- | Override only the symbolic name. Token ranges and numeric definition links
+-- must continue to refer to the actual occurrence and original binding site.
+hiliteCNameWithSourceName
+  :: Maybe C.QName -> [C.Name] -> C.Name -> Range -> Maybe Range
+  -> (Bool -> Aspects) -> Hiliter
+hiliteCNameWithSourceName sourceName xs x fr mR asp = do
   env <- ask
   -- We don't care if we get any funny ranges.
   if all (== Just (hleCurrentModuleName env)) moduleNames
@@ -617,7 +627,11 @@ hiliteCName xs x fr mR asp = do
     -- this is contained in the html file name already.
     -- We want to get anchors of the form:
     -- @<a name="TopLevelModule.html#LocalModule.NestedModule.identifier">@
-    let qualifiers = drop (size mod) xs
+    let (sourceQualifiers, sourceBase) = case sourceName of
+          Nothing -> (xs, x)
+          Just q  -> case C.qnameParts q of
+            n List1.:| ns -> initLast1 n ns
+        qualifiers = drop (size mod) sourceQualifiers
     -- For bound variables, we do not create symbolic anchors.
         local = maybe True isLocalAspect $ aspect aspects
     return $ DefinitionSite
@@ -628,9 +642,9 @@ hiliteCName xs x fr mR asp = do
         -- For bound variables etc. we do not create a symbolic anchor name.
         -- Also not for names that include anonymous modules,
         -- otherwise, we do not get unique anchors.
-      , defSiteAnchor = if local || C.isNoName x || any Common.isUnderscore qualifiers
+      , defSiteAnchor = if local || C.isNoName sourceBase || any Common.isUnderscore qualifiers
           then Nothing
-          else Just $ prettyShow $ foldr C.Qual (C.QName x) qualifiers
+          else Just $ prettyShow $ foldr C.Qual (C.QName sourceBase) qualifiers
       }
 
   -- Is the name a bound variable or similar? If in doubt, yes.
@@ -666,7 +680,8 @@ hiliteAName
   -> Hiliter
 hiliteAName x include asp = do
   currentModule <- asks hleCurrentModuleName
-  hiliteCName (concreteQualifier x)
+  hiliteCNameWithSourceName (A.qnameSourceName x)
+              (concreteQualifier x)
               (concreteBase x)
               (rangeOfFixityDeclaration currentModule)
               (if include then Just $ nameBindingSite x else Nothing)

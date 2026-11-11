@@ -157,14 +157,14 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
     stagesBeforeFields _ [] = return ([], [])
     stagesBeforeFields locals ds = do
       let (before, rest) = break (not . notField) ds
-      stage <- qnameToMName <$> freshAbstractQName noFixity' (C.simpleName "record-stage")
+      stage <- freshRecordImplementationModule "record-stage"
       createModule Nothing stage
       withCurrentModule stage $ do
         checked <- catMaybes <$> toAbstract before
         -- Copy before introducing the next stage, to avoid exporting the
         -- implementation's nested stage modules.
         copied <- withCurrentModule recordModule $ do
-          target <- qnameToMName <$> freshAbstractQName noFixity' (C.simpleName "record-members")
+          target <- freshRecordImplementationModule "record-members"
           createModule Nothing target
           source <- getNamedScope stage
           (scope, copyInfo) <- copyRecordScope (C.QName $ C.simpleName "record-stage") target source
@@ -193,6 +193,15 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
                 field = A.ScopedDecl scope $ A.Field info y (Arg ai t) :| []
             return (st : next, copied : field : fields)
           _ -> __IMPOSSIBLE__
+
+    -- Implementation modules do not introduce source qualifiers. In particular,
+    -- copies retain the original source name along with the original binding site.
+    freshRecordImplementationModule s = do
+      q <- freshAbstractQName noFixity' (C.simpleName s)
+      let r = qnameFromList $ mnameToList1 recordModule
+          source = fromMaybe (qnameToConcrete r) $ A.qnameSourceName r
+      return $ qnameToMName q { qnameName = (qnameName q)
+        { A.nameSourceName = Just $ killRange source } }
 
 checkModuleApplication
   :: C.ModuleApplication
@@ -661,7 +670,10 @@ newtype NewModuleQName     = NewModuleQName     C.QName
 newtype OldModuleName      = OldModuleName      C.QName
 
 freshQModule :: A.ModuleName -> C.Name -> ScopeM A.ModuleName
-freshQModule m x = A.qualifyM m . mnameFromList1 . singleton <$> freshAbstractName_ x
+freshQModule m x = do
+  n <- freshAbstractName_ x
+  return $ A.qualifyM m $ mnameFromList1 $ singleton
+    n { A.nameSourceName = killRange <$> A.sourceNameInModule m x }
 
 checkForModuleClash :: C.Name -> ScopeM ()
 checkForModuleClash x = do

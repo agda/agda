@@ -507,6 +507,10 @@ parameters; their record-module versions instantiate these parameters with
 projections. Declarations after the last field are checked in the completed
 record module.
 
+In generated HTML, declarations retain symbolic anchors based on their source
+names, such as ``R.F`` above. Internal modules used to check interleaved
+declarations do not contribute qualifiers to these anchors.
+
 A mutually checked group of declarations cannot cross a field declaration.
 
 .. _eta-expansion:

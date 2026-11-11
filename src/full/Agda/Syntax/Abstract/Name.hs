@@ -63,6 +63,10 @@ data Name = Name
   , nameIsRecordName :: Bool
       -- ^ Is this the name of the invisible record variable `self`?
       --   Should not be printed or displayed in the context, see issue #3584.
+  , nameSourceName   :: Maybe C.QName
+      -- ^ Source-qualified definition name when the implementation module
+      --   differs from the source module. Preserved by module copying, like
+      --   the binding site. Used for symbolic highlighting anchors only.
   }
 
 -- | A name suffix.
@@ -266,7 +270,7 @@ instance MkName String where
   mkName r i s = makeName i (C.Name noRange InScope (C.stringNameParts s)) r noFixity' False
 
 makeName :: NameId -> C.Name -> Range -> Fixity' -> Bool -> Name
-makeName i c r f rec = Name i c c r f rec
+makeName i c r f rec = Name i c c r f rec Nothing
 
 nameToArgName :: Name -> ArgName
 nameToArgName = stringToArgName . prettyShow
@@ -392,6 +396,21 @@ showQNameId q = show (List1.toList ns) ++ "@" ++ show (List1.head ms)
 qnameToConcrete :: QName -> C.QName
 qnameToConcrete (QName m x) =       -- Use the canonical name here (#5048)
    foldr (C.Qual . nameConcrete) (C.QName $ nameCanonical x) (mnameToList m)
+
+-- | Source provenance for a member of an implementation module. Ordinary
+-- modules need no override. A nested source module extends its parent's name.
+sourceNameInModule :: ModuleName -> C.Name -> Maybe C.QName
+sourceNameInModule (MName ms) x = (`C.qualify` x) <$> foldl step Nothing ms
+  where
+  step prefix n = case nameSourceName n of
+    Just q  -> Just q
+    Nothing -> (`C.qualify` nameCanonical n) <$> prefix
+
+-- | The source-qualified name, when different from the implementation name.
+qnameSourceName :: QName -> Maybe C.QName
+qnameSourceName (QName m x) = case nameSourceName x of
+  Just q  -> Just q
+  Nothing -> sourceNameInModule m $ nameCanonical x
 
 qualifyQ :: ModuleName -> QName -> QName
 qualifyQ m x = qnameFromList $ mnameToList m `List1.prependList` qnameToList x
@@ -554,7 +573,7 @@ instance IsNoName ModuleName where
   isNoName (MName xs) = all isNoName xs
 
 instance Null Name where
-  empty = Name empty empty empty empty empty empty
+  empty = Name empty empty empty empty empty empty Nothing
   null = isNoName
 
 instance Null QName where
@@ -728,8 +747,8 @@ instance SetRange ModuleName where
 -- KillRange
 
 instance KillRange Name where
-  killRange (Name a b c d e f) =
-    (killRangeN Name a b c d e f) { _nameBindingSite = d }
+  killRange (Name a b c d e f g) =
+    (killRangeN Name a b c d e f g) { _nameBindingSite = d }
     -- Andreas, 2017-07-25, issue #2649
     -- Preserve the nameBindingSite for error message.
     --
@@ -804,7 +823,7 @@ instance Sized ModuleName where
 -- | The range is not forced.
 
 instance NFData Name where
-  rnf (Name _ a b _ c d) = rnf (a, b, c, d)
+  rnf (Name _ a b _ c d e) = rnf (a, b, c, d, e)
 
 instance NFData Suffix where
   rnf NoSuffix   = ()
