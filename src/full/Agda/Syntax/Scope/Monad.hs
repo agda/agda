@@ -246,6 +246,7 @@ freshAbstractName fx x = do
     , _nameBindingSite = getRange x
     , nameFixity      = fx
     , nameIsRecordName = False
+    , nameSourceName = Nothing
     }
 
 -- | @freshAbstractName_ = freshAbstractName noFixity'@
@@ -257,7 +258,7 @@ freshAbstractQName :: Fixity' -> C.Name -> ScopeM A.QName
 freshAbstractQName fx x = do
   y <- freshAbstractName fx x
   m <- getCurrentModule
-  return $ A.qualify m y
+  return $ A.qualify m y { nameSourceName = killRange <$> A.sourceNameInModule m x }
 
 freshAbstractQName' :: C.Name -> ScopeM A.QName
 freshAbstractQName' x = do
@@ -762,6 +763,7 @@ copyScopeWith keepPrivate oldc new0 s =
         refresh :: A.Name -> WSM A.Name
         refresh x = do
           i <- lift fresh
+          -- Keep the original binding site and source name for highlighting.
           return $ x { A._nameId = i }
 
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y

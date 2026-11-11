@@ -1326,14 +1326,14 @@ instance FreshName () where
   freshName_ () = freshNoName_
 
 instance FreshName Name where
-  freshName_ (Name _ con can bs fix rn) = do
+  freshName_ (Name _ con can bs fix rn source) = do
     i <- fresh
-    pure $ Name i con can bs fix rn
+    pure $ Name i con can bs fix rn source
 
 instance FreshName C.Name where
   freshName_ c = do
     i <- fresh
-    pure $ Name i c c noRange noFixity' False
+    pure $ Name i c c noRange noFixity' False Nothing
 
 ----------------------------------------------------------------------------------------------------
 -- * Module Checkpoints
