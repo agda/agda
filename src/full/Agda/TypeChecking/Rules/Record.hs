@@ -12,7 +12,6 @@ import qualified Data.Set as Set
 import Agda.Interaction.Options
 
 import qualified Agda.Syntax.Abstract as A
-import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
@@ -35,7 +34,7 @@ import Agda.TypeChecking.Rules.Data
   ( getGeneralizedParameters, bindGeneralizedParameters, bindParameters
   , checkDataSort, fitsIn, forceSort
   )
-import Agda.TypeChecking.Rules.Term ( isType_ )
+import Agda.TypeChecking.Rules.Term ( ModTelOrigin(..), checkTelescope )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
 import Agda.Utils.Function ( applyWhen )
@@ -54,46 +53,26 @@ import qualified Agda.Utils.List1 as List1
 -- * Records
 ---------------------------------------------------------------------------
 
--- | @checkRecDef i name con ps contel fields@
---
---     [@name@]    Record type identifier.
---
---     [@con@]     Maybe constructor name and info.
---
---     [@ps@]      Record parameters.
---
---     [@contel@]  Approximate type of constructor (@fields@ -> dummy).
---                 Does not include record parameters.
---
---     [@fields@]  List of field signatures.
---
+-- | Check helpers in field-prefix contexts, then install the constructor
+-- and assemble the record module from projections and helper copies.
 checkRecDef
-  :: A.DefInfo                 -- ^ Position and other info.
-  -> QName                     -- ^ Record type identifier.
-  -> PositivityCheck           -- ^ Report positivity errors for this record type?
-  -> UniverseCheck             -- ^ Check universes?
-  -> ForceRecordEta            -- ^ @{-# ETA_EQUALITY #-}@ pragma attached to this record definition?
-  -> A.RecordDirectives        -- ^ (Co)Inductive, (No)Eta, (Co)Pattern, Constructor?
-  -> A.DataDefParams           -- ^ Record parameters.
-  -> A.Expr                    -- ^ Approximate type of constructor (@fields@ -> dummy).
-                               --   Does not include record parameters.
-  -> [A.Field]                 -- ^ Field signatures.
+  :: A.DefInfo
+  -> QName
+  -> PositivityCheck
+  -> UniverseCheck
+  -> ForceRecordEta
+  -> A.RecordDirectives
+  -> A.DataDefParams
+  -> [A.RecordStage]
+  -> [A.Field]
   -> TCM ()
-checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars ps) contel0 fields = do
+checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars ps) stages fields = do
 
-  -- Andreas, 2022-10-06, issue #6165:
-  -- The target type of the constructor is a meaningless dummy expression which does not type-check.
-  -- We replace it by Set/Type (builtinSet) which is still incorrect but type-checks.
-  -- It will be fixed after type-checking.
-  aType <- A.Def . fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSet
-  let contel = A.unPiView . (\ (A.PiView tels _) -> A.PiView tels aType) . A.piView $ contel0
-
-  traceCall (CheckRecDef (getRange name) name ps fields) $ do
+  traceCall (CheckRecDef (getRange name) name ps (A.recordDeclarations stages fields)) $ do
     reportSDoc "tc.rec" 10 $ vcat
       [ "checking record def" <+> prettyTCM name
       , nest 2 $ "ps ="     <+> prettyList (map' prettyA ps)
-      , nest 2 $ "contel =" <+> prettyA contel
-      , nest 2 $ "fields =" <+> prettyA (map' Constr fields)
+      , nest 2 $ "fields =" <+> prettyA (map' Constr $ A.recordDeclarations stages fields)
       ]
     -- get type of record
     def <- instantiateDef =<< getConstInfo name
@@ -114,17 +93,10 @@ checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDef
 
       let tel = abstract gtel ptel
 
-      -- Generate type of constructor from field telescope @contel@,
-      -- which is the approximate constructor type (target missing).
-
-      -- Check and evaluate field types.
-      reportSDoc "tc.rec" 15 $ "checking fields"
-      contype <- workOnTypes $ instantiateFull =<< isType_ contel
-      reportSDoc "tc.rec" 20 $ vcat
-        [ "contype = " <+> prettyTCM contype ]
-
-      -- compute the field telescope (does not include record parameters)
-      let TelV ftel _ = telView' contype
+      -- Each field type is checked once, after checking its helper module.
+      scope <- getScope
+      ftel <- instantiateFull =<< evalWithScope scope
+        (checkRecordStages stages $ collectRecordFields fields)
 
       -- Compute correct type of constructor
 
@@ -394,6 +366,35 @@ checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDef
         def { defMatchable = Set.fromList $ map' unDom fs }
 
 
+-- | Select fields while retaining the scope at each source occurrence.
+collectRecordFields :: [A.Declaration] -> [A.Field]
+collectRecordFields = concatMap $ \case
+  A.ScopedDecl scope ds ->
+    map (A.ScopedDecl scope . (:| [])) $ collectRecordFields $ List1.toList ds
+  d@A.Field{} -> [d]
+  _ -> []
+
+-- | Check canonical helper declarations and their following field domains.
+-- The recursive context contains record parameters and preceding field values.
+checkRecordStages :: [A.RecordStage] -> [A.Field] -> TCM Telescope
+checkRecordStages [] [] = return EmptyTel
+checkRecordStages (st : stages) (field : fields) = do
+  addSection $ A.recordStageModule st
+  withCurrentModule (A.recordStageModule st) $ do
+    mapM_ checkDecl $ A.recordStageDeclarations st
+    checkField field
+  where
+    checkField (A.ScopedDecl scope (d :| [])) = setScope scope >> checkField d
+    checkField (A.Field info _ (Arg ai t)) = setCurrentRange info $ do
+      let binder = Arg ai $ unnamed $ A.mkBinder $ A.recordStageBinder st
+          extra = A.TypedBindingInfo (Info.defTactic info) False
+          binding = A.TBind (getRange info) extra (binder :| []) t
+      checkTelescope ModTelNotData [binding] $ \ tel -> do
+        rest <- checkRecordStages stages fields
+        return $ abstract tel rest
+    checkField _ = __IMPOSSIBLE__
+checkRecordStages _ _ = __IMPOSSIBLE__
+
 {-| @checkRecordProjections m r q tel ftel fs@.
 
     [@m@    ]  name of the generated module
@@ -422,8 +423,30 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
     checkProjs ftel1 ftel2 vs (A.ScopedDecl scope fs' : fs) =
       setScope scope >> checkProjs ftel1 ftel2 vs (List1.toList fs' ++! fs)
 
-    -- Case: projection.
-    checkProjs ftel1 (ExtendTel (dom@(unDom -> t)) ftel2) vs (A.Field info x _ : fs) =
+    -- Case: projection. Reuse the checked domain from the constructor telescope.
+    checkProjs ftel1 (ExtendTel dom ftel2) vs (A.Field info x _ : fs) = do
+      v <- checkProj ftel1 dom ftel2 vs info x
+      let prefix = abstract ftel1 $ ExtendTel dom $
+            Abs (nameToArgName $ qnameName x) EmptyTel
+      checkProjs prefix (absBody ftel2) (v : vs) fs
+
+    -- Instantiate already checked helpers with the preceding projections.
+    checkProjs ftel1 ftel2 vs (A.Apply _ _ target (A.RecordStageApp source) copyInfo _ : fs) = do
+      params <- init <$> getContextArgs
+      let args = zipWith' (\ v dom -> v <$ argFromDom dom) (reverse vs) (telToList ftel1)
+      addSection target
+      applySection target EmptyTel source (params ++ args) copyInfo
+      checkProjs ftel1 ftel2 vs fs
+
+    -- Case: definition.
+    checkProjs ftel1 ftel2 vs (d : fs) = do
+      checkDecl d
+      checkProjs ftel1 ftel2 vs fs
+
+    -- Install one projection, returning its application to the record variable.
+    -- The domain and suffix are in the context of the preceding fields.
+    checkProj :: Telescope -> Dom Type -> Abs Telescope -> [Term] -> A.DefInfo -> QName -> TCM Term
+    checkProj ftel1 dom@(unDom -> t) ftel2 vs info x =
       traceCall (CheckProjection (getRange info) x t) $ do
       let ai = dom ^. dInfo
       -- Andreas, 2012-06-07:
@@ -505,17 +528,12 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
           projname = qualify m $ qnameName x
           projcall o = Var 0 [Proj o projname]
           rel      = getRelevance ai
-          -- the recursive call
-          recurse  = checkProjs (abstract ftel1 $ ExtendTel dom
-                                 $ Abs (nameToArgName $ qnameName projname) EmptyTel)
-                                (absBody ftel2) (projcall ProjSystem : vs) fs
 
       reportSDoc "tc.rec.proj" 25 $ nest 2 $ "finalt=" <+> do
         inTopContext $ prettyTCM finalt
 
       -- -- Andreas, 2012-02-20 do not add irrelevant projections if
       -- -- disabled by --no-irrelevant-projections
-      -- ifM (return (rel == Irrelevant) `and2M` do not . optIrrelevantProjections <$> pragmaOptions) recurse $ do
       -- Andreas, 2018-06-09 issue #2170
       -- Always create irrelevant projections (because the scope checker accepts irrelevant fields).
       -- If --no-irrelevant-projections, then their use should be disallowed by the type checker for expressions.
@@ -635,9 +653,4 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
           InstanceDef kwr -> addTypedInstance kwr projname t
           NotInstanceDef  -> pure ()
 
-        recurse
-
-    -- Case: definition.
-    checkProjs ftel1 ftel2 vs (d : fs) = do
-      checkDecl d
-      checkProjs ftel1 ftel2 vs fs
+        return $ projcall ProjSystem

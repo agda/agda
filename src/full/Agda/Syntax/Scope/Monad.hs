@@ -693,7 +693,15 @@ copyName from to = do
 --   public names in the old scope to match the new name and returns the
 --   renamings.
 copyScope :: C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, ScopeCopyInfo)
-copyScope oldc new0 s =
+copyScope = copyScopeWith False
+
+-- | Copy a record stage, retaining private bindings for later declarations
+-- inside the record. Their namespace remains private in the resulting scope.
+copyRecordScope :: C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, ScopeCopyInfo)
+copyRecordScope = copyScopeWith True
+
+copyScopeWith :: Bool -> C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, ScopeCopyInfo)
+copyScopeWith keepPrivate oldc new0 s =
   (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$>
     runStateT (copy new0 $ dropRecordConstructorPseudoName s) (ScopeMemo mempty mempty)
   where
@@ -705,7 +713,7 @@ copyScope oldc new0 s =
       -- Delete private names, then copy names and modules. Recompute inScope
       -- set and name parts rather than trying to copy them.
       s' <- recomputeNameParts . recomputeInScopeSets <$>
-              mapScopeM_ copyD copyM return (setNameSpace PrivateNS emptyNameSpace s)
+              mapScopeM_ copyD copyM return (if keepPrivate then s else setNameSpace PrivateNS emptyNameSpace s)
       -- Fix name and parent.
       return $ s' { scopeName    = scopeName s0
                   , scopeParents = scopeParents s0

@@ -31,7 +31,11 @@ Changes to the Agda syntax.
 Language
 --------
 
-Changes to type checker and other components defining the Agda language.
+* Function definitions between record fields now support pattern matching and
+  `where` clauses. Datatypes, records, modules, and postulates can also precede
+  later fields. Interleaved declarations are checked once in hidden modules
+  parameterized by preceding fields, avoiding the constructor-type let restriction
+  and duplicate checking of interaction holes (see [#434](https://github.com/agda/agda/issues/434)).
 
 Builtins
 --------
