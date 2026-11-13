@@ -1152,49 +1152,44 @@ The buffer is returned.")
 (agda2-information-buffer agda2-info-buffer "info" "AgdaInfo" "*Agda information*")
 
 (defun agda2-display-information-buffer ()
-  "Display the Agda information buffer on some frame.
+  "Might display the Agda information buffer.
 
-Preferably a frame that already displays `agda2-file-buffer'."
+Nothing happens in the following cases:
+* If there is no Agda information buffer.
+* If the selected window's buffer is not `agda2-file-buffer'.
+* If the Agda information buffer is already visible (on some
+  visible frame on the current terminal).
+
+Otherwise the Agda information buffer is, by default, made
+visible on the current frame. One can configure this behaviour,
+see `display-buffer'."
   (interactive)
-  (let ((buf (agda2-info-buffer)))
-    ;; If the current window displays the information buffer, then the
-    ;; window configuration is left untouched.
-    (unless (equal (window-buffer) buf)
-      (let ((agda-window
-              (and agda2-file-buffer
-                   (car-safe
-                     ;; All windows, including minibuffers, on any
-                     ;; frame on the current terminal, displaying the
-                     ;; present Agda file buffer.
-                     (get-buffer-window-list agda2-file-buffer t 0)))))
-        (save-selected-window
-          ;; Select a window displaying the Agda file buffer (if such
-          ;; a window exists). With certain configurations of
-          ;; display-buffer this should increase the likelihood that
-          ;; the info buffer will be displayed on the same frame.
-          (when agda-window
-            (select-window agda-window 'no-record))
-          (let* (;; If there is only one window, then the info window
-                 ;; should be created above or below the code window,
-                 ;; not to the left or right.
-                 (split-width-threshold nil)
-                 (window
-                   (display-buffer
-                     buf
-                     ;; Under Emacs 23 the effect of the following
-                     ;; argument is only that the current window
-                     ;; should not be used.
-                     '(nil
-                       .
-                       (;; Do not use the same window.
-                        (inhibit-same-window . t)
-                        ;; Do not raise or select another frame.
-                        (inhibit-switch-frame . t))))))
-            (if window
-                (fit-window-to-buffer window
-                  (truncate
-                    (* (frame-height)
-                       agda2-information-window-max-height))))))))))
+  (let ((info-buf (agda2-info-buffer)))
+    (when
+        (and info-buf
+             (eq (window-buffer) agda2-file-buffer)
+             (not
+              (get-buffer-window-list agda2-info-buffer t 'visible)))
+      (save-selected-window
+        (let
+            (;; If there is only one window, then the info window
+             ;; should be created above or below the code window,
+             ;; not to the left or right.
+             (split-width-threshold nil))
+          (display-buffer
+           info-buf
+           ;; Under Emacs 23 the effect of the following argument is
+           ;; only that the current window should not be used.
+           `(nil
+             .
+             (;; Do not use the same window.
+              (inhibit-same-window . t)
+              ;; Do not raise or select another frame.
+              (inhibit-switch-frame . t)
+              ;; The window's height should be at most the given
+              ;; fraction of the frame's height.
+              (window-height
+               . ,agda2-information-window-max-height)))))))))
 
 (defun agda2-info-action (name text append &rest annotations)
   "Insert TEXT plus a final newline into the Agda info buffer and display it.
