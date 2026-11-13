@@ -1,0 +1,2 @@
+Issue6962UntypedPattern.agda:5.13: error: [ParseError]
+Patterns are not allowed in definition parameters

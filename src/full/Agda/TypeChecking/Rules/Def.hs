@@ -86,24 +86,30 @@ import Agda.Utils.Tuple (snd3, fst3)
 -- * Definitions by pattern matching
 ---------------------------------------------------------------------------
 
-checkFunDef :: A.DefInfo -> QName -> [A.Clause] -> TCM ()
-checkFunDef i name cs = do
+checkFunDef :: A.DefInfo -> QName -> A.Telescope -> [A.Clause] -> TCM ()
+checkFunDef i name fpars cs = do
         -- Reset blocking tag (in case a previous attempt was blocked)
         modifySignature $ updateDefinition name $ updateDefBlocked $ const $
           NotBlocked (MissingClauses name) ()
+        -- Preserve the source prefix for clause reification, including while
+        -- checking coverage and while this definition is postponed.
+        modifySignature $ updateDefinition name setParameterCount
         -- Get the type and relevance of the function
         def <- instantiateDef =<< getConstInfo name
-        let t    = defType def
+        let t0   = defType def
         let info = getArgInfo def
 
         -- If the function is erased, then hard compile-time mode is
         -- entered.
         setHardCompileTimeModeIfErased' info $ do
-
-        case isAlias cs t of  -- #418: Don't use checkAlias for abstract definitions, since the type
-                              -- of an abstract function must not be informed by its definition.
+        (paramTel, t) <- splitFunTypeWithParameters t0 fpars
+        -- #418: Don't use checkAlias for abstract definitions, since the
+        -- type of an abstract function must not be informed by its definition.
+        addFunctionParameters fpars paramTel $ case isAlias cs t of
           Just (e, mc, x)
-            | Info.defAbstract i == ConcreteDef, Info.defOpaque i == TransparentDef ->
+            | null fpars
+            , Info.defAbstract i == ConcreteDef
+            , Info.defOpaque i == TransparentDef ->
               traceCall (CheckFunDefCall (getRange i) name True) $ do
                 -- Andreas, 2012-11-22: if the alias is in an abstract block
                 -- it has been frozen.  We unfreeze it to enable type inference.
@@ -113,7 +119,7 @@ checkFunDef i name cs = do
                   xs <- allMetasList . jMetaType . mvJudgement <$> lookupLocalMeta x
                   mapM_ unfreezeMeta (x : xs)
                 checkAlias t info i name e mc
-            | otherwise -> do -- Warn about abstract alias (will never work!)
+            | null fpars -> do -- Warn about abstract alias (will never work!)
               -- Ulf, 2021-11-18, #5620: Don't warn if the meta is solved. A more intuitive solution
               -- would be to not treat definitions with solved meta types as aliases, but in mutual
               -- blocks you might actually have solved the type of an alias by the time you get to
@@ -126,12 +132,52 @@ checkFunDef i name cs = do
 
         -- If it's a macro check that it ends in Term → TC ⊤
         let ismacro = isMacro . theDef $ def
-        when (ismacro || Info.defMacro i == MacroDef) $ checkMacroType t
+        when (ismacro || Info.defMacro i == MacroDef) $ checkMacroType t0
     `catchIlltypedPatternBlockedOnMeta` \ (err, blocker) -> do
         reportSDoc "tc.def" 20 $ vcat $
           [ "checking function definition got stuck on: " <+> pretty blocker ]
-        modifySignature $ updateDefinition name $ updateDefBlocked $ const $ Blocked blocker ()
-        addConstraint blocker $ CheckFunDef i name cs err
+        -- The handler rolls back the signature, including the count above.
+        modifySignature $ updateDefinition name $
+          updateDefBlocked (const $ Blocked blocker ()) . setParameterCount
+        addConstraint blocker $ CheckFunDef i name fpars cs err
+  where
+    setParameterCount = updateTheDef $ \case
+      FunctionDefn fun -> FunctionDefn fun{ _funDefParams = numberOfParameters fpars }
+      d -> d
+
+numberOfParameters :: A.Telescope -> Nat
+numberOfParameters = sum . map \case
+  A.TBind _ _ xs _ -> length xs
+  A.TLet{}        -> __IMPOSSIBLE__
+
+-- Use the already checked domains, including their modalities and external
+-- argument names. Only the local names come from the definition telescope.
+splitFunTypeWithParameters :: Type -> A.Telescope -> TCM (Telescope, Type)
+splitFunTypeWithParameters t fpars = do
+  let n = numberOfParameters fpars
+  TelV tel t' <- telViewUpTo n t
+  unless (size tel == n) $ addContext tel $ do
+    blocked <- reduceB t'
+    case blocked of
+      Blocked blocker _ -> typeError =<< (SplitError . BlockedType blocker <$> buildClosure t')
+      NotBlocked{}     -> __IMPOSSIBLE__
+  pure (tel, t')
+
+addFunctionParameters :: A.Telescope -> Telescope -> TCM a -> TCM a
+addFunctionParameters fpars = addNames (parameterBinderNames fpars)
+  where
+    addNames [] tel ret = do
+      unless (null tel) __IMPOSSIBLE__
+      ret
+    addNames (_ : _) EmptyTel _ = __IMPOSSIBLE__
+    addNames (x : xs) (ExtendTel dom tel) ret =
+      addCtx x dom $ addNames xs (absBody tel) ret
+
+    parameterBinderNames :: A.Telescope -> [Name]
+    parameterBinderNames =
+      concatMap \case
+        A.TBind _ _ xs _ -> map (A.unBind . A.binderName . namedArg) $ List1.toList xs
+        A.TLet{}         -> []
 
 checkMacroType :: Type -> TCM ()
 checkMacroType t = do
@@ -445,12 +491,14 @@ checkFunDefS t ai extlam with i name cs = do
           --
           -- Amy, 2025-04-03: If the function was marked INLINE before
           -- the clauses were checked the result should also be INLINE.
+          npars <- defFunctionParameters <$> getConstInfo name
           fun  <- emptyFunctionData
           defn <- autoInline $ set funInline isinline $ FunctionDefn $
            set funMacro_ (ismacro || Info.defMacro i == MacroDef) $
            set funAbstr_ (Info.defAbstract i) $
            fun
-             { _funClauses        = cs
+             { _funDefParams      = npars
+             , _funClauses        = cs
              , _funCompiled       = Just cc
              , _funSplitTree      = mst
              , _funInv            = inv
@@ -562,7 +610,7 @@ data WithFunctionProblemData = WithFunctionProblemData
     , wfExprs        :: List1 (Arg (Term, EqualityView)) -- ^ With and rewrite expressions and their types.
     , wfRHSType      :: Type                             -- ^ Type of the right hand side.
     , wfParentPats   :: [NamedArg DeBruijnPattern]       -- ^ Parent patterns.
-    , wfParentParams :: Nat                              -- ^ Number of module parameters in parent patterns
+    , wfParentParams :: Nat                              -- ^ Module and definition parameters in parent patterns.
     , wfPermSplit    :: Permutation                      -- ^ Permutation resulting from splitting the telescope into needed and unneeded vars.
     , wfPermParent   :: Permutation                      -- ^ Permutation reordering the variables in the parent pattern.
     , wfPermFinal    :: Permutation                      -- ^ Final permutation (including permutation for the parent clause).
@@ -720,6 +768,12 @@ checkClause
 checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
   let withSub = snd3 <$> withSubAndLets
   cxtNames <- getContextNames
+  -- With-clause stripping consumes the full parent type, including both
+  -- module parameters and definition parameters inserted by the LHS checker.
+  -- Capture this telescope before pattern matching changes the context.
+  t' <- case withSub of
+    WithFunction{} -> pure t
+    NoWithFunction -> flip abstract t <$> getContextTelescope
   checkClauseLHS t withSub c $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit ixsplit) -> do
 
     let installInheritedLets k
@@ -731,15 +785,6 @@ checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats r
     installInheritedLets $ do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
-
-        -- Subtle: checkRHS expects the function type to be the lambda lifted
-        -- type. If we're checking a with-function that's already the case,
-        -- otherwise we need to abstract over the module telescope.
-        t' <- case withSub of
-                WithFunction{} -> return t
-                NoWithFunction -> do
-                  theta <- lookupSection (qnameModule x)
-                  return $! abstract theta t
 
         -- At this point we should update the named dots potential with-clauses
         -- in the right-hand side. When checking a clause we expect the named

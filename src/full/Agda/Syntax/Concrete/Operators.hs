@@ -588,6 +588,7 @@ parsePat parse = loop
         fullParen' <$> (AppP <$> loop p <*> (Arg info <$> traverse loop q))
     RawAppP _ ps     -> fullParen' <$> (loop =<< parse (List2.toList ps))
     OpAppP r d ns ps -> fullParen' . OpAppP r d ns <$> (mapM . traverse . traverse) loop ps
+    BindingP _ _     -> fail "unexpected definition parameter"
     HiddenP _ _      -> fail "bad hidden argument"
     InstanceP _ _    -> fail "bad instance argument"
     AsP r x p        -> AsP r x <$> loop p
@@ -842,6 +843,8 @@ validConPattern cons = loop
       HiddenP{}   :| _   -> __IMPOSSIBLE__
       InstanceP{} :| _   -> __IMPOSSIBLE__
 
+      BindingP{} :| _ -> failure
+
       -- Hopeful cases:
       WithP _ p   :| []  -> loop p
       _           :| []  -> ok
@@ -876,6 +879,7 @@ appView = loop []
                           `List1.appendList`
                         reverse acc
     ParenP _ p       -> loop acc p
+    BindingP _ _     -> __IMPOSSIBLE__
     RawAppP _ _      -> __IMPOSSIBLE__
     HiddenP _ _      -> __IMPOSSIBLE__
     InstanceP _ _    -> __IMPOSSIBLE__

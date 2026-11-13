@@ -85,21 +85,18 @@ import Agda.Utils.Impossible
 %monad { Parser }
 %lexer { lexer } { TokEOF{} }
 
-%expect 8
--- * shift/reduce for \ x y z -> foo = bar
---   shifting means it'll parse as \ x y z -> (foo = bar) rather than
---   (\ x y z -> foo) = bar
---
--- * Telescope let and do-notation let.
---      Expr2 -> 'let' Declarations . LetBody
---      TypedBinding -> '(' 'let' Declarations . ')'
---        ')'   shift, and enter state 486
---              (reduce using rule 189)
---   A do-block cannot end in a 'let' so committing to TypedBinding with a
---   shift is the right thing to do here.
---
--- * Named implicits in TypedBinding {x = y}. When encountering the '=' shift
---   treats this as a named implicit and reducing would fail later.
+%expect 6
+-- * (let x = e) -> A: shift ')' to complete the telescope let (1 conflict).
+-- * open M {{...}} or module N = M {{...}}: shift the closing braces
+--   to select a record module instance application (4 conflicts: two
+--   contexts, each accepting '}' or "i_}}").
+-- * record { f = e }: shift '=' to select a field assignment (1 conflict).
+
+-- Prefer a telescope/lambda binding when both that and an expression atom
+-- are possible. Keep the delimiters outside the shared binding heads so
+-- these are shift/reduce choices rather than reduce/reduce conflicts.
+%nonassoc ':' ')' '}' "i_}}"
+%nonassoc BINDING
 
 -- This is a trick to get rid of shift/reduce conflicts arising because we want
 -- to parse things like "m >>= \x -> k x". See the Expr rule for more
@@ -570,19 +567,12 @@ SpaceBIds
 -- a variable list. We could be parsing (x y z) -> B
 -- with ((x y) z) being a type.
 CommaBIds :: { List1 (NamedArg Binder) }
-CommaBIds : CommaBIdAndAbsurds {%
-    case $1 of
-      Left ns -> return ns
-      Right _ -> parseError $ "expected sequence of bound identifiers, not absurd pattern"
-    }
+CommaBIds : CommaBIdAndAbsurds {% headBoundNames $1 }
 
 CommaBIdAndAbsurds :: { Either (List1 (NamedArg Binder)) (List1 Expr) }
 CommaBIdAndAbsurds
-  : Application {% boundNamesOrAbsurd $1 }
-  | QId '=' QId {% (Left . singleton . updateNamedArg mkBinder) `fmap` mkNamedArg (Just $1) (Left $3) }
-  | '_' '=' QId {% (Left . singleton . updateNamedArg mkBinder) `fmap` mkNamedArg Nothing   (Left $3) }
-  | QId '=' '_' {% (Left . singleton . updateNamedArg mkBinder) `fmap` mkNamedArg (Just $1) (Right $ getRange $3) }
-  | '_' '=' '_' {% (Left . singleton . updateNamedArg mkBinder) `fmap` mkNamedArg Nothing   (Right $ getRange $3) }
+  : Application %prec BINDING {% boundNamesOrAbsurd $1 }
+  | Expr1 '=' Expr %prec BINDING {% exprToBoundNamesOrAbsurd (Equal (getRange ($1,$2,$3)) $1 $3) }
 
 -- Parse a sequence of identifiers, including hiding info.
 -- Does not include instance arguments.
@@ -734,9 +724,11 @@ Application3PossiblyEmpty
 -- Level 3: Atoms
 Expr3Curly :: { Expr }
 Expr3Curly
-    : '{' Expr4 '}'   {% HiddenArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
+    : '{' Expr '}' { HiddenArg (getRange ($1,$2,$3)) (unnamed $2) }
+    | '{' Expr1 '=' Expr '}' {% HiddenArg (getRange ($1,$2,$3,$4,$5)) `fmap` maybeNamed (Equal (getRange ($2,$3,$4)) $2 $4) }
     | '{' '}'         { let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
-    | "{{" Expr4 "}}" {% InstanceArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
+    | "{{" Expr "}}" { InstanceArg (getRange ($1,$2,$3)) (unnamed $2) }
+    | "{{" Expr1 '=' Expr "}}" {% InstanceArg (getRange ($1,$2,$3,$4,$5)) `fmap` maybeNamed (Equal (getRange ($2,$3,$4)) $2 $4) }
     | "{{" "}}"       { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
 
 Expr3NoCurly :: { Expr }
@@ -751,8 +743,8 @@ Expr3NoCurly
 
     | '(' ')'                           { Absurd (fuseRange $1 $2) }
     | Id '@' Expr3                      { As (getRange ($1,$2,$3)) $1 $3 }
-    | '.' Expr3                         { Dot (kwRange $1) $2 }
-    | '..' Expr3                        { DoubleDot (kwRange $1) $2 }
+    | '.' Expr3                         {% bindingModality (Dot (kwRange $1)) (makeIrrelevantM $1) $2 }
+    | '..' Expr3                        {% bindingModality (DoubleDot (kwRange $1)) (makeShapeIrrelevantM $1) $2 }
 
     | 'record' '{' RecordAssignments '}'
       { Rec (kwRange $1) (getRange ($1,$2,$3,$4)) $3 }
@@ -787,6 +779,50 @@ Expr3 :: { Expr }
 Expr3
     : Expr3Curly   { $1 }
     | Expr3NoCurly { $1 }
+    | Expr3Binding   { $1 }
+
+-- Typed binders can occur as atoms in declaration heads. Their use as
+-- definition parameters is checked by funClauseOrTypeSigs. Keep the
+-- parenthesised prefix shared with telescope binders; the precedence above
+-- selects that existing interpretation when both are possible.
+Expr3Binding :: { Expr }
+Expr3Binding
+    : '(' VisibleTBindHead Expr ')' { BindingExpr $ DomainFull $ TBind (getRange ($1,$2,$3,$4)) $2 $3 }
+    | '{' HiddenTBindHead Expr '}' { BindingExpr $ DomainFull $ hide $ TBind (getRange ($1,$2,$3,$4)) $2 $3 }
+    | "{{" HiddenTBindHead Expr "}}" { BindingExpr $ DomainFull $ makeInstance $ TBind (getRange ($1,$2,$3,$4)) $2 $3 }
+    | '(' ModalVisibleTBindHead Expr ')' { BindingExpr $ DomainFull $ TBind (getRange ($1,$2,$3,$4)) $2 $3 }
+    | '{' ModalHiddenTBindHead Expr '}' { BindingExpr $ DomainFull $ hide $ TBind (getRange ($1,$2,$3,$4)) $2 $3 }
+    | "{{" ModalHiddenTBindHead Expr "}}" { BindingExpr $ DomainFull $ makeInstance $ TBind (getRange ($1,$2,$3,$4)) $2 $3 }
+
+    | '(' ModalBindsHead ')' {% bindingAtoms id $2 }
+    | '{' ModalBindsHead '}' {% bindingAtoms hide $2 }
+    | "{{" ModalBindsHead "}}" {% bindingAtoms makeInstance $2 }
+
+-- The extra reduction lets a lambda select its binder interpretation before
+-- the closing delimiter; declaration heads instead retain binding atoms.
+ModalBinds :: { Either (List1 (NamedArg Binder)) (List1 Expr) }
+ModalBinds : ModalBindsHead %prec BINDING { $1 }
+
+ModalBindsHead :: { Either (List1 (NamedArg Binder)) (List1 Expr) }
+ModalBindsHead : Attributes1 CommaBIdAndAbsurds {% do
+  ai <- applyAttrs $1 defaultArgInfo
+  pure $ first (fmap (setTacticAttr $1 . setArgInfo ai)) $2 }
+
+-- Shared with telescope bindings. The closing delimiter stays outside these
+-- heads so BINDING precedence can prefer the telescope in ambiguous contexts.
+VisibleTBindHead :: { List1 (NamedArg Binder) }
+VisibleTBindHead : BIdsWithHiding ':' { $1 }
+
+HiddenTBindHead :: { List1 (NamedArg Binder) }
+HiddenTBindHead
+  : Application ':' {% boundNamesOrAbsurd $1 >>= headBoundNames }
+  | Expr1 '=' Expr ':' {% exprToBoundNamesOrAbsurd (Equal (getRange ($1,$2,$3)) $1 $3) >>= headBoundNames }
+
+ModalVisibleTBindHead :: { List1 (NamedArg Binder) }
+ModalVisibleTBindHead : Attributes1 VisibleTBindHead {% mapM (applyAttrs $1 . setTacticAttr $1) $2 }
+
+ModalHiddenTBindHead :: { List1 (NamedArg Binder) }
+ModalHiddenTBindHead : Attributes1 HiddenTBindHead {% mapM (applyAttrs $1 . setTacticAttr $1) $2 }
 
 RecordAssignments :: { RecordAssignments }
 RecordAssignments
@@ -876,34 +912,17 @@ TypedBinding
     | '..' "{{" ModalTBind "}}"         {% setRange (getRange ($2,$3,$4)) . makeInstance <\$> makeShapeIrrelevantM $1 $3 }
 
 
--- x1 .. xn : A
--- x1 .. xn :{i1 i2 ..} A
 TBind :: { TypedBinding }
-TBind : CommaBIds ':' Expr  {
-    let r = getRange ($1,$2,$3) -- the range is approximate only for TypedBindings
-    in TBind r $1 $3
-  }
+TBind : HiddenTBindHead Expr %prec BINDING { TBind (getRange ($1,$2)) $1 $2 }
 
 ModalTBind :: { TypedBinding }
-ModalTBind : Attributes1 CommaBIds ':' Expr  {% do
-    let r = getRange ($1,$2,$3,$4) -- the range is approximate only for TypedBindings
-    xs <- mapM (applyAttrs $1 . setTacticAttr $1) $2
-    return $ TBind r xs $4
-  }
+ModalTBind : ModalHiddenTBindHead Expr %prec BINDING { TBind (getRange ($1,$2)) $1 $2 }
 
--- x {y z} _ {v} : A
 TBindWithHiding :: { TypedBinding }
-TBindWithHiding : BIdsWithHiding ':' Expr  {
-    let r = getRange ($1,$2,$3) -- the range is approximate only for TypedBindings
-    in TBind r $1 $3
-  }
+TBindWithHiding : VisibleTBindHead Expr %prec BINDING { TBind (getRange ($1,$2)) $1 $2 }
 
 ModalTBindWithHiding :: { TypedBinding }
-ModalTBindWithHiding : Attributes1 BIdsWithHiding ':' Expr  {% do
-    let r = getRange ($1,$2,$3,$4) -- the range is approximate only for TypedBindings
-    xs <- mapM (applyAttrs $1 . setTacticAttr $1) $2
-    return $ TBind r xs $4
-  }
+ModalTBindWithHiding : ModalVisibleTBindHead Expr %prec BINDING { TBind (getRange ($1,$2)) $1 $2 }
 
 -- A non-empty sequence of lambda bindings.
 LamBindings :: { List1 LamBinding }
@@ -1013,10 +1032,7 @@ DomainFreeBindings
 -- A domain free binding is either x or {x1 .. xn}
 DomainFreeBinding :: { List1 (NamedArg Binder) }
 DomainFreeBinding
-  : DomainFreeBindingAbsurd {% case $1 of
-                             Left lbs -> return lbs
-                             Right _ -> parseError "expected sequence of bound identifiers, not absurd pattern"
-                          }
+  : DomainFreeBindingAbsurd {% headBoundNames $1 }
 
 MaybeAsPattern :: { Maybe Pattern }
 MaybeAsPattern
@@ -1037,15 +1053,10 @@ DomainFreeBindingAbsurd
     | '{' CommaBIdAndAbsurds '}' { first (fmap hide) $2 }
     | "{{" CommaBIds "}}"        { Left $ fmap makeInstance $2 }
 
--- additonal attributes, e.g. @tactic
-    | '(' Attributes1 CommaBIdAndAbsurds ')'
-         {% applyAttrs $2 defaultArgInfo <&> \ ai ->
-              first (fmap (setTacticAttr $2 . setArgInfo ai)) $3 }
-    | '{' Attributes1 CommaBIdAndAbsurds '}'
-         {% applyAttrs $2 defaultArgInfo <&> \ ai ->
-              first (fmap (hide . setTacticAttr $2 . setArgInfo ai)) $3 }
-    | "{{" Attributes1 CommaBIds "}}"
-         {% Left <\$> applyAttributes $2 (makeInstance defaultArgInfo) $3 }
+-- additional attributes, e.g. @tactic
+    | '(' ModalBinds ')' { $2 }
+    | '{' ModalBinds '}' { first (fmap hide) $2 }
+    | "{{" ModalBinds "}}" {% fmap (Left . fmap makeInstance) (headBoundNames $2) }
 
 -- additional irrelevance
     | '.'  '('  CommaBIds ')'  { Left $ fmap (makeIrrelevant $1) $3 }
@@ -1165,8 +1176,8 @@ CommaImportNames1
     Function clauses
  --------------------------------------------------------------------------}
 
--- A left hand side of a function clause. We parse it as an expression, and
--- then check that it is a valid left hand side.
+-- Preserve the ordinary early expression-to-pattern conversion. Temporary
+-- binding patterns are classified by funClauseOrTypeSigs after the RHS.
 LHS :: { [RewriteEqn] -> [WithExpr] -> LHS }
 LHS : Expr1 {% exprToLHS $1 }
 

@@ -1,0 +1,2 @@
+Issue6962ShapePattern.agda:3.16: error: [ParseError]
+Patterns are not allowed in definition parameters

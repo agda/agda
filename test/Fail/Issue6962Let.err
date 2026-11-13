@@ -1,0 +1,2 @@
+Issue6962Let.agda:3.1: error: [ParseError]
+Not a valid pattern: f (A : Set) (let B = A)

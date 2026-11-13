@@ -1,0 +1,2 @@
+Issue6962ShapeClause.agda:3.3: error: [ParseError]
+Definition parameters are only allowed in type signatures

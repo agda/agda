@@ -1144,7 +1144,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
       let
         i' = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
         i = i' { Info.defOpaque = oc }
-      locallyReduceAllDefs $ checkFunDef i x cs
+      locallyReduceAllDefs $ checkFunDef i x [] cs
       primUnitUnit
 
     tcPragmaForeign :: Text -> Text -> TCM Term

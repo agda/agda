@@ -7,7 +7,7 @@ import Agda.Syntax.Common
 import Agda.TypeChecking.Monad
 import qualified Agda.Syntax.Internal as I
 
-checkFunDef :: DefInfo -> QName -> [Clause] -> TCM ()
+checkFunDef :: DefInfo -> QName -> Telescope -> [Clause] -> TCM ()
 
 checkFunDef' :: I.Type -> ArgInfo -> Maybe ExtLamInfo -> DefInfo -> QName -> [Clause] -> TCM ()
 
