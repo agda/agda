@@ -1398,6 +1398,12 @@ atTopLevel m = inConcreteMode $ do
             -- checkpoints for it and all its submodules to the new checkpoint.
             cp <- viewTC eCurrentCheckpoint
             setAllModuleCheckpoints cp
+            -- After an interface load, no module checkpoints exist for
+            -- `current`, so register it and its submodules at `cp`.
+            secs <- Map.union <$> useTC (stSignature . sigSections)
+                              <*> useTC (stImports   . sigSections)
+            forM_ (filter (current `isLeParentModuleOf`) (Map.keys secs)) $
+              \ m -> setModuleCheckpoint m cp
             m
 
 -- | Parse a name.
