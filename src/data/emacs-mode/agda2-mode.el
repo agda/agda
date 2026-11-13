@@ -1152,8 +1152,9 @@ The buffer is returned.")
 (agda2-information-buffer agda2-info-buffer "info" "AgdaInfo" "*Agda information*")
 
 (defun agda2-display-information-buffer ()
-  "Make sure the Agda information buffer is displayed in the current window.
-Helper factored out from agda2-info-action."
+  "Display the Agda information buffer on some frame.
+
+Preferably a frame that already displays `agda2-file-buffer'."
   (interactive)
   (let ((buf (agda2-info-buffer)))
     ;; If the current window displays the information buffer, then the
