@@ -17,6 +17,7 @@ module Agda.Syntax.Parser
     , tokensParser
       -- * Reading files.
     , readFilePM
+    , readFilePMWithTime
       -- * Parse errors
     , ParseError(..)
     , ParseWarning(..)
@@ -25,7 +26,7 @@ module Agda.Syntax.Parser
     ) where
 
 import Control.Exception
-import Control.Monad          ( forM_ )
+import Control.Monad          ( forM_, (<$!>) )
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.IO.Class ( MonadIO(..) )
@@ -33,6 +34,7 @@ import Control.Monad.IO.Class ( MonadIO(..) )
 import Data.Bifunctor
 import qualified Data.List as List
 import Data.Text.Lazy (Text)
+import Data.Time.Clock (UTCTime)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -49,7 +51,7 @@ import Agda.Syntax.Concrete.Attribute
 import Agda.Syntax.Parser.Tokens
 
 import Agda.Utils.FileName
-import Agda.Utils.IO.UTF8 (readTextFile)
+import Agda.Utils.IO.UTF8 (readTextFileWithTime)
 import Agda.Utils.Maybe   (forMaybe, fromMaybe)
 import qualified Agda.Utils.Maybe.Strict as Strict
 
@@ -87,10 +89,13 @@ wrapM m = liftIO m >>= wrap
 
 -- | Returns the contents of the given file.
 
-readFilePM :: RangeFile -> PM Text
-readFilePM file =
+readFilePMWithTime :: RangeFile -> PM (Text, UTCTime)
+readFilePMWithTime file =
   wrapIOM (ReadFileError file) $
-  readTextFile (filePath $ rangeFilePath file)
+  readTextFileWithTime (filePath $ rangeFilePath file)
+
+readFilePM :: RangeFile -> PM Text
+readFilePM file = fst <$!> readFilePMWithTime file
 
 wrapIOM :: (MonadError e m, MonadIO m) => (IOError -> e) -> IO a -> m a
 wrapIOM f m = do
