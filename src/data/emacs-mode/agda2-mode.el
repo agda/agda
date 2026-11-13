@@ -380,6 +380,10 @@ separately."
 (defvar agda2-info-buffer nil
   "Agda information buffer.")
 
+(defvar agda2-info-buffer-already-raised nil
+  "Has the information buffer been made visible \"recently\"?
+See `agda2-display-information-buffer' for more details.")
+
 (defvar agda2-process-buffer nil
   "Agda subprocess buffer.
 Set in `agda2-restart'.")
@@ -682,6 +686,8 @@ is non-nil and the Agda process is `busy'."
             'busy
           'not-so-busy))
 
+  (setq agda2-info-buffer-already-raised nil)
+
   (when (equal save 'save) (save-buffer))
 
   (apply 'agda2-send-command
@@ -709,7 +715,7 @@ May be more efficient than restarting Agda."
 Intended to be used by the backend if an abort command was
 successful."
   (declare (agda2-command ()))
-  (agda2-info-action "*Aborted*" "Aborted." t)
+  (agda2-info-action "*Aborted*" "Aborted." t t)
   (setq agda2-highlight-in-progress nil
         agda2-last-responses        nil))
 
@@ -1151,51 +1157,59 @@ The buffer is returned.")
 
 (agda2-information-buffer agda2-info-buffer "info" "AgdaInfo" "*Agda information*")
 
-(defun agda2-display-information-buffer ()
-  "Make sure the Agda information buffer is displayed in the current window.
-Helper factored out from agda2-info-action."
-  (interactive)
-  (let ((buf (agda2-info-buffer)))
-    ;; If the current window displays the information buffer, then the
-    ;; window configuration is left untouched.
-    (unless (equal (window-buffer) buf)
-      (let ((agda-window
-              (and agda2-file-buffer
-                   (car-safe
-                     ;; All windows, including minibuffers, on any
-                     ;; frame on the current terminal, displaying the
-                     ;; present Agda file buffer.
-                     (get-buffer-window-list agda2-file-buffer t 0)))))
-        (save-selected-window
-          ;; Select a window displaying the Agda file buffer (if such
-          ;; a window exists). With certain configurations of
-          ;; display-buffer this should increase the likelihood that
-          ;; the info buffer will be displayed on the same frame.
-          (when agda-window
-            (select-window agda-window 'no-record))
-          (let* (;; If there is only one window, then the info window
-                 ;; should be created above or below the code window,
-                 ;; not to the left or right.
-                 (split-width-threshold nil)
-                 (window
-                   (display-buffer
-                     buf
-                     ;; Under Emacs 23 the effect of the following
-                     ;; argument is only that the current window
-                     ;; should not be used.
-                     '(nil
-                       .
-                       (;; Do not use the same window.
-                        (inhibit-same-window . t)
-                        ;; Do not raise or select another frame.
-                        (inhibit-switch-frame . t))))))
-            (if window
-                (fit-window-to-buffer window
-                  (truncate
-                    (* (frame-height)
-                       agda2-information-window-max-height))))))))))
+(defun agda2-display-information-buffer (raise)
+  "Might display the Agda information buffer or resize its windows.
 
-(defun agda2-info-action (name text append &rest annotations)
+The buffer is not made visible in the following cases:
+
+* If there is no Agda information buffer.
+* If RAISE is nil and the selected window's buffer is not
+  `agda2-file-buffer'.
+* If RAISE is nil, this procedure has already been invoked after
+  the last call to `agda2-go', and none of the previous two
+  conditions in this list were satisfied during that invocation.
+* If the Agda information buffer is already visible (on some
+  visible frame on the current terminal).
+
+Otherwise the Agda information buffer is, by default, made
+visible on the current frame. One can configure this behaviour,
+see `display-buffer'.
+
+Afterwards, irrespective of whether the buffer was made visible,
+every visible window (on the current terminal) that displays the
+information buffer and that is not full-height is resized so that
+its content fits (to the extent possible), subject to
+`agda2-information-window-max-height'."
+  (when
+      (and (buffer-live-p agda2-info-buffer)
+           (or raise (eq (window-buffer) agda2-file-buffer)))
+    (when (or raise (not agda2-info-buffer-already-raised))
+      (setq agda2-info-buffer-already-raised t)
+      (unless (get-buffer-window-list agda2-info-buffer t 'visible)
+        (save-selected-window
+          (let
+              (;; If there is only one window, then the info
+               ;; window should be created above or below the code
+               ;; window, not to the left or right.
+               (split-width-threshold nil))
+            (display-buffer
+             agda2-info-buffer
+             ;; Under Emacs 23 the effect of the following argument
+             ;; is only that the current window should not be used.
+             `(nil
+               .
+               (;; Do not use the same window.
+                (inhibit-same-window . t)
+                ;; Do not raise or select another frame.
+                (inhibit-switch-frame . t)))))))))
+  (dolist
+      (window (get-buffer-window-list agda2-info-buffer t 'visible))
+    (fit-window-to-buffer
+     window
+     (truncate
+      (* (frame-height) agda2-information-window-max-height)))))
+
+(defun agda2-info-action (name text append raise &rest annotations)
   "Insert TEXT plus a final newline into the Agda info buffer and display it.
 NAME is displayed in the buffer's mode line.
 
@@ -1206,8 +1220,10 @@ If APPEND is non-nil, then TEXT is appended at the end of the
 buffer, and point placed after this text.
 
 If APPEND is nil, then any previous text is removed before TEXT
-is inserted, and point is placed before this text."
-  (declare (agda2-command (string string boolean &repeat t))) ;
+is inserted, and point is placed before this text.
+
+The argument RAISE is given to `agda2-display-information-buffer'."
+  (declare (agda2-command (string string boolean boolean &repeat t))) ;
   (interactive)
   (let ((buf (agda2-info-buffer)))
     (with-current-buffer buf
@@ -1244,7 +1260,7 @@ is inserted, and point is placed before this text."
       (put-text-property 0 (length name) 'face '(:weight bold) name)
       (setq mode-line-buffer-identification name)
       (force-mode-line-update))
-    (agda2-display-information-buffer)
+    (agda2-display-information-buffer raise)
     ;; Move point in every window displaying the information buffer.
     ;; Exception: If we are appending, don't move point in selected
     ;; windows.
@@ -1256,11 +1272,12 @@ is inserted, and point is placed before this text."
               (goto-char (point-max))
             (goto-char (point-min))))))))
 
-(defun agda2-info-action-and-copy (name text &optional append)
+(defun agda2-info-action-and-copy
+    (name text append raise &rest annotations)
   "Same as agda2-info-action but also puts TEXT in the kill ring."
-  (declare (agda2-command (string string t)))
+  (declare (agda2-command (string string boolean boolean &repeat t)))
   (kill-new text)
-  (agda2-info-action name text append))
+  (agda2-info-action name text append raise annotations))
 
 (defun agda2-remove-annotations ()
   "Removes buffer annotations (overlays and text properties)."

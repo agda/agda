@@ -4,7 +4,8 @@
 ------------------------------------------------------------------------
 
 module Agda.Interaction.EmacsCommand
-  ( displayInfo
+  ( Raise(..)
+  , displayInfo
   , clearRunningInfo
   , displayRunningInfo
   , displayVerboseInfo
@@ -26,6 +27,12 @@ import Agda.Utils.Null
 import Agda.Utils.String                   (quote)
 import Agda.Utils.DocTree                  (treeToTextNoAnn, treeToTextWithAnn)
 
+-- | Should the information buffer be made visible? This is decided by
+-- the frontend, but the backend can indicate whether it is more or
+-- less important to raise the buffer.
+
+data Raise = MaybeRaise | MaybeDoNotRaise
+
 -- | @displayInfo header content append m@ displays @content@
 -- with header @header@ in some suitable way in the Agda information buffer.
 -- If @append@ is @True@, then the content is appended to previous content
@@ -33,12 +40,17 @@ import Agda.Utils.DocTree                  (treeToTextNoAnn, treeToTextWithAnn)
 -- If @m@ is @Just 'ModuleToSource'@ then @content@ is rendered with annotations,
 -- otherwise annotations in @content@ are discarded and just the text is displayed.
 
-displayInfo :: String -> DocTree -> Bool -> Maybe ModuleToSource -> Lisp String
-displayInfo header content append m = L $ concat
+displayInfo ::
+  String -> DocTree -> Bool -> Raise -> Maybe ModuleToSource ->
+  Lisp String
+displayInfo header content append raise m = L $ concat
   [ [ A "agda2-info-action"
     , A (quote header)
     , A (quote $ Text.unpack t)
     , A (if append then "t" else "nil")
+    , A (case raise of
+           MaybeRaise      -> "t"
+           MaybeDoNotRaise -> "nil")
     ]
   , map Q ann
   ]
@@ -56,12 +68,14 @@ runningInfoHeader = "*Type-checking*"
 -- | Clear the running info buffer.
 
 clearRunningInfo :: Lisp String
-clearRunningInfo = displayInfo runningInfoHeader empty False Nothing
+clearRunningInfo =
+  displayInfo runningInfoHeader empty False MaybeDoNotRaise Nothing
 
 -- | Display running information about what the type-checker is up to.
 
 displayRunningInfo :: DocTree -> Maybe ModuleToSource -> Lisp String
-displayRunningInfo t = displayInfo runningInfoHeader t True
+displayRunningInfo t =
+  displayInfo runningInfoHeader t True MaybeDoNotRaise
 
 displayVerboseInfo :: DocTree -> Maybe ModuleToSource -> Lisp String
 displayVerboseInfo t m = L $ concat

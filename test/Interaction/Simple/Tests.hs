@@ -82,7 +82,7 @@ filterOutput :: FilePath -> Text -> Text
 filterOutput dir = let  in
   id
   . re " +" " "
-  . re "\\(agda2-info-action \"\\*Agda Version\\*\" \"Agda version [.0-9]+(-[[:alnum:]]+(-[[:alnum:]]+)?)?\" nil\\)" "(agda2-info-action \"*Agda Version*\" \"Agda version «Agda-version»\" nil)"
+  . re "\\(agda2-info-action \"\\*Agda Version\\*\" \"Agda version [.0-9]+(-[[:alnum:]]+(-[[:alnum:]]+)?)?\"" "(agda2-info-action \"*Agda Version*\" \"Agda version «Agda-version»\""
   . re "in Agda?-[.0-9]+(-[[:alnum:]]+)?" "«Agda-package»"
   . re "[.]hs:[0-9]+:[0-9]+" ".hs:«line»:«col»"
   -- Drop the transient payload file but preserve the optional target file.

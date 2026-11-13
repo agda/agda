@@ -1,5 +1,5 @@
 (agda2-status-action "")
-(agda2-info-action "*Type-checking*" "" nil)
+(agda2-info-action "*Type-checking*" "" nil nil)
 (agda2-highlight-clear)
 (agda2-highlight-add-annotations nil 'nil '(1 4 (symbol) t) '(5 12 (keyword) t) '(13 22 (pragma) t) '(23 26 (symbol) t) '(30 31 (symbol) t) '(36 37 (symbol) t) '(46 47 (symbol) t) '(51 57 (keyword) t) '(60 61 (symbol) t) '(67 72 (keyword) t) '(75 80 (keyword) t) '(87 88 (symbol) t) '(96 97 (symbol) t) '(102 103 (symbol) t) '(110 111 (symbol) t) '(112 113 (symbol) t) '(114 119 (keyword) t) '(122 123 (symbol) t) '(127 128 (symbol) t))
 (agda2-highlight-add-annotations nil 'nil '(28 29 (function) nil nil ("Issue4954-2.agda" . 28)) '(32 35 (primitive) nil nil ("agda-default-include-path/Agda/Primitive.agda" . 446)) '(38 41 (primitive) nil nil ("agda-default-include-path/Agda/Primitive.agda" . 446)) '(42 43 (function) nil nil ("Issue4954-2.agda" . 28)) '(44 45 (bound) nil nil ("Issue4954-2.agda" . 44)) '(48 49 (bound) nil nil ("Issue4954-2.agda" . 44)) '(58 59 (record) nil nil ("Issue4954-2.agda" . 58)) '(62 66 (primitive) nil nil ("agda-default-include-path/Agda/Primitive.agda" . 446)) '(85 86 (field) nil nil ("Issue4954-2.agda" . 85)) '(89 92 (primitive) nil nil ("agda-default-include-path/Agda/Primitive.agda" . 446)) '(94 95 (function) nil nil ("Issue4954-2.agda" . 94)) '(98 101 (primitive) nil nil ("agda-default-include-path/Agda/Primitive.agda" . 446)) '(104 105 (record) nil nil ("Issue4954-2.agda" . 58)) '(106 107 (function) nil nil ("Issue4954-2.agda" . 94)) '(108 109 (bound) nil nil ("Issue4954-2.agda" . 108)) '(123 126 (field) nil nil ("Issue4954-2.agda" . 85)) '(129 130 (bound) nil nil ("Issue4954-2.agda" . 108)))
@@ -67,5 +67,5 @@
 (agda2-highlight-add-annotations nil 'nil '(94 95 (function) nil nil ("Issue4954-2.agda" . 94)) '(106 107 (function) nil nil ("Issue4954-2.agda" . 94)) '(108 109 (bound) nil nil ("Issue4954-2.agda" . 108)) '(110 111 (symbol) t) '(112 113 (symbol) t) '(114 119 (keyword) t) '(122 123 (symbol) t) '(123 126 (field) nil nil ("Issue4954-2.agda" . 85)) '(127 128 (symbol) t) '(129 130 (bound) nil nil ("Issue4954-2.agda" . 108)))
 (agda2-highlight-add-annotations nil 'nil '(1 4 (symbol) t) '(5 12 (keyword) t) '(13 22 (pragma) t) '(23 26 (symbol) t) '(30 31 (symbol) t) '(36 37 (symbol) t) '(96 97 (symbol) t) '(102 103 (symbol) t))
 (agda2-status-action "Checked")
-(agda2-info-action "*All Done*" "" nil)
+(agda2-info-action "*All Done*" "" nil t)
 ((last . 1) . (agda2-goals-action '()))

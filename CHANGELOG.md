@@ -64,6 +64,9 @@ Interaction and emacs mode
   Latin letters, Greek letters, and digits, the superscript letters `𐞥ꟲꟳꟴ꟱𐞲ᶹ`,
   and the variant equality symbols `⧣﹦꞊`.
 
+* The Emacs mode is now less eager to "pop up" the Agda information
+  buffer.
+
 Backends
 --------
 

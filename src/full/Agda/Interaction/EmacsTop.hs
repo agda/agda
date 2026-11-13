@@ -39,7 +39,9 @@ import Agda.Interaction.Base
 import Agda.Interaction.BasicOps as B
 import Agda.Interaction.Response as R
 import Agda.Interaction.Emacs.Lisp
-import Agda.Interaction.EmacsCommand ( displayInfo, clearRunningInfo, displayRunningInfo, displayVerboseInfo)
+import Agda.Interaction.EmacsCommand
+  (Raise(..), displayInfo, clearRunningInfo, displayRunningInfo,
+   displayVerboseInfo)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.Command (localStateCommandM)
@@ -154,6 +156,8 @@ lispifyResponse = \case
         [ A "agda2-info-action"
         , A $ quote "*Mimer*"
         , A $ quote "No solution found"
+        , A "nil"
+        , A "t"
         ]
       Just str ->
         [ A "agda2-solve-action"
@@ -266,6 +270,7 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
         , A $ quote "*Helper function*"
         , A $ quote (render doc ++ "\n")
         , A "nil"
+        , A "t"
         ]
 
     Goal_NormalForm cmode expr -> do
@@ -323,7 +328,8 @@ format'
   -> Doc
   -- ^ The document to print.
   -> TCM (Lisp String)
-format' header content = displayInfo header (renderToTree content) False <$>
+format' header content =
+  displayInfo header (renderToTree content) False MaybeRaise <$>
   wantBufferHighlighting
 
 -- | Do we want highlighting in the Agda information buffer?
