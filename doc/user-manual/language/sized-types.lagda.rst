@@ -224,9 +224,86 @@ Let's test a few words for membership in the language ``bip-bop``!
 
 .. _`Brzozowski derivative`: https://en.wikipedia.org/wiki/Brzozowski_derivative
 
+.. _sized-types-semi-continuity:
+
+-----------------------------------------------
+Successor-style sized types and semi-continuity
+-----------------------------------------------
+
+Sized data types can also be written in *successor style*, where the
+constructors produce an element of size ``↑ i``:
+
+.. code-block:: agda
+
+  data Nat : Size → Set where
+    zero : ∀ {i} → Nat (↑ i)
+    suc  : ∀ {i} → Nat i → Nat (↑ i)
+
+Matching on such a constructor instantiates the size argument of the
+function to ``↑ i``, and a recursive call at size ``i`` is then
+accepted by the termination checker.  This amounts to transfinite
+induction on sizes, which is only sound if the type of the recursive
+function is *upper semi-continuous* in the size
+(see `Abel 2008`_).  For instance, the following attempt to prove the
+absurdity is rejected (issue `#8829 <https://github.com/agda/agda/issues/8829>`_),
+since the argument type ``∀ n → IsNat i n`` is empty for any finite
+``i``, but inhabited for ``i = ∞``:
+
+.. code-block:: agda
+
+  data IsNat : Size → Nat → Set where
+    isZero : ∀ i     →             IsNat (↑ i) zero
+    isSuc  : ∀ i {n} → IsNat i n → IsNat (↑ i) (suc n)
+
+  shift : ∀ i → (∀ n → IsNat (↑ i) n) → ∀ n → IsNat i n
+  shift i f n with f (suc n)
+  ... | isSuc j b = b
+
+  loop : ∀ i → (∀ n → IsNat i n) → ⊥
+  loop i f with f zero
+  ... | isZero j = loop j (shift j f)  -- termination error
+
+Agda approximates upper semi-continuity syntactically:
+a function type ``(x : A) → B`` is upper semi-continuous in ``i`` if
+``A`` is *lower semi-continuous* in ``i`` and ``B`` is upper
+semi-continuous in ``i``.  Further:
+
+* Types that do not mention ``i`` are both lower and upper semi-continuous.
+
+* Monotone types (like ``Nat i``) are upper semi-continuous,
+  antitone types (like ``Nat i → Bool``) are lower semi-continuous.
+
+* Sized inductive types in successor style (like ``Nat i``), as well as
+  ``Size< i``, are lower semi-continuous in ``i``.  Only the first index
+  of a data type is recognized as a size.  Data types using the musical
+  coinduction ``∞`` do not count as inductive.
+
+* Non-recursive data and record types (like ``Maybe (Nat i)`` or
+  ``Σ (Nat i) B``) are lower/upper semi-continuous in ``i`` if all
+  their constructor fields are, and their indices do not mention ``i``.
+
+* A function type ``(x : A) → B`` is lower semi-continuous in ``i`` if
+  ``B`` is and ``A`` is finite and does not mention ``i``.
+  Finite types are non-recursive data and record types with only finite fields
+  (like ``Bool``), propositions, and the domains of irrelevant functions and
+  partial elements (``Partial``).
+
+If the type of the function is not admissible for a size argument, the
+termination checker ignores matches against successors in this size
+argument and explains this in its error message.
+
+The ``Size<`` style of sized types (as in the examples above) is not
+affected: recursion via ``Size<`` is well-founded and needs no such
+check.
+
 ----------
 References
 ----------
+
+.. _`Abel 2008`:
+
+   `Semi-continuous sized types and termination,
+   Andreas Abel, LMCS Vol. 4(1:3)2008 <https://doi.org/10.2168/LMCS-4(1:3)2008>`_.
 
 .. _`Abel 2017`:
 
