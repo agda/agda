@@ -22,7 +22,7 @@
 (agda2-highlight-add-annotations nil 'nil '(60 72 () t))
 (agda2-highlight-add-annotations nil 'nil '(33 34 () t))
 (agda2-highlight-add-annotations nil 'nil '(33 34 (datatype) nil nil ("With-flicker.agda" . 33)) '(35 36 (symbol) t) '(37 40 (primitive) nil nil ("agda-default-include-path/Agda/Primitive.agda" . 446)))
-(agda2-highlight-add-annotations nil 'nil '(28 32 (keyword) t) '(33 34 (datatype) nil nil ("With-flicker.agda" . 33)) '(41 46 (keyword) t) '(49 53 (inductiveconstructor) nil nil ("With-flicker.agda" . 49)) '(54 55 (symbol) t) '(56 57 (datatype) nil nil ("With-flicker.agda" . 33)) '(60 63 (inductiveconstructor) nil nil ("With-flicker.agda" . 60)) '(65 66 (symbol) t) '(67 68 (datatype) nil nil ("With-flicker.agda" . 33)) '(69 70 (symbol) t) '(71 72 (datatype) nil nil ("With-flicker.agda" . 33)))
+(agda2-highlight-add-annotations nil 'nil '(28 32 (keyword) t) '(33 34 (datatype) nil nil ("With-flicker.agda" . 33)) '(35 36 (symbol) t) '(37 40 (primitive) nil nil ("agda-default-include-path/Agda/Primitive.agda" . 446)) '(41 46 (keyword) t) '(49 53 (inductiveconstructor) nil nil ("With-flicker.agda" . 49)) '(54 55 (symbol) t) '(56 57 (datatype) nil nil ("With-flicker.agda" . 33)) '(60 63 (inductiveconstructor) nil nil ("With-flicker.agda" . 60)) '(65 66 (symbol) t) '(67 68 (datatype) nil nil ("With-flicker.agda" . 33)) '(69 70 (symbol) t) '(71 72 (datatype) nil nil ("With-flicker.agda" . 33)))
 (agda2-highlight-add-annotations nil 'nil '(80 89 (typechecks)))
 (agda2-highlight-add-annotations nil 'nil '(81 89 () t))
 (agda2-highlight-add-annotations nil 'nil '(81 89 (typechecks)))

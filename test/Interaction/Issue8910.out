@@ -12,7 +12,7 @@
 (agda2-highlight-add-annotations nil 'nil '(296 297 () t))
 (agda2-highlight-add-annotations nil 'nil '(272 284 (typechecks)) '(295 297 (typechecks)))
 (agda2-highlight-add-annotations nil 'nil '(272 297 () t))
-(agda2-highlight-add-annotations nil 'nil '(272 276 (keyword) t) '(284 295 (module) nil nil ("Issue8910/M.agda" . 1)) '(296 297 (bound) nil nil ("Issue8910.agda" . 256)))
+(agda2-highlight-add-annotations nil 'nil '(272 276 (keyword) t) '(277 283 (keyword) t) '(284 295 (module) nil nil ("Issue8910/M.agda" . 1)) '(296 297 (bound) nil nil ("Issue8910.agda" . 256)))
 (agda2-highlight-add-annotations nil 'nil '(238 244 (keyword) t) '(245 254 (module) nil nil ("Issue8910.agda" . 1)) '(255 256 (symbol) t) '(256 257 (bound) nil nil ("Issue8910.agda" . 256)) '(258 259 (symbol) t) '(260 263 (primitive) nil nil ("agda-default-include-path/Agda/Primitive.agda" . 446)) '(263 264 (symbol) t) '(265 270 (keyword) t))
 (agda2-highlight-add-annotations nil 'nil '(1 35 (comment) t) '(36 108 (comment) t) '(109 166 (comment) t) '(167 236 (comment) t))
 (agda2-status-action "Checked")

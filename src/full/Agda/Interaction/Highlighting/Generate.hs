@@ -81,6 +81,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2           ( List2 )
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
+import Agda.Utils.Monad (ifM)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
@@ -183,8 +184,16 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
       stSyntaxInfo `modifyTCLens` mappend syntaxInfo
       stTokens     `setTCLens`    otherTokens
 
-    ifTopLevelAndHighlightingLevelIs NonInteractive $
-      printHighlightingInfo KeepHighlighting syntaxInfo
+    ifTopLevelAndHighlightingLevelIs NonInteractive $ do
+      -- Issue #8910: declarations can overlap after desugaring, as in
+      -- @open import M args@. Interactive highlighting clears the range
+      -- being checked, including tokens consumed by an earlier declaration.
+      -- Restore the accumulated highlighting in that range as well, giving
+      -- the newly generated information precedence.
+      accumulatedInfo <- ifM ((Interactive ==) <$> viewTC eHighlightingLevel)
+        (restrictTo (rangeToRange $ getRange decl) <$> useTC stSyntaxInfo)
+        (pure mempty)
+      printHighlightingInfo KeepHighlighting (syntaxInfo <> accumulatedInfo)
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given file.
