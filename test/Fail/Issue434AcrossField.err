@@ -1,7 +1,11 @@
-Issue434AcrossField.agda:4.3-8.17: error: [NotValidBeforeField]
-This declaration is illegal in a record before the last field
+Issue434AcrossField.agda:10.5-20: error: [FieldInMutualBlock]
+Record fields are not allowed in explicit or inferred mutual
+blocks.
+Complete helper definitions before declaring the next field.
 when scope checking the declaration
-  record R A where
-    identity : A → A
-    field a : A
-    identity x = x
+  record R where
+    Carrier : Set
+    field
+      value : Carrier
+      later : Set
+    Carrier = later

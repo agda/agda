@@ -6047,7 +6047,7 @@ data TypeError
         | NotAnExpression C.Expr
         | NotAValidLetBinding (Maybe NotAValidLetBinding)
         | NotAValidLetExpression NotAValidLetExpression
-        | NotValidBeforeField NiceDeclaration
+        | FieldInMutualBlock
         | PrivateRecordField
         | QualifiedLocalModule
     -- Pattern synonym errors

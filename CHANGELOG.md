@@ -49,6 +49,9 @@ Language
   and duplicate checking of interaction holes (see [#434](https://github.com/agda/agda/issues/434)).
   HTML anchors for these declarations retain their source-qualified names,
   such as `R.helper`, including declarations in nested modules.
+  Fields in explicit or inferred mutual blocks are rejected with
+  `FieldInMutualBlock`. A helper's signature and definition must be completed
+  before the next field declaration.
 
 Builtins
 --------
