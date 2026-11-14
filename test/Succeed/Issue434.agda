@@ -66,3 +66,20 @@ testDataIdentity : (r : WithData) (d e : WithData.D r) →
   WithData.D (withData (WithData.A r) d) →
   WithData.D (withData (WithData.A r) e)
 testDataIdentity r d e x = x
+
+-- Mutual groups of helpers are allowed when they finish before the next field.
+record WithMutual (A : Set) : Set where
+  constructor withMutual
+  field a : A
+
+  mutual
+    even odd : Nat → A
+    even zero = a
+    even (suc n) = odd n
+    odd zero = a
+    odd (suc n) = even n
+
+  field proof : even zero ≡ a
+
+testMutual : WithMutual Nat
+testMutual = withMutual zero refl

@@ -511,7 +511,31 @@ In generated HTML, declarations retain symbolic anchors based on their source
 names, such as ``R.F`` above. Internal modules used to check interleaved
 declarations do not contribute qualifiers to these anchors.
 
-A mutually checked group of declarations cannot cross a field declaration.
+A field cannot occur in an explicit or inferred mutual block
+(``FieldInMutualBlock``). In particular, a helper's signature and definition
+must not be separated by a field declaration. Finish the helper definition
+before the next field, or move both its signature and definition after that
+field.
+
+Before the last field, each mutually checked group of helpers is checked with
+a fixed prefix of the record fields as module parameters. A field extends that
+prefix, so a mutual group cannot cross this boundary. For example, the following
+is rejected:
+
+.. code-block:: agda
+
+   record R : Set₁ where
+     Carrier : Set
+     field
+       value : Carrier
+       later : Set
+     Carrier = later
+
+The signature and definition of ``Carrier`` infer a mutual block containing
+both fields. Unfolding ``Carrier`` would make the constructor's first argument,
+``value``, depend on its second argument, ``later``, which is not yet bound.
+The restriction also applies when a particular helper could be moved before
+the intervening field without introducing such a dependency.
 
 .. _eta-expansion:
 

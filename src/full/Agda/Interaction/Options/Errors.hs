@@ -159,6 +159,7 @@ data ErrorName
   | EtaPragmaVsNoEtaEquality_
   | ExpectedBindingForParameter_
   | ExpectedIntervalLiteral_
+  | FieldInMutualBlock_
   | FieldOutsideRecord_
   | FaceConstraintDisjunction_
   | FaceConstraintUnsatisfiable_
@@ -241,7 +242,6 @@ data ErrorName
   | NotAnExpression_
   | NotInScope_
   | NotLeqSort_
-  | NotValidBeforeField_
   | OverlappingProjects_
   | PathAbstractionFailed_
   | PatternInPathLambda_

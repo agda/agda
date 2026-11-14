@@ -139,24 +139,35 @@ notAValidLetBinding = locatedTypeError NotAValidLetBinding
 -- the constructor and projections have been installed.
 scopeCheckRecordBody :: A.ModuleName -> [C.Declaration] -> ScopeM ([A.RecordStage], [A.Declaration])
 scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
-  forM_ ds $ \ d -> when (containsField d && not (isField d)) $
-    setCurrentRange d $ typeError $ NotValidBeforeField d
-  let prefix = List.dropWhileEnd notField ds
+  mapM_ rejectFieldsInMutual ds
+  let prefix = List.dropWhileEnd (not . isField) ds
       suffix = drop (length prefix) ds
   locals <- getLocalVars
   (stages, body) <- withLocalVars $ stagesBeforeFields locals prefix
   trailing <- withCurrentModule recordModule $ catMaybes <$> toAbstract suffix
   return (stages, body ++ trailing)
   where
+    isField :: C.NiceDeclaration -> Bool
     isField C.NiceField{} = True
     isField _ = False
-    notField = not . isField
-    containsField (C.NiceMutual _ _ _ _ ds) = any containsField ds
-    containsField d = isField d
 
+    -- A mutual group is checked in a single module telescope, whereas each
+    -- field extends the telescope for subsequent helpers. Nicification can
+    -- infer such a group from a signature and definition separated by fields.
+    -- Do not descend into nested modules or records: their fields belong there.
+    rejectFieldsInMutual :: C.NiceDeclaration -> ScopeM ()
+    rejectFieldsInMutual = \case
+      C.NiceMutual _ _ _ _ ds -> forM_ ds $ \case
+        d@C.NiceField{} -> setCurrentRange d $ typeError FieldInMutualBlock
+        d -> rejectFieldsInMutual d
+      _ -> return ()
+
+    stagesBeforeFields
+      :: LocalVars -> [C.NiceDeclaration]
+      -> ScopeM ([A.RecordStage], [A.Declaration])
     stagesBeforeFields _ [] = return ([], [])
     stagesBeforeFields locals ds = do
-      let (before, rest) = break (not . notField) ds
+      let (before, rest) = break isField ds
       stage <- freshRecordImplementationModule "record-stage"
       createModule Nothing stage
       withCurrentModule stage $ do
@@ -196,6 +207,7 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
 
     -- Implementation modules do not introduce source qualifiers. In particular,
     -- copies retain the original source name along with the original binding site.
+    freshRecordImplementationModule :: String -> ScopeM A.ModuleName
     freshRecordImplementationModule s = do
       q <- freshAbstractQName noFixity' (C.simpleName s)
       let r = qnameFromList $ mnameToList1 recordModule
