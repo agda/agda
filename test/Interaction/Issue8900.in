@@ -1,0 +1,14 @@
+top_command (cmd_load currentFile [])
+goal_command 0 cmd_give "P (f a) → P seed"
+goal_command 1 cmd_give "choose (f a) seed"
+goal_command 2 cmd_give "choose (f a) seed"
+-- Check every copy of each shared type after giving the hole.
+top_command (cmd_infer_toplevel Normalised "Types.X")
+top_command (cmd_infer_toplevel Normalised "Types.Y")
+top_command (cmd_infer_toplevel Normalised "Types.Z")
+top_command (cmd_infer_toplevel Normalised "Values.X")
+top_command (cmd_infer_toplevel Normalised "Values.Y")
+top_command (cmd_infer_toplevel Normalised "Values.Z")
+top_command (cmd_infer_toplevel Normalised "Shadowing.f")
+top_command (cmd_infer_toplevel Normalised "Shadowing.a")
+top_command (cmd_infer_toplevel Normalised "Shadowing.Z")

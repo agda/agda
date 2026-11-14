@@ -445,8 +445,6 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
     -- with substitutions to move between parent and child.
     let gxs  = contextNames' gamma
     let dxs  = contextNames' delta
-    let gys  = map' nameCanonical gxs
-    let dys  = map' nameCanonical dxs
     let glen = length gxs
     let dlen = length dxs
     reportSDoc "tc.interaction" 20 $ vcat
@@ -457,31 +455,49 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
       -- , nest 2 $ "reusage  context:" <+> pretty dxs
       ]
 
-    -- When checking a record declaration (e.g. Σ), creation context Γ
-    -- might be of the forms Γ₀,Γ₁ or Γ₀,fst,Γ₁ or Γ₀,fst,snd,Γ₁ whereas
-    -- Δ is of the form Γ₀,r,Γ₁,{Δ₂} for record variable r.
-    -- So first find the record variable in Δ.
+    -- Record declarations reuse interaction metas in two situations:
+    -- (1) Checking shared field types: Γ = Γ₀,Γ₁ and Δ = Γ₀,fields,Γ₁,
+    --     where earlier fields have been inserted before the local binders Γ₁.
+    -- (2) Rechecking declarations for the record module: Γ = Γ₀,fields,Γ₁
+    --     and Δ = Γ₀,r,Γ₁,{Δ₂}, where the record variable r replaces the fields
+    --     and Δ₂ contains hidden variables bound by the rechecked left-hand side.
+    --     Example:
+    --     When checking the Σ record definition, creation context Γ
+    --     might be of the forms Γ₀,Γ₁ or Γ₀,fst,Γ₁ or Γ₀,fst,snd,Γ₁ whereas
+    --     Δ is of the form Γ₀,r,Γ₁,{Δ₂} for record variable r.
+    -- Distinguish these cases by looking for the record variable in Δ.
     (rev_args, extraLen) <- case List.findIndex nameIsRecordName dxs of
 
       -- Case: no record variable in the context.
-      -- Test whether Δ is an extension of Γ.
+      -- Andreas, 2026-11-14, issue #8900, via Codex GPT-6.1-Sol:
+      -- Compute the order-preserving embedding of Γ into Δ.
+      -- Rechecked binders have fresh NameIds;
+      -- use their binding sites as well as their names to distinguish them
+      -- from intervening fields, which can have the same concrete names.
       Nothing -> do
-        unless (gys `List.isSuffixOf` dys) $ do
-          reportSDoc "impossible" 10 $ vcat
-            [ "expecting meta-creation context"
-            , nest 2 $ pretty gxs
-            , "to be a suffix of the meta-reuse context"
-            , nest 2 $ pretty dxs
-            ]
-          reportSDoc "impossible" 70 $ vcat
-            [ "expecting meta-creation context"
-            , nest 2 $ (text . show) gxs
-            , "to be a suffix of the meta-reuse context"
-            , nest 2 $ (text . show) dxs
-            ]
-          __IMPOSSIBLE__
-        -- Apply the meta to |Γ| arguments from Δ.
-        return (map' var [dlen - glen .. dlen - 1], 0)
+        let sameBinder x y = x == y ||
+              (((==) `on` nameCanonical) x y && ((==) `on` nameBindingSite) x y)
+            embed [] _ = Just []
+            embed _ [] = Nothing
+            embed xs@(x : xs') ((i, y) : ys)
+              | sameBinder x y = (i :) <$> embed xs' ys
+              | otherwise     = embed xs ys
+        case embed gxs (zip [0..] dxs) of
+          Just indices -> return (map' var indices, 0)
+          Nothing -> do
+            reportSDoc "impossible" 10 $ vcat
+              [ "expecting meta-creation context"
+              , nest 2 $ pretty gxs
+              , "to embed into the meta-reuse context"
+              , nest 2 $ pretty dxs
+              ]
+            reportSDoc "impossible" 70 $ vcat
+              [ "expecting meta-creation context"
+              , nest 2 $ (text . show) gxs
+              , "to embed into the meta-reuse context"
+              , nest 2 $ (text . show) dxs
+              ]
+            __IMPOSSIBLE__
 
       -- Case: record variable in the context.
       Just k -> do
@@ -493,7 +509,7 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
         allFields <- ignoreAbstractMode $ getRecordTypeFields t
         -- Find out the Δ₂ and Γ₁ parts.
         -- However, as they do not share common ancestry, the @nameId@s differ,
-        -- so we consider only the original concrete names in gys and dys.
+        -- so we consider their original concrete names.
         -- This is a bit risky... blame goes to #434.
         -- The concrete names can clash, e.g. a hidden variable in Δ₂ with a
         -- field in Γ, so we recognize the fields by their binding site.
