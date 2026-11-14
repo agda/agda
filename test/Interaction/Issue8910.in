@@ -1,0 +1,7 @@
+-- Reproduce #8910 with interactive highlighting: checking the module
+-- application clears the import keyword after its tokens have been consumed
+-- by the import declaration. The final application highlighting omits it.
+-- The golden output records the current bug and needs updating when fixed.
+IOTCM currentFile Interactive Direct (Cmd_load currentFile [])
+-- The stored highlighting still includes the import keyword.
+IOTCM currentFile NonInteractive Direct (Cmd_load_highlighting_info currentFile)
