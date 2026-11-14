@@ -109,7 +109,10 @@ highlightWarning tcwarn = do
   -- together with token highlighting.
   case tcWarning tcwarn of
     ParseWarning{} -> modifyTCLens stTokens     (h <>)
-    _              -> modifyTCLens stSyntaxInfo (h <>)
+    _ | tcWarningCached tcwarn -> modifyTCLens stSyntaxInfo (h <>)
+      -- Issue #7781: scope warnings are regenerated on each load. Their
+      -- highlighting must not be restored from cached type-checking state.
+      | otherwise -> modifyTCLens stNonCachedWarningInfo (h <>)
   ifTopLevelAndHighlightingLevelIs NonInteractive $
     printHighlightingInfo KeepHighlighting h
 
@@ -191,7 +194,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
       -- Restore the accumulated highlighting in that range as well, giving
       -- the newly generated information precedence.
       accumulatedInfo <- ifM ((Interactive ==) <$> viewTC eHighlightingLevel)
-        (restrictTo (rangeToRange $ getRange decl) <$> useTC stSyntaxInfo)
+        (restrictTo (rangeToRange $ getRange decl) <$> getSyntaxInfo)
         (pure mempty)
       printHighlightingInfo KeepHighlighting (syntaxInfo <> accumulatedInfo)
 
@@ -368,9 +371,15 @@ generateConstructorInfo top kinds decl = do
     -- Return suitable syntax highlighting information.
     return $ foldMap (runHighlighter top kinds) constrs
 
+-- | Accumulated highlighting, including warnings regenerated on each load.
+-- Warning highlighting is also recomputed from the current warnings when
+-- constructing the interface, after declaration caching has finished.
+getSyntaxInfo :: TCM HighlightingInfo
+getSyntaxInfo = (<>) <$> useTC stSyntaxInfo <*> useTC stNonCachedWarningInfo
+
 printSyntaxInfo :: Range -> TCM ()
 printSyntaxInfo r = do
-  syntaxInfo <- useTC stSyntaxInfo
+  syntaxInfo <- getSyntaxInfo
   ifTopLevelAndHighlightingLevelIs NonInteractive $
     printHighlightingInfo KeepHighlighting
       (restrictTo (rangeToRange r) syntaxInfo)

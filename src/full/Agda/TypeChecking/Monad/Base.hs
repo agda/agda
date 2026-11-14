@@ -247,6 +247,9 @@ data PreScopeState = PreScopeState
     -- ^ Highlighting info for tokens and Happy parser warnings (but
     -- not for those tokens/warnings for which highlighting exists in
     -- 'stPostSyntaxInfo').
+  , stPreNonCachedWarningInfo :: !HighlightingInfo
+    -- ^ Highlighting for warnings with 'tcWarningCached' set to 'False'.
+    -- Like those warnings, this must not be restored from the declaration cache.
   , stPreImports            :: !Signature  -- XX populated by scope checker
     -- ^ Imported declared identifiers.
     --   Those must not be serialized!
@@ -544,6 +547,7 @@ initPreScopeState :: PreScopeState
 initPreScopeState = PreScopeState
   { stPreFileId               = empty
   , stPreTokens               = mempty
+  , stPreNonCachedWarningInfo  = mempty
   , stPreImports              = emptySignature
   , stPreImportedModules      = empty
   , stPreImportedModulesTransitive = empty
@@ -701,6 +705,10 @@ lensPreFileId f s = f (stPreFileId s) <&> \x -> s { stPreFileId = x }
 
 lensPreTokens :: Lens' PreScopeState HighlightingInfo
 lensPreTokens f s = f (stPreTokens s) <&> \ x -> s { stPreTokens = x }
+
+lensPreNonCachedWarningInfo :: Lens' PreScopeState HighlightingInfo
+lensPreNonCachedWarningInfo f s =
+  f (stPreNonCachedWarningInfo s) <&> \ x -> s { stPreNonCachedWarningInfo = x }
 
 lensImports :: Lens' PreScopeState Signature
 lensImports f s = f (stPreImports s) <&> \ x -> s { stPreImports = x }
@@ -980,6 +988,9 @@ stFileId = lensPreScopeState . lensPreFileId
 
 stTokens :: Lens' TCState HighlightingInfo
 stTokens = lensPreScopeState . lensPreTokens
+
+stNonCachedWarningInfo :: Lens' TCState HighlightingInfo
+stNonCachedWarningInfo = lensPreScopeState . lensPreNonCachedWarningInfo
 
 stImports :: Lens' TCState Signature
 stImports = lensPreScopeState . lensImports
