@@ -11,12 +11,18 @@ original, edited :: String
 original = "opaque\n\n" ++ edited
 edited = "-- XXXXXXXXXXXXXX\n"
 
--- Reproduce #7781: warning highlighting survives removing its cause and is
--- written to the interface, even though Agda no longer reports the warning.
--- The golden output records the current bug and needs updating when fixed.
+-- Regression test for #7781: removing the cause of a warning must remove its
+-- highlighting as well, including from the interface loaded after a restart.
 main :: IO ()
 main = flip finally (writeUTF8File file original) $ do
-  writeUTF8File file original
+  putStrLn "Empty opaque block:"
+  reproduce original edited
+  putStrLn "Missing definition:"
+  reproduce "A : Set₁\n" "A : Set₁\nA = Set\n"
+
+reproduce :: String -> String -> IO ()
+reproduce before after = do
+  writeUTF8File file before
 
   runAgda ["--no-default-libraries", "--ignore-interfaces", "-v0"] $
     \AgdaCommands { .. } -> do
@@ -29,8 +35,8 @@ main = flip finally (writeUTF8File file original) $ do
       putStrLn "Initial load:"
       reload
 
-      writeUTF8File file edited
-      putStrLn "After removing opaque:"
+      writeUTF8File file after
+      putStrLn "After fixing the warning:"
       reload
       putStrLn "Reload without further edits:"
       reload
