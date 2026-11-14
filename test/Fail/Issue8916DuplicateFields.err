@@ -1,0 +1,10 @@
+Issue8916DuplicateFields.agda:4.9-7.14: error: [DuplicateFields]
+Duplicate field in record: A
+when scope checking the declaration
+  record R where
+    field A : Set
+    opaque
+      opaque
+        field A : Set
+        B : Set
+        B = A
