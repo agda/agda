@@ -6,6 +6,7 @@ data ⊥ : Set where
 {-# NON_TERMINATING     #-}
 mutual
   record U : Set where
+    inductive
     no-eta-equality; pattern; constructor roll
     field ap : U → U
 

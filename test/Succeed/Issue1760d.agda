@@ -7,6 +7,7 @@ record U₁ : Set
 data D₁   : Set
 
 record U₁ where
+  inductive
   no-eta-equality
   field ap : U₁ → U₁
 
@@ -19,6 +20,7 @@ record U₂ : Set
 data D₂   : Set
 
 record U₂ where
+  inductive
   no-eta-equality
   field ap : U₂ → U₂
 

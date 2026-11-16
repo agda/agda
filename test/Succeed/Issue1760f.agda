@@ -4,5 +4,6 @@ module Issue1760f where
 abstract
   {-# NO_POSITIVITY_CHECK #-}
   record U : Set where
+    inductive
     no-eta-equality
     field ap : U → U

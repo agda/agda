@@ -7,5 +7,6 @@ mutual
     lam : (D → D) → D
 
   record U : Set where
+    inductive
     no-eta-equality
     field ap : U → U
