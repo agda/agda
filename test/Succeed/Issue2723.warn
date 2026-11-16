@@ -1,0 +1,10 @@
+
+Issue2723.agda:15.1-11: warning: -W[no]UnreachableClauses
+Unreachable clause
+when checking the definition of foo
+
+———— All done; warnings encountered ————————————————————————
+
+Issue2723.agda:15.1-11: warning: -W[no]UnreachableClauses
+Unreachable clause
+when checking the definition of foo
