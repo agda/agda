@@ -1,7 +1,0 @@
-Issue8916OpaqueAlias.agda:19.10-14: error: [UnequalTerms]
-The terms
-  R.Alias r
-and
-  Nat
-are not equal at type Set
-when checking that the expression refl has type R.Alias r ≡ Nat

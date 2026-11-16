@@ -147,13 +147,8 @@ recordConstructorType decls =
     -- the the last field. Use NoWarn to silence fixity warnings. We'll get
     -- them again when scope checking the declarations to build the record
     -- module.
-    niceDecls NoWarn decls $ buildType . takeFields . concatMap flattenOpaque
+    niceDecls NoWarn decls $ buildType . takeFields
   where
-    -- Opacity only affects definitions, not the constructor telescope.
-    -- Treat definitions before fields as let bindings, as usual.
-    flattenOpaque (NiceOpaque _ _ ds) = concatMap flattenOpaque ds
-    flattenOpaque d                   = [d]
-
     takeFields = List.dropWhileEnd notField
 
     notField NiceField{} = False
@@ -2340,14 +2335,12 @@ scopeCheckRecDef r o a pc uc forceEta x directives pars fields =
       -- Andreas, 2017-07-13 issue #2642 disallow duplicate fields
       -- Check for duplicate fields. (See "Check for duplicate constructors")
       do let fs :: [C.Name]
-             fs = concatMap fieldNames fields
-             fieldNames = \case
-               C.Opaque _ ds -> concatMap fieldNames ds
-               C.Field _ fs -> fs <&> \case
+             fs = concat $ forMaybe fields $ \case
+               C.Field _ fs -> Just $ fs <&> \case
                  -- a Field block only contains field signatures
                  C.FieldSig _ _ f _ -> f
                  _ -> __IMPOSSIBLE__
-               _ -> []
+               _ -> Nothing
          List1.unlessNull (duplicates fs) $ \ dups -> do
            let bad = filter (`elem` dups) fs
            setCurrentRange bad $

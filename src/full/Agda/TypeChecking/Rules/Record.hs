@@ -40,6 +40,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
 import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.List
+import Agda.Utils.List1 (pattern (:|) )
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Syntax.Common.Pretty as P
@@ -162,7 +163,7 @@ checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDef
       let getName :: A.Declaration -> [Dom QName]
           getName = \case
             A.Field _ x arg          -> [ x <$ domFromArg arg ]
-            A.ScopedDecl _ fs        -> concatMap getName fs
+            A.ScopedDecl _ (f :| []) -> getName f
             _ -> []
 
           setTactic dom f = f & dTactic .~ (dom ^. dTactic)
