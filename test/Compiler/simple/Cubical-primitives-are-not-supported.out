@@ -1,6 +1,0 @@
-COMPILE_FAILED
-
-ret > ExitFailure 42
-out > error: [CubicalCompilationNotSupported]
-out > Compilation of code that uses --cubical[=full] is not supported.
-out >

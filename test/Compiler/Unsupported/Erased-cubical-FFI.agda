@@ -2,7 +2,7 @@
 
 open import Agda.Builtin.Bool
 
-open import Erased-cubical-Cubical
+open import Include.Erased-cubical-Cubical
 
 postulate
   f : Not-compiled → Bool

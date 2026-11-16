@@ -1135,6 +1135,7 @@ executable agda-tests
       Internal.Termination.SparseMatrix
       Internal.Termination.Termination
       Internal.Tests
+      Internal.TestSuite
       Internal.TypeChecking
       Internal.TypeChecking.Free
       Internal.TypeChecking.Free.Lazy

@@ -3,6 +3,7 @@ module Compiler.Tests where
 
 import Utils
 import Test.Tasty
+import Test.Tasty.HUnit (assertFailure)
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Filter
 import Data.Bits (finiteBitSize)
@@ -19,7 +20,7 @@ import qualified System.Process as P
 import System.Process.Text as PT
 
 
-import Control.Monad (forM)
+import Control.Monad (forM, when, unless)
 import Data.Maybe
 import Text.Read
 
@@ -38,6 +39,35 @@ data ExecResult
   | ExecutedProg
     { result :: ProgramResult }
   deriving (Show, Read, Eq)
+
+-- | The test directory determines the expected outcome (success/failure).
+data TestKind
+  = Simple       -- ^ @test/Compiler/simple@.
+  | Unsupported  -- ^ @test/Compiler/Unsupported@:
+                 --   rejected by compiler backend because of unsupported features
+                 --   (such as @--cubical@).
+  | Bugs         -- ^ @test/Compiler/Bugs@: known bug in the compiler backend.
+  deriving (Show, Eq)
+
+-- | Reject the wrong outcome before comparing or updating the golden.
+checkExecResult :: TestKind -> ExecResult -> IO ExecResult
+checkExecResult kind actual =
+  if expected then pure actual else
+    assertFailure $ "Expected " ++ show kind ++ " outcome, got:\n" ++
+      T.unpack (printExecResult actual)
+  where
+  expected = case (kind, actual) of
+    (Simple, CompileSucceeded (ProgramResult ExitSuccess _ _)) -> True
+    (Simple, ExecutedProg (ProgramResult ExitSuccess _ _)) -> True
+    (Unsupported, CompileFailed (ProgramResult (ExitFailure 42) out _)) ->
+      not $ "error: [CompilationError]" `T.isInfixOf` out
+    (Bugs, ExecutedProg (ProgramResult (ExitFailure n) _ _)) -> n > 0
+    _ -> False
+
+-- | Failure golden values contain diagnostics; successful tests retain the process output.
+printTestResult :: TestKind -> ExecResult -> T.Text
+printTestResult Simple r = printExecResult r
+printTestResult _ r = stdOut (result r) <> stdErr (result r)
 
 data CodeOptimization = NonOptimized | Optimized | MinifiedOptimized
   deriving (Show, Read, Eq, Enum, Bounded)
@@ -153,7 +183,9 @@ tests = do
   ts <- forM enabledCompilers \ comp -> do
     testGroup (map spaceToUnderscore $ show comp) . catMaybes
         <$> sequence
-            [ Just <$> simpleTests comp
+            [ Just <$> compilerTests Simple comp
+            , Just <$> compilerTests Unsupported comp
+            , Just <$> compilerTests Bugs comp
             , Just <$> stdlibTests comp
             , specialTests comp]
   return $ testGroup "Compiler" ts
@@ -161,17 +193,21 @@ tests = do
     spaceToUnderscore ' ' = '_'
     spaceToUnderscore c = c
 
-simpleTests :: Compiler -> IO TestTree
-simpleTests comp = do
-  let testDir = "test" </> "Compiler" </> "simple"
+compilerTests :: TestKind -> Compiler -> IO TestTree
+compilerTests kind comp = do
+  let groupName = case kind of
+        Simple -> "simple"
+        Unsupported -> "Unsupported"
+        Bugs -> "Bugs"
+      testDir = "test" </> "Compiler" </> groupName
   inps <- getAgdaFilesInDir NonRec testDir
 
   tests' <- forM inps $ \inp -> do
     opts <- readOptions inp
     return $
-      agdaRunProgGoldenTest testDir comp
-        (return $ ["-i" ++ testDir, "-itest/"] ++ compArgs comp) inp opts
-  return $ testGroup "simple" $ catMaybes tests'
+      agdaRunProgGoldenTest kind testDir comp
+        (return $ ["-i" ++ testDir, "-itest/Compiler", "-itest/"] ++ compArgs comp) inp opts
+  return $ testGroup groupName $ catMaybes tests'
 
   where compArgs :: Compiler -> AgdaArgs
         compArgs MAlonzo{} =
@@ -214,14 +250,14 @@ stdlibTests comp = do
   tests' <- forM inps $ \inp -> do
     opts <- readOptions inp
     return $
-      agdaRunProgGoldenTest testDir comp (return $ extraArgs ++ rtsOptions) inp opts
+      agdaRunProgGoldenTest Simple testDir comp (return $ extraArgs ++ rtsOptions) inp opts
   return $ testGroup "with-stdlib" $ catMaybes tests'
 
 
 specialTests :: Compiler -> IO (Maybe TestTree)
 specialTests c@MAlonzo{} = do
   let t = fromJust $
-            agdaRunProgGoldenTest1 testDir c (return extraArgs)
+            agdaRunProgGoldenTest1 Simple testDir c (return extraArgs)
               (testDir </> "ExportTestAgda.agda") defaultOptions cont
 
   return $ Just $ testGroup "special" [t]
@@ -242,14 +278,15 @@ ghcArgsAsAgdaArgs :: GHCArgs -> AgdaArgs
 ghcArgsAsAgdaArgs = map f
   where f = ("--ghc-flag=" ++)
 
-agdaRunProgGoldenTest :: FilePath     -- ^ directory where to run the tests.
+agdaRunProgGoldenTest :: TestKind
+    -> FilePath     -- ^ directory where to run the tests.
     -> Compiler
     -> IO AgdaArgs     -- ^ extra Agda arguments
     -> FilePath -- ^ relative path to agda input file.
     -> TestOptions
     -> Maybe TestTree
-agdaRunProgGoldenTest dir comp extraArgs inp opts =
-      agdaRunProgGoldenTest1 dir comp extraArgs inp opts $ \compDir out err -> do
+agdaRunProgGoldenTest kind dir comp extraArgs inp opts =
+      agdaRunProgGoldenTest1 kind dir comp extraArgs inp opts $ \compDir out err -> do
         if executeProg opts then do
           -- read input file, if it exists
           inp' <- fromMaybe T.empty <$> readFileMaybeText inpFile
@@ -270,18 +307,19 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
           return $ CompileSucceeded (ProgramResult ExitSuccess out err)
   where inpFile = dropAgdaExtension inp <.> "inp"
 
-agdaRunProgGoldenTest1 :: FilePath     -- ^ directory where to run the tests.
+agdaRunProgGoldenTest1 :: TestKind
+    -> FilePath     -- ^ directory where to run the tests.
     -> Compiler
     -> IO AgdaArgs     -- ^ extra Agda arguments
     -> FilePath -- ^ relative path to agda input file.
     -> TestOptions
     -> (FilePath -> T.Text -> T.Text -> IO ExecResult) -- continuation if compile succeeds, gets the compilation dir
     -> Maybe TestTree
-agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
+agdaRunProgGoldenTest1 kind dir comp extraArgs inp opts cont
   | (Just cOpts) <- lookup comp (forCompilers opts) =
-      Just $ goldenVsAction' testName goldenFile (doRun cOpts) printExecResult
+      Just $ goldenVsAction' testName goldenFile (checkExecResult kind =<< doRun cOpts) (printTestResult kind)
   | otherwise = Nothing
-  where goldenFile = dropAgdaExtension inp <.> "out"
+  where goldenFile = dropAgdaExtension inp <.> if kind == Simple then "out" else "err"
         testName   = asTestName dir inp
 
         -- Andreas, 2017-04-14, issue #2317
@@ -298,20 +336,30 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
                         ["--no-libraries"] ++
                         ["--compile-dir", compDir, "-v0", "-vwarning:1"] ++ extraArgs' ++ cArgs ++ [inp]
           let args = argsForComp comp ++ defArgs
+          -- Unsupported programs must type-check before testing backend rejection.
+          -- Otherwise --accept could record a front-end error as unsupported code.
+          when (kind == Unsupported) $ do
+            res@(ret, _, _) <- readAgdaProcessWithExitCode Nothing defArgs T.empty
+            unless (ret == ExitSuccess) $
+              assertFailure $ "Unsupported test failed to type-check:\n" ++
+                T.unpack (printProgramResult $ toProgramResult res)
           res@(ret, out, err) <- readAgdaProcessWithExitCode Nothing args T.empty
 
           absDir <- canonicalizePath dir
           removePaths [absDir, compDir] <$> case ret of
+            ExitSuccess | kind == Unsupported ->
+              pure $ CompileSucceeded $ ProgramResult ExitSuccess out err
             ExitSuccess -> cont compDir out err
             ExitFailure _ -> return $ CompileFailed $ toProgramResult res
           )
 
         argsForComp :: Compiler -> [String]
-        argsForComp (MAlonzo s) = [ "--compile" ] ++ case s of
+        argsForComp (MAlonzo s) = [ "--compile" ] ++
+          [ "--ghc-dont-call-ghc" | kind == Unsupported ] ++ case s of
           Lazy       -> []
           StrictData -> ["--ghc-strict-data"]
           Strict     -> ["--ghc-strict"]
-        argsForComp (JS opt) = [ "--js", "--js-verify", "--js-es6" ]
+        argsForComp (JS opt) = [ "--js", "--js-es6" ] ++ [ "--js-verify" | kind == Simple ]
           ++ case opt of
             NonOptimized      -> []
             Optimized         -> [ "--js-optimize" ]

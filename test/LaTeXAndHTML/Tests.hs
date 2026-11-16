@@ -22,6 +22,7 @@ import qualified System.Process.ByteString as PB
 import Text.Read (readMaybe)
 
 import Test.Tasty
+import Test.Tasty.HUnit (assertFailure)
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced (readFileMaybe)
 import Test.Tasty.Silver.Filter
@@ -136,7 +137,7 @@ mkLaTeXOrHTMLTest k copy agdaBin testDir inp =
   goldenVsAction'
     testName
     goldenFile
-    (liftM2 (,) getCurrentDirectory doRun)
+    (liftM2 (,) getCurrentDirectory (doRun >>= checkLaTeXResult (testDir == testDirPrefix "fail")))
     (uncurry printLaTeXResult)
   where
   extension = case k of
@@ -244,6 +245,16 @@ mkLaTeXOrHTMLTest k copy agdaBin testDir inp =
         return $ case r of
           LaTeXFailed progs -> LaTeXFailed (prog : progs)
           _                 -> LaTeXFailed [prog]
+
+-- | Failure expectations belong to the test directory, never to the golden.
+checkLaTeXResult :: Bool -> LaTeXResult -> IO LaTeXResult
+checkLaTeXResult expectFailure r = case r of
+  AgdaFailed{} | expectFailure -> pure r
+  Success{} | not expectFailure -> pure r
+  _ -> do
+    cwd <- getCurrentDirectory
+    assertFailure $ "Unexpected LaTeX/HTML test result:\n" ++
+      T.unpack (printLaTeXResult cwd r)
 
 printLaTeXResult
   :: FilePath     -- ^ The current working directory.

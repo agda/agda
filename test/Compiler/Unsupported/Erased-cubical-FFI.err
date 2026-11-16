@@ -1,0 +1,4 @@
+/Erased-cubical-FFI.agda:13.1-35: error: [GHCBackend.NotAHaskellType.NotCompiled]
+The type Not-compiled → Bool cannot be translated to a
+corresponding Haskell type, because it contains a name that is not
+compiled (Not-compiled).

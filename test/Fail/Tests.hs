@@ -12,6 +12,7 @@ import System.FilePath
 import System.IO.Temp
 
 import Test.Tasty
+import Test.Tasty.HUnit (assertFailure)
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced
   (readFileMaybe, goldenTest1, goldenTestIO1, GDiff (..), GShow (..))
@@ -51,7 +52,6 @@ tests = do
 
 data TestResult
   = TestResult T.Text -- the cleaned stdout
-  | TestUnexpectedSuccess ProgramResult
 
 mkFailTest ::
      FilePath -- ^ Directory
@@ -81,7 +81,7 @@ mkFailTest testDir agdaFile =
                    , "--double-check"
                    ]
     runAgdaWithOptions testName agdaArgs (Just flagFile) (Just varFile)
-      <&> expectFail
+      >>= expectFail
 
 -- | A test for case-insensitivity of the file system.
 caseInsensitiveFileSystem :: IO Bool
@@ -151,7 +151,7 @@ issue7953 =
     goldenFile = dir </> name <.> "err"
     doRun = do
       runAgdaWithOptions name agdaArgs Nothing Nothing
-        <&> printTestResult . expectFail
+        >>= fmap printTestResult . expectFail
       where
         agdaArgs =
           [ "-v0"
@@ -184,7 +184,7 @@ issue6465 =
             ]
       runAgdaWithOptions
         name (agdaArgs (name <.> "agda")) Nothing Nothing
-        <&> printTestResult . expectFail
+        >>= fmap printTestResult . expectFail
 
 issue4671 :: TestTree
 issue4671 =
@@ -205,7 +205,7 @@ issue4671 =
     doRun = do
       let agdaArgs file = [ "-v0", "--no-libraries", "-i" ++ dir, dir </> file ]
       runAgdaWithOptions "Issue4671" (agdaArgs "Issue4671.agda") Nothing Nothing
-        <&> printTestResult . expectFail
+        >>= fmap printTestResult . expectFail
 
 issue5508 :: TestTree
 issue5508 =
@@ -229,7 +229,7 @@ issue5508 =
     doRun = do
       let agdaArgs file = [ "-v0", "--no-libraries", "-i" ++ dir, dir </> file ]
       runAgdaWithOptions "iSSue5508" (agdaArgs "iSSue5508.agda") Nothing Nothing
-        <&> printTestResult . expectFail
+        >>= fmap printTestResult . expectFail
 
 issue2649 :: TestTree
 issue2649 =
@@ -248,7 +248,7 @@ issue2649 =
       _  <- runAgdaWithOptions "Issue2649-1" (agdaArgs "Issue2649-1.agda") Nothing Nothing
       _  <- runAgdaWithOptions "Issue2649-2" (agdaArgs "Issue2649-2.agda") Nothing Nothing
       runAgdaWithOptions "Issue2649"   (agdaArgs "Issue2649.agda")   Nothing Nothing
-        <&> printTestResult . expectFail
+        >>= fmap printTestResult . expectFail
 
 nestedProjectRoots :: TestTree
 nestedProjectRoots =
@@ -268,32 +268,31 @@ nestedProjectRoots =
             runAgdaWithOptions "NestedProjectRoots"
               (extra ++ [ "-i" ++ dir ] ++ agdaArgs "NestedProjectRoots.agda")
               Nothing Nothing
-              <&> printTestResult . expectFail
+              >>= fmap printTestResult . expectFail
       -- Run without interfaces; should fail.
       r1 <- run [ "--ignore-interfaces" ]
       -- Create interface file
       r2 <- runAgdaWithOptions "Imports.A"
               ("-v 0" : agdaArgs ("Imports" </> "A.agda")) Nothing Nothing
-              <&> expectOk
+              >>= expectOk
       -- Run again with interface; should still fail.
       r3 <- run []
       return $ r1 `T.append` r2 `T.append` r3
 
-expectOk :: (ProgramResult, AgdaResult) -> T.Text
+expectOk :: (ProgramResult, AgdaResult) -> IO T.Text
 expectOk (res, ret) = case ret of
-  AgdaSuccess{} -> stdOut res
-  AgdaFailure{} -> "AGDA_UNEXPECTED_FAILURE\n\n" <> printProgramResult res
+  AgdaSuccess{} -> pure $ stdOut res
+  AgdaFailure{} -> assertFailure $ T.unpack $ "AGDA_UNEXPECTED_FAILURE\n\n" <> printProgramResult res
 
-expectFail :: (ProgramResult, AgdaResult) -> TestResult
+expectFail :: (ProgramResult, AgdaResult) -> IO TestResult
 expectFail (res, ret) = case ret of
-  AgdaSuccess{} -> TestUnexpectedSuccess res
+  AgdaSuccess{} -> assertFailure $ T.unpack $ "AGDA_UNEXPECTED_SUCCESS\n\n" <> printProgramResult res
   -- If it's a type error, we do not print the exit code
-  AgdaFailure _ (Just TCMError) -> TestResult $ stdOut res
+  AgdaFailure _ (Just TCMError) -> pure $ TestResult $ stdOut res
   -- Otherwise, we print all the output
-  AgdaFailure{}                 -> TestResult $ printProgramResult res
+  AgdaFailure{}                 -> pure $ TestResult $ printProgramResult res
 
 
 printTestResult :: TestResult -> T.Text
 printTestResult = \case
   TestResult t            -> t
-  TestUnexpectedSuccess p -> "AGDA_UNEXPECTED_SUCCESS\n\n" <> printProgramResult p

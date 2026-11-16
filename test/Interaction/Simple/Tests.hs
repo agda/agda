@@ -11,6 +11,7 @@ import Control.Monad ((>=>))
 import Data.List (isSuffixOf, singleton)
 import Data.Text (Text)
 import Test.Tasty (TestTree)
+import Test.Tasty.HUnit (assertEqual)
 import System.FilePath (FilePath, dropFileName, takeFileName, (</>))
 import System.Directory (listDirectory, doesFileExist, getCurrentDirectory)
 import Data.Maybe (fromMaybe)
@@ -127,5 +128,6 @@ mkSimpleTest agdaFile =
             "--color=never" : -- Highlighting not portable, depends on filepath lengths
             (words . T.unpack . fromMaybe "" $ extraArgs)
 
-      (e, stdout, _) <- readAgdaProcessWithCWD Nothing (Just testDir) agdaArgs agdaStdin
+      (e, stdout, stderr) <- readAgdaProcessWithCWD Nothing (Just testDir) agdaArgs agdaStdin
+      assertEqual (T.unpack $ Utils.printProgramResult $ Utils.ProgramResult e stdout stderr) Exit.ExitSuccess e
       pure $ filterOutput (cwd </> testDir) stdout

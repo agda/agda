@@ -4,6 +4,8 @@
 
 module BuildSucceed.Tests where
 
+import qualified Data.Text as T
+
 import           Data.Maybe                 ( isJust )
 
 import           System.Directory           ( doesFileExist )
@@ -12,6 +14,7 @@ import qualified System.FilePath.Find       as Find
 import           System.IO.Temp             ( withSystemTempDirectory )
 
 import           Test.Tasty
+import           Test.Tasty.HUnit           ( assertFailure )
 import           Test.Tasty.Silver.Advanced ( goldenTestIO1, GShow (..) )
 
 import           Succeed.Tests              ( TestResult(..), printTestResult )
@@ -83,4 +86,4 @@ mkBuildSucceedTest par dir =
           if warnExists || isJust warn
           then TestSuccessWithWarnings $ stdOut res -- TODO: distinguish log vs. warn?
           else TestSuccess
-      AgdaFailure{} -> return $ TestUnexpectedFail res
+      AgdaFailure{} -> assertFailure $ T.unpack $ "AGDA_UNEXPECTED_FAIL\n\n" <> printProgramResult res

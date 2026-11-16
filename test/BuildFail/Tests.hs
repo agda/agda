@@ -60,7 +60,7 @@ mkBuildFailTest dir =
         , "--vim"
         ]
 
-    expectFail <$> do
+    expectFail =<< do
       -- Andreas, 2025-06-01, AIM XL
       -- @withCurrentDir dir@ does not work correctly here (for reasons beyond my comprehension),
       -- so we set the cwd when calling agda.

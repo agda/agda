@@ -19,7 +19,7 @@ open import Agda.Builtin.String
 open import Agda.Builtin.Unit
 open import Agda.Primitive.Cubical
 
-open import Erased-cubical-Cubical
+open import Include.Erased-cubical-Cubical
 
 postulate
   putStr : String → IO ⊤

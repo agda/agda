@@ -9,6 +9,7 @@ import qualified Data.Text.IO as TIO
 import Data.Text.Encoding
 
 import Test.Tasty
+import Test.Tasty.HUnit (assertFailure)
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced
   (readFileMaybe, goldenTestIO1, GDiff (..), GShow (..))
@@ -129,8 +130,6 @@ execTestFilter =
 data TestResult
   = TestSuccess
   | TestSuccessWithWarnings T.Text -- the cleaned stdout
-  | TestUnexpectedFail ProgramResult
-  | TestWrongDotOutput T.Text
 
 mkSucceedTest
   :: AgdaArgs -- ^ Extra options to Agda.
@@ -188,21 +187,19 @@ mkSucceedTest extraOpts dir agdaFile =
           then
             return $ TestSuccess
           else
-            return $ TestWrongDotOutput dot
+            assertFailure $ T.unpack $ "AGDA_WRONG_DOT_OUTPUT\n\n" <> dot
       AgdaSuccess warn -> do
         warnExists <- doesFileExist warnFile
         return $
           if warnExists || isJust warn
           then TestSuccessWithWarnings $ stdOut res -- TODO: distinguish log vs. warn?
           else TestSuccess
-      AgdaFailure{} -> return $ TestUnexpectedFail res
+      AgdaFailure{} -> assertFailure $ T.unpack $ "AGDA_UNEXPECTED_FAIL\n\n" <> printProgramResult res
 
 printTestResult :: TestResult -> T.Text
 printTestResult = \case
   TestSuccess               -> "AGDA_SUCCESS\n\n"
   TestSuccessWithWarnings t -> t
-  TestUnexpectedFail p      -> "AGDA_UNEXPECTED_FAIL\n\n" <> printProgramResult p
-  TestWrongDotOutput t      -> "AGDA_WRONG_DOT_OUTPUT\n\n" <> t
 
 -- WAS: List of test cases that do not pass the --double-check yet
 -- NOTE
