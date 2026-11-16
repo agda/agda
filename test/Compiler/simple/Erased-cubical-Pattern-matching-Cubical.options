@@ -1,5 +1,0 @@
-TestOptions
-  { forCompilers   = []
-  , runtimeOptions = []
-  , executeProg    = False
-  }

@@ -22,6 +22,7 @@ import qualified Internal.Termination.Order
 import qualified Internal.Termination.Semiring
 import qualified Internal.Termination.SparseMatrix
 import qualified Internal.Termination.Termination
+import qualified Internal.TestSuite
 import qualified Internal.TypeChecking
 import qualified Internal.TypeChecking.Free
 import qualified Internal.TypeChecking.Generators
@@ -76,6 +77,7 @@ tests = testGroup "Internal" $
   Internal.Termination.Semiring.tests :
   Internal.Termination.SparseMatrix.tests :
   Internal.Termination.Termination.tests :
+  Internal.TestSuite.tests :
   Internal.TypeChecking.tests :
   Internal.TypeChecking.Free.tests :
   Internal.TypeChecking.Generators.tests :

@@ -1,0 +1,2 @@
+error: [CubicalCompilationNotSupported]
+Compilation of code that uses --cubical[=full] is not supported.

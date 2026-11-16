@@ -4,8 +4,8 @@ open import Agda.Builtin.IO
 open import Agda.Builtin.String
 open import Agda.Builtin.Unit
 
-open import Erased-cubical-Pattern-matching-Cubical
-open import Erased-cubical-Pattern-matching-Erased
+open import Include.Erased-cubical-Pattern-matching-Cubical
+open import Include.Erased-cubical-Pattern-matching-Erased
 
 postulate
   putStr : String → IO ⊤

@@ -1,9 +1,9 @@
 {-# OPTIONS --erased-cubical --erasure --save-metas #-}
 
-module Erased-cubical-Pattern-matching-Erased where
+module Include.Erased-cubical-Pattern-matching-Erased where
 
 open import Agda.Builtin.String
-open import Erased-cubical-Pattern-matching-Cubical
+open import Include.Erased-cubical-Pattern-matching-Cubical
 
 -- If c₁ and c₂ are treated as erased, then f might be compiled to
 -- something akin to ⊥-elim. However, the main module uses

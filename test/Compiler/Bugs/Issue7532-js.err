@@ -1,0 +1,10 @@
+file:///jAgda.Issue7532-js.mjs:9
+exports["go"] = a => b => b(a(null));
+                            ^
+TypeError: a is not a function
+    at file:///jAgda.Issue7532-js.mjs:9:29
+    at file:///jAgda.Issue7532-js.mjs:10:39
+    at «NodeJS internals»
+    at «NodeJS internals»
+    at «NodeJS internals»
+Node.js «NodeJS version»

@@ -333,6 +333,20 @@ Testing and documentation
   To automatically accept new golden values, use
   `AGDA_TESTS_OPTIONS=--accept`.
 
+* In suites with a fixed expected outcome, golden updates only accept changed
+  output after the test has produced that outcome. In particular, `--accept` cannot turn an unexpected Agda,
+  LaTeX, compilation, or runtime failure into a passing test, or accept an
+  unexpected success in the `Fail` and `BuildFail` suites.
+
+  Compiler tests in `test/Compiler/simple` expect successful compilation and
+  execution. Tests in `test/Compiler/Unsupported` must type-check but be rejected
+  by Agda's backend; `test/Compiler/Bugs` records known runtime exceptions after
+  successful compilation.
+  Shared modules live in `test/Compiler/Include` with names such as `Include.Foo`.
+  LaTeX/HTML tests expecting Agda to fail belong in `test/LaTeXAndHTML/fail`.
+  `LibSucceed` and `CubicalSucceed` have no updateable goldens; the `Bugs`
+  suite deliberately records the current outcome, including failures.
+
 * You can use the `AGDA_ARGS` environment variable to pass additional
   arguments to Agda when executing the Succeed/Fail/Compiler tests.
 
