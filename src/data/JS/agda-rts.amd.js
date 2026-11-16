@@ -45,7 +45,8 @@ exports.uprimIntegerGreaterOrEqualThan = (x, y) => x >= y;
 exports.uprimIntegerLessThan = (x, y) => x < y;
 
 // Words
-const WORD64_MAX_VALUE = 18446744073709552000n;
+// Not actually the max value, but the modulus
+const WORD64_MAX_VALUE = 1n << 64n;
 
 // primWord64ToNat : Word64 -> Nat
 exports.primWord64ToNat = x => x;

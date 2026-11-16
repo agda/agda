@@ -90,13 +90,16 @@ ltWord a b = toNat a < toNat b
 postulate
   showWord : Word64 → String
   putStrLn : String → IO ⊤
+  _>>_ : IO ⊤ → IO ⊤ → IO ⊤
 
 {-# FOREIGN GHC import qualified Data.Text.IO #-}
 {-# COMPILE GHC showWord = Data.Text.pack . show #-}
 {-# COMPILE GHC putStrLn = Data.Text.IO.putStrLn #-}
+{-# COMPILE GHC _>>_ = (>>) #-}
 
 {-# COMPILE JS showWord = function(x) { return x.toString(); } #-}
 {-# COMPILE JS putStrLn = function (x) { return function(cb) { process.stdout.write(x + "\n"); cb(0); }; } #-}
+{-# COMPILE JS _>>_ = m1 => m2 => cb => m1(_ => m2(cb)) #-}
 
 2^63 : Word64
 2^63 = addWord 1 (divWord (subWord 0 1) 2)
@@ -112,7 +115,9 @@ prf' : eqWord test 101 ≡ true
 prf' = refl
 
 main : IO ⊤
-main = putStrLn (showWord test)
+main = do
+  putStrLn (showWord 2^63)
+  putStrLn (showWord test)
 
 -- Some checks for treeless optimisations
 
