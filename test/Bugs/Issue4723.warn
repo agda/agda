@@ -1,0 +1,10 @@
+
+Issue4723.agda:6.1-10: warning: -W[no]UnreachableClauses
+Unreachable clause
+when checking the definition of f
+
+———— All done; warnings encountered ————————————————————————
+
+Issue4723.agda:6.1-10: warning: -W[no]UnreachableClauses
+Unreachable clause
+when checking the definition of f

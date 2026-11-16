@@ -1,0 +1,24 @@
+
+Issue5929.agda:42.15-31: warning: -W[no]RewriteVariablesBoundInSingleton
+I am not certain that the rewrite rule  circle-elim-loop  is safe
+because it appears that the following variable is only bound in
+contexts which might become definitionally singular:
+  loopᴾ
+This warning can be silenced with
+  -WnoRewriteVariablesBoundInSingleton
+but be aware that this rewrite might behave strangely in the
+presence of e.g. eta records with no fields
+when checking the pragma REWRITE circle-elim-loop
+
+———— All done; warnings encountered ————————————————————————
+
+Issue5929.agda:42.15-31: warning: -W[no]RewriteVariablesBoundInSingleton
+I am not certain that the rewrite rule  circle-elim-loop  is safe
+because it appears that the following variable is only bound in
+contexts which might become definitionally singular:
+  loopᴾ
+This warning can be silenced with
+  -WnoRewriteVariablesBoundInSingleton
+but be aware that this rewrite might behave strangely in the
+presence of e.g. eta records with no fields
+when checking the pragma REWRITE circle-elim-loop
