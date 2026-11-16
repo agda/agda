@@ -829,12 +829,12 @@ order for the change to take effect."
 
   ;; Blackboard bold Greek letters.
 
-  ("bGG"  . ("ℾ"))
-  ("bGPi" . ("ℿ"))
-  ("bGS"  . ("⅀"))
+  ("bGG" . ("ℾ"))
+  ("bPi" . ("ℿ"))
+  ("bGS" . ("⅀"))
 
-  ("bGg"  . ("ℽ"))
-  ("bGpi" . ("ℼ"))
+  ("bGg" . ("ℽ"))
+  ("bpi" . ("ℼ"))
 
   ;; Blackboard bold numbers.
 
@@ -1912,12 +1912,12 @@ order for the change to take effect."
 
   ;; Small caps Greek letters.
 
-  ("sGG"  . ("ᴦ"))
-  ("sGL"  . ("ᴧ"))
-  ("sGO"  . ("ꭥ"))
-  ("sGPi" . ("ᴨ"))
-  ("sGP"  . ("ᴪ"))
-  ("sGR"  . ("ᴩ"))
+  ("sGG" . ("ᴦ"))
+  ("sGL" . ("ᴧ"))
+  ("sGO" . ("ꭥ"))
+  ("sPi" . ("ᴨ"))
+  ("sGP" . ("ᴪ"))
+  ("sGR" . ("ᴩ"))
 
   ;; Outlined capital letters.
 
