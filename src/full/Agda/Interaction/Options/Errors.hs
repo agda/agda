@@ -331,6 +331,7 @@ data DeclarationException_
   | DisallowedInterleavedMutual_
   | DuplicateAnonDeclaration_
   | DuplicateDefinition_
+  | FieldInsideOpaque_
   | InvalidMeasureMutual_
   | MissingWithClauses_
   | MultipleEllipses_

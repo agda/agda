@@ -18,6 +18,10 @@ Pragmas and options
 Errors
 ------
 
+* Field declarations inside `opaque` blocks are rejected with
+  `Syntax.FieldInsideOpaque`. Fields of a record declared inside an opaque block
+  remain permitted.
+
 Warnings
 --------
 

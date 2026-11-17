@@ -275,6 +275,7 @@ declarationExceptionName = \case
   DisallowedInterleavedMutual      {} -> DisallowedInterleavedMutual_
   DuplicateAnonDeclaration         {} -> DuplicateAnonDeclaration_
   DuplicateDefinition              {} -> DuplicateDefinition_
+  FieldInsideOpaque                {} -> FieldInsideOpaque_
   InvalidMeasureMutual             {} -> InvalidMeasureMutual_
   MissingWithClauses               {} -> MissingWithClauses_
   MultipleEllipses                 {} -> MultipleEllipses_

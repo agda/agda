@@ -100,6 +100,26 @@ import Agda.Utils.Impossible
     The niceifier
  --------------------------------------------------------------------------}
 
+-- | Reject fields in an opaque block, looking through declaration wrappers.
+-- Modules and records introduce a new declaration scope: their fields do not
+-- belong to the surrounding opaque block.
+rejectFieldInsideOpaque :: Declaration -> Nice ()
+rejectFieldInsideOpaque = \case
+  Field r _                  -> declarationException $ FieldInsideOpaque $ getRange r
+  d@FieldSig{}               -> declarationException $ FieldInsideOpaque $ getRange d
+  Opaque _ ds                -> mapM_ rejectFieldInsideOpaque ds
+  Mutual _ ds                -> mapM_ rejectFieldInsideOpaque ds
+  InterleavedMutual _ ds     -> mapM_ rejectFieldInsideOpaque ds
+  Abstract _ ds              -> mapM_ rejectFieldInsideOpaque ds
+  Private _ _ ds             -> mapM_ rejectFieldInsideOpaque ds
+  InstanceB _ ds             -> mapM_ rejectFieldInsideOpaque ds
+  Macro _ ds                 -> mapM_ rejectFieldInsideOpaque ds
+  Postulate _ ds             -> mapM_ rejectFieldInsideOpaque ds
+  Primitive _ ds             -> mapM_ rejectFieldInsideOpaque ds
+  Generalize _ ds            -> mapM_ rejectFieldInsideOpaque ds
+  LoneConstructor _ ds       -> mapM_ rejectFieldInsideOpaque ds
+  _                          -> return ()
+
 -- | Check that declarations in a mutual block are consistently
 --   equipped with MEASURE pragmas, or whether there is a
 --   NO_TERMINATION_CHECK pragma.
@@ -545,6 +565,7 @@ niceDeclarations fixs ds = do
 
         Opaque r ds' -> do
           breakImplicitMutualBlock r "`opaque` blocks"
+          mapM_ rejectFieldInsideOpaque ds'
 
           -- Split the enclosed declarations into an initial run of
           -- 'unfolding' statements and the rest of the body.

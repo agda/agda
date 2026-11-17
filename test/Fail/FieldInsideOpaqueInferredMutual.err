@@ -1,0 +1,8 @@
+FieldInsideOpaqueInferredMutual.agda:6.5-10: error: [Syntax.FieldInsideOpaque]
+Field declarations are not allowed inside opaque blocks.
+when scope checking the declaration
+  record R A where
+    opaque
+      identity : A → A
+      field a : A
+      identity x = x
