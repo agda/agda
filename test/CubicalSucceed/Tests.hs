@@ -3,7 +3,6 @@ module CubicalSucceed.Tests where
 
 import qualified Data.Text as T
 import Data.List (isInfixOf)
-import Data.Monoid ((<>))
 
 import System.Exit
 import System.FilePath
@@ -85,4 +84,4 @@ mkCubicalSucceedTest agdaFile =
 printAgdaResult :: TestResult -> T.Text
 printAgdaResult = \case
   TestSuccess          -> "AGDA_SUCCESS"
-  TestUnexpectedFail p -> "AGDA_UNEXPECTED_FAIL\n\n" <> printProgramResult p
+  TestUnexpectedFail p -> printUnexpectedAgdaFail p

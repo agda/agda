@@ -11,7 +11,6 @@ import           System.IO.Temp             ( withSystemTempDirectory )
 import           Test.Tasty
 import           Test.Tasty.Silver.Advanced ( goldenTestIO1, GShow (..) )
 
-import           Fail.Tests                 ( expectFail, printTestResult )
 import           Utils
 
 testDir :: FilePath
@@ -33,7 +32,7 @@ mkBuildFailTest dir =
   goldenTestIO1
     testName
     readGolden
-    (printTestResult <$> doRun)
+    doRun
     (textDiffWithTouch dir)
     (return . ShowText)
     updGolden
@@ -60,7 +59,7 @@ mkBuildFailTest dir =
         , "--vim"
         ]
 
-    expectFail =<< do
+    expectAgdaFailure =<< do
       -- Andreas, 2025-06-01, AIM XL
       -- @withCurrentDir dir@ does not work correctly here (for reasons beyond my comprehension),
       -- so we set the cwd when calling agda.

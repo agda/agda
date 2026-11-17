@@ -38,6 +38,7 @@ import System.Process                ( proc, CreateProcess(..) )
 import qualified System.Process.Text as PT
 
 import Test.Tasty                 ( TestName, TestTree )
+import Test.Tasty.HUnit           ( assertFailure )
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced ( GDiff(..), pattern ShowText, goldenTest1, readFileMaybe )
 
@@ -48,6 +49,7 @@ import Agda.Compiler.MAlonzo.Compiler ( ghcInvocationStrings )
 import Agda.Interaction.ExitCode      ( AgdaError(..), agdaErrorFromInt )
 import Agda.Interaction.FindFile      ( dropAgdaExtension, hasAgdaExtension, stripAgdaExtension )
 
+import Agda.Utils.CallStack           ( HasCallStack )
 import Agda.Utils.Maybe
 import Agda.Utils.Environment
 import Agda.Utils.FileName            ( stripAnyOfExtensions )
@@ -71,6 +73,30 @@ toProgramResult (c, o, e) = ProgramResult c o e
 
 printProgramResult :: ProgramResult -> Text
 printProgramResult = printProcResult . fromProgramResult
+
+-- | Marker for an unexpected failure, shared by all test suites.
+agdaUnexpectedFail :: Text
+agdaUnexpectedFail = "AGDA_UNEXPECTED_FAIL"
+
+-- | Marker for an unexpected success, shared by all test suites.
+agdaUnexpectedSuccess :: Text
+agdaUnexpectedSuccess = "AGDA_UNEXPECTED_SUCCESS"
+
+-- | Render an unexpected failure together with the complete process result.
+printUnexpectedAgdaFail :: ProgramResult -> Text
+printUnexpectedAgdaFail res = agdaUnexpectedFail <> "\n\n" <> printProgramResult res
+
+-- | Render an unexpected success together with the complete process result.
+printUnexpectedAgdaSuccess :: ProgramResult -> Text
+printUnexpectedAgdaSuccess res = agdaUnexpectedSuccess <> "\n\n" <> printProgramResult res
+
+-- | Fail a test with the shared unexpected-failure diagnostic.
+assertUnexpectedAgdaFail :: HasCallStack => ProgramResult -> IO a
+assertUnexpectedAgdaFail = assertFailure . T.unpack . printUnexpectedAgdaFail
+
+-- | Fail a test with the shared unexpected-success diagnostic.
+assertUnexpectedAgdaSuccess :: HasCallStack => ProgramResult -> IO a
+assertUnexpectedAgdaSuccess = assertFailure . T.unpack . printUnexpectedAgdaSuccess
 
 -- | Call out to an executable with given arguments,
 --   new environment, and standard input,
@@ -128,6 +154,19 @@ readAgdaProcessWithCWD extraEnv mcwd args input = do
 data AgdaResult
   = AgdaSuccess (Maybe Text)          -- ^ A success can come with warnings
   | AgdaFailure Int (Maybe AgdaError) -- ^ A failure, with exit code
+
+-- | Require success and return stdout, including any warnings.
+expectAgdaSuccess :: HasCallStack => (ProgramResult, AgdaResult) -> IO Text
+expectAgdaSuccess (res, ret) = case ret of
+  AgdaSuccess{} -> pure $ stdOut res
+  AgdaFailure{} -> assertUnexpectedAgdaFail res
+
+-- | Require failure, omitting process details for ordinary type errors.
+expectAgdaFailure :: HasCallStack => (ProgramResult, AgdaResult) -> IO Text
+expectAgdaFailure (res, ret) = case ret of
+  AgdaSuccess{} -> assertUnexpectedAgdaSuccess res
+  AgdaFailure _ (Just TCMError) -> pure $ stdOut res
+  AgdaFailure{} -> pure $ printProgramResult res
 
 runAgdaWithOptions ::
      String         -- ^ Test name.

@@ -3,7 +3,6 @@ module LibSucceed.Tests where
 
 import qualified Data.Text as T
 import Data.List (isInfixOf)
-import Data.Monoid ((<>))
 
 import System.Exit
 import System.FilePath
@@ -90,4 +89,4 @@ mkLibSucceedTest agdaFile =
 
 printAgdaResult :: TestResult -> T.Text
 printAgdaResult TestSuccess            = "AGDA_SUCCESS"
-printAgdaResult (TestUnexpectedFail p) = "AGDA_UNEXPECTED_FAIL\n\n" <> printProgramResult p
+printAgdaResult (TestUnexpectedFail p) = printUnexpectedAgdaFail p
