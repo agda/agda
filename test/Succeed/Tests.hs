@@ -1,6 +1,7 @@
 
 module Succeed.Tests where
 
+import Control.Monad (filterM)
 import qualified Data.List as List
 import Data.Maybe (isJust, fromMaybe)
 import Data.Monoid ((<>))
@@ -18,7 +19,10 @@ import Test.Tasty.Silver.Filter ( RegexFilter( RFInclude ) )
 import System.Directory
 import System.Exit
 import System.FilePath
+import qualified System.FilePath.Find as Find
 import System.IO.Temp
+
+import Agda.Utils.IO.Directory (findWithInfo)
 
 import Utils
 
@@ -96,36 +100,29 @@ makefileDependentTests =
   ]
   where disable = RFInclude
 
--- | Filting out tests that shell out to other processes. This includes all
--- tests that use @--ghc@ (without @--ghc-dont-call-ghc@) or @--allow-exec@.
-execTestFilter :: [RegexFilter]
-execTestFilter =
-  [ disable "Succeed/CompileBuiltinListWarning"
-  , disable "Succeed/ExecAgda"
-  , disable "Succeed/ForeignPragma"
-  , disable "Succeed/GHCInfixConstructor"
-  , disable "Succeed/InlineCompiled"
-  , disable "Succeed/Issue1988"
-  , disable "Succeed/Issue2248"
-  , disable "Succeed/Issue2908"
-  , disable "Succeed/Issue2909-5"
-  , disable "Succeed/Issue2909-6"
-  , disable "Succeed/Issue2913"
-  , disable "Succeed/Issue2916"
-  , disable "Succeed/Issue2953"
-  , disable "Succeed/Issue296"
-  , disable "Succeed/Issue3536"
-  , disable "Succeed/Issue3545"
-  , disable "Succeed/Issue3651"
-  , disable "Succeed/Issue3731"
-  , disable "Succeed/Issue7943"
-  , disable "Succeed/Issue867"
-  , disable "Succeed/Options-in-right-order"
-  , disable "Succeed/ParseErrorGHCPragma"
-  , disable "Succeed/WErrorOverride"
-  , disable "Succeed/WErrorOverride"
-  ]
-  where disable = RFInclude
+-- | Filtering out tests that shell out to other processes. Discover GHC
+-- invocations from @.flags@ files: @--ghc@ (also @--compile@ and @-c@)
+-- without @--ghc-dont-call-ghc@. Tests using @--allow-exec@ are listed
+-- manually below. See @test/Succeed/README.md@.
+execTestFilter :: IO [RegexFilter]
+execTestFilter = do
+  flagFiles <- findWithInfo (pure True)
+    ((== ".flags") . takeExtension <$> Find.filePath) testDir
+  execFiles <- filterM (fmap (callsGHC . words . T.unpack) . readTextFile)
+    $ List.sort $ map Find.infoPath flagFiles
+  return $ allowExecTests ++
+    [ RFInclude $ "Succeed/" ++ asTestName testDir flagFile ++ "$"
+    | flagFile <- execFiles
+    ]
+  where
+  -- Keep --allow-exec in source pragmas: passing it on the command line
+  -- also enables it for safe builtin imports, which then fail to load.
+  allowExecTests =
+    [ RFInclude "Succeed/ExecAgda$"
+    ]
+  callsGHC flags =
+    any (`elem` flags) ["--ghc", "--compile", "-c"] &&
+      "--ghc-dont-call-ghc" `notElem` flags
 
 data TestResult
   = TestSuccess
