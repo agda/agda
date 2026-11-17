@@ -85,7 +85,7 @@ jobs:
         echo "filename        = ${{ steps.vars.outputs.filename     }}"
     - if: ${{ runner.os == 'Linux' }}
       name: Set up Alpine Linux with GHC
-      uses: jirutka/setup-alpine@v1
+      uses: rjstone/setup-alpine@v1
       with:
         packages: |
           cabal g++ gcc gmp-dev gmp-static musl-dev ncurses-dev ncurses-static zlib-static zlib-dev

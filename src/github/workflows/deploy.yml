@@ -139,8 +139,15 @@ jobs:
         echo "filename        = ${{ steps.vars.outputs.filename     }}"
 
     - name: Set up Alpine Linux with GHC
-      uses: jirutka/setup-alpine@v1
-      if:  ${{ runner.os == 'Linux' }}
+      if: ${{ runner.os == 'Linux' }}
+      # uses: jirutka/setup-alpine@v1
+        # Andreas, 2026-11-17
+        # rjstone/setup-alpine is a fork of jirutka/setup-alpine with the sudo-rs
+        # fix (ubuntu-latest is Ubuntu 26.04, whose sudo ignores `sudo -E`); see
+        # jirutka/setup-alpine#35. Switch back to jirutka/setup-alpine@v1 once
+        # that fix is released there.
+        # From: https://github.com/alpinelinux/alpine-make-vm-image/pull/54
+      uses: rjstone/setup-alpine@v1
       with:
         packages: >
           cabal
