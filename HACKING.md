@@ -289,6 +289,13 @@ Testing and documentation
       (`.err` files) after running make test.
     * Same for `.warn` files in `test/Succeed` and `.out` files in `test/Interaction`.
     * You can also add `.flags` files to set Agda options.
+      In `test/Succeed`, compiler backend options must go
+      in `.flags` rather than source `OPTIONS` pragmas, so the runner can
+      discover tests that launch external processes and skip them when
+      `AGDA_NO_EXEC` is set. See [test/Succeed/README.md](test/Succeed/README.md)
+      for the options and exceptions. Keep `--allow-exec` in a source pragma
+      and add such tests to the manual `allowExecTests` list in
+      `test/Succeed/Tests.hs`.
     * You can also add `.vars` files to set environment variables (which may reference other environment variables, even those in the file appearing before them).
 
 * Track the dependencies of your test:

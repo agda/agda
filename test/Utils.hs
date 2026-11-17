@@ -301,10 +301,12 @@ getAgdaFilesInDir recurse dir = do
   -- Test cases from up to one week ago are considered new.
   consideredNew = 7 * 24 * 60 * 60
 
--- | An Agda file path as test name
+-- | An Agda source or companion file path as test name.
+-- Strip the Agda extension (including literate formats), or the final
+-- extension of a companion file such as @.flags@.
 asTestName :: FilePath -> FilePath -> String
 asTestName testDir path = intercalate "-" parts
-  where parts = splitDirectories $ dropAgdaExtension $ makeRelative testDir path
+  where parts = splitDirectories $ dropAgdaOrOtherExtension $ makeRelative testDir path
 
 doesEnvContain :: String -> IO Bool
 doesEnvContain v = isJust <$> lookupEnv v

@@ -55,11 +55,12 @@ main = do
       , "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
       ]
   -- Calcualte tests to disable
+  execTests <- if skipNoExec then execTestFilter else pure []
   let disabledTests = concat
         [ if not builtWithFDebug   then fdebugTestFilter       else []
         , if not builtWithMakefile then testsWithSystemDeps    else []
         , if not builtWithMakefile then makefileDependentTests else []
-        , if skipNoExec            then execTestFilter else []
+        , execTests
         , alwaysDisabledTests
         ]
   -- Run tests
@@ -104,11 +105,10 @@ fdebugTestFilter = concat
   ]
 
 -- | Tests which shell out to subprocesses
-execTestFilter :: [RegexFilter]
-execTestFilter = concat
-  [ Succeed.Tests.execTestFilter
-  , Fail.Tests.execTestFilter
-  ]
+execTestFilter :: IO [RegexFilter]
+execTestFilter = do
+  succeedTests <- Succeed.Tests.execTestFilter
+  return $ succeedTests ++ Fail.Tests.execTestFilter
 
 -- | Tests with system dependencies
 -- (note that this list is not complete:
