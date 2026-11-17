@@ -74,15 +74,39 @@ runtimeBug = T.unlines
 
 tests :: TestTree
 tests = testGroup "TestSuite" $
-  [ testCase "Succeed rejects errors" $
+  [ testCase "Unexpected outcome marker spellings" $ do
+      assertEqual "Failure marker" "AGDA_UNEXPECTED_FAIL" agdaUnexpectedFail
+      assertEqual "Success marker" "AGDA_UNEXPECTED_SUCCESS" agdaUnexpectedSuccess
+  , testCase "Expected outcomes preserve output formatting" $ do
+      let success = ProgramResult ExitSuccess "warnings and output" "stderr"
+          failure = ProgramResult (ExitFailure 42) "type error" "stderr"
+          other = ProgramResult (ExitFailure 120) "internal error" "stderr"
+      assertEqual "Success stdout" (stdOut success) =<<
+        expectAgdaSuccess (success, AgdaSuccess $ Just "warning")
+      assertEqual "Type error stdout" (stdOut failure) =<<
+        expectAgdaFailure (failure, AgdaFailure 42 $ Just TCMError)
+      assertEqual "Other failure details" (printProgramResult other) =<<
+        expectAgdaFailure (other, AgdaFailure 120 $ Just ImpossibleError)
+  , testCase "Unexpected outcomes use shared diagnostics" $ do
+      let failure = ProgramResult (ExitFailure 42) "type error" "stderr"
+          success = ProgramResult ExitSuccess "output" "stderr"
+      forM_
+        [ (printUnexpectedAgdaFail failure, expectAgdaSuccess (failure, AgdaFailure 42 $ Just TCMError))
+        , (printUnexpectedAgdaSuccess success, expectAgdaFailure (success, AgdaSuccess Nothing))
+        ] $ \(diagnostic, action) -> do
+          result <- try action :: IO (Either HUnitFailure T.Text)
+          case result of
+            Left (HUnitFailure _ message) -> assertEqual "Unexpected diagnostic" (T.unpack diagnostic) message
+            Right _ -> assertFailure "Unexpected outcome was accepted"
+  , testCase "Succeed rejects errors" $
       withFixture "module Fixture where\nx : Set\nx = Set\n" $ \dir inp ->
         assertRejected (dir </> "Fixture.warn")
-          "AGDA_UNEXPECTED_FAIL" "AGDA_UNEXPECTED_FAIL"
+          agdaUnexpectedFail (T.unpack agdaUnexpectedFail)
           (Succeed.mkSucceedTest [] dir inp)
   , testCase "Fail rejects success" $
       withFixture "module Fixture where\n" $ \dir inp ->
         assertRejected (dir </> "Fixture.err")
-          "AGDA_UNEXPECTED_SUCCESS" "AGDA_UNEXPECTED_SUCCESS"
+          agdaUnexpectedSuccess (T.unpack agdaUnexpectedSuccess)
           (Fail.mkFailTest dir inp)
   , testCase "HTML rejects Agda errors" $
       withFixture "module Fixture where\nx : Set\nx = Set\n" $ \dir inp -> do
@@ -160,9 +184,9 @@ tests = testGroup "TestSuite" $
           if success then "module Fixture where\nx : Set\nx = Set\n"
           else "module Fixture where\n"
         let (ext, diagnostic, tree) = if success then
-              ("warn", "AGDA_UNEXPECTED_FAIL", BuildSucceed.mkBuildSucceedTest False lib)
-              else ("err", "AGDA_UNEXPECTED_SUCCESS", BuildFail.mkBuildFailTest lib)
-        assertRejected (lib <.> ext) (T.pack diagnostic) diagnostic tree
+              ("warn", agdaUnexpectedFail, BuildSucceed.mkBuildSucceedTest False lib)
+              else ("err", agdaUnexpectedSuccess, BuildFail.mkBuildFailTest lib)
+        assertRejected (lib <.> ext) diagnostic (T.unpack diagnostic) tree
   | success <- [False, True]
   ] ++
   [ testCase ("Compiler outcome: " ++ show expected ++ ", " ++ show actual) $

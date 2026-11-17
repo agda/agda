@@ -194,7 +194,7 @@ mkSucceedTest extraOpts dir agdaFile =
           if warnExists || isJust warn
           then TestSuccessWithWarnings $ stdOut res -- TODO: distinguish log vs. warn?
           else TestSuccess
-      AgdaFailure{} -> assertFailure $ T.unpack $ "AGDA_UNEXPECTED_FAIL\n\n" <> printProgramResult res
+      AgdaFailure{} -> assertUnexpectedAgdaFail res
 
 printTestResult :: TestResult -> T.Text
 printTestResult = \case
