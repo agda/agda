@@ -1,0 +1,5 @@
+Issue434OpaqueField.agda:6.5-10: error: [Syntax.FieldInsideOpaque]
+Field declarations are not allowed inside opaque blocks.
+when scope checking the declaration
+  record R A where
+    opaque field a : A

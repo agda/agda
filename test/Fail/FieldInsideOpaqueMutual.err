@@ -1,0 +1,5 @@
+FieldInsideOpaqueMutual.agda:6.7-12: error: [Syntax.FieldInsideOpaque]
+Field declarations are not allowed inside opaque blocks.
+when scope checking the declaration
+  record R A where
+    opaque mutual field a : A

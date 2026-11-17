@@ -65,6 +65,8 @@ data DeclarationException'
       -- ^ @opaque@ block nested in a @mutual@ block.
       -- This can never happen, even with reordering.
       -- The 'KwRange' is the one of the @opaque@ keyword.
+  | FieldInsideOpaque Range
+      -- ^ A field declaration inside an @opaque@ block.
   | DisallowedInterleavedMutual KwRange String (List1 Name)
       -- ^ A declaration that breaks an implicit mutual block (named by
       -- the String argument) was present while the given lone type
@@ -87,6 +89,7 @@ declarationExceptionString = \case
   BadMacroDef                 {} -> "BadMacroDef"
   UnfoldingOutsideOpaque      {} -> "UnfoldingOutsideOpaque"
   OpaqueInMutual              {} -> "OpaqueInMutual"
+  FieldInsideOpaque           {} -> "FieldInsideOpaque"
   DisallowedInterleavedMutual {} -> "DisallowedInterleavedMutual"
 
 ------------------------------------------------------------------------
@@ -376,6 +379,7 @@ instance HasRange DeclarationException' where
   getRange (BadMacroDef d)                      = getRange d
   getRange (UnfoldingOutsideOpaque kwr)         = getRange kwr
   getRange (OpaqueInMutual kwr)                 = getRange kwr
+  getRange (FieldInsideOpaque r)               = r
   getRange (DisallowedInterleavedMutual kwr _ _)= getRange kwr
 
 instance HasRange DeclarationWarning where
@@ -477,6 +481,8 @@ instance Pretty DeclarationException' where
     "Unfolding declarations can only appear as the first declaration immediately contained in an opaque block."
   pretty (OpaqueInMutual _) = fsep $
     pwords "Opaque blocks can not participate in mutual recursion. If the opaque definitions are to be mutually recursive, move the `mutual` block inside the `opaque` block."
+  pretty (FieldInsideOpaque _) = fsep $
+    pwords "Field declarations are not allowed inside opaque blocks."
   pretty (DisallowedInterleavedMutual _ what xs) = vcat $ List1.concat
     [ singleton $ fsep $ pwords "The following names are declared, but not accompanied by a definition:"
       -- Andreas, 2023-09-07, issue #6823: print also the range.

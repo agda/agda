@@ -36,6 +36,10 @@ Overview
 * Opaque definitions do not reduce in type signatures, even inside
   opaque blocks where they would otherwise be unfolded.
 
+* Field declarations are not allowed inside opaque blocks
+  (error ``Syntax.FieldInsideOpaque``). A record declared inside an opaque block
+  can have fields: these belong to the record's own declaration scope.
+
 
 Unfolding opaque definitions
 ----------------------------
