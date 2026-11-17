@@ -81,6 +81,10 @@ Library management
 Interaction and emacs mode
 --------------------------
 
+* Bindings for all unicode mathematical font Latin letters, Greek letters, and
+  digits and other stylized variants, the superscript letters `𐞥ꟲꟳꟴ꟱𐞲ᶹ`, and
+  the variant equality symbols `⧣﹦꞊`.
+
 Backends
 --------
 
