@@ -1,0 +1,4 @@
+Issue8926.agda:16.19-21: error: [NotInScope]
+Not in scope:
+  +1 at Issue8926.agda:16.19-21
+when scope checking +1
