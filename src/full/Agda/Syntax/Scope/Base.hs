@@ -1146,17 +1146,22 @@ applyImportDirective_ dir@(ImportDirective{ impRenaming }) s
           Renaming (ImportedModule x) (ImportedModule y) _fx _ -> Right (x, y)
           _ -> __IMPOSSIBLE__
 
-        fixities :: AssocList C.Name Fixity
-        fixities = (`mapMaybe` rho) $ \case
-          Renaming _ (ImportedName y) (Just fx)  _ -> Just (y, fx)
-          _ -> Nothing
+        fixities :: AssocList C.Name (Maybe Fixity)
+        fixities =
+          [ (y, fx) | Renaming _ (ImportedName y) fx _ <- rho, isJust fx || C.isOperator y ]
 
-        -- Update fixities of abstract names targeted by renamed imported identifies.
+        -- Update the fixity and notation on each renamed binding.
         updateFxs :: NamesInScope -> NamesInScope
         updateFxs m = foldl upd m fixities
           where
-          -- Update fixity of all abstract names targeted by concrete name y.
-          upd m (y, fx) = Map.adjust (fmap $ set lensFixity fx) y m
+          upd m (y, fx) = Map.adjust (fmap $ over (lensAnameName . lensFixity') update) y m
+            where
+            update f
+              -- Andreas, 2026-11-18, issue #8926:
+              -- Operators get their notation from the new concrete name.
+              | C.isOperator y, not (null (theNotation f)) =
+                  f { theFixity = fromMaybe noFixity fx, theNotation = noNotation }
+              | otherwise = f { theFixity = fromMaybe (theFixity f) fx }
 
         updateThingsInScope
           :: forall a. SetBindingSite a
