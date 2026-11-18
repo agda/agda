@@ -27,6 +27,8 @@ import Agda.Utils.Set1      ( Set1 )
 import Agda.Utils.Set1      qualified as Set1
 import Agda.Utils.Singleton
 
+import Agda.Utils.Impossible
+
 ------------------------------------------------------------------------
 -- Errors
 
@@ -191,7 +193,7 @@ data DeclarationWarning'
   | UselessImport Range
       -- ^ An @import@ that is applied to parameters by neither bound not opened.
   | WrongAssociativity Name Fixity
-      -- ^ The name in the fixity declaration and the suggested fixity.
+      -- ^ The name in the fixity declaration and the suggested left- or right-associative fixity.
   deriving (Show, Generic)
 
 -- | @open@ or @import@
@@ -576,8 +578,13 @@ instance Pretty DeclarationWarning' where
           | otherwise                = "non-operator"
 
     WrongAssociativity x fx ->
-      fsep (pwords "The fixity declaration for" ++ [pretty x] ++ pwords "has the wrong associativity.") $$
+      explanation $$
       fsep ["Use", pretty fx, pretty x <> "."]
+      where
+        explanation = case fixityAssoc fx of
+          RightAssoc -> fwords "A prefix operator cannot be left-associative."
+          LeftAssoc  -> fwords "A postfix operator cannot be right-associative."
+          NonAssoc   -> __IMPOSSIBLE__
 
     HiddenGeneralize _ -> fsep $ pwords "Declaring a variable as hidden has no effect in a variable block. Generalization never introduces visible arguments."
 
