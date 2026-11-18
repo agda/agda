@@ -272,10 +272,14 @@ namesToNotation q n = NewNotation
   { notaName       = q
   , notaNames      = singleton n
   , notaFixity     = f
-  , notation       = if null syn then syntaxOf (unqualify q) else syn
+  , notation       = notationForName (unqualify q) syn
   , notaIsOperator = null syn
   }
   where Fixity' f syn _ = A.nameFixity n
+
+-- | Use the declared syntax if present, or derive the notation from the name.
+notationForName :: Name -> Notation -> Notation
+notationForName x syn = if null syn then syntaxOf x else syn
 
 -- | Replace 'noFixity' by 'defaultFixity'.
 useDefaultFixity :: NewNotation -> NewNotation

@@ -190,6 +190,8 @@ data DeclarationWarning'
       -- ^ @private@ block with nothing that can (newly) be made private.
   | UselessImport Range
       -- ^ An @import@ that is applied to parameters by neither bound not opened.
+  | WrongAssociativity Name Fixity
+      -- ^ The name in the fixity declaration and the suggested fixity.
   deriving (Show, Generic)
 
 -- | @open@ or @import@
@@ -252,6 +254,7 @@ declarationWarningName' = \case
   UselessInstance                 {} -> UselessInstance_
   UselessMacro                    {} -> UselessMacro_
   UselessPrivate                  {} -> UselessPrivate_
+  WrongAssociativity              {} -> WrongAssociativity_
 
 -- | Nicifier warnings turned into errors in @--safe@ mode.
 unsafeDeclarationWarning :: DeclarationWarning -> Bool
@@ -308,6 +311,7 @@ unsafeDeclarationWarning' = \case
   UselessInstance{}                 -> False
   UselessMacro{}                    -> False
   UselessPrivate{}                  -> False
+  WrongAssociativity{}              -> False
 
 -- | Pragmas not allowed in @--safe@ mode produce an 'unsafeDeclarationWarning'.
 --
@@ -425,6 +429,7 @@ instance HasRange DeclarationWarning' where
     UselessInstance kwr                -> getRange kwr
     UselessMacro kwr                   -> getRange kwr
     UselessPrivate kwr                 -> getRange kwr
+    WrongAssociativity x _             -> getRange x
 
 -- These error messages can (should) be terminated by a dot ".",
 -- there is no error context printed after them.
@@ -569,6 +574,10 @@ instance Pretty DeclarationWarning' where
         -- Precondition: x is not an in-, pre- or post-fix operator.
         d | any isHole (nameParts x) = "closed operator"
           | otherwise                = "non-operator"
+
+    WrongAssociativity x fx ->
+      fsep (pwords "The fixity declaration for" ++ [pretty x] ++ pwords "has the wrong associativity.") $$
+      fsep ["Use", pretty fx, pretty x <> "."]
 
     HiddenGeneralize _ -> fsep $ pwords "Declaring a variable as hidden has no effect in a variable block. Generalization never introduces visible arguments."
 

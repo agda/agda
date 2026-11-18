@@ -8,7 +8,7 @@
 module Agda.Syntax.Concrete.Fixity
   ( Fixities, Polarities, MonadFixityError(..)
   , DoWarn(..)
-  , fixitiesAndPolarities
+  , fixitiesAndPolarities, correctAssociativity
   ) where
 
 import Prelude hiding (null)
@@ -24,7 +24,7 @@ import Agda.Syntax.Builtin (builtinById, isBuiltinNoDef)
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 import Agda.Syntax.Position
-import Agda.Syntax.Notation (isPrePostOrInfixNotation)
+import Agda.Syntax.Notation (NotationKind(..), isPrePostOrInfixNotation, notationForName, notationKind)
 import Agda.TypeChecking.Positivity.Occurrence (PragmaPolarities)
 
 import Agda.Utils.CallStack (HasCallStack)
@@ -50,6 +50,14 @@ class Monad m => MonadFixityError m where
   warnPolarityPragmasButNotPostulates :: HasCallStack => Set1 Name -> m ()
   warnEmptyPolarityPragma             :: HasCallStack => Range -> m ()
   warnFixityDeclarationForNonOperator :: HasCallStack => Range -> Name -> m ()
+  warnWrongAssociativity              :: HasCallStack => Name -> Fixity -> m ()
+
+-- | Suggest a fixity when an explicit associativity contradicts the notation.
+correctAssociativity :: NotationKind -> Fixity -> Maybe Fixity
+correctAssociativity kind fx = case (kind, fixityAssoc fx) of
+  (PrefixNotation, LeftAssoc)  -> Just fx { fixityAssoc = RightAssoc }
+  (PostfixNotation, RightAssoc) -> Just fx { fixityAssoc = LeftAssoc }
+  _                            -> Nothing
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 --   OR:  Disjoint union of fixity maps.  Throws exception if not disjoint.
@@ -163,6 +171,11 @@ fixitiesAndPolarities doWarn ds = do
   -- abuses the feature, e.g. @infix 20 primINeg@ (as of 2026-09-07).
   -- TODO: do remove them in the future (past 2.9.0). See also 'applyImportDirectiveM'.
   -- fixs <- return $ Map.withoutKeys fixs $ Set.fromList $ catMaybes useless
+
+  when (doWarn == DoWarn) $
+    forM_ (Map.toList fixs) \ (x, Fixity' fx nota r) ->
+      forM_ (correctAssociativity (notationKind $ notationForName x nota) fx) $
+        warnWrongAssociativity (setRange r x)
 
   -- If we have public mixfix identifiers without a corresponding fixity
   -- declaration, we raise a warning

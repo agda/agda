@@ -183,16 +183,18 @@ Consequently, classification of operators into closed, pre-, post-, and infix op
 1. Infix operators have holes on both sides, e.g. ``_⇒_`` and ``_and_`` but also ``_≡⟨_⟩_``.
    They may be left-, right-, or non-associative.
 
-2. Prefix operators have a hole on the left, e.g. ``-_`` or ``if_then_else_``.
+2. Prefix operators have a hole on the right, e.g. ``-_`` or ``if_then_else_``.
    They naturally always associate to the right.
    E.g. ``- - 5`` means ``- (- 5)``; the alternative ``(- -) 5`` would be nonsensical.
 
-3. Postfix operators have a hole on the right, e.g. ``_!`` or ``_∎`` or ``_[_/_]``.
+3. Postfix operators have a hole on the left, e.g. ``_!`` or ``_∎`` or ``_[_/_]``.
    They naturally always associate to the left.
 
 4. Closed operators have neither.
 
-Agda currently lacks specific precedence declarations for pre- and postfix operators and accepts any of ``infix``, ``infixl``, or ``infixr``, e.g. ``infix 6 -_`` works.
+Use ``infixr`` for prefix operators and ``infixl`` for postfix operators.
+Using the opposite keyword produces warning :option:`WrongAssociativity`.
+Plain ``infix`` also works for both kinds of operator, e.g. ``infix 6 -_``.
 
 .. note::
 

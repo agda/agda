@@ -3,7 +3,7 @@
 
 -- {-# OPTIONS -v scope.pat:60 #-}
 
-infixl 5 ^_
+infixr 5 ^_
 
 data D : Set where
   ^_ : D → D

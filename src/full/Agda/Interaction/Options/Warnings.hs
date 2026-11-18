@@ -411,6 +411,7 @@ data WarningName
   | WithClauseProjectionFixityMismatch_
   | WithoutKFlagPrimEraseEquality_
   | ConflictingPragmaOptions_
+  | WrongAssociativity_
   | WrongInstanceDeclaration_
   | TooManyPolarities_
   | TopLevelPolarity_
@@ -670,6 +671,7 @@ warningNameDescription = \case
   RewritesNothing_                 -> "`rewrite' clauses that do not fire."
   WithClauseProjectionFixityMismatch_ -> "With clauses using projections in different fixities than their parent clauses."
   WithoutKFlagPrimEraseEquality_   -> "Uses of `primEraseEquality' with the without-K flags."
+  WrongAssociativity_              -> "Left associativity for a prefix operator or right associativity for a postfix operator."
   WrongInstanceDeclaration_        -> "Instances that do not adhere to the required format."
   TooManyPolarities_               -> "Too many polarities given in POLARITY pragma."
   TopLevelPolarity_                -> "Declaring definitions with an explicit polarity annotation."

@@ -2337,6 +2337,13 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      ``primEraseEquality`` used with the without-K flags.
 
+.. option:: WrongAssociativity
+
+     .. versionadded:: 2.10.0
+
+     A prefix operator declared with ``infixl`` or a postfix operator declared
+     with ``infixr``.
+
 .. option:: WrongInstanceDeclaration
 
      .. versionadded:: 2.6.0

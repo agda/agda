@@ -445,6 +445,7 @@ instance MonadFixityError ScopeM where
   warnPolarityPragmasButNotPostulates = scopeWarning . PolarityPragmasButNotPostulates
   warnEmptyPolarityPragma             = scopeWarning . EmptyPolarityPragma
   warnFixityDeclarationForNonOperator r x = scopeWarning $ FixityDeclarationForNonOperator r x
+  warnWrongAssociativity x fx         = scopeWarning $ WrongAssociativity x fx
 
 -- | Collect the fixity/syntax declarations and polarity pragmas from the list
 --   of declarations and store them in the scope.
@@ -916,6 +917,12 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
     let ren = filter (notMissing . renFrom) ren'                   -- and from ren'
     let dir = ImportDirective rng (mapUsing (const usn) usn') hdn ren public
 
+    forM_ ren \case
+      Renaming (ImportedName x) (ImportedName y) (Just fx) _ ->
+        forM_ (Map.lookup x namesInScope >>= listToMaybe . List1.mapMaybe (suggestFixity y fx)) $
+          warnWrongAssociativity y
+      _ -> pure ()
+
     -- Convenient shorthands for defined names and names brought into scope:
     let names        = map renFrom ren ++ hdn ++ usn
     let definedNames = map renTo ren
@@ -1001,6 +1008,10 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
     -- Thus, we can unconditionally remove private definitions
     -- before we apply the import directive.
     scope = restrictPrivate scope0
+
+    suggestFixity :: C.Name -> Fixity -> AbstractName -> Maybe Fixity
+    suggestFixity x fx name =
+      correctAssociativity (notationKind $ notation $ namesToNotation (C.QName x) $ qnameName $ anameName name) fx
 
     -- Return names in the @using@ directive, discarding duplicates.
     -- Monadic for the sake of throwing warnings.

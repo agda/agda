@@ -185,7 +185,7 @@ functions returning booleans, such as built-in ``NATEQUALS``, and letting the
 
 ..
   ::
-  infixl 1 if_then_else_
+  infixr 1 if_then_else_
   if_then_else_ : {A : Set} → Bool → A → A → A
   if true then x else _ = x
   if false then _ else y = y
