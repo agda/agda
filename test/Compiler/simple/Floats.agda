@@ -127,7 +127,7 @@ just _  ==MW nothing = false
 just n  ==MW just m  = toℕ n ==N toℕ m
 
 _==F_ : Float → Float → Bool
-x ==F y = toWord x ==MW toWord x
+x ==F y = toWord x ==MW toWord y
 
 _==B_ : Bool → Bool → Bool
 false ==B false = true
