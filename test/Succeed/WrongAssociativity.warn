@@ -16,14 +16,14 @@ A prefix operator cannot be left-associative.
 Use infixr 12 renamed_.
 when scope checking the declaration
   open Original renaming (plain to infixl 12 renamed_;
-                          customPrefix to infixl 13 _renamedCustom)
+                          customPrefix to infixr 13 _renamedCustom)
 
 WrongAssociativity.agda:40.31-45: warning: -W[no]WrongAssociativity
-A prefix operator cannot be left-associative.
-Use infixr 13 _renamedCustom.
+A postfix operator cannot be right-associative.
+Use infixl 13 _renamedCustom.
 when scope checking the declaration
   open Original renaming (plain to infixl 12 renamed_;
-                          customPrefix to infixl 13 _renamedCustom)
+                          customPrefix to infixr 13 _renamedCustom)
 
 ———— All done; warnings encountered ————————————————————————
 
@@ -44,11 +44,11 @@ A prefix operator cannot be left-associative.
 Use infixr 12 renamed_.
 when scope checking the declaration
   open Original renaming (plain to infixl 12 renamed_;
-                          customPrefix to infixl 13 _renamedCustom)
+                          customPrefix to infixr 13 _renamedCustom)
 
 WrongAssociativity.agda:40.31-45: warning: -W[no]WrongAssociativity
-A prefix operator cannot be left-associative.
-Use infixr 13 _renamedCustom.
+A postfix operator cannot be right-associative.
+Use infixl 13 _renamedCustom.
 when scope checking the declaration
   open Original renaming (plain to infixl 12 renamed_;
-                          customPrefix to infixl 13 _renamedCustom)
+                          customPrefix to infixr 13 _renamedCustom)

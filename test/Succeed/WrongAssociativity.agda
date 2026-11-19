@@ -37,5 +37,5 @@ module Original where
 
 open Original renaming
   ( plain        to infixl 12 renamed_
-  ; customPrefix to infixl 13 _renamedCustom
+  ; customPrefix to infixr 13 _renamedCustom
   )

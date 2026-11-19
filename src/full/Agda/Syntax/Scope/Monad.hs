@@ -918,8 +918,8 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
     let dir = ImportDirective rng (mapUsing (const usn) usn') hdn ren public
 
     forM_ ren \case
-      Renaming (ImportedName x) (ImportedName y) (Just fx) _ ->
-        forM_ (Map.lookup x namesInScope >>= listToMaybe . List1.mapMaybe (suggestFixity y fx)) $
+      Renaming (ImportedName _) (ImportedName y) (Just fx) _ ->
+        whenJust (correctAssociativity (notationKind (syntaxOf y)) fx) $
           warnWrongAssociativity y
       _ -> pure ()
 
@@ -1008,10 +1008,6 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
     -- Thus, we can unconditionally remove private definitions
     -- before we apply the import directive.
     scope = restrictPrivate scope0
-
-    suggestFixity :: C.Name -> Fixity -> AbstractName -> Maybe Fixity
-    suggestFixity x fx name =
-      correctAssociativity (notationKind $ notation $ namesToNotation (C.QName x) $ qnameName $ anameName name) fx
 
     -- Return names in the @using@ directive, discarding duplicates.
     -- Monadic for the sake of throwing warnings.
