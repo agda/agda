@@ -1174,6 +1174,7 @@ executable agda-tests
       Internal.Utils.Three
       Internal.Utils.Trie
       Internal.Utils.VarSet
+      Internal.Utils.Word
       LaTeXAndHTML.Tests
       LibSucceed.Tests
       Succeed.Tests

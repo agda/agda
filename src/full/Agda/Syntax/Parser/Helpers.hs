@@ -11,22 +11,24 @@ import Control.Monad.State ( modify' )
 
 import Data.Bifunctor (first, second)
 import Data.Char
-import qualified Data.List as List
+import Data.List qualified as List
 import Data.Maybe
 import Data.Semigroup ( sconcat )
 import Data.Text (Text)
-import qualified Data.Text as T
+import Data.Text qualified as T
+import Data.Word ( Word32 )
 
-import Agda.Syntax.Position
-import Agda.Syntax.Parser.Monad
-import Agda.Syntax.Parser.Lexer
-import Agda.Syntax.Parser.Tokens
+import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Attribute as CA
 import Agda.Syntax.Concrete.Pattern
-import Agda.Syntax.Common
-import Agda.Syntax.Notation
 import Agda.Syntax.Literal
+import Agda.Syntax.Notation
+import Agda.Syntax.Parser.Lexer
+import Agda.Syntax.Parser.Monad
+import Agda.Syntax.Parser.Tokens
+import Agda.Syntax.Position
 
 import Agda.TypeChecking.Positivity.Occurrence
 
@@ -35,17 +37,16 @@ import Agda.Utils.Functor
 import Agda.Utils.Hash
 import Agda.Utils.List ( spanJust, chopWhen, initLast )
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
+import Agda.Utils.List1 qualified as List1
+import Agda.Utils.List2 qualified as List2
 import Agda.Utils.Maybe
+import Agda.Utils.Maybe.Strict qualified as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
-import qualified Agda.Utils.Maybe.Strict as Strict
-import qualified Agda.Utils.List1 as List1
-import qualified Agda.Utils.List2 as List2
+import Agda.Utils.Word ( monus )
 
 import Agda.Utils.Impossible
-import Data.List (partition)
 
 -- | Insert a top-level module if there is none.
 --   Also fix-up for the case the declarations in the top-level module
@@ -254,14 +255,17 @@ recoverLayout :: [(Interval, String)] -> String
 recoverLayout [] = ""
 recoverLayout xs@((i, _) : _) = go (iStart i) xs
   where
+    c0 :: Word32
     c0 = posCol (iStart i)
 
     go _cur [] = ""
     go cur ((i, s) : xs) = padding cur (iStart i) ++ s ++ go (iEnd i) xs
 
+    -- Andreas, 2026-11-19, issue #8937, OOM
+    -- Use `monus` to prevent underflow which leads to gargantum indentations.
     padding (Pn _ _ l1 c1) (Pn _ _ l2 c2)
-      | l1 < l2   = List.genericReplicate (l2 - l1) '\n' ++ List.genericReplicate (max 0 (c2 - c0)) ' '
-      | l1 == l2  = List.genericReplicate (c2 - c1) ' '
+      | l1 < l2   = List.genericReplicate (l2 - l1) '\n' ++ List.genericReplicate (c2 `monus` c0) ' '
+      | l1 == l2  = List.genericReplicate (c2 `monus` c1) ' '
       | otherwise = __IMPOSSIBLE__
 
 ensureUnqual :: QName -> Parser Name
@@ -720,7 +724,7 @@ applyAttr attr@(Attr _ _ a) = maybe failure return . setPristineAttribute a
 --   in the thing to something else than the default value.
 applyAttrsDropTactic :: LensAttribute a => [Attr] -> a -> Parser a
 applyAttrsDropTactic rattrs arg = do
-  let (tactics, attrs) = partition isTactic rattrs
+  let (tactics, attrs) = List.partition isTactic rattrs
   unlessNull tactics \ ts ->
     parseWarning $ MisplacedAttributes (getRange ts) $
       "Ignoring misplaced @(tactic ...) attribute"

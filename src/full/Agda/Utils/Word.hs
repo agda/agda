@@ -2,9 +2,12 @@
 {-# LANGUAGE MagicHash #-}
 
 -- | Utilities for working with 'Word' and 'Word#'.
+
 module Agda.Utils.Word
-  ( -- * Packing Word32 in Word64
-    splitW64
+  ( -- * Overflow prevention
+    monus
+    -- * Packing Word32 in Word64
+  , splitW64
   , packW64
     -- * Bitwise operations
   , uncheckedBitWord#
@@ -36,6 +39,14 @@ module Agda.Utils.Word
 import GHC.Base
 import Data.Word
 import Data.Bits
+
+---------------------------------------------------------------------------
+-- Overflow prevention
+
+-- | Truncating subtraction.
+monus :: (Num a, Ord a) => a -> a -> a
+monus x y = if x <= y then 0 else x - y
+{-# INLINE monus #-}
 
 --------------------------------------------------------------------------------
 -- Packing Word32 to Word64
