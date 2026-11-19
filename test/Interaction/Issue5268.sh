@@ -6,7 +6,7 @@ set -Eeu -o pipefail
 
 AGDA="$1"
 ROOT=$(pwd)
-# BASE=`mktemp -d -t issue-5268-`
+# BASE=`mktemp -d -t issue-5268-XXXXXX`
 BASE=tmp-issue-5268
 SRC=src/a
 SYM="${BASE}"/sym
