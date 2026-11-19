@@ -57,6 +57,10 @@ Interaction and emacs mode
   Latin letters, Greek letters, and digits, the superscript letters `𐞥ꟲꟳꟴ꟱𐞲ᶹ`,
   and the variant equality symbols `⧣﹦꞊`.
 
+* Added key binding that switches to the associated mode for a
+  literate Agda file, with the option to automatically add a key
+  binding to switch back.
+
 Backends
 --------
 
