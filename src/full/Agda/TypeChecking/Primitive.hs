@@ -955,8 +955,8 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
   , PrimFloatCosh                |-> mkPrimFun1 doubleCosh
   , PrimFloatTanh                |-> mkPrimFun1 doubleTanh
   , PrimFloatASinh               |-> mkPrimFun1 doubleASinh
-  , PrimFloatACosh               |-> mkPrimFun1 doubleCosh
-  , PrimFloatATanh               |-> mkPrimFun1 doubleTanh
+  , PrimFloatACosh               |-> mkPrimFun1 doubleACosh
+  , PrimFloatATanh               |-> mkPrimFun1 doubleATanh
 
   -- Character functions
   , PrimCharEquality         |-> mkPrimFun2 ((==) :: Rel Char)
