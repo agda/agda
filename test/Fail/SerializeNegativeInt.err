@@ -1,0 +1,6 @@
+SerializeNegativeInt.agda:14.8-9: error: [UnequalTypes]
+The type
+  P c
+is not a subtype of
+  Set
+when checking that the expression p has type Set

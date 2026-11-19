@@ -87,9 +87,15 @@ instance EmbPrj Double where
 
 -- Andreas, Agda Hackathon 2024-10-15
 -- Are we sure we never use an Int that does not fit into 32 bits?
+-- Andreas, 2026-11-19: per Haskell report, Int is only guaranteed
+-- to hold signed 29-bit integers, so we should not use Int when we need more.
+--
+-- Andreas, 2026-11-19, regression from PR #7565:
+-- Negative Ints are getting serialized,
+-- so we need to sign-extend when decoding, by going through 'Int32'.
 instance EmbPrj Int where
   icod_ i = return $! fromIntegral i
-  value i = return $! fromIntegral i
+  value i = return $! fromIntegral (fromIntegral i :: Int32)
 
 instance EmbPrj Int32 where
   icod_ i = return $! fromIntegral i
