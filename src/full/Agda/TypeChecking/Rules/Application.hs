@@ -22,6 +22,7 @@ import Data.Maybe
 import Data.Void
 import qualified Data.Foldable as Fold
 import qualified Data.IntSet   as IntSet
+import qualified Data.Map      as Map
 
 import Agda.Interaction.Highlighting.Generate
   ( storeDisambiguatedConstructor, storeDisambiguatedProjection )
@@ -1193,8 +1194,10 @@ resolveAmbiguousConstructor bcd@(ConstructorDisambiguationData c0 dcs1 args t) =
       addContext tel $ do
        reportSDoc "tc.check.term.con" 40 $ nest 2 $
          "target type: " <+> prettyTCM t1
-       -- If we don't have a target type yet, try to look at the argument types.
-       ifBlocked t1 (\ b _ -> disambiguateByArgs dcs args $ postpone b) $ \ _ t' ->
+       -- If the target type is blocked, try to look at the argument types first.
+       -- If no unique candidate is found, try inversion when the options allow it.
+       ifBlocked t1 (\ b target -> disambiguateByArgs dcs args $
+           maybeDisambiguateByInversion dcs target $ postpone b) $ \ _ t' ->
          caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ (d, _) -> do
            let dcs' = filter ((d ==) . fst3) dcs
            case map' thd3 dcs' of
@@ -1206,6 +1209,51 @@ resolveAmbiguousConstructor bcd@(ConstructorDisambiguationData c0 dcs1 args t) =
                       typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $
                         fmap conName $ c :| cs
   where
+    -- Try to select a unique constructor using the inversion map returned by
+    -- `functionInverse` for the blocked target.  Compare each candidate’s datatype
+    -- or record name with the possible heads.  Check all heads first,
+    -- since an unsupported head could still admit a candidate we would discard.
+    -- Rewriting must be disabled because a rewrite rule can change a head.
+    -- Cubical mode must be disabled because transport clauses can produce heads
+    -- absent from the inversion map.
+    maybeDisambiguateByInversion initialCandidates target fallback = do
+      candidates <- runMaybeT $ do
+        guard =<< lift (and2M (not <$> anyRewritingOption) (isNothing <$> cubicalOption))
+        Inv _ _ hdMap <- lift $ functionInverse $ unEl target
+        guard =<< lift (allM supportedHead $ Map.keys hdMap)
+        return $ filter (\ (d, _, _) -> Map.member (ConsHead d) hdMap) initialCandidates
+      case candidates of
+        Just [(_, _, c)] -> decideOn c
+        _                -> fallback
+
+    -- Check that matching constructor datatypes by name cannot discard a valid
+    -- candidate.  Datatype and record names remain fixed before their bodies are
+    -- checked and outside abstract blocks.  Module copies require comparison
+    -- with the original name.  Universes, rigid bound variables in the checking
+    -- context and completed postulates cannot be the type of a constructor
+    -- application.  Exclude axioms in the current mutual block, following the
+    -- conservative criterion in `headSymbol`.
+    -- Function types may admit partially applied constructors.
+    supportedHead SortHead     = return True
+    supportedHead PiHead       = return False
+    supportedHead (ConsHead d) = getConstInfo' d >>= \case
+      Right Defn{theDef = def} -> supportedDefn d def
+      Left{}                   -> return False
+    supportedHead VarHead{}    = return True
+    supportedHead UnknownHead  = return False
+
+    supportedDefn d = \case
+      Axiom{}                   -> isOutsideCurrentMutualBlock d
+      DataOrRecSig{}            -> return True
+      GeneralizableVar{}        -> return False
+      AbstractDefn def          -> supportedDefn d def
+      Function{}                -> return False
+      Datatype{dataClause = cl} -> return $ isNothing cl
+      Record{recClause = cl}    -> return $ isNothing cl
+      Constructor{}             -> return False
+      Primitive{}               -> return False
+      PrimitiveSort{}           -> return False
+
     postpone b = return $ Left (b, bcd)
     badCon t = typeError $ ConstructorDoesNotTargetGivenType c0 t
 

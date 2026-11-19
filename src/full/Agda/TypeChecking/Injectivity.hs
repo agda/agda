@@ -106,9 +106,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
           -- Don't treat axioms in the current mutual block
           -- as constructors (they might have definitions we
           -- don't know about yet).
-          caseMaybeM (viewTC eMutualBlock) yes $ \ mb -> do
-            fs <- mutualNames <$> lookupMutualBlock mb
-            if Set.member f fs then no else yes
+          ifM (isOutsideCurrentMutualBlock f) yes no
         Function{}    -> no
         Primitive{}   -> no
         PrimitiveSort{} -> no

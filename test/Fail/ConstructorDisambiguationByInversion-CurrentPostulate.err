@@ -1,0 +1,8 @@
+error: [UnsolvedConstraints]
+Failed to solve the following constraints:
+  _19 := ambiguous constructor c : El P _i_10 (blocked on _i_10)
+
+ConstructorDisambiguationByInversion-CurrentPostulate.agda:26.15-24: error: [UnsolvedMetaVariables]
+Unsolved metas at the following locations:
+  ConstructorDisambiguationByInversion-CurrentPostulate.agda:26.15-22
+  ConstructorDisambiguationByInversion-CurrentPostulate.agda:26.23-24
