@@ -110,13 +110,14 @@ mkLibM libs m = do
 -- * Resources
 ------------------------------------------------------------------------
 
--- | Returns the absolute default lib dir. This directory is used to
--- store the Primitive.agda file.
+-- | Returns the canonical path to the primitive library directory.
+-- Resolving directory symlinks here makes the path agree with the parent
+-- directories of source files when classifying builtin modules.
 getPrimitiveLibDir :: IO AbsolutePath
 getPrimitiveLibDir = do
   libdir <- filePath <$> (absolute =<< getDataFileName "lib")
   ifM (doesDirectoryExist libdir)
-      (return $ AbsolutePath $ T.pack $ libdir </> "prim")
+      (canonicalizeAbsolutePath $ mkAbsolute $ libdir </> "prim")
       (error $ "The lib directory " ++ libdir ++ " does not exist")
 
 -- | The @$AGDA_DIR/libraries@ file lists the libraries Agda should know about.

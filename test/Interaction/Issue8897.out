@@ -1,0 +1,3 @@
+Builtin import passed with a plain data directory.
+Builtin import passed with a symlinked lib directory.
+Builtin import passed with a symlinked prim directory.
