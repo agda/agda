@@ -218,7 +218,7 @@ exports.primFloatToWord64 = function(x) {
         mantissa *= sign;
         sign = (sign === -1 ? "1" : "0");
         mantissa = (mantissa.toString(2)).padStart(11, "0");
-        exponent = (mantissa.toString(2)).padStart(52, "0");
+        exponent = (exponent.toString(2)).padStart(52, "0");
         return BigInt(parseInt(sign + mantissa + exponent, 2));
     }
 };
