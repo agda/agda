@@ -1713,7 +1713,7 @@ checkSharpApplication e t c args = do
         (defaultDefn ai c' forcedType lang fun)
         { defMutual = i }
 
-    checkFunDef info c' $ singleton clause
+    checkFunDef info c' [] $ singleton clause
 
     reportSDoc "tc.term.expr.coind" 15 $ do
       def <- theDef <$> getConstInfo c'

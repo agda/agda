@@ -199,6 +199,7 @@ fixitiesAndPolarities' = foldMap $ \case
   -- We expand these boring cases to trigger a revisit
   -- in case the @Declaration@ type is extended in the future.
   TypeSig         {}  -> mempty
+  FunSigP         {}  -> mempty
   FieldSig        {}  -> mempty
   Generalize      {}  -> mempty
   Field           {}  -> mempty
@@ -260,6 +261,7 @@ declaresName x = declaresNames [x]
 declaredNames :: Declaration -> DeclaredNames
 declaredNames = \case
   TypeSig _ _ x _       -> declaresName x
+  FunSigP _ _ x _ _     -> declaresName x
   FieldSig _ _ x _      -> declaresName x
   Field _ fs            -> foldMap declaredNames fs
   FunClause _ (LHS p [] []) _ _ _

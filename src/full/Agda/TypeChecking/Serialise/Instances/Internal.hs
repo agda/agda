@@ -487,7 +487,7 @@ instance EmbPrj a => EmbPrj (IsWithFunction a) where
 
 instance EmbPrj Defn where
   icod_ (Axiom       a)                                 = icodeN 0 Axiom a
-  icod_ (Function    a b s t u c d e f g h i j k)       = icodeN 1 (\ a b s -> Function a b s t) a b s u c d e f g h i j k
+  icod_ (Function    a b s t u c d e f g h i j k l)       = icodeN 1 (\ a b s -> Function a b s t) a b s u c d e f g h i j k l
   icod_ (Datatype    a b c d e f g h i j k)             = icodeN 2 Datatype a b c d e f g h i j k
   icod_ (Record      a b c d e f g h i j k l m n)       = icodeN 3 Record a b c d e f g h i j k l m n
   icod_ (Constructor a b c d e f g h i j k l)           = icodeN 4 Constructor a b c d e f g h i j k l
@@ -501,8 +501,8 @@ instance EmbPrj Defn where
 
   value = vcase \case
     N2 0 a                                   -> valuN Axiom a
-    N6 1 a b s u c (N6 d e f g h i (N2 j k)) -> valuN (\ a b s -> Function a b s Nothing)
-                                                      a b s u c d e f g h i j k
+    N6 1 a b s u c (N6 d e f g h i (N3 j k l)) -> valuN (\ a b s -> Function a b s Nothing)
+                                                      a b s u c d e f g h i j k l
     N6 2 a b c d e (N6 f g h i j k N0)       -> valuN Datatype a b c d e f g h i j k
     N6 3 a b c d e (N6 f g h i j k (N3 l m n)) -> valuN Record a b c d e f g h i j k l m n
     N6 4 a b c d e (N6 f g h i j k (N1 l))   -> valuN Constructor a b c d e f g h i j k l

@@ -169,7 +169,7 @@ checkDecl d = setCurrentRange d $ do
       A.Import _ _ dir         -> none $ checkImportDirective dir
       A.Pragma i p             -> none $ checkPragma i p
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
-      A.FunDef i x cs          -> impossible $ check x i $ checkFunDef i x $ List1.toList cs
+      A.FunDef i x tel cs      -> impossible $ check x i $ checkFunDef i x tel $ List1.toList cs
       A.DataDef i x pc uc ps cs -> impossible $ check x i $ checkDataDef i x pc uc ps cs
       A.RecDef i x pc uc eta dir ps tel cs -> impossible $ check x i $ do
                                     checkRecDef i x pc uc eta dir ps tel cs

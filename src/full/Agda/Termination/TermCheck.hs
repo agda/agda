@@ -137,7 +137,7 @@ termDecl' = \case
     -- for symbols that need to be termination-checked.
     getNames :: Foldable t => t A.Declaration -> [QName]
     getNames = foldMap getName
-    getName (A.FunDef i x cs)   = [x]
+    getName (A.FunDef i x _ cs) = [x]
     getName (A.RecDef _ x _ _ _ _ _ _ ds) = x : getNames ds
     getName (A.Mutual _ ds)             = getNames ds
     getName (A.Section _ _ _ _ ds)      = getNames ds

@@ -328,10 +328,10 @@ solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these hav
       OpenMeta{} -> __IMPOSSIBLE__
 solveConstraint_ (FindInstance _ m cands) = findInstance m cands
 solveConstraint_ (ResolveInstanceHead kwr q) = resolveInstanceHead kwr q
-solveConstraint_ (CheckFunDef i q cs _err) = withoutCache $
+solveConstraint_ (CheckFunDef i q tel cs _err) = withoutCache $
   -- re #3498: checking a fundef would normally be cached, but here it's
   -- happening out of order so it would only corrupt the caching log.
-  checkFunDef i q cs
+  checkFunDef i q tel cs
 solveConstraint_ (CheckLockedVars a b c d)   = checkLockedVars a b c d
 solveConstraint_ (HasBiggerSort a)      = hasBiggerSort a
 solveConstraint_ (HasPTSRule a b)       = hasPTSRule a b

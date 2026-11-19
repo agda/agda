@@ -63,6 +63,32 @@ By default, Agda checks the following properties of a function definition:
 - The function should be terminating on all possible inputs, see
   :ref:`termination-checking`.
 
+.. _function-definition-parameters:
+
+Definition parameters
+=====================
+
+.. versionadded:: 2.10.0
+
+A function signature can introduce *parameters* before the colon.
+Their names are in scope in the remaining signature and defining clauses,
+including the clauses' ``where`` declarations:
+::
+
+  identity {A : Set} : A → A
+  identity x = x
+
+  constant (A : Set) (x : A) : A
+  constant = x
+
+Calls, including recursive calls in the function body, pass parameters as
+ordinary arguments.
+
+At least one parameter needs an explicit type annotation. Other parameter types
+are inferred, as in ``{a} (A : Set a)``.
+Parameters use variable telescope binders with the usual visibility and
+annotations.
+
 Special patterns
 ================
 

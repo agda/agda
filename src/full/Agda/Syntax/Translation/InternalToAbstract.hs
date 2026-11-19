@@ -1510,7 +1510,11 @@ instance Reify NamedClause where
       nfv <- getDefModule f >>= \case
         Left _  -> return 0
         Right m -> size <$> lookupSection m
-      return $! splitParams nfv lhs
+      -- A with-display form may have changed the head back to its parent.
+      -- Definition parameters disappear only from clauses, never applications.
+      let SpineLHS _ sourceFun _ = lhs
+      npars <- either (const 0) defFunctionParameters <$> getConstInfo' sourceFun
+      return $! splitParams (nfv + npars) lhs
     lhs <- stripImps rhsUsedNames params lhs
     let rhs    = caseMaybe rhsBody AbsurdRHS $ \ e -> RHS e Nothing
         result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls (I.clauseCatchall cl)

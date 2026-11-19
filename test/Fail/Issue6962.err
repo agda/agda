@@ -1,0 +1,2 @@
+Issue6962.agda:5.36: error: [ParseError]
+Illegal name in type signature: {helper}

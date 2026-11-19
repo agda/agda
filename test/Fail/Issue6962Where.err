@@ -1,0 +1,2 @@
+Issue6962Where.agda:4.7: error: [ParseError]
+A type signature cannot have a where clause

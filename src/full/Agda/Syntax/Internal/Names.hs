@@ -165,7 +165,7 @@ instance NamesIn Defn where
     PrimitiveSort _ s  -> namesAndMetasIn' sg s
     AbstractDefn{}     -> __IMPOSSIBLE__
     -- Andreas 2017-07-27, Q: which names can be in @cc@ which are not already in @cl@?
-    Function cl cc _ _ _ _ _ prj _ _ el _ _ _
+    Function cl cc _ _ _ _ _ prj _ _ el _ _ _ _
       -- Andreas, 2025-11-18, issue #8037
       -- When copying the record type along with one of its projections in a module application,
       -- we need to make sure the record type has not been deleted as deadcode.

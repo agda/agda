@@ -1,0 +1,2 @@
+Issue6962LambdaPattern.agda:3.9: error: [ParseError]
+Not a valid pattern: (A : Set)

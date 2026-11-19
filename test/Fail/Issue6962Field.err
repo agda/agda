@@ -1,0 +1,3 @@
+Issue6962Field.agda:5.7: error: [ParseError]
+(<ERROR> A : Set) : A -> A
+...

@@ -1,0 +1,2 @@
+Issue6962WithPattern.agda:3.19: error: [ParseError]
+Illegal: with patterns in type signature

@@ -1,0 +1,2 @@
+Issue6962ShapeSignature.agda:3.9: error: [ParseError]
+Illegal name in type signature: ..x

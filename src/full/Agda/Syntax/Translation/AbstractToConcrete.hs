@@ -1289,8 +1289,10 @@ instance ToConcrete A.Declaration where
       return [C.Primitive empty [C.TypeSig (argInfo t') empty x' (unArg t')]]
         -- Primitives are always relevant.
 
-  toConcrete (A.FunDef i _ cs) =
-    withAbstractPrivate i $ List1.toList . sconcat <$> toConcrete cs
+  toConcrete (A.FunDef i _ tel cs) =
+    withAbstractPrivate i $
+      bindToConcrete tel $ \ _ ->
+        List1.toList . sconcat <$> toConcrete cs
 
   toConcrete (A.DataSig i erased x bs t) =
     withAbstractPrivate i $

@@ -1,0 +1,3 @@
+Issue6962Postulate.agda:4.3-23: error: [Syntax.WrongContentBlock]
+A 'postulate' block can only contain type signatures, possibly
+under keywords 'instance' and 'private'

@@ -1724,7 +1724,7 @@ data Constraint
   | ResolveInstanceHead KwRange QName
     -- ^ Resolve the head symbol of the type that the given instance targets
     --   The 'KwRange' is the range of the @instance@ keyword.
-  | CheckFunDef A.DefInfo QName [A.Clause] TCErr
+  | CheckFunDef A.DefInfo QName A.Telescope [A.Clause] TCErr
     -- ^ Last argument is the error causing us to postpone.
   | UnquoteTactic Term Term Type
     -- ^ First argument is computation and the others are hole and goal type.
@@ -2975,6 +2975,8 @@ data FunctionData = FunctionData
   , _funIsKanOp        :: Maybe QName
       -- ^ Is this a helper for one of the Kan operations (transp,
       -- hcomp) on data types/records? If so, for which data type?
+  , _funDefParams      :: Nat
+      -- ^ Number of source-level definition parameters, excluding module parameters.
   , _funOpaque         :: IsOpaque
       -- ^ Is this function opaque? If so, and we're not in an opaque
       -- block that includes this function('s name), it will be treated
@@ -2995,6 +2997,7 @@ pattern Function
   -> Maybe ExtLamInfo
   -> IsWithFunction QName
   -> Maybe QName
+  -> Nat
   -> IsOpaque
   -> Defn
 pattern Function
@@ -3011,6 +3014,7 @@ pattern Function
   , funExtLam
   , funWith
   , funIsKanOp
+  , funDefParams
   , funOpaque
   } = FunctionDefn (FunctionData
     funClauses
@@ -3026,6 +3030,7 @@ pattern Function
     funExtLam
     funWith
     funIsKanOp
+    funDefParams
     funOpaque
   )
 
@@ -3422,6 +3427,7 @@ instance Pretty FunctionData where
       _funExtLam
       funWith
       funIsKanOp
+      funDefParams
       funOpaque
     ) =
     "Function {" <?> vcat
@@ -3436,6 +3442,7 @@ instance Pretty FunctionData where
       , "funTerminates   =" <?> pshow funTerminates
       , "funWith         =" <?> pretty funWith
       , "funIsKanOp      =" <?> pretty funIsKanOp
+      , "funDefParams    =" <?> pretty funDefParams
       , "funOpaque       =" <?> pshow funOpaque
       ] <?> "}"
 
@@ -3599,6 +3606,7 @@ emptyFunctionData_ erasure = FunctionData
     , _funWith        = empty
     , _funCovering    = []
     , _funIsKanOp     = Nothing
+    , _funDefParams   = 0
     , _funOpaque      = TransparentDef
     }
 
@@ -3874,6 +3882,12 @@ defParameters :: Definition -> Maybe Nat
 defParameters Defn{theDef = Datatype{dataPars = n}} = Just n
 defParameters Defn{theDef = Record  {recPars  = n}} = Just n
 defParameters _                                     = Nothing
+
+-- | Function definition parameters are ordinary arguments at call sites.
+-- This count is only used to recover their omission from source clauses.
+defFunctionParameters :: Definition -> Nat
+defFunctionParameters Defn{theDef = Function{funDefParams = n}} = n
+defFunctionParameters _ = 0
 
 defInverse :: Definition -> FunctionInverse
 defInverse Defn{theDef = Function { funInv  = inv }} = inv
@@ -7380,8 +7394,8 @@ instance KillRange Defn where
       DataOrRecSig n eta -> DataOrRecSig n (killRange eta)
       GeneralizableVar a -> GeneralizableVar a
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
-      Function a b c d e f g h i j k l m n ->
-        killRangeN Function a b c d e f g h i j k l m n
+      Function a b c d e f g h i j k l m n o ->
+        killRangeN Function a b c d e f g h i j k l m n o
       Datatype a b c d e f g h i j k -> killRangeN Datatype a b c d e f g h i j k
       Record a b c d e f g h i j k l m n -> killRangeN Record a b c d e f g h i j k l m n
       Constructor a b c d e f g h i j k l -> killRangeN Constructor a b c d e f g h i j k l

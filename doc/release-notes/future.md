@@ -1,6 +1,17 @@
 NOTE: Put drafts of release notes here that might be included in some
 future release.
 
+Language
+--------
+
+* Function signatures support definition parameters before the colon
+  ([#6962](https://github.com/agda/agda/issues/6962)):
+
+  ```agda
+  id {A : Set} : A → A
+  id x = x
+  ```
+
 Pragmas and Options
 -------------------
 

@@ -1,0 +1,2 @@
+Issue6962Ellipsis.agda:3.17: error: [ParseError]
+The ellipsis ... cannot have a type signature

@@ -357,13 +357,13 @@ The projection patterns have vanished from __@ps'@__ (as they are already in __@
 -}
 
 stripWithClausePatterns
-  :: [Name]                   -- ^ __@cxtNames@__ names of the module parameters of the parent function
+  :: [Name]                   -- ^ __@cxtNames@__ module and definition parameter names of the parent function.
   -> QName                    -- ^ __@parent@__ name of the parent function.
   -> QName                    -- ^ __@f@__   name of with-function.
   -> Type                     -- ^ __@t@__   top-level type of the original function.
   -> Telescope                -- ^ __@Δ@__   context of patterns of parent function.
   -> [NamedArg DeBruijnPattern] -- ^ __@qs@__  internal patterns for original function.
-  -> Nat                      -- ^ __@npars@__ number of module parameters in @qs@.
+  -> Nat                      -- ^ __@npars@__ number of module and definition parameters in @qs@.
   -> Permutation              -- ^ __@π@__   permutation taking @vars(qs)@ to @support(Δ)@.
   -> [NamedArg A.Pattern]     -- ^ __@ps@__  patterns in with clause (eliminating type @t@).
   -> TCM ([A.ProblemEq], [NamedArg A.Pattern]) -- ^ __@ps'@__ patterns for with function (presumably of type @Δ@).
@@ -373,7 +373,8 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
   -- Ulf, 2016-11-16 Issue 2303: We need the module parameter
   -- instantiations from qs, so we make sure
   -- that t is the top-level type of the parent function and add patterns for
-  -- the module parameters to ps before stripping.
+  -- the module parameters to ps before stripping. Definition parameters
+  -- (issue #6962) are inserted by the LHS checker in the same way.
   let paramPat i _ = A.VarP $ A.mkBindName $ indexWithDefault __IMPOSSIBLE__ cxtNames i
       ps' = zipWith (fmap . fmap . paramPat) [0..] (take npars qs) ++ ps
   psi <- insertImplicitPatternsT ExpandLast ps' t

@@ -1,0 +1,2 @@
+Issue6962InvalidSignatureHead.agda:4.1: error: [ParseError]
+Not a valid pattern: bad (λ x → x)
