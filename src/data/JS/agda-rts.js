@@ -347,7 +347,7 @@ exports.primHComp = _ => _ => _ => _ => x => x;
 exports.primSubOut = _ => _ => _ => _ => x => x;
 exports.prim_glueU = _ => _ => _ => _ => _ => x => x;
 exports.prim_unglueU = _ => _ => _ => _ => x => x;
-exports.primFaceForall = f => f(true) == true && f(false) == false;
+exports.primFaceForall = f => f(true) && f(false);
 
 // Quotients.
 exports.qrec = _ => _ => _ => _ => _ => _ => f => _ => _ => x => f(x);
