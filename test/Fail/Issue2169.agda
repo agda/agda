@@ -21,3 +21,11 @@ bug = f (cong (λ x → (1.0 / x) < 0.0) 0eq)
   where
     f : false ≡ true → ⊥
     f ()
+
+-- Expected error in 0eq: [UnequalTerms]
+-- The terms
+--   0.0
+-- and
+--   -0.0
+-- are not equal at type Float
+-- when checking that the expression refl has type 0.0 ≡ -0.0

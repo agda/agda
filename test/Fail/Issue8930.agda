@@ -37,9 +37,9 @@ bot = cast acosh1slow tt
 -- Expected error:
 -- Issue8930/SlowReduce.agda:...: error: [UnequalTerms]
 -- The terms
---   0
+--   0.0
 -- and
 --   1.5430806348152437
 -- are not equal at type Float
 -- when checking that the expression refl has type
--- primFloatACosh 1 ≡ 1.5430806348152437
+-- primFloatACosh 1.0 ≡ 1.5430806348152437

@@ -32,7 +32,7 @@ data Literal
 instance Pretty Literal where
     pretty (LitNat n)     = hlNumber $ pretty n
     pretty (LitWord64 n)  = hlNumber $ pretty n
-    pretty (LitFloat d)   = hlNumber $ pretty d
+    pretty (LitFloat d)   = hlNumber $ text (show d)
     pretty (LitString s)  = hlString . text $ showText s ""
     pretty (LitChar c)    = hlString . text $ "'" ++ showChar' c "'"
     pretty (LitQName x)   = pretty x
