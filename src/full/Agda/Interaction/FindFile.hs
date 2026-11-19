@@ -24,12 +24,14 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Trans
+import Data.Function (on)
+import qualified Data.List as List
 import Data.Maybe (catMaybes, fromMaybe, isJust)
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import System.FilePath
 
-import Agda.Interaction.Library ( findProjectRoot )
+import Agda.Interaction.Library ( classifyBuiltinModule_, findProjectRoot )
 
 import Agda.Syntax.Concrete
 import Agda.Syntax.Parser
@@ -174,7 +176,10 @@ findFile'' dirs m = do
     Nothing -> do
       files          <- liftIO $ fileList agdaFileExtensions
       existingFiles  <- liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
-      case nubOn id existingFiles of
+      distinctFiles <- case nubOn id existingFiles of
+        candidates@(_:_:_) -> liftIO $ removeAliases (primitiveLibDir dict) candidates
+        candidates         -> return candidates
+      case distinctFiles of
         [file]   -> do
           let (i, dict') = registerFileIdWithBuiltin file dict
           let src = SourceFile i
@@ -189,6 +194,21 @@ findFile'' dirs m = do
                     | dir  <- List1.toList dirs
                     , file <- map (moduleNameToFileName m) exts
                     ]
+
+    -- Andreas, 2026-11-19, issue #8608:
+    -- Use resolved paths for comparison, retaining the original paths
+    -- for diagnostics and interface file placement.
+    removeAliases primDir candidates = do
+      targets <- mapM canonicalizeAbsolutePath candidates
+      let sameTarget = equalFilePath `on` (filePath . snd)
+      return $ case map fst $ List.nubBy sameTarget $ zip candidates targets of
+        [first] ->
+          -- The installed builtin can appear after an alias on the include path.
+          -- Keep the installed path so that registration recognizes it
+          -- and classifies it as built-in.
+          let builtin = List.find (isJust . classifyBuiltinModule_ primDir) candidates
+          in [fromMaybe first builtin]
+        distinct -> distinct
 
 -- | Finds the interface file corresponding to a given top-level
 -- module file. The returned paths are absolute.
