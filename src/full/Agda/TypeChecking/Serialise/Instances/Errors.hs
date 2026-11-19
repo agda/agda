@@ -428,7 +428,7 @@ instance EmbPrj DeclarationWarning' where
     EmptyPolarityPragma r             -> icodeN 35 EmptyPolarityPragma r
     UselessImport r                   -> icodeN 36 UselessImport r
     InvalidDataOrRecDefParameter r a b c -> icodeN 37 InvalidDataOrRecDefParameter r a b c
-    InvalidRewriteAttribute r         -> icodeN 38 InvalidTacticAttribute r
+    InvalidRewriteAttribute r         -> icodeN 38 InvalidRewriteAttribute r
     InvalidEtaEqualityPragma r        -> icodeN 39 InvalidEtaEqualityPragma r
     FixityDeclarationForNonOperator r a -> icodeN 40 FixityDeclarationForNonOperator r a
     WrongAssociativity x fx            -> icodeN 41 WrongAssociativity x fx
