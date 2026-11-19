@@ -445,6 +445,7 @@ instance MonadFixityError ScopeM where
   warnPolarityPragmasButNotPostulates = scopeWarning . PolarityPragmasButNotPostulates
   warnEmptyPolarityPragma             = scopeWarning . EmptyPolarityPragma
   warnFixityDeclarationForNonOperator r x = scopeWarning $ FixityDeclarationForNonOperator r x
+  warnWrongAssociativity x fx         = scopeWarning $ WrongAssociativity x fx
 
 -- | Collect the fixity/syntax declarations and polarity pragmas from the list
 --   of declarations and store them in the scope.
@@ -915,6 +916,12 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
     let hdn = filter notMissing hdn'             -- remove missingExports from hdn'
     let ren = filter (notMissing . renFrom) ren'                   -- and from ren'
     let dir = ImportDirective rng (mapUsing (const usn) usn') hdn ren public
+
+    forM_ ren \case
+      Renaming (ImportedName _) (ImportedName y) (Just fx) _ ->
+        whenJust (correctAssociativity (notationKind (syntaxOf y)) fx) $
+          warnWrongAssociativity y
+      _ -> pure ()
 
     -- Convenient shorthands for defined names and names brought into scope:
     let names        = map renFrom ren ++ hdn ++ usn

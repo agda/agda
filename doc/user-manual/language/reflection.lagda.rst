@@ -23,7 +23,7 @@
   ¬_ : ∀ {u} → Set u → Set u
   ¬ x  = x → ⊥
 
-  infixl 2 ¬_
+  infixr 2 ¬_
 
   data Associativity : Set where
     left-assoc  : Associativity

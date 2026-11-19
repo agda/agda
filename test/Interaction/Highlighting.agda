@@ -291,3 +291,12 @@ module Issue8400 where
   -- Instance declarations with explicit arguments are never considered
   -- by instance search, so making su into an instance has no effect.
   -- when checking the constructor su in the declaration of Foo
+
+module WrongAssociativity where
+
+  infixr 42 _foo bar_
+  infixl 42 baz_ _quux
+
+  postulate _foo bar_ baz_ _quux : Nat → Nat
+
+  -- Only _foo and baz_ in the fixity declarations should have cosmetic highlighting.

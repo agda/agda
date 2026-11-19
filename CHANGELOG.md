@@ -18,6 +18,10 @@ Errors
 Warnings
 --------
 
+* New warning `WrongAssociativity` suggests `infixr` for prefix operators
+  declared with `infixl` and `infixl` for postfix operators declared with
+  `infixr`.
+
 * Warning `ShadowingInTelescope` is now on by default.
 
 * New warning `PragmaCompileDefined` when a `COMPILE GHC` pragma overrides

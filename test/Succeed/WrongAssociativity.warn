@@ -1,0 +1,54 @@
+
+WrongAssociativity.agda:6.11-15: warning: -W[no]WrongAssociativity
+A prefix operator cannot be left-associative.
+Use infixr 42 foo_.
+
+WrongAssociativity.agda:7.11-15: warning: -W[no]WrongAssociativity
+A postfix operator cannot be right-associative.
+Use infixl 42 _bar.
+
+WrongAssociativity.agda:26.13-19: warning: -W[no]WrongAssociativity
+A postfix operator cannot be right-associative.
+Use infixl -0.5 custom.
+
+WrongAssociativity.agda:39.31-39: warning: -W[no]WrongAssociativity
+A prefix operator cannot be left-associative.
+Use infixr 12 renamed_.
+when scope checking the declaration
+  open Original renaming (plain to infixl 12 renamed_;
+                          customPrefix to infixr 13 _renamedCustom)
+
+WrongAssociativity.agda:40.31-45: warning: -W[no]WrongAssociativity
+A postfix operator cannot be right-associative.
+Use infixl 13 _renamedCustom.
+when scope checking the declaration
+  open Original renaming (plain to infixl 12 renamed_;
+                          customPrefix to infixr 13 _renamedCustom)
+
+———— All done; warnings encountered ————————————————————————
+
+WrongAssociativity.agda:6.11-15: warning: -W[no]WrongAssociativity
+A prefix operator cannot be left-associative.
+Use infixr 42 foo_.
+
+WrongAssociativity.agda:7.11-15: warning: -W[no]WrongAssociativity
+A postfix operator cannot be right-associative.
+Use infixl 42 _bar.
+
+WrongAssociativity.agda:26.13-19: warning: -W[no]WrongAssociativity
+A postfix operator cannot be right-associative.
+Use infixl -0.5 custom.
+
+WrongAssociativity.agda:39.31-39: warning: -W[no]WrongAssociativity
+A prefix operator cannot be left-associative.
+Use infixr 12 renamed_.
+when scope checking the declaration
+  open Original renaming (plain to infixl 12 renamed_;
+                          customPrefix to infixr 13 _renamedCustom)
+
+WrongAssociativity.agda:40.31-45: warning: -W[no]WrongAssociativity
+A postfix operator cannot be right-associative.
+Use infixl 13 _renamedCustom.
+when scope checking the declaration
+  open Original renaming (plain to infixl 12 renamed_;
+                          customPrefix to infixr 13 _renamedCustom)
