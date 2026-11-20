@@ -67,6 +67,10 @@ data Name = Name
       -- ^ Source-qualified definition name when the implementation module
       --   differs from the source module. Preserved by module copying, like
       --   the binding site. Used for symbolic highlighting anchors only.
+  , nameRecordStage  :: Maybe (QName, Int)
+      -- ^ Diagnostic qualifier for a canonical record-stage module: the owning
+      -- record and the number of preceding fields. It does not change the
+      -- module's identity, source provenance, or actual parameter context.
   }
 
 -- | A name suffix.
@@ -270,7 +274,7 @@ instance MkName String where
   mkName r i s = makeName i (C.Name noRange InScope (C.stringNameParts s)) r noFixity' False
 
 makeName :: NameId -> C.Name -> Range -> Fixity' -> Bool -> Name
-makeName i c r f rec = Name i c c r f rec Nothing
+makeName i c r f rec = Name i c c r f rec Nothing Nothing
 
 nameToArgName :: Name -> ArgName
 nameToArgName = stringToArgName . prettyShow
@@ -581,7 +585,7 @@ instance IsNoName ModuleName where
   isNoName (MName xs) = all isNoName xs
 
 instance Null Name where
-  empty = Name empty empty empty empty empty empty Nothing
+  empty = Name empty empty empty empty empty empty Nothing Nothing
   null = isNoName
 
 instance Null QName where
@@ -755,8 +759,8 @@ instance SetRange ModuleName where
 -- KillRange
 
 instance KillRange Name where
-  killRange (Name a b c d e f g) =
-    (killRangeN Name a b c d e f g) { _nameBindingSite = d }
+  killRange (Name a b c d e f g h) =
+    (killRangeN Name a b c d e f g h) { _nameBindingSite = d }
     -- Andreas, 2017-07-25, issue #2649
     -- Preserve the nameBindingSite for error message.
     --
@@ -831,7 +835,7 @@ instance Sized ModuleName where
 -- | The range is not forced.
 
 instance NFData Name where
-  rnf (Name _ a b _ c d e) = rnf (a, b, c, d, e)
+  rnf (Name _ a b _ c d e f) = rnf (a, b, c, d, e, f)
 
 instance NFData Suffix where
   rnf NoSuffix   = ()

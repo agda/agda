@@ -505,6 +505,14 @@ parameters; their record-module versions instantiate these parameters with
 projections. Declarations after the last field are checked in the completed
 record module.
 
+When a type mentions a helper in an intermediate checking module, Agda prints
+that module as ``RF.0``, ``RF.1``, and so on. The number counts preceding fields,
+including fields with no intervening helper declarations. For example, the
+constructor type of the example above uses ``RF.1.F A b``. These are diagnostic
+qualifiers, not modules accessible in source code; inserting an earlier field can change
+the numbers. Public record members retain their ordinary names, such as
+``RF.F``.
+
 In generated HTML, declarations retain symbolic anchors based on their source
 names, such as ``RF.F`` above. Internal modules used to check interleaved
 declarations do not contribute qualifiers to these anchors.

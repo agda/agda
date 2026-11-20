@@ -159,6 +159,7 @@ makeConfiguration ds cs ps vs = TermConf
                         , nameFixity      = noFixity'
                         , nameIsRecordName = False
                         , nameSourceName = Nothing
+                        , nameRecordStage = Nothing
                         }
                       }
 
