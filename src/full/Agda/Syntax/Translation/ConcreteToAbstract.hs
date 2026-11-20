@@ -134,6 +134,10 @@ notAValidLetBinding = locatedTypeError NotAValidLetBinding
     Helpers
  --------------------------------------------------------------------------}
 
+-- | Internal name used for intermediate record modules when checking a record declaration.
+recordStageName :: String
+recordStageName = "record-stage"
+
 -- | Scope check interleaved declarations in hidden modules parameterized by
 -- preceding fields. Public copies are scoped now and instantiated only after
 -- the constructor and projections have been installed.
@@ -192,7 +196,7 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
       -- Its lexical parents retain earlier helpers; its locals retain the
       -- preceding field values that become parameters during type checking.
       let (before, rest) = break isField ds
-      stage <- freshRecordImplementationModule "record-stage"
+      stage <- freshRecordImplementationModule recordStageName
       createModule Nothing stage
       withCurrentModule stage $ do
         checked <- catMaybes <$> toAbstract before
@@ -204,9 +208,9 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
           target <- freshRecordImplementationModule "record-members"
           createModule Nothing target
           source <- getNamedScope stage
-          (scope, copyInfo) <- copyRecordScope (C.QName $ C.simpleName "record-stage") target source
+          (scope, copyInfo) <- copyRecordScope (C.QName $ C.simpleName recordStageName) target source
           modifyNamedScope target $ const scope
-          modifyNamedScope recordModule $ \ old -> mergeScope old scope
+          modifyNamedScope recordModule (`mergeScope` scope)
           let mi = ModuleInfo noRange noRange Nothing (DoOpen empty) Nothing
           return $ A.Apply mi (NotErased QωInferred) target (A.RecordStageApp stage) copyInfo defaultImportDir
         case rest of
@@ -248,7 +252,7 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
       -> ScopeM A.ModuleName
     freshRecordImplementationModule s = do
       q <- freshAbstractQName noFixity' (C.simpleName s)
-      let r = qnameFromList $ mnameToList1 recordModule
+      let r = mnameToQName recordModule
           source = fromMaybe (qnameToConcrete r) $ A.qnameSourceName r
       return $ qnameToMName q { qnameName = (qnameName q)
         { A.nameSourceName = Just $ killRange source } }
