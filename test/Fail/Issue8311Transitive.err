@@ -2,7 +2,7 @@ error: [LibraryError]
 Library 'issue8311-absent' not found.
 Referenced at Issue8311/installed/installed.agda-lib:2.9-25
 Add the path to its .agda-lib file to
-  Issue8311/libraries'
+  'Issue8311/libraries'
 to install.
 Installed libraries:
   issue8311-installed
