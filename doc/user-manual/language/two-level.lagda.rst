@@ -97,7 +97,7 @@ numbers into the ordinary ones::
   ℕˢ-to-ℕ (succˢ n) = succ (ℕˢ-to-ℕ n)
 
 but not vice versa.
-(Agda does currently allow mapping from the empty ``SSet`` to the empty ``Set``,
+(Agda does currently allow mapping from the empty ``Set`` to the empty ``SSet``,
 but this feature is `disputed <https://github.com/agda/agda/issues/5761#issuecomment-1154239427>`_.)
 
 If the ``--two-level`` flag is combined with ``--cumulativity``, then
@@ -108,6 +108,3 @@ we can instead define the coercion ``c`` to be the identity function::
   c' A = A
 
 and replace the coercions ``↑`` and ``↓`` with the identity function.
-However, this combination currently allows some functions to be
-defined that shouldn't be allowed; see `Agda issue #5761
-<https://github.com/agda/agda/issues/5761>`_ for details.
