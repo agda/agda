@@ -484,21 +484,19 @@ inside the record declaration
     x <$ fb = fmap (λ _ → x) fb
 
 Function definitions can be interleaved with fields, including definitions by
-pattern matching and definitions with ``where`` clauses. Each definition can use
-the preceding fields and declarations. For example:
+pattern matching and definitions with ``where`` clauses (since Agda 2.10).
+Each definition can use the preceding fields and declarations. For example:
 
-.. code-block:: agda
+::
 
-   open import Agda.Builtin.Bool
+  record RF : Set₁ where
+    field A : Set
 
-   record R : Set₁ where
-     field A : Set
+    F : Bool → Set
+    F true  = A
+    F false = A → A
 
-     F : Bool → Set
-     F true  = A
-     F false = A → A
-
-     field value : (b : Bool) → F b
+    field value : (b : Bool) → F b
 
 The constructor takes ``A`` and ``value`` as arguments. The helper ``F`` becomes
 a member of the record module, just like a definition after the last field.
@@ -508,7 +506,7 @@ projections. Declarations after the last field are checked in the completed
 record module.
 
 In generated HTML, declarations retain symbolic anchors based on their source
-names, such as ``R.F`` above. Internal modules used to check interleaved
+names, such as ``RF.F`` above. Internal modules used to check interleaved
 declarations do not contribute qualifiers to these anchors.
 
 A field cannot occur in an explicit or inferred mutual block
