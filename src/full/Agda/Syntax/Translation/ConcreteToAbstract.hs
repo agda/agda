@@ -160,7 +160,7 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
   -- Field values are local variables only while scoping canonical stages.
   -- Restore the original locals before checking the trailing public declarations.
   locals <- getLocalVars
-  (stages, body) <- withLocalVars $ stagesBeforeFields locals prefix
+  (stages, body) <- withLocalVars $ stagesBeforeFields 0 locals prefix
   trailing <- withCurrentModule recordModule $ catMaybes <$> toAbstract suffix
   return (stages, body ++ trailing)
   where
@@ -186,17 +186,18 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
     -- Scope each helper group and following field, returning canonical stages
     -- alongside the public module's applications and projections.
     stagesBeforeFields
-      :: LocalVars -- Locals before any record fields, for public projection scopes.
+      :: Int -- Number of preceding fields, including stages without helpers.
+      -> LocalVars -- Locals before any record fields, for public projection scopes.
       -> [C.NiceDeclaration] -- Unprocessed prefix ending with the record's last field.
       -> ScopeM ([A.RecordStage], [A.Declaration])
          -- Canonical stages and public copies/fields, both in source order.
-    stagesBeforeFields _ [] = return ([], [])
-    stagesBeforeFields locals ds = do
+    stagesBeforeFields _ _ [] = return ([], [])
+    stagesBeforeFields index locals ds = do
       -- Collect helpers before the next field and scope them in a fresh module.
       -- Its lexical parents retain earlier helpers; its locals retain the
       -- preceding field values that become parameters during type checking.
       let (before, rest) = break isField ds
-      stage <- freshRecordImplementationModule recordStageName
+      stage <- freshRecordImplementationModule recordStageName (Just index)
       createModule Nothing stage
       withCurrentModule stage $ do
         checked <- catMaybes <$> toAbstract before
@@ -205,7 +206,7 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
         -- checker to instantiate once the preceding projections exist. Copy now,
         -- before creating a child stage, to avoid exporting implementation modules.
         copied <- withCurrentModule recordModule $ do
-          target <- freshRecordImplementationModule "record-members"
+          target <- freshRecordImplementationModule "record-members" Nothing
           createModule Nothing target
           source <- getNamedScope stage
           (scope, copyInfo) <- copyRecordScope (C.QName $ C.simpleName recordStageName) target source
@@ -237,7 +238,7 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
             -- Only now recurse: both the helper scope and the field must be
             -- available while scoping the remaining declarations.
             bindVariable LambdaBound x $ qnameName y
-            (next, fields) <- stagesBeforeFields locals after
+            (next, fields) <- stagesBeforeFields (index + 1) locals after
             -- Pair this canonical helper module with its field binder, and put
             -- the public helper copy immediately before the public field.
             let st = A.RecordStage stage checked (A.BindName $ qnameName y)
@@ -249,13 +250,18 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
     -- copies retain the original source name along with the original binding site.
     freshRecordImplementationModule
       :: String -- Internal module-name stem; source provenance remains the record's.
+      -> Maybe Int -- Stage index for a canonical module; Nothing for a public copy.
       -> ScopeM A.ModuleName
-    freshRecordImplementationModule s = do
+    freshRecordImplementationModule s index = do
       q <- freshAbstractQName noFixity' (C.simpleName s)
       let r = mnameToQName recordModule
           source = fromMaybe (qnameToConcrete r) $ A.qnameSourceName r
       return $ qnameToMName q { qnameName = (qnameName q)
-        { A.nameSourceName = Just $ killRange source } }
+        { A.nameSourceName = Just $ killRange source
+        -- Only canonical stages get a diagnostic qualifier. Their lexical
+        -- parents and the public copies' source provenance stay unchanged.
+        , A.nameRecordStage = (r,) <$> index
+        } }
 
 checkModuleApplication
   :: C.ModuleApplication

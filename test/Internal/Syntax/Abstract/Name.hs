@@ -20,6 +20,7 @@ instance Arbitrary Name where
          <*> return noFixity'
          <*> return False
          <*> return Nothing
+         <*> return Nothing
 
 instance CoArbitrary Name where
   coarbitrary = coarbitrary . nameId

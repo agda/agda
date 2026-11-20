@@ -247,6 +247,7 @@ freshAbstractName fx x = do
     , nameFixity      = fx
     , nameIsRecordName = False
     , nameSourceName = Nothing
+    , nameRecordStage = Nothing
     }
 
 -- | @freshAbstractName_ = freshAbstractName noFixity'@
