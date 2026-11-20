@@ -44,6 +44,8 @@ tests = do
         issue5508 :
         issue4671 :
         issue2649 :
+        issue8311Defaults False :
+        issue8311Defaults True :
         nestedProjectRoots :
         []
     ]
@@ -244,6 +246,42 @@ issue2649 =
       _  <- runAgdaWithOptions "Issue2649-2" (agdaArgs "Issue2649-2.agda") Nothing Nothing
       runAgdaWithOptions "Issue2649"   (agdaArgs "Issue2649.agda")   Nothing Nothing
         >>= expectAgdaFailure
+
+-- | Use a standalone module so the test reaches the defaults file.
+issue8311Defaults :: Bool -> TestTree
+issue8311Defaults versioned =
+  goldenTest1 name (readTextFileMaybe goldenFile) doRun textDiff
+    ShowText (writeTextFile goldenFile)
+  where
+    name = if versioned then "Issue8311VersionedDefaults" else "Issue8311Defaults"
+    goldenFile = testDir </> "Issue8311" </> name <.> "err"
+    doRun = withSystemTempDirectory name $ \tmp -> do
+      dir <- canonicalizePath tmp
+      let config = dir </> "config"
+          input = "Standalone.agda"
+          vars = dir </> "test.vars"
+          defaults = config </> "defaults"
+      createDirectory config
+      writeTextFile (dir </> input) "module Standalone where\n"
+      writeTextFile vars $ T.pack $ "AGDA_DIR=" ++ config ++ "\n"
+      writeTextFile defaults "-- A comment\n\n  ., issue8311-absent -- trailing comment\n"
+      selected <- if versioned
+        then do
+          version <- expectAgdaSuccess =<<
+            runAgdaWithOptions name ["--numeric-version"] Nothing Nothing
+          -- The executable may append a Git hash, which is absent from the filename.
+          let selected = defaults ++ "-" ++ T.unpack (T.takeWhile (/= '-') $ T.strip version)
+          renameFile defaults selected
+          writeTextFile defaults "issue8311-fallback\n"
+          pure $ takeFileName selected
+        else pure "defaults"
+      output <- expectAgdaFailure =<< runAgdaWithCWD name (Just dir)
+        ["-v0", "--ignore-interfaces", input] Nothing (Just vars)
+      let slashify c = if c == '\\' then '/' else c
+          configPath = T.pack $ map slashify config
+          defaultsPath = T.pack $ if versioned then "defaults-VERSION" else "defaults"
+      pure $ T.replace ("AGDA_DIR/" <> T.pack selected) ("AGDA_DIR/" <> defaultsPath) $
+        T.replace configPath "AGDA_DIR" output
 
 nestedProjectRoots :: TestTree
 nestedProjectRoots =

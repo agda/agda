@@ -1,0 +1,2 @@
+--library-file=test/Fail/Issue8311/libraries
+--library=issue8311-installed

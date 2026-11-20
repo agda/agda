@@ -15,10 +15,11 @@ import Control.Monad.IO.Class      ( MonadIO(..) )
 import Data.Bifunctor              ( first , second )
 import Data.Char                   ( isDigit )
 import Data.Function               ( (&), on )
-import Data.Hashable               ( Hashable )
+import Data.Hashable               ( Hashable(..) )
 import qualified Data.List         as List
 import Data.Map                    ( Map )
 import qualified Data.Map          as Map
+import Data.Maybe                  ( maybeToList )
 import Data.Text                   ( Text, unpack )
 import qualified Data.Text         as T
 import Data.Tree                   ( Tree )
@@ -50,7 +51,16 @@ data LibName = LibName
       -- ^ Actual library name.
   , libNameVersion :: [Integer]
       -- ^ Major version, minor version, subminor version, etc., all non-negative.
-  } deriving (Eq, Show, Generic)
+  , libNameSource  :: Maybe (FilePath, LibFilePos)
+      -- ^ Where this name was requested, if it came from a configuration file.
+  } deriving (Show, Generic)
+
+-- | Source information does not affect library identity.
+instance Eq LibName where
+  (==) = (==) `on` libNameIdentity
+
+libNameIdentity :: LibName -> (Text, [Integer])
+libNameIdentity name = (libNameBase name, libNameVersion name)
 
 -- | In comparisons, a missing version number is assumed to be infinity.
 --   E.g. @foo > foo-2.2 > foo-2.0.1 > foo-2 > foo-1.0@.
@@ -58,17 +68,17 @@ instance Ord LibName where
   compare = compare `on` versionMeasure
     where
       versionMeasure :: LibName -> (Text, Bool, [Integer])
-      versionMeasure (LibName rx vs) = (rx, null vs, vs)
+      versionMeasure (LibName rx vs _) = (rx, null vs, vs)
 
 instance Pretty LibName where
   pretty = \case
-    LibName base [] -> pretty base
-    LibName base vs -> hcat [ pretty base, "-", text $ List.intercalate "." $ map show vs ]
+    LibName base [] _ -> pretty base
+    LibName base vs _ -> hcat [ pretty base, "-", text $ List.intercalate "." $ map show vs ]
 
 -- | Split a library name into basename and a list of version numbers.
 --
---   > parseLibName "foo-1.2.3"    == LibName "foo" [1, 2, 3]
---   > parseLibName "foo-01.002.3" == LibName "foo" [1, 2, 3]
+--   > parseLibName "foo-1.2.3"    == LibName "foo" [1, 2, 3] Nothing
+--   > parseLibName "foo-01.002.3" == LibName "foo" [1, 2, 3] Nothing
 --
 --   Note that because of leading zeros, @parseLibName@ is not injective.
 --   (@prettyShow . parseLibName@ would produce a normal form.)
@@ -76,12 +86,12 @@ parseLibName :: String -> LibName
 parseLibName s =
   case span (\ c -> isDigit c || c == '.') (reverse s) of
     (v, '-' : x) | valid vs ->
-      LibName (T.pack $ reverse x) $ reverse $ map (read . reverse) vs
+      LibName (T.pack $ reverse x) (reverse $ map (read . reverse) vs) Nothing
       where
         vs = chopWhen (== '.') v
         valid [] = False
         valid vs = not $ any null vs
-    _ -> LibName (T.pack s) []
+    _ -> LibName (T.pack s) [] Nothing
 
 data LibrariesFile = LibrariesFile
   { lfPath   :: FilePath
@@ -108,7 +118,7 @@ data ExecutablesFile = ExecutablesFile
 --   should count as a project root.
 --
 libNameForCurrentDir :: LibName
-libNameForCurrentDir = LibName "." []
+libNameForCurrentDir = LibName "." [] Nothing
 
 -- | A file can either belong to a project located at a given root
 --   containing an .agda-lib file, or be part of the default project.
@@ -165,9 +175,6 @@ data AgdaLibFile = AgdaLibFile
                                 --   located?
   , _libIncludes :: [FilePath]  -- ^ Roots where to look for the modules of the library.
   , _libDepends  :: [LibName]   -- ^ Dependencies.
-  , _libDependsPos :: Map LibName LibFilePos
-                                -- ^ Where the dependencies are mentioned
-                                --   in the @.agda-lib@ file (first mention).
   , _libPragmas  :: OptionsPragma
                                 -- ^ Default pragma options for all files in the library.
   }
@@ -180,7 +187,6 @@ emptyLibFile = AgdaLibFile
   , _libAbove    = 0
   , _libIncludes = []
   , _libDepends  = []
-  , _libDependsPos = Map.empty
   , _libPragmas  = mempty
   }
 
@@ -515,8 +521,11 @@ instance Pretty LibError' where
       ]
 
     LibNotFound file lib -> vcat $
-      [ hcat [ "Library '", pretty lib, "' not found." ]
-      , sep [ "Add the path to its .agda-lib file to"
+      [ hcat [ "Library '", pretty lib, "' not found." ] ] ++
+      [ "Referenced at" <+> hcat [ text path, colon, pretty pos ]
+      | (path, pos) <- maybeToList $ libNameSource lib
+      ] ++
+      [ sep [ "Add the path to its .agda-lib file to"
             , nest 2 $ text $ "'" ++ lfPath file ++ "'"
             , "to install."
             ]
@@ -608,15 +617,16 @@ instance Pretty LibDepNode where
 -- Hashable instances
 ------------------------------------------------------------------------
 
-instance Hashable LibName
+instance Hashable LibName where
+  hashWithSalt salt = hashWithSalt salt . libNameIdentity
 
 ------------------------------------------------------------------------
 -- Null instances
 ------------------------------------------------------------------------
 
 instance Null LibName where
-  empty = LibName empty empty
-  null (LibName a b) = null a && null b
+  empty = LibName empty empty Nothing
+  null (LibName a b _) = null a && null b
 
 instance Null LibCache where
   empty = LibCache empty empty

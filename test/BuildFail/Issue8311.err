@@ -1,0 +1,6 @@
+error: [LibraryError]
+Library 'issue8311-absent' not found.
+Referenced at ../BuildFail/Issue8311/Issue8311.agda-lib:4.3-19
+Add the path to its .agda-lib file to 'libraries' to install.
+Installed libraries:
+  (none)

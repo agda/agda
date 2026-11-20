@@ -2,11 +2,13 @@
 
 module Internal.Interaction.Library ( tests ) where
 
+import qualified Data.HashSet as HashSet
+import qualified Data.Map as Map
 import qualified Data.Text as T
 import Test.QuickCheck
 
 import Agda.Syntax.Common.Pretty     ( prettyShow )
-import Agda.Interaction.Library.Base ( LibName(LibName) )
+import Agda.Interaction.Library.Base ( LibName(..), LibFilePos(..) )
 import Agda.Interaction.Library
 import Agda.Utils.Functor
 
@@ -21,6 +23,7 @@ instance Arbitrary LibName where
   arbitrary = LibName
     <$> (T.pack . filter (/= '-') <$> arbitrary)
     <*> (map getNonNegative <$> arbitrary)
+    <*> pure Nothing
 
 ------------------------------------------------------------------------
 -- * Properties
@@ -29,13 +32,24 @@ instance Arbitrary LibName where
 -- Note: the @once@ trick is obsolete for the newest QuickCheck versions (e.g. 2.10.0.1).
 prop_parseLibName_example :: Property
 prop_parseLibName_example = once $ and
-  [ parseLibName "foo-1.2.3"    == LibName "foo" [1, 2, 3]
-  , parseLibName "foo-001.02.3" == LibName "foo" [1, 2, 3]
-  , parseLibName "bar"          == LibName "bar" []
+  [ parseLibName "foo-1.2.3"    == LibName "foo" [1, 2, 3] Nothing
+  , parseLibName "foo-001.02.3" == LibName "foo" [1, 2, 3] Nothing
+  , parseLibName "bar"          == LibName "bar" [] Nothing
   , parseLibName "alpha.beta.eta.zeta-20938847820938572093858730945873094857304985730495837203948203"
       == LibName "alpha.beta.eta.zeta"
                                    [ 20938847820938572093858730945873094857304985730495837203948203 ]
+                                   Nothing
   ]
+
+prop_libNameIdentity_ignores_source :: Property
+prop_libNameIdentity_ignores_source = once $ conjoin
+  [ fromDefaults === fromDependency
+  , Map.lookup fromDependency (Map.singleton fromDefaults ()) === Just ()
+  , property $ HashSet.member fromDependency $ HashSet.singleton fromDefaults
+  ]
+  where
+    fromDefaults = (parseLibName "foo-1.2"){ libNameSource = Just ("defaults", LibFilePos 1 1 8) }
+    fromDependency = (parseLibName "foo-01.02"){ libNameSource = Just ("foo.agda-lib", LibFilePos 3 9 18) }
 
 -- | Test that printing then parsing a library name is the identity.
 --

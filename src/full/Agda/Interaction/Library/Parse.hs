@@ -24,7 +24,7 @@
 --
 module Agda.Interaction.Library.Parse
   ( parseLibFile
-  , splitCommas
+  , parseDefaults
   , trimLineComment
   , runP
   ) where
@@ -34,8 +34,6 @@ import Control.Monad.Except
 import Control.Monad.Writer
 import Data.Char
 import qualified Data.List as List
-import Data.Map (Map)
-import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as T
 import System.FilePath
@@ -102,25 +100,15 @@ optionalField ::
 optionalField str p l = Field str True p (set l)
 
 -- | @.agda-lib@ file format with parsers and setters.
-agdaLibFields :: [Field]
-agdaLibFields =
+agdaLibFields :: FilePath -> [Field]
+agdaLibFields file =
   -- Andreas, 2017-08-23, issue #2708, field "name" is optional.
   [ optionalField "name"    (\_ -> parseName . map clText)                     libName
   , optionalField "include" (\_ -> pure . concatMap (parsePaths . clText))   libIncludes
-  , Field "depend" True     (\_ -> pure . parseDepends)
-      (\ (ds, pos) l -> l{ _libDepends = ds, _libDependsPos = pos })
+  , optionalField "depend" (\_ -> pure . concatMap (parseLibNames file))    libDepends
   , optionalField "flags"   (\r -> pure . foldMap (parseFlags r . clText)) libPragmas
   ]
   where
-    -- Remember where the dependencies are mentioned (issue #8875).
-    parseDepends :: [ContentLine] -> ([LibName], Map LibName LibFilePos)
-    parseDepends cls = (map fst ds, Map.fromListWith (\ _new old -> old) ds)
-      where
-        ds = [ (parseLibName w, LibFilePos l c (c + length w))
-             | ContentLine l c0 s <- cls
-             , (c, w) <- splitCommasPos c0 s
-             ]
-
     parseName :: [String] -> P LibName
     parseName [s] | [name] <- words s = pure $ parseLibName name
     parseName ls = throwError $ BadLibraryName $ unwords ls
@@ -168,7 +156,7 @@ fromGeneric
      -- ^ The parsed file.
   -> GenericFile
   -> P AgdaLibFile
-fromGeneric file = fromGeneric' file agdaLibFields
+fromGeneric file = fromGeneric' file (agdaLibFields $ filePath file)
 
 -- | Given a list of 'Field' descriptors (with their custom parsers),
 --   parse a 'GenericFile' into the 'AgdaLibFile' structure.
@@ -300,9 +288,19 @@ groupLines (Header _ h : ls) = (GenericEntry h [ c | Content c <- cs ] :) <$> gr
 trimLineComment :: String -> String
 trimLineComment = stripComments . ltrim
 
--- | Break a comma-separated string.  Result strings are @trim@med.
-splitCommas :: String -> [String]
-splitCommas = map snd . splitCommasPos 1
+-- | Parse the requested library names from the selected defaults file.
+parseDefaults :: FilePath -> String -> [LibName]
+parseDefaults file s = concat
+  [ parseLibNames file $ ContentLine l 1 $ stripComments line
+  | (l, line) <- zip [1..] $ lines s
+  ]
+
+-- | Parse the library names on one line, recording each token's position.
+parseLibNames :: FilePath -> ContentLine -> [LibName]
+parseLibNames file (ContentLine l c0 s) =
+  [ (parseLibName w){ libNameSource = Just (file, LibFilePos l c (c + length w)) }
+  | (c, w) <- splitCommasPos c0 s
+  ]
 
 -- | Break a comma-separated string starting at the given column.
 --   Result strings are @trim@med and come with their starting column.
