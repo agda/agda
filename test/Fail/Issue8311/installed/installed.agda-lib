@@ -1,0 +1,2 @@
+name: issue8311-installed
+depend: issue8311-absent

@@ -1,0 +1,6 @@
+error: [LibraryError]
+Library 'issue8311-absent' not found.
+Referenced at AGDA_DIR/defaults-VERSION:3.6-22
+Add the path to its .agda-lib file to 'AGDA_DIR/libraries' to install.
+Installed libraries:
+  (none)

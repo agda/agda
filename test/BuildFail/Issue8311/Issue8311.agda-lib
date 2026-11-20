@@ -1,0 +1,5 @@
+name: issue8311-project
+include: .
+depend:
+  issue8311-absent
+  issue8311-absent

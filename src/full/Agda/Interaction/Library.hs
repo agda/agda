@@ -372,9 +372,7 @@ readDefaultsFile = do
     files <- liftIO $ filterM doesFileExist (List1.toList defaults)
     case files of
       []       -> return []
-      file : _ -> do
-        ls <- liftIO $ map snd . stripCommentLines <$> UTF8.readFile file
-        return $ map parseLibName $ concatMap splitCommas ls
+      file : _ -> liftIO $ parseDefaults file <$> UTF8.readFile file
   `catchIO` \ e -> do
     raiseErrors' [ ReadError e "Failed to read defaults file." ]
     return []
@@ -688,7 +686,9 @@ libraryVersionConflicts' root roots resolved =
     -- Where the first of the given dependencies is mentioned in the given library file.
     firstDepPos :: AgdaLibFile -> [LibDepTree] -> Maybe LibFilePos
     firstDepPos l = \case
-      Node n _ : _ -> Map.lookup (depLabel n) $ Map.mapKeys label $ _libDependsPos l
+      Node n _ : _ -> do
+        dep <- List.find ((== depLabel n) . label) $ _libDepends l
+        snd <$> libNameSource dep
       [] -> Nothing
 
     libOf :: Map T.Text AgdaLibFile
@@ -731,4 +731,4 @@ findLib' libName x libs =
 -- | @x `hasMatch` y@ if @x@ and @y@ have the same base and
 --   either @x@ has no version qualifier or the versions also match.
 hasMatch :: LibName -> LibName -> Bool
-hasMatch (LibName rx vx) (LibName ry vy) = rx == ry && (vx == vy || null vx)
+hasMatch (LibName rx vx _) (LibName ry vy _) = rx == ry && (vx == vy || null vx)
