@@ -393,13 +393,14 @@ getLibrariesFile
   -> m LibrariesFile
 getLibrariesFile (Just overrideLibFile) = do
   -- A user-specified override file must exist.
-  ifM (liftIO $ doesFileExist overrideLibFile)
-    {-then-} (return $ LibrariesFile overrideLibFile True)
+  path <- liftIO $ makeAbsolute overrideLibFile
+  ifM (liftIO $ doesFileExist path)
+    {-then-} (return $ LibrariesFile (mkAbsolute path) True)
     {-else-} (throwError overrideLibFile)
 getLibrariesFile Nothing = do
-  agdaDir <- liftIO $ getAgdaAppDir
-  let defaults = List1.map (agdaDir </>) defaultLibraryFiles -- NB: very short list
-  files <- liftIO $ filterM doesFileExist (List1.toList defaults)
+  agdaDir <- liftIO $ makeAbsolute =<< getAgdaAppDir
+  let defaults = List1.map (mkAbsolute . (agdaDir </>)) defaultLibraryFiles  -- NB: very short list
+  files <- liftIO $ filterM (doesFileExist . filePath) (List1.toList defaults)
   case files of
     file : _ -> return $ LibrariesFile file True
     []       -> return $ LibrariesFile (List1.last defaults) False -- doesn't exist, but that's ok
@@ -419,9 +420,10 @@ getInstalledLibraries overrideLibFile = mkLibM [] $ do
         return []
       Right file -> do
         if not (lfExists file) then return [] else do
-          ls    <- liftIO $ stripCommentLines <$> UTF8.readFile (lfPath file)
+          let path = filePath (lfPath file)
+          ls    <- liftIO $ stripCommentLines <$> UTF8.readFile path
           files <- liftIO $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
-          parseLibFiles (Just file) $ nubOn snd files
+          parseLibFiles (Just $ fromMaybe path overrideLibFile) $ nubOn snd files
   `catchIO` \ e -> do
     raiseErrors' [ ReadError e "Failed to read installed libraries." ]
     return []
@@ -429,7 +431,7 @@ getInstalledLibraries overrideLibFile = mkLibM [] $ do
 -- | Parse the given library files.
 --
 parseLibFiles
-  :: Maybe LibrariesFile       -- ^ Name of @libraries@ file for error reporting.
+  :: Maybe FilePath            -- ^ Name of @libraries@ file for error reporting.
   -> [(LineNumber, FilePath)]  -- ^ Library files paired with their line number in @libraries@.
   -> LibErrorIO [AgdaLibFile]  -- ^ Content of library files.  (Might have empty @LibName@s.)
 parseLibFiles mlibFile files = do
@@ -439,7 +441,7 @@ parseLibFiles mlibFile files = do
       Just lib -> return (Right lib, [])
       Nothing  -> do
         (e, ws) <- liftIO $ runP <$> parseLibFile file
-        let pos = LibPositionInfo (lfPath <$> mlibFile) ln file
+        let pos = LibPositionInfo mlibFile ln file
             ws' = map (LibWarning (Just pos)) ws
         case e of
           Left err -> do
@@ -544,9 +546,7 @@ libraryIncludePaths overrideLibFile root libs xs0 = mkLibM libs $ do
         raiseErrors' [ LibrariesFileNotFound theOverrideLibFile ]
         return []
       Right file -> do
-        -- The Emacs information buffer recognizes absolute file locations.
-        path <- liftIO $ makeAbsolute (lfPath file)
-        (ls, resolved) <- embedWriter $ find file{ lfPath = path } Map.empty xs
+        (ls, resolved) <- embedWriter $ find file Map.empty xs
         ws <- liftIO $ libraryVersionConflicts root xs $ Map.mapMaybe id resolved
         List1.unlessNull ws warnings'
         return $ dot ++ incs ls

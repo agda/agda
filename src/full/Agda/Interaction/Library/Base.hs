@@ -34,7 +34,7 @@ import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete.Glyph  ( treeGlyphs )
 import Agda.Syntax.Position
 
-import Agda.Utils.FileName         ( mkAbsolute )
+import Agda.Utils.FileName         ( AbsolutePath )
 import Agda.Utils.IO               ( showIOException )
 import Agda.Utils.Lens
 import Agda.Utils.List             ( chopWhen )
@@ -95,7 +95,7 @@ parseLibName s =
     _ -> LibName (T.pack s) [] Nothing
 
 data LibrariesFile = LibrariesFile
-  { lfPath   :: FilePath
+  { lfPath   :: AbsolutePath
       -- ^ E.g. @~/.agda/libraries@.
   , lfExists :: Bool
        -- ^ The libraries file might not exist,
@@ -527,7 +527,7 @@ instance Pretty LibError' where
       | (path, pos) <- maybeToList $ libNameSource lib
       ] ++
       [ sep [ "Add the path to its .agda-lib file to"
-            , nest 2 $ pretty (beginningOfFile (mkAbsolute (lfPath file)))
+            , nest 2 $ pretty (beginningOfFile (lfPath file))
             , "to install."
             ]
       ]
