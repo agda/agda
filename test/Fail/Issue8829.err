@@ -1,0 +1,12 @@
+Issue8829.agda:27.1-31.38: error: [TerminationIssue]
+Termination checking failed for the following function:
+  loop
+Problematic calls:
+  aux (f zero)
+    (at Issue8829.agda:28.12-15)
+  loop j (shift j f)
+    (at Issue8829.agda:31.20-24)
+Note: matching a size against a successor does not provide
+termination evidence if the type of the function is not upper
+semi-continuous in the size:
+  aux: argument type T i is not lower semi-continuous in i

@@ -1,0 +1,10 @@
+Issue8829Musical.agda:30.1-32.43: error: [TerminationIssue]
+Termination checking failed for the following function:
+  conat
+Problematic calls:
+  conat (idNat n) (cast x)
+    (at Issue8829Musical.agda:32.19-24)
+Note: matching a size against a successor does not provide
+termination evidence if the type of the function is not upper
+semi-continuous in the size:
+  conat: argument type CoNat i is not lower semi-continuous in i

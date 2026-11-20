@@ -1,0 +1,10 @@
+Issue1209-3b.agda:22.1-23.26: error: [TerminationIssue]
+Termination checking failed for the following function:
+  iter
+Problematic calls:
+  iter (♭ t)
+    (at Issue1209-3b.agda:23.16-20)
+Note: matching a size against a successor does not provide
+termination evidence if the type of the function is not upper
+semi-continuous in the size:
+  iter: argument type Mu-co i is not lower semi-continuous in i

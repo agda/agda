@@ -123,6 +123,7 @@ prettyWarning = \case
             let
               fs = concatMap termErrFunctions because
               calls = concatMap termErrCalls because
+              inadms = concatMap termErrInadmissibleSizes because
             vcat
               [ fsep $ pwords "Termination checking failed for the following" ++ [ pluralS fs "function" <> colon ]
               , fwords hint
@@ -130,6 +131,7 @@ prettyWarning = \case
               , fsep [ "Problematic", pluralS calls "call" <> colon ]
               , nest 2 $ fmap (P.vcat . List.nub) $
                   mapM prettyTCM $ List.sortOn getRange calls
+              , prettyInadmissibleSizes dropTopLevel inadms
               ]
       -- Andreas, 2025-04-01, issue #6657
       -- Hint towards --guardedness where appropriate, but not when --sized-types is on.
@@ -834,6 +836,25 @@ instance PrettyTCM SerialisableRewriteSource where
     GlobalRewrite q    -> prettyTCM q
 
 {-# SPECIALIZE prettyRecordFieldWarning :: RecordFieldWarning -> TCM Doc #-}
+-- | Explain why successor patterns in size arguments were not used
+--   as termination evidence (issue #8829).
+prettyInadmissibleSizes :: MonadPretty m => (QName -> QName) -> [InadmissibleSize] -> m Doc
+prettyInadmissibleSizes _ [] = empty
+prettyInadmissibleSizes dropTopLevel inadms = vcat
+  [ fsep $ pwords "Note: matching a size against a successor" ++
+      pwords "does not provide termination evidence" ++
+      pwords "if the type of the function is not upper semi-continuous in the size:"
+  , nest 2 $ vcat $ map pr inadms
+  ]
+  where
+  pr (InadmissibleSize f cl) = enterClosure cl \case
+    NotLowerSemiContinuous i a -> fsep $
+      [ prettyTCM (dropTopLevel f) <> colon ] ++ pwords "argument type" ++ [ withShowAllArguments $ prettyTCM a ] ++
+      pwords "is not lower semi-continuous in" ++ [ prettyTCM i ]
+    NotUpperSemiContinuous i a -> fsep $
+      [ prettyTCM (dropTopLevel f) <> colon ] ++ pwords "result type" ++ [ withShowAllArguments $ prettyTCM a ] ++
+      pwords "is not upper semi-continuous in" ++ [ prettyTCM i ]
+
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
 prettyRecordFieldWarning = \case
   W.DuplicateFields xrs    -> prettyDuplicateFields    $ fmap fst xrs

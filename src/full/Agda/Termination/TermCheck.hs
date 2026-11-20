@@ -44,6 +44,7 @@ import Agda.Termination.CallMatrix hiding (toList)
 import Agda.Termination.Order     as Order
 import Agda.Termination.SparseMatrix qualified as Matrix
 import Agda.Termination.Termination (Terminates(..), GuardednessHelps(..), idempotentEndos, terminatesFilter, terminationCounterexample)
+import Agda.Termination.SizedTypes
 import Agda.Termination.RecCheck
 
 import Agda.TypeChecking.Datatypes
@@ -217,6 +218,8 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
            }
      -- Pre-compute the copattern projection lists and assign node ids, per issue #8596.
      (projectedNameToNode, nodeToName, nameToProjections, projectedNameToMaskArgs) <- buildNodeAndProjectionMaps allNames
+     -- Pre-compute the admissibility of successor patterns in sizes, per issue #8829.
+     sizeSucVerdicts <- buildSizeSucVerdicts allNames
      let runTerm cont = runTerDefault $ do
            cutoff <- terGetCutOff
            reportSLn "term.top" 10 $ "Termination checking " ++ prettyShow namesSCC ++
@@ -225,6 +228,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
              terSetNodeToName nodeToName $
              terSetNameToProjections nameToProjections $
              terSetProjectedNameToMaskArgs projectedNameToMaskArgs $
+             terSetSizeSucVerdicts sizeSucVerdicts $
              terLocal setNames cont
 
      -- New check currently only makes a difference for copatterns and record types.
@@ -299,7 +303,8 @@ termMutual' = do
 
     TerminatesNot guardednessHelps calls -> do
       mapM_ (`setTerminates` Just False) allNames
-      return $ singleton $ terminationError names calls guardednessHelps
+      inadms <- terGetInadmissibleSizes
+      return $ singleton $ terminationError names calls guardednessHelps inadms
 
     Terminates -> do
       liftTCM $ reportSLn "term.warn.yes" 2 $
@@ -309,8 +314,8 @@ termMutual' = do
 
 -- | Smart constructor for 'TerminationError'.
 --   Removes 'termErrFunctions' that are not mentioned in 'termErrCalls'.
-terminationError :: Set QName -> CallPath -> GuardednessHelps -> TerminationError
-terminationError names calls guardednessHelps = TerminationError names' calls' guardednessHelps
+terminationError :: Set QName -> CallPath -> GuardednessHelps -> [InadmissibleSize] -> TerminationError
+terminationError names calls guardednessHelps inadms = TerminationError names' calls' guardednessHelps inadms
   where
   calls'    = callInfos calls
   mentioned = map' callInfoTarget calls'
@@ -448,7 +453,8 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
 
           -- Functions must terminate, so we report the error.
           _ -> do
-            let err = TerminationError [name | name `elem` names] calls guardednessHelps
+            inadms <- terGetInadmissibleSizes
+            let err = TerminationError [name | name `elem` names] calls guardednessHelps inadms
             return $ singleton err
 
       Terminates -> do
@@ -648,7 +654,7 @@ class TermToPattern a b where
 
 instance TermToPattern Term DeBruijnPattern where
   termToPattern t = do
-    t <- constructorForm =<< reduce t
+    t <- reduceDotPatternTerm t
     let
       -- Andrea: 22/04/2020.
       -- With cubical we will always have a clause where the dot
@@ -739,10 +745,10 @@ termClause clause = do
     , nest 2 $ "tel =" <+> prettyTCM tel
     , nest 2 $ "ps  =" <+> do addContext tel $ prettyTCMPatternList ps
     ]
+  f    <- terGetCurrent
+  path <- liftTCM $ mapM getOriginalProjection $
+            mapMaybe (fmap (headAmbQ . snd) . isProjP . namedArg) ps
   maskArgs <- do
-    f    <- terGetCurrent
-    path <- liftTCM $ mapM getOriginalProjection $
-              mapMaybe (fmap (headAmbQ . snd) . isProjP . namedArg) ps
     modeMasks <- terGetProjectedNameToMaskArgs
     case Map.lookup (f, path) modeMasks of
       Just m  -> return m
@@ -750,7 +756,10 @@ termClause clause = do
   terSetMaskArgs maskArgs $ forM' body $ \ v -> addContext tel $ do
     -- TODO: combine the following two traversals, avoid full normalisation.
     -- Parse dot patterns as patterns as far as possible.
+    let ps0 = ps
     ps <- postTraversePatternM parseDotP ps
+    -- Issue #8829: successor patterns in sizes only count if the type is admissible.
+    ps <- revertInadmissibleSizeSuc f path ps0 ps
     -- Blank out coconstructors.
     ps <- preTraversePatternM stripCoCon ps
     -- Mask non-data arguments.
@@ -1233,21 +1242,6 @@ instance ExtractCalls Level where
 
 instance ExtractCalls PlusLevel where
   extract (Plus n l) = extract l
-
--- | Rewrite type @tel -> Size< u@ to @tel -> Size@.
-maskSizeLt :: MonadTCM tcm => Dom Type -> tcm (Dom Type)
-maskSizeLt !dom = liftTCM $ do
-  let a = unDom dom
-  (msize, msizelt) <- getBuiltinSize
-  case (msize, msizelt) of
-    (_ , Nothing) -> return dom
-    (Nothing, _)  -> __IMPOSSIBLE__
-    (Just size, Just sizelt) -> do
-      TelV tel c <- telView a
-      case a of
-        El s (Def d [v]) | d == sizelt -> return $
-          abstract tel (El s $ Def size []) <$ dom
-        _ -> return dom
 
 {- | @compareArgs es@
 
