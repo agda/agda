@@ -1,0 +1,806 @@
+diff --git a/Class/Allable.agda b/Class/Allable.agda
+index 9ecef53..ab363b4 100644
+--- a/Class/Allable.agda
++++ b/Class/Allable.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Allable where
+ 
+ open import Class.Allable.Core public
+diff --git a/Class/Allable/Core.agda b/Class/Allable/Core.agda
+index 3af6517..9b8ab6a 100644
+--- a/Class/Allable/Core.agda
++++ b/Class/Allable/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Allable.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/Allable/Instances.agda b/Class/Allable/Instances.agda
+index 0bc9fc6..a6d2db7 100644
+--- a/Class/Allable/Instances.agda
++++ b/Class/Allable/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Allable.Instances where
+ 
+ open import Class.Prelude
+diff --git a/Class/Anyable.agda b/Class/Anyable.agda
+index f02f396..018c059 100644
+--- a/Class/Anyable.agda
++++ b/Class/Anyable.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Anyable where
+ 
+ open import Class.Anyable.Core public
+diff --git a/Class/Anyable/Core.agda b/Class/Anyable/Core.agda
+index 68a0f42..44f88f7 100644
+--- a/Class/Anyable/Core.agda
++++ b/Class/Anyable/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Anyable.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/Anyable/Instances.agda b/Class/Anyable/Instances.agda
+index 3a6d085..3853a6c 100644
+--- a/Class/Anyable/Instances.agda
++++ b/Class/Anyable/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Anyable.Instances where
+ 
+ open import Class.Prelude
+diff --git a/Class/Applicative.agda b/Class/Applicative.agda
+index e332e7d..3bd82a5 100644
+--- a/Class/Applicative.agda
++++ b/Class/Applicative.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Applicative where
+ 
+ open import Class.Applicative.Core public
+diff --git a/Class/Applicative/Core.agda b/Class/Applicative/Core.agda
+index 93649ef..0fcbcbe 100644
+--- a/Class/Applicative/Core.agda
++++ b/Class/Applicative/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Applicative.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/Applicative/Instances.agda b/Class/Applicative/Instances.agda
+index c5292ff..29e6854 100644
+--- a/Class/Applicative/Instances.agda
++++ b/Class/Applicative/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Applicative.Instances where
+ 
+ open import Class.Prelude
+diff --git a/Class/Bifunctor.agda b/Class/Bifunctor.agda
+index f800b3f..4de545c 100644
+--- a/Class/Bifunctor.agda
++++ b/Class/Bifunctor.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Bifunctor where
+ 
+ open import Class.Prelude hiding (A; B; C)
+diff --git a/Class/Coercions.agda b/Class/Coercions.agda
+index 7ed386a..8a2f188 100644
+--- a/Class/Coercions.agda
++++ b/Class/Coercions.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Coercions where
+ 
+ open import Class.Prelude
+diff --git a/Class/CommutativeMonoid.agda b/Class/CommutativeMonoid.agda
+index 75bc94d..ffbaa91 100644
+--- a/Class/CommutativeMonoid.agda
++++ b/Class/CommutativeMonoid.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.CommutativeMonoid where
+ 
+ open import Class.CommutativeMonoid.Core public
+diff --git a/Class/CommutativeMonoid/Core.agda b/Class/CommutativeMonoid/Core.agda
+index 65f7941..86c6f77 100644
+--- a/Class/CommutativeMonoid/Core.agda
++++ b/Class/CommutativeMonoid/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.CommutativeMonoid.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/CommutativeMonoid/Instances.agda b/Class/CommutativeMonoid/Instances.agda
+index b63d1d2..6862983 100644
+--- a/Class/CommutativeMonoid/Instances.agda
++++ b/Class/CommutativeMonoid/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ 
+ module Class.CommutativeMonoid.Instances where
+ 
+diff --git a/Class/Core.agda b/Class/Core.agda
+index fe5b91f..06a5c23 100644
+--- a/Class/Core.agda
++++ b/Class/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/DecEq/Core.agda b/Class/DecEq/Core.agda
+index 163b712..3971b8d 100644
+--- a/Class/DecEq/Core.agda
++++ b/Class/DecEq/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.DecEq.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/DecEq/Instances.agda b/Class/DecEq/Instances.agda
+index 287f119..06bb45c 100644
+--- a/Class/DecEq/Instances.agda
++++ b/Class/DecEq/Instances.agda
+@@ -7,16 +7,16 @@ open import Class.DecEq.Core
+ -- ** basic types
+ instance
+   DecEq-⊥      = DecEq ⊥ ∋ λ where ._≟_ ()
+-  DecEq-⊤      = DecEq _ ∋ record {M} where import Data.Unit as M
+-  DecEq-Bool   = DecEq _ ∋ record {M} where import Data.Bool as M
+-  DecEq-ℕ      = DecEq _ ∋ record {M} where import Data.Nat as M
+-  DecEq-ℤ      = DecEq _ ∋ record {M} where import Data.Integer as M
+-  DecEq-ℚ      = DecEq _ ∋ record {M} where import Data.Rational.Properties as M
+-  DecEq-Char   = DecEq _ ∋ record {M} where import Data.Char as M
+-  DecEq-String = DecEq _ ∋ record {M} where import Data.String as M
++  DecEq-⊤      = DecEq _ ∋ record {_≟_ = M._≡?_} where import Data.Unit as M
++  DecEq-Bool   = DecEq _ ∋ record {_≟_ = M._≡?_} where import Data.Bool as M
++  DecEq-ℕ      = DecEq _ ∋ record {_≟_ = M._≡?_} where import Data.Nat as M
++  DecEq-ℤ      = DecEq _ ∋ record {_≟_ = M._≡?_} where import Data.Integer as M
++  DecEq-ℚ      = DecEq _ ∋ record {_≟_ = M._≡?_} where import Data.Rational.Properties as M
++  DecEq-Char   = DecEq _ ∋ record {_≟_ = M._≡?_} where import Data.Char as M
++  DecEq-String = DecEq _ ∋ record {_≟_ = M._≡?_} where import Data.String as M
+ 
+   DecEq-Fin : DecEq¹ Fin
+-  DecEq-Fin = record {M} where import Data.Fin as M
++  DecEq-Fin = record {_≟_ = M._≡?_} where import Data.Fin as M
+ 
+   DecEq-List : ⦃ DecEq A ⦄ → DecEq (List A)
+   DecEq-List ._≟_ = M.≡-dec _≟_ where import Data.List.Properties as M
+@@ -69,15 +69,15 @@ module _ ⦃ _ : DecEq A ⦄ ⦃ _ : DecEq B ⦄ where
+ 
+ -- ** reflection
+ instance
+-  DecEq-Name = DecEq _ ∋ record {M} where import Reflection.AST.Name as M
+-  DecEq-Lit  = DecEq _ ∋ record {M} where import Reflection.AST.Literal as M
+-  DecEq-Meta = DecEq _ ∋ record {M} where import Reflection.AST.Meta as M
+-  DecEq-Term = DecEq _ ∋ record {M} where import Reflection.AST.Term as M
+-  DecEq-Mod  = DecEq _ ∋ record {M}
++  DecEq-Name = DecEq _ ∋ record {_≟_ = M._≡?_} where import Reflection.AST.Name as M
++  DecEq-Lit  = DecEq _ ∋ record {_≟_ = M._≡?_} where import Reflection.AST.Literal as M
++  DecEq-Meta = DecEq _ ∋ record {_≟_ = M._≡?_} where import Reflection.AST.Meta as M
++  DecEq-Term = DecEq _ ∋ record {_≟_ = M._≡?_} where import Reflection.AST.Term as M
++  DecEq-Mod  = DecEq _ ∋ record {_≟_ = M._≡?_}
+     where import Reflection.AST.Argument.Modality as M
+-  DecEq-Vis  = DecEq _ ∋ record {M}
++  DecEq-Vis  = DecEq _ ∋ record {_≟_ = M._≡?_}
+     where import Reflection.AST.Argument.Visibility as M
+-  DecEq-ArgI = DecEq _ ∋ record {M}
++  DecEq-ArgI = DecEq _ ∋ record {_≟_ = M._≡?_}
+     where import Reflection.AST.Argument.Information as M
+ 
+   -- put this last to work around Agda issue #6976
+diff --git a/Class/Decidable/Core.agda b/Class/Decidable/Core.agda
+index 6ae7553..866ea61 100644
+--- a/Class/Decidable/Core.agda
++++ b/Class/Decidable/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Decidable.Core where
+ 
+ open import Relation.Nullary.Decidable using (True; False; toWitness; toWitnessFalse)
+diff --git a/Class/Decidable/Instances.agda b/Class/Decidable/Instances.agda
+index 207e621..87c8eaa 100644
+--- a/Class/Decidable/Instances.agda
++++ b/Class/Decidable/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Decidable.Instances where
+ 
+ open import Class.Prelude
+diff --git a/Class/Default.agda b/Class/Default.agda
+index 34b94fd..94d1a44 100644
+--- a/Class/Default.agda
++++ b/Class/Default.agda
+@@ -2,7 +2,7 @@
+ -- Types with a default value.
+ ------------------------------------------------------------------------
+ 
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Default where
+ 
+ open import Class.Default.Core public
+diff --git a/Class/Default/Core.agda b/Class/Default/Core.agda
+index 0702abc..d36c98a 100644
+--- a/Class/Default/Core.agda
++++ b/Class/Default/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Default.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/Default/Instances.agda b/Class/Default/Instances.agda
+index cf0e171..f06b19b 100644
+--- a/Class/Default/Instances.agda
++++ b/Class/Default/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Default.Instances where
+ 
+ open import Class.Prelude
+diff --git a/Class/Foldable.agda b/Class/Foldable.agda
+index bde578e..6e138b4 100644
+--- a/Class/Foldable.agda
++++ b/Class/Foldable.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Foldable where
+ 
+ open import Class.Foldable.Core public
+diff --git a/Class/Foldable/Core.agda b/Class/Foldable/Core.agda
+index a3e24ee..4c2f36d 100644
+--- a/Class/Foldable/Core.agda
++++ b/Class/Foldable/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Foldable.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/Foldable/Instances.agda b/Class/Foldable/Instances.agda
+index 5bee485..22ec4d8 100644
+--- a/Class/Foldable/Instances.agda
++++ b/Class/Foldable/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Foldable.Instances where
+ 
+ open import Class.Prelude
+diff --git a/Class/FromList.agda b/Class/FromList.agda
+index b66988e..893a887 100644
+--- a/Class/FromList.agda
++++ b/Class/FromList.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.FromList where
+ 
+ open import Class.Prelude
+diff --git a/Class/FromN.agda b/Class/FromN.agda
+index 6340259..d6491df 100644
+--- a/Class/FromN.agda
++++ b/Class/FromN.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.FromN where
+ 
+ open import Class.Prelude
+diff --git a/Class/Functor.agda b/Class/Functor.agda
+index 11204ed..7efb5c9 100644
+--- a/Class/Functor.agda
++++ b/Class/Functor.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Functor where
+ 
+ open import Class.Functor.Core public
+diff --git a/Class/Functor/Core.agda b/Class/Functor/Core.agda
+index 61a9579..2b3510b 100644
+--- a/Class/Functor/Core.agda
++++ b/Class/Functor/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Functor.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/Functor/Instances.agda b/Class/Functor/Instances.agda
+index b91d2af..7ca9303 100644
+--- a/Class/Functor/Instances.agda
++++ b/Class/Functor/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Functor.Instances where
+ 
+ open import Class.Prelude
+diff --git a/Class/Group.agda b/Class/Group.agda
+index 8437c5d..0a84e3d 100644
+--- a/Class/Group.agda
++++ b/Class/Group.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Group where
+ 
+ open import Class.Prelude
+diff --git a/Class/HasAdd.agda b/Class/HasAdd.agda
+index 1ca0f16..84cdc5f 100644
+--- a/Class/HasAdd.agda
++++ b/Class/HasAdd.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.HasAdd where
+ 
+ open import Class.HasAdd.Core public
+diff --git a/Class/HasAdd/Core.agda b/Class/HasAdd/Core.agda
+index 6e55bc3..e72b865 100644
+--- a/Class/HasAdd/Core.agda
++++ b/Class/HasAdd/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.HasAdd.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/HasAdd/Instances.agda b/Class/HasAdd/Instances.agda
+index cc9a81b..71317c1 100644
+--- a/Class/HasAdd/Instances.agda
++++ b/Class/HasAdd/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.HasAdd.Instances where
+ 
+ open import Class.Prelude
+diff --git a/Class/HasMembership.agda b/Class/HasMembership.agda
+index 61df8c8..65cd4c2 100644
+--- a/Class/HasMembership.agda
++++ b/Class/HasMembership.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.HasMembership where
+ 
+ open import Class.HasMembership.Core public
+diff --git a/Class/HasMembership/Core.agda b/Class/HasMembership/Core.agda
+index 388c5c3..ff8279b 100644
+--- a/Class/HasMembership/Core.agda
++++ b/Class/HasMembership/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.HasMembership.Core where
+ 
+ open import Relation.Nullary.Decidable using (¬?)
+diff --git a/Class/HasMembership/Instances.agda b/Class/HasMembership/Instances.agda
+index 4066ed8..4cda2d6 100644
+--- a/Class/HasMembership/Instances.agda
++++ b/Class/HasMembership/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.HasMembership.Instances where
+ 
+ open import Class.Prelude
+diff --git a/Class/HasMembership/MapWith.agda b/Class/HasMembership/MapWith.agda
+index c4063a0..5692682 100644
+--- a/Class/HasMembership/MapWith.agda
++++ b/Class/HasMembership/MapWith.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.HasMembership.MapWith where
+ 
+ open import Class.Prelude
+diff --git a/Class/Monad.agda b/Class/Monad.agda
+index 9e896d1..9d0c0ae 100644
+--- a/Class/Monad.agda
++++ b/Class/Monad.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Monad where
+ 
+ open import Class.Monad.Core public
+diff --git a/Class/Monad/Core.agda b/Class/Monad/Core.agda
+index bf95d4b..471931b 100644
+--- a/Class/Monad/Core.agda
++++ b/Class/Monad/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Monad.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/Monad/Id.agda b/Class/Monad/Id.agda
+index ba272f6..25774b1 100644
+--- a/Class/Monad/Id.agda
++++ b/Class/Monad/Id.agda
+@@ -2,7 +2,7 @@
+ -- Provides us with forward composition as _>=>_,
+ -- but might break instance-resolution/typeclass-inference
+ 
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Monad.Id where
+ 
+ open import Class.Prelude
+diff --git a/Class/Monad/Instances.agda b/Class/Monad/Instances.agda
+index ef9cc21..b165320 100644
+--- a/Class/Monad/Instances.agda
++++ b/Class/Monad/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Monad.Instances where
+ 
+ open import Class.Prelude
+diff --git a/Class/Monoid.agda b/Class/Monoid.agda
+index 3d4cdc5..620ded4 100644
+--- a/Class/Monoid.agda
++++ b/Class/Monoid.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Monoid where
+ 
+ open import Class.Monoid.Core public
+diff --git a/Class/Monoid/Core.agda b/Class/Monoid/Core.agda
+index 9f83756..0f966ad 100644
+--- a/Class/Monoid/Core.agda
++++ b/Class/Monoid/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Monoid.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/Monoid/Instances.agda b/Class/Monoid/Instances.agda
+index 7e28d84..0b2cf97 100644
+--- a/Class/Monoid/Instances.agda
++++ b/Class/Monoid/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Monoid.Instances where
+ 
+ open import Class.Prelude
+diff --git a/Class/Null.agda b/Class/Null.agda
+index dc97046..4f0aa84 100644
+--- a/Class/Null.agda
++++ b/Class/Null.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Null where
+ 
+ open import Class.Prelude
+diff --git a/Class/PartialMonoid.agda b/Class/PartialMonoid.agda
+index bab1505..530a69b 100644
+--- a/Class/PartialMonoid.agda
++++ b/Class/PartialMonoid.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.PartialMonoid where
+ 
+ open import Class.PartialMonoid.Core public
+diff --git a/Class/PartialMonoid/Core.agda b/Class/PartialMonoid/Core.agda
+index 1bc30c8..95b6070 100644
+--- a/Class/PartialMonoid/Core.agda
++++ b/Class/PartialMonoid/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.PartialMonoid.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/PartialSemigroup.agda b/Class/PartialSemigroup.agda
+index aafc4b5..0cb5f71 100644
+--- a/Class/PartialSemigroup.agda
++++ b/Class/PartialSemigroup.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.PartialSemigroup where
+ 
+ open import Class.PartialSemigroup.Core public
+diff --git a/Class/PartialSemigroup/Core.agda b/Class/PartialSemigroup/Core.agda
+index e8ab05c..8582b6f 100644
+--- a/Class/PartialSemigroup/Core.agda
++++ b/Class/PartialSemigroup/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.PartialSemigroup.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/Pointed.agda b/Class/Pointed.agda
+index d33912d..166ac4f 100644
+--- a/Class/Pointed.agda
++++ b/Class/Pointed.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Pointed where
+ 
+ open import Class.Pointed.Core public
+diff --git a/Class/Pointed/Core.agda b/Class/Pointed/Core.agda
+index e513194..9d28281 100644
+--- a/Class/Pointed/Core.agda
++++ b/Class/Pointed/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Pointed.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/Pointed/Instances.agda b/Class/Pointed/Instances.agda
+index 40d26c0..628e584 100644
+--- a/Class/Pointed/Instances.agda
++++ b/Class/Pointed/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Pointed.Instances where
+ 
+ open import Class.Prelude
+diff --git a/Class/Prelude.agda b/Class/Prelude.agda
+index 02069ef..2420861 100644
+--- a/Class/Prelude.agda
++++ b/Class/Prelude.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Prelude where
+ 
+ open import Agda.Primitive public
+diff --git a/Class/Semigroup.agda b/Class/Semigroup.agda
+index 262b48f..bacedc4 100644
+--- a/Class/Semigroup.agda
++++ b/Class/Semigroup.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Semigroup where
+ 
+ open import Class.Semigroup.Core public
+diff --git a/Class/Semigroup/Core.agda b/Class/Semigroup/Core.agda
+index 0c8bcd8..d9cfafb 100644
+--- a/Class/Semigroup/Core.agda
++++ b/Class/Semigroup/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Semigroup.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/Semigroup/Instances.agda b/Class/Semigroup/Instances.agda
+index 6322e0e..83a9ac0 100644
+--- a/Class/Semigroup/Instances.agda
++++ b/Class/Semigroup/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Semigroup.Instances where
+ 
+ open import Class.Prelude
+diff --git a/Class/SeparationAlgebra.agda b/Class/SeparationAlgebra.agda
+index 9175147..e68d79d 100644
+--- a/Class/SeparationAlgebra.agda
++++ b/Class/SeparationAlgebra.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.SeparationAlgebra where
+ 
+ open import Function.Definitions using (Injective)
+diff --git a/Class/Setoid/Core.agda b/Class/Setoid/Core.agda
+index d3a91d5..412ac32 100644
+--- a/Class/Setoid/Core.agda
++++ b/Class/Setoid/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Setoid.Core where
+ 
+ open import Class.Core
+diff --git a/Class/Setoid/Instances.agda b/Class/Setoid/Instances.agda
+index 1f6474c..f42d805 100644
+--- a/Class/Setoid/Instances.agda
++++ b/Class/Setoid/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Setoid.Instances where
+ 
+ open import Class.Prelude
+@@ -24,6 +24,6 @@ instance
+       {nothing} {just _}  → id
+       {nothing} {nothing} → id
+     ; trans = λ where
+-      {just x}  {just y}  {just z}  p q → ≈-trans {i = x}{y}{z} p q
++      {just x}  {just y}  {just z}  p q → ≈-trans {x = x}{y}{z} p q
+       {nothing} {nothing} {nothing} p _ → p
+     }
+diff --git a/Class/Show.agda b/Class/Show.agda
+index 3d0ac7c..595be94 100644
+--- a/Class/Show.agda
++++ b/Class/Show.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Show where
+ 
+ open import Class.Show.Core public
+diff --git a/Class/Show/Core.agda b/Class/Show/Core.agda
+index 0464195..140915e 100644
+--- a/Class/Show/Core.agda
++++ b/Class/Show/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Show.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/Show/Instances.agda b/Class/Show/Instances.agda
+index 4291d09..d9e4045 100644
+--- a/Class/Show/Instances.agda
++++ b/Class/Show/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Show.Instances where
+ 
+ open import Class.Prelude hiding (Type)
+diff --git a/Class/ToList.agda b/Class/ToList.agda
+index 142c232..df5e13f 100644
+--- a/Class/ToList.agda
++++ b/Class/ToList.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.ToList where
+ 
+ open import Class.Prelude
+diff --git a/Class/ToN.agda b/Class/ToN.agda
+index d92ee94..2886e83 100644
+--- a/Class/ToN.agda
++++ b/Class/ToN.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.ToN where
+ 
+ open import Class.Prelude
+diff --git a/Class/ToZ.agda b/Class/ToZ.agda
+index 79b457d..94482dd 100644
+--- a/Class/ToZ.agda
++++ b/Class/ToZ.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.ToZ where
+ 
+ open import Class.Prelude
+diff --git a/Class/Traversable.agda b/Class/Traversable.agda
+index 2148cf8..d25dcbc 100644
+--- a/Class/Traversable.agda
++++ b/Class/Traversable.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Traversable where
+ 
+ open import Class.Traversable.Core public
+diff --git a/Class/Traversable/Core.agda b/Class/Traversable/Core.agda
+index 975e199..64b3bbb 100644
+--- a/Class/Traversable/Core.agda
++++ b/Class/Traversable/Core.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Traversable.Core where
+ 
+ open import Class.Prelude
+diff --git a/Class/Traversable/Instances.agda b/Class/Traversable/Instances.agda
+index 16117da..18576ae 100644
+--- a/Class/Traversable/Instances.agda
++++ b/Class/Traversable/Instances.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.Traversable.Instances where
+ 
+ open import Class.Prelude
+diff --git a/Class/View.agda b/Class/View.agda
+index 2f2fb62..608ce02 100644
+--- a/Class/View.agda
++++ b/Class/View.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Class.View where
+ 
+ open import Class.Prelude
+diff --git a/Test/Coercions.agda b/Test/Coercions.agda
+index 76ff9ab..bf9a228 100644
+--- a/Test/Coercions.agda
++++ b/Test/Coercions.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Test.Coercions where
+ 
+ open import Class.Prelude
+diff --git a/Test/Functor.agda b/Test/Functor.agda
+index 599717a..da68a76 100644
+--- a/Test/Functor.agda
++++ b/Test/Functor.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Test.Functor where
+ 
+ open import Class.Prelude
+diff --git a/Test/Monad.agda b/Test/Monad.agda
+index 363cc1a..6281a05 100644
+--- a/Test/Monad.agda
++++ b/Test/Monad.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Test.Monad where
+ 
+ open import Class.Prelude
+diff --git a/Test/Monoid.agda b/Test/Monoid.agda
+index 384afb6..d51ae35 100644
+--- a/Test/Monoid.agda
++++ b/Test/Monoid.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Test.Monoid where
+ 
+ open import Class.Prelude
+diff --git a/Test/Show.agda b/Test/Show.agda
+index 3c6715b..4a4a961 100644
+--- a/Test/Show.agda
++++ b/Test/Show.agda
+@@ -1,4 +1,4 @@
+-{-# OPTIONS --cubical-compatible #-}
++{-# OPTIONS --without-K #-}
+ module Test.Show where
+ 
+ open import Class.Prelude

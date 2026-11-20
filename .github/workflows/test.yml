@@ -163,6 +163,8 @@ jobs:
         - agda-unimath
         - plfa
         - TypeTopology
+        - agda-stdlib-classes
+        - agda-stdlib-meta
   interaction-latex-html:
     needs: build
     runs-on: ubuntu-26.04
