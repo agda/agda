@@ -1,0 +1,4 @@
+Issue8546.agda:17.18-35: error: [SplitInProp]
+Cannot split on datatype in Prop unless target is in Prop
+when checking that the pattern squash (payload x) has type
+Squash (Payload true)
