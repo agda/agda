@@ -137,16 +137,28 @@ notAValidLetBinding = locatedTypeError NotAValidLetBinding
 -- | Scope check interleaved declarations in hidden modules parameterized by
 -- preceding fields. Public copies are scoped now and instantiated only after
 -- the constructor and projections have been installed.
-scopeCheckRecordBody :: A.ModuleName -> [C.Declaration] -> ScopeM ([A.RecordStage], [A.Declaration])
+-- Each field has one stage containing the helpers immediately before it;
+-- declarations after the last field belong directly to the public record module.
+scopeCheckRecordBody
+  :: A.ModuleName     -- ^ Public record module, already created in the scope.
+  -> [C.Declaration]  -- ^ Source body, containing fields and other declarations.
+  -> ScopeM ([A.RecordStage], [A.Declaration])
+     -- ^ Canonical helper stages and the public body with their generated copies.
 scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
+  -- Nicification has grouped signatures with their definitions. Reject groups
+  -- crossing a field before splitting the body at its last field declaration.
   mapM_ rejectFieldsInMutual ds
   let prefix = List.dropWhileEnd (not . isField) ds
       suffix = drop (length prefix) ds
+  -- Field values are local variables only while scoping canonical stages.
+  -- Restore the original locals before checking the trailing public declarations.
   locals <- getLocalVars
   (stages, body) <- withLocalVars $ stagesBeforeFields locals prefix
   trailing <- withCurrentModule recordModule $ catMaybes <$> toAbstract suffix
   return (stages, body ++ trailing)
   where
+    -- Does this declaration introduce a field of the current record?
+    -- The argument is nicified, so ordinary declaration wrappers are flattened.
     isField :: C.NiceDeclaration -> Bool
     isField C.NiceField{} = True
     isField _ = False
@@ -155,25 +167,36 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
     -- field extends the telescope for subsequent helpers. Nicification can
     -- infer such a group from a signature and definition separated by fields.
     -- Do not descend into nested modules or records: their fields belong there.
-    rejectFieldsInMutual :: C.NiceDeclaration -> ScopeM ()
+    rejectFieldsInMutual
+      :: C.NiceDeclaration -- Nicified declaration whose mutual groups are inspected.
+      -> ScopeM ()
     rejectFieldsInMutual = \case
       C.NiceMutual _ _ _ _ ds -> forM_ ds $ \case
         d@C.NiceField{} -> setCurrentRange d $ typeError FieldInMutualBlock
         d -> rejectFieldsInMutual d
       _ -> return ()
 
+    -- Scope each helper group and following field, returning canonical stages
+    -- alongside the public module's applications and projections.
     stagesBeforeFields
-      :: LocalVars -> [C.NiceDeclaration]
+      :: LocalVars -- Locals before any record fields, for public projection scopes.
+      -> [C.NiceDeclaration] -- Unprocessed prefix ending with the record's last field.
       -> ScopeM ([A.RecordStage], [A.Declaration])
+         -- Canonical stages and public copies/fields, both in source order.
     stagesBeforeFields _ [] = return ([], [])
     stagesBeforeFields locals ds = do
+      -- Collect helpers before the next field and scope them in a fresh module.
+      -- Its lexical parents retain earlier helpers; its locals retain the
+      -- preceding field values that become parameters during type checking.
       let (before, rest) = break isField ds
       stage <- freshRecordImplementationModule "record-stage"
       createModule Nothing stage
       withCurrentModule stage $ do
         checked <- catMaybes <$> toAbstract before
-        -- Copy before introducing the next stage, to avoid exporting the
-        -- implementation's nested stage modules.
+        -- Make the helpers visible in the public record scope, retaining private
+        -- bindings for later declarations. Record an application for the type
+        -- checker to instantiate once the preceding projections exist. Copy now,
+        -- before creating a child stage, to avoid exporting implementation modules.
         copied <- withCurrentModule recordModule $ do
           target <- freshRecordImplementationModule "record-members"
           createModule Nothing target
@@ -185,11 +208,16 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
           return $ A.Apply mi (NotErased QωInferred) target (A.RecordStageApp stage) copyInfo defaultImportDir
         case rest of
           C.NiceField r p a inst tac x (Arg ai t) : after -> setCurrentRange r $ do
+            -- Check the field annotations and scope its type where earlier
+            -- fields are values and the just-scoped helpers are available.
             unless (p == PublicAccess) $ typeError PrivateRecordField
             ai <- checkFieldArgInfo True ai
             tac <- traverse (toAbstractCtx TopCtx) tac
             t <- toAbstractCtx TopCtx t
             f <- getConcreteFixity x
+            -- Give the projection its public qualified name. Its saved scope
+            -- uses the original locals, since the public module has a record
+            -- value parameter instead of the stages' field-value parameters.
             y <- withCurrentModule recordModule $ do
               y <- freshAbstractQName f x
               bindName' p FldName (instanceMetadata inst) x y
@@ -198,8 +226,13 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
             scope <- withLocalVars $ do
               setLocalVars locals
               withCurrentModule recordModule getScope
+            -- Bind the same name as a local field value for subsequent stages.
+            -- Only now recurse: both the helper scope and the field must be
+            -- available while scoping the remaining declarations.
             bindVariable LambdaBound x $ qnameName y
             (next, fields) <- stagesBeforeFields locals after
+            -- Pair this canonical helper module with its field binder, and put
+            -- the public helper copy immediately before the public field.
             let st = A.RecordStage stage checked (A.BindName $ qnameName y)
                 field = A.ScopedDecl scope $ A.Field info y (Arg ai t) :| []
             return (st : next, copied : field : fields)
@@ -207,7 +240,9 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
 
     -- Implementation modules do not introduce source qualifiers. In particular,
     -- copies retain the original source name along with the original binding site.
-    freshRecordImplementationModule :: String -> ScopeM A.ModuleName
+    freshRecordImplementationModule
+      :: String -- Internal module-name stem; source provenance remains the record's.
+      -> ScopeM A.ModuleName
     freshRecordImplementationModule s = do
       q <- freshAbstractQName noFixity' (C.simpleName s)
       let r = qnameFromList $ mnameToList1 recordModule
@@ -681,7 +716,12 @@ newtype NewModuleName      = NewModuleName      C.Name
 newtype NewModuleQName     = NewModuleQName     C.QName
 newtype OldModuleName      = OldModuleName      C.QName
 
-freshQModule :: A.ModuleName -> C.Name -> ScopeM A.ModuleName
+-- | Create a fresh qualified module name, retaining the source qualifier when
+-- its parent is an internal record implementation module.
+freshQModule
+  :: A.ModuleName -- ^ Parent module to qualify the fresh name with.
+  -> C.Name       -- ^ Source name of the module being introduced.
+  -> ScopeM A.ModuleName
 freshQModule m x = do
   n <- freshAbstractName_ x
   return $ A.qualifyM m $ mnameFromList1 $ singleton
@@ -1494,6 +1534,8 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
 scopeCheckDeclarations :: [C.Declaration] -> ScopeM [A.Declaration]
 scopeCheckDeclarations ds = niceDecls DoWarn ds \ niceds -> catMaybes <$> toAbstract niceds
 
+-- | A non-empty group of source declarations to scope check as expression-local
+-- let bindings. Record helpers use canonical stages rather than this wrapper.
 newtype LetDefs = LetDefs (List1 C.Declaration)
 
 instance ToAbstract LetDefs where
@@ -1506,7 +1548,11 @@ instance ToAbstract LetDefs where
 -- | Raise appropriate (error-)warnings for if a declaration with
 -- illegal access, macro flag, or abstractness appear in a let
 -- expression.
-checkLetDefInfo :: Access -> IsMacro -> IsAbstract -> ScopeM ()
+checkLetDefInfo
+  :: Access     -- ^ Access modifier attached to the let declaration.
+  -> IsMacro    -- ^ Whether the declaration was marked as a macro.
+  -> IsAbstract -- ^ Whether the declaration was marked abstract.
+  -> ScopeM ()
 checkLetDefInfo access macro abstract = do
   when (abstract == AbstractDef) $ warning AbstractInLetBindings
 
@@ -1516,7 +1562,11 @@ checkLetDefInfo access macro abstract = do
     PrivateAccess rng _ -> scopeWarning (UselessPrivate rng)
     _ -> pure ()
 
-scopeCheckLetDef :: NiceDeclaration -> ScopeM (List1 A.LetBinding)
+-- | Scope check a nicified declaration as expression-local let bindings,
+-- reporting declarations and modifiers that are not supported in a let.
+scopeCheckLetDef
+  :: NiceDeclaration -- ^ Declaration to interpret as one or more let bindings.
+  -> ScopeM (List1 A.LetBinding)
 scopeCheckLetDef d = setCurrentRange d do
   case d of
     NiceMutual _ _ _ _ d@(C.FunSig _ access _ instanc macro info _ _ x t :| [C.FunDef _ _ abstract _ _ _ _ (cl :| [])]) -> do
@@ -2007,6 +2057,9 @@ instance ToAbstract NiceDeclaration where
 
       -- Create the module for the qualified constructors
       checkForModuleClash x
+      -- Create the public module before scoping the staged body: projections
+      -- and helper copies must receive names in this module even though the
+      -- canonical helpers are scoped in separate implementation modules.
       let m = qnameToMName x'
       createModule (Just IsDataModule) m
       bindModule p x m  -- make it a proper module

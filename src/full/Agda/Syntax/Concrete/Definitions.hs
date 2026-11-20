@@ -103,7 +103,9 @@ import Agda.Utils.Impossible
 -- | Reject fields in an opaque block, looking through declaration wrappers.
 -- Modules and records introduce a new declaration scope: their fields do not
 -- belong to the surrounding opaque block.
-rejectFieldInsideOpaque :: Declaration -> Nice ()
+rejectFieldInsideOpaque
+  :: Declaration -- ^ Declaration in the current opaque block's body.
+  -> Nice ()
 rejectFieldInsideOpaque = \case
   Field r _                  -> declarationException $ FieldInsideOpaque $ getRange r
   d@FieldSig{}               -> declarationException $ FieldInsideOpaque $ getRange d
@@ -118,7 +120,28 @@ rejectFieldInsideOpaque = \case
   Primitive _ ds             -> mapM_ rejectFieldInsideOpaque ds
   Generalize _ ds            -> mapM_ rejectFieldInsideOpaque ds
   LoneConstructor _ ds       -> mapM_ rejectFieldInsideOpaque ds
-  _                          -> return ()
+  -- Nested declaration scopes are checked independently when nicified.
+  Module{}                   -> return ()
+  Record{}                   -> return ()
+  RecordDef{}                -> return ()
+  Data{}                     -> return ()
+  DataDef{}                  -> return ()
+  -- These declarations do not contain fields belonging to this opaque block.
+  TypeSig{}                  -> return ()
+  FunClause{}                -> return ()
+  DataSig{}                  -> return ()
+  RecordSig{}                -> return ()
+  Infix{}                    -> return ()
+  Syntax{}                   -> return ()
+  PatternSyn{}               -> return ()
+  Open{}                     -> return ()
+  Import{}                   -> return ()
+  ModuleMacro{}              -> return ()
+  UnquoteDecl{}              -> return ()
+  UnquoteDef{}               -> return ()
+  UnquoteData{}              -> return ()
+  Pragma{}                   -> return ()
+  Unfolding{}                -> return ()
 
 -- | Check that declarations in a mutual block are consistently
 --   equipped with MEASURE pragmas, or whether there is a

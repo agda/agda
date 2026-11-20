@@ -53,18 +53,22 @@ import qualified Agda.Utils.List1 as List1
 -- * Records
 ---------------------------------------------------------------------------
 
--- | Check helpers in field-prefix contexts, then install the constructor
--- and assemble the record module from projections and helper copies.
+-- | Check a record definition whose type signature has already been checked.
+-- Bind its parameters and check each helper stage and following field exactly
+-- once, in a context containing the preceding field values. Use the resulting
+-- field telescope to install the record and constructor, then assemble the
+-- record module from projections, instantiated helper modules, and declarations
+-- after the last field.
 checkRecDef
-  :: A.DefInfo
-  -> QName
-  -> PositivityCheck
-  -> UniverseCheck
-  -> ForceRecordEta
-  -> A.RecordDirectives
-  -> A.DataDefParams
-  -> [A.RecordStage]
-  -> [A.Field]
+  :: A.DefInfo          -- ^ Source range, abstractness, and other definition info.
+  -> QName              -- ^ Record type whose signature has already been checked.
+  -> PositivityCheck    -- ^ Whether to report positivity errors for this record.
+  -> UniverseCheck      -- ^ Whether to check that field types fit the record's sort.
+  -> ForceRecordEta     -- ^ Whether an @ETA_EQUALITY@ pragma forces eta equality.
+  -> A.RecordDirectives -- ^ Induction, eta, pattern-matching, and constructor directives.
+  -> A.DataDefParams    -- ^ Generalized and explicitly declared record parameters.
+  -> [A.RecordStage]    -- ^ Helper stages, one before each field, in source order.
+  -> [A.Field]          -- ^ Record-module body: fields, helper copies, and trailing declarations.
   -> TCM ()
 checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars ps) stages fields = do
 
@@ -74,7 +78,7 @@ checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDef
       , nest 2 $ "ps ="     <+> prettyList (map' prettyA ps)
       , nest 2 $ "fields =" <+> prettyA (map' Constr $ A.recordDeclarations stages fields)
       ]
-    -- get type of record
+    -- Recover the checked signature and the number of parameters to bind.
     def <- instantiateDef =<< getConstInfo name
     t   <- instantiateFull $ defType def
     let npars =
@@ -86,6 +90,7 @@ checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDef
     -- entered.
     setHardCompileTimeModeIfErased' def $ do
 
+    -- Reconstruct the parameter context shared by the stages and constructor.
     parNames <- getGeneralizedParameters gpars name
 
     bindGeneralizedParameters parNames t $ \ gtel t0 ->
@@ -93,7 +98,8 @@ checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDef
 
       let tel = abstract gtel ptel
 
-      -- Each field type is checked once, after checking its helper module.
+      -- Build the constructor's field telescope in field-value contexts. Keep
+      -- the record module's scope available for the later projection traversal.
       scope <- getScope
       ftel <- instantiateFull =<< evalWithScope scope
         (checkRecordStages stages $ collectRecordFields fields)
@@ -132,12 +138,18 @@ checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDef
       -- Add record type to signature.
       reportSDoc "tc.rec" 15 $ "adding record type to signature"
 
-      let getName :: A.Declaration -> [Dom QName]
+      -- Recover public field names and modalities, attaching the tactics from
+      -- the checked domains before constructing the record's field metadata.
+      let -- Extract the field name and argument information from one scoped
+          -- declaration; helper copies and trailing declarations have no field.
+          getName :: A.Declaration -> [Dom QName]
           getName = \case
             A.Field _ x arg          -> [ x <$ domFromArg arg ]
             A.ScopedDecl _ (f :| []) -> getName f
             _ -> []
 
+          -- Copy the checked domain's tactic to the public field descriptor.
+          -- Arguments: checked field domain and public field descriptor.
           setTactic dom f = f & dTactic .~ (dom ^. dTactic)
           fs = zipWith' setTactic (telToList ftel) $ concatMap getName fields
 
@@ -367,7 +379,9 @@ checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDef
 
 
 -- | Select fields while retaining the scope at each source occurrence.
-collectRecordFields :: [A.Declaration] -> [A.Field]
+collectRecordFields
+  :: [A.Declaration] -- ^ Record-module body, possibly wrapped in scope annotations.
+  -> [A.Field]       -- ^ Only field declarations, each retaining its source scope.
 collectRecordFields = concatMap $ \case
   A.ScopedDecl scope ds ->
     map (A.ScopedDecl scope . (:| [])) $ collectRecordFields $ List1.toList ds
@@ -376,47 +390,59 @@ collectRecordFields = concatMap $ \case
 
 -- | Check canonical helper declarations and their following field domains.
 -- The recursive context contains record parameters and preceding field values.
-checkRecordStages :: [A.RecordStage] -> [A.Field] -> TCM Telescope
+checkRecordStages
+  :: [A.RecordStage] -- ^ Canonical helper stages, one per field, in source order.
+  -> [A.Field]       -- ^ Matching field declarations, as selected by 'collectRecordFields'.
+  -> TCM Telescope  -- ^ Checked field telescope, excluding the record parameters.
 checkRecordStages [] [] = return EmptyTel
 checkRecordStages (st : stages) (field : fields) = do
+  -- Register the canonical module with the current parameter/field context,
+  -- then check its helpers before the field type can refer to them.
   addSection $ A.recordStageModule st
   withCurrentModule (A.recordStageModule st) $ do
     mapM_ checkDecl $ A.recordStageDeclarations st
     checkField field
   where
+    -- Check the following field in its saved scope. The argument is a field
+    -- declaration, optionally wrapped in a singleton scope annotation.
     checkField (A.ScopedDecl scope (d :| [])) = setScope scope >> checkField d
     checkField (A.Field info _ (Arg ai t)) = setCurrentRange info $ do
+      -- Bind the field as an ordinary telescope variable, using the same name
+      -- as scope checking. Later stages abstract over this value, not a record.
       let binder = Arg ai $ unnamed $ A.mkBinder $ A.recordStageBinder st
           extra = A.TypedBindingInfo (Info.defTactic info) False
           binding = A.TBind (getRange info) extra (binder :| []) t
       checkTelescope ModTelNotData [binding] $ \ tel -> do
+        -- Extend the context for subsequent stages and collect their domains.
         rest <- checkRecordStages stages fields
         return $ abstract tel rest
     checkField _ = __IMPOSSIBLE__
 checkRecordStages _ _ = __IMPOSSIBLE__
 
-{-| @checkRecordProjections m r q tel ftel fs@.
-
-    [@m@    ]  name of the generated module
-
-    [@r@    ]  name of the record type
-
-    [@con@  ]  name of the record constructor
-
-    [@tel@  ]  parameters (perhaps erased) and record variable r ("self")
-
-    [@ftel@ ]  telescope of fields
-
-    [@fs@   ]  the fields to be checked
--}
-checkRecordProjections ::
-  ModuleName -> QName -> Bool -> ConHead -> Telescope -> Telescope ->
-  [A.Declaration] -> TCM ()
+-- | Assemble the record module in a context ending in its record value.
+-- Install projections using the already checked field domains, instantiate
+-- helper stages with preceding projections, and check trailing declarations.
+checkRecordProjections
+  :: ModuleName      -- ^ Public record module in which projections are installed.
+  -> QName           -- ^ Record type name.
+  -> Bool            -- ^ Whether the record has a user-named constructor.
+  -> ConHead         -- ^ Record constructor and its field metadata.
+  -> Telescope       -- ^ Hidden parameters followed by the record value (self).
+  -> Telescope       -- ^ Checked field telescope in the record-parameter context.
+  -> [A.Declaration] -- ^ Record-module body containing fields, copies, and trailing declarations.
+  -> TCM ()
 checkRecordProjections m r hasNamedCon con tel ftel fs = do
     checkProjs EmptyTel ftel [] fs
   where
 
-    checkProjs :: Telescope -> Telescope -> [Term] -> [A.Declaration] -> TCM ()
+    -- Traverse the body while accumulating the substitution from field values
+    -- to projections of self. The two telescopes partition the checked fields.
+    checkProjs
+      :: Telescope       -- Checked prefix of fields already installed as projections.
+      -> Telescope       -- Remaining fields, in the context extended by the prefix.
+      -> [Term]          -- Preceding projections of self, in reverse field order.
+      -> [A.Declaration] -- Remaining record-module declarations in source order.
+      -> TCM ()
 
     checkProjs _ _ _ [] = return ()
 
@@ -446,7 +472,14 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
 
     -- Install one projection, returning its application to the record variable.
     -- The domain and suffix are in the context of the preceding fields.
-    checkProj :: Telescope -> Dom Type -> Abs Telescope -> [Term] -> A.DefInfo -> QName -> TCM Term
+    checkProj
+      :: Telescope   -- Preceding checked field domains.
+      -> Dom Type    -- Current field domain, in the preceding-field context.
+      -> Abs Telescope -- Remaining field telescope, abstracted over this field.
+      -> [Term]      -- Preceding projections of self, in reverse field order.
+      -> A.DefInfo   -- Field's source range, abstractness, and instance information.
+      -> QName       -- Public field name to install as a projection.
+      -> TCM Term    -- Application of the installed projection to self.
     checkProj ftel1 dom@(unDom -> t) ftel2 vs info x =
       traceCall (CheckProjection (getRange info) x t) $ do
       let ai = dom ^. dInfo

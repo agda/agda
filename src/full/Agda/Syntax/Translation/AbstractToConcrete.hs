@@ -1234,6 +1234,8 @@ instance ToConcrete A.ModuleApplication where
       let r = fuseRange y es
       return $ C.SectionApp r (catMaybes tel) y $ map unNamedArg es
 
+  -- Generated applications have no concrete syntax. Record declarations must
+  -- first replace them with their canonical helpers using recordDeclarations.
   toConcrete (A.RecordStageApp _) = __IMPOSSIBLE__
 
   toConcrete (A.RecordModuleInstance recm) = do

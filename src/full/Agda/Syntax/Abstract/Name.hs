@@ -399,15 +399,23 @@ qnameToConcrete (QName m x) =       -- Use the canonical name here (#5048)
 
 -- | Source provenance for a member of an implementation module. Ordinary
 -- modules need no override. A nested source module extends its parent's name.
-sourceNameInModule :: ModuleName -> C.Name -> Maybe C.QName
+sourceNameInModule
+  :: ModuleName    -- ^ Containing module, possibly carrying source-name overrides.
+  -> C.Name        -- ^ Unqualified source name of the member.
+  -> Maybe C.QName -- ^ Source-qualified name, or 'Nothing' if no override is needed.
 sourceNameInModule (MName ms) x = (`C.qualify` x) <$> foldl step Nothing ms
   where
+  -- Accumulate the source qualifier over the module components. An explicit
+  -- override replaces the prefix; ordinary components extend an existing one.
+  -- Arguments: accumulated source prefix and next abstract module component.
   step prefix n = case nameSourceName n of
     Just q  -> Just q
     Nothing -> (`C.qualify` nameCanonical n) <$> prefix
 
 -- | The source-qualified name, when different from the implementation name.
-qnameSourceName :: QName -> Maybe C.QName
+qnameSourceName
+  :: QName         -- ^ Definition or module name whose source provenance is wanted.
+  -> Maybe C.QName -- ^ Explicit provenance, or provenance inherited from its module.
 qnameSourceName (QName m x) = case nameSourceName x of
   Just q  -> Just q
   Nothing -> sourceNameInModule m $ nameCanonical x

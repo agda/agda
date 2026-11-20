@@ -121,6 +121,7 @@ termDecl' = \case
     A.ScopedDecl scope ds -> {- withScope_ scope $ -} foldMap termDecl' ds
         -- scope is irrelevant as we are termination checking Syntax.Internal
     A.RecSig{}            -> return mempty
+    -- Check canonical helpers once; their public stage copies have no new bodies.
     A.RecDef _ x _ _ _ _ _ stages ds -> termMutual [x] <> foldMap termDecl' (A.recordDeclarations stages ds)
         -- Andreas, 2022-10-23, issue #5823
         -- Also check record types for termination.
