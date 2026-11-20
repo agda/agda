@@ -352,11 +352,12 @@ cleanOutput' agda pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
   where
   rgxs = map (first mkRegex) $ concat
     [ [ (agda, "agda") | agda /= "agda" ]
-    , [ ("[^ (]*test.Fail.", "")
-      , ("[^ (]*test.Succeed.", "")
-      , ("[^ (]*test.Common.", "")
-      , ("[^ (]*test.Bugs.", "")
-      , ("[^ (]*test.LibSucceed.", "")
+    -- Keep the opening quote when stripping a quoted test path.
+    , [ ("[^ (']*test.Fail.", "")
+      , ("[^ (']*test.Succeed.", "")
+      , ("[^ (']*test.Common.", "")
+      , ("[^ (']*test.Bugs.", "")
+      , ("[^ (']*test.LibSucceed.", "")
       , ("\\\\", "/")
         -- Andreas, 2021-10-13, issue #5549
         -- First, replace backslashes by slashes, then try to match @pwd@,
