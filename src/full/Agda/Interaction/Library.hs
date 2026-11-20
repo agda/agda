@@ -544,7 +544,9 @@ libraryIncludePaths overrideLibFile root libs xs0 = mkLibM libs $ do
         raiseErrors' [ LibrariesFileNotFound theOverrideLibFile ]
         return []
       Right file -> do
-        (ls, resolved) <- embedWriter $ find file Map.empty xs
+        -- The Emacs information buffer recognizes absolute file locations.
+        path <- liftIO $ makeAbsolute (lfPath file)
+        (ls, resolved) <- embedWriter $ find file{ lfPath = path } Map.empty xs
         ws <- liftIO $ libraryVersionConflicts root xs $ Map.mapMaybe id resolved
         List1.unlessNull ws warnings'
         return $ dot ++ incs ls

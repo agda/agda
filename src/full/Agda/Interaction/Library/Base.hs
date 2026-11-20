@@ -34,6 +34,7 @@ import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete.Glyph  ( treeGlyphs )
 import Agda.Syntax.Position
 
+import Agda.Utils.FileName         ( mkAbsolute )
 import Agda.Utils.IO               ( showIOException )
 import Agda.Utils.Lens
 import Agda.Utils.List             ( chopWhen )
@@ -526,7 +527,7 @@ instance Pretty LibError' where
       | (path, pos) <- maybeToList $ libNameSource lib
       ] ++
       [ sep [ "Add the path to its .agda-lib file to"
-            , nest 2 $ text $ "'" ++ lfPath file ++ "'"
+            , nest 2 $ pretty (beginningOfFile (mkAbsolute (lfPath file)))
             , "to install."
             ]
       ]
