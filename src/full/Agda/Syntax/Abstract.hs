@@ -230,7 +230,7 @@ type ImportedName    = ImportedName'    QName ModuleName
 -- and preceding fields. The binder names the following field locally.
 data RecordStage = RecordStage
   { recordStageModule :: ModuleName
-      -- ^ Canonical helper module, parameterized by the ambient context,
+      -- ^ Name of helper module, parameterized by the ambient context,
       -- record parameters, and values of all preceding fields.
   , recordStageDeclarations :: [Declaration]
       -- ^ Declarations between the preceding field (or start of the record)

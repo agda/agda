@@ -7,15 +7,16 @@ module Agda.TypeChecking.Rules.Record where
 import Prelude hiding (null, (&&), (||))
 
 import Data.Maybe
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 
 import Agda.Interaction.Options
 
-import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract qualified as A
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty qualified as P
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
-import qualified Agda.Syntax.Info as Info
+import Agda.Syntax.Info qualified as Info
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
@@ -42,12 +43,12 @@ import Agda.Utils.List
 import Agda.Utils.List1 (pattern (:|) )
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Syntax.Common.Pretty as P
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.POMonoid (hasLeftAdjoint)
 
 import Agda.Utils.Impossible
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1 qualified as List1
 
 ---------------------------------------------------------------------------
 -- * Records
@@ -61,7 +62,7 @@ import qualified Agda.Utils.List1 as List1
 -- after the last field.
 checkRecDef
   :: A.DefInfo          -- ^ Source range, abstractness, and other definition info.
-  -> QName              -- ^ Record type whose signature has already been checked.
+  -> QName              -- ^ Record type name whose signature has already been checked.
   -> PositivityCheck    -- ^ Whether to report positivity errors for this record.
   -> UniverseCheck      -- ^ Whether to check that field types fit the record's sort.
   -> ForceRecordEta     -- ^ Whether an @ETA_EQUALITY@ pragma forces eta equality.
@@ -86,15 +87,14 @@ checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDef
             DataOrRecSig n IsRecord_ -> n
             _ -> __IMPOSSIBLE__
 
-    -- If the record type is erased, then hard compile-time mode is
-    -- entered.
+    -- If the record type is erased, then hard compile-time mode is entered.
     setHardCompileTimeModeIfErased' def $ do
 
     -- Reconstruct the parameter context shared by the stages and constructor.
     parNames <- getGeneralizedParameters gpars name
 
-    bindGeneralizedParameters parNames t $ \ gtel t0 ->
-     bindParameters (npars - length parNames) ps t0 $ \ ptel t0 -> do
+    bindGeneralizedParameters parNames t \ gtel t0 ->
+     bindParameters (npars - length parNames) ps t0 \ ptel t0 -> do
 
       let tel = abstract gtel ptel
 
@@ -384,7 +384,7 @@ collectRecordFields
   -> [A.Field]       -- ^ Only field declarations, each retaining its source scope.
 collectRecordFields = concatMap $ \case
   A.ScopedDecl scope ds ->
-    map (A.ScopedDecl scope . (:| [])) $ collectRecordFields $ List1.toList ds
+    map (A.ScopedDecl scope . singleton) $ collectRecordFields $ List1.toList ds
   d@A.Field{} -> [d]
   _ -> []
 
