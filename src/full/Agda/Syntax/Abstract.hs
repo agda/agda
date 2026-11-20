@@ -230,15 +230,26 @@ type ImportedName    = ImportedName'    QName ModuleName
 -- and preceding fields. The binder names the following field locally.
 data RecordStage = RecordStage
   { recordStageModule :: ModuleName
+      -- ^ Canonical helper module, parameterized by the ambient context,
+      -- record parameters, and values of all preceding fields.
   , recordStageDeclarations :: [Declaration]
+      -- ^ Declarations between the preceding field (or start of the record)
+      -- and the following field, scoped in 'recordStageModule'.
   , recordStageBinder :: BindName
+      -- ^ Local name for the following field value. It becomes a parameter
+      -- of subsequent stages and shares the public field's name identity.
   } deriving (Show, Eq, Generic)
 
 -- | Recover source declarations, replacing generated stage applications
 -- by the corresponding canonical declarations.
-recordDeclarations :: [RecordStage] -> [Declaration] -> [Declaration]
+recordDeclarations
+  :: [RecordStage] -- ^ Canonical helper modules referenced by stage applications.
+  -> [Declaration] -- ^ Record-module body containing fields and stage applications.
+  -> [Declaration] -- ^ Source declarations in order, without generated applications.
 recordDeclarations stages = concatMap go
   where
+    -- Replace a generated application by its source declarations, unwrapping
+    -- scope annotations so consumers see the original declaration forms.
     go (ScopedDecl _ ds) = recordDeclarations stages $ List1.toList ds
     go (Apply _ _ _ (RecordStageApp m) _ _) =
       case [ recordStageDeclarations st | st <- stages, recordStageModule st == m ] of
@@ -255,7 +266,8 @@ data ModuleApplication
     = SectionApp Telescope ModuleName [NamedArg Expr]
       -- ^ @tel. M args@:  applies @M@ to @args@ and abstracts @tel@.
     | RecordStageApp ModuleName
-      -- ^ Internal instantiation with record parameters and preceding projections.
+      -- ^ Internal application of the named canonical helper module to the
+      -- record parameters and preceding projections of the record value.
     | RecordModuleInstance ModuleName
       -- ^ @M {{...}}@
   deriving (Show, Eq, Generic)

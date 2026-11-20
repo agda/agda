@@ -549,7 +549,11 @@ instance DeclaredNames Declaration where
       DataDef _ q _ _ _ decls      -> singleton (WithKind DataName q) <> foldMap con decls
       RecSig _ _ q _ _             -> singleton (WithKind RecName q)
       RecDef _ q _ _ _ dir _ stages decls ->
+        -- Include both canonical helper names and their public copies so
+        -- declaration-name consumers do not lose either side of a stage copy.
         let names = declaredNames (recordDeclarations stages decls) :: [KName]
+            -- Collect the names introduced by stage applications in one
+            -- declaration, looking through the body's scope annotations.
             copies (ScopedDecl _ ds) = concatMap copies ds
             copies (Apply _ _ _ RecordStageApp{} ci _) =
               [ WithKind k y | WithKind k x <- names

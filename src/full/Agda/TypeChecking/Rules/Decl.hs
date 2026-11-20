@@ -441,6 +441,8 @@ highlight_ hlmod d = do
       highlight (A.Section i er x tel [])
       when (hlmod == DoHighlightModuleContents) $ mapM_ (highlight_ hlmod) (deepUnscopeDecls ds)
     A.RecSig{}               -> highlight d
+    -- The record highlighter reconstructs source declarations from the stages,
+    -- so generated helper copies do not introduce duplicate highlighting.
     A.RecDef i x pc uc eta dir ps stages cs ->
       highlight (A.RecDef i x pc uc eta dir ps stages cs)
 

@@ -401,23 +401,34 @@ newRecordMetaCtx pref frozen r pars tel perm ctx = do
               (telePi_ ftel __DUMMY_TYPE__) tel perm ctx
   return $! Con con ConOSystem $! map' Apply fields
 
-newQuestionMark :: InteractionId -> Comparison -> Type -> TCM (MetaId, Term)
+-- | Create or reuse the value meta associated with an interaction point.
+newQuestionMark
+  :: InteractionId -- ^ Interaction point whose value is being elaborated.
+  -> Comparison    -- ^ Required relation between the meta's type and the expected type.
+  -> Type          -- ^ Expected type in the current context.
+  -> TCM (MetaId, Term) -- ^ Meta identifier and its application in the current context.
 newQuestionMark ii cmp = newQuestionMark' (newValueMeta' RunMetaOccursCheck) ii cmp
 
 
+-- | Create an interaction meta with the supplied allocator, or reuse its
+-- existing meta after embedding the creation context into the current context.
 -- Rechecking an expression containing an existing interaction point must reuse
 -- its meta, for instance in a shared record field signature (issue #8900).
 -- Staged record declarations no longer require transporting metas between
 -- field-variable and record-variable contexts (issue #434).
 newQuestionMark'
   :: (Comparison -> Type -> TCM (MetaId, Term))
-  -> InteractionId -> Comparison -> Type -> TCM (MetaId, Term)
+     -- ^ Allocator used only if the interaction point has no associated meta.
+  -> InteractionId -- ^ Interaction point whose meta is to be created or reused.
+  -> Comparison    -- ^ Required relation to the expected type, also used on reuse.
+  -> Type          -- ^ Expected type in the current context.
+  -> TCM (MetaId, Term) -- ^ Meta identifier and a well-typed application in this context.
 newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
 
   -- Case: new meta.
   Nothing -> do
-    -- Do not run check for recursive occurrence of meta in definitions,
-    -- because we want to give the recursive solution interactively (Issue 589)
+    -- Allocate with the caller's occurs-check policy, then associate the fresh
+    -- meta with the source interaction point for later reuse and editor commands.
     (x, m) <- new cmp t
     connectInteractionPoint ii x
     return (x, m)
@@ -452,8 +463,12 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
     -- Γ = Γ₀,Γ₁ and Δ = Γ₀,fields,Γ₁.
     -- Rechecked binders have fresh NameIds; use their binding sites as well as
     -- their names to distinguish them from intervening fields with the same name.
+    -- Compare a creation-context name with a reuse-context name, allowing fresh
+    -- identities for rechecked binders only when name and binding site agree.
     let sameBinder x y = x == y ||
           (((==) `on` nameCanonical) x y && ((==) `on` nameBindingSite) x y)
+        -- Embed the remaining creation-context names into the indexed reuse
+        -- context, preserving order and returning the corresponding indices.
         embed [] _ = Just []
         embed _ [] = Nothing
         embed xs@(x : xs') ((i, y) : ys)

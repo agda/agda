@@ -67,7 +67,8 @@ data HiliteEnv = HiliteEnv
   { hleNameKinds :: NameKinds
       -- ^ Function mapping qualified names to their kind.
   , hleRecordFields :: Set.Set A.Name
-      -- ^ Field variables used while checking a record constructor telescope.
+      -- ^ Names bound as field values in canonical record stages. Highlight
+      -- their occurrences as fields, even though they are abstract variables.
   , hleCurrentModuleName :: TopLevelModuleName
       -- ^ The current top-level module's name. Used for consistency
       -- checking.
@@ -217,6 +218,8 @@ instance Hilite A.Declaration where
       A.DataDef _di x _pc _uc pars cs        -> hl x <> hl pars <> hl cs
       A.RecSig _di er x tel e                -> hl er <> hl x <> hl tel <> hl e
       A.RecDef _di x _pc _uc _eta dir bs stages ds -> do
+        -- Recover source order and identify field-value variables before
+        -- highlighting helpers. Generated stage applications have no source tokens.
         let source = A.recordDeclarations stages ds
             fields = Set.fromList [ A.qnameName q | A.Field _ q _ <- source ]
         local (\ env -> env { hleRecordFields = fields <> hleRecordFields env }) $
@@ -558,10 +561,13 @@ hiliteProjection = hiliteAmbiguousQName (Just Field)
 hiliteField :: [C.Name] -> C.Name -> Maybe Range -> Hiliter
 hiliteField xs x bindingR = hiliteCName xs x noRange bindingR $ nameAsp Field
 
+-- | Highlight a module name using its source provenance for symbolic anchors.
 -- For top level modules, we set the binding site to the beginning of the file
 -- so that clicking on an imported module will jump to the beginning of the file
 -- which defines this module.
-hiliteModule :: (Bool, A.ModuleName) -> Hiliter
+hiliteModule
+  :: (Bool, A.ModuleName) -- ^ Whether the module is top-level, and its abstract name.
+  -> Hiliter
 hiliteModule (isTopLevelModule, A.MName []) = mempty
 hiliteModule (isTopLevelModule, A.MName (n:ns)) =
   hiliteCNameWithSourceName
@@ -597,8 +603,13 @@ hiliteCName = hiliteCNameWithSourceName Nothing
 -- | Override only the symbolic name. Token ranges and numeric definition links
 -- must continue to refer to the actual occurrence and original binding site.
 hiliteCNameWithSourceName
-  :: Maybe C.QName -> [C.Name] -> C.Name -> Range -> Maybe Range
-  -> (Bool -> Aspects) -> Hiliter
+  :: Maybe C.QName -- ^ Source-qualified override used only for symbolic anchors.
+  -> [C.Name]      -- ^ Actual occurrence's qualifier, with token ranges.
+  -> C.Name        -- ^ Actual occurrence's base name, with its token range.
+  -> Range         -- ^ Occurrence's fixity declaration range, if any.
+  -> Maybe Range   -- ^ Original definition's binding site, for numeric links.
+  -> (Bool -> Aspects) -- ^ Highlighting aspects, given whether the name is an operator.
+  -> Hiliter
 hiliteCNameWithSourceName sourceName xs x fr mR asp = do
   env <- ask
   -- We don't care if we get any funny ranges.
@@ -622,6 +633,8 @@ hiliteCNameWithSourceName sourceName xs x fr mR asp = do
     r <- mR
     P.Pn (Strict.Just f) p _ _ <- P.rStart r
     mod <- P.rangeFileName f
+    -- Source provenance changes the symbolic anchor only. The module, numeric
+    -- position, and token ranges continue to describe the original binding site.
     -- Andreas, 2017-06-16, Issue #2604: Symbolic anchors.
     -- We drop the file name part from the qualifiers, since
     -- this is contained in the html file name already.
