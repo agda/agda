@@ -145,11 +145,14 @@ scopeCheckRecordBody
   -> ScopeM ([A.RecordStage], [A.Declaration])
      -- ^ Canonical helper stages and the public body with their generated copies.
 scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
+
   -- Nicification has grouped signatures with their definitions. Reject groups
   -- crossing a field before splitting the body at its last field declaration.
   mapM_ rejectFieldsInMutual ds
-  let prefix = List.dropWhileEnd (not . isField) ds
-      suffix = drop (length prefix) ds
+
+  -- Split off trailing non-field declarations into @suffix@.
+  -- The rest (@prefix@) is processed with @stagesBeforeFields@.
+  let (prefix, suffix) = spanEnd (not . isField) ds
   -- Field values are local variables only while scoping canonical stages.
   -- Restore the original locals before checking the trailing public declarations.
   locals <- getLocalVars
