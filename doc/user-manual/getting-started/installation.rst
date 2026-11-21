@@ -28,6 +28,7 @@ Pre-built ``agda`` binaries are available for the following platforms:
 
 * Windows (x86-64)
 * Linux (x86-64, statically linked)
+* Linux (arm64, statically linked)
 * macOS (x86-64)
 * macOS (arm64, i.e. Apple M-series)
 

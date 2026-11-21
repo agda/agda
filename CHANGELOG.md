@@ -9,6 +9,9 @@ Installation
 
 * Agda supports GHC versions 9.2.8 to 9.14.1.
 
+* New: GitHub releases include a statically linked Linux ARM64 binary
+  (see [#7603](https://github.com/agda/agda/issues/7603)).
+
 Pragmas and options
 -------------------
 

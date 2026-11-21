@@ -37,11 +37,15 @@ jobs:
         # https://github.com/actions/runner-images#available-images
         # Andreas, 2025-10-04
         # When you change the following values, also UPDATE the conditionals below.
-        os:
+        os: &deploy-runners
           - windows-latest
           - macos-15
           - macos-26-intel
           - ubuntu-latest
+          - ubuntu-26.04-arm
+        include: &deploy-artifacts
+          - os: ubuntu-26.04-arm
+            archive-stem: linux-arm64
         ghc-ver: ['9.14.1']
         cabal-ver: [latest]
 
@@ -108,7 +112,7 @@ jobs:
         elif [[ "${{ runner.os }}" == Linux ]]; then
 
           args="${{ env.ARGS }} ${LINUX_ARGS}"
-          filename=linux.tar.xz
+          filename="${{ matrix.archive-stem || 'linux' }}.tar.xz"
 
           compress_cmd="tar -a -cvf ${filename} -C ${bindist} ${exe}"
 
@@ -149,6 +153,12 @@ jobs:
         # From: https://github.com/alpinelinux/alpine-make-vm-image/pull/54
       uses: rjstone/setup-alpine@v1
       with:
+        arch: ${{ runner.arch == 'ARM64' && 'aarch64' || 'x86_64' }}
+        # apk.static runs on the host before the Alpine chroot is created.
+        apk-tools-url: >-
+          ${{ runner.arch == 'ARM64'
+            && 'https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v2.14.10/aarch64/apk.static#!sha256!e471d35aa221d031abe9b6288aede12a8e9f1a398954e5a2e1d1bce1727b4ef4'
+            || 'https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v2.14.10/x86_64/apk.static#!sha256!34bb1a96f0258982377a289392d4ea9f3f4b767a4bb5806b1b87179b79ad8a1c' }}
         packages: >
           cabal
           g++
@@ -299,7 +309,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-15, macos-26-intel, ubuntu-latest]
+        os: *deploy-runners
+        include: *deploy-artifacts
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -326,7 +337,7 @@ jobs:
 
         elif [[ "${{ runner.os }}" == Linux ]]; then
 
-          osname="linux"
+          osname="${{ matrix.archive-stem || 'linux' }}"
           ext="tar.xz"
           decompress_cmd_base="tar -xf"
 
@@ -380,6 +391,20 @@ jobs:
         fi
 
         ./agda --setup
+
+    - name: Verify the Linux ARM64 binary
+      if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
+      run: |
+        elf=$(LC_ALL=C readelf -W -h -l -d ./agda)
+        grep -Eq 'Machine:[[:space:]]+AArch64$' <<< "${elf}"
+        if grep -Eq '^[[:space:]]+INTERP[[:space:]]|\(NEEDED\)' <<< "${elf}"; then
+          echo "Expected a statically linked executable"
+          exit 1
+        fi
+
+        ./agda --version
+        printf '%s\n' 'module DeploySmoke where' 'open import Agda.Builtin.Nat' > DeploySmoke.agda
+        ./agda DeploySmoke.agda
 
   deploy: # release a bindist if triggered on master or by a tag }}
     # Andreas, 2023-02-13: Also run this part when manually triggered ('workflow_dispatch')

@@ -56,7 +56,7 @@ jobs:
         elif [[ "${{ runner.os }}" == Linux ]]; then
 
           args="${{ env.ARGS }} ${LINUX_ARGS}"
-          filename=linux.tar.xz
+          filename="${{ matrix.archive-stem || 'linux' }}.tar.xz"
 
           compress_cmd="tar -a -cvf ${filename} -C ${bindist} ${exe}"
 
@@ -87,6 +87,11 @@ jobs:
       name: Set up Alpine Linux with GHC
       uses: rjstone/setup-alpine@v1
       with:
+        apk-tools-url: |-
+          ${{ runner.arch == 'ARM64'
+            && 'https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v2.14.10/aarch64/apk.static#!sha256!e471d35aa221d031abe9b6288aede12a8e9f1a398954e5a2e1d1bce1727b4ef4'
+            || 'https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v2.14.10/x86_64/apk.static#!sha256!34bb1a96f0258982377a289392d4ea9f3f4b767a4bb5806b1b87179b79ad8a1c' }}
+        arch: ${{ runner.arch == 'ARM64' && 'aarch64' || 'x86_64' }}
         packages: |
           cabal g++ gcc gmp-dev gmp-static musl-dev ncurses-dev ncurses-static zlib-static zlib-dev
     - id: setup-haskell
@@ -172,11 +177,15 @@ jobs:
         - latest
         ghc-ver:
         - 9.14.1
+        include:
+        - archive-stem: linux-arm64
+          os: ubuntu-26.04-arm
         os:
         - windows-latest
         - macos-15
         - macos-26-intel
         - ubuntu-latest
+        - ubuntu-26.04-arm
   deploy:
     needs: sanity-check
     runs-on: ubuntu-latest
@@ -245,7 +254,7 @@ jobs:
 
         elif [[ "${{ runner.os }}" == Linux ]]; then
 
-          osname="linux"
+          osname="${{ matrix.archive-stem || 'linux' }}"
           ext="tar.xz"
           decompress_cmd_base="tar -xf"
 
@@ -291,14 +300,31 @@ jobs:
         fi
 
         ./agda --setup
+    - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
+      name: Verify the Linux ARM64 binary
+      run: |
+        elf=$(LC_ALL=C readelf -W -h -l -d ./agda)
+        grep -Eq 'Machine:[[:space:]]+AArch64$' <<< "${elf}"
+        if grep -Eq '^[[:space:]]+INTERP[[:space:]]|\(NEEDED\)' <<< "${elf}"; then
+          echo "Expected a statically linked executable"
+          exit 1
+        fi
+
+        ./agda --version
+        printf '%s\n' 'module DeploySmoke where' 'open import Agda.Builtin.Nat' > DeploySmoke.agda
+        ./agda DeploySmoke.agda
     strategy:
       fail-fast: false
       matrix:
+        include:
+        - archive-stem: linux-arm64
+          os: ubuntu-26.04-arm
         os:
         - windows-latest
         - macos-15
         - macos-26-intel
         - ubuntu-latest
+        - ubuntu-26.04-arm
 name: Deploy
 'on':
   push:
