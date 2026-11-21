@@ -2070,9 +2070,6 @@ instance ToAbstract NiceDeclaration where
 
       -- Create the module for the qualified constructors
       checkForModuleClash x
-      -- Create the public module before scoping the staged body: projections
-      -- and helper copies must receive names in this module even though the
-      -- canonical helpers are scoped in separate implementation modules.
       let m = qnameToMName x'
       createModule (Just IsDataModule) m
       bindModule p x m  -- make it a proper module
@@ -2377,6 +2374,9 @@ scopeCheckRecDef r o a pc uc forceEta x directives pars fields =
            setCurrentRange bad $
              typeError $ DuplicateFields dups
 
+      -- Create the public module before scoping the staged body: projections
+      -- and helper copies must receive names in this module even though the
+      -- canonical helpers are scoped in separate implementation modules.
       let m = qnameToMName x'
       createModule (Just IsRecordModule) m
       (stages, afields) <- scopeCheckRecordBody m fields
