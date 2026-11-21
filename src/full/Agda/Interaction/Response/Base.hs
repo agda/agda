@@ -32,7 +32,7 @@ import Agda.Interaction.Base
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common         (InteractionId(..), Arg)
-import Agda.Syntax.Common.Pretty  (DocTree)
+import Agda.Syntax.Common.Pretty  (DocTree, Doc)
 import Agda.Syntax.Concrete       (Expr)
 import Agda.Syntax.Concrete.Name  (Name, QName, NameInScope)
 import Agda.Syntax.Scope.Base     (WhyInScopeData)
