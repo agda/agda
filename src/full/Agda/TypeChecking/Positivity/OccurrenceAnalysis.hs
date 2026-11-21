@@ -569,7 +569,22 @@ instance ComputeOccurrences Term where
           )
 
     Con _ _ es -> ret $ occurrences es
-    MetaV m es -> ret $ underPathSetOcc MetaArg Mixed (occurrences es)
+    MetaV _ [] -> ret $ pure ()
+    MetaV m es -> ret do
+      -- The closed meta type includes both its context telescope and its
+      -- result type. The latter may supply more domains if the meta has
+      -- function type.
+      ps <- lift $ inTopContext $ getOccurrencesFromType =<< metaType m
+      let elims [] _ = pure ()
+          -- Andreas, 2026-11-21, issue #7205.
+          -- The special case for @Unused@ is necessary, see @test/Succeed/Issue7205-Unused.agda@.
+          -- Reason: A mutual application can reset the top occurrence while recording edges.
+          elims (Apply _ : es) (Unused : ps) = elims es ps
+          elims (Apply a : es) (p : ps) =
+            underPathOcc MetaArg p (occurrences a) >> elims es ps
+          -- With no matching Pi domain, keep the conservative approximation.
+          elims es _ = underPathSetOcc MetaArg Mixed (occurrences es)
+      elims es ps
     Pi a b     -> ret $ underPathOcc LeftOfArrow JustNeg (occurrences a) >> occurrences b
     Lam _ t    -> ret $ occurrences t
     Level l    -> ret $ occurrences l

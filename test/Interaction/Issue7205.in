@@ -1,0 +1,7 @@
+top_command (cmd_load currentFile [])
+goal_command 0 cmd_give "λ X _ → X → Head"
+goal_command 0 cmd_give "λ X _ → X"
+goal_command 1 cmd_give "X → Head"
+goal_command 1 cmd_give "X"
+goal_command 2 cmd_give "X"
+goal_command 2 cmd_give "Head"
