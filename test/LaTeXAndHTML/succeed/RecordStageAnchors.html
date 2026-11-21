@@ -1,0 +1,57 @@
+<!DOCTYPE HTML>
+<html><head><meta charset="utf-8"><title>RecordStageAnchors</title><link rel="stylesheet" href="Agda.css"></head><body><pre class="Agda"><a id="1" class="Comment">-- Symbolic anchors follow source modules, independently of staging and copying.</a>
+<a id="82" class="Keyword">module</a> <a id="89" href="RecordStageAnchors.html" class="Module">RecordStageAnchors</a> <a id="108" class="Keyword">where</a>
+
+<a id="115" class="Keyword">record</a> <a id="R"></a><a id="122" href="RecordStageAnchors.html#122" class="Record">R</a> <a id="124" class="Symbol">:</a> <a id="126" href="Agda.Primitive.html#446" class="Primitive">Set₁</a> <a id="131" class="Keyword">where</a>
+  <a id="R.Before"></a><a id="139" href="RecordStageAnchors.html#139" class="Function">Before</a> <a id="146" class="Symbol">:</a> <a id="148" href="Agda.Primitive.html#446" class="Primitive">Set</a> <a id="152" class="Symbol">→</a> <a id="154" href="Agda.Primitive.html#446" class="Primitive">Set</a>
+  <a id="160" href="RecordStageAnchors.html#139" class="Function">Before</a> <a id="167" href="RecordStageAnchors.html#167" class="Bound">X</a> <a id="169" class="Symbol">=</a> <a id="171" href="RecordStageAnchors.html#167" class="Bound">X</a>
+
+  <a id="176" class="Keyword">data</a> <a id="R.D"></a><a id="181" href="RecordStageAnchors.html#181" class="Datatype">D</a> <a id="183" class="Symbol">:</a> <a id="185" href="Agda.Primitive.html#446" class="Primitive">Set</a> <a id="189" class="Keyword">where</a>
+    <a id="R.D.d"></a><a id="199" href="RecordStageAnchors.html#199" class="InductiveConstructor">d</a> <a id="201" class="Symbol">:</a> <a id="203" href="RecordStageAnchors.html#181" class="Datatype">D</a>
+
+  <a id="208" class="Keyword">module</a> <a id="R.Nested"></a><a id="215" href="RecordStageAnchors.html#215" class="Module">Nested</a> <a id="222" class="Keyword">where</a>
+    <a id="R.Nested.N"></a><a id="232" href="RecordStageAnchors.html#232" class="Function">N</a> <a id="234" class="Symbol">:</a> <a id="236" href="Agda.Primitive.html#446" class="Primitive">Set</a>
+    <a id="244" href="RecordStageAnchors.html#232" class="Function">N</a> <a id="246" class="Symbol">=</a> <a id="248" href="RecordStageAnchors.html#181" class="Datatype">D</a>
+
+  <a id="253" class="Keyword">record</a> <a id="R.Inner"></a><a id="260" href="RecordStageAnchors.html#260" class="Record">Inner</a> <a id="266" class="Symbol">:</a> <a id="268" href="Agda.Primitive.html#446" class="Primitive">Set₁</a> <a id="273" class="Keyword">where</a>
+    <a id="283" class="Keyword">constructor</a> <a id="R.inner"></a><a id="295" href="RecordStageAnchors.html#295" class="InductiveConstructor">inner</a>
+    <a id="305" class="Keyword">field</a> <a id="R.Inner.U"></a><a id="311" href="RecordStageAnchors.html#311" class="Field">U</a> <a id="313" class="Symbol">:</a> <a id="315" href="Agda.Primitive.html#446" class="Primitive">Set</a>
+    <a id="R.Inner.Helper"></a><a id="323" href="RecordStageAnchors.html#323" class="Function">Helper</a> <a id="330" class="Symbol">:</a> <a id="332" href="Agda.Primitive.html#446" class="Primitive">Set</a>
+    <a id="340" href="RecordStageAnchors.html#323" class="Function">Helper</a> <a id="347" class="Symbol">=</a> <a id="349" href="RecordStageAnchors.html#311" class="Field">U</a>
+    <a id="355" class="Keyword">field</a> <a id="R.Inner.value"></a><a id="361" href="RecordStageAnchors.html#361" class="Field">value</a> <a id="367" class="Symbol">:</a> <a id="369" href="RecordStageAnchors.html#323" class="Function">Helper</a>
+
+  <a id="379" class="Comment">-- A source module with this name must keep its qualifier.</a>
+  <a id="440" class="Keyword">module</a> <a id="R.record-stage"></a><a id="447" href="RecordStageAnchors.html#447" class="Module">record-stage</a> <a id="460" class="Keyword">where</a>
+    <a id="R.record-stage.user"></a><a id="470" href="RecordStageAnchors.html#470" class="Function">user</a> <a id="475" class="Symbol">:</a> <a id="477" href="Agda.Primitive.html#446" class="Primitive">Set</a>
+    <a id="485" href="RecordStageAnchors.html#470" class="Function">user</a> <a id="490" class="Symbol">=</a> <a id="492" href="RecordStageAnchors.html#181" class="Datatype">D</a>
+
+  <a id="497" class="Keyword">module</a> <a id="504" href="RecordStageAnchors.html#504" class="Module">_</a> <a id="506" class="Keyword">where</a>
+    <a id="516" href="RecordStageAnchors.html#516" class="Function">anonymous</a> <a id="526" class="Symbol">:</a> <a id="528" href="Agda.Primitive.html#446" class="Primitive">Set</a>
+    <a id="536" href="RecordStageAnchors.html#516" class="Function">anonymous</a> <a id="546" class="Symbol">=</a> <a id="548" href="RecordStageAnchors.html#181" class="Datatype">D</a>
+
+  <a id="553" class="Keyword">field</a> <a id="R.A"></a><a id="559" href="RecordStageAnchors.html#559" class="Field">A</a> <a id="561" class="Symbol">:</a> <a id="563" href="Agda.Primitive.html#446" class="Primitive">Set</a>
+
+  <a id="570" class="Keyword">private</a>
+    <a id="R.Hidden"></a><a id="582" href="RecordStageAnchors.html#582" class="Function">Hidden</a> <a id="589" class="Symbol">:</a> <a id="591" href="Agda.Primitive.html#446" class="Primitive">Set</a>
+    <a id="599" href="RecordStageAnchors.html#582" class="Function">Hidden</a> <a id="606" class="Symbol">=</a> <a id="608" href="RecordStageAnchors.html#181" class="Datatype">D</a>
+
+  <a id="613" class="Keyword">module</a> <a id="R.Middle"></a><a id="620" href="RecordStageAnchors.html#620" class="Module">Middle</a> <a id="627" class="Keyword">where</a>
+    <a id="R.Middle.B"></a><a id="637" href="RecordStageAnchors.html#637" class="Function">B</a> <a id="639" class="Symbol">:</a> <a id="641" href="Agda.Primitive.html#446" class="Primitive">Set</a>
+    <a id="649" href="RecordStageAnchors.html#637" class="Function">B</a> <a id="651" class="Symbol">=</a> <a id="653" href="RecordStageAnchors.html#559" class="Field">A</a>
+
+  <a id="658" class="Keyword">module</a> <a id="R.Alias"></a><a id="665" href="RecordStageAnchors.html#665" class="Module">Alias</a> <a id="671" class="Symbol">=</a> <a id="673" href="RecordStageAnchors.html#620" class="Module">Middle</a>
+
+  <a id="R.X"></a><a id="683" href="RecordStageAnchors.html#683" class="Function">X</a> <a id="685" class="Symbol">:</a> <a id="687" href="Agda.Primitive.html#446" class="Primitive">Set</a>
+  <a id="693" href="RecordStageAnchors.html#683" class="Function">X</a> <a id="695" class="Symbol">=</a> <a id="697" href="RecordStageAnchors.html#637" class="Function">Alias.B</a>
+
+  <a id="708" class="Keyword">field</a> <a id="R.C"></a><a id="714" href="RecordStageAnchors.html#714" class="Field">C</a> <a id="716" class="Symbol">:</a> <a id="718" href="RecordStageAnchors.html#683" class="Function">X</a> <a id="720" class="Symbol">→</a> <a id="722" href="Agda.Primitive.html#446" class="Primitive">Set</a>
+
+  <a id="R.After"></a><a id="729" href="RecordStageAnchors.html#729" class="Function">After</a> <a id="735" class="Symbol">:</a> <a id="737" href="Agda.Primitive.html#446" class="Primitive">Set</a>
+  <a id="743" href="RecordStageAnchors.html#729" class="Function">After</a> <a id="749" class="Symbol">=</a> <a id="751" href="RecordStageAnchors.html#582" class="Function">Hidden</a>
+
+<a id="759" class="Keyword">module</a> <a id="Copy"></a><a id="766" href="RecordStageAnchors.html#766" class="Module">Copy</a> <a id="771" class="Symbol">=</a> <a id="773" href="RecordStageAnchors.html#122" class="Module">R</a>
+<a id="775" class="Keyword">open</a> <a id="780" href="RecordStageAnchors.html#766" class="Module">Copy</a> <a id="785" class="Keyword">renaming</a> <a id="794" class="Symbol">(</a><a id="795" href="RecordStageAnchors.html#139" class="Function">Before</a> <a id="802" class="Symbol">to</a> <a id="805" class="Function">Renamed</a><a id="812" class="Symbol">)</a>
+
+<a id="use"></a><a id="815" href="RecordStageAnchors.html#815" class="Function">use</a> <a id="819" class="Symbol">:</a> <a id="821" class="Symbol">(</a><a id="822" href="RecordStageAnchors.html#822" class="Bound">r</a> <a id="824" class="Symbol">:</a> <a id="826" href="RecordStageAnchors.html#122" class="Record">R</a><a id="827" class="Symbol">)</a> <a id="829" class="Symbol">→</a> <a id="831" href="Agda.Primitive.html#446" class="Primitive">Set</a>
+<a id="835" href="RecordStageAnchors.html#815" class="Function">use</a> <a id="839" href="RecordStageAnchors.html#839" class="Bound">r</a> <a id="841" class="Symbol">=</a> <a id="843" href="RecordStageAnchors.html#805" class="Function">Renamed</a> <a id="851" href="RecordStageAnchors.html#839" class="Bound">r</a> <a id="853" class="Symbol">(</a><a id="854" href="RecordStageAnchors.html#683" class="Function">R.X</a> <a id="858" href="RecordStageAnchors.html#839" class="Bound">r</a><a id="859" class="Symbol">)</a>
+</pre></body></html>

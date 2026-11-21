@@ -483,23 +483,65 @@ inside the record declaration
     _<$_ : ∀ {A B} → A → F B → F A
     x <$ fb = fmap (λ _ → x) fb
 
-.. note::
-   In general new definitions need to appear after the field declarations, but
-   simple non-recursive function definitions without pattern matching can be
-   interleaved with the fields. The reason for this restriction is that the
-   type of the record constructor needs to be expressible using :ref:`let-expressions`.
-   In the example below ``D₁`` can only contain declarations for which the
-   generated type of ``mkR`` is well-formed.
+Function definitions can be interleaved with fields, including definitions by
+pattern matching and definitions with ``where`` clauses (since Agda 2.10).
+Each definition can use the preceding fields and declarations. For example:
 
-   .. code-block:: agda
+::
 
-      record R Γ : Setᵢ where
-        constructor mkR
-        field f₁ : A₁
-        D₁
-        field f₂ : A₂
+  record RF : Set₁ where
+    field A : Set
 
-      mkR : ∀ {Γ} (f₁ : A₁) (let D₁) (f₂ : A₂) → R Γ
+    F : Bool → Set
+    F true  = A
+    F false = A → A
+
+    field value : (b : Bool) → F b
+
+The constructor takes ``A`` and ``value`` as arguments. The helper ``F`` becomes
+a member of the record module, just like a definition after the last field.
+Interleaved declarations are checked once with the preceding fields as module
+parameters; their record-module versions instantiate these parameters with
+projections. Declarations after the last field are checked in the completed
+record module.
+
+When a type mentions a helper in an intermediate checking module, Agda prints
+that module as ``RF.0``, ``RF.1``, and so on. The number counts preceding fields,
+including fields with no intervening helper declarations. For example, the
+constructor type of the example above uses ``RF.1.F A b``. These are diagnostic
+qualifiers, not modules accessible in source code; inserting an earlier field can change
+the numbers. Public record members retain their ordinary names, such as
+``RF.F``.
+
+In generated HTML, declarations retain symbolic anchors based on their source
+names, such as ``RF.F`` above. Internal modules used to check interleaved
+declarations do not contribute qualifiers to these anchors.
+
+A field cannot occur in an explicit or inferred mutual block
+(``FieldInMutualBlock``). In particular, a helper's signature and definition
+must not be separated by a field declaration. Finish the helper definition
+before the next field, or move both its signature and definition after that
+field.
+
+Before the last field, each mutually checked group of helpers is checked with
+a fixed prefix of the record fields as module parameters. A field extends that
+prefix, so a mutual group cannot cross this boundary. For example, the following
+is rejected:
+
+.. code-block:: agda
+
+   record R : Set₁ where
+     Carrier : Set
+     field
+       value : Carrier
+       later : Set
+     Carrier = later
+
+The signature and definition of ``Carrier`` infer a mutual block containing
+both fields. Unfolding ``Carrier`` would make the constructor's first argument,
+``value``, depend on its second argument, ``later``, which is not yet bound.
+The restriction also applies when a particular helper could be moved before
+the intervening field without introducing such a dependency.
 
 .. _eta-expansion:
 

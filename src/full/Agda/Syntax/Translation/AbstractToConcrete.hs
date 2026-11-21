@@ -327,7 +327,14 @@ isExistingRecordConstructor c = getConstInfo' c >>= \case
     _                            -> return Nothing
 
 
-lookupQName :: MonadToConcrete m => AllowAmbiguousNames -> A.QName -> m C.QName
+-- | Choose a printable spelling of a qualified name in the current scope.
+-- Prefer visible aliases; otherwise use a diagnostic stage qualifier when
+-- available, falling back to the internal name for ordinary inaccessible names.
+lookupQName
+  :: MonadToConcrete m
+  => AllowAmbiguousNames -- ^ Which ambiguous bindings may be used for printing.
+  -> A.QName             -- ^ Definition, projection, or constructor to name.
+  -> m C.QName
 lookupQName ambCon x | Just s <- getGeneralizedFieldName x =
   return (C.QName $ C.Name noRange C.InScope $ C.stringNameParts s)
 lookupQName ambCon x = ignoreAbstractMode (isExistingRecordConstructor x) >>= \case
@@ -353,18 +360,42 @@ lookupQName ambCon x = ignoreAbstractMode (isExistingRecordConstructor x) >>= \c
       Just x' | x' /= qnameName x -> loop ys
       _ -> return qy
     -- Found no concrete name:
-    loop [] = case qnameToConcrete x of
-      -- The name is qualified: in this case, we are likely dealing with a parameterised
-      -- module, and the unqualified name might actually be in scope (see #3209).
-      -- To make case splitting more useful in that situation, we unqualify the name
-      -- if we are generating clauses for a case split.
-      qy@Qual{} -> do
+    loop [] = do
+      stage <- recordStageModuleName $ qnameModule x
+      let fallback = maybe (qnameToConcrete x)
+            (`C.qualify` nameCanonical (qnameName x)) stage
+      case fallback of
+        -- The name is qualified: in this case, we are likely dealing with a parameterised
+        -- module, and the unqualified name might actually be in scope (see #3209).
+        -- To make case splitting more useful in that situation, we unqualify the name
+        -- if we are generating clauses for a case split.
+        qy@Qual{} -> do
           doUnqualify <- asks unqualifyOutOfScopeNames
           return $ setNotInScope $ if doUnqualify then C.QName (unqualify qy) else qy
-      -- The name is unqualified: make up a new one
-      qy@C.QName{} -> C.QName <$> chooseName (qnameName x)
+        -- The name is unqualified: make up a new one
+        qy@C.QName{} -> C.QName <$> chooseName (qnameName x)
 
-lookupModule :: MonadToConcrete m => A.ModuleName -> m C.QName
+-- | Give an inaccessible canonical stage a diagnostic qualifier such as @RF.1@.
+-- Use the innermost stage annotation to collapse the implementation's nested
+-- modules, and retain any source submodules below that stage. The owning record
+-- is printed through normal scope lookup, including its own stage if nested.
+recordStageModuleName
+  :: MonadToConcrete m
+  => A.ModuleName -- ^ Internal module whose fallback display name is needed.
+  -> m (Maybe C.QName) -- ^ Stage-qualified name, or Nothing for an ordinary module.
+recordStageModuleName (A.MName names) =
+  case break (isJust . nameRecordStage) $ reverse names of
+    (suffix, stage : _) | Just (record, index) <- nameRecordStage stage -> do
+      prefix <- lookupQName AmbiguousNothing record
+      let numbered = prefix `C.qualify` C.simpleName (show index)
+      return $ Just $ foldl C.qualify numbered $ map nameConcrete $ reverse suffix
+    _ -> return Nothing
+
+-- | Choose a module's visible name, or its diagnostic stage name if inaccessible.
+lookupModule
+  :: MonadToConcrete m
+  => A.ModuleName -- ^ Abstract module whose concrete spelling is needed.
+  -> m C.QName
 lookupModule (A.MName []) = return $ C.QName $ C.simpleName "-1"
   -- Andreas, 2016-10-10 it can happen that we have an empty module name
   -- for instance when we query the current module inside the
@@ -375,8 +406,9 @@ lookupModule x =
     do  scope <- asks currentScope
         case inverseScopeLookupModule x scope of
             (y : _) -> return y
-            []      -> return $ mnameToConcrete x
-                -- this is what happens for names that are not in scope (private names)
+            [] -> do
+              stage <- recordStageModuleName x
+              return $ maybe (mnameToConcrete x) setNotInScope stage
 
 -- | Is this concrete name currently in use by a particular abstract
 --   name in the current scope?
@@ -1234,6 +1266,10 @@ instance ToConcrete A.ModuleApplication where
       let r = fuseRange y es
       return $ C.SectionApp r (catMaybes tel) y $ map unNamedArg es
 
+  -- Generated applications have no concrete syntax. Record declarations must
+  -- first replace them with their canonical helpers using recordDeclarations.
+  toConcrete (A.RecordStageApp _) = __IMPOSSIBLE__
+
   toConcrete (A.RecordModuleInstance recm) = do
     recm <- toConcrete recm
     return $ C.RecordModuleInstance (getRange recm) recm
@@ -1314,11 +1350,11 @@ instance ToConcrete A.Declaration where
       return [ C.RecordSig (getRange i) erased x'
                  (map C.DomainFull $ catMaybes tel') t' ]
 
-  toConcrete (A.RecDef  i x _pc _uc _eta dir bs t cs) =
+  toConcrete (A.RecDef  i x _pc _uc _eta dir bs stages cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree $ dataDefParams bs) $ \ tel' -> do
       dirs <- toConcrete dir
-      (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
+      (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr $ A.recordDeclarations stages cs)
       return [ C.RecordDef (getRange i) x' dirs (catMaybes tel') cs' ]
 
   toConcrete (A.Mutual i ds) = pure . C.Mutual empty <$> declsToConcrete (List1.toList ds)

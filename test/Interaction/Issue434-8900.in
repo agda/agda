@@ -1,0 +1,10 @@
+top_command (cmd_load currentFile [])
+goal_command 0 cmd_give "f (pick true)"
+goal_command 1 cmd_give "f seed"
+-- The solution must propagate to every copy of the shared type.
+top_command (cmd_infer_toplevel Normalised "R.X")
+top_command (cmd_infer_toplevel Normalised "R.Y")
+top_command (cmd_infer_toplevel Normalised "R.Z")
+top_command (cmd_infer_toplevel Normalised "Outer.Inner.X")
+top_command (cmd_infer_toplevel Normalised "Outer.Inner.Y")
+top_command (cmd_infer_toplevel Normalised "Outer.Inner.Z")

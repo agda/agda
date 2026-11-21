@@ -15,6 +15,10 @@ Pragmas and options
 Errors
 ------
 
+* Field declarations inside `opaque` blocks are rejected with
+  `Syntax.FieldInsideOpaque`. Fields of a record declared inside an opaque block
+  remain permitted.
+
 Warnings
 --------
 
@@ -35,7 +39,18 @@ Changes to the Agda syntax.
 Language
 --------
 
-Changes to type checker and other components defining the Agda language.
+* Function definitions between record fields now support pattern matching and
+  `where` clauses. Datatypes, records, modules, and postulates can also precede
+  later fields. Interleaved declarations are checked once in hidden modules
+  parameterized by preceding fields, avoiding the constructor-type let restriction
+  and duplicate checking of interaction holes (see [#434](https://github.com/agda/agda/issues/434)).
+  HTML anchors for these declarations retain their source-qualified names,
+  such as `R.helper`, including declarations in nested modules.
+  Diagnostics abbreviate intermediate module qualifiers as `R.0`, `R.1`, etc.,
+  numbering them by preceding fields; a canonical helper can print as `R.1.F`.
+  Fields in explicit or inferred mutual blocks are rejected with
+  `FieldInMutualBlock`. A helper's signature and definition must be completed
+  before the next field declaration.
 
 Builtins
 --------

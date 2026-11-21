@@ -1326,14 +1326,14 @@ instance FreshName () where
   freshName_ () = freshNoName_
 
 instance FreshName Name where
-  freshName_ (Name _ con can bs fix rn) = do
+  freshName_ (Name _ con can bs fix rn source stage) = do
     i <- fresh
-    pure $ Name i con can bs fix rn
+    pure $ Name i con can bs fix rn source stage
 
 instance FreshName C.Name where
   freshName_ c = do
     i <- fresh
-    pure $ Name i c c noRange noFixity' False
+    pure $ Name i c c noRange noFixity' False Nothing Nothing
 
 ----------------------------------------------------------------------------------------------------
 -- * Module Checkpoints
@@ -6047,7 +6047,7 @@ data TypeError
         | NotAnExpression C.Expr
         | NotAValidLetBinding (Maybe NotAValidLetBinding)
         | NotAValidLetExpression NotAValidLetExpression
-        | NotValidBeforeField NiceDeclaration
+        | FieldInMutualBlock
         | PrivateRecordField
         | QualifiedLocalModule
     -- Pattern synonym errors

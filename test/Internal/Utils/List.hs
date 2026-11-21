@@ -13,7 +13,7 @@ import Data.Bifunctor (first)
 import Data.Either (partitionEithers)
 import Data.Function (on)
 import Data.List
-  ((\\), elemIndex, intercalate, isPrefixOf, isSuffixOf,
+  ((\\), dropWhileEnd, elemIndex, intercalate, isPrefixOf, isSuffixOf,
    minimumBy, nub, nubBy, sort, sortBy)
 import qualified Data.List as List
 
@@ -42,6 +42,10 @@ prop_updateAt (NonNegative n) f as = updateAt n f as == spec_updateAt n f as
 prop_spanEnd_split   p xs = let (ys, zs) = spanEnd p xs in xs == ys ++ zs
 prop_spanEnd_holds   p xs = let (ys, zs) = spanEnd p xs in all p zs
 prop_spanEnd_maximal p xs = let (ys, zs) = spanEnd p xs in maybe True (not . p) (lastMaybe ys)
+prop_spanEnd_dropEnd p xs = let
+    ys = dropWhileEnd p xs
+    zs = drop (length ys) xs
+  in spanEnd p xs == (ys, zs)
 
 prop_partitionMaybe :: (Int -> Maybe Bool) -> [Int] -> Bool
 prop_partitionMaybe f as = partitionMaybe f as == partitionEithers (map f' as)

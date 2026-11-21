@@ -1,4 +1,5 @@
 Issue580.agda:5.17-24: error: [PrivateRecordField]
 Record fields cannot be private
 when scope checking the declaration
-  A : Set
+  record Bad where
+    private field A : Set
