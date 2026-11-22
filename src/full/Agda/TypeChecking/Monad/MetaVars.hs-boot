@@ -4,7 +4,7 @@ module Agda.TypeChecking.Monad.MetaVars where
 
 import Control.Monad.Reader
 import Control.Monad.State
-import Control.Monad.Writer
+import Agda.Utils.Writer ( WriterT )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans.Maybe    ( MaybeT )
 

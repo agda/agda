@@ -11,7 +11,7 @@ module Agda.Syntax.Abstract.PatternSynonyms
 
 import Control.Applicative  ( Alternative(empty) )
 import Control.Monad        ( foldM, guard, zipWithM, zipWithM_ )
-import Control.Monad.Writer ( MonadWriter(..), WriterT, execWriterT )
+import Agda.Utils.Writer ( MonadWriter(..), WriterT, execWriterT )
 
 import Data.Map (Map)
 import qualified Data.Map as Map

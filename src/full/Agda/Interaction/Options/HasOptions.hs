@@ -10,7 +10,7 @@ import Control.Monad.State (StateT)
 import Control.Monad.Trans ( MonadTrans, lift )
 import Control.Monad.Trans.Identity (IdentityT)
 import Control.Monad.Trans.Maybe (MaybeT)
-import Control.Monad.Writer (WriterT)
+import Agda.Utils.Writer (WriterT)
 
 import Agda.Interaction.Options.Types (PragmaOptions, CommandLineOptions)
 import Agda.Utils.Update (ChangeT)

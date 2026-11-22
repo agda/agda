@@ -19,7 +19,7 @@ import Control.Monad.Reader ( ReaderT )
 import Control.Monad.State  ( StateT )
 import Control.Monad.Trans  ( MonadTrans, lift )
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer ( WriterT )
+import Agda.Utils.Writer ( WriterT )
 
 import Data.Foldable
 import qualified Data.List as List

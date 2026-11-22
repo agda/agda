@@ -8,7 +8,7 @@ import Prelude hiding (null)
 
 import Control.Monad.Trans.Maybe ( MaybeT(..), runMaybeT )
 import Control.Monad.Except ( MonadError(..) )
-import Control.Monad.Writer ( MonadWriter(..), WriterT(..), runWriterT )
+import Agda.Utils.Writer ( MonadWriter(..), WriterT, runWriterT )
 
 import qualified Data.Foldable as Fold
 import qualified Data.List as List

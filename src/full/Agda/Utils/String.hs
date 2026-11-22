@@ -6,7 +6,7 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer
+import Agda.Utils.Writer
 
 import Data.Char
 import Data.List qualified as List
@@ -125,5 +125,5 @@ instance (IsString (m a), Monad m) => IsString (ReaderT r m a) where
 instance (IsString (m a), Monad m) => IsString (StateT s m a) where
   fromString = lift . fromString
 
-instance (IsString (m a), Monad m, Monoid w) => IsString (WriterT w m a) where
+instance (IsString (m a), Monad m) => IsString (WriterT w m a) where
   fromString = lift . fromString

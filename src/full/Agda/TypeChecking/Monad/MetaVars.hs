@@ -10,7 +10,7 @@ import Control.Monad.Trans          ( MonadTrans, lift )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans.Maybe    ( MaybeT )
 import Control.Monad.Reader         ( ReaderT(ReaderT), runReaderT )
-import Control.Monad.Writer         ( WriterT, execWriterT, tell )
+import Agda.Utils.Writer         ( WriterT, execWriterT, tell )
 
 import qualified Data.HashMap.Strict as HMap
 import qualified Data.List as List

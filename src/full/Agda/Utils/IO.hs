@@ -7,7 +7,7 @@ module Agda.Utils.IO where
 import Control.Exception
 import Control.Monad.Except
 import Control.Monad.State
-import Control.Monad.Writer
+import Agda.Utils.Writer
 
 import Agda.Utils.List (dropFrom)
 import Agda.Utils.String (rtrim)
@@ -29,8 +29,8 @@ instance CatchIO m => CatchIO (ExceptT e m) where
 
 -- | Upon exception, the written output is lost.
 --
-instance CatchIO m => CatchIO (WriterT w m) where
-  catchIO m h = WriterT $ runWriterT m `catchIO` \ e -> runWriterT (h e)
+instance (Monoid w, Functor m, CatchIO m) => CatchIO (WriterT w m) where
+  catchIO m h = writerT $ runWriterT m `catchIO` \ e -> runWriterT (h e)
 
 -- | Upon exception, the state is reset.
 --

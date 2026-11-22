@@ -19,7 +19,7 @@ import Control.Monad.State (MonadState(..))
 import Control.Monad.Trans (MonadTrans(..))
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Monad.Trans.Control (MonadTransControl(..))
-import Control.Monad.Writer (MonadWriter(..), censor)
+import Control.Monad.Writer.Class (MonadWriter(..), censor)
 import Data.Strict.Tuple
 import GHC.Exts (oneShot)
 import Agda.Utils.StrictState

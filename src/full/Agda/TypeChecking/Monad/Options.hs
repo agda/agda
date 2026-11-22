@@ -8,7 +8,7 @@ import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
-import Control.Monad.Writer
+import Agda.Utils.Writer
 
 import qualified Data.Graph as Graph
 import Data.List (sort)

@@ -8,7 +8,7 @@ module Agda.Utils.IO.Directory
 where
 
 import Control.Monad
-import Control.Monad.Writer ( WriterT, execWriterT, tell )
+import Agda.Utils.Writer ( WriterT, execWriterT, tell )
 import Control.Monad.Trans  ( lift )
 
 import Data.ByteString      as BS

@@ -18,7 +18,7 @@ import Control.Monad.State
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Identity
-import Control.Monad.Writer
+import Agda.Utils.Writer
 
 import Data.Maybe
 import Data.Time                    ( getCurrentTime, getCurrentTimeZone, utcToLocalTime )

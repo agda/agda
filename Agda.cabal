@@ -1005,6 +1005,7 @@ library
       Agda.Utils.VarSet
       Agda.Utils.WithDefault
       Agda.Utils.Word
+      Agda.Utils.Writer
       Agda.Utils.Zip
       Agda.Utils.Zipper
       Agda.Version

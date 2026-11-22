@@ -14,7 +14,7 @@ import Control.Monad.Reader      (ReaderT)
 import Control.Monad.State       (StateT)
 import Control.Monad.Trans       (MonadTrans, lift)
 import Control.Monad.Trans.Maybe (MaybeT)
-import Control.Monad.Writer      (WriterT)
+import Agda.Utils.Writer      (WriterT)
 
 import Data.Bifunctor            (second)
 import Data.EnumMap              (EnumMap)

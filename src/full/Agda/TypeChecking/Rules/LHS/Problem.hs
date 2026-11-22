@@ -12,7 +12,7 @@ module Agda.TypeChecking.Rules.LHS.Problem
 import Prelude hiding (null)
 
 import Control.Monad        ( zipWithM )
-import Control.Monad.Writer ( MonadWriter(..), Writer, runWriter )
+import Agda.Utils.Writer ( MonadWriter(..), Writer, runWriter )
 
 import Data.Functor (($>))
 import Data.IntMap (IntMap)

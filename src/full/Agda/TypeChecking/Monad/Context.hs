@@ -12,7 +12,7 @@ import Control.Monad.State
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer         ( WriterT )
+import Agda.Utils.Writer         ( WriterT )
 
 import Data.Foldable
 import qualified Data.HashMap.Strict as HMap

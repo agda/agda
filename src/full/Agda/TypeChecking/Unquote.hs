@@ -7,7 +7,7 @@ import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader   ( ReaderT(..), runReaderT )
 import Control.Monad.State    ( gets, modify, StateT(..), runStateT )
-import Control.Monad.Writer   ( MonadWriter(..), WriterT(..), runWriterT )
+import Agda.Utils.Writer   ( MonadWriter(..), WriterT, writerT, runWriterT )
 import Control.Monad.Trans    ( lift )
 
 import Data.Char
@@ -121,7 +121,7 @@ unpackUnquoteM :: UnquoteM a -> Context -> UnquoteState -> TCM (UnquoteRes a)
 unpackUnquoteM m cxt s = runExceptT $ runWriterT $ runStateT (runReaderT m cxt) s
 
 packUnquoteM :: (Context -> UnquoteState -> TCM (UnquoteRes a)) -> UnquoteM a
-packUnquoteM f = ReaderT $ \ cxt -> StateT $ \ s -> WriterT $ ExceptT $ f cxt s
+packUnquoteM f = ReaderT $ \ cxt -> StateT $ \ s -> writerT $ ExceptT $ f cxt s
 
 -- | @runUnquoteM xs m@ runs the meta-program @m@.
 --

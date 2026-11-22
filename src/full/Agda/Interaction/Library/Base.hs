@@ -9,7 +9,7 @@ import qualified Control.Exception as E
 
 import Control.Monad.Except
 import Control.Monad.State
-import Control.Monad.Writer        ( WriterT, runWriterT, MonadWriter, tell )
+import Agda.Utils.Writer        ( WriterT, runWriterT, MonadWriter, tell )
 import Control.Monad.IO.Class      ( MonadIO(..) )
 
 import Data.Bifunctor              ( first , second )

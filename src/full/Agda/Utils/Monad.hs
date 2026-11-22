@@ -10,7 +10,7 @@ module Agda.Utils.Monad
 import Control.Monad.Except   ( MonadError(catchError, throwError), ExceptT, runExceptT )
 import Control.Monad.Identity ( runIdentity )
 import Control.Monad.State    ( MonadState(get, put) )
-import Control.Monad.Writer   ( MonadWriter(tell), Writer, WriterT, mapWriterT )
+import Agda.Utils.Writer   ( MonadWriter(tell), Writer, WriterT, mapWriterT )
 
 import Data.Bifunctor         ( first, second )
 import Data.Bool              ( bool )
@@ -356,7 +356,7 @@ localState = bracket_ get put
 
 -- Writer monad -----------------------------------------------------------
 
-embedWriter :: (Monad m) => Writer w a -> WriterT w m a
+embedWriter :: (Monoid w, Monad m) => Writer w a -> WriterT w m a
 embedWriter = mapWriterT (pure . runIdentity)
 
 -- | Output a single value.
