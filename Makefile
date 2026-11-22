@@ -86,7 +86,7 @@ GHC_RTS_OPTS := -M6G
 endif
 #
 endif
-GHC_OPTS = "+RTS -A128M $(GHC_RTS_OPTS) -RTS"
+GHC_OPTS = "+RTS -A128M $(GHC_RTS_OPTS) -RTS$(if $(GHC_EXTRA_OPTS), $(GHC_EXTRA_OPTS))"
 
 # The following options are used in several invocations of cabal
 # install/configure below. They are always the last options given to

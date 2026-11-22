@@ -177,7 +177,7 @@ jobs:
       ## but printing stuff might not hurt here.
 
     - name: "Build Agda"
-      run: make install-bin
+      run: make install-bin GHC_EXTRA_OPTS=-j3
 
       # Save products to use in the remaining jobs.
     - name: "Pack artifacts"
