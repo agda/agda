@@ -1,0 +1,42 @@
+
+WarningInstanceNoOutputTypeName.agda:3.14-17: warning: -W[no]InstanceNoOutputTypeName
+Instance arguments whose type is not {Γ} → C, where C evaluates to
+a postulated type, a parameter type or the name of a data or record
+type, are never considered by instance search, so having an
+instance argument ⦃ A : Set ⦄ has no effect.
+when checking that the expression ⦃ A : Set ⦄ → Set is a type
+
+WarningInstanceNoOutputTypeName.agda:4.10-13: warning: -W[no]InstanceNoOutputTypeName
+Instance arguments whose type is not {Γ} → C, where C evaluates to
+a postulated type, a parameter type or the name of a data or record
+type, are never considered by instance search, so having an
+instance argument ⦃ Set ⦄ has no effect.
+when checking that the expression ⦃ Set ⦄ → Set is a type
+
+WarningInstanceNoOutputTypeName.agda:7.12-15: warning: -W[no]InstanceNoOutputTypeName
+Instance arguments whose type is not {Γ} → C, where C evaluates to
+a postulated type, a parameter type or the name of a data or record
+type, are never considered by instance search, so having an
+instance argument ⦃ A : Set ⦄ has no effect.
+
+———— All done; warnings encountered ————————————————————————
+
+WarningInstanceNoOutputTypeName.agda:3.14-17: warning: -W[no]InstanceNoOutputTypeName
+Instance arguments whose type is not {Γ} → C, where C evaluates to
+a postulated type, a parameter type or the name of a data or record
+type, are never considered by instance search, so having an
+instance argument ⦃ A : Set ⦄ has no effect.
+when checking that the expression ⦃ A : Set ⦄ → Set is a type
+
+WarningInstanceNoOutputTypeName.agda:4.10-13: warning: -W[no]InstanceNoOutputTypeName
+Instance arguments whose type is not {Γ} → C, where C evaluates to
+a postulated type, a parameter type or the name of a data or record
+type, are never considered by instance search, so having an
+instance argument ⦃ Set ⦄ has no effect.
+when checking that the expression ⦃ Set ⦄ → Set is a type
+
+WarningInstanceNoOutputTypeName.agda:7.12-15: warning: -W[no]InstanceNoOutputTypeName
+Instance arguments whose type is not {Γ} → C, where C evaluates to
+a postulated type, a parameter type or the name of a data or record
+type, are never considered by instance search, so having an
+instance argument ⦃ A : Set ⦄ has no effect.

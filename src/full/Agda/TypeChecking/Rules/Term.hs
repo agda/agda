@@ -119,9 +119,11 @@ isType_ e = traceCall (IsType_ e) $ do
   let fallback = isType' CmpEq e =<< do workOnTypes $ newSortMeta
   SortKit{ isNameOfUniv } <- sortKit
   case unScope e of
-    A.Fun i (Arg info t) b -> do
+    A.Fun _ arg@(Arg info t) b -> do
       a <- uncurry (defaultArgDomRew info) <$>
            checkPiDomain Nothing (info :| []) t
+      when (isInstance arg) $
+        checkInstanceBindingType t (unDom a) (prettyTCM arg)
       b <- isType_ b
       s <- inferFunSort a b
       let t' = El s $ Pi a $ NoAbs underscore b
@@ -338,6 +340,23 @@ checkPiDomain :: (LensLock a, LensModality a,  LensRewriteAnn a, LensRelevance a
               => Maybe Name -> List1 a -> A.Expr -> TCM (Maybe RewDom, Type)
 checkPiDomain = checkDomain PiNotLam
 
+-- | Warn if an instance binder's type has the wrong shape for instance search.
+--   See issue #3534.
+checkInstanceBindingType ::
+     A.Expr   -- ^ Source type expression, used to locate the warning.
+  -> Type     -- ^ Elaborated type of the instance binder.
+  -> TCM Doc  -- ^ Render the binder for the warning when needed.
+  -> TCM ()   -- ^ Emit the applicable warning, if any, and return unit.
+checkInstanceBindingType e t prettyBinding = do
+  (_, _, target) <- getOutputTypeName t
+  let warnWith w = setCurrentRange e $ warning . w =<< prettyBinding
+  case target of
+    NoOutputTypeName            -> warnWith InstanceNoOutputTypeName
+    OutputTypeVisiblePi         -> warnWith InstanceArgWithExplicitArg
+    OutputTypeName{}            -> return ()
+    OutputTypeVar               -> return ()
+    OutputTypeNameNotYetKnown{} -> return ()
+
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
 --
@@ -360,18 +379,8 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     (rew, t) <- checkDomain lamOrPi (Just x) xps e
     whenJust rew $ \r -> reportSDoc "rewriting" 30 $ "Checked local rewrite:" <+> prettyTCM (rewDomEq r)
 
-    -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
-    -- instance argument does not have the right shape
-    List1.unlessNull (List1.filter isInstance xps) $ \ ixs -> do
-      (tel, _, target) <- getOutputTypeName t
-      case target of
-        OutputTypeName{} -> return ()
-        OutputTypeVar{}  -> return ()
-        OutputTypeNameNotYetKnown{} -> return ()
-        OutputTypeVisiblePi{} -> setCurrentRange e $
-          warning . InstanceArgWithExplicitArg =<< prettyTCM (A.mkTBind r ixs e)
-        NoOutputTypeName -> setCurrentRange e $
-          warning . InstanceNoOutputTypeName =<< prettyTCM (A.mkTBind r ixs e)
+    List1.unlessNull (List1.filter isInstance xps) $ \ ixs ->
+      checkInstanceBindingType e t $ prettyTCM (A.mkTBind r ixs e)
 
     let setTacRew tac rew dom = dom & dTactic .~ tac & dRew .~ rew
         setTacRewTel tac rew EmptyTel            = EmptyTel

@@ -1737,15 +1737,15 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      .. versionadded:: 2.6.0
 
-     Instance arguments whose type does not end in a named or variable type;
-     such are never considered by instance search.
+     Instance search requires the type of an instance argument to end in a
+     named or variable type.
 
 .. option:: InstanceArgWithExplicitArg
 
      .. versionadded:: 2.6.0
 
-     Instance arguments with explicit arguments;
-     such are never considered by instance search.
+     Instance search excludes instance arguments that themselves take explicit
+     arguments.
 
 .. option:: InstanceWithExplicitArg
 

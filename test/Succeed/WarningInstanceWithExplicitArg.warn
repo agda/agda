@@ -1,3 +1,4 @@
+
 WarningInstanceWithExplicitArg.agda:6.12-13: warning: -W[no]InstanceWithExplicitArg
 Instance declarations with explicit arguments are never considered
 by instance search, so making _ into an instance has no effect.
@@ -11,6 +12,23 @@ WarningInstanceWithExplicitArg.agda:27.12-13: warning: -W[no]InstanceWithExplici
 Instance declarations with explicit arguments are never considered
 by instance search, so making c into an instance has no effect.
 when checking the constructor c in the declaration of D
+
+WarningInstanceWithExplicitArg.agda:33.9-16: warning: -W[no]InstanceArgWithExplicitArg
+Instance arguments with explicit arguments are never considered by
+instance search, so having an instance argument ⦃ Set → X ⦄ has no
+effect.
+when checking that the expression ⦃ Set → X ⦄ → Set is a type
+
+WarningInstanceWithExplicitArg.agda:34.13-20: warning: -W[no]InstanceArgWithExplicitArg
+Instance arguments with explicit arguments are never considered by
+instance search, so having an instance argument ⦃ _ : Set → X ⦄ has
+no effect.
+when checking that the expression ⦃ _ : Set → X ⦄ → Set is a type
+
+WarningInstanceWithExplicitArg.agda:37.13-20: warning: -W[no]InstanceArgWithExplicitArg
+Instance arguments with explicit arguments are never considered by
+instance search, so having an instance argument ⦃ var : Set → X ⦄
+has no effect.
 
 ———— All done; warnings encountered ————————————————————————
 
@@ -27,3 +45,20 @@ WarningInstanceWithExplicitArg.agda:27.12-13: warning: -W[no]InstanceWithExplici
 Instance declarations with explicit arguments are never considered
 by instance search, so making c into an instance has no effect.
 when checking the constructor c in the declaration of D
+
+WarningInstanceWithExplicitArg.agda:33.9-16: warning: -W[no]InstanceArgWithExplicitArg
+Instance arguments with explicit arguments are never considered by
+instance search, so having an instance argument ⦃ Set → X ⦄ has no
+effect.
+when checking that the expression ⦃ Set → X ⦄ → Set is a type
+
+WarningInstanceWithExplicitArg.agda:34.13-20: warning: -W[no]InstanceArgWithExplicitArg
+Instance arguments with explicit arguments are never considered by
+instance search, so having an instance argument ⦃ _ : Set → X ⦄ has
+no effect.
+when checking that the expression ⦃ _ : Set → X ⦄ → Set is a type
+
+WarningInstanceWithExplicitArg.agda:37.13-20: warning: -W[no]InstanceArgWithExplicitArg
+Instance arguments with explicit arguments are never considered by
+instance search, so having an instance argument ⦃ var : Set → X ⦄
+has no effect.
