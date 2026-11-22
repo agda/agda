@@ -73,7 +73,7 @@ jobs:
     - name: Install dependencies for Agda and its test suites
       run: make install-deps
     - name: Build Agda
-      run: make install-bin GHC_EXTRA_OPTS=-j4
+      run: make install-bin GHC_EXTRA_OPTS=-j3
     - name: Pack artifacts
       run: |
         tar --use-compress-program zstd --absolute-names -cvf stack.tzst ${{ steps.setup-haskell.outputs.stack-root }}
