@@ -31,6 +31,15 @@ import Control.Monad.Trans.Writer.CPS
   )
 import Control.Monad.Writer.Class ( MonadWriter(..), listens, censor )
 
+#if !MIN_VERSION_mtl(2,3,0)
+import Control.Monad.Except ( MonadError(..) )
+import Control.Monad.Reader ( MonadReader(..) )
+import Control.Monad.State  ( MonadState(..) )
+import Control.Monad.Trans  ( lift )
+
+import Control.Monad.Trans.Writer.CPS qualified as CPS
+#endif
+
 ---------------------------------------------------------------------------
 -- monad-control (as of 1.0.3.1) has no instance for the CPS writer.
 -- This mirrors its instance for the lazy writer.
@@ -43,13 +52,6 @@ instance Monoid w => MonadTransControl (WriterT w) where
   {-# INLINABLE restoreT #-}
 
 #if !MIN_VERSION_mtl(2,3,0)
-import Control.Monad.Except ( MonadError(..) )
-import Control.Monad.Reader ( MonadReader(..) )
-import Control.Monad.State  ( MonadState(..) )
-import Control.Monad.Trans  ( lift )
-
-import Control.Monad.Trans.Writer.CPS qualified as CPS
-
 ---------------------------------------------------------------------------
 -- mtl-2.3 ships these instances for the CPS writer, older mtl does not.
 
@@ -64,12 +66,12 @@ instance (Monoid w, MonadReader r m) => MonadReader r (CPS.WriterT w m) where
   local  = CPS.mapWriterT . local
   reader = lift . reader
 
-instance (Monoid w, MonadState s m) => MonadState s (CPS.WriterT w m) where
+instance MonadState s m => MonadState s (CPS.WriterT w m) where
   get   = lift get
   put   = lift . put
   state = lift . state
 
-instance (Monoid w, MonadError e m) => MonadError e (CPS.WriterT w m) where
+instance MonadError e m => MonadError e (CPS.WriterT w m) where
   throwError = lift . throwError
   catchError = CPS.liftCatch catchError
 #endif
