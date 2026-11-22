@@ -25,3 +25,13 @@ record R (A : Set) : Set where
 
 data D (A : Set) : Set where
   instance c : A → D A
+
+-- Andreas, 2026-11-22, re #7047
+-- Also for binding and generalizable variables.
+
+postulate
+  F : {{Set → X}} → Set      -- warning
+  G : {{_ : Set → X}} → Set  -- warning
+
+variable
+  {{var}} : Set → X          -- warning

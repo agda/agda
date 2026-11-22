@@ -27,6 +27,10 @@ Warnings
 
 * Warning `ShadowingInTelescope` is now on by default.
 
+* `InstanceNoOutputTypeName` and `InstanceArgWithExplicitArg` now also warn
+  about instance `variable` declarations and anonymous instance arguments
+  in function types.
+
 * New warning `PragmaCompileDefined` when a `COMPILE GHC` pragma overrides
   the definition of a (non-abstract) function.
 

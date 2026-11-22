@@ -582,6 +582,11 @@ checkGeneralize s i info x e = do
       , nest 2 $ prettyTCM tGen
       ]
 
+    when (isInstance info) $ do
+      let binder = unnamedArg info $ A.mkBinder_ (qnameName x)
+      checkInstanceBindingType e tGen $
+        prettyTCM (A.mkTBind (getRange e) (List1.singleton binder) e)
+
     lang <- getLanguage
     addConstant x $ defaultDefn info x tGen lang $
       GeneralizableVar $ SomeGeneralizableArgs n

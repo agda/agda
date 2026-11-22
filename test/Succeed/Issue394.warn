@@ -1,4 +1,11 @@
 
+Issue394.agda:6.17-32: warning: -W[no]InstanceArgWithExplicitArg
+Instance arguments with explicit arguments are never considered by
+instance search, so having an instance argument ⦃ Set → Set → Set ⦄
+has no effect.
+when checking that the expression
+⦃ Set → Set → Set ⦄ → {Set → Set → Set} → Set is a type
+
 Issue394.agda:30.6-9: warning: -W[no]ShadowingInTelescope
 Shadowing in telescope, repeated variable names: x
 when scope checking K ⦃ λ x x → x ⦄ {λ x x → x}
@@ -8,6 +15,13 @@ Shadowing in telescope, repeated variable names: x
 when scope checking K ⦃ λ x x → x ⦄ {λ x x → x}
 
 ———— All done; warnings encountered ————————————————————————
+
+Issue394.agda:6.17-32: warning: -W[no]InstanceArgWithExplicitArg
+Instance arguments with explicit arguments are never considered by
+instance search, so having an instance argument ⦃ Set → Set → Set ⦄
+has no effect.
+when checking that the expression
+⦃ Set → Set → Set ⦄ → {Set → Set → Set} → Set is a type
 
 Issue394.agda:30.6-9: warning: -W[no]ShadowingInTelescope
 Shadowing in telescope, repeated variable names: x
