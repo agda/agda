@@ -230,9 +230,9 @@ jobs:
     - name: Run agda --help in PowerShell (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
-      run:  |
-        # shellcheck disable=SC2086
-        cabal run ${FLAGS} agda -- --help
+      run: |
+        $cabalFlags = $env:FLAGS.Trim() -split '\s+'
+        cabal run @cabalFlags agda -- --help
 
     - name: Run doctest
       if: matrix.doctest
