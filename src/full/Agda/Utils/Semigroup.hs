@@ -26,6 +26,6 @@ instance (Monad m, Semigroup doc)       => Semigroup (StateT s m doc)  where
   {-# INLINE (<>) #-}
   (<>) = liftA2 (<>)
 
-instance (Monad m, Semigroup doc) => Semigroup (WriterT w m doc)  where
+instance (Monad m, Semigroup doc)       => Semigroup (WriterT w m doc) where
   {-# INLINE (<>) #-}
   (<>) = liftA2 (<>)
