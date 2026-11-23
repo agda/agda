@@ -1,2 +1,2 @@
 Cannot read file FileThatDoesNotExist-ForReals.agda
-Error: FileThatDoesNotExist-ForReals.agda: openBinaryFile: does not exist (No such file or directory)
+Error: FileThatDoesNotExist-ForReals.agda: getModificationTime:getFileStatus: does not exist (No such file or directory)
