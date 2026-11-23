@@ -4,6 +4,7 @@ module Agda.Mimer.Types where
 import Control.DeepSeq (NFData)
 import Data.Function (on)
 import Data.Map (Map)
+import Data.Set (Set)
 import Data.List qualified as List
 import GHC.Generics (Generic)
 import Data.IORef (IORef)
@@ -190,6 +191,9 @@ data SearchOptions = SearchOptions
   , searchTopMeta :: MetaId
   , searchTopEnv :: TCEnv
   , searchTopCheckpoint :: CheckpointId
+  , searchInitialMetas :: Set MetaId
+      -- ^ Metas that were open before the search started.
+      --   Only metas created during search are turned into goals by 'expandGoals'.
   , searchProblem :: ProblemId
       -- ^ Constraints postponed during search are tagged with this problem.
       --   A branch is only a solution once all of them are solved.
