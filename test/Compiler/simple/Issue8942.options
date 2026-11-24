@@ -1,0 +1,9 @@
+TestOptions
+  { forCompilers =
+      [ (MAlonzo Lazy,       CompilerOptions {extraAgdaArgs = ["--ghc-flag=-O"]})
+      , (MAlonzo StrictData, CompilerOptions {extraAgdaArgs = ["--ghc-flag=-O"]})
+      , (MAlonzo Strict,     CompilerOptions {extraAgdaArgs = ["--ghc-flag=-O"]})
+      ]
+  , runtimeOptions = []
+  , executeProg = True
+  }
