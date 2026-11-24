@@ -28,6 +28,10 @@ Pragmas and options
 Errors
 ------
 
+* With `--no-eta-singleton`, some constraints that were previously left
+  unsolved because eta expansion might solve them are now hard errors
+  (see [#5703](https://github.com/agda/agda/issues/5703)).
+
 Warnings
 --------
 

@@ -1,0 +1,5 @@
+Issue5703ModuleParams.agda:13.16-20: error: [MetaCannotDependOn]
+Cannot instantiate the metavariable _3 to solution F A
+since it contains the variable A
+which is not in scope of the metavariable
+when checking that the expression refl has type X ≡ F A

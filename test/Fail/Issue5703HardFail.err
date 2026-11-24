@@ -1,0 +1,4 @@
+Issue5703HardFail.agda:15.15-19: error: [MetaErasedSolution]
+Cannot instantiate the metavariable _3 to solution A
+since (part of) the solution was created in an erased context
+when checking that the expression refl has type X ≡ A
