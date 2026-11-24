@@ -5,7 +5,7 @@ module MAlonzo.RTE where
 import Prelude
   ( Bool, Char, Double, Integer, String
   , Enum(..), Eq(..), Ord(..), Integral(..), Num(..)
-  , ($), error, otherwise
+  , ($), error, otherwise, seq
   , (++), fromIntegral
   )
 
@@ -86,6 +86,14 @@ word64ToNat = fromIntegral
 
 word64FromNat :: Integer -> Word64
 word64FromNat = fromIntegral
+
+-- | Convert the QName identifiers to words, evaluating both fields for the
+-- generated Sigma constructor under @--ghc-strict-data@.
+qnameToWord64s :: QName -> (Word64, Word64)
+qnameToWord64s qname = name `seq` moduleHash `seq` (name, moduleHash)
+  where
+    name = word64FromNat (nameId qname)
+    moduleHash = word64FromNat (moduleId qname)
 
 {-# INLINE add64 #-}
 add64 :: Word64 -> Word64 -> Word64

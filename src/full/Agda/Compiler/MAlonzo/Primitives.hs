@@ -267,7 +267,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $ List.loo
   , PrimQNameLess         |-> rel "(<)" "MAlonzo.RTE.QName"
   , PrimShowQName         |-> return "Data.Text.pack . MAlonzo.RTE.qnameString"
   , PrimQNameFixity       |-> return "MAlonzo.RTE.qnameFixity"
-  , PrimQNameToWord64s    |-> return "\\ qn -> (MAlonzo.RTE.nameId qn, MAlonzo.RTE.moduleId qn)"
+  , PrimQNameToWord64s    |-> return "MAlonzo.RTE.qnameToWord64s"
   , PrimQNameToWord64sInjective   |-> return mazErasedName
   , PrimMetaEquality      |-> rel "(==)" "(Integer, Integer)"
   , PrimMetaLess          |-> rel "(<)" "(Integer, Integer)"
