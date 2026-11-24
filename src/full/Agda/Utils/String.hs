@@ -6,7 +6,6 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
-import Agda.Utils.Writer
 
 import Data.Char
 import Data.List qualified as List
@@ -16,6 +15,7 @@ import Agda.Utils.Function (applyUnless)
 import Agda.Utils.List
 import Agda.Utils.List1 (String1, fromList)
 import Agda.Utils.Size  (Sized, natSize)
+import Agda.Utils.Writer
 
 instance IsString String1 where
   fromString = fromList

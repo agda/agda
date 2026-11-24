@@ -7,7 +7,6 @@ import Prelude hiding (null)
 import Control.Monad.Except          ( ExceptT )
 import Control.Monad.State           ( StateT  )
 import Control.Monad.Reader          ( ReaderT )
-import Agda.Utils.Writer          ( WriterT )
 import Control.Monad.Trans.Maybe     ( MaybeT (MaybeT), runMaybeT  )
 import Control.Monad.Trans.Identity  ( IdentityT )
 import Control.Monad.Trans           ( MonadTrans, lift )
@@ -79,6 +78,7 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple ( first, second )
 import Agda.Utils.Update
+import Agda.Utils.Writer ( WriterT )
 import Agda.Utils.StrictReader qualified as Strict
 import Agda.Utils.StrictWriter qualified as Strict
 import Agda.Utils.StrictState  qualified as Strict

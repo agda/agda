@@ -9,9 +9,8 @@ module Agda.Syntax.Abstract.PatternSynonyms
   , mergePatternSynDefs
   ) where
 
-import Control.Applicative  ( Alternative(empty) )
-import Control.Monad        ( foldM, guard, zipWithM, zipWithM_ )
-import Agda.Utils.Writer ( MonadWriter(..), WriterT, execWriterT )
+import Control.Applicative ( Alternative(empty) )
+import Control.Monad       ( foldM, guard, zipWithM, zipWithM_ )
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -23,6 +22,7 @@ import Agda.Syntax.Abstract
 import Agda.Syntax.Abstract.Views
 
 import Agda.Utils.List1 (List1, pattern (:|))
+import Agda.Utils.Writer ( MonadWriter(..), WriterT, execWriterT )
 
 -- | Merge a list of pattern synonym definitions. Fails unless all definitions
 --   have the same shape (i.e. equal up to renaming of variables and constructor

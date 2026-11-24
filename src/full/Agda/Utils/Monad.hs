@@ -10,7 +10,6 @@ module Agda.Utils.Monad
 import Control.Monad.Except   ( MonadError(catchError, throwError), ExceptT, runExceptT )
 import Control.Monad.Identity ( runIdentity )
 import Control.Monad.State    ( MonadState(get, put) )
-import Agda.Utils.Writer   ( MonadWriter(tell), Writer, WriterT, mapWriterT )
 
 import Data.Bifunctor         ( first, second )
 import Data.Bool              ( bool )
@@ -25,6 +24,7 @@ import Agda.Utils.Either
 import Agda.Utils.Null (empty, ifNotNullM)
 import Agda.Utils.Singleton
 import Agda.Utils.ExpandCase
+import Agda.Utils.Writer ( MonadWriter(tell), Writer, WriterT, mapWriterT )
 
 import Agda.Utils.Impossible
 

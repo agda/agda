@@ -7,7 +7,6 @@ import Prelude hiding (null)
 import Control.Applicative        ( (<|>) )
 import Control.Monad.Except       ( MonadError )
 import Control.Monad.Trans.Maybe  ( MaybeT(MaybeT), runMaybeT )
-import Agda.Utils.Writer       ( Writer, runWriter, tell )
 
 import Data.Bifunctor
 import qualified Data.List as List
@@ -50,6 +49,7 @@ import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.Writer ( Writer, runWriter, tell )
 
 import Agda.Utils.Impossible
 

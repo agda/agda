@@ -29,7 +29,6 @@ import Control.Monad.Except         ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class       ( MonadIO(..) )
 import Control.Monad.State          ( MonadState(..), modify, StateT(..), runStateT, evalStateT )
 import Control.Monad.Reader         ( MonadReader(..), ReaderT(..), runReaderT )
-import Agda.Utils.Writer         ( WriterT, writerT, runWriterT )
 import Control.Monad.Trans          ( MonadTrans(..), lift )
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough, MonadBaseControl )
 import Control.Monad.Trans.Identity ( IdentityT(..), runIdentityT )
@@ -159,6 +158,7 @@ import Agda.Utils.Tuple (Pair, (&&&) )
 import Agda.Utils.Update
 import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.VarSet qualified as VarSet
+import Agda.Utils.Writer    ( WriterT, writerT, runWriterT )
 import Agda.Utils.Atomic
 import Agda.Utils.StrictReader qualified as Strict
 import Agda.Utils.StrictWriter qualified as Strict

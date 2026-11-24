@@ -49,7 +49,6 @@ module Agda.Interaction.Library
 
 import qualified Control.Exception as E
 import Control.Monad.Except   ( runExceptT, MonadError, throwError )
-import Agda.Utils.Writer   ( Writer, runWriterT, tell )
 import Control.Monad.IO.Class ( MonadIO(..) )
 
 import Data.Bifunctor ( first, second )
@@ -88,6 +87,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple ( secondM )
+import Agda.Utils.Writer ( Writer, runWriterT, tell )
 
 import Agda.Setup ( getDataFileName, getAgdaAppDir )
 import Agda.Version

@@ -7,7 +7,6 @@ import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader   ( ReaderT(..), runReaderT )
 import Control.Monad.State    ( gets, modify, StateT(..), runStateT )
-import Agda.Utils.Writer   ( MonadWriter(..), WriterT, writerT, runWriterT )
 import Control.Monad.Trans    ( lift )
 
 import Data.Char
@@ -77,6 +76,7 @@ import Agda.Utils.List1     qualified as List1
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Tuple     ( first, second, (&&&) )
+import Agda.Utils.Writer    ( MonadWriter(..), WriterT, writerT, runWriterT )
 
 import Agda.Utils.Impossible
 

@@ -4,12 +4,13 @@ module Agda.TypeChecking.Monad.MetaVars where
 
 import Control.Monad.Reader
 import Control.Monad.State
-import Agda.Utils.Writer ( WriterT )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans.Maybe    ( MaybeT )
 
 import Agda.Syntax.Common (InteractionId, MetaId)
 import Agda.TypeChecking.Monad.Base
+
+import Agda.Utils.Writer ( WriterT )
 
 class (MonadTCEnv m, ReadTCState m) => MonadInteractionPoints m where
   freshInteractionId :: m InteractionId

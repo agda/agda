@@ -10,7 +10,6 @@ import Control.DeepSeq
 import Control.Exception qualified as E (evaluate)
 import Control.Monad.Except
 import Control.Monad.Reader
-import Agda.Utils.Writer
 import Control.Monad.State
 import Control.Monad.IO.Class ( MonadIO(..) )
 
@@ -32,6 +31,7 @@ import Agda.Syntax.Common.Pretty
 import Agda.Utils.Time
 import Agda.Utils.Trie (Trie)
 import Agda.Utils.Trie qualified as Trie
+import Agda.Utils.Writer
 import Agda.Utils.StrictReader qualified as Strict
 
 

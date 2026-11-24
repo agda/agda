@@ -10,7 +10,6 @@ import Control.Monad.Reader         ( ReaderT  (ReaderT  ), runReaderT   )
 import Control.Monad.State          ( StateT   (StateT   ), runStateT    )
 import Control.Monad.Trans.Identity ( IdentityT(IdentityT), runIdentityT )
 import Control.Monad.Trans.Maybe    ( MaybeT   (MaybeT   ), runMaybeT    )
-import Agda.Utils.Writer         ( WriterT, writerT, runWriterT )
 
 import qualified Data.Set as Set
 
@@ -32,6 +31,7 @@ import Agda.TypeChecking.Warnings (warning)
 import Agda.Utils.Function
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Writer ( WriterT, writerT, runWriterT )
 
 import Agda.Utils.StrictReader qualified as Strict
 import Agda.Utils.StrictWriter qualified as Strict

@@ -7,10 +7,10 @@ module Agda.Utils.IO where
 import Control.Exception
 import Control.Monad.Except
 import Control.Monad.State
-import Agda.Utils.Writer
 
 import Agda.Utils.List (dropFrom)
 import Agda.Utils.String (rtrim)
+import Agda.Utils.Writer
 
 -- | Catch 'Exception's in an extension of the 'IO' monad.
 --

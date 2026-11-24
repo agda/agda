@@ -31,7 +31,6 @@ module Agda.Interaction.Library.Parse
 
 import Control.Monad
 import Control.Monad.Except
-import Agda.Utils.Writer
 import Data.Char
 import qualified Data.List as List
 import Data.Text (Text)
@@ -53,6 +52,7 @@ import qualified Agda.Utils.List1   as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Singleton
 import Agda.Utils.String            ( ltrim )
+import Agda.Utils.Writer
 
 -- | Parser monad: Can throw @LibParseError@s, and collects
 -- @LibWarning'@s library warnings.

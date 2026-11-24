@@ -18,7 +18,6 @@ import Control.Monad.State
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Identity
-import Agda.Utils.Writer
 
 import Data.Maybe
 import Data.Time                    ( getCurrentTime, getCurrentTimeZone, utcToLocalTime )
@@ -42,6 +41,7 @@ import Agda.Syntax.Common.Pretty
 import Agda.Interaction.Options.ProfileOptions
 import Agda.Utils.Update
 import qualified Agda.Utils.Trie as Trie
+import Agda.Utils.Writer
 import Agda.Utils.StrictReader qualified as Strict
 import Agda.Utils.StrictWriter qualified as Strict
 import Agda.Utils.StrictState  qualified as Strict

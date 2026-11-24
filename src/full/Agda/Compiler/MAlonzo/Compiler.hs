@@ -12,7 +12,6 @@ import Control.Monad.Except   ( throwError )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader   ( MonadReader(..), asks, ReaderT, runReaderT, withReaderT )
 import Control.Monad.Trans    ( lift )
-import Agda.Utils.Writer   ( MonadWriter(..), WriterT, runWriterT )
 
 import qualified Data.HashSet as HashSet
 import qualified Data.List as List
@@ -78,6 +77,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple (second)
 import qualified Agda.Utils.IO.UTF8 as UTF8
+import Agda.Utils.Writer ( MonadWriter(..), WriterT, runWriterT )
 import Agda.Utils.Zip
 
 import Agda.Setup ( getDataDir )

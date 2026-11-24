@@ -7,8 +7,9 @@ import Control.Applicative (liftA2)
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.State  (StateT)
-import Agda.Utils.Writer (WriterT)
 import Control.Monad.Trans.Maybe (MaybeT)
+
+import Agda.Utils.Writer (WriterT)
 
 instance (Monad m, Semigroup doc)       => Semigroup (ExceptT e m doc) where
   {-# INLINE (<>) #-}
