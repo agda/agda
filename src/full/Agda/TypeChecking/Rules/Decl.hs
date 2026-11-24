@@ -334,7 +334,8 @@ revisitRecordPatternTranslation qs = do
   -- and the set of function definitions in the mutual block
   classify q = inConcreteOrAbstractMode q $ \ def -> do
     case theDef def of
-      Record{ recEtaEquality' = EtaEquality YesEta _ } -> return $ Just $ Left q
+      Record{ recEtaEquality' = EtaEquality eta _ } ->
+        ifM (etaActive eta) (return $ Just $ Left q) (return Nothing)
       Function
         { funProjection = Left MaybeProjection
             -- Andreas, 2017-08-10, issue #2664:

@@ -980,6 +980,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = noMutualBlock $ d
                 }
   let dummyTel 0 = EmptyTel
       dummyTel n = ExtendTel (defaultDom __DUMMY_TYPE__) $ Abs "_" $ dummyTel (n - 1)
+      etaSingleton = if null genRecFields then EtaSingleton else EtaNoSingleton
   addConstant' genRecName defaultArgInfo (sort genRecSort) $
     Record { recPars         = 0
            , recClause       = Nothing
@@ -989,7 +990,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = noMutualBlock $ d
            , recTel          = dummyTel (length genRecFields) -- Filled in later
            , recMutual       = Just []
            , recPositivityCheck = NoPositivityCheck
-           , recEtaEquality' = EtaEquality YesEta EtaFromPragma
+           , recEtaEquality' = EtaEquality (YesEta etaSingleton) EtaFromPragma
            , recPatternMatching = CopatternMatching
            , recInduction    = Nothing
            , recTerminates   = Just True    -- not recursive

@@ -304,9 +304,23 @@ instance NFData a => NFData (RecordDirectives' a) where
 -- * Eta-equality
 ---------------------------------------------------------------------------
 
+-- | Should a record with eta-equality be treated as a definitional
+--   singleton type?
+data EtaSingleton
+  = EtaSingleton
+      -- ^ The record has no usable fields, so it is a definitional
+      --   singleton type.
+  | EtaNoSingleton
+      -- ^ The record has at least one usable field.
+  deriving (Show, Eq, Ord, Enum, Bounded, Generic)
+
+instance NFData EtaSingleton where
+  rnf EtaSingleton   = ()
+  rnf EtaNoSingleton = ()
+
 -- | Does a record come with eta-equality?
 data HasEta' a
-  = YesEta
+  = YesEta EtaSingleton
   | NoEta a
   deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
@@ -317,8 +331,8 @@ instance KillRange a => KillRange (HasEta' a) where
   killRange = fmap killRange
 
 instance NFData a => NFData (HasEta' a) where
-  rnf YesEta    = ()
-  rnf (NoEta p) = rnf p
+  rnf (YesEta s) = rnf s
+  rnf (NoEta p)  = rnf p
 
 -- | Pattern and copattern matching is allowed in the presence of eta.
 --
@@ -356,8 +370,8 @@ instance PatternMatchingAllowed PatternOrCopattern where
 
 instance PatternMatchingAllowed HasEta where
   patternMatchingAllowed = \case
-    YesEta -> True
-    NoEta p -> patternMatchingAllowed p
+    YesEta _ -> True
+    NoEta p  -> patternMatchingAllowed p
 
 
 -- | Can we construct a record by copattern matching?
@@ -369,8 +383,8 @@ instance CopatternMatchingAllowed PatternOrCopattern where
 
 instance CopatternMatchingAllowed HasEta where
   copatternMatchingAllowed = \case
-    YesEta -> True
-    NoEta p -> copatternMatchingAllowed p
+    YesEta _ -> True
+    NoEta p  -> copatternMatchingAllowed p
 
 ---------------------------------------------------------------------------
 -- * Data or record

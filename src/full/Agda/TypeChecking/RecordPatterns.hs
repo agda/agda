@@ -87,7 +87,7 @@ recordPatternToProjections p =
       case unEl t of
         Def r _ -> getConstInfo r <&> theDef >>= \case
           rt@Record { recFields = fields } -> do
-            unless (YesEta == recEtaEquality rt) do
+            unlessM (etaActive (recEtaEquality rt)) do
               warning ShouldBeEtaRecordPattern
             concat <$> zipWithM comb (map proj fields) (map namedArg ps)
           _ -> __IMPOSSIBLE_VERBOSE__ "recordPatternToProjections: ConP can only belong to a record type."
@@ -140,9 +140,11 @@ cutColumns i n rows = unzip (map (cutSublist i n) rows)
 
 getEtaAndArity :: SplitTag -> TCM (Bool, Nat)
 getEtaAndArity (SplitCon c) =
-  getConstructorInfo c <&> \case
-    DataCon n           -> (False, n)
-    RecordCon _ eta n _ -> (eta == YesEta, n)
+  getConstructorInfo c >>= \case
+    DataCon n           -> return (False, n)
+    RecordCon _ eta n _ -> do
+      isEta <- etaActive eta
+      return (isEta, n)
 getEtaAndArity (SplitLit l) = return (False, 0)
 getEtaAndArity SplitCatchall = return (False, 1)
 
@@ -207,8 +209,10 @@ translateCompiledClauses defn cc = ignoreAbstractMode $ do
           _ | Just (ch, b) <- eta -> yesEtaCase b ch
           [(c, b)] | not comatch -> -- possible eta-match
             getConstructorInfo' c >>= \ case
-              Just (RecordCon pm YesEta _ar fs) -> yesEtaCase b $
-                ConHead c (IsRecord pm) Inductive NotHIT (map argFromDom fs)
+              Just (RecordCon pm eta _ar fs) ->
+                ifM (etaActive eta)
+                  (yesEtaCase b $ ConHead c (IsRecord pm) Inductive NotHIT (map argFromDom fs))
+                  noEtaCase
               _ -> noEtaCase
           _ -> noEtaCase
       return $ Case i cs{ conBranches    = conMap
@@ -329,10 +333,11 @@ recordExpressionsToCopatterns = \case
       let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       irrProj <- optIrrelevantProjections <$> pragmaOptions
       getConstructorInfo (conName c) >>= \ case
-        RecordCon CopatternMatching YesEta ar fs
+        RecordCon CopatternMatching eta ar fs
           | ar > 0                                     -- only for eta-records with at least one field
           , length vs == ar                            -- where the constructor application is saturated
-          , irrProj || not (any isIrrelevant fs) -> do -- and irrelevant projections (if any) are allowed
+          , irrProj || not (any isIrrelevant fs) ->    -- and irrelevant projections (if any) are allowed
+            ifM (etaActive eta) (do
               tellDirty
               Case (defaultArg $ length xs) <$> do
                 -- translate new cases recursively (there might be nested record expressions)
@@ -346,6 +351,7 @@ recordExpressionsToCopatterns = \case
                   , fallThrough    = Nothing
                   , lazyMatch      = False
                   }
+              ) (return cc)
         _ -> return cc
     cc@Done{} -> return cc
 

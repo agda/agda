@@ -529,10 +529,21 @@ R.a x ; b = R.b x ; c = R.c x }``.
   eta-R : (x : R) → x ≡ record { a = R.a x ; b = R.b x ; c = R.c x }
   eta-R r = refl
 
-Record types enjoy η-equality by default (option:`--eta-equality`)
+Record types enjoy η-equality by default (:option:`--eta-equality`)
 with the exception of coinductive records.
 The keywords ``eta-equality``/``no-eta-equality`` enable/disable η rules for the record type
 being declared.
+
+With :option:`--no-eta-singleton`, records with no usable fields (no fields, or
+only irrelevant or erased fields) are not treated as definitional singleton
+types in the current module. They are still marked as eta records, so modules
+that do not use this flag can use η-equality for them. Defining such a record
+with eta-equality in a file that uses this flag raises a warning, because the
+eta-equality has no effect in that file. This option does not remove
+definitional singleton types coming from :option:`--prop` or cubical ``Sub``.
+Because there are no definitional singleton types in modules that use this
+flag, some constraints that would otherwise be left unsolved (in the hope that
+eta expansion solves them) are now hard errors.
 
 ::
 

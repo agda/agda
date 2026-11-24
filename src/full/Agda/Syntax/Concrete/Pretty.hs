@@ -507,7 +507,7 @@ instance Pretty Declaration where
 
 pHasEta0 :: HasEta0 -> Doc
 pHasEta0 = \case
-  YesEta   -> hlKeyword "eta-equality"
+  YesEta _ -> hlKeyword "eta-equality"
   NoEta () -> hlKeyword "no-eta-equality"
 
 instance Pretty RecordDirective where

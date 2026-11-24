@@ -81,6 +81,7 @@ defaultPragmaOptions = PragmaOptions
   , _optExactSplit                 = Default
   , _optHiddenArgumentPuns         = Default
   , _optEta                        = Default
+  , _optEtaSingleton               = Default
   , _optForcing                    = Default
   , _optProjectionLike             = Default
   , _optErasure                    = Default

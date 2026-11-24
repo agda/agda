@@ -75,6 +75,7 @@ module Agda.Interaction.Options.Base
     , lensOptExactSplit
     , lensOptHiddenArgumentPuns
     , lensOptEta
+    , lensOptEtaSingleton
     , lensOptForcing
     , lensOptProjectionLike
     , lensOptErasure
@@ -142,6 +143,7 @@ module Agda.Interaction.Options.Base
     , optPatternMatching
     , optHiddenArgumentPuns
     , optEta
+    , optEtaSingleton
     , optForcing
     , optProjectionLike
     , optErasure
@@ -324,6 +326,7 @@ optCopatterns                :: PragmaOptions -> Bool
 optPatternMatching           :: PragmaOptions -> Bool
 optHiddenArgumentPuns        :: PragmaOptions -> Bool
 optEta                       :: PragmaOptions -> Bool
+optEtaSingleton              :: PragmaOptions -> Bool
 optForcing                   :: PragmaOptions -> Bool
 optProjectionLike            :: PragmaOptions -> Bool
 -- | 'optErasure' is implied by 'optEraseRecordParameters',
@@ -396,6 +399,7 @@ optCopatterns                = collapseDefault . _optCopatterns
 optPatternMatching           = collapseDefault . _optPatternMatching
 optHiddenArgumentPuns        = collapseDefault . _optHiddenArgumentPuns
 optEta                       = collapseDefault . _optEta
+optEtaSingleton              = collapseDefault . _optEtaSingleton
 optForcing                   = collapseDefault . _optForcing
 optProjectionLike            = collapseDefault . _optProjectionLike
 -- --erase-record-parameters implies --erasure
@@ -586,6 +590,9 @@ lensOptHiddenArgumentPuns f o = f (_optHiddenArgumentPuns o) <&> \ i -> o{ _optH
 
 lensOptEta :: Lens' PragmaOptions _
 lensOptEta f o = f (_optEta o) <&> \ i -> o{ _optEta = i }
+
+lensOptEtaSingleton :: Lens' PragmaOptions _
+lensOptEtaSingleton f o = f (_optEtaSingleton o) <&> \ i -> o{ _optEtaSingleton = i }
 
 lensOptForcing :: Lens' PragmaOptions _
 lensOptForcing f o = f (_optForcing o) <&> \ i -> o{ _optForcing = i }
@@ -1756,6 +1763,9 @@ equalityCheckingPragmaOptions = ("Definitional equality",) $ concat
   [ pragmaFlag      "eta-equality" lensOptEta
                     "default records to eta-equality" ""
                     $ Just "default records to no-eta-equality"
+  , pragmaFlag      "eta-singleton" lensOptEtaSingleton
+                    "treat records with no usable fields as definitional singleton types" ""
+                    $ Just "do not treat records with no usable fields as definitional singleton types"
   , lossyUnificationOption
   , requireUniqueMetaSolutionsOptions
   , [ Option []     ["no-syntactic-equality"] (NoArg $ syntacticEqualityFlag (Just "0"))

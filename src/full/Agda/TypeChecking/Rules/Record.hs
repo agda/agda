@@ -196,29 +196,38 @@ checkRecDef i name pc uc forceEta (RecordDirectives ind eta0 pat con) (A.DataDef
 
       -- Compute eta status from record directives and options.
       let noEta = NoEta patCopat
+          etaSingleton = if any usableModality fs then EtaNoSingleton else EtaSingleton
       etaenabled <- etaEnabled
       haveEta <- case forceEta of
         -- We force eta-equality since we have an ETA_EQUALITY pragma.
         YesForceRecordEta -> case eta of
           Just (NoEta _)             -> typeError $ EtaPragmaVsNoEtaEquality
-          _                          -> pure $ EtaEquality YesEta EtaFromPragma
+          _                          -> pure $ EtaEquality (YesEta etaSingleton) EtaFromPragma
         -- We do not have an ETA_EQUALITY pragma, so we first look at possible eta-equality directives
         -- and then at the defaults.
         NoForceRecordEta -> case (eta, conInduction, etaenabled) of
-          (Nothing, Inductive, True) -> pure $ EtaEquality YesEta EtaFromOption
+          (Nothing, Inductive, True) -> pure $ EtaEquality (YesEta etaSingleton) EtaFromOption
           (Nothing, _, _)            -> pure $ EtaEquality noEta  EtaFromOption
           (Just noEta@NoEta{}, _, _) -> pure $ EtaEquality noEta  EtaFromDirective
-          (Just YesEta, Inductive,_) -> pure $ EtaEquality YesEta EtaFromDirective
-          (Just YesEta, CoInductive, _)     -> EtaEquality noEta  EtaFromOption <$ do
+          (Just (YesEta _), Inductive, _) -> pure $ EtaEquality (YesEta etaSingleton) EtaFromDirective
+          (Just (YesEta _), CoInductive, _) -> EtaEquality noEta  EtaFromOption <$ do
             -- Andreas, 2017-01-26, issue #2436
             -- Disallow coinductive records with eta-equality
             -- Andreas, 2024-06-14, PR #7300
             -- Just make this a deadcode warning.
             setCurrentRange eta0 $ warning $ CoinductiveEtaRecord name
 
+      -- Warn if eta-equality has no effect in the current file because
+      -- the record is a definitional singleton type.
+      case theEtaEquality haveEta of
+        YesEta _ -> when (etaSingleton == EtaSingleton) $
+          unlessM etaSingletonEnabled $
+            warning $ EtaSingletonInNoEtaSingletonFile name
+        NoEta{} -> return ()
+
       -- Warn about 'pattern' directive if eta is on.
       case (haveEta, pat) of
-        (EtaEquality YesEta _, Just r) -> setCurrentRange r $
+        (EtaEquality (YesEta _) _, Just r) -> setCurrentRange r $
           warning $ UselessPatternDeclarationForRecord "eta"
         _ -> pure ()
 

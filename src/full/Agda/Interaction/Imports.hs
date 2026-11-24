@@ -703,6 +703,13 @@ typeCheckMain mode src = do
   -- For the main interface, we also remember the pragmas from the file
   setOptionsFromSourcePragmas True src
 
+  -- Warn if --no-eta-singleton is combined with options that still allow
+  -- definitional singleton types.
+  opts <- pragmaOptions
+  setCurrentRange (getRange $ C.modPragmas $ srcModule src) $
+    unlessNull (definitionalSingletonOptions opts) \ features ->
+      warning $ NoEtaSingletonWithDefinitionalSingletons features
+
   -- Import the Agda.Primitive modules
   importPrimitiveModules
 

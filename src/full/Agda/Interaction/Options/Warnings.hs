@@ -437,6 +437,9 @@ data WarningName
   | FaceConstraintCannotBeNamed_
   -- Backends
   | CustomBackendWarning_
+  -- Definitional singleton types
+  | NoEtaSingletonWithDefinitionalSingletons_
+  | EtaSingletonInNoEtaSingletonFile_
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
 
 instance NFData WarningName
@@ -701,3 +704,8 @@ warningNameDescription = \case
   FaceConstraintCannotBeNamed_     -> "Face constraint patterns that are given as named arguments."
   -- Backends
   CustomBackendWarning_            -> "Custom warnings from backends."
+  -- Definitional singleton types
+  NoEtaSingletonWithDefinitionalSingletons_ ->
+    "`--no-eta-singleton' combined with options that still allow definitional singleton types."
+  EtaSingletonInNoEtaSingletonFile_ ->
+    "Records with eta-equality and no usable fields in files using `--no-eta-singleton'."

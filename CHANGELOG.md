@@ -15,11 +15,25 @@ Installation
 Pragmas and options
 -------------------
 
+* New option `--no-eta-singleton` disables the treatment of record types with
+  no usable fields (no fields, or only irrelevant or erased fields) as
+  definitional singleton types. Such records are still marked as eta records,
+  so modules that do not use this flag can use eta-equality for them.
+  Defining such a record with eta-equality in a file that uses this flag
+  raises a warning, because the eta-equality has no effect in that file.
+  `Agda.Builtin.Unit` is compiled with this flag. A warning is raised when it
+  is combined with `--prop` or cubical, which still allow definitional
+  singleton types (see [#6636](https://github.com/agda/agda/issues/6636)).
+
 Errors
 ------
 
 Warnings
 --------
+
+* New warning `EtaSingletonInNoEtaSingletonFile` when a record with
+  eta-equality and no usable fields is defined in a file that uses
+  `--no-eta-singleton`.
 
 * New warning `WrongAssociativity` suggests `infixr` for prefix operators
   declared with `infixl` and `infixl` for postfix operators declared with

@@ -5190,6 +5190,12 @@ data Warning
   | UnguardedEtaRecordW QName
       -- ^ A record type with @eta-equality@ which unguarded.
       --   This warning can be switched off via the @ETA_EQUALITY@ pragma.
+  | NoEtaSingletonWithDefinitionalSingletons (Set String)
+      -- ^ @--no-eta-singleton@ is combined with options that still allow
+      --   definitional singleton types.
+  | EtaSingletonInNoEtaSingletonFile QName
+      -- ^ A record type with eta-equality is a definitional singleton
+      --   type, and the current file uses @--no-eta-singleton@.
 
   | UnsolvedMetaVariables    (Set1 Range)  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas (Set1 Range)  -- ^ Do not use directly with 'warning'
@@ -5476,6 +5482,8 @@ warningName = \case
   ConstructorDoesNotFitInData{}-> ConstructorDoesNotFitInData_
   CoinductiveEtaRecord{}       -> CoinductiveEtaRecord_
   UnguardedEtaRecordW{}        -> UnguardedEtaRecordW_
+  NoEtaSingletonWithDefinitionalSingletons{} -> NoEtaSingletonWithDefinitionalSingletons_
+  EtaSingletonInNoEtaSingletonFile{} -> EtaSingletonInNoEtaSingletonFile_
   UnsupportedIndexedMatch{}    -> UnsupportedIndexedMatch_
   OldBuiltin{}                 -> OldBuiltin_
   BuiltinDeclaresIdentifier{}  -> BuiltinDeclaresIdentifier_

@@ -1,0 +1,12 @@
+
+NoEtaSingletonDefinitional.agda:1.1-52: warning: -W[no]NoEtaSingletonWithDefinitionalSingletons
+--no-eta-singleton does not remove definitional singleton types
+coming from the following options:
+--cubical, --prop
+
+———— All done; warnings encountered ————————————————————————
+
+NoEtaSingletonDefinitional.agda:1.1-52: warning: -W[no]NoEtaSingletonWithDefinitionalSingletons
+--no-eta-singleton does not remove definitional singleton types
+coming from the following options:
+--cubical, --prop

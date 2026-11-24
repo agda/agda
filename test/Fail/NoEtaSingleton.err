@@ -1,0 +1,15 @@
+NoEtaSingleton.agda:5.8-9: warning: -W[no]EtaSingletonInNoEtaSingletonFile
+Record type ⊤ has eta-equality but is a definitional singleton
+type.
+In this file --no-eta-singleton is enabled, so eta-equality has no
+effect here. It only affects downstream files that do not enable
+--no-eta-singleton.
+when checking the definition of ⊤
+
+NoEtaSingleton.agda:12.12-16: error: [UnequalTerms]
+The terms
+  x
+and
+  y
+are not equal at type ⊤
+when checking that the expression refl has type x ≡ y
