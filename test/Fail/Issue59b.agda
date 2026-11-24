@@ -1,5 +1,12 @@
 {-# OPTIONS --sized-types #-}
 
+-- Andreas, 2026-10-12, issue #8829
+-- Moved from test/Succeed.
+-- Only the first size index of a data type is recognized as a size
+-- of a sized type (it is covariant), the second index j of Heap is invariant.
+-- Thus, Heap i j is not lower semi-continuous in j and the successor
+-- pattern .(↑ j) does not provide termination evidence.
+
 open import Common.Size
 
 data Heap : (i j : Size) → Set where

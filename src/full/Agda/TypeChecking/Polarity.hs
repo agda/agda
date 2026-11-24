@@ -11,6 +11,7 @@ module Agda.TypeChecking.Polarity
   , nextPolarity
   , purgeNonvariant
   , polFromOcc
+  , polarity
   ) where
 
 import Prelude hiding ( zip, zipWith )

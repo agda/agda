@@ -1,3 +1,14 @@
+Issue1946-4.agda:38.1-41.44: error: [TerminationIssue]
+Termination checking failed for the following function:
+  iter
+Problematic calls:
+  iter map s
+    (at Issue1946-4.agda:41.30-34)
+Note: matching a size against a successor does not provide
+termination evidence if the type of the function is not upper
+semi-continuous in the size:
+  iter: argument type Mu F i is not lower semi-continuous in i
+
 Issue1946-4.agda:53.1-54.18: error: [TerminationIssue]
 Termination checking failed for the following function:
   bla
