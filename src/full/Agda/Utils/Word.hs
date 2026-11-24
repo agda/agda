@@ -6,6 +6,8 @@
 module Agda.Utils.Word
   ( -- * Overflow prevention
     monus
+    -- * Parsing
+  , isCanoncalUnsignedIntegerLiteral
     -- * Packing Word32 in Word64
   , splitW64
   , packW64
@@ -37,6 +39,7 @@ module Agda.Utils.Word
 #include "MachDeps.h"
 
 import GHC.Base
+import Data.Char (isDigit)
 import Data.Word
 import Data.Bits
 
@@ -47,6 +50,15 @@ import Data.Bits
 monus :: (Num a, Ord a) => a -> a -> a
 monus x y = if x <= y then 0 else x - y
 {-# INLINE monus #-}
+
+---------------------------------------------------------------------------
+-- Parsing
+
+-- | Recognize canonical unsigned integer literals (no leading zeros).
+isCanoncalUnsignedIntegerLiteral :: String -> Bool
+isCanoncalUnsignedIntegerLiteral s = all isDigit s && case s of
+  '0' : rest -> null rest
+  _ -> True
 
 --------------------------------------------------------------------------------
 -- Packing Word32 to Word64

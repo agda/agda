@@ -20,7 +20,7 @@ import qualified Data.Map.Strict as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Agda.Syntax.Abstract.Name (AbstractName (..), AbstractModule (..), KindOfName(..))
+import Agda.Syntax.Abstract.Name (AbstractName (..), KindOfName(..))
 import Agda.Syntax.Abstract.Name qualified as A
 
 import Agda.Syntax.Common
@@ -78,9 +78,7 @@ namePartScopeLookup q scope = inAllScopes ++! imports
         (_, ns) <- scopeNameSpaces s
         maybeToList $ Map.lookup n (nsNameParts ns)
       Qual x q -> do
-        m <- amodName . fst <$!> findNameInScope x s
-        let ss = restrictPrivate <$!> (Map.lookup m $ scope ^. scopeModules)
-        s' <- maybeToList ss
+        (_, s') <- qualifierScopes scope x s
         findName q s'
 
 getOperatorScope :: Set QName -> ScopeInfo -> OperatorScope

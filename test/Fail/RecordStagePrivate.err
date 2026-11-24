@@ -1,0 +1,6 @@
+RecordStagePrivate.agda:9.7-14: error: [NotInScope]
+Not in scope:
+  M.R.0.B
+  at RecordStagePrivate.agda:9.7-14
+    (did you mean 'M.R.B'?)
+when scope checking M.R.0.B

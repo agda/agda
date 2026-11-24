@@ -1,0 +1,4 @@
+RecordStageNameError.agda:8.9-11: warning: -W[no]RecordStageName
+Record stage selector 0 depends on the arrangement of fields and
+declarations and may change when the record declaration changes.
+when scope checking R.0.B

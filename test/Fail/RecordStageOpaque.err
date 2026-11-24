@@ -1,0 +1,7 @@
+RecordStageOpaque.agda:15.7-11: error: [UnequalTerms]
+The terms
+  R.0.T
+and
+  Bool
+are not equal at type Set
+when checking that the expression refl has type R.0.T ≡ Bool

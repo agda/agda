@@ -25,6 +25,10 @@ Errors
 Warnings
 --------
 
+* New warning `RecordStageName`, enabled by default, reports explicit use of
+  numeric record-stage names such as `R.1.F`, whose indices can change when
+  the record declaration is edited.
+
 * New warning `WrongAssociativity` suggests `infixr` for prefix operators
   declared with `infixl` and `infixl` for postfix operators declared with
   `infixr`.
@@ -40,6 +44,11 @@ Warnings
 
 Syntax
 ------
+
+* Intermediate record stages can be named in source code using qualified
+  numeric selectors such as `R.0` and `R.1.F`. Stages are private to the module
+  surrounding the record. Helpers marked `private` in the record remain
+  private in its final module, but are accessible through its stages.
 
 Changes to the Agda syntax.
 

@@ -524,6 +524,7 @@ warningHighlighting' b w = case tcWarning w of
   ConflictingPragmaOptions{} -> mempty
   DeprecationWarning{}       -> mempty
   UserWarning{}              -> mempty
+  RecordStageName{}          -> errorWarningHighlighting w
   LibraryWarning{}           -> mempty
   ConfluenceCheckingIncompleteBecauseOfMeta{} -> confluenceErrorHighlighting w
   ConfluenceForCubicalNotSupported{} -> mempty

@@ -36,7 +36,7 @@ instance EmbPrj A.BindName where
   value = valueN A.BindName
 
 instance EmbPrj Scope where
-  icod_ (Scope a b c d e) = icodeN' Scope a b c d e
+  icod_ (Scope a b c d e f) = icodeN' Scope a b c d e f
 
   value = valueN Scope
 

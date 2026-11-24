@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --guardedness --erasure #-}
+  {-# OPTIONS --guardedness --erasure -WnoRecordStageName #-}
 
   module language.record-types where
 
@@ -508,10 +508,35 @@ record module.
 When a type mentions a helper in an intermediate checking module, Agda prints
 that module as ``RF.0``, ``RF.1``, and so on. The number counts preceding fields,
 including fields with no intervening helper declarations. For example, the
-constructor type of the example above uses ``RF.1.F A b``. These are diagnostic
-qualifiers, not modules accessible in source code; inserting an earlier field can change
-the numbers. Public record members retain their ordinary names, such as
-``RF.F``.
+constructor type of the example above uses ``RF.1.F A b``. These modules can
+also be named explicitly in source code (since Agda 2.10):
+
+::
+
+  makeRF : (A : Set) (value : (b : Bool) → RF.1.F A b) → RF
+  makeRF = RF.constructor
+
+Stage modules take the record parameters and preceding field values as
+parameters. There is one stage before each field, including an empty stage
+when there are no intervening declarations; there is no stage after the last
+field. Public record members retain their ordinary names, such as ``RF.F``.
+
+Explicit stage selectors raise the warning :option:`RecordStageName`, enabled
+by default: inserting an earlier field can change the numbers. The warning can
+be suppressed with ``-WnoRecordStageName``. Defining a module alias using a
+stage name also raises this warning; subsequent uses through the alias do not.
+
+Stage modules are private to the module surrounding the record declaration
+and accessible in its lexical descendants. Importing that module does not
+grant access to its stages. In particular, a constructor's printed type may
+mention a stage that cannot be named in an importing module. Opening the
+record module does not bring bare numeric selectors into scope. Stages may
+be opened or instantiated explicitly, for example ``module S = RF.1 Bool``.
+Such aliases follow ordinary module privacy and can be exported explicitly.
+
+A declaration marked ``private`` at the record level is private in the final
+record module, but accessible through its stage. This changes name visibility,
+not the unfolding restrictions imposed by ``abstract`` or ``opaque``.
 
 In generated HTML, declarations retain symbolic anchors based on their source
 names, such as ``RF.F`` above. Internal modules used to check interleaved

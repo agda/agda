@@ -142,7 +142,8 @@ registerModuleOpening ::
   -> C.ImportDirective   -- ^ Directive restricting the scope of the opened module.
   -> Scope               -- ^ The scope resulting from applying the import directive.
   -> ScopeM ()
-registerModuleOpening kwr currentModule x dir (Scope m0 _parents ns imports _dataOrRec) = do
+registerModuleOpening kwr currentModule x dir Scope
+  { scopeName = m0, scopeNameSpaces = ns, scopeImports = imports } = do
   -- @imports@ have been removed by 'restrictPrivate'.
   unless (null imports) __IMPOSSIBLE__
 

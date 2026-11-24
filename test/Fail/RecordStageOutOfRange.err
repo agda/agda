@@ -1,0 +1,6 @@
+RecordStageOutOfRange.agda:7.7-12: error: [NotInScope]
+Not in scope:
+  R.1.B
+  at RecordStageOutOfRange.agda:7.7-12
+    (did you mean 'R.B'?)
+when scope checking R.1.B

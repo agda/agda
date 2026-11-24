@@ -5285,6 +5285,8 @@ data Warning
     --   This will be an error in @version@.
   | UserWarning Text
     -- ^ User-defined warning (e.g. to mention that a name is deprecated)
+  | RecordStageName C.Name
+    -- ^ An explicit numeric record-stage selector, whose index is unstable.
   | DuplicateUsing (List1 C.ImportedName)
     -- ^ Duplicate mentions of the same name in @using@ directive(s).
   | FixityInRenamingModule (List1 Range)
@@ -5496,6 +5498,7 @@ warningName = \case
   UselessTactic{}              -> UselessTactic_
   ClashesViaRenaming{}         -> ClashesViaRenaming_
   UserWarning{}                -> UserWarning_
+  RecordStageName{}            -> RecordStageName_
   InfectiveImport{}            -> InfectiveImport_
   CoInfectiveImport{}          -> CoInfectiveImport_
   ConfluenceCheckingIncompleteBecauseOfMeta{} -> ConfluenceCheckingIncompleteBecauseOfMeta_

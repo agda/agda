@@ -374,6 +374,10 @@ prettyWarning = \case
 
     UserWarning str -> text (T.unpack str)
 
+    RecordStageName x -> fsep $
+      pwords "Record stage selector" ++ [pretty x] ++
+      pwords "depends on the arrangement of fields and declarations and may change when the record declaration changes."
+
     ModuleDoesntExport m names modules xs -> vcat
       [ fsep $ pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:"
       , prettyNotInScopeNames False (suggestion names)   ys

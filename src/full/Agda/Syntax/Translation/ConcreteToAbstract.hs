@@ -161,6 +161,16 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
   -- Restore the original locals before checking the trailing public declarations.
   locals <- getLocalVars
   (stages, body) <- withLocalVars $ stagesBeforeFields 0 locals prefix
+  -- Stage selectors belong to the surrounding module's private API, rather
+  -- than the public namespace of the record. Keep the canonical modules in
+  -- place: their telescopes contain preceding fields, not a record value.
+  owner <- getCurrentModule
+  modifyNamedScope recordModule $ \ s -> s
+    { scopeRecordStages = Map.fromList
+        [ (C.simpleName $ show i, (owner, A.recordStageModule stage))
+        | (i, stage) <- zip [0 :: Int ..] stages
+        ]
+    }
   trailing <- withCurrentModule recordModule $ catMaybes <$> toAbstract suffix
   return (stages, body ++ trailing)
   where
@@ -214,6 +224,10 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
           modifyNamedScope recordModule (`mergeScope` scope)
           let mi = ModuleInfo noRange noRange Nothing (DoOpen empty) Nothing
           return $ A.Apply mi (NotErased QωInferred) target (A.RecordStageApp stage) copyInfo defaultImportDir
+        -- Privacy in the source record applies to the final record module.
+        -- Only after making its copy expose these helpers in the canonical
+        -- stage, so an explicit stage reference can name a private helper.
+        modifyNamedScope stage $ recomputeNameParts . setScopeAccess PublicNS
         case rest of
           C.NiceField r p a inst tac x (Arg ai t) : after -> setCurrentRange r $ do
             -- Check the field annotations and scope its type where earlier
@@ -246,8 +260,9 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
             return (st : next, copied : field : fields)
           _ -> __IMPOSSIBLE__
 
-    -- Implementation modules do not introduce source qualifiers. In particular,
-    -- copies retain the original source name along with the original binding site.
+    -- Implementation modules do not introduce qualifiers into HTML anchors.
+    -- Copies retain the original source name and binding site; canonical stages
+    -- additionally carry a numeric qualifier for printing and source access.
     freshRecordImplementationModule
       :: String -- Internal module-name stem; source provenance remains the record's.
       -> Maybe Int -- Stage index for a canonical module; Nothing for a public copy.
@@ -258,7 +273,7 @@ scopeCheckRecordBody recordModule decls = niceDecls DoWarn decls $ \ ds -> do
           source = fromMaybe (qnameToConcrete r) $ A.qnameSourceName r
       return $ qnameToMName q { qnameName = (qnameName q)
         { A.nameSourceName = Just $ killRange source
-        -- Only canonical stages get a diagnostic qualifier. Their lexical
+        -- Only canonical stages get a numeric qualifier. Their lexical
         -- parents and the public copies' source provenance stay unchanged.
         , A.nameRecordStage = (r,) <$> index
         } }

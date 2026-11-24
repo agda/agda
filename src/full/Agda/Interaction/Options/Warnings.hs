@@ -404,6 +404,7 @@ data WarningName
   | UselessPublic_
   | UselessTactic_
   | UserWarning_
+  | RecordStageName_
   | InvalidDisplayForm_
   | UnusedVariablesInDisplayForm_
   | RewritesNothing_
@@ -663,6 +664,7 @@ warningNameDescription = \case
   InteractionMetaBoundaries_       -> "Interaction meta variables that have unsolved boundary constraints."
   UnsolvedMetaVariables_           -> "Unsolved meta variables."
   UserWarning_                     -> "User-defined warnings via one of the 'WARNING_ON_*' pragmas."
+  RecordStageName_                 -> "Explicit use of an unstable numeric record-stage name."
   InvalidDisplayForm_              -> "Invalid display forms."
   UnusedVariablesInDisplayForm_    -> "Bound but unused variables in display forms."
   ShouldBeEtaRecordPattern_        -> "Irrefutable record pattern without eta."

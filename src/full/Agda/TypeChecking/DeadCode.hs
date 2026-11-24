@@ -36,6 +36,7 @@ import qualified Agda.Utils.HashTable as HT
 --     - public definitions
 --     - definitions marked as primitive
 --     - definitions with COMPILE pragma
+--     - definitions in record stages (for local source access after interface reload)
 --     - all pattern synonyms (because currently all of them go into interfaces)
 --     - all parameter sections (because currently all of them go into interfaces)
 --       (see also issues #6931 and #7382)
@@ -63,8 +64,13 @@ eliminateDeadCode !scope = Bench.billTo [Bench.DeadCode] $ do
         _               -> False
 
       extraRootsFilter (name, def)
-        | hasCompilePragma def || isPrimitive (theDef def) = Just name
+        | hasCompilePragma def || isPrimitive (theDef def) || inRecordStage name = Just name
         | otherwise = Nothing
+
+      -- Stage aliases are private, but remain usable inside their owning
+      -- module after loading an interface. Retain their definitions even when
+      -- neither a public record member nor a constructor type refers to them.
+      inRecordStage = any (isJust . nameRecordStage) . mnameToList . qnameModule
 
   let !pubModules = publicModules scope
 

@@ -68,7 +68,7 @@ data Name = Name
       --   differs from the source module. Preserved by module copying, like
       --   the binding site. Used for symbolic highlighting anchors only.
   , nameRecordStage  :: Maybe (QName, Int)
-      -- ^ Diagnostic qualifier for a canonical record-stage module: the owning
+      -- ^ Numeric qualifier for a canonical record-stage module: the owning
       -- record and the number of preceding fields. It does not change the
       -- module's identity, source provenance, or actual parameter context.
   }

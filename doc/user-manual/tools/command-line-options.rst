@@ -2318,6 +2318,14 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      User-defined warnings added using one of the ``WARNING_ON_*`` pragmas.
 
+.. option:: RecordStageName
+
+     .. versionadded:: 2.10.0
+
+     Explicit use of a numeric record-stage selector, such as ``R.1.F``.
+     Stage indices depend on the arrangement of fields and declarations and
+     may change when the record declaration changes. Enabled by default.
+
 .. option:: WarningProblem
 
      .. versionadded:: 2.7.0
