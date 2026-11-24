@@ -472,7 +472,7 @@ In the example, the record module ``Pair`` has the shape
   they were not erased to start with.
 
 It's possible to add arbitrary definitions to the record module, by defining them
-inside the record declaration
+inside the record declaration:
 
 ::
 
@@ -483,90 +483,113 @@ inside the record declaration
     _<$_ : ∀ {A B} → A → F B → F A
     x <$ fb = fmap (λ _ → x) fb
 
-Function definitions can be interleaved with fields, including definitions by
-pattern matching and definitions with ``where`` clauses (since Agda 2.10).
-Each definition can use the preceding fields and declarations. For example:
+Record stages
+~~~~~~~~~~~~~
+
+Since Agda 2.10, arbitrary definitions can be interleaved with fields, e.g.:
 
 ::
 
   record RF : Set₁ where
+
+    private
+      data Boolean : Set where
+        true  : Boolean
+        false : Boolean
+
     field A : Set
 
-    F : Bool → Set
+    F : Boolean → Set
     F true  = A
     F false = A → A
 
-    field value : (b : Bool) → F b
+    field value : (b : Boolean) → F b
 
-The constructor takes ``A`` and ``value`` as arguments. The helper ``F`` becomes
-a member of the record module, just like a definition after the last field.
-Interleaved declarations are checked once with the preceding fields as module
-parameters; their record-module versions instantiate these parameters with
-projections. Declarations after the last field are checked in the completed
-record module.
-
-When a type mentions a helper in an intermediate checking module, Agda prints
-that module as ``RF.0``, ``RF.1``, and so on. The number counts preceding fields,
-including fields with no intervening helper declarations. For example, the
-constructor type of the example above uses ``RF.1.F A b``. These modules can
-also be named explicitly in source code (since Agda 2.10):
-
-::
-
-  makeRF : (A : Set) (value : (b : Bool) → RF.1.F A b) → RF
-  makeRF = RF.constructor
-
-Stage modules take the record parameters and preceding field values as
-parameters. There is one stage before each field, including an empty stage
-when there are no intervening declarations; there is no stage after the last
-field. Public record members retain their ordinary names, such as ``RF.F``.
-
-Explicit stage selectors raise the warning :option:`RecordStageName`, enabled
-by default: inserting an earlier field can change the numbers. The warning can
-be suppressed with ``-WnoRecordStageName``. Defining a module alias using a
-stage name also raises this warning; subsequent uses through the alias do not.
-
-Stage modules are private to the module surrounding the record declaration
-and accessible in its lexical descendants. Importing that module does not
-grant access to its stages. In particular, a constructor's printed type may
-mention a stage that cannot be named in an importing module. Opening the
-record module does not bring bare numeric selectors into scope. Stages may
-be opened or instantiated explicitly, for example ``module S = RF.1 Bool``.
-Such aliases follow ordinary module privacy and can be exported explicitly.
-
-A declaration marked ``private`` at the record level is private in the final
-record module, but accessible through its stage. This changes name visibility,
-not the unfolding restrictions imposed by ``abstract`` or ``opaque``.
-
-In generated HTML, declarations retain symbolic anchors based on their source
-names, such as ``RF.F`` above. Internal modules used to check interleaved
-declarations do not contribute qualifiers to these anchors.
-
-A field cannot occur in an explicit or inferred mutual block
-(``FieldInMutualBlock``). In particular, a helper's signature and definition
-must not be separated by a field declaration. Finish the helper definition
-before the next field, or move both its signature and definition after that
-field.
-
-Before the last field, each mutually checked group of helpers is checked with
-a fixed prefix of the record fields as module parameters. A field extends that
-prefix, so a mutual group cannot cross this boundary. For example, the following
-is rejected:
+This creates roughly the following record module:
 
 .. code-block:: agda
 
-   record R : Set₁ where
-     Carrier : Set
-     field
-       value : Carrier
-       later : Set
-     Carrier = later
+  module RF (r : RF) where
 
-The signature and definition of ``Carrier`` infer a mutual block containing
-both fields. Unfolding ``Carrier`` would make the constructor's first argument,
-``value``, depend on its second argument, ``later``, which is not yet bound.
-The restriction also applies when a particular helper could be moved before
-the intervening field without introducing such a dependency.
+    private
+      data Boolean : Set where
+        true  : Boolean
+        false : Boolean
+
+    A : Set
+    A = {! first projection from r !}
+
+    F : Boolean → Set
+    F true  = A
+    F false = A → A
+
+    value : (b : Boolean) → F b
+    value = {! second projection from r !}
+
+The type of the constructor cannot be written using this module
+since it is parametrized by a record value ``?`` that is just being constructed:
+
+.. code-block:: agda
+
+  RF.constructor : (A : Set) (value : (b : RF.Boolean ? → RF.F ? b)) → RF
+
+Further, the reference ``RF.Boolean`` here is invalid since this data types is declared ``private``.
+
+To type the constructor, intermediate record modules, called *record stages* ``RF.n`` are introduced, starting at *n=0*.
+Stage *n* captures the initial segment of the record module restricted to *n* fields, taking each of the field values as separate parameters:
+
+.. code-block:: agda
+
+  private
+    module RF.0 where
+
+      data Boolean : Set where
+        true  : Boolean
+        false : Boolean
+
+    module RF.1 (A : Set) where
+
+      F : Boolean → Set
+      F true  = A
+      F false = A → A
+
+Note that the stages are themselves ``private`` but do not respect privacy of declarations
+lest the constructor would not be typeable.
+
+::
+
+  RF-constructor : (A : Set) (value : (b : RF.0.Boolean → RF.1.F A b)) → RF
+  RF-constructor = RF.constructor
+
+The full record module can be understood as an interleaving of stages (embedded with `open`)
+and fields (projections from the record value).
+
+.. code-block:: agda
+
+  module RF (r : RF) where
+
+    open RF.0
+
+    A : Set
+    A = {! first projection from r !}
+
+    open RF.1 A public
+
+    value : (b : Boolean) → F b
+    value = {! second projection from r !}
+
+Note that it properly respects privacy of declarations
+(e.g. here, stage ``RF.0`` is not opened publicly).
+
+Stages primarily serve the purpose of giving a type to the record constructor
+and may appear in Agda's output.
+Since they are numbered and numbering changes when fields are inserted,
+the stage names are not stable and should not be considered as part of the record API.
+When stages are mentioned in code, Agda emits the benign warning :option:`RecordStageName`.
+
+.. note::
+  While ``opaque`` and ``mutual`` blocks are allowed as declarations inside a ``record`` type definition,
+  fields must stay outside of such blocks.
 
 .. _eta-expansion:
 

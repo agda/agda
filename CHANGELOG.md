@@ -25,10 +25,6 @@ Errors
 Warnings
 --------
 
-* New warning `RecordStageName`, enabled by default, reports explicit use of
-  numeric record-stage names such as `R.1.F`, whose indices can change when
-  the record declaration is edited.
-
 * New warning `WrongAssociativity` suggests `infixr` for prefix operators
   declared with `infixl` and `infixl` for postfix operators declared with
   `infixr`.
@@ -45,28 +41,19 @@ Warnings
 Syntax
 ------
 
-* Intermediate record stages can be named in source code using qualified
-  numeric selectors such as `R.0` and `R.1.F`. Stages are private to the module
-  surrounding the record. Helpers marked `private` in the record remain
-  private in its final module, but are accessible through its stages.
-
-Changes to the Agda syntax.
+* Record type definitions may now contain arbitrary other declarations
+  (see [#434](https://github.com/agda/agda/issues/434))
+  which become part of the record module.
+  The type of a record constructor is no longer using `let`
+  for the non-field declarations, but
+  [record stages](https://agda.readthedocs.io/en/latest/language/record-types.html#record-stages).
+  For record `R` the stage modules are called `R.0`, `R.1`, etc. where the number (_n_) indicates
+  the restriction of the record module to _n_ fields.
+  These stage names may appear in Agda's output, e.g. when it prints the type of the constructor.
+  Explicit use of these names is discouraged and flagged with the benign warning `RecordStageName`.
 
 Language
 --------
-
-* Function definitions between record fields now support pattern matching and
-  `where` clauses. Datatypes, records, modules, and postulates can also precede
-  later fields. Interleaved declarations are checked once in hidden modules
-  parameterized by preceding fields, avoiding the constructor-type let restriction
-  and duplicate checking of interaction holes (see [#434](https://github.com/agda/agda/issues/434)).
-  HTML anchors for these declarations retain their source-qualified names,
-  such as `R.helper`, including declarations in nested modules.
-  Diagnostics abbreviate intermediate module qualifiers as `R.0`, `R.1`, etc.,
-  numbering them by preceding fields; a canonical helper can print as `R.1.F`.
-  Fields in explicit or inferred mutual blocks are rejected with
-  `FieldInMutualBlock`. A helper's signature and definition must be completed
-  before the next field declaration.
 
 Builtins
 --------
