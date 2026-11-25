@@ -559,7 +559,7 @@ lest the constructor would not be typeable.
 
 ::
 
-  RF-constructor : (A : Set) (value : (b : RF.0.Boolean → RF.1.F A b)) → RF
+  RF-constructor : (A : Set) (value : (b : RF.0.Boolean) → RF.1.F A b) → RF
   RF-constructor = RF.constructor
 
 The full record module can be understood as an interleaving of stages (embedded with `open`)
