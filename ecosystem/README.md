@@ -5,12 +5,14 @@ This directory vendors large third-party Agda developments as git submodules.
 We type-check them with the `agda` built from this repository in order to get
 alerted of regressions we introduce on `master`.
 
-| Submodule         | Upstream                                          |
-|-------------------|---------------------------------------------------|
-| `agda-categories` | <https://github.com/agda/agda-categories>         |
-| `agda-unimath`    | <https://github.com/UniMath/agda-unimath>         |
-| `plfa`            | <https://github.com/plfa/plfa.github.io>          |
-| `TypeTopology`    | <https://github.com/martinescardo/TypeTopology>   |
+| Submodule              | Upstream                                            |
+|------------------------|-----------------------------------------------------|
+| `agda-categories`      | <https://github.com/agda/agda-categories>           |
+| `agda-unimath`         | <https://github.com/UniMath/agda-unimath>           |
+| `plfa`                 | <https://github.com/plfa/plfa.github.io>            |
+| `TypeTopology`         | <https://github.com/martinescardo/TypeTopology>     |
+| `agda-stdlib-classes`  | <https://github.com/agda/agda-stdlib-classes>       |
+| `agda-stdlib-meta`     | <https://github.com/agda/agda-stdlib-meta>          |
 
 (The standard library and the cubical library are vendored likewise, but at the
 top level, as `std-lib` and `cubical`.)
@@ -19,7 +21,8 @@ Makefile goals
 --------------
 
 All goals live in the top-level `Makefile`; `LIB` below stands for the name of
-one of the submodule directories above.
+one of the submodule directories above.  `agda-stdlib-classes` is a dependency
+of `agda-stdlib-meta`; both libraries have separate test goals.
 
 | Goal                     | Effect                                                     |
 |--------------------------|------------------------------------------------------------|
@@ -90,3 +93,8 @@ not check out.
 ### TypeTopology
 
 The index module `source/AllModulesIndex.lagda` is maintained upstream.
+
+### agda-stdlib-meta
+
+The index module `standard-library-meta.agda` is checked with
+`agda-stdlib-classes`, which is a dependency of the library.
