@@ -533,10 +533,11 @@ since it is parametrized by a record value ``?`` that is just being constructed:
 
   RF.constructor : (A : Set) (value : (b : RF.Boolean ? → RF.F ? b)) → RF
 
-Further, the reference ``RF.Boolean`` here is invalid since this data types is declared ``private``.
+Further, the reference ``RF.Boolean`` here is invalid since this data type is declared ``private``.
 
-To type the constructor, intermediate record modules, called *record stages* ``RF.n`` are introduced, starting at *n=0*.
-Stage *n* captures the initial segment of the record module restricted to *n* fields, taking each of the field values as separate parameters:
+To type the constructor, intermediate record modules ``RF.k``, called *record stages*, are introduced,
+for :math:`k = 0 \dots n-1` where :math:`n` is the number of fields.
+Stage :math:`k` captures the initial segment of the record module restricted to :math:`k` fields, taking each of the :math:`k` field values as separate parameters:
 
 .. code-block:: agda
 

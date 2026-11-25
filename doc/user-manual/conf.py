@@ -207,4 +207,5 @@ epub_exclude_files = ['search.html']
 
 imgmath_image_format = 'svg'
 imgmath_latex_preamble = '\\usepackage{mlmodern}'
-imgmath_font_size = 14
+imgmath_font_size = 12
+imgmath_use_preview = True
