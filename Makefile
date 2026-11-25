@@ -692,12 +692,14 @@ std-lib-test :
 														 -i. -isrc Everything.agda \
 														 +RTS -s))
 
+# Call goal 'check' directly: cubical's default goal 'build' ignores AGDA_FLAGS.
 .PHONY : cubical-test ##
 cubical-test :
 	-rm -rf cubical/_build
 	@$(call decorate, "Cubical library test", \
 		time $(MAKE) -C cubical \
-			AGDA_BIN="$(AGDA_BIN)" AGDA_FLAGS="-j" RTS_OPTIONS=$(AGDA_OPTS))
+			AGDA_BIN="$(AGDA_BIN)" AGDA_FLAGS="-j" RTS_OPTIONS=$(AGDA_OPTS) \
+			check)
 
 .PHONY : continue-cubical-test ##
 continue-cubical-test :
