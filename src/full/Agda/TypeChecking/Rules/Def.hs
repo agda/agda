@@ -127,7 +127,7 @@ checkFunDef i name cs = do
         -- If it's a macro check that it ends in Term → TC ⊤
         let ismacro = isMacro . theDef $ def
         when (ismacro || Info.defMacro i == MacroDef) $ checkMacroType t
-    `catchIlltypedPatternBlockedOnMeta` \ (err, blocker) -> do
+    `catchBlockedPatternError` \ (err, blocker) -> do
         reportSDoc "tc.def" 20 $ vcat $
           [ "checking function definition got stuck on: " <+> pretty blocker ]
         modifySignature $ updateDefinition name $ updateDefBlocked $ const $ Blocked blocker ()

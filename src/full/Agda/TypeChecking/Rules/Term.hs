@@ -594,13 +594,13 @@ checkLambda' cmp r tac xps typ body target = do
       -- checking of the record pattern fails; if we try to catch
       -- higher up the metas created during checking of @argsT@ are
       -- not available.
-      let postponeOnBlockedPattern m = m `catchIlltypedPatternBlockedOnMeta` \(err , x) -> do
+      let postponeOnBlockedPattern m = m `catchBlockedPatternError` \(_, blocker) -> do
             reportSDoc "tc.term" 50 $ vcat $
-              [ "checking record pattern stuck on meta: " <+> text (show x) ]
+              [ "checking record pattern stuck on: " <+> text (show blocker) ]
             t1 <- addContext (xs, argsT) $ workOnTypes newTypeMeta_
             let e    = A.Lam A.exprNoRange (A.DomainFull b) body
                 tgt' = telePi tel t1
-            w <- postponeTypeCheckingProblem (CheckExpr cmp e tgt') x
+            w <- postponeTypeCheckingProblem (CheckExpr cmp e tgt') blocker
             return (tgt' , w)
 
       -- Now check body : ?t₁
@@ -960,24 +960,19 @@ checkExtendedLambda cmp i di erased qname cs e t = do
     abstract ConcreteDef = inConcreteMode
     abstract AbstractDef = inAbstractMode
 
--- | Run a computation.
+-- | Handle a blocked pattern or copattern error so the caller can postpone checking.
 --
---   * If successful, that's it, we are done.
+--   Recognize blockers on 'SortOfSplitVarError', 'UnificationStuck', 'BlockedType',
+--   'CannotEliminateWithPattern', and 'CannotEliminateWithProjection'. For a
+--   recognized error with a blocker, restore the state saved before the computation
+--   and update the blocker in that state. Replace missing metas with 'neverUnblock'
+--   and solved or remote metas with 'alwaysUnblock'.
 --
---   * If @NotADatatype a@ or @CannotEliminateWithPattern p a@
---     is thrown and type @a@ is blocked on some meta @x@,
---     reset any changes to the state and pass (the error and) @x@ to the handler.
---
---   * If @SplitError (UnificationStuck c tel us vs _)@ is thrown and the unification
---     problem @us =?= vs : tel@ is blocked on some meta @x@ pass @x@ to the handler.
---
---   * If another error was thrown or the type @a@ is not blocked, reraise the error.
---
---   Note that the returned meta might only exists in the state where the error was
---   thrown, thus, be an invalid 'MetaId' in the current state.
---
-catchIlltypedPatternBlockedOnMeta :: TCM a -> ((TCErr, Blocker) -> TCM a) -> TCM a
-catchIlltypedPatternBlockedOnMeta m handle = do
+--   Pass the original error and the updated blocker to the handler unless the
+--   blocker is 'alwaysUnblock' or 'neverUnblock'. Rethrow the original error in
+--   those cases and whenever the error has no recognized blocker.
+catchBlockedPatternError :: TCM a -> ((TCErr, Blocker) -> TCM a) -> TCM a
+catchBlockedPatternError m handle = do
 
   -- Andreas, 2016-07-13, issue 2028.
   -- Save the state to rollback the changes to the signature.
@@ -1401,14 +1396,11 @@ checkExpr' cmp e t =
           e' <- checkApplication cmp hd args e t
           pure e'
 
-      `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
-        -- We could not check the term because the type of some pattern is blocked.
-        -- It has to be blocked on some meta, so we can postpone,
-        -- being sure it will be retried when a meta is solved
-        -- (which might be the blocking meta in which case we actually make progress).
+      `catchBlockedPatternError` \ (_, blocker) -> do
+        -- Retry checking the expression when the blocker is resolved.
         reportSDoc "tc.term" 50 $ vcat $
-          [ "checking pattern got stuck on meta: " <+> pretty x ]
-        postponeTypeCheckingProblem (CheckExpr cmp e t) x
+          [ "checking pattern got stuck on: " <+> pretty blocker ]
+        postponeTypeCheckingProblem (CheckExpr cmp e t) blocker
 
   where
   -- Call checkExpr with an hidden lambda inserted if appropriate,

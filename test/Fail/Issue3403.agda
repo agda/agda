@@ -28,8 +28,7 @@ mutual
 P : ∀ {x y} → k x ≡ k y → Set₁
 P refl = Set
 
--- WAS: internal error in
--- TypeChecking.Rules.Term.catchIlltypedPatternBlockedOnMeta
+-- WAS: internal error while handling a blocked pattern.
 --
 -- EXPECTED:
 -- I'm not sure if there should be a case for the constructor refl,
