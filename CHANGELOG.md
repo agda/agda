@@ -67,6 +67,10 @@ Interaction and emacs mode
 * The Emacs mode is now less eager to "pop up" the Agda information
   buffer.
 
+* Added key binding that switches to the associated mode for a
+  literate Agda file, with the option to automatically add a key
+  binding to switch back.
+
 Backends
 --------
 
