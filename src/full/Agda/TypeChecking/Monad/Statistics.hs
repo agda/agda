@@ -10,7 +10,6 @@ import Control.DeepSeq ( NFData(rnf) )
 import Control.Monad.Except ( ExceptT )
 import Control.Monad.Reader ( ReaderT )
 import Control.Monad.State ( StateT )
-import Control.Monad.Writer ( WriterT )
 import Control.Monad.Trans.Class ( MonadTrans(lift) )
 import Control.Monad.Trans.Maybe ( MaybeT )
 
@@ -30,6 +29,7 @@ import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.String ( showThousandSep )
 import Agda.Utils.Maybe ( caseMaybe )
 import Agda.Utils.Null ( unlessNull )
+import Agda.Utils.Writer ( WriterT )
 import Agda.Utils.StrictReader qualified as Strict
 
 class ReadTCState m => MonadStatistics m where

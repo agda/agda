@@ -12,7 +12,6 @@ import Control.Monad.State
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer         ( WriterT )
 
 import Data.Foldable
 import qualified Data.HashMap.Strict as HMap
@@ -54,6 +53,7 @@ import Agda.Utils.Null (empty)
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Update
+import Agda.Utils.Writer ( WriterT )
 
 
 import Agda.Utils.StrictReader qualified as Strict

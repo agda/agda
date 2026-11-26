@@ -8,7 +8,6 @@ module Agda.Utils.IO.Directory
 where
 
 import Control.Monad
-import Control.Monad.Writer ( WriterT, execWriterT, tell )
 import Control.Monad.Trans  ( lift )
 
 import Data.ByteString      as BS
@@ -17,6 +16,8 @@ import Data.Monoid          ( Endo(Endo, appEndo) )
 import System.Directory
 import System.FilePath
 import System.FilePath.Find qualified as Find
+
+import Agda.Utils.Writer    ( WriterT, execWriterT, tell )
 
 
 -- | Search a directory recursively, with recursion controlled by a

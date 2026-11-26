@@ -13,7 +13,6 @@ import Control.Monad.Except   ( ExceptT )
 import Control.Monad.Identity ( Identity(..) )
 import Control.Monad.Reader   ( ReaderT )
 import Control.Monad.State    ( StateT  )
-import Control.Monad.Writer   ( WriterT )
 import Control.Monad.Trans    ( lift    )
 import Control.Monad.Trans.Maybe
 
@@ -52,6 +51,7 @@ import Agda.Utils.Bag (Bag)
 import Agda.Utils.Bag qualified as Bag
 import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.VarSet qualified as VarSet
+import Agda.Utils.Writer ( WriterT )
 
 import Agda.Utils.Unsafe (unsafeComparePointers)
 import Agda.Utils.Impossible
@@ -245,7 +245,7 @@ instance (Null (m a), Monad m) => Null (StateT s m a) where
   null  = __IMPOSSIBLE__
   {-# NOINLINE null #-}
 
-instance (Null (m a), Monad m, Monoid w) => Null (WriterT w m a) where
+instance (Null (m a), Monad m) => Null (WriterT w m a) where
   empty = lift empty
   {-# INLINE empty #-}
   null  = __IMPOSSIBLE__

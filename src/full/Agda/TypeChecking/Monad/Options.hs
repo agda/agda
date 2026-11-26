@@ -8,7 +8,6 @@ import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
-import Control.Monad.Writer
 
 import qualified Data.Graph as Graph
 import Data.List (sort)
@@ -48,6 +47,7 @@ import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
 import Agda.Utils.WithDefault
+import Agda.Utils.Writer
 
 import Agda.Utils.Impossible
 

@@ -10,7 +10,6 @@ import Control.Monad.Reader         ( ReaderT )
 import Control.Monad.State          ( StateT )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer         ( WriterT )
 
 import Data.Function ( on )
 import qualified Data.Map as Map
@@ -33,6 +32,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 import Agda.Utils.Update
+import Agda.Utils.Writer ( WriterT )
 
 import Agda.Utils.StrictReader qualified as Strict
 import Agda.Utils.StrictWriter qualified as Strict

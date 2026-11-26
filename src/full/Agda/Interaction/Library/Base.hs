@@ -9,7 +9,6 @@ import qualified Control.Exception as E
 
 import Control.Monad.Except
 import Control.Monad.State
-import Control.Monad.Writer        ( WriterT, runWriterT, MonadWriter, tell )
 import Control.Monad.IO.Class      ( MonadIO(..) )
 
 import Data.Bifunctor              ( first , second )
@@ -42,6 +41,7 @@ import Agda.Utils.List1            ( List1, toList )
 import Agda.Utils.List2            ( List2, toList )
 import qualified Agda.Utils.List1  as List1
 import Agda.Utils.Null
+import Agda.Utils.Writer           ( WriterT, runWriterT, MonadWriter, tell )
 
 -- | A symbolic library name.
 --

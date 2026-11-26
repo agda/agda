@@ -29,7 +29,6 @@ import Control.Monad.Except         ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class       ( MonadIO(..) )
 import Control.Monad.State          ( MonadState(..), modify, StateT(..), runStateT, evalStateT )
 import Control.Monad.Reader         ( MonadReader(..), ReaderT(..), runReaderT )
-import Control.Monad.Writer         ( WriterT(..), runWriterT )
 import Control.Monad.Trans          ( MonadTrans(..), lift )
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough, MonadBaseControl )
 import Control.Monad.Trans.Identity ( IdentityT(..), runIdentityT )
@@ -159,6 +158,7 @@ import Agda.Utils.Tuple (Pair, (&&&) )
 import Agda.Utils.Update
 import Agda.Utils.VarSet (VarSet)
 import Agda.Utils.VarSet qualified as VarSet
+import Agda.Utils.Writer    ( WriterT, writerT, runWriterT )
 import Agda.Utils.Atomic
 import Agda.Utils.StrictReader qualified as Strict
 import Agda.Utils.StrictWriter qualified as Strict
@@ -1451,7 +1451,7 @@ instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
     return ((x,s'),ns')
 
 instance (MonadStConcreteNames m, Monoid w) => MonadStConcreteNames (WriterT w m) where
-  runStConcreteNames m = WriterT $ runStConcreteNames $ StateT $ \ ns -> do
+  runStConcreteNames m = writerT $ runStConcreteNames $ StateT $ \ ns -> do
     ((x,ns'),w) <- runWriterT $ runStateT m ns
     return ((x,w),ns')
 

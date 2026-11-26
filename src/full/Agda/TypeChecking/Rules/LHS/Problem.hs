@@ -11,8 +11,7 @@ module Agda.TypeChecking.Rules.LHS.Problem
 
 import Prelude hiding (null)
 
-import Control.Monad        ( zipWithM )
-import Control.Monad.Writer ( MonadWriter(..), Writer, runWriter )
+import Control.Monad ( zipWithM )
 
 import Data.Functor (($>))
 import Data.IntMap (IntMap)
@@ -39,6 +38,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.Writer ( MonadWriter(..), Writer, runWriter )
 import qualified Agda.Syntax.Common.Pretty as PP
 
 type FlexibleVars   = [FlexibleVar Nat]

@@ -19,7 +19,6 @@ import Control.Monad.Reader ( ReaderT )
 import Control.Monad.State  ( StateT )
 import Control.Monad.Trans  ( MonadTrans, lift )
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer ( WriterT )
 
 import Data.Foldable
 import qualified Data.List as List
@@ -56,6 +55,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Set1 as Set1
 import Agda.Utils.Singleton
+import Agda.Utils.Writer    ( WriterT )
 
 import Agda.Utils.Impossible
 

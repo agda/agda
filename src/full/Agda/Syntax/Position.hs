@@ -82,7 +82,6 @@ import Prelude hiding ( null )
 
 import Control.DeepSeq
 import Control.Monad
-import Control.Monad.Writer (runWriter, tell)
 
 import qualified Data.Foldable as Fold
 import Data.Function (on)
@@ -112,6 +111,7 @@ import Agda.Utils.Set1 qualified as Set1
 import Agda.Utils.TypeLevel (IsBase, All, Domains)
 import Agda.Utils.Tuple (sortPair)
 import Agda.Utils.Word (packW64, splitW64)
+import Agda.Utils.Writer (runWriter, tell)
 import Agda.Utils.Hash (combineWord)
 
 import Agda.Utils.Impossible

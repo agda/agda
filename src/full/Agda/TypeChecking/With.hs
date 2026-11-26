@@ -6,8 +6,6 @@ module Agda.TypeChecking.With where
 
 import Prelude hiding ((!!))
 
-import Control.Monad.Writer (WriterT, runWriterT, tell)
-
 import qualified Data.List as List
 import Data.Maybe
 import Data.Foldable ( foldrM )
@@ -50,6 +48,7 @@ import Agda.Utils.Permutation
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.Writer (WriterT, runWriterT, tell)
 
 import Agda.Utils.Impossible
 

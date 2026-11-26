@@ -12,7 +12,6 @@ import Control.Monad.Reader ( ReaderT )
 import Control.Monad.State ( StateT )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans.Maybe ( MaybeT )
-import Control.Monad.Writer ( WriterT )
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
@@ -22,6 +21,7 @@ import Agda.TypeChecking.Monad.Signature
 
 import Agda.Utils.ListT
 import Agda.Utils.Update
+import Agda.Utils.Writer ( WriterT )
 
 import Agda.Utils.StrictReader qualified as Strict
 import Agda.Utils.StrictWriter qualified as Strict

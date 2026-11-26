@@ -200,7 +200,6 @@ import Prelude hiding ( null, not, (&&), (||) )
 import Control.DeepSeq
 import Control.Monad        ( when, void )
 import Control.Monad.Except ( ExceptT, MonadError(throwError), runExceptT )
-import Control.Monad.Writer ( Writer, runWriter, MonadWriter(..) )
 
 import Data.Bifunctor           ( second )
 import Data.Function            ( (&) )
@@ -257,6 +256,7 @@ import qualified Agda.Utils.String       as String
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.TypeLits
 import Agda.Utils.WithDefault
+import Agda.Utils.Writer        ( Writer, runWriter, MonadWriter(..) )
 
 import Agda.Utils.Impossible
 
