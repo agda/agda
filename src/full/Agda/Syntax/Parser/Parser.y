@@ -77,7 +77,7 @@ import Agda.Utils.Impossible
 %name exprParser Expr
 %name exprWhereParser ExprWhere
 %name moduleParser File
-%name moduleNameParser ModuleName
+%name moduleNameParser FileModuleName
 %name funclauseParser FunClause
 %name holeContentParser HoleContent
 
@@ -536,6 +536,10 @@ QId : q_id  {% mkQName $1 }
 -- A module name is just a qualified name
 ModuleName :: { QName }
 ModuleName : QId { $1 }
+
+-- File names and import paths cannot contain record-stage selectors.
+FileModuleName :: { QName }
+FileModuleName : ModuleName {% ensureNoRecordStages $1 }
 
 
 -- A binding variable. Can be '_'
@@ -1499,7 +1503,8 @@ MaybeOpen : 'open'      { DoOpen (kwRange $1) }
 Import :: { Declaration }
 Import
   : MaybeOpen 'import' ModuleName OpenArgs ImportDirective
-    { Import $1 (kwRange $2) $3 (Right $4) $5 }
+    {% ensureNoRecordStages $3 >>= \m ->
+       return $ Import $1 (kwRange $2) m (Right $4) $5 }
 
 -- Open without import.
 Open :: { Declaration }
@@ -1567,9 +1572,11 @@ Module :: { Declaration }
 Module
   : 'module' Attributes ModuleName TypedUntypedBindings 'where'
       Declarations0
-    {% onlyErased $2 >>= \erased ->
-       return $ Module (getRange ($1,$2,$3,$4,$5,$6)) erased
-                  $3 (map addType $4) $6 }
+    {% do { erased <- onlyErased $2
+          ; m <- ensureNoRecordStages $3
+          ; return $ Module (getRange ($1,$2,$3,$4,$5,$6)) erased
+                       m (map addType $4) $6
+          } }
   | 'module' Attributes Underscore TypedUntypedBindings 'where'
       Declarations0
     {% onlyErased $2 >>= \erased ->

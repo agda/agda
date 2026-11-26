@@ -1,0 +1,36 @@
+
+RecordStageNameWarning.agda:7.19-21: warning: -W[no]RecordStageName
+Record stage numbers are potentially unstable as they depend on the
+arrangement of fields and declarations in the record
+when scope checking R.0.B
+
+RecordStageNameWarning.agda:11.24-25: warning: -W[no]RecordStageName
+Record stage numbers are potentially unstable as they depend on the
+arrangement of fields and declarations in the record
+when scope checking the declaration
+  module S (A : Set) = R.0 A
+
+RecordStageNameWarning.agda:15.8-9: warning: -W[no]RecordStageName
+Record stage numbers are potentially unstable as they depend on the
+arrangement of fields and declarations in the record
+when scope checking the declaration
+  open R.0
+
+———— All done; warnings encountered ————————————————————————
+
+RecordStageNameWarning.agda:7.19-21: warning: -W[no]RecordStageName
+Record stage numbers are potentially unstable as they depend on the
+arrangement of fields and declarations in the record
+when scope checking R.0.B
+
+RecordStageNameWarning.agda:11.24-25: warning: -W[no]RecordStageName
+Record stage numbers are potentially unstable as they depend on the
+arrangement of fields and declarations in the record
+when scope checking the declaration
+  module S (A : Set) = R.0 A
+
+RecordStageNameWarning.agda:15.8-9: warning: -W[no]RecordStageName
+Record stage numbers are potentially unstable as they depend on the
+arrangement of fields and declarations in the record
+when scope checking the declaration
+  open R.0

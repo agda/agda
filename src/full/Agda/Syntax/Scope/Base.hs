@@ -67,6 +67,10 @@ data Scope = Scope
       , scopeNameSpaces     :: ScopeNameSpaces
       , scopeImports        :: Map C.QName A.ModuleName
       , scopeDatatypeModule :: Maybe DataOrRecordModule
+      , scopeRecordStages   :: Map C.Name (A.ModuleName, A.ModuleName)
+        -- ^ Qualified-only stage selectors of this record: their privacy owner
+        -- (the surrounding module) and canonical implementation module.
+        -- These bindings are accessible only within the owner's lexical scope.
       }
   deriving (Eq, Show, Generic)
 
@@ -771,6 +775,7 @@ emptyScope = Scope
       -- zipScope assumes all NameSpaces to be present and in the same order.
   , scopeImports        = Map.empty
   , scopeDatatypeModule = Nothing
+  , scopeRecordStages   = Map.empty
   }
 
 -- | The empty scope info.
@@ -845,6 +850,11 @@ zipScope fd fnps fm fs s1 s2 =
          , assert (nsid == nsid')
          ]
      , scopeImports  = (Map.union `on` scopeImports)  s1 s2
+     -- Stage aliases belong to the record scope itself, not to its namespace.
+     -- Preserve them when extending that scope, but never import them by open.
+     , scopeRecordStages = if scopeName s1 == scopeName s2
+         then (Map.union `on` scopeRecordStages) s1 s2
+         else scopeRecordStages s1
      }
   where
     assert True  = True
@@ -1173,9 +1183,14 @@ applyImportDirective_ dir@(ImportDirective{ impRenaming }) s
           upd (x, ys) = f x <&> \ x' -> (x', setBindingSite (getRange x') ys)
 
 -- | Rename the abstract names in a scope.
-renameCanonicalNames :: Map A.QName A.QName -> Map A.ModuleName A.ModuleName ->
-                        Scope -> Scope
-renameCanonicalNames renD renM = mapScope_ renameD renameM (Set.map newName)
+renameCanonicalNames
+  :: Map A.QName A.QName           -- ^ Renaming of definitions.
+  -> Map A.ModuleName A.ModuleName -- ^ Renaming of modules, including stage owners.
+  -> Scope                        -- ^ Scope whose canonical references are renamed.
+  -> Scope
+renameCanonicalNames renD renM s =
+  (mapScope_ renameD renameM (Set.map newName) s)
+    { scopeRecordStages = Map.map (\ (owner, stage) -> (newMod owner, newMod stage)) $ scopeRecordStages s }
   where
     newName x = Map.findWithDefault x x renD
     newMod  x = Map.findWithDefault x x renM
@@ -1350,25 +1365,59 @@ scopeAndParents scope = (current :) $! map' (scopeOfModule scope) (scopeParents 
 {-# SPECIALIZE findQNameInScope :: ScopeInfo -> C.QName -> Scope -> [(AbstractModule, Access)] #-}
 -- | Find a concrete, possibly qualified name in scope @s@.
 --   The qualifiers are resolved to modules whose public scopes are searched.
-findQNameInScope :: forall a. InScope a => ScopeInfo -> C.QName -> Scope -> [(a, Access)]
+findQNameInScope
+  :: forall a. InScope a
+  => ScopeInfo -- ^ Current lexical context, including stage visibility.
+  -> C.QName   -- ^ Concrete name to resolve.
+  -> Scope     -- ^ Scope in which resolution starts.
+  -> [(a, Access)]
 findQNameInScope scope q0 s = case q0 of
-  C.QName x  -> findNameInScope x s
+  C.QName x  -> case (inScopeTag :: InScopeTag a) of
+    NameTag -> findNameInScope x s
+    ModuleTag -> findModulesWithStages scope x s
   C.Qual x q -> do
     (_, s') <- qualifierScopes scope x s
     findQNameInScope scope q s'
 
 -- | Resolve a qualifier @x@ in scope @s@ to the modules named @x@
 --   and their public scopes.
-qualifierScopes :: ScopeInfo -> C.Name -> Scope -> [(AbstractModule, Scope)]
+qualifierScopes
+  :: ScopeInfo -- ^ Current lexical context, including stage visibility.
+  -> C.Name    -- ^ Qualifier to resolve as a module or record-stage selector.
+  -> Scope     -- ^ Scope in which to look for the qualifier.
+  -> [(AbstractModule, Scope)]
 qualifierScopes scope x s = do
   -- Andreas, 2013-05-01:  Issue 836 complains about the feature
   -- that constructors can also be qualified by their datatype
   -- and projections by their record type.  This feature is off
   -- if we just consider the modules (and not also the definitions named @x@).
-  (m, _) <- findNameInScope x s
+  (m, _) <- findModulesWithStages scope x s
   -- Get the scope of module m, if any, and remove its private definitions.
   s' <- maybeToList $ Map.lookup (amodName m) $ scope ^. scopeModules
   return (m, restrictPrivate s')
+
+-- | Find an ordinary module or a stage of the record whose scope is searched.
+-- Stage aliases are not namespace entries: opening a record cannot bring bare
+-- numerals into scope, and importing a record does not grant stage access.
+findModulesWithStages
+  :: ScopeInfo -- ^ Lexical context used to check the stage's privacy owner.
+  -> C.Name    -- ^ Ordinary module name or numeric stage selector.
+  -> Scope     -- ^ Scope being searched, possibly reached through a qualifier.
+  -> [(AbstractModule, Access)]
+findModulesWithStages scope x s = findNameInScope x s ++ do
+  stage <- maybeToList $ Map.lookup x $ recordStagesInScope scope s
+  return (AbsModule stage Defined, privateAccessInserted)
+
+-- | Stage aliases whose privacy owner is a lexical parent of the current scope.
+recordStagesInScope
+  :: ScopeInfo -- ^ Current lexical context.
+  -> Scope     -- ^ Record scope whose stage aliases are inspected.
+  -> Map C.Name A.ModuleName
+recordStagesInScope scope = Map.mapMaybe visible . scopeRecordStages
+  where
+    visible (owner, stage)
+      | owner `elem` map scopeName (scopeAndParents scope) = Just stage
+      | otherwise = Nothing
 
 -- | For a qualified name @x.q@ resolving to one of the given things @ys@,
 --   find the modules @x@ in the current scope (or its parents)
@@ -1532,6 +1581,8 @@ recomputeInScopeSet scope = fst $ St2.execState goCurrent (Set.empty, Set.empty)
       when isCurrent do
         Map.forWithKey_ (scopeImports s) \_ m -> do
           go False m
+      -- Private stage aliases remain qualified even when their record is open.
+      forM_ (recordStagesInScope scope s) $ go False
 
 recomputeInverseNamesAndModules :: ScopeInfo -> (NameMap, ModuleMap)
 recomputeInverseNamesAndModules scope = St2.execState goCurrent (mempty, mempty) where
@@ -1600,6 +1651,13 @@ recomputeInverseNamesAndModules scope = St2.execState goCurrent (mempty, mempty)
                 let !name = amodName m
                 updModules qualx name
                 go (x:quals) (look name)
+
+    -- Stage aliases are qualified-only. In particular, never offer a bare
+    -- numeric module name while printing from inside the record module.
+    unless (null quals) do
+      Map.forWithKey_ (recordStagesInScope scope s) \x m -> do
+        updModules (applyQuals (C.QName x) quals) m
+        go (x:quals) (look m)
 
     -- imports
     when (null quals) do

@@ -1026,6 +1026,11 @@ instance PrettyTCM TypeError where
     FieldOutsideRecord -> fsep $
       pwords "Field appearing outside record declaration."
 
+    FieldInMutualBlock -> vcat
+      [ fwords "Record fields are not allowed in explicit or inferred mutual blocks."
+      , fwords "Complete helper definitions before declaring the next field."
+      ]
+
     PrivateRecordField -> fwords "Record fields cannot be private"
 
     InvalidPattern p -> fsep $
@@ -1061,9 +1066,6 @@ instance PrettyTCM TypeError where
     NotAValidLetBinding (Just err) -> fwords $ verbalizeNotAValidLetBinding err
 
     NotAValidLetExpression err -> fwords $ verbalizeNotAValidLetExpression err
-
-    NotValidBeforeField nd -> fwords $
-      "This declaration is illegal in a record before the last field"
 
     NoParseForApplication es -> fsep (
       pwords "Could not parse the application" ++ [pretty $ C.RawApp noRange es])

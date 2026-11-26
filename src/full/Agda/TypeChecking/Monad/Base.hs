@@ -1329,14 +1329,14 @@ instance FreshName () where
   freshName_ () = freshNoName_
 
 instance FreshName Name where
-  freshName_ (Name _ con can bs fix rn) = do
+  freshName_ (Name _ con can bs fix rn source stage) = do
     i <- fresh
-    pure $ Name i con can bs fix rn
+    pure $ Name i con can bs fix rn source stage
 
 instance FreshName C.Name where
   freshName_ c = do
     i <- fresh
-    pure $ Name i c c noRange noFixity' False
+    pure $ Name i c c noRange noFixity' False Nothing Nothing
 
 ----------------------------------------------------------------------------------------------------
 -- * Module Checkpoints
@@ -5288,6 +5288,8 @@ data Warning
     --   This will be an error in @version@.
   | UserWarning Text
     -- ^ User-defined warning (e.g. to mention that a name is deprecated)
+  | RecordStageName C.Name
+    -- ^ An explicit numeric record-stage selector, whose index is unstable.
   | DuplicateUsing (List1 C.ImportedName)
     -- ^ Duplicate mentions of the same name in @using@ directive(s).
   | FixityInRenamingModule (List1 Range)
@@ -5499,6 +5501,7 @@ warningName = \case
   UselessTactic{}              -> UselessTactic_
   ClashesViaRenaming{}         -> ClashesViaRenaming_
   UserWarning{}                -> UserWarning_
+  RecordStageName{}            -> RecordStageName_
   InfectiveImport{}            -> InfectiveImport_
   CoInfectiveImport{}          -> CoInfectiveImport_
   ConfluenceCheckingIncompleteBecauseOfMeta{} -> ConfluenceCheckingIncompleteBecauseOfMeta_
@@ -6050,7 +6053,7 @@ data TypeError
         | NotAnExpression C.Expr
         | NotAValidLetBinding (Maybe NotAValidLetBinding)
         | NotAValidLetExpression NotAValidLetExpression
-        | NotValidBeforeField NiceDeclaration
+        | FieldInMutualBlock
         | PrivateRecordField
         | QualifiedLocalModule
     -- Pattern synonym errors

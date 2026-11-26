@@ -115,6 +115,7 @@ typeErrorName = \case
   EtaPragmaVsNoEtaEquality                                   {} -> EtaPragmaVsNoEtaEquality_
   ExpectedBindingForParameter                                {} -> ExpectedBindingForParameter_
   ExpectedIntervalLiteral                                    {} -> ExpectedIntervalLiteral_
+  FieldInMutualBlock                                         {} -> FieldInMutualBlock_
   FieldOutsideRecord                                         {} -> FieldOutsideRecord_
   FaceConstraintDisjunction                                  {} -> FaceConstraintDisjunction_
   FaceConstraintUnsatisfiable                                {} -> FaceConstraintUnsatisfiable_
@@ -191,7 +192,6 @@ typeErrorName = \case
   NotAnExpression                                            {} -> NotAnExpression_
   NotInScope                                                 {} -> NotInScope_
   NotLeqSort                                                 {} -> NotLeqSort_
-  NotValidBeforeField                                        {} -> NotValidBeforeField_
   OverlappingProjects                                        {} -> OverlappingProjects_
   PathAbstractionFailed                                      {} -> PathAbstractionFailed_
   PatternInPathLambda                                        {} -> PatternInPathLambda_
@@ -275,6 +275,7 @@ declarationExceptionName = \case
   DisallowedInterleavedMutual      {} -> DisallowedInterleavedMutual_
   DuplicateAnonDeclaration         {} -> DuplicateAnonDeclaration_
   DuplicateDefinition              {} -> DuplicateDefinition_
+  FieldInsideOpaque                {} -> FieldInsideOpaque_
   InvalidMeasureMutual             {} -> InvalidMeasureMutual_
   MissingWithClauses               {} -> MissingWithClauses_
   MultipleEllipses                 {} -> MultipleEllipses_

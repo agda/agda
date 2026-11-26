@@ -1,0 +1,4 @@
+RecordStageNameError.agda:8.9-11: warning: -W[no]RecordStageName
+Record stage numbers are potentially unstable as they depend on the
+arrangement of fields and declarations in the record
+when scope checking R.0.B

@@ -1,0 +1,8 @@
+RecordStageCopyPrivate.agda:10.9-14: error: [NotInScope]
+Not in scope:
+  N.0.B
+  at RecordStageCopyPrivate.agda:10.9-14
+    (did you mean
+       'N.B' or
+       'R.B'?)
+when scope checking N.0.B

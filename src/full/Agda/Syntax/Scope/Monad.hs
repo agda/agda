@@ -244,18 +244,24 @@ freshAbstractName fx x = do
     , _nameBindingSite = getRange x
     , nameFixity      = fx
     , nameIsRecordName = False
+    , nameSourceName = Nothing
+    , nameRecordStage = Nothing
     }
 
 -- | @freshAbstractName_ = freshAbstractName noFixity'@
 freshAbstractName_ :: C.Name -> ScopeM A.Name
 freshAbstractName_ = freshAbstractName noFixity'
 
--- | Create a fresh abstract qualified name.
-freshAbstractQName :: Fixity' -> C.Name -> ScopeM A.QName
+-- | Create a fresh abstract name in the current module, retaining source-name
+-- provenance when the current module is an internal record implementation.
+freshAbstractQName
+  :: Fixity' -- ^ Fixity to associate with the new abstract name.
+  -> C.Name  -- ^ Unqualified source name, including its binding range.
+  -> ScopeM A.QName
 freshAbstractQName fx x = do
   y <- freshAbstractName fx x
   m <- getCurrentModule
-  return $ A.qualify m y
+  return $ A.qualify m y { nameSourceName = killRange <$> A.sourceNameInModule m x }
 
 freshAbstractQName' :: C.Name -> ScopeM A.QName
 freshAbstractQName' x = do
@@ -299,7 +305,22 @@ resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
     UnknownName -> setCurrentRange x $ typeError $ I.NotInScope q
     _ -> setCurrentRange x $ typeError $ ConstructorNameOfNonRecord r
 
-  Right x' -> pure x'
+  Right x' -> do
+    unless (x' == UnknownName) $ warnRecordStageName x
+    pure x'
+
+-- | Warn about explicit stage selectors in a successfully resolved source name.
+-- Generic lookup and printing must remain silent. The ordinary warning set
+-- coalesces repeated resolution of the same occurrence during scope checking.
+warnRecordStageName
+  :: C.QName -- ^ Written qualified name; each numeric selector has its own range.
+  -> ScopeM ()
+warnRecordStageName = \case
+  C.QName x -> warn x
+  C.Qual x q -> warn x >> warnRecordStageName q
+  where
+    warn x = when (C.isRecordStageName x && not (null $ getRange x)) $
+      setCurrentRange x $ warning $ RecordStageName x
 
 tryResolveName :: forall m. (ReadTCState m, HasBuiltins m, MonadError NameResolutionError m)
   => KindsOfNames
@@ -421,6 +442,7 @@ resolveModule x = do
   caseMaybe (nonEmpty ms) (typeError $ NoSuchModule x) $ \ case
     AbsModule m why :| [] -> do
       let am = AbsModule (m `withRangeOf` x) why
+      warnRecordStageName x
       am <$ lookedupModule x am
     ms                    -> typeError $ AmbiguousModule x (fmap amodName ms)
 
@@ -691,23 +713,67 @@ copyName from to = do
 -- | Create a new scope with the given name from an old scope. Renames
 --   public names in the old scope to match the new name and returns the
 --   renamings.
-copyScope :: C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, ScopeCopyInfo)
-copyScope oldc new0 s =
+copyScope
+  :: C.QName      -- ^ Source spelling of the applied module, for scope provenance.
+  -> A.ModuleName -- ^ Already-created destination module.
+  -> Scope        -- ^ Source scope whose public bindings are to be copied.
+  -> ScopeM (Scope, ScopeCopyInfo) -- ^ Copied scope and name/module renamings.
+copyScope = copyScopeWith Nothing
+
+-- | Copy a record stage, retaining private bindings for later declarations
+-- inside the record. Their namespace remains private in the resulting scope.
+copyRecordScope
+  :: C.QName      -- ^ Source spelling of the stage application, for scope provenance.
+  -> A.ModuleName -- ^ Already-created destination module for the public helper copy.
+  -> Scope        -- ^ Canonical stage's scope, including its private bindings.
+  -> ScopeM (Scope, ScopeCopyInfo) -- ^ Copied scope and name/module renamings.
+copyRecordScope oldc new s = do
+  owner <- getCurrentModule
+  copyScopeWith (Just owner) oldc new s
+
+-- | Copy a module scope with memoized renamings, optionally retaining its private
+-- namespace. Both ordinary applications and record-stage copies use this traversal.
+copyScopeWith
+  :: Maybe A.ModuleName -- ^ For a record copy, retain private bindings and give
+                        -- nested stages this public record module as privacy owner.
+  -> C.QName      -- ^ Source spelling of the applied module, for scope provenance.
+  -> A.ModuleName -- ^ Already-created destination module.
+  -> Scope        -- ^ Source scope to copy.
+  -> ScopeM (Scope, ScopeCopyInfo) -- ^ Copied scope and name/module renamings.
+copyScopeWith privateOwner oldc new0 rootScope =
   (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$>
-    runStateT (copy new0 $ dropRecordConstructorPseudoName s) (ScopeMemo mempty mempty)
+    runStateT (copy new0 $ dropRecordConstructorPseudoName rootScope) (ScopeMemo mempty mempty)
   where
-    copy :: A.ModuleName -> Scope -> WSM Scope
+    keepPrivate = isJust privateOwner
+
+    -- Copy one scope, using its destination's identity and parents.
+    copy
+      :: A.ModuleName -- Already-created destination module for this recursive copy.
+      -> Scope        -- Source scope whose bindings are being renamed.
+      -> WSM Scope
     copy new s = do
       lift $ reportSLn "scope.copy" 20 $ "Copying scope " ++ prettyShow old ++ " to " ++ prettyShow new
       lift $ reportSLn "scope.copy" 50 $ prettyShow s
       s0 <- lift $ getNamedScope new
-      -- Delete private names, then copy names and modules. Recompute inScope
-      -- set and name parts rather than trying to copy them.
+      -- Remove private bindings unless the caller needs a record-stage copy,
+      -- then rename names and modules. Recompute inScope sets and name parts
+      -- rather than copying caches that still refer to the source names.
       s' <- recomputeNameParts . recomputeInScopeSets <$>
-              mapScopeM_ copyD copyM return (setNameSpace PrivateNS emptyNameSpace s)
+              mapScopeM_ copyD copyM return (if keepPrivate then s else setNameSpace PrivateNS emptyNameSpace s)
+      -- Stage aliases are private to their surrounding module. Ordinary module
+      -- application exports no aliases; the special record copy retains and
+      -- renames them for nested records in the final record module.
+      stages <- if not keepPrivate then pure Map.empty else
+        forM (scopeRecordStages s) $ \ (owner, stage) -> do
+          owner' <- if owner == scopeName s then pure new else
+                    if owner == scopeName rootScope then pure (fromMaybe new0 privateOwner)
+                    else renMod' False owner
+          stage' <- renMod stage
+          pure (owner', stage')
       -- Fix name and parent.
       return $ s' { scopeName    = scopeName s0
                   , scopeParents = scopeParents s0
+                  , scopeRecordStages = stages
                   }
       where
         rnew = getRange new
@@ -749,9 +815,12 @@ copyScope oldc new0 s =
         findName x = gets (Map.lookup x . memoNames)
         findMod  x = gets (Map.lookup x . memoModules)
 
+        -- Give a copied name a fresh identity while preserving its source
+        -- provenance. The argument is the original unqualified abstract name.
         refresh :: A.Name -> WSM A.Name
         refresh x = do
           i <- lift fresh
+          -- Keep the original binding site and source name for highlighting.
           return $ x { A._nameId = i }
 
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y

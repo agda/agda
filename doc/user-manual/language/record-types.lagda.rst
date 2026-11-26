@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --guardedness --erasure #-}
+  {-# OPTIONS --guardedness --erasure -WnoRecordStageName #-}
 
   module language.record-types where
 
@@ -472,7 +472,7 @@ In the example, the record module ``Pair`` has the shape
   they were not erased to start with.
 
 It's possible to add arbitrary definitions to the record module, by defining them
-inside the record declaration
+inside the record declaration:
 
 ::
 
@@ -483,23 +483,114 @@ inside the record declaration
     _<$_ : ∀ {A B} → A → F B → F A
     x <$ fb = fmap (λ _ → x) fb
 
+Record stages
+~~~~~~~~~~~~~
+
+Since Agda 2.10, arbitrary definitions can be interleaved with fields, e.g.:
+
+::
+
+  record RF : Set₁ where
+
+    private
+      data Boolean : Set where
+        true  : Boolean
+        false : Boolean
+
+    field A : Set
+
+    F : Boolean → Set
+    F true  = A
+    F false = A → A
+
+    field value : (b : Boolean) → F b
+
+This creates roughly the following record module:
+
+.. code-block:: agda
+
+  module RF (r : RF) where
+
+    private
+      data Boolean : Set where
+        true  : Boolean
+        false : Boolean
+
+    A : Set
+    A = {! first projection from r !}
+
+    F : Boolean → Set
+    F true  = A
+    F false = A → A
+
+    value : (b : Boolean) → F b
+    value = {! second projection from r !}
+
+The type of the constructor cannot be written using this module
+since it is parametrized by a record value ``?`` that is just being constructed:
+
+.. code-block:: agda
+
+  RF.constructor : (A : Set) (value : (b : RF.Boolean ? → RF.F ? b)) → RF
+
+Further, the reference ``RF.Boolean`` here is invalid since this data type is declared ``private``.
+
+To type the constructor, intermediate record modules ``RF.k``, called *record stages*, are introduced,
+for :math:`k = 0 \dots n-1` where :math:`n` is the number of fields.
+Stage :math:`k` captures the initial segment of the record module restricted to :math:`k` fields, taking each of the :math:`k` field values as separate parameters:
+
+.. code-block:: agda
+
+  private
+    module RF.0 where
+
+      data Boolean : Set where
+        true  : Boolean
+        false : Boolean
+
+    module RF.1 (A : Set) where
+
+      F : Boolean → Set
+      F true  = A
+      F false = A → A
+
+Note that the stages are themselves ``private`` but do not respect privacy of declarations
+lest the constructor would not be typeable.
+
+::
+
+  RF-constructor : (A : Set) (value : (b : RF.0.Boolean) → RF.1.F A b) → RF
+  RF-constructor = RF.constructor
+
+The full record module can be understood as an interleaving of stages (embedded with `open`)
+and fields (projections from the record value).
+
+.. code-block:: agda
+
+  module RF (r : RF) where
+
+    open RF.0
+
+    A : Set
+    A = {! first projection from r !}
+
+    open RF.1 A public
+
+    value : (b : Boolean) → F b
+    value = {! second projection from r !}
+
+Note that it properly respects privacy of declarations
+(e.g. here, stage ``RF.0`` is not opened publicly).
+
+Stages primarily serve the purpose of giving a type to the record constructor
+and may appear in Agda's output.
+Since they are numbered and numbering changes when fields are inserted,
+the stage names are not stable and should not be considered as part of the record API.
+When stages are mentioned in code, Agda emits the benign warning :option:`RecordStageName`.
+
 .. note::
-   In general new definitions need to appear after the field declarations, but
-   simple non-recursive function definitions without pattern matching can be
-   interleaved with the fields. The reason for this restriction is that the
-   type of the record constructor needs to be expressible using :ref:`let-expressions`.
-   In the example below ``D₁`` can only contain declarations for which the
-   generated type of ``mkR`` is well-formed.
-
-   .. code-block:: agda
-
-      record R Γ : Setᵢ where
-        constructor mkR
-        field f₁ : A₁
-        D₁
-        field f₂ : A₂
-
-      mkR : ∀ {Γ} (f₁ : A₁) (let D₁) (f₂ : A₂) → R Γ
+  While ``opaque`` and ``mutual`` blocks are allowed as declarations inside a ``record`` type definition,
+  fields must stay outside of such blocks.
 
 .. _eta-expansion:
 

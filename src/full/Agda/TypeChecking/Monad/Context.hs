@@ -547,7 +547,7 @@ extendReduceEnv x !a !env =
       (!nid, !tcs') = nextFresh tcs
       ~n            = let x' = case x of "" -> "x"; _ -> x
                           cn = C.Name noRange InScope (C.stringNameParts x')
-                      in Name nid cn cn noRange noFixity' False
+                      in makeName nid cn noRange noFixity' False
       !re           = redEnv env
       !ec           = re ^. eContext
       !ec'          = CxExtendVar n a ec

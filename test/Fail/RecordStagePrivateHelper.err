@@ -1,0 +1,5 @@
+RecordStagePrivateHelper.agda:9.7-10: error: [NotInScope]
+Not in scope:
+  R.T
+  at RecordStagePrivateHelper.agda:9.7-10
+when scope checking R.T

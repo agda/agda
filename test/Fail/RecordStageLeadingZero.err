@@ -1,0 +1,2 @@
+RecordStageLeadingZero.agda:3.7: error: [ParseError]
+in the name 00, the part 00 is not valid because it is a literal

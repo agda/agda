@@ -158,6 +158,8 @@ makeConfiguration ds cs ps vs = TermConf
                         , _nameBindingSite = noRange
                         , nameFixity      = noFixity'
                         , nameIsRecordName = False
+                        , nameSourceName = Nothing
+                        , nameRecordStage = Nothing
                         }
                       }
 

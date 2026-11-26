@@ -18,6 +18,10 @@ Pragmas and options
 Errors
 ------
 
+* Field declarations inside `opaque` blocks are rejected with
+  `Syntax.FieldInsideOpaque`. Fields of a record declared inside an opaque block
+  remain permitted.
+
 Warnings
 --------
 
@@ -37,12 +41,19 @@ Warnings
 Syntax
 ------
 
-Changes to the Agda syntax.
+* Record type definitions may now contain arbitrary other declarations
+  (see [#434](https://github.com/agda/agda/issues/434))
+  which become part of the record module.
+  The type of a record constructor is no longer using `let`
+  for the non-field declarations, but
+  [record stages](https://agda.readthedocs.io/en/latest/language/record-types.html#record-stages).
+  For record `R` the stage modules are called `R.0`, `R.1`, etc. where the number (_n_) indicates
+  the restriction of the record module to _n_ fields.
+  These stage names may appear in Agda's output, e.g. when it prints the type of the constructor.
+  Explicit use of these names is discouraged and flagged with the benign warning `RecordStageName`.
 
 Language
 --------
-
-Changes to type checker and other components defining the Agda language.
 
 Builtins
 --------

@@ -1,0 +1,4 @@
+MisspelledKeywordInRecord.agda:4.3-11: error: [AbsentRHSRequiresAbsurdPattern]
+The right-hand side can only be omitted if there is an absurd
+pattern, () or {}, in the left-hand side.
+when checking that the clause indutive has type _1

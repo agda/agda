@@ -1,0 +1,2 @@
+RecordStageFileImport.agda:3.8: error: [ParseError]
+Numeric record-stage selectors cannot be used in a declared or imported module name.

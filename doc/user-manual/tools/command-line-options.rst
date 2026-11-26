@@ -1791,6 +1791,12 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      A ``data/record D parameters where`` definition where the parameters do not match up
      with the previously given signature or contain more than just names with hiding information.
 
+.. option:: InvalidDisplayForm
+
+     .. versionadded:: 2.8.0
+
+     An illegal :ref:`DISPLAY <display-pragma>` form; it will be ignored.
+
 .. option:: InvalidNoPositivityCheckPragma
 
      .. versionadded:: 2.5.4
@@ -2010,11 +2016,14 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      :ref:`NO_TERMINATION_CHECK<terminating-pragma>` pragmas; such are deprecated.
 
-.. option:: InvalidDisplayForm
+.. option:: RecordStageName
 
-     .. versionadded:: 2.8.0
+     .. versionadded:: 2.10.0
 
-     An illegal :ref:`DISPLAY <display-pragma>` form; it will be ignored.
+     Explicit mentions of a record stage such as ``module M = R.0`` or ``g = R.1.f``.
+     Such are discouraged because
+     stage indices depend on the arrangement of fields and declarations and
+     may change when the record declaration is modified.
 
 .. option:: RewriteLHSNotDefinitionOrConstructor
 

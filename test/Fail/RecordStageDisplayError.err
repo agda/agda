@@ -1,0 +1,6 @@
+RecordStageDisplayError.agda:14.41-45: error: [UnequalTypes]
+The type
+  Bool
+is not a subtype of
+  RF.1.F Bool b
+when checking that the expression true has type RF.1.F Bool b

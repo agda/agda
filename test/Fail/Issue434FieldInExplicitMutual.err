@@ -1,0 +1,10 @@
+Issue434FieldInExplicitMutual.agda:6.11-16: error: [FieldInMutualBlock]
+Record fields are not allowed in explicit or inferred mutual
+blocks.
+Complete helper definitions before declaring the next field.
+when scope checking the declaration
+  record R A where
+    mutual
+      identity : A → A
+      field a : A
+      identity x = x

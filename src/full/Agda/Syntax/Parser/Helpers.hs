@@ -197,10 +197,31 @@ mkName = mkName' False
 -- | Create a qualified name from a list of strings
 mkQName :: [(Interval, String)] -> Parser QName
 mkQName ss | Just (ss0, ss1) <- initLast ss = do
-  xs0 <- mapM mkName ss0
-  xs1 <- mkName' True ss1
-  return $ foldr Qual (QName xs1) xs0
+  -- The initial component must be an ordinary identifier. Later components
+  -- may select record stages; standalone numerals remain literals.
+  case ss0 of
+    [] -> QName <$> mkName' True ss1
+    first : rest -> do
+      x <- mkName first
+      xs <- mapM (stageOrName False) rest
+      y <- stageOrName True ss1
+      return $ Qual x $ foldr Qual (QName y) xs
+  where
+    -- Accept a canonical decimal selector without lexing it as an identifier.
+    stageOrName constructor part@(i, s)
+      | isRecordStageName (C.simpleName s) = pure $ C.Name (getRange i) InScope (Id s :| [])
+      | otherwise = mkName' constructor part
 mkQName _ = __IMPOSSIBLE__ -- The lexer never gives us an empty list of parts
+
+-- | Reject stage selectors in a module declaration or a file import.
+-- Numeric components refer to existing record stages, never to source modules.
+ensureNoRecordStages
+  :: QName -- ^ Declared or imported module name.
+  -> Parser QName
+ensureNoRecordStages q
+  | any isRecordStageName (qnameParts q) = parseErrorRange q
+      "Numeric record-stage selectors cannot be used in a declared or imported module name."
+  | otherwise = pure q
 
 mkDomainFree_ :: (NamedArg Binder -> NamedArg Binder) -> Maybe Pattern -> Name -> NamedArg Binder
 mkDomainFree_ f p n = f $ defaultNamedArg $ Binder p UserBinderName $ mkBoundName_ n

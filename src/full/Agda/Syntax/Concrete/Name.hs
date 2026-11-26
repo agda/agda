@@ -13,23 +13,24 @@ import Control.DeepSeq
 
 import Data.ByteString.Char8 (ByteString)
 import Data.Function (on)
-import qualified Data.Foldable as Fold
+import Data.Foldable qualified as Fold
 
 import GHC.Generics (Generic)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Position
 
 import Agda.Utils.Lens
-import Agda.Utils.List  (last1)
+import Agda.Utils.List (last1)
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
-import qualified Agda.Utils.List1 as List1
-import Agda.Syntax.Common.Pretty
+import Agda.Utils.List1 qualified as List1
+import Agda.Utils.Null (Null (empty, null))
 import Agda.Utils.Singleton
 import Agda.Utils.Suffix
+import Agda.Utils.Word (isCanoncalUnsignedIntegerLiteral)
 
 import Agda.Utils.Impossible
-import Agda.Utils.Null (Null (empty, null))
 
 {-| A name is a non-empty list of alternating 'Id's and 'Hole's. A normal name
     is represented by a singleton list, and operators are represented by a list
@@ -51,6 +52,14 @@ data Name
     }
 
 type NameParts = List1 NamePart
+
+-- | Is this name a canonical decimal record-stage selector (e.g. @0@ or @12@)?
+-- Such names are accepted only as non-initial components of qualified names.
+isRecordStageName
+  :: Name -- ^ Concrete name component to inspect.
+  -> Bool
+isRecordStageName (Name _ _ (Id s :| [])) = isCanoncalUnsignedIntegerLiteral s
+isRecordStageName _ = False
 
 -- | An open mixfix identifier is either prefix, infix, or suffix.
 --   That is to say: at least one of its extremities is a @Hole@
