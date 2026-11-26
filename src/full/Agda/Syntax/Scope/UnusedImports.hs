@@ -126,7 +126,7 @@ lookedupQualifier x ys = case x of
 -- | Is the 'UnusedImports' warning on?
 --   It is sufficient to check for 'UnusedImports_' since it is implied by 'UnusedImportsAll_'.
 unusedImportsEnabled :: ScopeM Bool
-unusedImportsEnabled = (UnusedImports_ `Set.member`) <$> useTC stWarningSet
+unusedImportsEnabled = useTC $ stSingleWarning UnusedImports_
 
 rangeToPosPos :: HasRange a => a -> Maybe Int
 rangeToPosPos = fmap (fromIntegral . P.posPos) . P.rStart' . getRange
@@ -187,7 +187,7 @@ registerModuleOpening kwr currentModule x dir (Scope m0 _parents ns imports _dat
 --   Needs the disambiguation information from the type checker to correctly report ununsed overloaded names.
 warnUnusedImports :: TCM ()
 warnUnusedImports = do
-    warnAll <- (UnusedImportsAll_ `Set.member`) <$> useTC stWarningSet
+    warnAll <- useTC $ stSingleWarning UnusedImportsAll_
     st <- useTC stUnusedImportsState
     disambiguatedNames <- useTC stDisambiguatedNames
     -- If instances can be used qualified, they do not need to be imported,

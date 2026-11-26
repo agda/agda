@@ -1144,6 +1144,9 @@ stImportsDisplayForms = lensPostScopeState . lensImportsDisplayForms
 stWarningSet :: Lens' TCState (Set WarningName)
 stWarningSet = stPragmaOptions . lensOptWarningMode . warningSet
 
+stSingleWarning :: WarningName -> Lens' TCState Bool
+stSingleWarning w = stPragmaOptions . lensOptWarningMode . lensSingleWarning w
+
 stCurrentModule :: Lens' TCState (Strict.Maybe (Strict.Pair ModuleName TopLevelModuleName))
 stCurrentModule = lensPostScopeState . lensCurrentModule
 

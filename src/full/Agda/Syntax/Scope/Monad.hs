@@ -181,9 +181,7 @@ checkNoShadowing :: LocalVars  -- ^ Old local scope
                  -> LocalVars  -- ^ New local scope
                  -> ScopeM ()
 checkNoShadowing old new = do
-  opts <- pragmaOptions
-  when (ShadowingInTelescope_ `Set.member`
-          (optWarningMode opts ^. warningSet)) $ do
+  whenM (useTC $ stSingleWarning ShadowingInTelescope_) do
     -- LocalVars is currnently an AssocList so the difference between
     -- two local scope is the left part of the new one.
     let diff = dropEnd (length old) new
