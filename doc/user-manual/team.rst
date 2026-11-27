@@ -74,7 +74,7 @@ But many have worked on these features for improvements and maintenance.
 * Konstantin Nisht
 * Ulf Norell: *Agda 2*
 * Andreas Nuyts: ``--polarity``
-* Andy Pam: *WASM*
+* Andy Pan: *WASM*
 * Josselin Poiret: ``--polarity``
 * Nicolas Pouillard: *module record expressions*
 * Jonathan Prieto: *Agda package manager*
