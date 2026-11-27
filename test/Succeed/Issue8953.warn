@@ -1,0 +1,10 @@
+
+Issue8953/Dependency.agda:3.1-30: warning: -W[no]UnusedImports
+Opening Agda.Builtin.Bool brings the following unused names into
+scope: true
+
+———— All done; warnings encountered ————————————————————————
+
+Issue8953/Dependency.agda:3.1-30: warning: -W[no]UnusedImports
+Opening Agda.Builtin.Bool brings the following unused names into
+scope: true

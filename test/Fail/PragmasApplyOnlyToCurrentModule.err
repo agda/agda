@@ -4,5 +4,3 @@ Termination checking failed for the following function:
 Problematic call:
   Foo
     (at Imports/NonTerminating.agda:4.7-10)
-when scope checking the declaration
-  import Imports.NonTerminating

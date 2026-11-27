@@ -1306,6 +1306,9 @@ data TopLevel a = TopLevel
   , topLevelExpectedName   :: TopLevelModuleName
     -- ^ The expected module name
     --   (coming from the import statement that triggered scope checking this file).
+  , topLevelImportContext  :: Maybe (Range, Maybe (Closure Call))
+     -- ^ Import-site context (usually the 'Call' of the import statement)
+     --   as error context for validating the top-level module name.
   , topLevelTheThing       :: a
     -- ^ The file content.
   }
@@ -1328,7 +1331,7 @@ topLevelModuleName = (^. scopeCurrent) . topLevelScope
 instance ToAbstract (TopLevel [C.Declaration]) where
     type AbsOfCon (TopLevel [C.Declaration]) = TopLevelInfo
 
-    toAbstract (TopLevel src expectedMName ds) =
+    toAbstract (TopLevel src expectedMName importRangeAndCall ds) =
       -- A file is a bunch of preliminary decls (imports etc.)
       -- plus a single module decl.
       case C.spanAllowedBeforeModule ds of
@@ -1380,7 +1383,7 @@ instance ToAbstract (TopLevel [C.Declaration]) where
                       -- Need to make sure the reconstructed module name
                       -- matches the one we use to import it,
                       -- otherwise we get internal errors later.
-                      checkModuleName top src (Just expectedMName)
+                      checkName top
                       return (m, top)
                 -- Andreas, 2017-05-17, issue #2574, keep name as jump target!
                 -- Andreas, 2016-07-12, ALTERNATIVE:
@@ -1398,7 +1401,7 @@ instance ToAbstract (TopLevel [C.Declaration]) where
                 -- checker.
                   top <- TCM.topLevelModuleName
                            (rawTopLevelModuleNameForQName m0)
-                  checkModuleName top src (Just expectedMName)
+                  checkName top
                   return (m0, top)
           setTopLevelModule top
           am <- toAbstract (NewModuleQName m)
@@ -1428,6 +1431,10 @@ instance ToAbstract (TopLevel [C.Declaration]) where
         -- 'Agda.Syntax.Parser.Parser.figureOutTopLevelModule',
         -- thus, the case of no top-level module is impossible:
         _ -> __IMPOSSIBLE__
+      where
+        checkName top =
+          applyWhenJust importRangeAndCall (\ (r, c) -> localTC (set eRange r . set eCall c)) do
+            checkModuleName top src (Just expectedMName)
 
 
 -- | Declaration @open import Agda.Primitive using (Set)@ when 'optImportSorts'.

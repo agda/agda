@@ -3,5 +3,3 @@ Termination checking failed for the following function:
   S
 Problematic call:
   S (at Issue623/A.agda:4.5-6)
-when scope checking the declaration
-  open import Issue623.A

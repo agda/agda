@@ -854,7 +854,7 @@ getInterface x isMain msrc = locallyTC eImportStack (x :) do
             reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
             setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
             mi <- case isMain of
-              MainInterface{}  -> createInterface x file isMain msrc
+              MainInterface{}  -> createInterface x file isMain msrc Nothing
               NotMainInterface -> createInterfaceIsolated x file msrc
 
             -- Ensure that the given module name matches the one in the file.
@@ -1227,23 +1227,17 @@ createInterfaceIsolated x file msrc = do
            -- The cache should not be used for an imported module, and it
            -- should be restored after the module has been type-checked
            freshTCM $
-             localTC (
-                -- Andreas, 2014-08-18:
-                -- Preserve the range of import statement
-                -- for reporting termination errors in
-                -- imported modules:
-                        set eRange range
-                      . set eCall call
-                      . set eImportStack ms
-                      . set eChasePrefix pref
-                     ) do
+             localTC (set eImportStack ms . set eChasePrefix pref) do
                setDecodedModules ds
                setCommandLineOptions opts
                setVisitedModules vs
                addImportedThings isig metas ibuiltin ipatsyns display
                  userwarn partialdefs empty opaqueblk opaqueid
 
-               r  <- createInterface x file NotMainInterface msrc
+               -- Andreas, 2026-11-27, issue #8953:
+               -- Pass in the 'Call' of the import statement as error context
+               -- for checking the module name of the imported module.
+               r  <- createInterface x file NotMainInterface msrc (Just (range, call))
                ds' <- getDecodedModules
                return (r, ds')
 
@@ -1370,8 +1364,11 @@ createInterface ::
   -> SourceFile            -- ^ The file to type check.
   -> MainInterface         -- ^ Are we dealing with the main module?
   -> Maybe Source          -- ^ Optional information about the source code.
+  -> Maybe (Range, Maybe (Closure Call))
+     -- ^ Import-site context (usually the 'Call' of the import statement)
+     --   as error context for validating the top-level module name.
   -> TCM ModuleInfo
-createInterface mname sf@(SourceFile sfi) isMain msrc = do
+createInterface mname sf@(SourceFile sfi) isMain msrc importRangeAndCall = do
   stFileId `setTCLens'` Strict.Just sfi
   file <- srcFilePath sf
   let
@@ -1425,7 +1422,7 @@ createInterface mname sf@(SourceFile sfi) isMain msrc = do
     reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": Starting scope checking."
     topLevel <- Bench.billTo [Bench.Scoping] $ do
       let topDecls = C.modDecls $ srcModule src
-      concreteToAbstract_ (TopLevel (srcOrigin src) mname topDecls)
+      concreteToAbstract_ (TopLevel (srcOrigin src) mname importRangeAndCall topDecls)
     reportSLn "import.iface.create" 7 $ prettyShow mname ++ ": Finished scope checking."
 
     let ds    = topLevelDecls topLevel
