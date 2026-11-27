@@ -2,14 +2,16 @@ cradle:
   stack:
     - path: './src/full'
       component: 'Agda:lib'
+    - path: './src/setup'
+      component: 'Agda:lib'
     - path: './src/main'
       component: 'Agda:exe:agda'
     - path: './src/agda-mode'
       component: 'Agda:exe:agda-mode'
     - path: './test'
-      component: 'Agda:test:agda-tests'
+      component: 'Agda:exe:agda-tests'
 
     # Default catch-all. This prevents errors from Paths_Agda which is generated into
     # .stack-work/dist/…/Cabal-…/build/autogen/Paths_Agda.hs
-    - path: '.stack-work/dist'
+    - path: './.stack-work/dist'
       component: 'Agda:lib'
