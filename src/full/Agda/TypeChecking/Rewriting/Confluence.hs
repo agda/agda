@@ -759,28 +759,28 @@ forceEtaExpansion a v (e:es) = case e of
     r <- fromMaybe __IMPOSSIBLE__ <$> getRecordOfField f
     Defn{ defType = ra, theDef = RecordDefn rdef } <- getConstInfo r
 
-    if not (isEtaRecordDef rdef) then return Nothing else do
+    ifM (etaActive (_recEtaEquality rdef)) (do
+      pars <- newArgsMeta ra
+      s <- ra `piApplyM` pars >>= \s -> ifIsSort s return __IMPOSSIBLE__
+      equalType a $ El s (Def r $ map' Apply pars)
 
-    pars <- newArgsMeta ra
-    s <- ra `piApplyM` pars >>= \s -> ifIsSort s return __IMPOSSIBLE__
-    equalType a $ El s (Def r $ map' Apply pars)
+      -- Eta-expand v at record type r, and get field corresponding to f
+      mcfields <- etaExpandRecord_ r pars rdef v
+      case mcfields of
+        Nothing -> return Nothing -- Issue #8636: cannot eta-expand
+        Just (_, c, ci, fields) -> do
+          let fs        = map' argFromDom $ _recFields rdef
+              i         = fromMaybe __IMPOSSIBLE__ $ elemIndex f $ map' unArg fs
+              fContent  = unArg $ fromMaybe __IMPOSSIBLE__ $ fields !!! i
+              fUpdate w = Con c ci $ map' Apply $ updateAt i (w <$) fields
 
-    -- Eta-expand v at record type r, and get field corresponding to f
-    mcfields <- etaExpandRecord_ r pars rdef v
-    case mcfields of
-      Nothing -> return Nothing -- Issue #8636: cannot eta-expand
-      Just (_, c, ci, fields) -> do
-        let fs        = map' argFromDom $ _recFields rdef
-            i         = fromMaybe __IMPOSSIBLE__ $ elemIndex f $ map' unArg fs
-            fContent  = unArg $ fromMaybe __IMPOSSIBLE__ $ fields !!! i
-            fUpdate w = Con c ci $ map' Apply $ updateAt i (w <$) fields
+          -- Get type of field corresponding to f
+          ~(Just (El _ (Pi b c))) <- getDefType f =<< reduce a
+          let fa = c `absApp` v
 
-        -- Get type of field corresponding to f
-        ~(Just (El _ (Pi b c))) <- getDefType f =<< reduce a
-        let fa = c `absApp` v
-
-        -- Continue with remaining eliminations
-        fmap (fmap fUpdate) <$> forceEtaExpansion fa fContent es
+          -- Continue with remaining eliminations
+          fmap (fmap fUpdate) <$> forceEtaExpansion fa fContent es
+      ) (return Nothing)
 
   IApply{} -> __IMPOSSIBLE__ -- Not yet implemented
 

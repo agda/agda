@@ -154,6 +154,8 @@ instance EmbPrj Warning where
     InferredLocalRewrite a b                    -> icodeN 78 InferredLocalRewrite a b
     ShouldBeEtaRecordPattern                    -> icodeN 79 ShouldBeEtaRecordPattern
     UnguardedEtaRecordW a                       -> icodeN 80 UnguardedEtaRecordW a
+    NoEtaSingletonWithDefinitionalSingletons a  -> icodeN 81 NoEtaSingletonWithDefinitionalSingletons a
+    EtaSingletonInNoEtaSingletonFile a           -> icodeN 82 EtaSingletonInNoEtaSingletonFile a
 
   value = vcase $ \ case
     N3 0 a b      -> valuN UnreachableClauses a b
@@ -238,6 +240,8 @@ instance EmbPrj Warning where
     N3 78 a b     -> valuN InferredLocalRewrite a b
     N1 79         -> valuN ShouldBeEtaRecordPattern
     N2 80 a       -> valuN UnguardedEtaRecordW a
+    N2 81 a       -> valuN NoEtaSingletonWithDefinitionalSingletons a
+    N2 82 a       -> valuN EtaSingletonInNoEtaSingletonFile a
     _ -> malformed
 
 instance EmbPrj UselessPublicReason
@@ -573,6 +577,7 @@ instance EmbPrj PragmaOptions where
     (_optExactSplit o)
     (_optHiddenArgumentPuns o)
     (_optEta o)
+    (_optEtaSingleton o)
     (_optForcing o)
     (_optProjectionLike o)
     (_optErasure o)

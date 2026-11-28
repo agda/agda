@@ -478,6 +478,31 @@ typeInType = not . optUniverseCheck <$> pragmaOptions
 etaEnabled :: HasOptions m => m Bool
 etaEnabled = optEta <$> pragmaOptions
 
+-- | Is eta-equality allowed for record types without usable fields
+--   according to the options (@--(no-)eta-singleton@)?
+etaSingletonEnabled :: HasOptions m => m Bool
+etaSingletonEnabled = optEtaSingleton <$> pragmaOptions
+
+-- | Is the given declared eta status active under the current options?
+etaActive' :: Bool -> HasEta -> Bool
+etaActive' allowSingleton = \case
+  YesEta EtaNoSingleton -> True
+  YesEta EtaSingleton   -> allowSingleton
+  NoEta{}               -> False
+
+-- | Is the given declared eta status active under the current options?
+etaActive :: HasOptions m => HasEta -> m Bool
+etaActive eta = etaActive' <$> etaSingletonEnabled <*> pure eta
+
+-- | Options that still allow definitional singleton types, even when
+--   @--no-eta-singleton@ is enabled.
+definitionalSingletonOptions :: PragmaOptions -> Set.Set String
+definitionalSingletonOptions opts
+  | optEtaSingleton opts = Set.empty
+  | otherwise = Set.fromList $
+      [ "prop"    | optProp    opts ] ++
+      [ "cubical" | isJust (optCubical opts) ]
+
 maxInstanceSearchDepth :: HasOptions m => m Int
 maxInstanceSearchDepth = optInstanceSearchDepth <$> pragmaOptions
 

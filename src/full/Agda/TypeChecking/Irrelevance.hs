@@ -354,12 +354,11 @@ isDefSing k0 k1 a = do
       def <- theDef <$> getConstInfo d
       case def of
         Datatype{}         -> pure NeverSing
-        Record{recTel=tel} -> case recEtaEquality def of
-          YesEta  -> do
+        Record{recTel=tel} -> ifM (etaActive (recEtaEquality def)) (do
             let Just vs = allApplyElims es
             sings <- traverse (isDefSing' k0 k1) $ tel `apply` vs
             pure $ foldr minDefSing AlwaysSing sings
-          NoEta _ -> pure NeverSing
+          ) (pure NeverSing)
         Axiom{}            -> pure $ NeverSing
           -- TODO: Postulated type formers might still become definitionally
           -- singular if further rewrites are added (see #8266)

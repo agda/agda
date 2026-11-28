@@ -1848,7 +1848,7 @@ RecordDirective
 
 RecordEta :: { Ranged HasEta0 }
 RecordEta
-    : 'eta-equality'    { Ranged (getRange $1) YesEta }
+    : 'eta-equality'    { Ranged (getRange $1) (YesEta EtaNoSingleton) }
     | 'no-eta-equality' { Ranged (getRange $1) (NoEta ()) }
 
 -- Directive 'pattern' if a decision between matching on constructor/record pattern

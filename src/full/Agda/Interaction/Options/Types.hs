@@ -143,6 +143,8 @@ data PragmaOptions = PragmaOptions
   , _optHiddenArgumentPuns        :: WithDefault 'False
       -- ^ Should patterns of the form @{x}@ or @⦃ x ⦄@ be interpreted as puns?
   , _optEta                       :: WithDefault 'True
+  , _optEtaSingleton              :: WithDefault 'True
+      -- ^ Allow eta-equality for record types without usable fields?
   , _optForcing                   :: WithDefault 'True
       -- ^ Perform the forcing analysis on data constructors?
   , _optProjectionLike            :: WithDefault 'True

@@ -449,13 +449,18 @@ isEtaRecord :: (HasCallStack, HasConstInfo m) => QName -> m Bool
 isEtaRecord r = do
   isRecord r >>= \case
     Just r | isEtaRecordDef r -> do
-     constructorQ <- getQuantity <$> getConstInfo (conName (_recConHead r))
-     currentQ     <- viewTC eQuantityZeroHardCompile
-     return $ constructorQ `moreQuantity` currentQ
+     eta <- etaActive (_recEtaEquality r)
+     if not eta then return False else do
+       constructorQ <- getQuantity <$> getConstInfo (conName (_recConHead r))
+       currentQ     <- viewTC eQuantityZeroHardCompile
+       return $ constructorQ `moreQuantity` currentQ
     _ -> return False
 
+-- | Does the record have declared eta-equality?
 isEtaRecordDef :: RecordData -> Bool
-isEtaRecordDef r = _recEtaEquality r == YesEta
+isEtaRecordDef r = case _recEtaEquality r of
+  YesEta{} -> True
+  NoEta{}  -> False
 
 {-# INLINE isEtaCon #-}
 isEtaCon :: (HasCallStack, HasConstInfo m) => QName -> m Bool
@@ -465,7 +470,7 @@ isEtaCon c = isJust <$> isEtaRecordConstructor c
 isEtaOrCoinductiveRecordConstructor :: (HasCallStack, HasConstInfo m) => QName -> m Bool
 isEtaOrCoinductiveRecordConstructor c =
   caseMaybeM (isRecordConstructor c) (return False) $ \ (_, def) ->
-    pure (isEtaRecordDef def) `or2M`
+    ifM (etaActive (_recEtaEquality def)) (return True) $
       return (_recInduction def /= Just Inductive)
       -- If in doubt about coinductivity, then yes.
 
@@ -496,9 +501,11 @@ isRecordConstructor c = getConstInfo' c >>= \case
     _                          -> return Nothing
 
 isEtaRecordConstructor :: (HasCallStack, HasConstInfo m) => QName -> m (Maybe (QName, RecordData))
-isEtaRecordConstructor c = isRecordConstructor c <&> \case
-  Nothing -> Nothing
-  Just (d, def) -> if isEtaRecordDef def then Just (d, def) else Nothing
+isEtaRecordConstructor c = isRecordConstructor c >>= \case
+  Nothing -> return Nothing
+  Just (d, def) -> ifM (etaActive (_recEtaEquality def))
+    (return $ Just (d, def))
+    (return Nothing)
 
 -- | Eta should be off for unguarded recursive records.
 --   Projections do not preserve guardedness.
@@ -506,7 +513,7 @@ isEtaRecordConstructor c = isRecordConstructor c <&> \case
 unguardedRecord :: QName -> TCM ()
 unguardedRecord q = getConstInfo q <&> theDef >>= \case
     Record{ recEtaEquality' = EtaEquality eta etaProvenance } -> do
-      when (eta == YesEta) do
+      whenM (etaActive eta) do
         case etaProvenance of
           -- Default eta: user might not be aware of the danger, so give a hard error.
           EtaFromOption    -> setCurrentRange q $ typeError $ UnguardedEtaRecord q
@@ -561,9 +568,8 @@ expandRecordVar i gamma0 = do
           " since its type " <+> prettyTCM a <+>
           " is not a record type"
         return Nothing
-  caseMaybeM (isRecordType a) failure $ \ (r, pars, def) -> case isEtaRecordDef def of
-    False -> return Nothing
-    True  -> Just <$> do
+  caseMaybeM (isRecordType a) failure $ \ (r, pars, def) ->
+    ifM (etaActive (_recEtaEquality def)) (Just <$> do
       -- Get the record fields @Γ₁ ⊢ tel@ (@tel = Γ'@).
       -- TODO: compose argInfo ai with tel.
       let tel = _recTel def `apply` pars
@@ -597,7 +603,8 @@ expandRecordVar i gamma0 = do
                     -- We cannot substitute directly into a ListTel like gamma2,
                     -- we have to convert it to a telescope first, otherwise we get garbage.
 
-      return (delta, sigma, tau, tel)
+      return (delta, sigma, tau, tel))
+      (return Nothing)
 
 -- | Precondition: variable list is ordered descendingly.  Can be empty.
 expandRecordVarsRecursively :: [Int] -> Telescope -> TCM (Telescope, Substitution, Substitution)
@@ -726,7 +733,7 @@ etaExpandRecord'_ forceEta r pars
     u = do
   let tel' = apply tel pars
   -- Make sure we do not expand non-eta records (unless forced to):
-  unless (_recEtaEquality def == YesEta || forceEta) __IMPOSSIBLE__
+  unless forceEta $ unlessM (etaActive (_recEtaEquality def)) __IMPOSSIBLE__
   case u of
 
     -- Already expanded.
@@ -839,13 +846,19 @@ isSingletonRecord :: (PureTCM m, MonadBlock m)
   => QName   -- ^ Name of record type to check.
   -> Args    -- ^ Parameters given to the record type.
   -> m Bool
-isSingletonRecord r ps = isJust <$> isSingletonRecord' False r ps mempty
+isSingletonRecord r ps =
+  ifM etaSingletonEnabled
+    (isJust <$> isSingletonRecord' False r ps mempty)
+    (return False)
 
 isSingletonRecordModuloRelevance :: (PureTCM m, MonadBlock m)
   => QName   -- ^ Name of record type to check.
   -> Args    -- ^ Parameters given to the record type.
   -> m Bool
-isSingletonRecordModuloRelevance r ps = isJust <$> isSingletonRecord' True r ps mempty
+isSingletonRecordModuloRelevance r ps =
+  ifM etaSingletonEnabled
+    (isJust <$> isSingletonRecord' True r ps mempty)
+    (return False)
 
 -- | Return the unique (closed) inhabitant if exists.
 --   In case of counting irrelevance in, the returned inhabitant
@@ -903,12 +916,18 @@ isSingletonRecord' regardIrrelevance r ps rs = do
 -- | Check whether a type has a unique inhabitant and return it.
 --   Can be blocked by a metavar.
 isSingletonType :: (PureTCM m, MonadBlock m) => Type -> m (Maybe Term)
-isSingletonType t = isSingletonType' False t mempty
+isSingletonType t =
+  ifM etaSingletonEnabled
+    (isSingletonType' False t mempty)
+    (return Nothing)
 
 -- | Check whether a type has a unique inhabitant (irrelevant parts ignored).
 --   Can be blocked by a metavar.
 isSingletonTypeModuloRelevance :: (PureTCM m, MonadBlock m) => Type -> m Bool
-isSingletonTypeModuloRelevance t = isJust <$!> isSingletonType' True t mempty
+isSingletonTypeModuloRelevance t =
+  ifM etaSingletonEnabled
+    (isJust <$!> isSingletonType' True t mempty)
+    (return False)
 
 isSingletonType'
   :: forall m. (PureTCM m, MonadBlock m)
@@ -927,7 +946,8 @@ isSingletonType' regardIrrelevance t rs = do
         record :: m (Maybe Term)
         record = runMaybeT $ do
           (r, ps, def) <- MaybeT $ isRecordType t
-          guard $ isEtaRecordDef def
+          eta <- lift $ etaActive (_recEtaEquality def)
+          guard eta
           abstract tel <$> MaybeT (isSingletonRecord' regardIrrelevance r ps rs)
 
         -- Slightly harder case: η for Sub {level} tA phi elt.

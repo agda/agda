@@ -208,6 +208,20 @@ prettyWarning = \case
       , fsep $ pwords "To suppress this warning, use pragma" ++ [ "{-# ETA_EQUALITY #-}" ]
       ]
 
+    NoEtaSingletonWithDefinitionalSingletons features -> vcat
+      [ fsep $ pwords "--no-eta-singleton does not remove definitional singleton types"
+          ++ pwords "coming from the following options:"
+      , fsep $ punctuate comma $ map (text . ("--" ++)) $ Set.toAscList features
+      ]
+
+    EtaSingletonInNoEtaSingletonFile name -> vcat
+      [ fsep $ pwords "Record type" ++ [prettyTCM name] ++
+          pwords "has eta-equality but is a definitional singleton type."
+      , fsep $ pwords "In this file --no-eta-singleton is enabled, so eta-equality"
+          ++ pwords "has no effect here. It only affects downstream files that do not"
+          ++ pwords "enable --no-eta-singleton."
+      ]
+
     UnsupportedIndexedMatch doc -> vcat
       [ fsep (pwords "This clause uses pattern-matching features that are not yet supported by Cubical Agda,"
            ++ pwords "the function to which it belongs will not compute when applied to transports."

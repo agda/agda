@@ -455,6 +455,8 @@ warningHighlighting' b w = case tcWarning w of
      getRange c `catchNull` getRange w
   CoinductiveEtaRecord _x    -> deadcodeHighlighting w
   UnguardedEtaRecordW _x      -> errorWarningHighlighting w
+  NoEtaSingletonWithDefinitionalSingletons{} -> mempty
+  EtaSingletonInNoEtaSingletonFile{} -> mempty
   -- #3965 highlight each unreachable clause independently: they
   -- may be interleaved with actually reachable clauses!
   UnreachableClauses _ rs    -> foldMap deadcodeHighlighting rs

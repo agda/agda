@@ -888,6 +888,32 @@ Pattern matching and equality
 
      Default, opposite of :option:`--no-eta-equality`.
 
+.. option:: --no-eta-singleton
+
+     .. versionadded:: 2.10.0
+
+     Do not treat record types with no usable fields (no fields, or only
+     irrelevant or erased fields) as definitional singleton types. Such
+     records are still marked as eta records, so modules that do not use this
+     flag can use eta-equality for them. Defining such a record with
+     eta-equality in a file that uses this flag raises a warning, because the
+     eta-equality has no effect in that file.
+
+     This option does not remove definitional singleton types coming from
+     :option:`--prop` or cubical ``Sub``; a warning is raised when it is
+     combined with these options.
+
+     Because there are no definitional singleton types in modules that use
+     this flag, some constraints that would otherwise be left unsolved (in the
+     hope that eta expansion solves them) are now hard errors (see
+     `#5703 <https://github.com/agda/agda/issues/5703>`_).
+
+.. option:: --eta-singleton
+
+     .. versionadded:: 2.10.0
+
+     Default, opposite of :option:`--no-eta-singleton`.
+
 .. option:: --cohesion
 
      .. versionadded:: 2.6.3
@@ -1667,6 +1693,13 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Empty ``where`` blocks.
 
+.. option:: EtaSingletonInNoEtaSingletonFile
+
+     .. versionadded:: 2.10.0
+
+     Records with eta-equality and no usable fields defined in files that use
+     ``--no-eta-singleton``.
+
 .. option:: FaceConstraintCannotBeHidden
 
      .. versionadded:: 2.6.4
@@ -1876,6 +1909,13 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      .. versionadded:: 2.6.2
 
      Multiple attributes given where only erasure is accepted.
+
+.. option:: NoEtaSingletonWithDefinitionalSingletons
+
+     .. versionadded:: 2.10.0
+
+     ``--no-eta-singleton`` combined with options that still allow
+     definitional singleton types.
 
 .. option:: NoMain
 
@@ -2731,6 +2771,7 @@ again, the source file is re-typechecked instead:
 * :option:`--lossy-unification`
 * :option:`--no-auto-inline`
 * :option:`--no-eta-equality`
+* :option:`--no-eta-singleton`
 * :option:`--no-fast-reduce`
 * :option:`--no-forcing`
 * :option:`--no-guardedness`

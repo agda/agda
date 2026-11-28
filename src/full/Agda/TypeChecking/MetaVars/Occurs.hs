@@ -401,9 +401,16 @@ abort :: Blocker -> TypeError -> OccursM a
 abort unblock err = do
   ctx <- ask
   lift $ do
+    allowSingleton <- etaSingletonEnabled
+    -- #5703: With --no-eta-singleton there are no definitional singleton
+    -- types, so eta expansion cannot remove an occurrence that is not
+    -- flexible.  Occurrences in a flexible position can still be
+    -- postponed and solved by later constraint solving.
+    let flagHard = not allowSingleton && not (isFlexible ctx)
     if | isIrrelevant ctx                    -> soft
        | StronglyRigid <- ctx ^. lensFlexRig -> hard
-       | otherwise -> soft
+       | flagHard                            -> hard
+       | otherwise                           -> soft
   where
   hard = typeError err -- here, throw an uncatchable error (unsolvable constraint)
   soft = patternViolation' unblock 70 (show err) -- throws a PatternErr, which leads to delayed constraint
@@ -604,12 +611,17 @@ instance Occurs Term where
               reportSDoc "tc.meta.occurs" 35 $ nest 2 $ "(after singleton test)"
               case isST of
                 -- not a singleton type
-                Nothing ->
+                Nothing -> do
+                  let hardFail = strongly $ abort neverUnblock $ MetaCannotDependOn m (occRHS ctx) i
                   -- #4480: Only hard fail if the variable is not in scope. Wrong modality/relevance
                   -- could potentially be salvaged by eta expansion.
-                  ifM (($ i) <$> allowedVars) -- vv TODO: neverUnblock is not correct! What could trigger this eta expansion though?
-                      (patternViolation' neverUnblock 70 $ "Disallowed var " ++ show i ++ " due to modality/relevance")
-                      (strongly $ abort neverUnblock $ MetaCannotDependOn m (occRHS ctx) i)
+                  -- #5703: With --no-eta-singleton there are no definitional
+                  -- singleton types, so eta expansion cannot help.
+                  -- vv TODO: neverUnblock is not correct! What could trigger this eta expansion though?
+                  ifM (andM [ etaSingletonEnabled, ($ i) <$> allowedVars ])
+                      (patternViolation' neverUnblock 70 $
+                        "Disallowed var " ++ show i ++ " due to modality/relevance")
+                      hardFail
                 -- is a singleton type with unique inhabitant sv
                 (Just sv) -> return $ sv `applyE` es
           Lam h f     -> ret $ Lam h <$> occursInAbs (getModality h) f

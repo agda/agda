@@ -1378,10 +1378,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
   let erasedMatches   = optErasedMatches opts
       isRecordWithEta = case dr of
         IsData       -> False
-        IsRecord r ->
-          case theEtaEquality (recordEtaEquality r) of
-            YesEta{} -> True
-            NoEta{}  -> False
+        IsRecord r   -> etaActive' (optEtaSingleton opts) (theEtaEquality (recordEtaEquality r))
 
   erased <- hasQuantity0 <$> viewTC eQuantity
   reportSLn "tc.cover.split" 60 $ "We are in erased context = " ++! show erased

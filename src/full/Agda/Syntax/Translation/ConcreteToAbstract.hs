@@ -2309,7 +2309,7 @@ scopeCheckRecDef r o a pc uc forceEta x directives pars fields =
     pat <- case pat of
       Just r
         | Just (Ranged _ CoInductive) <- ind -> Nothing <$ warn "coinductive"
-        | Just (Ranged _ YesEta)      <- eta -> Nothing <$ warn "eta"
+        | Just (Ranged _ (YesEta _))  <- eta -> Nothing <$ warn "eta"
         | otherwise -> return pat
         where warn = setCurrentRange r . warning . UselessPatternDeclarationForRecord
       Nothing -> return pat

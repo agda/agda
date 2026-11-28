@@ -351,14 +351,16 @@ instance EmbPrj a => EmbPrj (Arg a) where
 
   value = valueN Arg
 
+instance EmbPrj EtaSingleton
+
 instance EmbPrj a => EmbPrj (HasEta' a) where
-  icod_ YesEta    = icodeN' YesEta
-  icod_ (NoEta a) = icodeN' NoEta a
+  icod_ (YesEta s) = icodeN 0 YesEta s
+  icod_ (NoEta a)  = icodeN' NoEta a
 
   value = vcase valu where
-    valu N0     = valuN YesEta
-    valu (N1 a) = valuN NoEta a
-    valu _      = malformed
+    valu (N2 0 s) = valuN YesEta s
+    valu (N1 a)   = valuN NoEta a
+    valu _        = malformed
 
 instance EmbPrj PatternOrCopattern
 
