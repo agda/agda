@@ -40,7 +40,7 @@ import Agda.Utils.Tuple (fst3, snd3)
 import Agda.Utils.Impossible
 
 import Agda.Interaction.Options
-import Agda.TypeChecking.Reduce (instantiate)
+import Agda.TypeChecking.Reduce (instantiate, reduce)
 
 -- * Bidirectional rechecker
 
@@ -328,7 +328,15 @@ inferSpine action t hd es = loop t hd id hd es
         ]
       case e of
         IApply x y r -> do
-          (a, b) <- shouldBePath t
+          -- The head can have a function type @(i : I) → A@ instead of
+          -- a path type.  The reason: 'etaOnce' (also called by
+          -- 'instantiateFull') does not know the type of a lambda, so it
+          -- also contracts a path lambda @λ i → f i@ to @f@.  If we then
+          -- substitute @f@ for a path variable @p@ in @p i@, we get an
+          -- 'IApply' with head @f@.  The conversion checker also accepts
+          -- such terms, see 'compareElims'.
+          -- Test case: test/Succeed/DoubleCheckEtaContractedPathLambda.agda.
+          (a, b) <- ifPiTypeB t (curry return) $ shouldBePath . ignoreBlocking
           r' <- checkInternal' action r CmpLeq (unDom a)
           izero <- primIZero
           ione  <- primIOne
@@ -371,20 +379,54 @@ checkSpine action a hd es cmp t = do
                    , nest 4 $ prettyTCM es <+> ":"
                    , nest 2 $ prettyTCM t ] ]
   (t' , _es' , v') <- inferSpine action a hd es
+  t2 <- pathAsFunctionType t' t
   reportSDoc "tc.check.internal" 30 $ sep
     [ "checking if "
     , prettyTCM t'
     , "is a subtype of"
-    , prettyTCM t
+    , prettyTCM t2
     ]
   reportSDoc "tc.check.internal" 70 $ sep
     [ "checking if (raw)"
     , pretty =<< instantiate t'
     , "is a subtype of (raw)"
-    , pretty =<< instantiate t
+    , pretty =<< instantiate t2
     ]
-  coerceSize cmp (hd es) t' t
+  coerceSize cmp (hd es) t' t2
   return v'
+
+-- | @pathAsFunctionType t' t@ changes the expected type @t@ where the
+--   inferred type @t'@ is a function type and @t@ is a path type
+--   @PathP A x y@: it replaces the path type by @(i : I) → A i@.
+--   It also does this in the codomains of function types and path types.
+--
+--   A term can have a function type @(i : I) → B@ where we expect a
+--   path type.  The reason: 'etaOnce' (also called by 'instantiateFull')
+--   does not know the type of a lambda, so it also contracts a path
+--   lambda @λ i → f i@ to @f@.  The conversion checker accepts such a
+--   term at a path type, because it eta-expands terms at a path type
+--   (see 'compareTerm'').
+--
+--   Test case: test/Succeed/DoubleCheckEtaContractedPathLambda.agda.
+pathAsFunctionType :: Type -> Type -> TCM Type
+pathAsFunctionType t' t =
+  -- Path types exist only if 'optCubical' is set (by --cubical or
+  -- --erased-cubical).  This option is infective, so imported modules
+  -- cannot bring path types into a module without it.
+  caseMaybeM (optCubical <$> pragmaOptions) (return t) $ \ _ ->
+    fromMaybe t <$> loop t' t
+  where
+    -- Returns 'Nothing' if there is no path type to replace.
+    loop :: Type -> Type -> TCM (Maybe Type)
+    loop inferred expected =
+      ifNotPiType inferred (\ _ -> return Nothing) $ \ _ b' ->
+      reduce expected >>= \case
+        El s (Pi a b) -> fmap (El s . Pi a . Abs (absName b)) <$>
+          addContext (absName b, a) (loop (absBody b') (absBody b))
+        u -> caseMaybeM (isPath u) (return Nothing) $ \ (a, b) -> do
+          c <- addContext (absName b, a) $ loop (absBody b') (absBody b)
+          return $ Just $ El (getSort u) $ Pi a $
+            Abs (absName b) $ fromMaybe (absBody b) c
 
 instance CheckInternal Sort where
   checkInternal' action s cmp _ = case s of
