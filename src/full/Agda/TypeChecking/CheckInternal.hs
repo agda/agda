@@ -123,7 +123,18 @@ instance CheckInternal Type where
 
 instance CheckInternal Term where
   checkInternal' :: Action -> Term -> Comparison -> Type -> TCM Term
-  checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
+  checkInternal' action v cmp t = fst <$> checkInternalTerm action v cmp t
+
+-- | Worker for 'checkInternal'' at 'Term'.
+--
+--   If the term is a function type, also returns its sort,
+--   inferred from the term before it is transformed by the 'Action'.
+--   This lets the check of an enclosing function type reuse that sort
+--   instead of computing it again with 'sortOf', which traverses the
+--   whole function type.  Otherwise, checking a chain of @n@ function types
+--   takes time quadratic in @n@ (issue #7975).
+checkInternalTerm :: Action -> Term -> Comparison -> Type -> TCM (Term, Maybe Sort)
+checkInternalTerm action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
 
     -- Debug print
     verboseS "tc.check.internal" 20 do
@@ -143,8 +154,8 @@ instance CheckInternal Term where
     -- Bring projection-like funs in post-fix form,
     -- (even lone ones by default).
     v <- elimViewAction action =<< preAction action t v
-    postAction action t =<< case v of
-      Var i es   -> do
+    (v', ms) <- case v of
+      Var i es   -> noSort do
         d <- domOfBV i
         n <- nameOfBV i
 
@@ -166,17 +177,17 @@ instance CheckInternal Term where
           typeError $ VariableIsOfUnusablePolarity n (getModalPolarity d)
 
         checkSpine action (unDom d) (Var i) es cmp t
-      Def f es   -> do  -- f is not projection(-like)!
+      Def f es   -> noSort do  -- f is not projection(-like)!
         -- There is no "implicitely applied module telescope" at this stage, so no
         -- need to check it for modal errors, everything is covered by the
         -- variable rule!
         a <- defType <$> getConstInfo f
         checkSpine action a (Def f) es cmp t
-      MetaV x es -> do -- we assume meta instantiations to be well-typed
+      MetaV x es -> noSort do -- we assume meta instantiations to be well-typed
         a <- metaType x
         reportSDoc "tc.check.internal" 30 $ "metavariable" <+> prettyTCM x <+> "has type" <+> prettyTCM a
         checkSpine action a (MetaV x) es cmp t
-      Con c ci vs -> do
+      Con c ci vs -> noSort do
         -- We need to fully apply the constructor to make getConType work!
         fullyApplyCon c vs t $ \ _d _dt _pars a vs' tel t -> do
           checkSpine action a (Con c ci) vs' cmp t >>= \case
@@ -185,16 +196,16 @@ instance CheckInternal Term where
               return $ applySubst (strengthenS impossible (size tel))
                 $ Con c ci $ take (length vs) vs2
             _ -> __IMPOSSIBLE__
-      Lit l      -> do
+      Lit l      -> noSort do
         lt <- litType l
         compareType cmp lt t
         return $ Lit l
-      Lam ai vb  -> do
+      Lam ai vb  -> noSort do
         (a, b) <- shouldBePiOrPath t
         ai <- checkArgInfo action ai $ domInfo a
         let name = suggests [ Suggestion vb , Suggestion b ]
         addContext (name, a) $ do
-          Lam ai . Abs (absName vb) <$> checkInternal' action (absBody vb) cmp (absBody b)
+          Lam ai . Abs (absName vb) <$> checkInternal' action (absBody vb) cmp (codomainUnderBinder b)
       Pi a b     -> do
         s <- shouldBeSort t
         reportSDoc "tc.check.internal" 30 $ "pi type should have sort" <+> prettyTCM s
@@ -210,10 +221,15 @@ instance CheckInternal Term where
                 inverseApplyPolarity (withStandardLock UnusedPolarity) $
                 applyWhen experimental (mapRelevance irrelevantToShapeIrrelevant) a
               NoAbs{} -> id
-        a <- applyWhenM (optPolarity <$> pragmaOptions) (applyPolarityToContext negativePolarity) $
-               mkDom <$> checkInternal' action (unEl $ unDom a) CmpLeq (sort sa)
-        v' <- goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) CmpLeq (sort sb)
-        s' <- sortOf v -- Issue #6205: do not use v' since it might not be valid syntax
+        (a', msa) <- applyWhenM (optPolarity <$> pragmaOptions) (applyPolarityToContext negativePolarity) $
+               checkInternalTerm action (unEl $ unDom a) CmpLeq (sort sa)
+        (b', msb) <- goInside $ checkInternalTerm action (unEl $ unAbs b) CmpLeq (sort sb)
+        -- Issue #6205: infer the sort of v, not of the result, which might not be valid syntax.
+        -- This is what 'sortOf' does, but we reuse the sorts of domain and codomain
+        -- if checking them has already inferred them (issue #7975).
+        sa' <- maybe (sortOf $ unEl $ unDom a) return msa
+        sb' <- maybe (mapAbstraction a (sortOf . unEl) b) (return . (b $>)) msb
+        s'  <- piSortM (unEl <$> a) sa' sb'
         reportSDoc "tc.check.internal" 30 $
           "checking if sort" <+> prettyTCM s' <+>
           "of pi type" <+> prettyTCM v <+>
@@ -227,8 +243,8 @@ instance CheckInternal Term where
         -- Therefore, the double checker needs to check pi sorts in a relaxed.
         -- way. For simplicity, we over-approximate this by using 'CmpLeq'.
         compareSort CmpLeq s' s
-        return v'
-      Sort s     -> do
+        return (Pi (mkDom a') (mkRng b'), Just s')
+      Sort s     -> noSort do
         reportSDoc "tc.check.internal" 30 $ "checking sort" <+> prettyTCM s
         s <- inferInternal' action s
         s' <- inferUnivSort s
@@ -239,15 +255,46 @@ instance CheckInternal Term where
           "fits in" <+> prettyTCM t
         compareSort cmp s' s''
         return $ Sort s
-      Level l    -> do
+      Level l    -> noSort do
         l <- inferInternal' action l
         lt <- levelType'
         compareType cmp lt t
         return $ Level l
-      DontCare v -> DontCare <$> checkInternal' action v cmp t
+      DontCare v -> noSort $ DontCare <$> checkInternal' action v cmp t
       -- Jesper, 2023-02-23: these can appear because of eta-expansion of
       -- records with irrelevant fields
-      Dummy s _ -> return v -- __IMPOSSIBLE_VERBOSE__ s
+      Dummy s _ -> noSort $ return v -- __IMPOSSIBLE_VERBOSE__ s
+    (, ms) <$> postAction action t v'
+  where
+    noSort :: TCM Term -> TCM (Term, Maybe Sort)
+    noSort = fmap (, Nothing)
+
+-- | @codomainUnderBinder b@ is the codomain @b@ of a function type
+--   in the context extended by the domain, i.e., @absBody b@.
+--
+--   For a non-dependent function type @A → C@ this is @raise 1 C@.
+--   If @C@ is again a non-dependent function type @A' → C'@,
+--   going under its binder would then 'raise' the already raised @C'@,
+--   so the @i@-th lambda in @λ x₁ … xₙ → v@ would be checked against
+--   a type wrapped in @i@ 'raise'-s, which costs quadratic time and,
+--   as long as these types are alive, space (issue #7975).
+--
+--   Instead, we push the substitution into the spine of function types of @C@,
+--   turning their non-dependent codomains into dependent ones with an unused
+--   variable, which we can go under without any further substitution.
+codomainUnderBinder :: Abs Type -> Type
+codomainUnderBinder = \case
+    Abs   _ c -> c
+    NoAbs _ c -> go (raiseS 1) c
+  where
+    -- @go ρ c@ is @applySubst ρ c@.
+    go :: Substitution -> Type -> Type
+    go rho = \case
+      El s (Pi a b) -> El (applySubst rho s) $ Pi (applySubst rho a) $ Abs (absName b) $
+        case b of
+          Abs   _ c -> go (liftS 1 rho) c
+          NoAbs _ c -> go (wkS 1 rho) c
+      c -> applySubst rho c
 
 -- | @checkArgInfo actual expected@.
 --
