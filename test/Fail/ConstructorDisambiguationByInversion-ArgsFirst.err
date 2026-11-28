@@ -1,0 +1,9 @@
+ConstructorDisambiguationByInversion-ArgsFirst.agda:26.17-20: error: [UnequalTypes]
+The type
+  C
+is not a subtype of
+  El _i_13
+when checking that the inferred type of an application
+  C
+matches the expected type
+  El _i_13

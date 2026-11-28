@@ -44,6 +44,11 @@ Language
 
 Changes to type checker and other components defining the Agda language.
 
+* Constructor disambiguation succeeds in more cases
+  ([#8928](https://github.com/agda/agda/issues/8928)).  For example, if
+  `El true = Nat` and `El false = Bool`, checking an overloaded `zero` against
+  `El _` now selects `Nat.zero`, even if `Fin.zero` is also in scope.
+
 Builtins
 --------
 

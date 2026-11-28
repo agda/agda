@@ -55,6 +55,13 @@ setMutualBlock m@(MutualId i) x = do
 currentOrFreshMutualBlock :: TCM MutualId
 currentOrFreshMutualBlock = maybe fresh return =<< viewTC eMutualBlock
 
+-- | Check whether a name is outside the current mutual block, if any.
+isOutsideCurrentMutualBlock :: QName -> TCM Bool
+isOutsideCurrentMutualBlock q =
+  viewTC eMutualBlock >>= \case
+    Nothing -> return True
+    Just mb -> Set.notMember q . mutualNames <$> lookupMutualBlock mb
+
 lookupMutualBlock :: ReadTCState tcm => MutualId -> tcm MutualBlock
 lookupMutualBlock (MutualId i) =
   IntMap.findWithDefault empty (fromIntegral i) <$> useTC stMutualBlocks
